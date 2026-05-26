@@ -12,14 +12,14 @@
 ## 3. 本步非目标
 
 - 不新做 Auth/VIP 业务功能
-- 不直接替代 Step `14` 的 appbase 总接入
+- 不直接替代 Step `14` 的 SDKWork IAM 总接入
 - 不落地 CLI 或多数据库细节
 
 ## 4. 最小输出
 
 - Workspace/Project 服务接口
 - Settings/Preference 服务接口
-- Auth 边界与 appbase 对接点
+- Auth 边界与 SDKWork IAM 对接点
 - 恢复与切换语义标准
 
 ## 5. 推荐 review 产物
@@ -45,12 +45,12 @@
 - `/docs/架构/03-模块规划与边界.md`
 - `/docs/架构/07-数据模型-状态模型-接口契约.md`
 - `/docs/架构/15-工作台偏好-终端运行时-本地存储补充标准.md`
-- `/docs/架构/17-appbase-auth-user-vip-统一接入标准.md`
+- `/docs/架构/17-sdkwork-iam-auth-user-standard.md`
 
 ## 9. 设计
 
 - 工作台上下文是统一服务，不是页面状态拼装
-- Auth/User/VIP 主边界继续由 `appbase` 维护
+- Auth/User 主边界继续由 SDKWork IAM 维护，VIP/权益不进入 IAM authority
 - Settings 与 Preference 必须支持稳定恢复与跨宿主一致
 
 ## 10. 实施落地规划
@@ -95,5 +95,5 @@
 
 ## 17. 下一步准入条件
 
-- Engine 偏好、Terminal 恢复、appbase 接入所依赖的上下文语义已稳定
+- Engine 偏好、Terminal 恢复、IAM 接入所依赖的上下文语义已稳定
 

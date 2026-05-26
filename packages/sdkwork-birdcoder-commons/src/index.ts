@@ -33,6 +33,7 @@ export * from './contexts/ToastProvider.ts';
 export * from './events/projectMountRecoveryEvents.ts';
 export * from './events/projectGitOverview.ts';
 export * from './utils/EventBus.ts';
+export * from './components/ErrorBoundary.tsx';
 export * from './platform/fileSystem.ts';
 export * from './platform/tauriShell.ts';
 export * from './storage/dataKernel.ts';

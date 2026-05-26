@@ -1,16 +1,16 @@
+import type { CSSProperties, ReactElement } from "react";
+
 export type SdkworkAuthLoginMethod =
   | "emailCode"
-  | "oauth"
   | "password"
   | "phoneCode"
-  | "qrCode"
   | "sessionBridge";
 
 export type SdkworkAuthLeftRailMode =
-  | "hidden"
-  | "oauth-only"
+  | "auto"
+  | "highlights-only"
   | "qr-only"
-  | "standard";
+;
 
 export type SdkworkAuthRouteId =
   | "login"
@@ -43,15 +43,58 @@ export interface SdkworkAuthDevelopmentPrefillConfig {
   loginMethod?: SdkworkAuthLoginMethod;
   password?: string;
   phone?: string;
+  verificationCode?: string;
+  verificationCodeBypassEnabled?: boolean;
 }
+
+export interface SdkworkAuthVerificationPolicyConfig {
+  emailCodeLoginEnabled?: boolean;
+  emailRegistrationVerificationRequired?: boolean;
+  phoneCodeLoginEnabled?: boolean;
+  phoneRegistrationVerificationRequired?: boolean;
+}
+
+export type SdkworkAuthResolvedVerificationPolicy =
+  Required<SdkworkAuthVerificationPolicyConfig>;
+
+export type SdkworkAuthOAuthProviderRegion = "mainland" | "overseas";
+export type SdkworkAuthRegisterMethod = "email" | "phone";
+export type SdkworkAuthRecoveryMethod = "email" | "phone";
 
 export interface SdkworkAuthRuntimeConfig {
   developmentPrefill?: SdkworkAuthDevelopmentPrefillConfig;
-  enabledLoginMethods?: readonly SdkworkAuthLoginMethod[];
   leftRailMode?: SdkworkAuthLeftRailMode;
-  oauthProviders?: readonly string[];
-  registerEnabled?: boolean;
-  resetPasswordEnabled?: boolean;
+  loginMethods?: SdkworkAuthLoginMethod[];
+  oauthLoginEnabled?: boolean;
+  oauthProviderRegion?: SdkworkAuthOAuthProviderRegion;
+  oauthProviders?: string[];
+  qrLoginEnabled?: boolean;
+  recoveryMethods?: SdkworkAuthRecoveryMethod[];
+  registerMethods?: SdkworkAuthRegisterMethod[];
+  verificationPolicy?: SdkworkAuthVerificationPolicyConfig;
+}
+
+export interface SdkworkAuthControllerState {
+  isAuthenticated: boolean;
+  isBootstrapped: boolean;
+  isBusy: boolean;
+  lastError?: string;
+  session: SdkworkAuthSession | null;
+  status: "anonymous" | "authenticated" | "authenticating";
+  user: SdkworkAuthUser | null;
+}
+
+export interface SdkworkAuthController {
+  applySession(session: SdkworkAuthSession): void;
+  bootstrap(): Promise<SdkworkAuthControllerState>;
+  getState(): SdkworkAuthControllerState;
+  refreshSession(input?: unknown): Promise<SdkworkAuthSession>;
+  service: unknown;
+  signIn(input: unknown): Promise<SdkworkAuthSession>;
+  signOut(): Promise<void>;
+  subscribe(listener: () => void): () => void;
+  syncUserProfile(user: SdkworkAuthUser | null): void;
+  updateCurrentSession(input?: unknown): Promise<SdkworkAuthSession>;
 }
 
 export interface SdkworkAuthAppearanceConfig {
@@ -156,37 +199,43 @@ export interface SdkworkCanonicalAuthDefinition<
   >;
 }
 
-export interface SdkworkAuthServiceLike<TUser = unknown, TAuthConfig = unknown> {
-  exchangeUserCenterSession?(request: unknown): Promise<TUser>;
-  getCurrentUser(): Promise<TUser | null>;
-  getUserCenterConfig?(): Promise<TAuthConfig | null>;
-  login(request: unknown, password?: string): Promise<TUser>;
-  logout(): Promise<void>;
-  register(request: unknown, password?: string, name?: string): Promise<TUser>;
-  requestPasswordReset?(request: unknown): Promise<void>;
-  resetPassword?(request: unknown): Promise<void>;
-  sendVerifyCode?(request: unknown): Promise<void>;
-  signInWithEmailCode?(request: unknown): Promise<TUser>;
-  signInWithOAuth?(input: unknown): Promise<TUser>;
-  signInWithPhoneCode?(request: unknown): Promise<TUser>;
+export interface SdkworkIamRuntimeAuthRuntimeLike {
+  contextStore?: {
+    clear?: () => Promise<void> | void;
+  };
+  service: unknown;
+  tokenStore?: {
+    clear?: () => Promise<void> | void;
+    get?: () => Promise<any> | any;
+    set?: (session: any) => Promise<void> | void;
+  };
 }
 
-export interface CreateSdkworkCanonicalAuthControllerOptions<
-  TUser = unknown,
-  TAuthConfig = unknown,
-> {
-  authConfig?: TAuthConfig | null;
-  resolveSessionBridgeProviderKey?(authConfig?: TAuthConfig | null): string | undefined;
-  resolveSyntheticSessionKey?(user: TUser): string;
-  service: SdkworkAuthServiceLike<TUser, TAuthConfig>;
-  serviceExtensions?: Record<string, unknown>;
-  toSession(user: TUser): SdkworkAuthSession;
-  toUser(user: TUser): SdkworkAuthUser;
+export interface CreateSdkworkIamRuntimeAuthControllerOptions {
+  getRuntime: () =>
+    | Promise<SdkworkIamRuntimeAuthRuntimeLike>
+    | SdkworkIamRuntimeAuthRuntimeLike;
+  initialState?: unknown;
+  methodUnavailableMessage?: string;
 }
 
-export interface SdkworkAuthController {
-  readonly config?: SdkworkAuthRuntimeConfig;
-  readonly service?: unknown;
+export interface SdkworkIamAuthRoutesProps {
+  appearance?: SdkworkAuthAppearanceConfig;
+  basePath?: string;
+  className?: string;
+  controllerOptions?: Omit<CreateSdkworkIamRuntimeAuthControllerOptions, "getRuntime">;
+  events?: SdkworkAuthPageEvents;
+  getRuntime: () =>
+    | Promise<SdkworkIamRuntimeAuthRuntimeLike>
+    | SdkworkIamRuntimeAuthRuntimeLike;
+  homePath?: string;
+  locale?: string | null;
+  methodUnavailableMessage?: string;
+  routerContextMode?: "auto" | "external" | "none";
+  runtimeConfig?: SdkworkAuthRuntimeConfig;
+  slots?: SdkworkAuthPageSlots;
+  style?: CSSProperties;
+  viewportMode?: "fixed" | "flow";
 }
 
 export declare function createSdkworkCanonicalAuthDefinition<
@@ -213,22 +262,13 @@ export declare function createSdkworkAuthUserFromCanonicalIdentity(input: {
   username?: string;
 }): SdkworkAuthUser;
 
-export declare function createSdkworkCanonicalAuthController<
-  TUser = unknown,
-  TAuthConfig = unknown,
->(
-  options: CreateSdkworkCanonicalAuthControllerOptions<TUser, TAuthConfig>,
+export declare function createSdkworkIamRuntimeAuthController(
+  options: CreateSdkworkIamRuntimeAuthControllerOptions,
 ): SdkworkAuthController;
 
-export declare function createSdkworkSyntheticAuthSession(
-  user: SdkworkAuthUser,
-  options?: {
-    accessToken?: string;
-    authToken?: string;
-    refreshToken?: string;
-    sessionKey?: string;
-  },
-): SdkworkAuthSession;
+export declare function SdkworkIamAuthRoutes(
+  props: SdkworkIamAuthRoutesProps,
+): ReactElement | null;
 
 export declare function isSdkworkAuthLeftRailMode(
   value: unknown,
@@ -237,6 +277,36 @@ export declare function isSdkworkAuthLeftRailMode(
 export declare function isSdkworkAuthLoginMethod(
   value: unknown,
 ): value is SdkworkAuthLoginMethod;
+
+export declare function resolveSdkworkAuthDevelopmentPrefill(
+  explicitValue?: SdkworkAuthDevelopmentPrefillConfig,
+): SdkworkAuthDevelopmentPrefillConfig | undefined;
+
+export declare function resolveSdkworkAuthLoginMethods(
+  explicitMethods?: SdkworkAuthLoginMethod[],
+  explicitVerificationPolicy?: SdkworkAuthVerificationPolicyConfig,
+): SdkworkAuthLoginMethod[];
+
+export declare function resolveSdkworkAuthOAuthProviderRegion(
+  explicitRegion?: SdkworkAuthOAuthProviderRegion,
+): SdkworkAuthOAuthProviderRegion;
+
+export declare function resolveSdkworkAuthOAuthProviders(
+  explicitProviders?: string[],
+  explicitRegion?: SdkworkAuthOAuthProviderRegion,
+): string[];
+
+export declare function resolveSdkworkAuthRecoveryMethods(
+  explicitMethods?: SdkworkAuthRecoveryMethod[],
+): SdkworkAuthRecoveryMethod[];
+
+export declare function resolveSdkworkAuthRegisterMethods(
+  explicitMethods?: SdkworkAuthRegisterMethod[],
+): SdkworkAuthRegisterMethod[];
+
+export declare function resolveSdkworkAuthVerificationPolicy(
+  explicitPolicy?: SdkworkAuthVerificationPolicyConfig,
+): SdkworkAuthResolvedVerificationPolicy;
 
 export declare function resolveSdkworkAuthRuntimeConfigFromMetadata(
   metadata?: unknown,

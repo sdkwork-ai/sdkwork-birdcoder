@@ -34,6 +34,7 @@ interface UseCodePageTerminalActionsOptions {
   ) => CodePageTerminalProjectTarget | null;
   resolveCodingSessionNativeSessionId: (
     codingSessionId: string,
+    projectId?: string | null,
   ) => Promise<string | null> | string | null;
   resolveProjectById: (projectId: string) => CodePageTerminalProjectLike | null;
   resolveSession: (
@@ -81,9 +82,10 @@ export function useCodePageTerminalActions({
 
   const handleOpenCodingSessionInTerminal = useCallback(async (
     codingSessionId: string,
+    projectId: string,
     nativeSessionIdFromList?: string | null,
   ) => {
-    const resolvedSessionLocation = resolveSession(codingSessionId);
+    const resolvedSessionLocation = resolveSession(codingSessionId, projectId);
     const codingSession = resolvedSessionLocation?.codingSession;
     const target = resolveProjectActionTarget(resolvedSessionLocation?.project);
     if (!codingSession || !target) {
@@ -92,7 +94,7 @@ export function useCodePageTerminalActions({
 
     const nativeSessionId = normalizeCodingSessionNativeSessionId(
       nativeSessionIdFromList?.trim() ||
-      (await resolveCodingSessionNativeSessionId(codingSessionId))?.trim() ||
+      (await resolveCodingSessionNativeSessionId(codingSessionId, projectId))?.trim() ||
       null,
       codingSession.engineId,
     );
@@ -123,12 +125,13 @@ export function useCodePageTerminalActions({
 
   const handleCopySessionId = useCallback(async (
     codingSessionId: string,
+    projectId: string,
     nativeSessionIdFromList?: string | null,
   ) => {
-    const resolvedSessionLocation = resolveSession(codingSessionId);
+    const resolvedSessionLocation = resolveSession(codingSessionId, projectId);
     const nativeSessionId = normalizeCodingSessionNativeSessionId(
       nativeSessionIdFromList?.trim() ||
-      (await resolveCodingSessionNativeSessionId(codingSessionId))?.trim() ||
+      (await resolveCodingSessionNativeSessionId(codingSessionId, projectId))?.trim() ||
       null,
       resolvedSessionLocation?.codingSession?.engineId,
     );
@@ -155,7 +158,7 @@ export function useCodePageTerminalActions({
     const codingSession = resolvedSessionLocation?.codingSession;
     const nativeSessionId = normalizeCodingSessionNativeSessionId(
       nativeSessionIdFromList?.trim() ||
-      (await resolveCodingSessionNativeSessionId(codingSessionId))?.trim() ||
+      (await resolveCodingSessionNativeSessionId(codingSessionId, projectId))?.trim() ||
       null,
       codingSession?.engineId,
     );

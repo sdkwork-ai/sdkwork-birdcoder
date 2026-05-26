@@ -175,12 +175,12 @@ assert.match(
 assert.match(
   releaseAndDeploymentSource,
   /pnpm check:iam-standard/,
-  'core release-and-deployment doc must include the appbase parity command when release-facing changes touch the unified auth, user, and vip boundary.',
+  'core release-and-deployment doc must include the IAM standard command when release-facing changes touch the unified auth and user boundary.',
 );
-assert.match(
+assert.doesNotMatch(
   releaseAndDeploymentSource,
   /pnpm test:user-center-standard/,
-  'core release-and-deployment doc must include the canonical user-center standard command when release-facing changes touch the unified user-center and validation boundary.',
+  'core release-and-deployment doc must not mention the retired user-center standard command.',
 );
 
 assert.match(
@@ -506,17 +506,12 @@ assert.match(
 assert.match(
   commandsReferenceSource,
   /pnpm check:iam-standard/,
-  'commands reference must list the appbase parity command.',
+  'commands reference must list the IAM standard command.',
 );
-assert.match(
+assert.doesNotMatch(
   commandsReferenceSource,
   /pnpm test:user-center-standard/,
-  'commands reference must list the canonical user-center standard command.',
-);
-assert.match(
-  commandsReferenceSource,
-  /`pnpm test:user-center-standard`/,
-  'commands reference must describe the canonical user-center standard command in prose, not only list it in the verification command block.',
+  'commands reference must not list the retired user-center standard command.',
 );
 
 assert.match(
@@ -582,12 +577,12 @@ assert.match(
 assert.match(
   developmentGuideSource,
   /`pnpm check:iam-standard`/,
-  'development guide must describe the appbase parity command in prose, not only list it in the release-oriented verification block.',
+  'development guide must describe the IAM standard command in prose, not only list it in the release-oriented verification block.',
 );
-assert.match(
+assert.doesNotMatch(
   developmentGuideSource,
   /`pnpm test:user-center-standard`/,
-  'development guide must describe the canonical user-center standard command in prose, not only list it in the release-oriented verification block.',
+  'development guide must not describe the retired user-center standard command.',
 );
 
 assert.match(
@@ -695,12 +690,12 @@ assert.match(
 assert.match(
   developmentGuideSource,
   /pnpm check:iam-standard/,
-  'development guide must include the appbase parity command in the release-oriented verification flow.',
+  'development guide must include the IAM standard command in the release-oriented verification flow.',
 );
-assert.match(
+assert.doesNotMatch(
   developmentGuideSource,
   /pnpm test:user-center-standard/,
-  'development guide must include the canonical user-center standard command in the release-oriented verification flow.',
+  'development guide must not include the retired user-center standard command in the release-oriented verification flow.',
 );
 
 assert.match(

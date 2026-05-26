@@ -1,181 +1,204 @@
-import {
-  createSdkworkVipController,
-  createSdkworkVipService,
-  type CreateSdkworkVipControllerOptions,
-  type SdkworkVipController,
-  type SdkworkVipService,
-} from '@sdkwork/vip-pc-react';
+import { getBirdCoderGeneratedAppSdkClient } from '@sdkwork/birdcoder-infrastructure-runtime';
 import type {
-  BirdCoderUserCenterMembershipSummary,
   User,
 } from '@sdkwork/birdcoder-types';
-import { createBirdCoderRuntimeUserCenterClient } from './user-center-runtime.ts';
 
-function requireRuntimeUserCenterClient() {
-  const runtimeClient = createBirdCoderRuntimeUserCenterClient();
-  if (!runtimeClient) {
-    throw new Error(
-      'BirdCoder user-center runtime client is unavailable; check the appbase IAM runtime binding.',
-    );
-  }
+type ApiRecord = Record<string, unknown>;
 
-  return runtimeClient;
+export interface BirdCoderVipBenefit {
+  benefitKey?: string;
+  claimed: boolean;
+  description?: string;
+  icon?: string;
+  id: string;
+  name: string;
+  type?: string;
+  usageLimit?: string;
+  usedCount?: string;
 }
 
-function createUnsupportedVipCatalogMethod(name: string) {
-  return async () => {
-    throw new Error(
-      `${name} is not exposed by the active appbase user-center runtime.`,
-    );
-  };
+export interface BirdCoderVipCurrentMembership {
+  benefits: BirdCoderVipBenefit[];
+  expiresAt?: string | null;
+  growthValue: string;
+  organizationId?: string;
+  ownerUserId: string;
+  planId?: string | null;
+  planName: string;
+  points: string;
+  remainingDays?: string;
+  startedAt?: string | null;
+  status: string;
+  tenantId?: string;
+  totalDays?: string;
+  totalSpent: string;
+  upgradeGrowthValue: string;
 }
 
-function toNullableDisplayNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isSafeInteger(value)) {
-    return value;
-  }
-
-  if (typeof value === 'string' && value.trim()) {
-    const parsedValue = Number(value);
-    return Number.isSafeInteger(parsedValue) ? parsedValue : null;
-  }
-
-  return null;
+export interface BirdCoderVipPackage {
+  description?: string;
+  durationDays: string;
+  id: string;
+  name: string;
+  originalPrice?: string;
+  planName?: string;
+  pointAmount: string;
+  price: string;
+  recommended: boolean;
+  sortWeight: string;
+  tags: string[];
 }
 
-function createEmptyWalletAccount() {
-  return {
-    availablePoints: 0,
-    cashAvailable: 0,
-    cashFrozen: 0,
-    experience: null,
-    frozenPoints: 0,
-    hasPayPassword: false,
-    level: null,
-    tokenBalance: 0,
-    totalEarned: 0,
-    totalPoints: 0,
-    totalSpent: 0,
-  };
+export interface BirdCoderVipPackageGroup {
+  description?: string;
+  id: string;
+  name: string;
+  packages: BirdCoderVipPackage[];
+  sortWeight: string;
 }
 
-export interface CreateBirdCoderVipServiceOptions {
+export interface BirdCoderVipState {
+  current: BirdCoderVipCurrentMembership | null;
+  isAuthenticated: boolean;
+  packageGroups: BirdCoderVipPackageGroup[];
+}
+
+export interface BirdCoderVipController {
+  load(): Promise<BirdCoderVipState>;
   user: User | null;
 }
 
-export function createBirdCoderVipService({
+export interface CreateBirdCoderVipControllerOptions {
+  user: User | null;
+}
+
+const EMPTY_VIP_STATE: BirdCoderVipState = {
+  current: null,
+  isAuthenticated: false,
+  packageGroups: [],
+};
+
+export function createBirdCoderVipController({
   user,
-}: CreateBirdCoderVipServiceOptions): SdkworkVipService {
-  return createSdkworkVipService({
-    getClient() {
-      const runtimeClient = requireRuntimeUserCenterClient();
+}: CreateBirdCoderVipControllerOptions): BirdCoderVipController {
+  return {
+    user,
+    async load() {
+      if (!user) {
+        return EMPTY_VIP_STATE;
+      }
+
+      const [currentEnvelope, packageGroupsEnvelope] = await Promise.all([
+        getBirdCoderGeneratedAppSdkClient().commerce.memberships.current.retrieve(),
+        getBirdCoderGeneratedAppSdkClient().commerce.memberships.packageGroups.list(),
+      ]);
 
       return {
-        vip: {
-          listVipBenefits: createUnsupportedVipCatalogMethod('vip.listVipBenefits'),
-          listVipLevels: createUnsupportedVipCatalogMethod('vip.listVipLevels'),
-          renew: (payload) =>
-            runtimeClient.updateMembership<
-              BirdCoderUserCenterMembershipSummary,
-              Record<string, unknown>
-            >(payload),
-          upgrade: (payload) =>
-            runtimeClient.updateMembership<
-              BirdCoderUserCenterMembershipSummary,
-              Record<string, unknown>
-            >(payload),
-        },
+        current: normalizeCurrentMembership(readRecord(currentEnvelope, 'data')),
+        isAuthenticated: true,
+        packageGroups: readItems(packageGroupsEnvelope).map(normalizePackageGroup),
       };
     },
-    getSessionTokens() {
-      return {
-        authToken: user ? user.id : undefined,
-      };
-    },
-    walletService: {
-      async getOverview() {
-        if (!user) {
-          const emptyDashboard = createSdkworkVipService().getEmptyDashboard();
-
-          return {
-            account: createEmptyWalletAccount(),
-            isAuthenticated: false,
-            membership: {
-              expireTime: undefined,
-              growthValue: null,
-              isVip: false,
-              level: null,
-              pointBalance: null,
-              remainingDays: null,
-              totalSpent: null,
-              upgradeGrowthValue: null,
-              vipLevelName: undefined,
-              vipPoints: null,
-            },
-            vipPacks: emptyDashboard.plans.map((plan) => ({
-              description: plan.description,
-              durationDays: plan.durationDays,
-              id: plan.packId,
-              levelName: plan.levelName,
-              name: plan.name,
-              originalPriceCny: plan.originalPriceCny,
-              points: plan.includedPoints,
-              priceCny: plan.priceCny,
-              recommended: plan.recommended,
-              sortWeight: null,
-              tags: plan.tags,
-            })),
-            pointsToCashRate: null,
-            rechargePacks: [],
-            transactions: [],
-          };
-        }
-
-        const membership = await requireRuntimeUserCenterClient()
-          .getMembership<BirdCoderUserCenterMembershipSummary>();
-        const isVip =
-          membership.status === 'active' || membership.status === 'trialing';
-        const pointBalance = toNullableDisplayNumber(membership.pointBalance);
-
-        return {
-          account: createEmptyWalletAccount(),
-          isAuthenticated: true,
-          membership: {
-            expireTime: membership.validTo,
-            growthValue: pointBalance,
-            isVip,
-            level: membership.vipLevelId ? Number(membership.vipLevelId) : null,
-            pointBalance,
-            remainingDays: null,
-            totalSpent: null,
-            upgradeGrowthValue: null,
-            vipLevelName: membership.vipLevelId
-              ? `VIP ${membership.vipLevelId}`
-              : undefined,
-            vipPoints: pointBalance,
-          },
-          pointsToCashRate: null,
-          rechargePacks: [],
-          transactions: [],
-          vipPacks: [],
-        };
-      },
-    },
-  });
+  };
 }
 
-export interface CreateBirdCoderVipControllerOptions
-  extends Omit<CreateSdkworkVipControllerOptions, 'service'> {
-  user: User | null;
+function normalizeCurrentMembership(value: ApiRecord): BirdCoderVipCurrentMembership {
+  return {
+    benefits: readArray(value.benefits).map(normalizeBenefit),
+    expiresAt: readNullableString(value.expiresAt),
+    growthValue: readString(value.growthValue) || '0',
+    organizationId: readOptionalString(value.organizationId),
+    ownerUserId: readString(value.ownerUserId),
+    planId: readNullableString(value.planId),
+    planName: readString(value.planName) || 'Free',
+    points: readString(value.points) || '0',
+    remainingDays: readOptionalString(value.remainingDays),
+    startedAt: readNullableString(value.startedAt),
+    status: readString(value.status) || 'inactive',
+    tenantId: readOptionalString(value.tenantId),
+    totalDays: readOptionalString(value.totalDays),
+    totalSpent: readString(value.totalSpent) || '0',
+    upgradeGrowthValue: readString(value.upgradeGrowthValue) || '0',
+  };
 }
 
-export function createBirdCoderVipController(
-  options: CreateBirdCoderVipControllerOptions,
-): SdkworkVipController {
-  return createSdkworkVipController({
-    ...options,
-    service: createBirdCoderVipService({
-      user: options.user,
-    }),
-  });
+function normalizeBenefit(value: unknown): BirdCoderVipBenefit {
+  const record = asRecord(value);
+  return {
+    benefitKey: readOptionalString(record.benefitKey),
+    claimed: readBoolean(record.claimed),
+    description: readOptionalString(record.description),
+    icon: readOptionalString(record.icon),
+    id: readString(record.id),
+    name: readString(record.name),
+    type: readOptionalString(record.type),
+    usageLimit: readOptionalString(record.usageLimit),
+    usedCount: readOptionalString(record.usedCount),
+  };
+}
+
+function normalizePackage(value: unknown): BirdCoderVipPackage {
+  const record = asRecord(value);
+  return {
+    description: readOptionalString(record.description),
+    durationDays: readString(record.durationDays) || '0',
+    id: readString(record.id),
+    name: readString(record.name),
+    originalPrice: readOptionalString(record.originalPrice),
+    planName: readOptionalString(record.planName),
+    pointAmount: readString(record.pointAmount) || '0',
+    price: readString(record.price) || '0',
+    recommended: readBoolean(record.recommended),
+    sortWeight: readString(record.sortWeight) || '0',
+    tags: readArray(record.tags).map((item) => readString(item)).filter(Boolean),
+  };
+}
+
+function normalizePackageGroup(value: unknown): BirdCoderVipPackageGroup {
+  const record = asRecord(value);
+  return {
+    description: readOptionalString(record.description),
+    id: readString(record.id),
+    name: readString(record.name),
+    packages: readArray(record.packages).map(normalizePackage),
+    sortWeight: readString(record.sortWeight) || '0',
+  };
+}
+
+function readRecord(value: unknown, key: string): ApiRecord {
+  return asRecord(asRecord(value)[key]);
+}
+
+function readItems(value: unknown): unknown[] {
+  return readArray(asRecord(value).items);
+}
+
+function readArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function asRecord(value: unknown): ApiRecord {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as ApiRecord
+    : {};
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  const text = readString(value).trim();
+  return text || undefined;
+}
+
+function readNullableString(value: unknown): string | null | undefined {
+  if (value === null) {
+    return null;
+  }
+  return readOptionalString(value);
+}
+
+function readBoolean(value: unknown): boolean {
+  return value === true;
 }

@@ -7,7 +7,7 @@
     "@babel/runtime": "catalog:",
     "html-parse-stringify": "catalog:",
     "@sdkwork/birdcoder-i18n": "workspace:*",
-    "@sdkwork/birdcoder-auth": "workspace:*",
+    "@sdkwork/birdcoder-iam": "workspace:*",
     "@sdkwork/birdcoder-user": "workspace:*",
     "lucide-react": "catalog:",
     "react": "catalog:",

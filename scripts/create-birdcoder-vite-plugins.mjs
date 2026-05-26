@@ -196,6 +196,13 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       ),
     },
     {
+      find: /^@sdkwork\/auth-pc-react\/(.+)$/u,
+      replacement: path.resolve(
+        appRootDir,
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/$1',
+      ),
+    },
+    {
       find: '@sdkwork/auth-pc-react',
       replacement: path.resolve(
         appRootDir,
@@ -203,10 +210,10 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       ),
     },
     {
-      find: '@sdkwork/auth-runtime-pc-react',
+      find: /^@sdkwork\/user-pc-react\/(.+)$/u,
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/$1',
       ),
     },
     {
@@ -217,31 +224,10 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       ),
     },
     {
-      find: '@sdkwork/user-center-pc-react',
+      find: /^@sdkwork\/wallet-pc-react\/(.+)$/u,
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/index.ts',
-      ),
-    },
-    {
-      find: '@sdkwork/user-center-core-pc-react',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/src/index.ts',
-      ),
-    },
-    {
-      find: '@sdkwork/user-center-validation-pc-react',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-validation-pc-react/src/index.ts',
-      ),
-    },
-    {
-      find: '@sdkwork/vip-pc-react',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/commerce/sdkwork-vip-pc-react/src/index.ts',
+        '../../../sdkwork-appbase/packages/pc-react/commerce/sdkwork-wallet-pc-react/src/$1',
       ),
     },
     {
@@ -249,6 +235,13 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: path.resolve(
         appRootDir,
         '../../../sdkwork-appbase/packages/pc-react/commerce/sdkwork-wallet-pc-react/src/index.ts',
+      ),
+    },
+    {
+      find: /^@sdkwork\/search-pc-react\/(.+)$/u,
+      replacement: path.resolve(
+        appRootDir,
+        '../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-search-pc-react/src/$1',
       ),
     },
     {
@@ -706,7 +699,6 @@ function resolveAppbaseManagedBridgePackageJsonPath(appbaseWorkspaceRootDir, spe
   const packageName = resolvePackageNameFromSpecifier(specifier);
   const bridgePackageRoots = [
     'packages/pc-react/iam/sdkwork-auth-pc-react',
-    'packages/pc-react/iam/sdkwork-user-center-pc-react',
   ];
 
   for (const bridgePackageRoot of bridgePackageRoots) {

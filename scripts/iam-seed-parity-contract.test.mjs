@@ -11,54 +11,99 @@ function readText(rootDir, relativePath) {
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
-const appbaseSeedContractsSource = readText(
-  appbaseRoot,
-  'packages/pc-react/iam/sdkwork-user-center-core-pc-react/src/domain/userCenterSeedContracts.ts',
+const birdCoderIamAuthoritySource = readText(
+  workspaceRoot,
+  'packages/sdkwork-birdcoder-server/src-host/src/iam_authority.rs',
 );
-const appbaseNativeUserCenterSource = readText(
+const birdCoderServerCargoSource = readText(
+  workspaceRoot,
+  'packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
+);
+const appbaseIamCoreSource = readText(
   appbaseRoot,
-  'packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/src/user_center_authority.rs',
+  'packages/native-rust/iam/sdkwork-iam-core-rust/src/lib.rs',
+);
+const appbaseIamStorageSource = readText(
+  appbaseRoot,
+  'packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust/src/lib.rs',
 );
 
-for (const canonicalFieldName of [
-  'defaultTenant',
-  'defaultOwnerUser',
-  'defaultProfile',
-  'defaultMembership',
-  'localProviderMetadata',
-  'defaultAccount',
-  'defaultEmail',
-  'defaultPhone',
-  'defaultPassword',
-  'fixedVerificationCode',
-  'defaultLoginMethod',
+for (const requiredDependencyName of [
+  'sdkwork_iam_core',
+  'sdkwork_iam_http',
+  'sdkwork_iam_storage_sqlx',
+  'sdkwork_iam_tauri',
 ]) {
   assert.match(
-    appbaseSeedContractsSource,
-    new RegExp(`"${canonicalFieldName}"`, 'u'),
-    `sdkwork-appbase canonical seed contract must publish ${canonicalFieldName}.`,
+    birdCoderServerCargoSource,
+    new RegExp(`^${requiredDependencyName} = \\{ path = `, 'mu'),
+    `BirdCoder server host must depend on the standard ${requiredDependencyName} crate.`,
   );
 }
 
-assert.match(
-  appbaseNativeUserCenterSource,
-  /struct UserCenterSeedPolicy/u,
-  'sdkwork-appbase native user-center must define an explicit seed policy surface.',
-);
-assert.match(
-  appbaseNativeUserCenterSource,
-  /fn resolve_user_center_seed_policy_from_env\(\) -> UserCenterSeedPolicy/u,
-  'sdkwork-appbase native user-center must resolve seed policy from the governed IAM mode.',
-);
-assert.match(
-  appbaseNativeUserCenterSource,
-  /fn resolve_local_fixed_verify_code\(seed_policy: &UserCenterSeedPolicy\) -> Option<String>/u,
-  'sdkwork-appbase native user-center must gate the fixed verify code through the seed policy.',
-);
-assert.match(
-  appbaseNativeUserCenterSource,
-  /if !seed_policy\.authority_seed_enabled \{\s*return Ok\(\(\)\);\s*\}/u,
-  'sdkwork-appbase native user-center bootstrap seeding must short-circuit when canonical authority seeding is disabled.',
-);
+for (const requiredIamCorePattern of [
+  /pub struct IamAppContext/u,
+  /pub struct IamSessionTokens/u,
+  /pub fn validate_dual_token_context/u,
+  /pub enum DeploymentMode/u,
+]) {
+  assert.match(
+    appbaseIamCoreSource,
+    requiredIamCorePattern,
+    'sdkwork-appbase IAM core must publish the standard dual-token context contract.',
+  );
+}
+
+for (const requiredIamStoragePattern of [
+  /pub struct IamTables/u,
+  /pub const DEFAULT_IAM_TENANT_ID: &str/u,
+  /pub const DEFAULT_IAM_ORGANIZATION_ID: &str/u,
+  /pub const DEFAULT_BOOTSTRAP_ADMIN_EMAIL: &str/u,
+  /pub fn iam_database_tables\(\) -> Vec<&'static str>/u,
+  /pub fn iam_initial_migration_sql\(\) -> &'static str/u,
+]) {
+  assert.match(
+    appbaseIamStorageSource,
+    requiredIamStoragePattern,
+    'sdkwork-appbase IAM storage crate must publish standard IAM bootstrap and table contracts.',
+  );
+}
+
+for (const requiredBirdCoderIamPattern of [
+  /const SDKWORK_IAM_MODE_ENV: &str = "SDKWORK_IAM_MODE";/u,
+  /const SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV: &str = "SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL";/u,
+  /const SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV: &str = "SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE";/u,
+  /const SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV: &str = "SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD";/u,
+  /const SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV: &str = "SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED";/u,
+  /const DEFAULT_APP_ID: &str = "sdkwork-birdcoder";/u,
+  /enum IamMode/u,
+  /fn local_authority_enabled\(self\) -> bool/u,
+  /!matches!\(self, Self::Cloud\)/u,
+  /CREATE TABLE IF NOT EXISTS iam_tenant/u,
+  /CREATE TABLE IF NOT EXISTS iam_user/u,
+  /CREATE TABLE IF NOT EXISTS iam_session/u,
+  /CREATE TABLE IF NOT EXISTS iam_audit_event/u,
+]) {
+  assert.match(
+    birdCoderIamAuthoritySource,
+    requiredBirdCoderIamPattern,
+    'BirdCoder IAM authority must use the standard IAM bootstrap, runtime mode, and table contract.',
+  );
+}
+
+for (const forbiddenBirdCoderIamPattern of [
+  /CREATE TABLE IF NOT EXISTS iam_membership/u,
+  /\bIamMembershipPayload\b/u,
+  /\bUpdateIamMembershipRequest\b/u,
+  /\bread_membership\b/u,
+  /\bupdate_membership\b/u,
+  /membership_level_id/u,
+]) {
+  assert.doesNotMatch(
+    birdCoderIamAuthoritySource,
+    forbiddenBirdCoderIamPattern,
+    `BirdCoder IAM authority must not own VIP, billing, or membership state ${forbiddenBirdCoderIamPattern}.`,
+  );
+}
 
 console.log('birdcoder IAM seed parity contract passed.');

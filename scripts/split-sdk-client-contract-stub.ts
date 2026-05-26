@@ -1,6 +1,4 @@
 import type {
-  BirdCoderAdminAuditEventSummary,
-  BirdCoderAdminPolicySummary,
   BirdCoderApiRouteCatalogEntry,
   BirdCoderAppTemplateSummary,
   BirdCoderApprovalDecisionResult,
@@ -31,6 +29,8 @@ import type {
   BirdCoderEngineDescriptor,
   BirdCoderForkCodingSessionRequest,
   BirdCoderGetNativeSessionRequest,
+  BirdCoderIamAuditEventSummary,
+  BirdCoderIamPolicySummary,
   BirdCoderInstallSkillPackageRequest,
   BirdCoderListCodingSessionsRequest,
   BirdCoderListNativeSessionsRequest,
@@ -354,7 +354,7 @@ export function createBackendSdkClientContractStub(
   overrides: Partial<BirdCoderBackendSdkApiClient> = {},
 ): BirdCoderBackendSdkApiClient {
   const stub: BirdCoderBackendSdkApiClient = {
-    async listAuditEvents(): Promise<BirdCoderAdminAuditEventSummary[]> {
+    async listAuditEvents(): Promise<BirdCoderIamAuditEventSummary[]> {
       return [];
     },
     async listDeploymentTargets(
@@ -370,7 +370,7 @@ export function createBackendSdkClientContractStub(
     ): Promise<BirdCoderTeamSummary[]> {
       return [];
     },
-    async listPolicies(): Promise<BirdCoderAdminPolicySummary[]> {
+    async listPolicies(): Promise<BirdCoderIamPolicySummary[]> {
       return [];
     },
     async listReleases(): Promise<BirdCoderReleaseSummary[]> {

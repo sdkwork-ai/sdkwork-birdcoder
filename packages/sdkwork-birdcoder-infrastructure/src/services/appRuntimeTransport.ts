@@ -61,6 +61,7 @@ import {
 } from '@sdkwork/birdcoder-types';
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import { resolveRequiredCodingSessionSelection } from './codingSessionSelection.ts';
+import { createBirdCoderApiRequestId } from './apiRequestId.ts';
 
 export interface CreateBirdCoderInProcessAppRuntimeTransportOptions {
   hostMode?: BirdCoderHostMode;
@@ -122,7 +123,7 @@ function buildInProcessCodeEngineModelConfig(): BirdCoderCodeEngineModelConfig {
 }
 
 const ROUTE_SURFACE_DESCRIPTIONS: Record<BirdCoderApiSurface, string> = {
-  app: 'Application-facing coding runtime, workspace, project, collaboration, and user-center routes.',
+  app: 'Application-facing coding runtime, workspace, project, collaboration, and IAM account routes.',
   backend: 'Backend governance, audit, release, deployment, and team-management routes.',
 };
 
@@ -155,7 +156,7 @@ const IN_PROCESS_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY = 'codeEngineS
 
 function createEnvelope<TData>(data: TData): BirdCoderApiEnvelope<TData> {
   return {
-    requestId: `req.app.${Date.now().toString(36)}`,
+    requestId: createBirdCoderApiRequestId(),
     timestamp: new Date().toISOString(),
     data,
     meta: {
@@ -183,7 +184,7 @@ function createListEnvelope<TItem>(
       : 0;
   const pageBase = pageSize > 0 ? pageSize : Math.max(items.length, 1);
   return {
-    requestId: `req.app.list.${Date.now().toString(36)}`,
+    requestId: createBirdCoderApiRequestId(),
     timestamp: new Date().toISOString(),
     items: [...items],
     meta: {

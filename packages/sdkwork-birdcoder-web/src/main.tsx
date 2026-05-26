@@ -4,10 +4,10 @@ import {
   bootstrapShellRuntime,
   normalizeBirdCoderServerBaseUrl,
   readStoredBirdCoderServerBaseUrl,
-  resolveBirdCoderBootstrapRuntimeUserCenterProviderKind,
   resolveBirdCoderBootstrapServerBaseUrl,
   waitForBirdCoderApiReady,
 } from '@sdkwork/birdcoder-shell-runtime';
+import { ErrorBoundary } from '@sdkwork/birdcoder-commons';
 import { resolveWebRuntime } from './web/resolveWebRuntime';
 import App from './App';
 
@@ -35,14 +35,10 @@ async function bootstrapRuntime() {
   });
 
   await waitForBirdCoderApiReady(resolvedApiBaseUrl);
-  const providerKind = await resolveBirdCoderBootstrapRuntimeUserCenterProviderKind();
   await bootstrapShellRuntime({
     host: resolveWebRuntime('global', {
       apiBaseUrl: resolvedApiBaseUrl,
     }),
-    userCenter: {
-      providerKind,
-    },
   });
 }
 
@@ -50,7 +46,9 @@ if (!document.getElementById('root')) {
   throw new Error('Root element #root not found in the document');
 }
 createRoot(document.getElementById('root')!).render(
-  <BootstrapGate bootstrap={bootstrapRuntime}>
-    <App />
-  </BootstrapGate>,
+  <ErrorBoundary>
+    <BootstrapGate bootstrap={bootstrapRuntime}>
+      <App />
+    </BootstrapGate>
+  </ErrorBoundary>,
 );

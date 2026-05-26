@@ -2,7 +2,6 @@ import type { BirdHostDescriptor } from '@sdkwork/birdcoder-host-core';
 import type {
   BirdCoderAppSdkApiClient,
   BirdCoderBackendSdkApiClient,
-  BirdCoderRuntimeUserCenterBindingConfig,
 } from '@sdkwork/birdcoder-infrastructure-runtime';
 
 export interface BootstrapShellRuntimeOptions {
@@ -10,7 +9,6 @@ export interface BootstrapShellRuntimeOptions {
   apiBaseUrl?: string;
   backendClient?: BirdCoderBackendSdkApiClient;
   host?: BirdHostDescriptor;
-  userCenter?: BirdCoderRuntimeUserCenterBindingConfig;
 }
 
 export async function bootstrapShellRuntime(

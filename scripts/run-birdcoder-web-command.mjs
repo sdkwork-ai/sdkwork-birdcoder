@@ -58,7 +58,6 @@ function parseArgs(argv = []) {
 
   const {
     iamMode,
-    userCenterProvider,
   } = parseBirdcoderIamCliOptions(tokens, {
     commandName: 'run-birdcoder-web-command',
   });
@@ -66,16 +65,25 @@ function parseArgs(argv = []) {
   return {
     action,
     iamMode,
-    userCenterProvider,
   };
 }
 
-function runBirdcoderWebCommand() {
-  const { action, iamMode, userCenterProvider } = parseArgs(process.argv.slice(2));
+function isClientOnlyPrivateDevCommand(action, resolvedIam) {
+  return (
+    (action === 'dev' || action === 'dev:test')
+    && resolvedIam.iamMode === 'server-private'
+  );
+}
+
+export function runBirdcoderWebCommand({
+  argv = process.argv.slice(2),
+  env = process.env,
+  spawnSyncImpl = spawnSync,
+} = {}) {
+  const { action, iamMode } = parseArgs(argv);
   const actionConfig = WEB_ACTIONS[action];
   const commandEnv = resolveBirdcoderCommandEnv({
-    env: process.env,
-    userCenterProvider,
+    env,
   });
   const resolvedIam = resolveBirdcoderIamCommandEnv({
     env: commandEnv,
@@ -87,13 +95,18 @@ function runBirdcoderWebCommand() {
   if (resolvedIam.errors.length > 0) {
     throw new Error(resolvedIam.errors.join('\n'));
   }
+  if (isClientOnlyPrivateDevCommand(action, resolvedIam)) {
+    throw new Error(
+      'run-birdcoder-web-command starts only the web client. Use run-birdcoder-dev-stack.mjs web --iam-mode server-private for private web dev so the :10240 BirdCoder server is started and probed before appbase-backed pages load.',
+    );
+  }
 
   const plan = createWorkspacePackageScriptPlan({
     env: resolvedIam.env,
     packageDir: 'packages/sdkwork-birdcoder-web',
     scriptName: actionConfig.scriptName,
   });
-  const result = spawnSync(plan.command, plan.args, {
+  const result = spawnSyncImpl(plan.command, plan.args, {
     cwd: plan.cwd,
     env: plan.env,
     shell: plan.shell,
@@ -109,12 +122,12 @@ function runBirdcoderWebCommand() {
     );
   }
 
-  process.exit(result.status ?? 0);
+  return result.status ?? 0;
 }
 
 if (path.resolve(process.argv[1] ?? '') === __filename) {
   try {
-    runBirdcoderWebCommand();
+    process.exit(runBirdcoderWebCommand());
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);

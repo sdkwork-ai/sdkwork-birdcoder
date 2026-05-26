@@ -335,6 +335,72 @@ export interface BirdCoderCodingSessionTurnOptions {
   maxTokens?: number;
 }
 
+export interface BirdCoderCommerceMembershipBenefitSummary {
+  id: string;
+  name: string;
+  benefitKey?: string;
+  type?: string;
+  description?: string;
+  icon?: string;
+  claimed: boolean;
+  usageLimit?: string;
+  usedCount?: string;
+}
+
+export interface BirdCoderCommerceMembershipCurrentEnvelope {
+  data: BirdCoderCommerceMembershipCurrentSummary;
+  meta: BirdCoderApiMeta;
+  requestId: string;
+  timestamp: string;
+}
+
+export interface BirdCoderCommerceMembershipCurrentSummary {
+  tenantId?: string;
+  organizationId?: string;
+  ownerUserId: string;
+  planId?: string | unknown;
+  planName: string;
+  status: string;
+  startedAt?: string | unknown;
+  expiresAt?: string | unknown;
+  remainingDays?: string;
+  totalDays?: string;
+  totalSpent: string;
+  points: string;
+  growthValue: string;
+  upgradeGrowthValue: string;
+  benefits: Array<BirdCoderCommerceMembershipBenefitSummary>;
+}
+
+export interface BirdCoderCommerceMembershipPackageGroupSummary {
+  id: string;
+  name: string;
+  description?: string;
+  sortWeight: string;
+  packages: Array<BirdCoderCommerceMembershipPackageSummary>;
+}
+
+export interface BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope {
+  items: Array<BirdCoderCommerceMembershipPackageGroupSummary>;
+  meta: BirdCoderApiListMeta;
+  requestId: string;
+  timestamp: string;
+}
+
+export interface BirdCoderCommerceMembershipPackageSummary {
+  id: string;
+  name: string;
+  description?: string;
+  price: string;
+  originalPrice?: string;
+  pointAmount: string;
+  durationDays: string;
+  planName?: string;
+  sortWeight: string;
+  recommended: boolean;
+  tags: Array<string>;
+}
+
 export interface BirdCoderCommitProjectGitChangesRequest {
   message: string;
 }
@@ -652,6 +718,188 @@ export interface BirdCoderGitWorktreeSummary {
   prunableReason?: string;
 }
 
+export interface BirdCoderIamCreateSessionRequest {
+  account?: string;
+  appVersion?: string;
+  code?: string;
+  deviceId?: string;
+  deviceName?: string;
+  deviceType?: "android" | "desktop" | "ios" | "web";
+  email?: string;
+  grantType?: "password" | "email_code" | "phone_code" | "session_bridge";
+  loginMethod?: "emailCode" | "password" | "phoneCode" | "sessionBridge";
+  password?: string;
+  phone?: string;
+  username?: string;
+}
+
+export interface BirdCoderIamOAuthAuthorizationEnvelope {
+  data: BirdCoderIamOAuthAuthorizationSummary;
+  meta: BirdCoderApiMeta;
+  requestId: string;
+  timestamp: string;
+}
+
+export interface BirdCoderIamOAuthAuthorizationSummary {
+  authUrl: string;
+}
+
+export interface BirdCoderIamOAuthSessionCreateRequest {
+  code: string;
+  deviceId?: string;
+  deviceType?: "android" | "desktop" | "ios" | "web";
+  provider: string;
+  state?: string;
+}
+
+export interface BirdCoderIamPasswordResetCreateRequest {
+  account: string;
+  code: string;
+  confirmPassword?: string;
+  newPassword: string;
+}
+
+export interface BirdCoderIamPasswordResetRequestCreateRequest {
+  account: string;
+  channel: "EMAIL" | "SMS";
+}
+
+export interface BirdCoderIamQrAuthSessionCreateRequest {
+  purpose: "login" | "register";
+  redirectUri?: string;
+}
+
+export interface BirdCoderIamQrAuthSessionEnvelope {
+  data: BirdCoderIamQrAuthSessionSummary;
+  meta: BirdCoderApiMeta;
+  requestId: string;
+  timestamp: string;
+}
+
+export interface BirdCoderIamQrAuthSessionPasswordRequest {
+  password: string;
+  username: string;
+}
+
+export interface BirdCoderIamQrAuthSessionScanRequest {
+  scanSource?: string;
+}
+
+export interface BirdCoderIamQrAuthSessionSummary {
+  expiresAt?: string;
+  qrContent?: string;
+  qrUrl?: string;
+  sessionKey: string;
+  status: "pending" | "scanned" | "confirmed" | "expired";
+}
+
+export interface BirdCoderIamRefreshSessionRequest {
+  refreshToken: string;
+}
+
+export interface BirdCoderIamRegistrationCreateRequest {
+  channel?: "EMAIL" | "PHONE";
+  confirmPassword?: string;
+  email?: string;
+  name?: string;
+  password?: string;
+  phone?: string;
+  username?: string;
+  verificationCode?: string;
+}
+
+export interface BirdCoderIamRuntimeSettingsEnvelope {
+  data: BirdCoderIamRuntimeSettingsSummary;
+  meta: BirdCoderApiMeta;
+  requestId: string;
+  timestamp: string;
+}
+
+export interface BirdCoderIamRuntimeSettingsSummary {
+  leftRailMode: "auto" | "highlights-only" | "qr-only";
+  loginMethods: Array<"emailCode" | "password" | "phoneCode" | "sessionBridge">;
+  oauthLoginEnabled: boolean;
+  oauthProviders: Array<string>;
+  qrLoginEnabled: boolean;
+  qrLoginType: "web" | "official" | "mini";
+  recoveryMethods: Array<"email" | "phone">;
+  registerMethods: Array<"email" | "phone">;
+  verificationPolicy: BirdCoderIamVerificationPolicySummary;
+}
+
+export interface BirdCoderIamSessionEnvelope {
+  data: BirdCoderIamSessionSummary;
+  meta: BirdCoderApiMeta;
+  requestId: string;
+  timestamp: string;
+}
+
+export interface BirdCoderIamSessionSummary {
+  accessToken: string;
+  authToken: string;
+  context?: Record<string, unknown>;
+  expiresAt?: string;
+  refreshToken?: string;
+  sessionId?: string;
+  user?: BirdCoderAuthenticatedUserSummary;
+}
+
+export interface BirdCoderIamUpdateCurrentSessionRequest {
+  deviceId?: string;
+  deviceName?: string;
+  trusted?: boolean;
+}
+
+export interface BirdCoderIamUserProfileEnvelope {
+  data: BirdCoderIamUserProfileSummary;
+  meta: BirdCoderApiMeta;
+  requestId: string;
+  timestamp: string;
+}
+
+export interface BirdCoderIamUserProfileSummary {
+  uuid: string;
+  tenantId?: string;
+  organizationId?: string;
+  createdAt: string;
+  updatedAt: string;
+  avatarUrl?: string;
+  bio: string;
+  company: string;
+  displayName: string;
+  email: string;
+  userId: string;
+  location: string;
+  website: string;
+}
+
+export interface BirdCoderIamVerificationCodeCreateRequest {
+  scene: "LOGIN" | "REGISTER" | "RESET_PASSWORD";
+  target: string;
+  verifyType: "EMAIL" | "PHONE";
+}
+
+export interface BirdCoderIamVerificationCodeVerifyRequest {
+  code: string;
+  scene: "LOGIN" | "REGISTER" | "RESET_PASSWORD";
+  target: string;
+  verifyType: "EMAIL" | "PHONE";
+}
+
+export interface BirdCoderIamVerificationPolicyEnvelope {
+  data: BirdCoderIamVerificationPolicySummary;
+  meta: BirdCoderApiMeta;
+  requestId: string;
+  timestamp: string;
+}
+
+export interface BirdCoderIamVerificationPolicySummary {
+  emailCodeLoginEnabled: boolean;
+  emailRegistrationVerificationRequired: boolean;
+  phoneCodeLoginEnabled: boolean;
+  phoneRegistrationVerificationRequired: boolean;
+}
+
 export interface BirdCoderInstallSkillPackageRequest {
   scopeId: string;
   scopeType: "workspace" | "project";
@@ -757,13 +1005,6 @@ export interface BirdCoderNativeSessionSummary {
 export interface BirdCoderNativeSessionSummaryListEnvelope {
   items: Array<BirdCoderNativeSessionSummary>;
   meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderNullableUserCenterSessionEnvelope {
-  data: BirdCoderUserCenterSessionSummary | unknown;
-  meta: BirdCoderApiMeta;
   requestId: string;
   timestamp: string;
 }
@@ -1088,17 +1329,6 @@ export interface BirdCoderUpdateCodingSessionRequest {
   hostMode?: "web" | "desktop" | "server";
 }
 
-export interface BirdCoderUpdateCurrentUserMembershipRequest {
-  vipLevelId?: string;
-  pointBalance?: string;
-  totalRechargedPoints?: string;
-  status?: string;
-  validFrom?: string;
-  validTo?: string;
-  lastActiveTime?: string;
-  remark?: string;
-}
-
 export interface BirdCoderUpdateCurrentUserProfileRequest {
   avatarUrl?: string;
   bio?: string;
@@ -1179,201 +1409,6 @@ export interface BirdCoderUpsertWorkspaceMemberRequest {
   status?: "invited" | "active" | "suspended" | "removed";
   createdByUserId?: string;
   grantedByUserId?: string;
-}
-
-export interface BirdCoderUserCenterLoginQrCodeEnvelope {
-  data: BirdCoderUserCenterLoginQrCodeSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderUserCenterLoginQrCodeSummary {
-  description?: string;
-  expireTime?: number;
-  qrContent?: string;
-  qrKey: string;
-  qrUrl?: string;
-  title?: string;
-  type?: string;
-}
-
-export interface BirdCoderUserCenterLoginQrStatusEnvelope {
-  data: BirdCoderUserCenterLoginQrStatusSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderUserCenterLoginQrStatusSummary {
-  session?: BirdCoderUserCenterSessionSummary;
-  status: "pending" | "scanned" | "confirmed" | "expired";
-  user?: BirdCoderAuthenticatedUserSummary;
-}
-
-export interface BirdCoderUserCenterLoginRequest {
-  account?: string;
-  appVersion?: string;
-  code?: string;
-  deviceId?: string;
-  deviceName?: string;
-  deviceType?: "android" | "desktop" | "ios" | "web";
-  email?: string;
-  loginMethod?: "emailCode" | "password" | "phoneCode" | "sessionBridge";
-  password?: string;
-  phone?: string;
-}
-
-export interface BirdCoderUserCenterMembershipEnvelope {
-  data: BirdCoderUserCenterMembershipSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderUserCenterMembershipSummary {
-  uuid: string;
-  tenantId?: string;
-  organizationId?: string;
-  createdAt: string;
-  updatedAt: string;
-  userId: string;
-  vipLevelId?: string;
-  pointBalance: string;
-  totalRechargedPoints: string;
-  status: string;
-  validFrom?: string;
-  validTo?: string;
-  lastActiveTime?: string;
-  remark?: string;
-}
-
-export interface BirdCoderUserCenterMetadataEnvelope {
-  data: BirdCoderUserCenterMetadataSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderUserCenterMetadataSummary {
-  integrationKind?: string;
-  loginMethods: Array<"emailCode" | "password" | "phoneCode" | "sessionBridge">;
-  mode: "builtin-local" | "sdkwork-cloud-app-api" | "external-user-center";
-  oauthLoginEnabled: boolean;
-  oauthProviders: Array<string>;
-  providerKey: string;
-  qrLoginEnabled: boolean;
-  recoveryMethods: Array<"email" | "phone">;
-  registerMethods: Array<"email" | "phone">;
-  sessionHeaderName: string;
-  supportsLocalCredentials: boolean;
-  supportsMembershipWrite: boolean;
-  supportsProfileWrite: boolean;
-  supportsSessionExchange: boolean;
-  upstreamBaseUrl?: string;
-}
-
-export interface BirdCoderUserCenterOAuthAuthorizationEnvelope {
-  data: BirdCoderUserCenterOAuthAuthorizationSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderUserCenterOAuthAuthorizationSummary {
-  authUrl: string;
-}
-
-export interface BirdCoderUserCenterOAuthLoginRequest {
-  code: string;
-  deviceId?: string;
-  deviceType?: "android" | "desktop" | "ios" | "web";
-  provider: string;
-  state?: string;
-}
-
-export interface BirdCoderUserCenterPasswordResetChallengeRequest {
-  account: string;
-  channel: "EMAIL" | "SMS";
-}
-
-export interface BirdCoderUserCenterPasswordResetRequest {
-  account: string;
-  code: string;
-  confirmPassword?: string;
-  newPassword: string;
-}
-
-export interface BirdCoderUserCenterProfileEnvelope {
-  data: BirdCoderUserCenterProfileSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderUserCenterProfileSummary {
-  uuid: string;
-  tenantId?: string;
-  organizationId?: string;
-  createdAt: string;
-  updatedAt: string;
-  avatarUrl?: string;
-  bio: string;
-  company: string;
-  displayName: string;
-  email: string;
-  userId: string;
-  location: string;
-  website: string;
-}
-
-export interface BirdCoderUserCenterRegisterRequest {
-  channel?: "EMAIL" | "PHONE";
-  confirmPassword?: string;
-  email?: string;
-  name?: string;
-  password?: string;
-  phone?: string;
-  username?: string;
-  verificationCode?: string;
-}
-
-export interface BirdCoderUserCenterSendVerifyCodeRequest {
-  scene: "LOGIN" | "REGISTER" | "RESET_PASSWORD";
-  target: string;
-  verifyType: "EMAIL" | "PHONE";
-}
-
-export interface BirdCoderUserCenterSessionEnvelope {
-  data: BirdCoderUserCenterSessionSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderUserCenterSessionExchangeRequest {
-  avatarUrl?: string;
-  email: string;
-  userId?: string;
-  name?: string;
-  providerKey?: string;
-  subject?: string;
-}
-
-export interface BirdCoderUserCenterSessionSummary {
-  uuid: string;
-  tenantId?: string;
-  organizationId?: string;
-  accessToken: string;
-  authToken: string;
-  createdAt: string;
-  providerKey: string;
-  providerMode: "builtin-local" | "sdkwork-cloud-app-api" | "external-user-center";
-  refreshToken?: string;
-  sessionId: string;
-  tokenType: string;
-  updatedAt: string;
-  user: BirdCoderAuthenticatedUserSummary;
 }
 
 export interface BirdCoderUserQuestionAnswerResult {
@@ -1480,10 +1515,6 @@ export interface AuthOauthAuthorizationUrlsRetrieveQuery extends Record<string, 
   state?: string;
 }
 
-export interface AuthQrLoginCodesRetrievePathParams {
-  qrKey: string;
-}
-
 export interface CollaborationWorkspaceTeamsListQuery extends Record<string, BirdcoderSdkQueryValue> {
   userId?: string;
   workspaceId?: string;
@@ -1553,6 +1584,18 @@ export interface IntelligenceCodingSessionsUpdatePathParams {
 
 export interface IntelligenceQuestionsAnswersCreatePathParams {
   questionId: string;
+}
+
+export interface OpenPlatformQrAuthSessionsPasswordsCreatePathParams {
+  sessionKey: string;
+}
+
+export interface OpenPlatformQrAuthSessionsRetrievePathParams {
+  sessionKey: string;
+}
+
+export interface OpenPlatformQrAuthSessionsScansCreatePathParams {
+  sessionKey: string;
 }
 
 export interface PlatformProjectsCollaboratorsListPathParams {
@@ -1674,22 +1717,6 @@ export interface SystemOperationsRetrievePathParams {
 
 export const BIRDCODER_APP_SDK_OPERATIONS = [
   {
-    "key": "auth.config.retrieve",
-    "method": "GET",
-    "operationId": "config.retrieve",
-    "path": "/app/v3/api/auth/config",
-    "pathParamNames": [],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.config.read",
-    "public": false,
-    "resource": "iam.config",
-    "summary": "Get active user-center provider metadata and login capability switches.",
-    "tag": "auth",
-    "tenantScope": "tenant"
-  },
-  {
     "key": "auth.oauthAuthorizationUrls.retrieve",
     "method": "GET",
     "operationId": "oauthAuthorizationUrls.retrieve",
@@ -1700,7 +1727,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "domain": "iam",
     "public": true,
     "resource": "iam.oauthAuthorizationUrls",
-    "summary": "Resolve OAuth authorization URL for social sign-in",
+    "summary": "Resolve OAuth authorization URL for SDKWork IAM sign-in",
     "tag": "auth",
     "tenantScope": "platform"
   },
@@ -1715,7 +1742,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "domain": "iam",
     "public": true,
     "resource": "iam.oauthSessions",
-    "summary": "Create user center session with OAuth authorization code",
+    "summary": "Create SDKWork IAM session with OAuth authorization code",
     "tag": "auth",
     "tenantScope": "platform"
   },
@@ -1730,7 +1757,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "domain": "iam",
     "public": true,
     "resource": "iam.passwordResetRequests",
-    "summary": "Request a password-reset challenge through the configured verification channel.",
+    "summary": "Create SDKWork IAM password reset request",
     "tag": "auth",
     "tenantScope": "platform"
   },
@@ -1745,39 +1772,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "domain": "iam",
     "public": true,
     "resource": "iam.passwordResets",
-    "summary": "Reset the current account password using a verified recovery challenge.",
-    "tag": "auth",
-    "tenantScope": "platform"
-  },
-  {
-    "key": "auth.qrLoginCodes.create",
-    "method": "POST",
-    "operationId": "qrLoginCodes.create",
-    "path": "/app/v3/api/auth/qr_login_codes",
-    "pathParamNames": [],
-    "dataScope": "platform",
-    "deployment": "all",
-    "domain": "iam",
-    "public": true,
-    "resource": "iam.qrLoginCodes",
-    "summary": "Generate user center login QR code",
-    "tag": "auth",
-    "tenantScope": "platform"
-  },
-  {
-    "key": "auth.qrLoginCodes.retrieve",
-    "method": "GET",
-    "operationId": "qrLoginCodes.retrieve",
-    "path": "/app/v3/api/auth/qr_login_codes/{qrKey}",
-    "pathParamNames": [
-      "qrKey"
-    ],
-    "dataScope": "platform",
-    "deployment": "all",
-    "domain": "iam",
-    "public": true,
-    "resource": "iam.qrLoginCodes",
-    "summary": "Check user center login QR code status",
+    "summary": "Reset SDKWork IAM password",
     "tag": "auth",
     "tenantScope": "platform"
   },
@@ -1792,22 +1787,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "domain": "iam",
     "public": true,
     "resource": "iam.registrations",
-    "summary": "Register a local user and return the initial account projection when enabled.",
-    "tag": "auth",
-    "tenantScope": "platform"
-  },
-  {
-    "key": "auth.sessionExchanges.create",
-    "method": "POST",
-    "operationId": "sessionExchanges.create",
-    "path": "/app/v3/api/auth/session_exchanges",
-    "pathParamNames": [],
-    "dataScope": "platform",
-    "deployment": "all",
-    "domain": "iam",
-    "public": true,
-    "resource": "iam.sessionExchanges",
-    "summary": "Exchange an upstream or third-party session into the local AuthToken and AccessToken bundle.",
+    "summary": "Register SDKWork IAM user",
     "tag": "auth",
     "tenantScope": "platform"
   },
@@ -1822,13 +1802,13 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "domain": "iam",
     "public": true,
     "resource": "iam.sessions",
-    "summary": "Create a login session with account and password credentials.",
+    "summary": "Create SDKWork IAM session",
     "tag": "auth",
     "tenantScope": "platform"
   },
   {
     "key": "auth.sessions.current.delete",
-    "method": "POST",
+    "method": "DELETE",
     "operationId": "sessions.current.delete",
     "path": "/app/v3/api/auth/sessions/current",
     "pathParamNames": [],
@@ -1838,7 +1818,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "permission": "iam.sessions.current.delete",
     "public": false,
     "resource": "iam.sessions.current",
-    "summary": "Revoke the current user-center login session and its token shadows.",
+    "summary": "Delete current SDKWork IAM session",
     "tag": "auth",
     "tenantScope": "tenant"
   },
@@ -1854,9 +1834,40 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "permission": "iam.sessions.current.read",
     "public": false,
     "resource": "iam.sessions.current",
-    "summary": "Get the current login session snapshot for the active principal.",
+    "summary": "Get current SDKWork IAM session",
     "tag": "auth",
     "tenantScope": "tenant"
+  },
+  {
+    "key": "auth.sessions.current.update",
+    "method": "PATCH",
+    "operationId": "sessions.current.update",
+    "path": "/app/v3/api/auth/sessions/current",
+    "pathParamNames": [],
+    "dataScope": "user",
+    "deployment": "all",
+    "domain": "iam",
+    "permission": "iam.sessions.current.update",
+    "public": false,
+    "resource": "iam.sessions.current",
+    "summary": "Update current SDKWork IAM session",
+    "tag": "auth",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "auth.sessions.refresh",
+    "method": "POST",
+    "operationId": "sessions.refresh",
+    "path": "/app/v3/api/auth/sessions/refresh",
+    "pathParamNames": [],
+    "dataScope": "platform",
+    "deployment": "all",
+    "domain": "iam",
+    "public": true,
+    "resource": "iam.sessions",
+    "summary": "Refresh SDKWork IAM session",
+    "tag": "auth",
+    "tenantScope": "platform"
   },
   {
     "key": "auth.verificationCodes.create",
@@ -1869,41 +1880,24 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "domain": "iam",
     "public": true,
     "resource": "iam.verificationCodes",
-    "summary": "Send a verification challenge for login, registration, or password reset.",
+    "summary": "Create SDKWork IAM verification code",
     "tag": "auth",
     "tenantScope": "platform"
   },
   {
-    "key": "billing.vip.info.retrieve",
-    "method": "GET",
-    "operationId": "vip.info.retrieve",
-    "path": "/app/v3/api/billing/vip/info",
+    "key": "auth.verificationCodes.verify",
+    "method": "POST",
+    "operationId": "verificationCodes.verify",
+    "path": "/app/v3/api/auth/verification_codes/verify",
     "pathParamNames": [],
-    "dataScope": "user",
+    "dataScope": "platform",
     "deployment": "all",
-    "domain": "billing",
-    "permission": "billing.vip.info.read",
-    "public": false,
-    "resource": "billing.vip.info",
-    "summary": "Get the current user's VIP or membership projection.",
-    "tag": "billing",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "billing.vip.info.update",
-    "method": "PATCH",
-    "operationId": "vip.info.update",
-    "path": "/app/v3/api/billing/vip/info",
-    "pathParamNames": [],
-    "dataScope": "user",
-    "deployment": "all",
-    "domain": "billing",
-    "permission": "billing.vip.info.update",
-    "public": false,
-    "resource": "billing.vip.info",
-    "summary": "Update the current user's VIP or membership projection for local authority mode.",
-    "tag": "billing",
-    "tenantScope": "tenant"
+    "domain": "iam",
+    "public": true,
+    "resource": "iam.verificationCodes",
+    "summary": "Verify SDKWork IAM verification code",
+    "tag": "auth",
+    "tenantScope": "platform"
   },
   {
     "key": "collaboration.workspaceTeams.list",
@@ -1919,6 +1913,38 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "resource": "collaboration.workspaceTeams",
     "summary": "List workspace teams",
     "tag": "collaboration",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.memberships.current.retrieve",
+    "method": "GET",
+    "operationId": "memberships.current.retrieve",
+    "path": "/app/v3/api/memberships/current",
+    "pathParamNames": [],
+    "dataScope": "user",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "commerce.memberships.current.read",
+    "public": false,
+    "resource": "commerce.memberships.current",
+    "summary": "Get current SDKWork commerce membership",
+    "tag": "commerce",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.memberships.packageGroups.list",
+    "method": "GET",
+    "operationId": "memberships.packageGroups.list",
+    "path": "/app/v3/api/memberships/package_groups",
+    "pathParamNames": [],
+    "dataScope": "user",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "commerce.memberships.packageGroups.read",
+    "public": false,
+    "resource": "commerce.memberships.packageGroups",
+    "summary": "List SDKWork commerce membership package groups",
+    "tag": "commerce",
     "tenantScope": "tenant"
   },
   {
@@ -1949,7 +1975,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "permission": "iam.users.current.read",
     "public": false,
     "resource": "iam.users.current",
-    "summary": "Get the current user's canonical profile projection.",
+    "summary": "Get current SDKWork IAM user",
     "tag": "iam",
     "tenantScope": "tenant"
   },
@@ -1965,7 +1991,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "permission": "iam.users.current.update",
     "public": false,
     "resource": "iam.users.current",
-    "summary": "Update the current user's canonical profile projection.",
+    "summary": "Update current SDKWork IAM user profile",
     "tag": "iam",
     "tenantScope": "tenant"
   },
@@ -2254,6 +2280,72 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "summary": "Submit user-question answer",
     "tag": "intelligence",
     "tenantScope": "tenant"
+  },
+  {
+    "key": "openPlatform.qrAuth.sessions.create",
+    "method": "POST",
+    "operationId": "qrAuth.sessions.create",
+    "path": "/app/v3/api/open_platform/qr_auth/sessions",
+    "pathParamNames": [],
+    "dataScope": "platform",
+    "deployment": "all",
+    "domain": "iam",
+    "public": true,
+    "resource": "iam.qrAuth.sessions",
+    "summary": "Create SDKWork IAM QR auth session",
+    "tag": "openPlatform",
+    "tenantScope": "platform"
+  },
+  {
+    "key": "openPlatform.qrAuth.sessions.passwords.create",
+    "method": "POST",
+    "operationId": "qrAuth.sessions.passwords.create",
+    "path": "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords",
+    "pathParamNames": [
+      "sessionKey"
+    ],
+    "dataScope": "platform",
+    "deployment": "all",
+    "domain": "iam",
+    "public": true,
+    "resource": "iam.qrAuth.sessions.passwords",
+    "summary": "Complete SDKWork IAM QR auth session with password",
+    "tag": "openPlatform",
+    "tenantScope": "platform"
+  },
+  {
+    "key": "openPlatform.qrAuth.sessions.retrieve",
+    "method": "GET",
+    "operationId": "qrAuth.sessions.retrieve",
+    "path": "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}",
+    "pathParamNames": [
+      "sessionKey"
+    ],
+    "dataScope": "platform",
+    "deployment": "all",
+    "domain": "iam",
+    "public": true,
+    "resource": "iam.qrAuth.sessions",
+    "summary": "Get SDKWork IAM QR auth session",
+    "tag": "openPlatform",
+    "tenantScope": "platform"
+  },
+  {
+    "key": "openPlatform.qrAuth.sessions.scans.create",
+    "method": "POST",
+    "operationId": "qrAuth.sessions.scans.create",
+    "path": "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans",
+    "pathParamNames": [
+      "sessionKey"
+    ],
+    "dataScope": "platform",
+    "deployment": "all",
+    "domain": "iam",
+    "public": true,
+    "resource": "iam.qrAuth.sessions.scans",
+    "summary": "Create SDKWork IAM QR auth scan",
+    "tag": "openPlatform",
+    "tenantScope": "platform"
   },
   {
     "key": "platform.deployments.list",
@@ -2838,6 +2930,36 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "summary": "Get coding-server health",
     "tag": "system",
     "tenantScope": "tenant"
+  },
+  {
+    "key": "system.iam.runtime.retrieve",
+    "method": "GET",
+    "operationId": "iam.runtime.retrieve",
+    "path": "/app/v3/api/system/iam/runtime",
+    "pathParamNames": [],
+    "dataScope": "platform",
+    "deployment": "all",
+    "domain": "iam",
+    "public": true,
+    "resource": "iam.runtime",
+    "summary": "Get SDKWork IAM runtime metadata",
+    "tag": "system",
+    "tenantScope": "platform"
+  },
+  {
+    "key": "system.iam.verificationPolicy.retrieve",
+    "method": "GET",
+    "operationId": "iam.verificationPolicy.retrieve",
+    "path": "/app/v3/api/system/iam/verification_policy",
+    "pathParamNames": [],
+    "dataScope": "platform",
+    "deployment": "all",
+    "domain": "iam",
+    "public": true,
+    "resource": "iam.verificationPolicy",
+    "summary": "Get SDKWork IAM verification policy",
+    "tag": "system",
+    "tenantScope": "platform"
   },
   {
     "key": "system.operations.retrieve",

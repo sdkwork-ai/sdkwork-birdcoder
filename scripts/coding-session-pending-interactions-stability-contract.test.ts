@@ -240,4 +240,34 @@ assert.equal(
   'duplicate user-question deduplication must choose the newest event by sequence even when the repository returns events out of order.',
 );
 
+const missingProjectScopedProjectionAppRuntimeReadService = {
+  ...duplicateProjectionAppRuntimeReadService,
+  async getCodingSession(codingSessionId: string): Promise<BirdCoderCodingSessionSummary> {
+    readCalls.push(`getCodingSession:${codingSessionId}:missing-project`);
+    const missingProjectSession = {
+      ...session,
+    } as Partial<BirdCoderCodingSessionSummary>;
+    delete missingProjectSession.projectId;
+    return missingProjectSession as BirdCoderCodingSessionSummary;
+  },
+};
+
+readCalls.length = 0;
+const missingProjectScopedPendingInteractions =
+  await loadCodingSessionPendingInteractionState(
+    missingProjectScopedProjectionAppRuntimeReadService,
+    sessionId,
+    session.projectId,
+  );
+assert.equal(
+  missingProjectScopedPendingInteractions.approvals.length,
+  0,
+  'pending approvals must not be shown for an expected project when the authoritative session summary has no projectId.',
+);
+assert.equal(
+  missingProjectScopedPendingInteractions.questions.length,
+  0,
+  'pending user questions must not be shown for an expected project when the authoritative session summary has no projectId.',
+);
+
 console.log('coding session pending interactions stability contract passed.');

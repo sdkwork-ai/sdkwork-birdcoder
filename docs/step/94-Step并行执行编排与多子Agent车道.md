@@ -34,7 +34,7 @@
 
 说明：
 
-- 车道 E 内部可再拆 `14-appbase`、`15-data-provider`、`16-prompt-template`、`18-engine-adapter` 四个子 Agent。
+- 车道 E 内部可再拆 `14-iam`、`15-data-provider`、`16-prompt-template`、`18-engine-adapter` 四个子 Agent。
 - 任何共享 DTO、Canonical Event、Migration、OpenAPI 变更，最终都必须回到 A 总控车道收口。
 
 ## 5. 最快并行路径

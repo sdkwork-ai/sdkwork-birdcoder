@@ -97,7 +97,7 @@ for (const tableName of appbaseOwnedLegacyIamTableNames) {
     `PostgreSQL coding server migration must not declare appbase-owned legacy IAM table ${tableName}.`,
   );
 }
-const canonicalUserCenterBusinessTables = [
+const canonicalPlusBusinessTables = [
   'plus_account_history',
   'plus_account_exchange_config',
   'plus_ledger_bridge',
@@ -198,7 +198,7 @@ const canonicalUserCenterBusinessTables = [
   'plus_vip_benefit_usage',
 ];
 
-for (const tableName of canonicalUserCenterBusinessTables) {
+for (const tableName of canonicalPlusBusinessTables) {
   assert.ok(
     findCreateTableStatement(codingServerMigration, 'sqlite', tableName),
     `SQLite coding server migration must declare ${tableName}.`,

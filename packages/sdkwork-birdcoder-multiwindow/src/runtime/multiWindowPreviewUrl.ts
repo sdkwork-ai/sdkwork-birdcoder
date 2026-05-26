@@ -91,5 +91,5 @@ export function resolveMultiWindowPaneAutoPreviewUrl(
     }
   });
 
-  return selectedCandidate?.url ?? null;
+  return selectedCandidate !== null ? (selectedCandidate as MultiWindowPreviewUrlCandidate).url : null;
 }

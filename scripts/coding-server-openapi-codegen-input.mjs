@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -19,6 +20,7 @@ function readOptionValue(argv, index, flag) {
 
 export function parseArgs(argv) {
   const options = {
+    openApiSnapshotPath: undefined,
     releaseAssetsDir: path.join(process.cwd(), 'artifacts', 'release'),
   };
 
@@ -29,17 +31,92 @@ export function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (token === '--openapi-snapshot') {
+      options.openApiSnapshotPath = path.resolve(readOptionValue(argv, index, '--openapi-snapshot'));
+      index += 1;
+      continue;
+    }
   }
 
   return options;
 }
 
+function computeSha256(content) {
+  return crypto.createHash('sha256').update(content).digest('hex');
+}
+
+function normalizeRelativePath(value) {
+  return String(value ?? '').replace(/\\/gu, '/');
+}
+
+function resolveDevelopmentWorkspaceRoot(releaseAssetsDir) {
+  return path.dirname(path.dirname(path.resolve(releaseAssetsDir)));
+}
+
+function resolveDevelopmentSnapshotPath(releaseAssetsDir, openApiSnapshotPath) {
+  if (openApiSnapshotPath) {
+    return path.resolve(openApiSnapshotPath);
+  }
+
+  return path.join(
+    resolveDevelopmentWorkspaceRoot(releaseAssetsDir),
+    'artifacts',
+    'openapi',
+    'coding-server-v1.json',
+  );
+}
+
+function readDevelopmentOpenApiCodegenInput({
+  manifestPath,
+  openApiSnapshotPath,
+  releaseAssetsDir,
+}) {
+  const canonicalSnapshotPath = resolveDevelopmentSnapshotPath(
+    releaseAssetsDir,
+    openApiSnapshotPath,
+  );
+  if (!fs.existsSync(canonicalSnapshotPath)) {
+    throw new Error(
+      [
+        `Missing finalized release manifest: ${manifestPath}`,
+        `Missing development coding-server OpenAPI snapshot: ${canonicalSnapshotPath}`,
+      ].join('\n'),
+    );
+  }
+
+  const source = fs.readFileSync(canonicalSnapshotPath, 'utf8');
+  const document = JSON.parse(source);
+  const workspaceRoot = resolveDevelopmentWorkspaceRoot(releaseAssetsDir);
+  const canonicalRelativePath = normalizeRelativePath(
+    path.relative(workspaceRoot, canonicalSnapshotPath),
+  );
+
+  return {
+    releaseTag: 'development',
+    manifestPath: null,
+    canonicalRelativePath,
+    canonicalSnapshotPath,
+    mirroredRelativePaths: [canonicalRelativePath],
+    targetCount: 1,
+    targets: ['development'],
+    sha256: computeSha256(source),
+    openapi: String(document.openapi ?? '').trim(),
+    version: String(document.info?.version ?? '').trim(),
+    title: String(document.info?.title ?? '').trim(),
+  };
+}
+
 export function readCodingServerOpenApiCodegenInput({
+  openApiSnapshotPath,
   releaseAssetsDir = path.join(process.cwd(), 'artifacts', 'release'),
 } = {}) {
   const manifestPath = path.join(releaseAssetsDir, 'release-manifest.json');
   if (!fs.existsSync(manifestPath)) {
-    throw new Error(`Missing finalized release manifest: ${manifestPath}`);
+    return readDevelopmentOpenApiCodegenInput({
+      manifestPath,
+      openApiSnapshotPath,
+      releaseAssetsDir,
+    });
   }
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));

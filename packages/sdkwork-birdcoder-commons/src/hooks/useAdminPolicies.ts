@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { BirdCoderAdminPolicySummary } from '@sdkwork/birdcoder-types';
+import type { BirdCoderIamPolicySummary } from '@sdkwork/birdcoder-types';
 import type { IAdminPolicyService } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
 
 export async function loadAdminPolicies(
   policyService: Pick<IAdminPolicyService, 'getPolicies'>,
-): Promise<BirdCoderAdminPolicySummary[]> {
+): Promise<BirdCoderIamPolicySummary[]> {
   return policyService.getPolicies();
 }
 
 export function useAdminPolicies() {
   const { adminPolicyService } = useIDEServices();
-  const [policies, setPolicies] = useState<BirdCoderAdminPolicySummary[]>([]);
+  const [policies, setPolicies] = useState<BirdCoderIamPolicySummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const refreshPolicies = useCallback(async () => {

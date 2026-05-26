@@ -4,19 +4,20 @@ import {
   createBirdcoderSdkOperationRequester,
   type BirdcoderSdkAuthTokens,
   type BirdcoderSdkTransport,
-} from './http';
-import { BIRDCODER_APP_SDK_OPERATION_INDEX } from './types';
-import { createAuthApi, type AuthApi } from './api/auth';
-import { createBillingApi, type BillingApi } from './api/billing';
-import { createCollaborationApi, type CollaborationApi } from './api/collaboration';
-import { createContentApi, type ContentApi } from './api/content';
-import { createIamApi, type IamApi } from './api/iam';
-import { createIntelligenceApi, type IntelligenceApi } from './api/intelligence';
-import { createPlatformApi, type PlatformApi } from './api/platform';
-import { createRuntimeApi, type RuntimeApi } from './api/runtime';
-import { createSkillsApi, type SkillsApi } from './api/skills';
-import { createSystemApi, type SystemApi } from './api/system';
-import { createTemplatesApi, type TemplatesApi } from './api/templates';
+} from './http/index.ts';
+import { BIRDCODER_APP_SDK_OPERATION_INDEX } from './types/index.ts';
+import { createAuthApi, type AuthApi } from './api/auth.ts';
+import { createCollaborationApi, type CollaborationApi } from './api/collaboration.ts';
+import { createCommerceApi, type CommerceApi } from './api/commerce.ts';
+import { createContentApi, type ContentApi } from './api/content.ts';
+import { createIamApi, type IamApi } from './api/iam.ts';
+import { createIntelligenceApi, type IntelligenceApi } from './api/intelligence.ts';
+import { createOpenPlatformApi, type OpenPlatformApi } from './api/open-platform.ts';
+import { createPlatformApi, type PlatformApi } from './api/platform.ts';
+import { createRuntimeApi, type RuntimeApi } from './api/runtime.ts';
+import { createSkillsApi, type SkillsApi } from './api/skills.ts';
+import { createSystemApi, type SystemApi } from './api/system.ts';
+import { createTemplatesApi, type TemplatesApi } from './api/templates.ts';
 
 export interface CreateBirdcoderAppSdkClientOptions {
   accessToken?: string;
@@ -28,11 +29,12 @@ export interface BirdcoderAppSdkClient {
   clearSdkworkAuthTokens(): void;
   setSdkworkAuthTokens(tokens: BirdcoderSdkAuthTokens): void;
   auth: AuthApi;
-  billing: BillingApi;
   collaboration: CollaborationApi;
+  commerce: CommerceApi;
   content: ContentApi;
   iam: IamApi;
   intelligence: IntelligenceApi;
+  openPlatform: OpenPlatformApi;
   platform: PlatformApi;
   runtime: RuntimeApi;
   skills: SkillsApi;
@@ -55,11 +57,12 @@ export function createBirdcoderAppSdkClient(
     clearSdkworkAuthTokens: requester.clearSdkworkAuthTokens,
     setSdkworkAuthTokens: requester.setSdkworkAuthTokens,
     auth: createAuthApi(requester.requestOperation),
-    billing: createBillingApi(requester.requestOperation),
     collaboration: createCollaborationApi(requester.requestOperation),
+    commerce: createCommerceApi(requester.requestOperation),
     content: createContentApi(requester.requestOperation),
     iam: createIamApi(requester.requestOperation),
     intelligence: createIntelligenceApi(requester.requestOperation),
+    openPlatform: createOpenPlatformApi(requester.requestOperation),
     platform: createPlatformApi(requester.requestOperation),
     runtime: createRuntimeApi(requester.requestOperation),
     skills: createSkillsApi(requester.requestOperation),

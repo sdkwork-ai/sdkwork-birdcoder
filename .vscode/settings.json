@@ -1,0 +1,21 @@
+{
+    "i18n-ally.localesPaths": [
+        "packages/sdkwork-birdcoder-commons/src/i18n",
+        "packages/sdkwork-birdcoder-i18n/src/locales",
+        "external/claude-code/src/components/messages",
+        "external/claude-code/src/utils/messages",
+        "packages/sdkwork-birdcoder-commons/src/i18n/locales",
+        "external/opencode/packages/app/src/i18n",
+        "external/opencode/packages/desktop/src/i18n",
+        "external/opencode/packages/ui/src/i18n",
+        "external/opencode/packages/web/src/i18n",
+        "external/claude-code/src/cli/src/utils/messages",
+        "external/claude-code/src/screens/src/components/messages",
+        "external/opencode/packages/console/app/src/i18n",
+        "external/opencode/packages/desktop-electron/src/renderer/i18n",
+        "external/opencode/packages/web/src/content/i18n",
+        "external/claude-code/src/tools/ExitPlanModeTool/src/components/messages",
+        "external/gemini-vendor-snapshot-20260409/packages/cli/src/ui/components/messages",
+        "external/gemini/packages/cli/src/ui/components/messages"
+    ]
+}

@@ -59,16 +59,6 @@ try {
 
   await bootstrapModule.bootstrapShellUserState();
 
-  assert.equal(
-    await localStoreModule.getStoredRawValue('appbase.user-center.user', 'profile'),
-    null,
-    'shell bootstrap must not persist duplicate local user profile snapshots; IAM profile state is owned by appbase runtime.',
-  );
-  assert.equal(
-    await localStoreModule.getStoredRawValue('appbase.commerce.vip', 'membership'),
-    null,
-    'shell bootstrap must not persist duplicate local VIP membership snapshots; IAM membership state is owned by appbase runtime.',
-  );
   assert.notEqual(
     await localStoreModule.getStoredRawValue(
       preferencesModule.getWorkbenchPreferencesRepository().binding.storageScope,
@@ -98,12 +88,6 @@ try {
   assert.equal(bootstrappedRecoverySnapshot.activeTab, 'code');
   assert.equal(bootstrappedRecoverySnapshot.cleanExit, true);
 
-  await localStoreModule.setStoredJson('appbase.user-center.user', 'profile', {
-    company: 'Legacy local profile',
-  });
-  await localStoreModule.setStoredJson('appbase.commerce.vip', 'membership', {
-    status: 'legacy-local-membership',
-  });
   await preferencesModule.writeWorkbenchPreferences({
     codeEngineId: 'gemini',
     codeModelId: 'gemini-1.5-pro',
@@ -131,16 +115,6 @@ try {
     ),
   );
 
-  assert.deepEqual(
-    await localStoreModule.getStoredJson('appbase.user-center.user', 'profile', {}),
-    { company: 'Legacy local profile' },
-    'shell bootstrap must not mutate retired local profile records.',
-  );
-  assert.deepEqual(
-    await localStoreModule.getStoredJson('appbase.commerce.vip', 'membership', {}),
-    { status: 'legacy-local-membership' },
-    'shell bootstrap must not mutate retired local membership records.',
-  );
   assert.equal(
     preservedPreferences.codeEngineId,
     'gemini',

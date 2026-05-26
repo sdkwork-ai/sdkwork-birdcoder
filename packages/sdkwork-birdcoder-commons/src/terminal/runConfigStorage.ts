@@ -199,7 +199,7 @@ function createPersistedRunConfigurationNormalizer(scope: RunConfigurationScope)
       const projectId =
         typeof value.projectId === 'string' && value.projectId.trim().length > 0
           ? value.projectId.trim()
-          : scope.projectId ?? undefined;
+          : scope.projectId ?? null;
       const configKey =
         typeof value.configKey === 'string' && value.configKey.trim().length > 0
           ? value.configKey.trim()
@@ -240,7 +240,7 @@ function createPersistedRunConfigurationNormalizer(scope: RunConfigurationScope)
         configKey: publicRecord.id,
         scopeType,
         scopeId,
-        projectId,
+        projectId: projectId ?? undefined,
         uuid: typeof value.uuid === 'string' ? value.uuid : createRunConfigurationUuid(String(value.id)),
         tenantId: typeof value.tenantId === 'string' ? value.tenantId : undefined,
         organizationId:
@@ -262,7 +262,7 @@ function createPersistedRunConfigurationNormalizer(scope: RunConfigurationScope)
       const projectId =
         typeof row.project_id === 'string' && row.project_id.trim().length > 0
           ? row.project_id.trim()
-          : scope.projectId ?? undefined;
+          : scope.projectId ?? null;
       const configKey =
         typeof row.config_key === 'string' && row.config_key.trim().length > 0
           ? row.config_key.trim()
@@ -296,7 +296,7 @@ function createPersistedRunConfigurationNormalizer(scope: RunConfigurationScope)
         customCwd: typeof row.custom_cwd === 'string' ? row.custom_cwd : '',
         scopeType,
         scopeId,
-        projectId,
+        projectId: projectId ?? undefined,
         uuid: typeof row.uuid === 'string' ? row.uuid : undefined,
         tenantId: typeof row.tenant_id === 'string' ? row.tenant_id : undefined,
         organizationId:

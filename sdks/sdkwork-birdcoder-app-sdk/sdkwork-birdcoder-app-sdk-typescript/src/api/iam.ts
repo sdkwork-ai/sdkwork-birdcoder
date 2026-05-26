@@ -3,8 +3,8 @@
 import type {
   BirdcoderSdkRequestOperation,
   BirdcoderSdkRequestOptions,
-} from '../http';
-import type * as Types from '../types';
+} from '../http/index.ts';
+import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 type IamWorkspacesMembersListPathParams = Types.IamWorkspacesMembersListPathParams;
@@ -13,8 +13,8 @@ type IamWorkspacesMembersUpsertPathParams = Types.IamWorkspacesMembersUpsertPath
 export interface IamApi {
   users: {
     current: {
-      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterProfileEnvelope>;
-      update(body: Types.BirdCoderUpdateCurrentUserProfileRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterProfileEnvelope>;
+      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamUserProfileEnvelope>;
+      update(body: Types.BirdCoderUpdateCurrentUserProfileRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamUserProfileEnvelope>;
     };
   };
   workspaces: {
@@ -30,10 +30,10 @@ export function createIamApi(requestOperation: BirdcoderSdkRequestOperation): Ia
     users: {
       current: {
         retrieve(options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderUserCenterProfileEnvelope>("iam.users.current.retrieve", {}, options);
+          return requestOperation<Types.BirdCoderIamUserProfileEnvelope>("iam.users.current.retrieve", {}, options);
         },
         update(body: Types.BirdCoderUpdateCurrentUserProfileRequest, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderUserCenterProfileEnvelope>("iam.users.current.update", { body }, options);
+          return requestOperation<Types.BirdCoderIamUserProfileEnvelope>("iam.users.current.update", { body }, options);
         }
       }
     },

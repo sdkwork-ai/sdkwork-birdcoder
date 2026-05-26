@@ -47,7 +47,7 @@ const descriptorFixture: BirdCoderCodingServerDescriptor = {
       {
         authMode: 'user',
         basePath: '/app/v3/api',
-        description: 'Application-facing coding runtime, workspace, project, collaboration, and user-center routes.',
+        description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
         name: 'app',
         routeCount: 51,
       },
@@ -346,6 +346,154 @@ assert.deepEqual(longCacheKeyCalls, [
     projectId: 101777208078558059n,
     workspaceId: 101777208078558061n,
   },
+]);
+
+const optionalUserScopeCalls: string[] = [];
+const optionalUserScopeService = new ApiBackedAppRuntimeReadService({
+  client: {
+    ...codingRuntimeClient,
+    async listCodingSessionCheckpoints(codingSessionId) {
+      optionalUserScopeCalls.push(`listCodingSessionCheckpoints:${codingSessionId}`);
+      return [checkpointFixture];
+    },
+  },
+  currentUserProvider: {
+    async getCurrentUser() {
+      throw new Error(
+        'BirdCoder API request timed out after 8000ms: GET /app/v3/api/iam/users/current',
+      );
+    },
+  },
+});
+assert.deepEqual(
+  await optionalUserScopeService.listCodingSessionCheckpoints(sessionFixture.id),
+  [checkpointFixture],
+  'app runtime read service must not fail runtime reads when optional current-user cache scoping times out.',
+);
+assert.deepEqual(optionalUserScopeCalls, [
+  `listCodingSessionCheckpoints:${sessionFixture.id}`,
+]);
+
+const coalescedUserScopeCalls: string[] = [];
+const coalescedUserScopeService = new ApiBackedAppRuntimeReadService({
+  client: {
+    ...codingRuntimeClient,
+    async getCodingSession(codingSessionId) {
+      coalescedUserScopeCalls.push(`getCodingSession:${codingSessionId}`);
+      return sessionFixture;
+    },
+    async listCodingSessionArtifacts(codingSessionId) {
+      coalescedUserScopeCalls.push(`listCodingSessionArtifacts:${codingSessionId}`);
+      return [artifactFixture];
+    },
+    async listCodingSessionCheckpoints(codingSessionId) {
+      coalescedUserScopeCalls.push(`listCodingSessionCheckpoints:${codingSessionId}`);
+      return [checkpointFixture];
+    },
+    async listCodingSessionEvents(codingSessionId) {
+      coalescedUserScopeCalls.push(`listCodingSessionEvents:${codingSessionId}`);
+      return [eventFixture];
+    },
+  },
+  currentUserProvider: {
+    async getCurrentUser() {
+      coalescedUserScopeCalls.push('getCurrentUser');
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      return {
+        id: 'user-app-runtime-read-contract',
+      } as never;
+    },
+  },
+});
+await Promise.all([
+  coalescedUserScopeService.getCodingSession(sessionFixture.id),
+  coalescedUserScopeService.listCodingSessionEvents(sessionFixture.id),
+  coalescedUserScopeService.listCodingSessionArtifacts(sessionFixture.id),
+  coalescedUserScopeService.listCodingSessionCheckpoints(sessionFixture.id),
+]);
+assert.equal(
+  coalescedUserScopeCalls.filter((call) => call === 'getCurrentUser').length,
+  1,
+  'app runtime read service must coalesce concurrent current-user scope resolution before a batched projection read fans out to multiple SDK calls.',
+);
+
+const cachedUserScopeCalls: string[] = [];
+const cachedUserScopeService = new ApiBackedAppRuntimeReadService({
+  client: {
+    ...codingRuntimeClient,
+    async listCodingSessions() {
+      cachedUserScopeCalls.push('listCodingSessions');
+      return [sessionFixture];
+    },
+  },
+  currentUserProvider: {
+    async getCurrentUser() {
+      cachedUserScopeCalls.push('getCurrentUser');
+      return {
+        id: 'user-app-runtime-read-contract',
+      } as never;
+    },
+  },
+});
+await cachedUserScopeService.listCodingSessions({
+  workspaceId: sessionFixture.workspaceId,
+});
+await cachedUserScopeService.listCodingSessions({
+  workspaceId: sessionFixture.workspaceId,
+});
+assert.equal(
+  cachedUserScopeCalls.filter((call) => call === 'getCurrentUser').length,
+  1,
+  'app runtime read service must reuse the resolved current-user scope on a user-scoped cache hit instead of calling /iam/users/current before every cached list read.',
+);
+assert.equal(
+  cachedUserScopeCalls.filter((call) => call === 'listCodingSessions').length,
+  1,
+  'app runtime read service must still serve the second listCodingSessions request from the user-scoped inventory cache.',
+);
+
+const unresolvedInventoryCalls: string[] = [];
+let unresolvedInventorySessionId = 'session-unresolved-user-scope-a';
+const unresolvedUserScopeInventoryService = new ApiBackedAppRuntimeReadService({
+  client: {
+    ...codingRuntimeClient,
+    async listCodingSessions() {
+      unresolvedInventoryCalls.push(`listCodingSessions:${unresolvedInventorySessionId}`);
+      return [
+        {
+          ...sessionFixture,
+          id: unresolvedInventorySessionId,
+        },
+      ];
+    },
+  },
+  currentUserProvider: {
+    async getCurrentUser() {
+      throw new Error(
+        'BirdCoder API request timed out after 8000ms: GET /app/v3/api/iam/users/current',
+      );
+    },
+  },
+});
+const unresolvedInventoryFirst = await unresolvedUserScopeInventoryService.listCodingSessions({
+  workspaceId: sessionFixture.workspaceId,
+});
+unresolvedInventorySessionId = 'session-unresolved-user-scope-b';
+const unresolvedInventorySecond = await unresolvedUserScopeInventoryService.listCodingSessions({
+  workspaceId: sessionFixture.workspaceId,
+});
+assert.deepEqual(
+  unresolvedInventoryFirst.map((session) => session.id),
+  ['session-unresolved-user-scope-a'],
+);
+assert.deepEqual(
+  unresolvedInventorySecond.map((session) => session.id),
+  ['session-unresolved-user-scope-b'],
+  'app runtime read service must not store user-scoped inventory values when current-user scope resolution is unavailable.',
+);
+assert.deepEqual(unresolvedInventoryCalls, [
+  'listCodingSessions:session-unresolved-user-scope-a',
+  'listCodingSessions:session-unresolved-user-scope-b',
 ]);
 
 assert.deepEqual(calls, [

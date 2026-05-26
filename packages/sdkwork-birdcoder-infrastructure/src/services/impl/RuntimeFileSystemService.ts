@@ -2153,7 +2153,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       typeof file.size === 'number' &&
       file.size > maxCharacters &&
       typeof file.slice === 'function';
-    const content = shouldReadPrefix
+    const content = shouldReadPrefix && typeof file.slice === 'function'
       ? await file.slice(0, Math.floor(maxCharacters)).text()
       : await file.text();
     if (!shouldReadPrefix) {

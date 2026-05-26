@@ -38,7 +38,6 @@ function parseArgs(argv = []) {
 
   const {
     iamMode,
-    userCenterProvider,
   } = parseBirdcoderIamCliOptions(tokens, {
     commandName: 'run-birdcoder-server-command',
   });
@@ -46,16 +45,14 @@ function parseArgs(argv = []) {
   return {
     action,
     iamMode,
-    userCenterProvider,
   };
 }
 
 function runBirdcoderServerCommand() {
-  const { action, iamMode, userCenterProvider } = parseArgs(process.argv.slice(2));
+  const { action, iamMode } = parseArgs(process.argv.slice(2));
   const actionConfig = SERVER_ACTIONS[action];
   const commandEnv = resolveBirdcoderCommandEnv({
     env: process.env,
-    userCenterProvider,
   });
   const resolvedIam = resolveBirdcoderIamCommandEnv({
     env: commandEnv,

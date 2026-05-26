@@ -1093,7 +1093,7 @@ export class ClaudeChatEngine implements IChatEngine {
       loader: this.officialSdkBridgeLoader,
       messages,
       options,
-      fallback: async function* fallbackStream(streamOptions) {
+      fallback: async function* (this: ClaudeChatEngine, streamOptions: ChatOptions) {
         yield* this.streamMessageViaClaudeCli(messages, streamOptions);
       }.bind(this),
     });

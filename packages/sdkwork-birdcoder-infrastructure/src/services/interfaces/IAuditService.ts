@@ -1,5 +1,5 @@
-import type { BirdCoderAdminAuditEventSummary } from '@sdkwork/birdcoder-types';
+import type { BirdCoderIamAuditEventSummary } from '@sdkwork/birdcoder-types';
 
 export interface IAuditService {
-  getAuditEvents(): Promise<BirdCoderAdminAuditEventSummary[]>;
+  getAuditEvents(): Promise<BirdCoderIamAuditEventSummary[]>;
 }

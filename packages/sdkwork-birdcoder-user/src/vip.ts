@@ -1,127 +1,62 @@
-import { BIRDCODER_USER_CENTER_ROUTES } from '@sdkwork/birdcoder-core';
-
-type BirdCoderVipManifestHost = 'browser' | 'tauri' | 'server';
-
-export interface BirdCoderVipCapability {
-  capability: 'vip';
-  routePath: string;
-  sourcePackageName: '@sdkwork/vip-pc-react';
-}
+export const BIRDCODER_VIP_ROUTE_PATH = '/vip';
+export const BIRDCODER_VIP_PACKAGE_NAME = '@sdkwork/birdcoder-user';
 
 export interface BirdCoderVipWorkspaceManifest {
-  architecture: 'birdcoder-user';
-  bridgePackageName: '@sdkwork/birdcoder-user';
-  capability: 'vip';
-  description?: string;
-  host: BirdCoderVipManifestHost;
-  id: string;
-  packageNames: string[];
+  architecture: 'birdcoder-vip';
+  bridgePackage: typeof BIRDCODER_VIP_PACKAGE_NAME;
+  bridgePackageName: typeof BIRDCODER_VIP_PACKAGE_NAME;
+  domain: 'commerce';
+  id: 'sdkwork-birdcoder-vip';
+  package: typeof BIRDCODER_VIP_PACKAGE_NAME;
   routePath: string;
-  sourcePackageNames: ['@sdkwork/vip-pc-react'];
+  status: 'ready';
   title: string;
 }
 
 export interface CreateBirdCoderVipWorkspaceManifestOptions {
-  description?: string;
-  host?: BirdCoderVipManifestHost;
-  id?: string;
-  packageNames?: readonly string[];
+  basePath?: string;
   routePath?: string;
   title?: string;
 }
 
-export interface CreateBirdCoderVipRouteIntentOptions {
-  focusWindow?: boolean;
-  routePath?: string;
-  section?: string;
-}
-
 export interface BirdCoderVipRouteIntent {
-  capability: 'vip';
-  focusWindow: boolean;
-  path: string;
-  route: string;
-  section?: string;
-  source: 'vip-workspace';
-  sourcePackageName: '@sdkwork/vip-pc-react';
-  type: 'vip-route-intent';
+  focusWindow?: boolean;
+  group?: string;
+  package: typeof BIRDCODER_VIP_PACKAGE_NAME;
+  routePath: string;
 }
 
-export const BIRDCODER_USER_VIP_SOURCE_PACKAGE = '@sdkwork/vip-pc-react';
-
-function normalizeRoutePath(routePath: string | undefined, fallback: string): string {
-  const normalizedRoutePath = routePath?.trim();
-  if (!normalizedRoutePath || normalizedRoutePath === '/') {
-    return fallback;
-  }
-
-  return normalizedRoutePath.startsWith('/') ? normalizedRoutePath : `/${normalizedRoutePath}`;
+export interface CreateBirdCoderVipRouteIntentOptions {
+  basePath?: string;
+  focusWindow?: boolean;
+  group?: string;
+  routePath?: string;
 }
 
-function normalizeOptionalText(value: string | null | undefined): string | undefined {
-  const normalizedValue = value?.trim();
-  return normalizedValue ? normalizedValue : undefined;
-}
-
-function toUniquePackageNames(packageNames: readonly string[]): string[] {
-  return Array.from(new Set(packageNames.map((packageName) => packageName.trim()).filter(Boolean)));
-}
-
-export function createBirdCoderVipCapability(
-  routePath: string = BIRDCODER_USER_CENTER_ROUTES.vipRoutePath,
-): BirdCoderVipCapability {
-  const manifest = createBirdCoderVipWorkspaceManifest({ routePath });
-
+export function createBirdCoderVipWorkspaceManifest(
+  options: CreateBirdCoderVipWorkspaceManifestOptions = {},
+): BirdCoderVipWorkspaceManifest {
   return {
-    capability: 'vip',
-    routePath: manifest.routePath,
-    sourcePackageName: BIRDCODER_USER_VIP_SOURCE_PACKAGE,
-  };
-}
-
-export function createBirdCoderVipWorkspaceManifest({
-  description = 'BirdCoder VIP workspace aligned to sdkwork-appbase membership, entitlement, and upgrade routing standards.',
-  host = 'tauri',
-  id = 'sdkwork-birdcoder-vip',
-  packageNames = ['@sdkwork/birdcoder-user'],
-  routePath = BIRDCODER_USER_CENTER_ROUTES.vipRoutePath,
-  title = 'VIP',
-}: CreateBirdCoderVipWorkspaceManifestOptions = {}): BirdCoderVipWorkspaceManifest {
-  return {
-    architecture: 'birdcoder-user',
-    bridgePackageName: '@sdkwork/birdcoder-user',
-    capability: 'vip',
-    description,
-    host,
-    id,
-    packageNames: toUniquePackageNames(packageNames),
-    routePath: normalizeRoutePath(routePath, BIRDCODER_USER_CENTER_ROUTES.vipRoutePath),
-    sourcePackageNames: [BIRDCODER_USER_VIP_SOURCE_PACKAGE],
-    title,
+    architecture: 'birdcoder-vip',
+    bridgePackage: BIRDCODER_VIP_PACKAGE_NAME,
+    bridgePackageName: BIRDCODER_VIP_PACKAGE_NAME,
+    domain: 'commerce',
+    id: 'sdkwork-birdcoder-vip',
+    package: BIRDCODER_VIP_PACKAGE_NAME,
+    routePath: resolveVipRoutePath(options),
+    status: 'ready',
+    title: options.title ?? 'Membership',
   };
 }
 
 export function createBirdCoderVipRouteIntent(
   options: CreateBirdCoderVipRouteIntentOptions = {},
 ): BirdCoderVipRouteIntent {
-  const capability = createBirdCoderVipCapability(options.routePath);
-  const section = normalizeOptionalText(options.section);
-  const queryParams = new URLSearchParams();
-  if (section) {
-    queryParams.set('section', section);
-  }
-  const querySuffix = queryParams.toString() ? `?${queryParams.toString()}` : '';
-  const route = `${capability.routePath}${querySuffix}`;
-
   return {
-    capability: 'vip',
-    focusWindow: options.focusWindow !== false,
-    path: route,
-    route,
-    ...(section ? { section } : {}),
-    source: 'vip-workspace',
-    sourcePackageName: BIRDCODER_USER_VIP_SOURCE_PACKAGE,
-    type: 'vip-route-intent',
+    ...(typeof options.focusWindow === 'boolean' ? { focusWindow: options.focusWindow } : {}),
+    ...(options.group ? { group: options.group } : {}),
+    package: BIRDCODER_VIP_PACKAGE_NAME,
+    routePath: resolveVipRoutePath(options),
   };
 }
 
@@ -129,11 +64,18 @@ export const createVipWorkspaceManifest = createBirdCoderVipWorkspaceManifest;
 export const createVipRouteIntent = createBirdCoderVipRouteIntent;
 
 export const vipPackageMeta = {
-  architecture: 'birdcoder-user',
-  bridgePackage: '@sdkwork/birdcoder-user',
+  architecture: 'birdcoder-vip',
+  bridgePackage: BIRDCODER_VIP_PACKAGE_NAME,
+  bridgePackageName: BIRDCODER_VIP_PACKAGE_NAME,
   domain: 'commerce',
-  package: BIRDCODER_USER_VIP_SOURCE_PACKAGE,
+  package: BIRDCODER_VIP_PACKAGE_NAME,
   status: 'ready',
 } as const;
 
 export type VipPackageMeta = typeof vipPackageMeta;
+
+function resolveVipRoutePath(
+  options: CreateBirdCoderVipWorkspaceManifestOptions | CreateBirdCoderVipRouteIntentOptions,
+): string {
+  return options.routePath ?? options.basePath ?? BIRDCODER_VIP_ROUTE_PATH;
+}

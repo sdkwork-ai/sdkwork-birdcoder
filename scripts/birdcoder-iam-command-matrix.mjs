@@ -1,8 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createUserCenterCommandMatrix } from '@sdkwork/user-center-core-pc-react';
-
 import { createBirdcoderIamCliFlags } from './birdcoder-command-options.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -16,17 +14,27 @@ export const BIRDCODER_SUPPORTED_IAM_COMMAND_LIFECYCLES = Object.freeze([
   'doctor',
 ]);
 
-function isSupportedBirdcoderIamCommandEntry(entry) {
-  if (!BIRDCODER_SUPPORTED_IAM_COMMAND_LIFECYCLES.includes(entry.lifecycle)) {
-    return false;
-  }
-
-  if (entry.mode === 'local' && entry.surface !== 'desktop') {
-    return false;
-  }
-
-  return true;
-}
+const BIRDCODER_IAM_SURFACES = Object.freeze(['desktop', 'web', 'server']);
+const BIRDCODER_IAM_MODES = Object.freeze([
+  {
+    commandSuffix: 'local',
+    iamMode: 'desktop-local',
+    mode: 'local',
+    surfaces: new Set(['desktop']),
+  },
+  {
+    commandSuffix: 'private',
+    iamMode: 'server-private',
+    mode: 'private',
+    surfaces: new Set(BIRDCODER_IAM_SURFACES),
+  },
+  {
+    commandSuffix: 'cloud',
+    iamMode: 'cloud-saas',
+    mode: 'cloud',
+    surfaces: new Set(BIRDCODER_IAM_SURFACES),
+  },
+]);
 
 function renderNodeScriptCommand(scriptName, args = []) {
   return ['node', path.posix.join('scripts', scriptName), ...args].join(' ');
@@ -39,7 +47,6 @@ function renderWorkspaceScriptPassthrough(scriptName) {
 function createIamFlags(entry) {
   return createBirdcoderIamCliFlags({
     iamMode: entry.iamMode,
-    providerKind: entry.providerKind,
   });
 }
 
@@ -57,6 +64,17 @@ function resolveEnvTarget(surface) {
 
 function createCanonicalScriptCommand(entry) {
   const flags = createIamFlags(entry);
+
+  if (
+    entry.lifecycle === 'dev'
+    && entry.iamMode === 'server-private'
+    && (entry.surface === 'desktop' || entry.surface === 'web')
+  ) {
+    return renderNodeScriptCommand('run-birdcoder-dev-stack.mjs', [
+      entry.surface,
+      ...flags,
+    ]);
+  }
 
   if (entry.lifecycle === 'env') {
     return renderNodeScriptCommand('show-birdcoder-iam-env.mjs', [
@@ -96,8 +114,25 @@ function createCanonicalScriptCommand(entry) {
 }
 
 export function createBirdcoderIamCommandMatrix() {
-  return createUserCenterCommandMatrix()
-    .filter(isSupportedBirdcoderIamCommandEntry);
+  const entries = [];
+  for (const surface of BIRDCODER_IAM_SURFACES) {
+    for (const modeDefinition of BIRDCODER_IAM_MODES) {
+      if (!modeDefinition.surfaces.has(surface)) {
+        continue;
+      }
+      for (const lifecycle of BIRDCODER_SUPPORTED_IAM_COMMAND_LIFECYCLES) {
+        entries.push({
+          command: `${surface}:${lifecycle}:${modeDefinition.commandSuffix}`,
+          iamMode: modeDefinition.iamMode,
+          lifecycle,
+          mode: modeDefinition.mode,
+          surface,
+        });
+      }
+    }
+  }
+
+  return entries;
 }
 
 export function createBirdcoderIamCanonicalScriptCatalog() {
@@ -111,11 +146,8 @@ export function createBirdcoderIamCanonicalScriptCatalog() {
 
 export function createBirdcoderIamAliasScriptCatalog() {
   return {
-    // Root build must bypass recursive workspace-script indirection so release-tier
-    // and quality-tier orchestration keep the governed direct Vite entrypoint.
     build: `${renderNodeScriptCommand('prepare-shared-sdk-packages.mjs')} && ${renderNodeScriptCommand('run-vite-host.mjs', ['--cwd', 'packages/sdkwork-birdcoder-web', 'build', '--mode', 'production'])} && ${renderNodeScriptCommand('web-bundle-budget.test.mjs')}`,
     'build:cloud': renderWorkspaceScriptPassthrough('web:build:cloud'),
-    'build:external': renderWorkspaceScriptPassthrough('web:build:external'),
     'build:local': renderWorkspaceScriptPassthrough('desktop:build:local'),
     'build:private': renderWorkspaceScriptPassthrough('web:build:private'),
     dev: renderNodeScriptCommand('run-birdcoder-dev-stack.mjs', [
@@ -124,47 +156,42 @@ export function createBirdcoderIamAliasScriptCatalog() {
       'server-private',
     ]),
     'dev:cloud': renderWorkspaceScriptPassthrough('web:dev:cloud'),
-    'dev:external': renderWorkspaceScriptPassthrough('web:dev:external'),
     'dev:local': renderWorkspaceScriptPassthrough('desktop:dev:local'),
     'dev:private': renderNodeScriptCommand('run-birdcoder-dev-stack.mjs', [
       'web',
       '--iam-mode',
       'server-private',
     ]),
+    'dev:test': renderNodeScriptCommand('run-birdcoder-dev-stack.mjs', [
+      'web',
+      '--iam-mode',
+      'server-private',
+      '--vite-mode',
+      'test',
+    ]),
     'iam:doctor': renderWorkspaceScriptPassthrough('desktop:doctor:local'),
     'iam:doctor:desktop:cloud': renderWorkspaceScriptPassthrough('desktop:doctor:cloud'),
-    'iam:doctor:desktop:external': renderWorkspaceScriptPassthrough('desktop:doctor:external'),
     'iam:doctor:desktop:local': renderWorkspaceScriptPassthrough('desktop:doctor:local'),
     'iam:doctor:desktop:private': renderWorkspaceScriptPassthrough('desktop:doctor:private'),
     'iam:doctor:server:cloud': renderWorkspaceScriptPassthrough('server:doctor:cloud'),
-    'iam:doctor:server:external': renderWorkspaceScriptPassthrough('server:doctor:external'),
     'iam:doctor:server:private': renderWorkspaceScriptPassthrough('server:doctor:private'),
     'iam:doctor:web:cloud': renderWorkspaceScriptPassthrough('web:doctor:cloud'),
-    'iam:doctor:web:external': renderWorkspaceScriptPassthrough('web:doctor:external'),
     'iam:doctor:web:private': renderWorkspaceScriptPassthrough('web:doctor:private'),
     'iam:show': renderWorkspaceScriptPassthrough('desktop:env:local'),
     'iam:show:desktop:cloud': renderWorkspaceScriptPassthrough('desktop:env:cloud'),
-    'iam:show:desktop:external': renderWorkspaceScriptPassthrough('desktop:env:external'),
     'iam:show:desktop:local': renderWorkspaceScriptPassthrough('desktop:env:local'),
     'iam:show:desktop:private': renderWorkspaceScriptPassthrough('desktop:env:private'),
     'iam:show:server:cloud': renderWorkspaceScriptPassthrough('server:env:cloud'),
-    'iam:show:server:external': renderWorkspaceScriptPassthrough('server:env:external'),
     'iam:show:server:private': renderWorkspaceScriptPassthrough('server:env:private'),
     'iam:show:web:cloud': renderWorkspaceScriptPassthrough('web:env:cloud'),
-    'iam:show:web:external': renderWorkspaceScriptPassthrough('web:env:external'),
     'iam:show:web:private': renderWorkspaceScriptPassthrough('web:env:private'),
     'package:desktop:cloud': renderWorkspaceScriptPassthrough('desktop:package:cloud'),
-    'package:desktop:external': renderWorkspaceScriptPassthrough('desktop:package:external'),
     'package:desktop:local': renderWorkspaceScriptPassthrough('desktop:package:local'),
     'package:desktop:private': renderWorkspaceScriptPassthrough('desktop:package:private'),
     'package:server:cloud': renderWorkspaceScriptPassthrough('server:package:cloud'),
-    'package:server:external': renderWorkspaceScriptPassthrough('server:package:external'),
     'package:server:private': renderWorkspaceScriptPassthrough('server:package:private'),
     'package:web:cloud': renderWorkspaceScriptPassthrough('web:package:cloud'),
-    'package:web:external': renderWorkspaceScriptPassthrough('web:package:external'),
     'package:web:private': renderWorkspaceScriptPassthrough('web:package:private'),
-    // Server build is governed as a direct Rust host build entry so release
-    // packaging stays aligned with the IAM command matrix.
     'server:build': renderNodeScriptCommand('run-birdcoder-server-build.mjs'),
     'server:dev': renderWorkspaceScriptPassthrough('server:dev:private'),
   };

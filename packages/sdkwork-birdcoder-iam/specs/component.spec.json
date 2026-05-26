@@ -9,7 +9,7 @@
     "root": "sdkwork-birdcoder/packages/sdkwork-birdcoder-iam",
     "domain": "iam",
     "declaredDomain": "iam",
-    "capability": "user-center",
+    "capability": "iam",
     "status": "standardizing",
     "languages": [
       "typescript"

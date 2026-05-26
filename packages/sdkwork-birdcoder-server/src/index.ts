@@ -24,11 +24,9 @@ import {
   type BirdHostDescriptor,
 } from '../../sdkwork-birdcoder-host-core/src/index.ts';
 import {
-  createUserCenterBridgeConfig,
-  createUserCenterLocalApiRoutes,
-  createUserCenterStandardAppRouteProjection,
-  type CreateUserCenterStandardAppRouteProjectionOptions,
-} from '@sdkwork/user-center-core-pc-react';
+  SDKWORK_IAM_HEADERS,
+  SDKWORK_IAM_OPERATION_IDS,
+} from '@sdkwork/iam-contracts';
 import type {
   BirdCoderApiEnvelope,
   BirdCoderApiGatewaySummary,
@@ -57,6 +55,7 @@ import type {
   BirdCoderAppSdkApiClient,
   BirdCoderBackendSdkApiClient,
 } from '../../sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import { createBirdCoderApiRequestId } from '../../sdkwork-birdcoder-infrastructure/src/services/apiRequestId.ts';
 import {
   BIRDCODER_CODING_SERVER_API_VERSION as BIRDCODER_CODING_SERVER_API_VERSION_VALUE,
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
@@ -118,7 +117,7 @@ export interface BirdCoderCoreSessionProjectionStore {
 type BirdCoderOpenApiSchema = Record<string, unknown>;
 type BirdCoderOpenApiScope = 'platform' | 'tenant' | 'organization' | 'user' | 'owner';
 type BirdCoderOpenApiDomain =
-  | 'billing'
+  | 'commerce'
   | 'collaboration'
   | 'content'
   | 'device'
@@ -208,7 +207,7 @@ export interface BirdCoderCodingServerOpenApiDocument {
       sdkworkAccessToken: {
         type: 'apiKey';
         in: 'header';
-        name: 'Sdkwork-Access-Token';
+        name: 'Access-Token';
       };
     };
     schemas?: Record<string, BirdCoderOpenApiSchema>;
@@ -294,36 +293,30 @@ const BIRDCODER_DOCUMENT_KINDS = [
 
 const BIRDCODER_DOCUMENT_STATUSES = ['draft', 'active', 'archived'] as const;
 
-const BIRDCODER_USER_CENTER_MODES = [
-  'builtin-local',
-  'sdkwork-cloud-app-api',
-  'external-user-center',
-] as const;
-
-const BIRDCODER_USER_CENTER_LOGIN_METHODS = [
+const BIRDCODER_IAM_LOGIN_METHODS = [
   'emailCode',
   'password',
   'phoneCode',
   'sessionBridge',
 ] as const;
 
-const BIRDCODER_USER_CENTER_REGISTER_METHODS = ['email', 'phone'] as const;
+const BIRDCODER_IAM_REGISTER_METHODS = ['email', 'phone'] as const;
 
-const BIRDCODER_USER_CENTER_RECOVERY_METHODS = ['email', 'phone'] as const;
+const BIRDCODER_IAM_RECOVERY_METHODS = ['email', 'phone'] as const;
 
-const BIRDCODER_USER_CENTER_VERIFY_TYPES = ['EMAIL', 'PHONE'] as const;
+const BIRDCODER_IAM_VERIFY_TYPES = ['EMAIL', 'PHONE'] as const;
 
-const BIRDCODER_USER_CENTER_VERIFY_SCENES = [
+const BIRDCODER_IAM_VERIFY_SCENES = [
   'LOGIN',
   'REGISTER',
   'RESET_PASSWORD',
 ] as const;
 
-const BIRDCODER_USER_CENTER_PASSWORD_RESET_CHANNELS = ['EMAIL', 'SMS'] as const;
+const BIRDCODER_IAM_PASSWORD_RESET_CHANNELS = ['EMAIL', 'SMS'] as const;
 
-const BIRDCODER_USER_CENTER_DEVICE_TYPES = ['android', 'desktop', 'ios', 'web'] as const;
+const BIRDCODER_IAM_DEVICE_TYPES = ['android', 'desktop', 'ios', 'web'] as const;
 
-const BIRDCODER_USER_CENTER_LOGIN_QR_STATUSES = [
+const BIRDCODER_IAM_QR_AUTH_STATUSES = [
   'pending',
   'scanned',
   'confirmed',
@@ -348,8 +341,6 @@ const BIRDCODER_RELEASE_STATUSES = [
   'failed',
   'rolled_back',
 ] as const;
-
-const BIRDCODER_APPROVAL_POLICIES = ['AutoAllow', 'OnRequest', 'Restricted', 'ReleaseOnly'] as const;
 
 const BIRDCODER_API_AUTH_MODES = ['host', 'user', 'admin'] as const;
 
@@ -380,12 +371,6 @@ const BIRDCODER_CODING_SESSION_CHECKPOINT_KINDS = [
 ] as const;
 
 const BIRDCODER_MODEL_STATUSES = ['active', 'preview', 'deprecated', 'disabled'] as const;
-const BIRDCODER_SERVER_USER_CENTER_NAMESPACE = 'sdkwork-birdcoder';
-const BIRDCODER_SERVER_USER_CENTER_LOCAL_API_BASE_PATH = '/app/v3/api';
-const BIRDCODER_SERVER_USER_CENTER_LOCAL_API_ROUTES = createUserCenterLocalApiRoutes(
-  BIRDCODER_SERVER_USER_CENTER_LOCAL_API_BASE_PATH,
-);
-
 export interface BirdServerRuntime extends BirdHostDescriptor {
   host: string;
   port: number;
@@ -420,29 +405,6 @@ let birdCoderInfrastructureRuntimeModulePromise:
   | Promise<BirdCoderInfrastructureRuntimeModule>
   | null = null;
 
-function createBirdCoderServerUserCenterAppRouteProjection<
-  TProjectedRoute,
-  TSurface extends string = 'app',
-  TAuthMode extends string = 'user',
->(
-  options: CreateUserCenterStandardAppRouteProjectionOptions<
-    TProjectedRoute,
-    TSurface,
-    TAuthMode
-  >,
-) {
-  return createUserCenterStandardAppRouteProjection(
-    createUserCenterBridgeConfig({
-      localApiBasePath: BIRDCODER_SERVER_USER_CENTER_LOCAL_API_BASE_PATH,
-      namespace: BIRDCODER_SERVER_USER_CENTER_NAMESPACE,
-      provider: {
-        kind: 'builtin-local',
-      },
-    }),
-    options,
-  );
-}
-
 function createRoute(
   surface: BirdCoderApiSurface,
   authMode: BirdCoderApiRouteDefinition['authMode'],
@@ -457,6 +419,36 @@ function createRoute(
     surface,
     summary,
   };
+}
+
+function toBirdCoderRoutePath(path: string): string {
+  return path.replace(/\{([A-Za-z][A-Za-z0-9]*)\}/gu, ':$1');
+}
+
+function getSdkworkIamOperation(operationId: string): (typeof SDKWORK_IAM_OPERATION_IDS)[string] {
+  const operation = SDKWORK_IAM_OPERATION_IDS[operationId];
+  if (!operation) {
+    throw new Error(`Unknown SDKWork IAM operation id: ${operationId}`);
+  }
+  return operation;
+}
+
+function createIamRoute(
+  operationId: string,
+  summary: string,
+): BirdCoderApiRouteDefinition {
+  const operation = getSdkworkIamOperation(operationId);
+  const surface: BirdCoderApiSurface = operation.path.startsWith('/backend/v3/api/')
+    ? 'backend'
+    : 'app';
+  return toBirdCoderApiRouteDefinition({
+    authMode: surface === 'backend' ? 'admin' : 'user',
+    method: operation.method,
+    operationId: operation.operationId,
+    path: toBirdCoderRoutePath(operation.path),
+    surface,
+    summary,
+  });
 }
 
 function toBirdCoderApiRouteDefinition(
@@ -487,45 +479,12 @@ async function loadBirdCoderInfrastructureRuntimeModule(): Promise<BirdCoderInfr
   return birdCoderInfrastructureRuntimeModulePromise;
 }
 
-const BIRDCODER_USER_CENTER_APP_EXTRA_OPERATION_ENTRIES = [
-  [
-    `GET ${BIRDCODER_SERVER_USER_CENTER_LOCAL_API_ROUTES.authOAuthUrl}`,
-    'oauthAuthorizationUrls.retrieve',
-  ],
-  [
-    `POST ${BIRDCODER_SERVER_USER_CENTER_LOCAL_API_ROUTES.authOAuthLogin}`,
-    'oauthSessions.create',
-  ],
-  [
-    `POST ${BIRDCODER_SERVER_USER_CENTER_LOCAL_API_ROUTES.authQrGenerate}`,
-    'qrLoginCodes.create',
-  ],
-  [
-    `GET ${BIRDCODER_SERVER_USER_CENTER_LOCAL_API_ROUTES.authQrStatusPattern}`,
-    'qrLoginCodes.retrieve',
-  ],
-] as const;
-
-let birdCoderUserCenterAppRouteProjection:
-  | ReturnType<typeof createBirdCoderServerUserCenterAppRouteProjection<BirdCoderApiRouteDefinition>>
-  | null = null;
 let birdCoderAppApiContract: BirdCoderAppApiContract | null = null;
-
-function getBirdCoderUserCenterAppRouteProjection() {
-  birdCoderUserCenterAppRouteProjection ??= createBirdCoderServerUserCenterAppRouteProjection(
-    {
-      authMode: 'user',
-      mapRoute: (route) => toBirdCoderApiRouteDefinition(route),
-      surface: 'app',
-    },
-  );
-  return birdCoderUserCenterAppRouteProjection;
-}
 
 function getSurfaceDescription(surface: BirdCoderApiSurface): string {
   switch (surface) {
     case 'app':
-      return 'Application-facing coding runtime, workspace, project, collaboration, and user-center routes.';
+      return 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.';
     case 'backend':
       return 'Backend governance, audit, release, deployment, and team-management routes.';
     default:
@@ -538,15 +497,15 @@ function getOpenApiTagDescription(tag: string): string {
     case 'audit':
       return 'Audit and operational evidence resources.';
     case 'auth':
-      return 'Appbase IAM authentication and session resources.';
-    case 'billing':
-      return 'Membership, VIP, and billing-facing app resources.';
+      return 'SDKWork IAM authentication and session resources.';
+    case 'commerce':
+      return 'Commerce membership, package catalog, entitlement, order, and payment resources.';
     case 'collaboration':
       return 'Workspace collaboration and team catalog resources.';
     case 'content':
       return 'Project document and content resources.';
     case 'iam':
-      return 'IAM user, team, member, and policy resources.';
+      return 'IAM user, tenant, organization, role, permission, policy, and audit resources.';
     case 'intelligence':
       return 'Coding session, checkpoint, approval, and question resources.';
     case 'platform':
@@ -567,14 +526,20 @@ function getOpenApiTagDescription(tag: string): string {
 function getOpenApiTagForOperationId(operationId: string): string {
   const normalizedOperationId = operationId.trim();
   if (
-    /^(?:config|sessions|sessionExchanges|qrLoginCodes|oauthAuthorizationUrls|oauthSessions|registrations|verificationCodes|passwordResetRequests|passwordResets)\./u.test(
+    /^(?:sessions|oauthAuthorizationUrls|oauthSessions|registrations|verificationCodes|passwordResetRequests|passwordResets)\./u.test(
       normalizedOperationId,
     )
   ) {
     return 'auth';
   }
-  if (/^vip\./u.test(normalizedOperationId)) {
-    return 'billing';
+  if (/^iam\./u.test(normalizedOperationId)) {
+    return 'system';
+  }
+  if (/^qrAuth\./u.test(normalizedOperationId)) {
+    return 'openPlatform';
+  }
+  if (/^memberships\./u.test(normalizedOperationId)) {
+    return 'commerce';
   }
   if (/^(?:codingSessions|approvals|questions)\./u.test(normalizedOperationId)) {
     return 'intelligence';
@@ -585,7 +550,11 @@ function getOpenApiTagForOperationId(operationId: string): string {
   if (/^workspaceTeams\./u.test(normalizedOperationId)) {
     return 'collaboration';
   }
-  if (/^(?:users|teams|workspaces\.members|policies|auditEvents)\./u.test(normalizedOperationId)) {
+  if (
+    /^(?:apiKeys|auditEvents|organizations|permissions|policies|roles|securityEvents|tenants|users|teams|workspaces\.members)\./u.test(
+      normalizedOperationId,
+    )
+  ) {
     return 'iam';
   }
   if (/^(?:workspaces|projects|deployments|releases|deploymentGovernance)\./u.test(normalizedOperationId)) {
@@ -1753,96 +1722,107 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         required: ['id', 'uuid', 'createdAt', 'updatedAt', 'name', 'email'],
       },
     ),
-    BirdCoderUserCenterMetadataSummary: createOpenApiObjectSchema(
+    BirdCoderIamVerificationPolicySummary: createOpenApiObjectSchema(
       {
-        integrationKind: createOpenApiStringSchema(),
-        loginMethods: createOpenApiArraySchema(
-          createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_LOGIN_METHODS),
-        ),
-        mode: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_MODES),
-        oauthLoginEnabled: createOpenApiBooleanSchema(),
-        oauthProviders: createOpenApiArraySchema(createOpenApiStringSchema()),
-        providerKey: createOpenApiStringSchema(),
-        qrLoginEnabled: createOpenApiBooleanSchema(),
-        recoveryMethods: createOpenApiArraySchema(
-          createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_RECOVERY_METHODS),
-        ),
-        registerMethods: createOpenApiArraySchema(
-          createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_REGISTER_METHODS),
-        ),
-        sessionHeaderName: createOpenApiStringSchema(),
-        supportsLocalCredentials: createOpenApiBooleanSchema(),
-        supportsMembershipWrite: createOpenApiBooleanSchema(),
-        supportsProfileWrite: createOpenApiBooleanSchema(),
-        supportsSessionExchange: createOpenApiBooleanSchema(),
-        upstreamBaseUrl: createOpenApiStringSchema(),
+        emailCodeLoginEnabled: createOpenApiBooleanSchema(),
+        emailRegistrationVerificationRequired: createOpenApiBooleanSchema(),
+        phoneCodeLoginEnabled: createOpenApiBooleanSchema(),
+        phoneRegistrationVerificationRequired: createOpenApiBooleanSchema(),
       },
       {
         required: [
-          'loginMethods',
-          'mode',
-          'oauthLoginEnabled',
-          'oauthProviders',
-          'providerKey',
-          'qrLoginEnabled',
-          'recoveryMethods',
-          'registerMethods',
-          'sessionHeaderName',
-          'supportsLocalCredentials',
-          'supportsMembershipWrite',
-          'supportsProfileWrite',
-          'supportsSessionExchange',
+          'emailCodeLoginEnabled',
+          'emailRegistrationVerificationRequired',
+          'phoneCodeLoginEnabled',
+          'phoneRegistrationVerificationRequired',
         ],
       },
     ),
-    BirdCoderUserCenterSessionSummary: createOpenApiObjectSchema(
+    BirdCoderIamRuntimeSettingsSummary: createOpenApiObjectSchema(
       {
-        uuid: createOpenApiStringSchema(),
-        tenantId: createOpenApiStringSchema(),
-        organizationId: createOpenApiStringSchema(),
+        leftRailMode: createOpenApiStringEnumSchema(['auto', 'highlights-only', 'qr-only']),
+        loginMethods: createOpenApiArraySchema(
+          createOpenApiStringEnumSchema(BIRDCODER_IAM_LOGIN_METHODS),
+        ),
+        oauthLoginEnabled: createOpenApiBooleanSchema(),
+        oauthProviders: createOpenApiArraySchema(createOpenApiStringSchema()),
+        qrLoginEnabled: createOpenApiBooleanSchema(),
+        qrLoginType: createOpenApiStringEnumSchema(['web', 'official', 'mini']),
+        recoveryMethods: createOpenApiArraySchema(
+          createOpenApiStringEnumSchema(BIRDCODER_IAM_RECOVERY_METHODS),
+        ),
+        registerMethods: createOpenApiArraySchema(
+          createOpenApiStringEnumSchema(BIRDCODER_IAM_REGISTER_METHODS),
+        ),
+        verificationPolicy: createOpenApiSchemaReference('BirdCoderIamVerificationPolicySummary'),
+      },
+      {
+        required: [
+          'leftRailMode',
+          'loginMethods',
+          'oauthLoginEnabled',
+          'oauthProviders',
+          'qrLoginEnabled',
+          'qrLoginType',
+          'recoveryMethods',
+          'registerMethods',
+          'verificationPolicy',
+        ],
+      },
+    ),
+    BirdCoderIamSessionSummary: createOpenApiObjectSchema(
+      {
         accessToken: createOpenApiStringSchema(),
         authToken: createOpenApiStringSchema(),
-        createdAt: createOpenApiDateTimeSchema(),
-        providerKey: createOpenApiStringSchema(),
-        providerMode: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_MODES),
+        context: createOpenApiObjectSchema({}, { additionalProperties: true }),
+        expiresAt: createOpenApiDateTimeSchema(),
         refreshToken: createOpenApiStringSchema(),
         sessionId: createOpenApiStringSchema(),
-        tokenType: createOpenApiStringSchema(),
-        updatedAt: createOpenApiDateTimeSchema(),
         user: createOpenApiSchemaReference('BirdCoderAuthenticatedUserSummary'),
       },
       {
-        required: [
-          'uuid',
-          'accessToken',
-          'authToken',
-          'createdAt',
-          'providerKey',
-          'providerMode',
-          'sessionId',
-          'tokenType',
-          'updatedAt',
-          'user',
-        ],
+        required: ['accessToken', 'authToken'],
       },
     ),
-    BirdCoderUserCenterLoginRequest: createOpenApiObjectSchema(
+    BirdCoderIamCreateSessionRequest: createOpenApiObjectSchema(
       {
         account: createOpenApiStringSchema(),
         appVersion: createOpenApiStringSchema(),
         code: createOpenApiStringSchema(),
         deviceId: createOpenApiStringSchema(),
         deviceName: createOpenApiStringSchema(),
-        deviceType: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_DEVICE_TYPES),
+        deviceType: createOpenApiStringEnumSchema(BIRDCODER_IAM_DEVICE_TYPES),
         email: createOpenApiStringSchema(),
-        loginMethod: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_LOGIN_METHODS),
+        grantType: createOpenApiStringEnumSchema([
+          'password',
+          'email_code',
+          'phone_code',
+          'session_bridge',
+        ]),
+        loginMethod: createOpenApiStringEnumSchema(BIRDCODER_IAM_LOGIN_METHODS),
         password: createOpenApiStringSchema(),
         phone: createOpenApiStringSchema(),
+        username: createOpenApiStringSchema(),
       },
     ),
-    BirdCoderUserCenterRegisterRequest: createOpenApiObjectSchema(
+    BirdCoderIamUpdateCurrentSessionRequest: createOpenApiObjectSchema(
       {
-        channel: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_VERIFY_TYPES),
+        deviceId: createOpenApiStringSchema(),
+        deviceName: createOpenApiStringSchema(),
+        trusted: createOpenApiBooleanSchema(),
+      },
+    ),
+    BirdCoderIamRefreshSessionRequest: createOpenApiObjectSchema(
+      {
+        refreshToken: createOpenApiStringSchema(),
+      },
+      {
+        required: ['refreshToken'],
+      },
+    ),
+    BirdCoderIamRegistrationCreateRequest: createOpenApiObjectSchema(
+      {
+        channel: createOpenApiStringEnumSchema(BIRDCODER_IAM_VERIFY_TYPES),
         confirmPassword: createOpenApiStringSchema(),
         email: createOpenApiStringSchema(),
         name: createOpenApiStringSchema(),
@@ -1852,52 +1832,37 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         verificationCode: createOpenApiStringSchema(),
       },
     ),
-    BirdCoderUserCenterSendVerifyCodeRequest: createOpenApiObjectSchema(
+    BirdCoderIamVerificationCodeCreateRequest: createOpenApiObjectSchema(
       {
-        scene: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_VERIFY_SCENES),
+        scene: createOpenApiStringEnumSchema(BIRDCODER_IAM_VERIFY_SCENES),
         target: createOpenApiStringSchema(),
-        verifyType: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_VERIFY_TYPES),
+        verifyType: createOpenApiStringEnumSchema(BIRDCODER_IAM_VERIFY_TYPES),
       },
       {
         required: ['scene', 'target', 'verifyType'],
       },
     ),
-    BirdCoderUserCenterEmailCodeLoginRequest: createOpenApiObjectSchema(
+    BirdCoderIamVerificationCodeVerifyRequest: createOpenApiObjectSchema(
       {
-        appVersion: createOpenApiStringSchema(),
         code: createOpenApiStringSchema(),
-        deviceId: createOpenApiStringSchema(),
-        deviceName: createOpenApiStringSchema(),
-        deviceType: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_DEVICE_TYPES),
-        email: createOpenApiStringSchema(),
+        scene: createOpenApiStringEnumSchema(BIRDCODER_IAM_VERIFY_SCENES),
+        target: createOpenApiStringSchema(),
+        verifyType: createOpenApiStringEnumSchema(BIRDCODER_IAM_VERIFY_TYPES),
       },
       {
-        required: ['code', 'email'],
+        required: ['code', 'scene', 'target', 'verifyType'],
       },
     ),
-    BirdCoderUserCenterPhoneCodeLoginRequest: createOpenApiObjectSchema(
-      {
-        appVersion: createOpenApiStringSchema(),
-        code: createOpenApiStringSchema(),
-        deviceId: createOpenApiStringSchema(),
-        deviceName: createOpenApiStringSchema(),
-        deviceType: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_DEVICE_TYPES),
-        phone: createOpenApiStringSchema(),
-      },
-      {
-        required: ['code', 'phone'],
-      },
-    ),
-    BirdCoderUserCenterPasswordResetChallengeRequest: createOpenApiObjectSchema(
+    BirdCoderIamPasswordResetRequestCreateRequest: createOpenApiObjectSchema(
       {
         account: createOpenApiStringSchema(),
-        channel: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_PASSWORD_RESET_CHANNELS),
+        channel: createOpenApiStringEnumSchema(BIRDCODER_IAM_PASSWORD_RESET_CHANNELS),
       },
       {
         required: ['account', 'channel'],
       },
     ),
-    BirdCoderUserCenterPasswordResetRequest: createOpenApiObjectSchema(
+    BirdCoderIamPasswordResetCreateRequest: createOpenApiObjectSchema(
       {
         account: createOpenApiStringSchema(),
         code: createOpenApiStringSchema(),
@@ -1908,22 +1873,11 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         required: ['account', 'code', 'newPassword'],
       },
     ),
-    BirdCoderUserCenterOAuthAuthorizationRequest: createOpenApiObjectSchema(
-      {
-        provider: createOpenApiStringSchema(),
-        redirectUri: createOpenApiStringSchema(),
-        scope: createOpenApiStringSchema(),
-        state: createOpenApiStringSchema(),
-      },
-      {
-        required: ['provider', 'redirectUri'],
-      },
-    ),
-    BirdCoderUserCenterOAuthLoginRequest: createOpenApiObjectSchema(
+    BirdCoderIamOAuthSessionCreateRequest: createOpenApiObjectSchema(
       {
         code: createOpenApiStringSchema(),
         deviceId: createOpenApiStringSchema(),
-        deviceType: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_DEVICE_TYPES),
+        deviceType: createOpenApiStringEnumSchema(BIRDCODER_IAM_DEVICE_TYPES),
         provider: createOpenApiStringSchema(),
         state: createOpenApiStringSchema(),
       },
@@ -1931,7 +1885,7 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         required: ['code', 'provider'],
       },
     ),
-    BirdCoderUserCenterOAuthAuthorizationSummary: createOpenApiObjectSchema(
+    BirdCoderIamOAuthAuthorizationSummary: createOpenApiObjectSchema(
       {
         authUrl: createOpenApiStringSchema(),
       },
@@ -1939,44 +1893,42 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         required: ['authUrl'],
       },
     ),
-    BirdCoderUserCenterSessionExchangeRequest: createOpenApiObjectSchema(
+    BirdCoderIamQrAuthSessionCreateRequest: createOpenApiObjectSchema(
       {
-        avatarUrl: createOpenApiStringSchema(),
-        email: createOpenApiStringSchema(),
-        userId: createOpenApiStringSchema(),
-        name: createOpenApiStringSchema(),
-        providerKey: createOpenApiStringSchema(),
-        subject: createOpenApiStringSchema(),
+        purpose: createOpenApiStringEnumSchema(['login', 'register']),
+        redirectUri: createOpenApiStringSchema(),
       },
       {
-        required: ['email'],
+        required: ['purpose'],
       },
     ),
-    BirdCoderUserCenterLoginQrCodeSummary: createOpenApiObjectSchema(
+    BirdCoderIamQrAuthSessionSummary: createOpenApiObjectSchema(
       {
-        description: createOpenApiStringSchema(),
-        expireTime: createOpenApiIntegerSchema(0),
+        expiresAt: createOpenApiDateTimeSchema(),
         qrContent: createOpenApiStringSchema(),
-        qrKey: createOpenApiStringSchema(),
         qrUrl: createOpenApiStringSchema(),
-        title: createOpenApiStringSchema(),
-        type: createOpenApiStringSchema(),
+        sessionKey: createOpenApiStringSchema(),
+        status: createOpenApiStringEnumSchema(BIRDCODER_IAM_QR_AUTH_STATUSES),
       },
       {
-        required: ['qrKey'],
+        required: ['sessionKey', 'status'],
       },
     ),
-    BirdCoderUserCenterLoginQrStatusSummary: createOpenApiObjectSchema(
+    BirdCoderIamQrAuthSessionScanRequest: createOpenApiObjectSchema(
       {
-        session: createOpenApiSchemaReference('BirdCoderUserCenterSessionSummary'),
-        status: createOpenApiStringEnumSchema(BIRDCODER_USER_CENTER_LOGIN_QR_STATUSES),
-        user: createOpenApiSchemaReference('BirdCoderAuthenticatedUserSummary'),
-      },
-      {
-        required: ['status'],
+        scanSource: createOpenApiStringSchema(),
       },
     ),
-    BirdCoderUserCenterProfileSummary: createOpenApiObjectSchema(
+    BirdCoderIamQrAuthSessionPasswordRequest: createOpenApiObjectSchema(
+      {
+        password: createOpenApiStringSchema(),
+        username: createOpenApiStringSchema(),
+      },
+      {
+        required: ['password', 'username'],
+      },
+    ),
+    BirdCoderIamUserProfileSummary: createOpenApiObjectSchema(
       {
         uuid: createOpenApiStringSchema(),
         tenantId: createOpenApiStringSchema(),
@@ -2007,6 +1959,39 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         ],
       },
     ),
+    BirdCoderIamUserSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        uuid: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        username: createOpenApiStringSchema(),
+        email: createOpenApiStringSchema(),
+        phone: createOpenApiStringSchema(),
+        displayName: createOpenApiStringSchema(),
+        avatarUrl: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'uuid', 'tenantId', 'email', 'displayName', 'status'],
+      },
+    ),
+    BirdCoderIamUserRoleSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        userId: createOpenApiStringSchema(),
+        roleId: createOpenApiStringSchema(),
+        roleCode: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'tenantId', 'userId', 'roleId', 'roleCode', 'status'],
+      },
+    ),
     BirdCoderUpdateCurrentUserProfileRequest: createOpenApiObjectSchema({
       avatarUrl: createOpenApiStringSchema(),
       bio: createOpenApiStringSchema(),
@@ -2015,45 +2000,96 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
       location: createOpenApiStringSchema(),
       website: createOpenApiStringSchema(),
     }),
-    BirdCoderUserCenterMembershipSummary: createOpenApiObjectSchema(
+    BirdCoderCommerceMembershipBenefitSummary: createOpenApiObjectSchema(
       {
-        uuid: createOpenApiStringSchema(),
+        id: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        benefitKey: createOpenApiStringSchema(),
+        type: createOpenApiStringSchema(),
+        description: createOpenApiStringSchema(),
+        icon: createOpenApiStringSchema(),
+        claimed: createOpenApiBooleanSchema(),
+        usageLimit: createOpenApiLongIntegerStringSchema(),
+        usedCount: createOpenApiLongIntegerStringSchema(),
+      },
+      {
+        required: ['id', 'name', 'claimed'],
+      },
+    ),
+    BirdCoderCommerceMembershipCurrentSummary: createOpenApiObjectSchema(
+      {
         tenantId: createOpenApiStringSchema(),
         organizationId: createOpenApiStringSchema(),
-        createdAt: createOpenApiDateTimeSchema(),
-        updatedAt: createOpenApiDateTimeSchema(),
-        userId: createOpenApiStringSchema(),
-        vipLevelId: createOpenApiStringSchema(),
-        pointBalance: createOpenApiLongIntegerStringSchema(),
-        totalRechargedPoints: createOpenApiLongIntegerStringSchema(),
+        ownerUserId: createOpenApiStringSchema(),
+        planId: createOpenApiNullableStringSchema(),
+        planName: createOpenApiStringSchema(),
         status: createOpenApiStringSchema(),
-        validFrom: createOpenApiDateTimeSchema(),
-        validTo: createOpenApiDateTimeSchema(),
-        lastActiveTime: createOpenApiDateTimeSchema(),
-        remark: createOpenApiStringSchema(),
+        startedAt: createOpenApiNullableStringSchema(),
+        expiresAt: createOpenApiNullableStringSchema(),
+        remainingDays: createOpenApiLongIntegerStringSchema(),
+        totalDays: createOpenApiLongIntegerStringSchema(),
+        totalSpent: createOpenApiLongIntegerStringSchema(),
+        points: createOpenApiLongIntegerStringSchema(),
+        growthValue: createOpenApiLongIntegerStringSchema(),
+        upgradeGrowthValue: createOpenApiLongIntegerStringSchema(),
+        benefits: createOpenApiArraySchema(
+          createOpenApiSchemaReference('BirdCoderCommerceMembershipBenefitSummary'),
+        ),
       },
       {
         required: [
-          'uuid',
-          'createdAt',
-          'updatedAt',
-          'userId',
-          'pointBalance',
-          'totalRechargedPoints',
+          'ownerUserId',
+          'planName',
           'status',
+          'totalSpent',
+          'points',
+          'growthValue',
+          'upgradeGrowthValue',
+          'benefits',
         ],
       },
     ),
-    BirdCoderUpdateCurrentUserMembershipRequest: createOpenApiObjectSchema({
-      vipLevelId: createOpenApiStringSchema(),
-      pointBalance: createOpenApiLongIntegerStringSchema(),
-      totalRechargedPoints: createOpenApiLongIntegerStringSchema(),
-      status: createOpenApiStringSchema(),
-      validFrom: createOpenApiDateTimeSchema(),
-      validTo: createOpenApiDateTimeSchema(),
-      lastActiveTime: createOpenApiDateTimeSchema(),
-      remark: createOpenApiStringSchema(),
-    }),
+    BirdCoderCommerceMembershipPackageSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        description: createOpenApiStringSchema(),
+        price: createOpenApiLongIntegerStringSchema(),
+        originalPrice: createOpenApiLongIntegerStringSchema(),
+        pointAmount: createOpenApiLongIntegerStringSchema(),
+        durationDays: createOpenApiLongIntegerStringSchema(),
+        planName: createOpenApiStringSchema(),
+        sortWeight: createOpenApiLongIntegerStringSchema(),
+        recommended: createOpenApiBooleanSchema(),
+        tags: createOpenApiArraySchema(createOpenApiStringSchema()),
+      },
+      {
+        required: [
+          'id',
+          'name',
+          'price',
+          'pointAmount',
+          'durationDays',
+          'sortWeight',
+          'recommended',
+          'tags',
+        ],
+      },
+    ),
+    BirdCoderCommerceMembershipPackageGroupSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        description: createOpenApiStringSchema(),
+        sortWeight: createOpenApiLongIntegerStringSchema(),
+        packages: createOpenApiArraySchema(
+          createOpenApiSchemaReference('BirdCoderCommerceMembershipPackageSummary'),
+        ),
+      },
+      {
+        required: ['id', 'name', 'sortWeight', 'packages'],
+      },
+    ),
     BirdCoderWorkspaceSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
@@ -2726,61 +2762,311 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
         required: ['deployment', 'release', 'target'],
       },
     ),
-    BirdCoderAdminAuditEventSummary: createOpenApiObjectSchema(
+    BirdCoderIamApiKeySummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
-        uuid: createOpenApiStringSchema(),
         tenantId: createOpenApiStringSchema(),
-        organizationId: createOpenApiStringSchema(),
+        userId: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        permissionScopes: createOpenApiArraySchema(createOpenApiStringSchema()),
+        status: createOpenApiStringSchema(),
+        expiresAt: createOpenApiDateTimeSchema(),
         createdAt: createOpenApiDateTimeSchema(),
         updatedAt: createOpenApiDateTimeSchema(),
-        scopeType: createOpenApiStringSchema(),
-        scopeId: createOpenApiStringSchema(),
-        eventType: createOpenApiStringSchema(),
-        payload: {
-          type: 'object',
-          additionalProperties: true,
-        },
       },
       {
-        required: ['id', 'scopeType', 'scopeId', 'eventType', 'payload'],
+        required: ['id', 'tenantId', 'userId', 'name', 'permissionScopes', 'status'],
       },
     ),
-    BirdCoderAdminPolicySummary: createOpenApiObjectSchema(
+    BirdCoderIamAuditEventSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
-        uuid: createOpenApiStringSchema(),
         tenantId: createOpenApiStringSchema(),
         organizationId: createOpenApiStringSchema(),
+        actorUserId: createOpenApiStringSchema(),
+        action: createOpenApiStringSchema(),
+        resourceType: createOpenApiStringSchema(),
+        resourceId: createOpenApiStringSchema(),
+        requestId: createOpenApiStringSchema(),
+        appId: createOpenApiStringSchema(),
+        environment: createOpenApiStringSchema(),
+        shardingKey: createOpenApiStringSchema(),
+        detail: createOpenApiObjectSchema({}, { additionalProperties: true }),
         createdAt: createOpenApiDateTimeSchema(),
-        updatedAt: createOpenApiDateTimeSchema(),
-        scopeType: createOpenApiStringSchema(
-          'Known values include global, workspace, project, team, release, and runtime.',
-        ),
-        scopeId: createOpenApiStringSchema(),
-        policyCategory: createOpenApiStringSchema(
-          'Known values include terminal, engine, deployment, release, workspace, and project.',
-        ),
-        targetType: createOpenApiStringSchema(
-          'Known values include engine, workflow, terminal-profile, deployment-target, workspace, and project.',
-        ),
-        targetId: createOpenApiStringSchema(),
-        approvalPolicy: createOpenApiStringEnumSchema(BIRDCODER_APPROVAL_POLICIES),
-        rationale: createOpenApiStringSchema(),
-        status: createOpenApiStringSchema('Known values include draft, active, and archived.'),
       },
       {
-        required: [
-          'id',
-          'scopeType',
-          'scopeId',
-          'policyCategory',
-          'targetType',
-          'targetId',
-          'approvalPolicy',
-          'status',
-          'updatedAt',
-        ],
+        required: ['id', 'tenantId', 'action', 'resourceType', 'resourceId', 'detail', 'createdAt'],
+      },
+    ),
+    BirdCoderIamOrganizationSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        parentId: createOpenApiStringSchema(),
+        code: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        path: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'tenantId', 'code', 'name', 'path', 'status'],
+      },
+    ),
+    BirdCoderIamOrganizationMemberSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        organizationId: createOpenApiStringSchema(),
+        userId: createOpenApiStringSchema(),
+        roleCode: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        joinedAt: createOpenApiDateTimeSchema(),
+        leftAt: createOpenApiDateTimeSchema(),
+        remark: createOpenApiStringSchema(),
+      },
+      {
+        required: ['id', 'tenantId', 'organizationId', 'userId', 'roleCode', 'status'],
+      },
+    ),
+    BirdCoderIamPermissionSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        code: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        resource: createOpenApiStringSchema(),
+        action: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'code', 'name', 'resource', 'action'],
+      },
+    ),
+    BirdCoderIamPolicySummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        code: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        policy: createOpenApiObjectSchema({}, { additionalProperties: true }),
+        status: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'tenantId', 'code', 'name', 'policy', 'status'],
+      },
+    ),
+    BirdCoderIamRoleSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        code: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'tenantId', 'code', 'name', 'status'],
+      },
+    ),
+    BirdCoderIamRolePermissionSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        roleId: createOpenApiStringSchema(),
+        permissionId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'tenantId', 'roleId', 'permissionId'],
+      },
+    ),
+    BirdCoderIamSecurityEventSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        userId: createOpenApiStringSchema(),
+        sessionId: createOpenApiStringSchema(),
+        eventType: createOpenApiStringSchema(),
+        severity: createOpenApiStringSchema(),
+        detail: createOpenApiObjectSchema({}, { additionalProperties: true }),
+        createdAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'tenantId', 'eventType', 'severity', 'detail', 'createdAt'],
+      },
+    ),
+    BirdCoderIamTenantSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        code: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'code', 'name', 'status'],
+      },
+    ),
+    BirdCoderIamTenantMemberSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        tenantId: createOpenApiStringSchema(),
+        userId: createOpenApiStringSchema(),
+        roleCode: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        joinedAt: createOpenApiDateTimeSchema(),
+        leftAt: createOpenApiDateTimeSchema(),
+        remark: createOpenApiStringSchema(),
+      },
+      {
+        required: ['id', 'tenantId', 'userId', 'roleCode', 'status'],
+      },
+    ),
+    BirdCoderCreateIamOrganizationRequest: createOpenApiObjectSchema(
+      {
+        code: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        parentId: createOpenApiStringSchema(),
+      },
+      {
+        required: ['code', 'name'],
+      },
+    ),
+    BirdCoderUpdateIamOrganizationRequest: createOpenApiObjectSchema({
+      code: createOpenApiStringSchema(),
+      name: createOpenApiStringSchema(),
+      parentId: createOpenApiStringSchema(),
+      status: createOpenApiStringSchema(),
+    }),
+    BirdCoderCreateIamOrganizationMemberRequest: createOpenApiObjectSchema(
+      {
+        userId: createOpenApiStringSchema(),
+        roleCode: createOpenApiStringSchema(),
+        remark: createOpenApiStringSchema(),
+      },
+      {
+        required: ['userId', 'roleCode'],
+      },
+    ),
+    BirdCoderUpdateIamOrganizationMemberRequest: createOpenApiObjectSchema({
+      roleCode: createOpenApiStringSchema(),
+      status: createOpenApiStringSchema(),
+      remark: createOpenApiStringSchema(),
+    }),
+    BirdCoderCreateIamPermissionRequest: createOpenApiObjectSchema(
+      {
+        code: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        resource: createOpenApiStringSchema(),
+        action: createOpenApiStringSchema(),
+      },
+      {
+        required: ['code', 'name', 'resource', 'action'],
+      },
+    ),
+    BirdCoderUpdateIamPermissionRequest: createOpenApiObjectSchema({
+      name: createOpenApiStringSchema(),
+      resource: createOpenApiStringSchema(),
+      action: createOpenApiStringSchema(),
+    }),
+    BirdCoderCreateIamPolicyRequest: createOpenApiObjectSchema(
+      {
+        code: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        policy: createOpenApiObjectSchema({}, { additionalProperties: true }),
+      },
+      {
+        required: ['code', 'name', 'policy'],
+      },
+    ),
+    BirdCoderUpdateIamPolicyRequest: createOpenApiObjectSchema({
+      name: createOpenApiStringSchema(),
+      policy: createOpenApiObjectSchema({}, { additionalProperties: true }),
+      status: createOpenApiStringSchema(),
+    }),
+    BirdCoderCreateIamRoleRequest: createOpenApiObjectSchema(
+      {
+        code: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+      },
+      {
+        required: ['code', 'name'],
+      },
+    ),
+    BirdCoderUpdateIamRoleRequest: createOpenApiObjectSchema({
+      name: createOpenApiStringSchema(),
+      status: createOpenApiStringSchema(),
+    }),
+    BirdCoderCreateIamRolePermissionRequest: createOpenApiObjectSchema(
+      {
+        permissionId: createOpenApiStringSchema(),
+      },
+      {
+        required: ['permissionId'],
+      },
+    ),
+    BirdCoderCreateIamTenantRequest: createOpenApiObjectSchema(
+      {
+        code: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+      },
+      {
+        required: ['code', 'name'],
+      },
+    ),
+    BirdCoderUpdateIamTenantRequest: createOpenApiObjectSchema({
+      code: createOpenApiStringSchema(),
+      name: createOpenApiStringSchema(),
+      status: createOpenApiStringSchema(),
+    }),
+    BirdCoderCreateIamTenantMemberRequest: createOpenApiObjectSchema(
+      {
+        userId: createOpenApiStringSchema(),
+        roleCode: createOpenApiStringSchema(),
+        remark: createOpenApiStringSchema(),
+      },
+      {
+        required: ['userId', 'roleCode'],
+      },
+    ),
+    BirdCoderUpdateIamTenantMemberRequest: createOpenApiObjectSchema({
+      roleCode: createOpenApiStringSchema(),
+      status: createOpenApiStringSchema(),
+      remark: createOpenApiStringSchema(),
+    }),
+    BirdCoderCreateIamUserRequest: createOpenApiObjectSchema(
+      {
+        username: createOpenApiStringSchema(),
+        email: createOpenApiStringSchema(),
+        phone: createOpenApiStringSchema(),
+        password: createOpenApiStringSchema(),
+        displayName: createOpenApiStringSchema(),
+        avatarUrl: createOpenApiStringSchema(),
+      },
+      {
+        required: ['email', 'password'],
+      },
+    ),
+    BirdCoderUpdateIamUserRequest: createOpenApiObjectSchema({
+      username: createOpenApiStringSchema(),
+      email: createOpenApiStringSchema(),
+      phone: createOpenApiStringSchema(),
+      displayName: createOpenApiStringSchema(),
+      avatarUrl: createOpenApiStringSchema(),
+      status: createOpenApiStringSchema(),
+    }),
+    BirdCoderCreateIamUserRoleRequest: createOpenApiObjectSchema(
+      {
+        roleId: createOpenApiStringSchema(),
+        roleCode: createOpenApiStringSchema(),
+      },
+      {
+        required: ['roleId'],
       },
     ),
     BirdCoderCodingSessionSummaryEnvelope: createOpenApiEnvelopeSchema(
@@ -2858,29 +3144,41 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderBooleanSuccessEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderBooleanSuccessResult'),
     ),
-    BirdCoderUserCenterMetadataEnvelope: createOpenApiEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderUserCenterMetadataSummary'),
+    BirdCoderIamRuntimeSettingsEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamRuntimeSettingsSummary'),
     ),
-    BirdCoderUserCenterLoginQrCodeEnvelope: createOpenApiEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderUserCenterLoginQrCodeSummary'),
+    BirdCoderIamVerificationPolicyEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamVerificationPolicySummary'),
     ),
-    BirdCoderUserCenterLoginQrStatusEnvelope: createOpenApiEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderUserCenterLoginQrStatusSummary'),
+    BirdCoderIamSessionEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamSessionSummary'),
     ),
-    BirdCoderUserCenterSessionEnvelope: createOpenApiEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderUserCenterSessionSummary'),
+    BirdCoderIamOAuthAuthorizationEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamOAuthAuthorizationSummary'),
     ),
-    BirdCoderUserCenterOAuthAuthorizationEnvelope: createOpenApiEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderUserCenterOAuthAuthorizationSummary'),
+    BirdCoderIamQrAuthSessionEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamQrAuthSessionSummary'),
     ),
-    BirdCoderNullableUserCenterSessionEnvelope: createOpenApiEnvelopeSchema(
-      createOpenApiNullableSchema(createOpenApiSchemaReference('BirdCoderUserCenterSessionSummary')),
+    BirdCoderIamUserProfileEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamUserProfileSummary'),
     ),
-    BirdCoderUserCenterProfileEnvelope: createOpenApiEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderUserCenterProfileSummary'),
+    BirdCoderIamUserSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamUserSummary'),
     ),
-    BirdCoderUserCenterMembershipEnvelope: createOpenApiEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderUserCenterMembershipSummary'),
+    BirdCoderIamUserSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamUserSummary'),
+    ),
+    BirdCoderIamUserRoleSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamUserRoleSummary'),
+    ),
+    BirdCoderIamUserRoleSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamUserRoleSummary'),
+    ),
+    BirdCoderCommerceMembershipCurrentEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceMembershipCurrentSummary'),
+    ),
+    BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceMembershipPackageGroupSummary'),
     ),
     BirdCoderWorkspaceSummaryEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderWorkspaceSummary'),
@@ -2939,11 +3237,62 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
     BirdCoderProjectPublishResultEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderProjectPublishResult'),
     ),
-    BirdCoderAdminAuditEventSummaryListEnvelope: createOpenApiListEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderAdminAuditEventSummary'),
+    BirdCoderIamApiKeySummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamApiKeySummary'),
     ),
-    BirdCoderAdminPolicySummaryListEnvelope: createOpenApiListEnvelopeSchema(
-      createOpenApiSchemaReference('BirdCoderAdminPolicySummary'),
+    BirdCoderIamAuditEventSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamAuditEventSummary'),
+    ),
+    BirdCoderIamOrganizationSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamOrganizationSummary'),
+    ),
+    BirdCoderIamOrganizationSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamOrganizationSummary'),
+    ),
+    BirdCoderIamOrganizationMemberSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamOrganizationMemberSummary'),
+    ),
+    BirdCoderIamOrganizationMemberSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamOrganizationMemberSummary'),
+    ),
+    BirdCoderIamPermissionSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamPermissionSummary'),
+    ),
+    BirdCoderIamPermissionSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamPermissionSummary'),
+    ),
+    BirdCoderIamPolicySummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamPolicySummary'),
+    ),
+    BirdCoderIamPolicySummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamPolicySummary'),
+    ),
+    BirdCoderIamRoleSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamRoleSummary'),
+    ),
+    BirdCoderIamRoleSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamRoleSummary'),
+    ),
+    BirdCoderIamRolePermissionSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamRolePermissionSummary'),
+    ),
+    BirdCoderIamRolePermissionSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamRolePermissionSummary'),
+    ),
+    BirdCoderIamSecurityEventSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamSecurityEventSummary'),
+    ),
+    BirdCoderIamTenantSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamTenantSummary'),
+    ),
+    BirdCoderIamTenantSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamTenantSummary'),
+    ),
+    BirdCoderIamTenantMemberSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamTenantMemberSummary'),
+    ),
+    BirdCoderIamTenantMemberSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderIamTenantMemberSummary'),
     ),
   };
 }
@@ -3023,7 +3372,7 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
   );
   const sessionIdQueryParameter = createOpenApiQueryParameter(
     'sessionId',
-    'Runtime user-center session id used to authorize the websocket upgrade.',
+    'Runtime SDKWork IAM session id used to authorize the websocket upgrade.',
     createOpenApiStringSchema(),
   );
   const projectIdPathParameter = createOpenApiPathParameter(
@@ -3035,9 +3384,37 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'packageId',
     'Skill package identifier.',
   );
-  const qrKeyPathParameter = createOpenApiPathParameter(
-    'qrKey',
-    'BirdCoder login QR challenge identifier.',
+  const qrSessionKeyPathParameter = createOpenApiPathParameter(
+    'sessionKey',
+    'SDKWork IAM QR auth session key.',
+  );
+  const apiKeyIdPathParameter = createOpenApiPathParameter(
+    'apiKeyId',
+    'SDKWork IAM API key identifier.',
+  );
+  const organizationIdPathParameter = createOpenApiPathParameter(
+    'organizationId',
+    'SDKWork IAM organization identifier.',
+  );
+  const permissionIdPathParameter = createOpenApiPathParameter(
+    'permissionId',
+    'SDKWork IAM permission identifier.',
+  );
+  const policyIdPathParameter = createOpenApiPathParameter(
+    'policyId',
+    'SDKWork IAM policy identifier.',
+  );
+  const roleIdPathParameter = createOpenApiPathParameter(
+    'roleId',
+    'SDKWork IAM role identifier.',
+  );
+  const tenantIdPathParameter = createOpenApiPathParameter(
+    'tenantId',
+    'SDKWork IAM tenant identifier.',
+  );
+  const iamUserIdPathParameter = createOpenApiPathParameter(
+    'userId',
+    'SDKWork IAM user identifier.',
   );
 
   return {
@@ -3377,52 +3754,96 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
-    'config.retrieve': {
+    'iam.runtime.retrieve': {
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'User center provider metadata returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterMetadataEnvelope'),
+        successDescription: 'SDKWork IAM runtime settings returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamRuntimeSettingsEnvelope'),
+      }),
+    },
+    'iam.verificationPolicy.retrieve': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM verification policy returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamVerificationPolicyEnvelope'),
       }),
     },
     'sessions.current.retrieve': {
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'Current user center session returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderNullableUserCenterSessionEnvelope'),
+        successDescription: 'Current SDKWork IAM session returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
       }),
     },
-    'qrLoginCodes.create': {
+    'sessions.current.update': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderIamUpdateCurrentSessionRequest'),
+        false,
+      ),
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'User center login QR challenge created successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterLoginQrCodeEnvelope'),
+        successDescription: 'Current SDKWork IAM session updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
+      }),
+    },
+    'qrAuth.sessions.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderIamQrAuthSessionCreateRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM QR auth session created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamQrAuthSessionEnvelope'),
         extraResponses: {
-          '500': createProblemResponse('User center login QR challenge could not be created.'),
+          '500': createProblemResponse('SDKWork IAM QR auth session could not be created.'),
         },
       }),
     },
-    'qrLoginCodes.retrieve': {
-      parameters: [qrKeyPathParameter],
+    'qrAuth.sessions.retrieve': {
+      parameters: [qrSessionKeyPathParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'User center login QR status returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterLoginQrStatusEnvelope'),
+        successDescription: 'SDKWork IAM QR auth session returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamQrAuthSessionEnvelope'),
         extraResponses: {
-          '404': createProblemResponse('User center login QR challenge was not found.'),
+          '404': createProblemResponse('SDKWork IAM QR auth session was not found.'),
         },
+      }),
+    },
+    'qrAuth.sessions.scans.create': {
+      parameters: [qrSessionKeyPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderIamQrAuthSessionScanRequest'),
+        false,
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM QR auth session scan accepted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
+      }),
+    },
+    'qrAuth.sessions.passwords.create': {
+      parameters: [qrSessionKeyPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderIamQrAuthSessionPasswordRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM QR auth session completed by password successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
       }),
     },
     'sessions.create': {
       requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderUserCenterLoginRequest'),
+        createOpenApiSchemaReference('BirdCoderIamCreateSessionRequest'),
       ),
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'User center session created successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterSessionEnvelope'),
+        successDescription: 'SDKWork IAM session created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
         extraResponses: {
-          '400': createProblemResponse('User center login request is invalid.'),
-          '401': createProblemResponse('User center credentials were rejected.'),
+          '400': createProblemResponse('SDKWork IAM login request is invalid.'),
+          '401': createProblemResponse('SDKWork IAM credentials were rejected.'),
         },
       }),
     },
@@ -3458,7 +3879,7 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'OAuth authorization URL resolved successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterOAuthAuthorizationEnvelope'),
+        successSchema: createOpenApiSchemaReference('BirdCoderIamOAuthAuthorizationEnvelope'),
         extraResponses: {
           '400': createProblemResponse('OAuth authorization request is invalid.'),
         },
@@ -3466,12 +3887,12 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
     },
     'oauthSessions.create': {
       requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderUserCenterOAuthLoginRequest'),
+        createOpenApiSchemaReference('BirdCoderIamOAuthSessionCreateRequest'),
       ),
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'User center session created successfully with OAuth authorization.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterSessionEnvelope'),
+        successDescription: 'SDKWork IAM session created successfully with OAuth authorization.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
         extraResponses: {
           '400': createProblemResponse('OAuth login request is invalid.'),
           '401': createProblemResponse('OAuth authorization code was rejected.'),
@@ -3480,20 +3901,20 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
     },
     'registrations.create': {
       requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderUserCenterRegisterRequest'),
+        createOpenApiSchemaReference('BirdCoderIamRegistrationCreateRequest'),
       ),
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'User center user registered successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterSessionEnvelope'),
+        successDescription: 'SDKWork IAM user registered successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
         extraResponses: {
-          '400': createProblemResponse('User center registration request is invalid.'),
+          '400': createProblemResponse('SDKWork IAM registration request is invalid.'),
         },
       }),
     },
     'verificationCodes.create': {
       requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderUserCenterSendVerifyCodeRequest'),
+        createOpenApiSchemaReference('BirdCoderIamVerificationCodeCreateRequest'),
       ),
       responses: buildOpenApiResponses({
         successStatus: '200',
@@ -3504,9 +3925,23 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
+    'verificationCodes.verify': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderIamVerificationCodeVerifyRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Verification code checked successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Verification code verify request is invalid.'),
+          '401': createProblemResponse('Verification code was rejected.'),
+        },
+      }),
+    },
     'passwordResetRequests.create': {
       requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderUserCenterPasswordResetChallengeRequest'),
+        createOpenApiSchemaReference('BirdCoderIamPasswordResetRequestCreateRequest'),
       ),
       responses: buildOpenApiResponses({
         successStatus: '200',
@@ -3519,7 +3954,7 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
     },
     'passwordResets.create': {
       requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderUserCenterPasswordResetRequest'),
+        createOpenApiSchemaReference('BirdCoderIamPasswordResetCreateRequest'),
       ),
       responses: buildOpenApiResponses({
         successStatus: '200',
@@ -3534,20 +3969,21 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'sessions.current.delete': {
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'User center session revoked successfully.',
+        successDescription: 'SDKWork IAM session revoked successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
       }),
     },
-    'sessionExchanges.create': {
+    'sessions.refresh': {
       requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderUserCenterSessionExchangeRequest'),
+        createOpenApiSchemaReference('BirdCoderIamRefreshSessionRequest'),
       ),
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'External appbase IAM session exchanged successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterSessionEnvelope'),
+        successDescription: 'SDKWork IAM session refreshed successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
         extraResponses: {
-          '400': createProblemResponse('User center session exchange request is invalid.'),
+          '400': createProblemResponse('SDKWork IAM session refresh request is invalid.'),
+          '401': createProblemResponse('SDKWork IAM refresh token was rejected.'),
         },
       }),
     },
@@ -3555,7 +3991,7 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Current user profile returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterProfileEnvelope'),
+        successSchema: createOpenApiSchemaReference('BirdCoderIamUserProfileEnvelope'),
       }),
     },
     'users.current.update': {
@@ -3565,24 +4001,23 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Current user profile updated successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterProfileEnvelope'),
+        successSchema: createOpenApiSchemaReference('BirdCoderIamUserProfileEnvelope'),
       }),
     },
-    'vip.info.retrieve': {
+    'memberships.current.retrieve': {
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'Current user membership returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterMembershipEnvelope'),
+        successDescription: 'Current SDKWork commerce membership returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceMembershipCurrentEnvelope'),
       }),
     },
-    'vip.info.update': {
-      requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderUpdateCurrentUserMembershipRequest'),
-      ),
+    'memberships.packageGroups.list': {
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'Current user membership updated successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderUserCenterMembershipEnvelope'),
+        successDescription: 'SDKWork commerce membership package groups returned successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope',
+        ),
       }),
     },
     'workspaces.list': {
@@ -3640,7 +4075,7 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
           'WebSocket upgrade accepted for workspace realtime delivery.',
         ),
         '400': createProblemResponse('Workspace realtime subscription request is invalid.'),
-        '401': createProblemResponse('A valid user-center session is required.'),
+        '401': createProblemResponse('A valid SDKWork IAM session is required.'),
         '404': createProblemResponse('Workspace was not found.'),
         default: createProblemResponse('Problem response envelope.'),
       },
@@ -3947,18 +4382,571 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference('BirdCoderDeploymentRecordSummaryListEnvelope'),
       }),
     },
+    'apiKeys.list': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM API keys returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamApiKeySummaryListEnvelope'),
+      }),
+    },
+    'apiKeys.revoke': {
+      parameters: [apiKeyIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM API key revoked successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM API key was not found.'),
+        },
+      }),
+    },
     'auditEvents.list': {
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'Audit events returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderAdminAuditEventSummaryListEnvelope'),
+        successDescription: 'SDKWork IAM audit events returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamAuditEventSummaryListEnvelope'),
+      }),
+    },
+    'organizations.list': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM organizations returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamOrganizationSummaryListEnvelope'),
+      }),
+    },
+    'organizations.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateIamOrganizationRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM organization created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamOrganizationSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM organization request is invalid.'),
+        },
+      }),
+    },
+    'organizations.retrieve': {
+      parameters: [organizationIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM organization returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamOrganizationSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM organization was not found.'),
+        },
+      }),
+    },
+    'organizations.update': {
+      parameters: [organizationIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpdateIamOrganizationRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM organization updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamOrganizationSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM organization update request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM organization was not found.'),
+        },
+      }),
+    },
+    'organizations.delete': {
+      parameters: [organizationIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM organization deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM organization was not found.'),
+        },
+      }),
+    },
+    'organizations.tree.retrieve': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM organization tree returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamOrganizationSummaryListEnvelope'),
+      }),
+    },
+    'organizations.members.list': {
+      parameters: [organizationIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM organization members returned successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderIamOrganizationMemberSummaryListEnvelope',
+        ),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM organization was not found.'),
+        },
+      }),
+    },
+    'organizations.members.create': {
+      parameters: [organizationIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateIamOrganizationMemberRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM organization member created successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderIamOrganizationMemberSummaryEnvelope',
+        ),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM organization member request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM organization was not found.'),
+        },
+      }),
+    },
+    'organizations.members.update': {
+      parameters: [organizationIdPathParameter, iamUserIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpdateIamOrganizationMemberRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM organization member updated successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderIamOrganizationMemberSummaryEnvelope',
+        ),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM organization member update request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM organization member was not found.'),
+        },
+      }),
+    },
+    'organizations.members.delete': {
+      parameters: [organizationIdPathParameter, iamUserIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM organization member deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM organization member was not found.'),
+        },
+      }),
+    },
+    'permissions.list': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM permissions returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamPermissionSummaryListEnvelope'),
+      }),
+    },
+    'permissions.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateIamPermissionRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM permission created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamPermissionSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM permission request is invalid.'),
+        },
+      }),
+    },
+    'permissions.retrieve': {
+      parameters: [permissionIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM permission returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamPermissionSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM permission was not found.'),
+        },
+      }),
+    },
+    'permissions.update': {
+      parameters: [permissionIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpdateIamPermissionRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM permission updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamPermissionSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM permission update request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM permission was not found.'),
+        },
+      }),
+    },
+    'permissions.delete': {
+      parameters: [permissionIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM permission deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM permission was not found.'),
+        },
       }),
     },
     'policies.list': {
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'Governance policies returned successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderAdminPolicySummaryListEnvelope'),
+        successDescription: 'SDKWork IAM policies returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamPolicySummaryListEnvelope'),
+      }),
+    },
+    'policies.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateIamPolicyRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM policy created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamPolicySummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM policy request is invalid.'),
+        },
+      }),
+    },
+    'policies.retrieve': {
+      parameters: [policyIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM policy returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamPolicySummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM policy was not found.'),
+        },
+      }),
+    },
+    'policies.update': {
+      parameters: [policyIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpdateIamPolicyRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM policy updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamPolicySummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM policy update request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM policy was not found.'),
+        },
+      }),
+    },
+    'policies.delete': {
+      parameters: [policyIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM policy deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM policy was not found.'),
+        },
+      }),
+    },
+    'roles.list': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM roles returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamRoleSummaryListEnvelope'),
+      }),
+    },
+    'roles.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateIamRoleRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM role created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamRoleSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM role request is invalid.'),
+        },
+      }),
+    },
+    'roles.retrieve': {
+      parameters: [roleIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM role returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamRoleSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM role was not found.'),
+        },
+      }),
+    },
+    'roles.update': {
+      parameters: [roleIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpdateIamRoleRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM role updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamRoleSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM role update request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM role was not found.'),
+        },
+      }),
+    },
+    'roles.delete': {
+      parameters: [roleIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM role deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM role was not found.'),
+        },
+      }),
+    },
+    'roles.permissions.list': {
+      parameters: [roleIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM role permissions returned successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderIamRolePermissionSummaryListEnvelope',
+        ),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM role was not found.'),
+        },
+      }),
+    },
+    'roles.permissions.create': {
+      parameters: [roleIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateIamRolePermissionRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM role permission created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamRolePermissionSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM role permission request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM role was not found.'),
+        },
+      }),
+    },
+    'roles.permissions.delete': {
+      parameters: [roleIdPathParameter, permissionIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM role permission deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM role permission was not found.'),
+        },
+      }),
+    },
+    'securityEvents.list': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM security events returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamSecurityEventSummaryListEnvelope'),
+      }),
+    },
+    'tenants.list': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM tenants returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamTenantSummaryListEnvelope'),
+      }),
+    },
+    'tenants.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateIamTenantRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM tenant created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamTenantSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM tenant request is invalid.'),
+        },
+      }),
+    },
+    'tenants.retrieve': {
+      parameters: [tenantIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM tenant returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamTenantSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM tenant was not found.'),
+        },
+      }),
+    },
+    'tenants.update': {
+      parameters: [tenantIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpdateIamTenantRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM tenant updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamTenantSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM tenant update request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM tenant was not found.'),
+        },
+      }),
+    },
+    'tenants.delete': {
+      parameters: [tenantIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM tenant deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM tenant was not found.'),
+        },
+      }),
+    },
+    'tenants.members.list': {
+      parameters: [tenantIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM tenant members returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamTenantMemberSummaryListEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM tenant was not found.'),
+        },
+      }),
+    },
+    'tenants.members.create': {
+      parameters: [tenantIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateIamTenantMemberRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM tenant member created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamTenantMemberSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM tenant member request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM tenant was not found.'),
+        },
+      }),
+    },
+    'tenants.members.update': {
+      parameters: [tenantIdPathParameter, iamUserIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpdateIamTenantMemberRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM tenant member updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamTenantMemberSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM tenant member update request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM tenant member was not found.'),
+        },
+      }),
+    },
+    'tenants.members.delete': {
+      parameters: [tenantIdPathParameter, iamUserIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM tenant member deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM tenant member was not found.'),
+        },
+      }),
+    },
+    'users.list': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM users returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamUserSummaryListEnvelope'),
+      }),
+    },
+    'users.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateIamUserRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM user created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamUserSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM user request is invalid.'),
+        },
+      }),
+    },
+    'users.retrieve': {
+      parameters: [iamUserIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM user returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamUserSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM user was not found.'),
+        },
+      }),
+    },
+    'users.update': {
+      parameters: [iamUserIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderUpdateIamUserRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM user updated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamUserSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM user update request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM user was not found.'),
+        },
+      }),
+    },
+    'users.delete': {
+      parameters: [iamUserIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM user deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM user was not found.'),
+        },
+      }),
+    },
+    'users.roles.list': {
+      parameters: [iamUserIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM user roles returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamUserRoleSummaryListEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM user was not found.'),
+        },
+      }),
+    },
+    'users.roles.create': {
+      parameters: [iamUserIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateIamUserRoleRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM user role created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamUserRoleSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork IAM user role request is invalid.'),
+          '404': createProblemResponse('SDKWork IAM user was not found.'),
+        },
+      }),
+    },
+    'users.roles.delete': {
+      parameters: [iamUserIdPathParameter, roleIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork IAM user role deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork IAM user role was not found.'),
+        },
       }),
     },
     'teams.list': {
@@ -4057,20 +5045,30 @@ function isPublicOpenApiOperation(
     return true;
   }
 
-  return /^(?:config|sessions\.create|sessionExchanges\.create|qrLoginCodes\.(?:create|retrieve)|oauthAuthorizationUrls\.retrieve|oauthSessions\.create|registrations\.create|verificationCodes\.create|passwordResetRequests\.create|passwordResets\.create)$/u.test(
+  const sdkworkIamOperation = SDKWORK_IAM_OPERATION_IDS[operationId];
+  if (sdkworkIamOperation) {
+    return sdkworkIamOperation.security !== 'dualToken';
+  }
+
+  return /^(?:qrAuth\.sessions\.(?:create|retrieve)|qrAuth\.sessions\.(?:scans|passwords)\.create|oauthAuthorizationUrls\.retrieve|oauthSessions\.create|registrations\.create|sessions\.(?:create|refresh)|verificationCodes\.(?:create|verify)|passwordResetRequests\.create|passwordResets\.create|iam\.(?:runtime|verificationPolicy)\.retrieve)$/u.test(
     operationId,
   );
 }
 
 function getOpenApiDomainForOperationId(operationId: string): BirdCoderOpenApiDomain {
+  if (/^iam\.(?:runtime|verificationPolicy)\.retrieve$/u.test(operationId)) {
+    return 'iam';
+  }
+
   const tag = getOpenApiTagForOperationId(operationId);
   switch (tag) {
     case 'auth':
     case 'iam':
     case 'audit':
+    case 'openPlatform':
       return 'iam';
-    case 'billing':
-      return 'billing';
+    case 'commerce':
+      return 'commerce';
     case 'collaboration':
       return 'collaboration';
     case 'content':
@@ -4100,10 +5098,6 @@ function getOpenApiResourceForOperationId(
   const resourceParts = operationParts.slice(0, -1);
   const normalizedResource =
     resourceParts.length > 0 ? resourceParts.join('.') : operationParts[0] ?? 'operations';
-
-  if (domain === 'iam' && /^auth(?:\.|$)/u.test(normalizedResource)) {
-    return normalizedResource;
-  }
 
   return normalizedResource.startsWith(`${domain}.`)
     ? normalizedResource
@@ -4156,7 +5150,7 @@ function getOpenApiScopeMetadata(
     };
   }
 
-  if (/^(?:sessions\.current|users\.current|vip\.info)/u.test(operationId)) {
+  if (/^(?:sessions\.current|users\.current|memberships\.current|memberships\.packageGroups)/u.test(operationId)) {
     return {
       dataScope: 'user',
       tenantScope: 'tenant',
@@ -4209,6 +5203,10 @@ function buildOpenApiGovernanceMetadata(
 
 function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
   const operationIds = new Map<string, string>([
+    ...Object.values(SDKWORK_IAM_OPERATION_IDS).map((operation) => [
+      `${operation.method} ${toBirdCoderRoutePath(operation.path)}`,
+      operation.operationId,
+    ] as const),
     ['GET /app/v3/api/system/descriptor', 'descriptor.retrieve'],
     ['GET /app/v3/api/system/routes', 'routes.list'],
     ['GET /app/v3/api/engines', 'engines.list'],
@@ -4236,19 +5234,8 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['POST /app/v3/api/approvals/:approvalId/decision', 'approvals.decisions.create'],
     ['POST /app/v3/api/questions/:questionId/answer', 'questions.answers.create'],
     ['GET /app/v3/api/operations/:operationId', 'operations.retrieve'],
-    ...BIRDCODER_USER_CENTER_APP_EXTRA_OPERATION_ENTRIES,
-    ['GET /app/v3/api/auth/config', 'config.retrieve'],
-    ['GET /app/v3/api/auth/sessions/current', 'sessions.current.retrieve'],
-    ['POST /app/v3/api/auth/session_exchanges', 'sessionExchanges.create'],
-    ['GET /app/v3/api/billing/vip/info', 'vip.info.retrieve'],
-    ['GET /app/v3/api/iam/users/current', 'users.current.retrieve'],
-    ['POST /app/v3/api/auth/sessions', 'sessions.create'],
-    ['POST /app/v3/api/auth/sessions/current', 'sessions.current.delete'],
-    ['POST /app/v3/api/auth/password_reset_requests', 'passwordResetRequests.create'],
-    ['POST /app/v3/api/auth/registrations', 'registrations.create'],
-    ['POST /app/v3/api/auth/password_resets', 'passwordResets.create'],
-    ['POST /app/v3/api/auth/verification_codes', 'verificationCodes.create'],
-    ['PATCH /app/v3/api/billing/vip/info', 'vip.info.update'],
+    ['GET /app/v3/api/memberships/current', 'memberships.current.retrieve'],
+    ['GET /app/v3/api/memberships/package_groups', 'memberships.packageGroups.list'],
     ['PATCH /app/v3/api/iam/users/current', 'users.current.update'],
     ['GET /app/v3/api/workspaces', 'workspaces.list'],
     ['POST /app/v3/api/workspaces', 'workspaces.create'],
@@ -4342,8 +5329,8 @@ function buildBirdCoderApiGatewaySummary(): BirdCoderApiGatewaySummary {
   };
 }
 
-function buildRequestId(seed: string): string {
-  return `req:${seed}:${Date.now().toString(36)}`;
+function buildRequestId(_seed: string): string {
+  return createBirdCoderApiRequestId();
 }
 
 function createEmptyCoreSessionProjectionSnapshot(
@@ -4649,184 +5636,318 @@ const APP_RUNTIME_API_CONTRACT: BirdCoderAppRuntimeApiContract = {
 };
 
 function getResolvedBirdCoderAppApiContract(): BirdCoderAppApiContract {
-  birdCoderAppApiContract ??=
-    getBirdCoderUserCenterAppRouteProjection().mergeContract({
-  appTemplates: createRoute('app', 'user', 'GET', '/app/v3/api/app_templates', 'List app templates'),
-  authQrGenerate: createRoute(
-    'app',
-    'user',
-    'POST',
-    BIRDCODER_SERVER_USER_CENTER_LOCAL_API_ROUTES.authQrGenerate,
-    'Generate user center login QR code',
-  ),
-  authQrStatus: createRoute(
-    'app',
-    'user',
-    'GET',
-    BIRDCODER_SERVER_USER_CENTER_LOCAL_API_ROUTES.authQrStatusPattern,
-    'Check user center login QR code status',
-  ),
-  authOAuthUrl: createRoute(
-    'app',
-    'user',
-    'GET',
-    BIRDCODER_SERVER_USER_CENTER_LOCAL_API_ROUTES.authOAuthUrl,
-    'Resolve OAuth authorization URL for social sign-in',
-  ),
-  authOAuthLogin: createRoute(
-    'app',
-    'user',
-    'POST',
-    BIRDCODER_SERVER_USER_CENTER_LOCAL_API_ROUTES.authOAuthLogin,
-    'Create user center session with OAuth authorization code',
-  ),
-  createProject: createRoute('app', 'user', 'POST', '/app/v3/api/projects', 'Create project'),
-  createProjectCollaborator: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/projects/:projectId/collaborators',
-    'Upsert project collaborator',
-  ),
-  createWorkspace: createRoute('app', 'user', 'POST', '/app/v3/api/workspaces', 'Create workspace'),
-  createWorkspaceMember: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/workspaces/:workspaceId/members',
-    'Upsert workspace member',
-  ),
-  deleteProject: createRoute(
-    'app',
-    'user',
-    'DELETE',
-    '/app/v3/api/projects/:projectId',
-    'Delete project',
-  ),
-  deleteWorkspace: createRoute(
-    'app',
-    'user',
-    'DELETE',
-    '/app/v3/api/workspaces/:workspaceId',
-    'Delete workspace',
-  ),
-  subscribeWorkspaceRealtime: createRoute(
-    'app',
-    'user',
-    'GET',
-    '/app/v3/api/workspaces/:workspaceId/realtime',
-    'Subscribe to workspace realtime invalidation events',
-  ),
-  deployments: createRoute('app', 'user', 'GET', '/app/v3/api/deployments', 'List deployments'),
-  documents: createRoute('app', 'user', 'GET', '/app/v3/api/documents', 'List project documents'),
-  project: createRoute('app', 'user', 'GET', '/app/v3/api/projects/:projectId', 'Get project'),
-  projectGitOverview: createRoute(
-    'app',
-    'user',
-    'GET',
-    '/app/v3/api/projects/:projectId/git/overview',
-    'Get project Git overview',
-  ),
-  createProjectGitBranch: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/projects/:projectId/git/branches',
-    'Create project Git branch',
-  ),
-  switchProjectGitBranch: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/projects/:projectId/git/branch_switch',
-    'Switch project Git branch',
-  ),
-  commitProjectGitChanges: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/projects/:projectId/git/commits',
-    'Commit project Git changes',
-  ),
-  pushProjectGitBranch: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/projects/:projectId/git/pushes',
-    'Push project Git branch',
-  ),
-  createProjectGitWorktree: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/projects/:projectId/git/worktrees',
-    'Create project Git worktree',
-  ),
-  removeProjectGitWorktree: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/projects/:projectId/git/worktree_removals',
-    'Remove project Git worktree',
-  ),
-  pruneProjectGitWorktrees: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/projects/:projectId/git/worktree_prune',
-    'Prune project Git worktrees',
-  ),
-  installSkillPackage: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/skill_packages/:packageId/installations',
-    'Install skill package for a scope',
-  ),
-  publishProject: createRoute(
-    'app',
-    'user',
-    'POST',
-    '/app/v3/api/projects/:projectId/publish',
-    'Publish project release flow',
-  ),
-  projectCollaborators: createRoute(
-    'app',
-    'user',
-    'GET',
-    '/app/v3/api/projects/:projectId/collaborators',
-    'List project collaborators',
-  ),
-  projects: createRoute('app', 'user', 'GET', '/app/v3/api/projects', 'List projects'),
-  skillPackages: createRoute('app', 'user', 'GET', '/app/v3/api/skill_packages', 'List skill packages'),
-  teams: createRoute('app', 'user', 'GET', '/app/v3/api/teams', 'List workspace teams'),
-  updateProject: createRoute(
-    'app',
-    'user',
-    'PATCH',
-    '/app/v3/api/projects/:projectId',
-    'Update project',
-  ),
-  updateWorkspace: createRoute(
-    'app',
-    'user',
-    'PATCH',
-    '/app/v3/api/workspaces/:workspaceId',
-    'Update workspace',
-  ),
-  workspaceMembers: createRoute(
-    'app',
-    'user',
-    'GET',
-    '/app/v3/api/workspaces/:workspaceId/members',
-    'List workspace members',
-  ),
-  workspaces: createRoute('app', 'user', 'GET', '/app/v3/api/workspaces', 'List workspaces'),
-  });
+  birdCoderAppApiContract ??= {
+    iamRuntime: createIamRoute('iam.runtime.retrieve', 'Get SDKWork IAM runtime metadata'),
+    iamVerificationPolicy: createIamRoute(
+      'iam.verificationPolicy.retrieve',
+      'Get SDKWork IAM verification policy',
+    ),
+    authOAuthAuthorizationUrl: createIamRoute(
+      'oauthAuthorizationUrls.retrieve',
+      'Resolve OAuth authorization URL for SDKWork IAM sign-in',
+    ),
+    authOAuthSession: createIamRoute(
+      'oauthSessions.create',
+      'Create SDKWork IAM session with OAuth authorization code',
+    ),
+    authPasswordResetRequest: createIamRoute(
+      'passwordResetRequests.create',
+      'Create SDKWork IAM password reset request',
+    ),
+    authPasswordReset: createIamRoute('passwordResets.create', 'Reset SDKWork IAM password'),
+    authRegistration: createIamRoute('registrations.create', 'Register SDKWork IAM user'),
+    authSession: createIamRoute('sessions.create', 'Create SDKWork IAM session'),
+    authCurrentSession: createIamRoute('sessions.current.retrieve', 'Get current SDKWork IAM session'),
+    authCurrentSessionUpdate: createIamRoute(
+      'sessions.current.update',
+      'Update current SDKWork IAM session',
+    ),
+    authCurrentSessionDelete: createIamRoute(
+      'sessions.current.delete',
+      'Delete current SDKWork IAM session',
+    ),
+    authSessionRefresh: createIamRoute('sessions.refresh', 'Refresh SDKWork IAM session'),
+    authVerificationCode: createIamRoute(
+      'verificationCodes.create',
+      'Create SDKWork IAM verification code',
+    ),
+    authVerificationCodeVerify: createIamRoute(
+      'verificationCodes.verify',
+      'Verify SDKWork IAM verification code',
+    ),
+    currentIamUser: createIamRoute('users.current.retrieve', 'Get current SDKWork IAM user'),
+    qrAuthSession: toBirdCoderApiRouteDefinition({
+      authMode: 'user',
+      method: 'POST',
+      operationId: 'qrAuth.sessions.create',
+      path: '/app/v3/api/open_platform/qr_auth/sessions',
+      surface: 'app',
+      summary: 'Create SDKWork IAM QR auth session',
+    }),
+    qrAuthSessionStatus: toBirdCoderApiRouteDefinition({
+      authMode: 'user',
+      method: 'GET',
+      operationId: 'qrAuth.sessions.retrieve',
+      path: '/app/v3/api/open_platform/qr_auth/sessions/:sessionKey',
+      surface: 'app',
+      summary: 'Get SDKWork IAM QR auth session',
+    }),
+    qrAuthSessionScan: toBirdCoderApiRouteDefinition({
+      authMode: 'user',
+      method: 'POST',
+      operationId: 'qrAuth.sessions.scans.create',
+      path: '/app/v3/api/open_platform/qr_auth/sessions/:sessionKey/scans',
+      surface: 'app',
+      summary: 'Create SDKWork IAM QR auth scan',
+    }),
+    qrAuthSessionPassword: toBirdCoderApiRouteDefinition({
+      authMode: 'user',
+      method: 'POST',
+      operationId: 'qrAuth.sessions.passwords.create',
+      path: '/app/v3/api/open_platform/qr_auth/sessions/:sessionKey/passwords',
+      surface: 'app',
+      summary: 'Complete SDKWork IAM QR auth session with password',
+    }),
+    appTemplates: createRoute('app', 'user', 'GET', '/app/v3/api/app_templates', 'List app templates'),
+    createProject: createRoute('app', 'user', 'POST', '/app/v3/api/projects', 'Create project'),
+    createProjectCollaborator: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/projects/:projectId/collaborators',
+      'Upsert project collaborator',
+    ),
+    createWorkspace: createRoute('app', 'user', 'POST', '/app/v3/api/workspaces', 'Create workspace'),
+    createWorkspaceMember: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/workspaces/:workspaceId/members',
+      'Upsert workspace member',
+    ),
+    deleteProject: createRoute(
+      'app',
+      'user',
+      'DELETE',
+      '/app/v3/api/projects/:projectId',
+      'Delete project',
+    ),
+    deleteWorkspace: createRoute(
+      'app',
+      'user',
+      'DELETE',
+      '/app/v3/api/workspaces/:workspaceId',
+      'Delete workspace',
+    ),
+    subscribeWorkspaceRealtime: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/workspaces/:workspaceId/realtime',
+      'Subscribe to workspace realtime invalidation events',
+    ),
+    deployments: createRoute('app', 'user', 'GET', '/app/v3/api/deployments', 'List deployments'),
+    documents: createRoute('app', 'user', 'GET', '/app/v3/api/documents', 'List project documents'),
+    project: createRoute('app', 'user', 'GET', '/app/v3/api/projects/:projectId', 'Get project'),
+    projectGitOverview: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/projects/:projectId/git/overview',
+      'Get project Git overview',
+    ),
+    createProjectGitBranch: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/projects/:projectId/git/branches',
+      'Create project Git branch',
+    ),
+    switchProjectGitBranch: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/projects/:projectId/git/branch_switch',
+      'Switch project Git branch',
+    ),
+    commitProjectGitChanges: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/projects/:projectId/git/commits',
+      'Commit project Git changes',
+    ),
+    pushProjectGitBranch: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/projects/:projectId/git/pushes',
+      'Push project Git branch',
+    ),
+    createProjectGitWorktree: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/projects/:projectId/git/worktrees',
+      'Create project Git worktree',
+    ),
+    removeProjectGitWorktree: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/projects/:projectId/git/worktree_removals',
+      'Remove project Git worktree',
+    ),
+    pruneProjectGitWorktrees: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/projects/:projectId/git/worktree_prune',
+      'Prune project Git worktrees',
+    ),
+    installSkillPackage: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/skill_packages/:packageId/installations',
+      'Install skill package for a scope',
+    ),
+    publishProject: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/projects/:projectId/publish',
+      'Publish project release flow',
+    ),
+    projectCollaborators: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/projects/:projectId/collaborators',
+      'List project collaborators',
+    ),
+    projects: createRoute('app', 'user', 'GET', '/app/v3/api/projects', 'List projects'),
+    skillPackages: createRoute('app', 'user', 'GET', '/app/v3/api/skill_packages', 'List skill packages'),
+    teams: createRoute('app', 'user', 'GET', '/app/v3/api/teams', 'List workspace teams'),
+    updateProject: createRoute(
+      'app',
+      'user',
+      'PATCH',
+      '/app/v3/api/projects/:projectId',
+      'Update project',
+    ),
+    updateWorkspace: createRoute(
+      'app',
+      'user',
+      'PATCH',
+      '/app/v3/api/workspaces/:workspaceId',
+      'Update workspace',
+    ),
+    membershipCurrent: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/memberships/current',
+      'Get current SDKWork commerce membership',
+    ),
+    membershipPackageGroups: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/memberships/package_groups',
+      'List SDKWork commerce membership package groups',
+    ),
+    updateCurrentUserProfile: toBirdCoderApiRouteDefinition({
+      authMode: 'user',
+      method: 'PATCH',
+      operationId: 'users.current.update',
+      path: '/app/v3/api/iam/users/current',
+      surface: 'app',
+      summary: 'Update current SDKWork IAM user profile',
+    }),
+    workspaceMembers: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/workspaces/:workspaceId/members',
+      'List workspace members',
+    ),
+    workspaces: createRoute('app', 'user', 'GET', '/app/v3/api/workspaces', 'List workspaces'),
+  };
   return birdCoderAppApiContract;
 }
 
 const BACKEND_API_CONTRACT: BirdCoderBackendApiContract = {
+  iamApiKeys: createIamRoute('apiKeys.list', 'List SDKWork IAM API keys'),
+  iamApiKeyRevoke: createIamRoute('apiKeys.revoke', 'Revoke SDKWork IAM API key'),
+  iamAuditEvents: createIamRoute('auditEvents.list', 'List SDKWork IAM audit events'),
+  iamOrganizations: createIamRoute('organizations.list', 'List SDKWork IAM organizations'),
+  iamOrganization: createIamRoute('organizations.retrieve', 'Get SDKWork IAM organization'),
+  createIamOrganization: createIamRoute('organizations.create', 'Create SDKWork IAM organization'),
+  updateIamOrganization: createIamRoute('organizations.update', 'Update SDKWork IAM organization'),
+  deleteIamOrganization: createIamRoute('organizations.delete', 'Delete SDKWork IAM organization'),
+  iamOrganizationTree: createIamRoute(
+    'organizations.tree.retrieve',
+    'Get SDKWork IAM organization tree',
+  ),
+  iamOrganizationMembers: createIamRoute(
+    'organizations.members.list',
+    'List SDKWork IAM organization members',
+  ),
+  createIamOrganizationMember: createIamRoute(
+    'organizations.members.create',
+    'Create SDKWork IAM organization member',
+  ),
+  updateIamOrganizationMember: createIamRoute(
+    'organizations.members.update',
+    'Update SDKWork IAM organization member',
+  ),
+  deleteIamOrganizationMember: createIamRoute(
+    'organizations.members.delete',
+    'Delete SDKWork IAM organization member',
+  ),
+  iamPermissions: createIamRoute('permissions.list', 'List SDKWork IAM permissions'),
+  iamPermission: createIamRoute('permissions.retrieve', 'Get SDKWork IAM permission'),
+  createIamPermission: createIamRoute('permissions.create', 'Create SDKWork IAM permission'),
+  updateIamPermission: createIamRoute('permissions.update', 'Update SDKWork IAM permission'),
+  deleteIamPermission: createIamRoute('permissions.delete', 'Delete SDKWork IAM permission'),
+  iamPolicies: createIamRoute('policies.list', 'List SDKWork IAM policies'),
+  iamPolicy: createIamRoute('policies.retrieve', 'Get SDKWork IAM policy'),
+  createIamPolicy: createIamRoute('policies.create', 'Create SDKWork IAM policy'),
+  updateIamPolicy: createIamRoute('policies.update', 'Update SDKWork IAM policy'),
+  deleteIamPolicy: createIamRoute('policies.delete', 'Delete SDKWork IAM policy'),
+  iamRoles: createIamRoute('roles.list', 'List SDKWork IAM roles'),
+  iamRole: createIamRoute('roles.retrieve', 'Get SDKWork IAM role'),
+  createIamRole: createIamRoute('roles.create', 'Create SDKWork IAM role'),
+  updateIamRole: createIamRoute('roles.update', 'Update SDKWork IAM role'),
+  deleteIamRole: createIamRoute('roles.delete', 'Delete SDKWork IAM role'),
+  iamRolePermissions: createIamRoute('roles.permissions.list', 'List SDKWork IAM role permissions'),
+  createIamRolePermission: createIamRoute(
+    'roles.permissions.create',
+    'Create SDKWork IAM role permission',
+  ),
+  deleteIamRolePermission: createIamRoute(
+    'roles.permissions.delete',
+    'Delete SDKWork IAM role permission',
+  ),
+  iamSecurityEvents: createIamRoute('securityEvents.list', 'List SDKWork IAM security events'),
+  iamTenants: createIamRoute('tenants.list', 'List SDKWork IAM tenants'),
+  iamTenant: createIamRoute('tenants.retrieve', 'Get SDKWork IAM tenant'),
+  createIamTenant: createIamRoute('tenants.create', 'Create SDKWork IAM tenant'),
+  updateIamTenant: createIamRoute('tenants.update', 'Update SDKWork IAM tenant'),
+  deleteIamTenant: createIamRoute('tenants.delete', 'Delete SDKWork IAM tenant'),
+  iamTenantMembers: createIamRoute('tenants.members.list', 'List SDKWork IAM tenant members'),
+  createIamTenantMember: createIamRoute('tenants.members.create', 'Create SDKWork IAM tenant member'),
+  updateIamTenantMember: createIamRoute('tenants.members.update', 'Update SDKWork IAM tenant member'),
+  deleteIamTenantMember: createIamRoute('tenants.members.delete', 'Delete SDKWork IAM tenant member'),
+  iamUsers: createIamRoute('users.list', 'List SDKWork IAM users'),
+  iamUser: createIamRoute('users.retrieve', 'Get SDKWork IAM user'),
+  createIamUser: createIamRoute('users.create', 'Create SDKWork IAM user'),
+  updateIamUser: createIamRoute('users.update', 'Update SDKWork IAM user'),
+  deleteIamUser: createIamRoute('users.delete', 'Delete SDKWork IAM user'),
+  iamUserRoles: createIamRoute('users.roles.list', 'List SDKWork IAM user roles'),
+  createIamUserRole: createIamRoute('users.roles.create', 'Create SDKWork IAM user role'),
+  deleteIamUserRole: createIamRoute('users.roles.delete', 'Delete SDKWork IAM user role'),
   audit: createRoute('backend', 'admin', 'GET', '/backend/v3/api/iam/audit_events', 'List audit events'),
   deployments: createRoute(
     'backend',
@@ -5065,7 +6186,7 @@ export function buildBirdCoderCodingServerOpenApiDocument(
         sdkworkAccessToken: {
           type: 'apiKey',
           in: 'header',
-          name: 'Sdkwork-Access-Token',
+          name: SDKWORK_IAM_HEADERS.accessToken,
         },
       },
       schemas,

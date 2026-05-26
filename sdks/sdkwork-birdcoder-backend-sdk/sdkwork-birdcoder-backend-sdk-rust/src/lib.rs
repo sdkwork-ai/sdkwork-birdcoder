@@ -4,7 +4,7 @@ pub const SDKWORK_STANDARD_PROFILE: &str = "sdkwork-v3";
 pub const API_PREFIX: &str = "/backend/v3/api";
 pub const PACKAGE_NAME: &str = "@sdkwork/birdcoder-backend-sdk";
 pub const AUTHORIZATION_HEADER: &str = "Authorization";
-pub const SDKWORK_ACCESS_TOKEN_HEADER: &str = "Sdkwork-Access-Token";
+pub const SDKWORK_ACCESS_TOKEN_HEADER: &str = "Access-Token";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SdkOperation {
@@ -31,6 +31,42 @@ pub struct SdkAuthTokens {
 }
 
 pub mod iam {
+    pub mod api_keys {
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.apiKeys.list",
+            method: "GET",
+            operation_id: "apiKeys.list",
+            path: "/backend/v3/api/iam/api_keys",
+            path_param_names: &[],
+            permission: Some("iam.apiKeys.read"),
+            public: false,
+            resource: "iam.apiKeys",
+            summary: "List SDKWork IAM API keys",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const REVOKE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.apiKeys.revoke",
+            method: "POST",
+            operation_id: "apiKeys.revoke",
+            path: "/backend/v3/api/iam/api_keys/{apiKeyId}/revoke",
+            path_param_names: &["apiKeyId"],
+            permission: Some("iam.apiKeys.create"),
+            public: false,
+            resource: "iam.apiKeys",
+            summary: "Revoke SDKWork IAM API key",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+    }
+
     pub mod audit_events {
         pub const LIST: crate::SdkOperation = crate::SdkOperation {
             data_scope: "organization",
@@ -44,13 +80,310 @@ pub mod iam {
             permission: Some("iam.auditEvents.read"),
             public: false,
             resource: "iam.auditEvents",
-            summary: "List audit events",
+            summary: "List SDKWork IAM audit events",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+    }
+
+    pub mod organizations {
+        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.organizations.create",
+            method: "POST",
+            operation_id: "organizations.create",
+            path: "/backend/v3/api/iam/organizations",
+            path_param_names: &[],
+            permission: Some("iam.organizations.create"),
+            public: false,
+            resource: "iam.organizations",
+            summary: "Create SDKWork IAM organization",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.organizations.delete",
+            method: "DELETE",
+            operation_id: "organizations.delete",
+            path: "/backend/v3/api/iam/organizations/{organizationId}",
+            path_param_names: &["organizationId"],
+            permission: Some("iam.organizations.delete"),
+            public: false,
+            resource: "iam.organizations",
+            summary: "Delete SDKWork IAM organization",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.organizations.list",
+            method: "GET",
+            operation_id: "organizations.list",
+            path: "/backend/v3/api/iam/organizations",
+            path_param_names: &[],
+            permission: Some("iam.organizations.read"),
+            public: false,
+            resource: "iam.organizations",
+            summary: "List SDKWork IAM organizations",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub mod members {
+            pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.organizations.members.create",
+                method: "POST",
+                operation_id: "organizations.members.create",
+                path: "/backend/v3/api/iam/organizations/{organizationId}/members",
+                path_param_names: &["organizationId"],
+                permission: Some("iam.organizations.members.create"),
+                public: false,
+                resource: "iam.organizations.members",
+                summary: "Create SDKWork IAM organization member",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+
+            pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.organizations.members.delete",
+                method: "DELETE",
+                operation_id: "organizations.members.delete",
+                path: "/backend/v3/api/iam/organizations/{organizationId}/members/{userId}",
+                path_param_names: &["organizationId", "userId"],
+                permission: Some("iam.organizations.members.delete"),
+                public: false,
+                resource: "iam.organizations.members",
+                summary: "Delete SDKWork IAM organization member",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+
+            pub const LIST: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.organizations.members.list",
+                method: "GET",
+                operation_id: "organizations.members.list",
+                path: "/backend/v3/api/iam/organizations/{organizationId}/members",
+                path_param_names: &["organizationId"],
+                permission: Some("iam.organizations.members.read"),
+                public: false,
+                resource: "iam.organizations.members",
+                summary: "List SDKWork IAM organization members",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+
+            pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.organizations.members.update",
+                method: "PATCH",
+                operation_id: "organizations.members.update",
+                path: "/backend/v3/api/iam/organizations/{organizationId}/members/{userId}",
+                path_param_names: &["organizationId", "userId"],
+                permission: Some("iam.organizations.members.update"),
+                public: false,
+                resource: "iam.organizations.members",
+                summary: "Update SDKWork IAM organization member",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+        }
+
+        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.organizations.retrieve",
+            method: "GET",
+            operation_id: "organizations.retrieve",
+            path: "/backend/v3/api/iam/organizations/{organizationId}",
+            path_param_names: &["organizationId"],
+            permission: Some("iam.organizations.read"),
+            public: false,
+            resource: "iam.organizations",
+            summary: "Get SDKWork IAM organization",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub mod tree {
+            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.organizations.tree.retrieve",
+                method: "GET",
+                operation_id: "organizations.tree.retrieve",
+                path: "/backend/v3/api/iam/organizations/tree",
+                path_param_names: &[],
+                permission: Some("iam.organizations.tree.read"),
+                public: false,
+                resource: "iam.organizations.tree",
+                summary: "Get SDKWork IAM organization tree",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+        }
+
+        pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.organizations.update",
+            method: "PATCH",
+            operation_id: "organizations.update",
+            path: "/backend/v3/api/iam/organizations/{organizationId}",
+            path_param_names: &["organizationId"],
+            permission: Some("iam.organizations.update"),
+            public: false,
+            resource: "iam.organizations",
+            summary: "Update SDKWork IAM organization",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+    }
+
+    pub mod permissions {
+        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.permissions.create",
+            method: "POST",
+            operation_id: "permissions.create",
+            path: "/backend/v3/api/iam/permissions",
+            path_param_names: &[],
+            permission: Some("iam.permissions.create"),
+            public: false,
+            resource: "iam.permissions",
+            summary: "Create SDKWork IAM permission",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.permissions.delete",
+            method: "DELETE",
+            operation_id: "permissions.delete",
+            path: "/backend/v3/api/iam/permissions/{permissionId}",
+            path_param_names: &["permissionId"],
+            permission: Some("iam.permissions.delete"),
+            public: false,
+            resource: "iam.permissions",
+            summary: "Delete SDKWork IAM permission",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.permissions.list",
+            method: "GET",
+            operation_id: "permissions.list",
+            path: "/backend/v3/api/iam/permissions",
+            path_param_names: &[],
+            permission: Some("iam.permissions.read"),
+            public: false,
+            resource: "iam.permissions",
+            summary: "List SDKWork IAM permissions",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.permissions.retrieve",
+            method: "GET",
+            operation_id: "permissions.retrieve",
+            path: "/backend/v3/api/iam/permissions/{permissionId}",
+            path_param_names: &["permissionId"],
+            permission: Some("iam.permissions.read"),
+            public: false,
+            resource: "iam.permissions",
+            summary: "Get SDKWork IAM permission",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.permissions.update",
+            method: "PATCH",
+            operation_id: "permissions.update",
+            path: "/backend/v3/api/iam/permissions/{permissionId}",
+            path_param_names: &["permissionId"],
+            permission: Some("iam.permissions.update"),
+            public: false,
+            resource: "iam.permissions",
+            summary: "Update SDKWork IAM permission",
             tag: "iam",
             tenant_scope: "tenant",
         };
     }
 
     pub mod policies {
+        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.policies.create",
+            method: "POST",
+            operation_id: "policies.create",
+            path: "/backend/v3/api/iam/policies",
+            path_param_names: &[],
+            permission: Some("iam.policies.create"),
+            public: false,
+            resource: "iam.policies",
+            summary: "Create SDKWork IAM policy",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.policies.delete",
+            method: "DELETE",
+            operation_id: "policies.delete",
+            path: "/backend/v3/api/iam/policies/{policyId}",
+            path_param_names: &["policyId"],
+            permission: Some("iam.policies.delete"),
+            public: false,
+            resource: "iam.policies",
+            summary: "Delete SDKWork IAM policy",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
         pub const LIST: crate::SdkOperation = crate::SdkOperation {
             data_scope: "organization",
             deployment: "all",
@@ -63,7 +396,200 @@ pub mod iam {
             permission: Some("iam.policies.read"),
             public: false,
             resource: "iam.policies",
-            summary: "List governance policies",
+            summary: "List SDKWork IAM policies",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.policies.retrieve",
+            method: "GET",
+            operation_id: "policies.retrieve",
+            path: "/backend/v3/api/iam/policies/{policyId}",
+            path_param_names: &["policyId"],
+            permission: Some("iam.policies.read"),
+            public: false,
+            resource: "iam.policies",
+            summary: "Get SDKWork IAM policy",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.policies.update",
+            method: "PATCH",
+            operation_id: "policies.update",
+            path: "/backend/v3/api/iam/policies/{policyId}",
+            path_param_names: &["policyId"],
+            permission: Some("iam.policies.update"),
+            public: false,
+            resource: "iam.policies",
+            summary: "Update SDKWork IAM policy",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+    }
+
+    pub mod roles {
+        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.roles.create",
+            method: "POST",
+            operation_id: "roles.create",
+            path: "/backend/v3/api/iam/roles",
+            path_param_names: &[],
+            permission: Some("iam.roles.create"),
+            public: false,
+            resource: "iam.roles",
+            summary: "Create SDKWork IAM role",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.roles.delete",
+            method: "DELETE",
+            operation_id: "roles.delete",
+            path: "/backend/v3/api/iam/roles/{roleId}",
+            path_param_names: &["roleId"],
+            permission: Some("iam.roles.delete"),
+            public: false,
+            resource: "iam.roles",
+            summary: "Delete SDKWork IAM role",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.roles.list",
+            method: "GET",
+            operation_id: "roles.list",
+            path: "/backend/v3/api/iam/roles",
+            path_param_names: &[],
+            permission: Some("iam.roles.read"),
+            public: false,
+            resource: "iam.roles",
+            summary: "List SDKWork IAM roles",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub mod permissions {
+            pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.roles.permissions.create",
+                method: "POST",
+                operation_id: "roles.permissions.create",
+                path: "/backend/v3/api/iam/roles/{roleId}/permissions",
+                path_param_names: &["roleId"],
+                permission: Some("iam.roles.permissions.create"),
+                public: false,
+                resource: "iam.roles.permissions",
+                summary: "Create SDKWork IAM role permission",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+
+            pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.roles.permissions.delete",
+                method: "DELETE",
+                operation_id: "roles.permissions.delete",
+                path: "/backend/v3/api/iam/roles/{roleId}/permissions/{permissionId}",
+                path_param_names: &["roleId", "permissionId"],
+                permission: Some("iam.roles.permissions.delete"),
+                public: false,
+                resource: "iam.roles.permissions",
+                summary: "Delete SDKWork IAM role permission",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+
+            pub const LIST: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.roles.permissions.list",
+                method: "GET",
+                operation_id: "roles.permissions.list",
+                path: "/backend/v3/api/iam/roles/{roleId}/permissions",
+                path_param_names: &["roleId"],
+                permission: Some("iam.roles.permissions.read"),
+                public: false,
+                resource: "iam.roles.permissions",
+                summary: "List SDKWork IAM role permissions",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+        }
+
+        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.roles.retrieve",
+            method: "GET",
+            operation_id: "roles.retrieve",
+            path: "/backend/v3/api/iam/roles/{roleId}",
+            path_param_names: &["roleId"],
+            permission: Some("iam.roles.read"),
+            public: false,
+            resource: "iam.roles",
+            summary: "Get SDKWork IAM role",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.roles.update",
+            method: "PATCH",
+            operation_id: "roles.update",
+            path: "/backend/v3/api/iam/roles/{roleId}",
+            path_param_names: &["roleId"],
+            permission: Some("iam.roles.update"),
+            public: false,
+            resource: "iam.roles",
+            summary: "Update SDKWork IAM role",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+    }
+
+    pub mod security_events {
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.securityEvents.list",
+            method: "GET",
+            operation_id: "securityEvents.list",
+            path: "/backend/v3/api/iam/security_events",
+            path_param_names: &[],
+            permission: Some("iam.securityEvents.read"),
+            public: false,
+            resource: "iam.securityEvents",
+            summary: "List SDKWork IAM security events",
             tag: "iam",
             tenant_scope: "tenant",
         };
@@ -105,6 +631,303 @@ pub mod iam {
                 tenant_scope: "tenant",
             };
         }
+    }
+
+    pub mod tenants {
+        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.tenants.create",
+            method: "POST",
+            operation_id: "tenants.create",
+            path: "/backend/v3/api/iam/tenants",
+            path_param_names: &[],
+            permission: Some("iam.tenants.create"),
+            public: false,
+            resource: "iam.tenants",
+            summary: "Create SDKWork IAM tenant",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.tenants.delete",
+            method: "DELETE",
+            operation_id: "tenants.delete",
+            path: "/backend/v3/api/iam/tenants/{tenantId}",
+            path_param_names: &["tenantId"],
+            permission: Some("iam.tenants.delete"),
+            public: false,
+            resource: "iam.tenants",
+            summary: "Delete SDKWork IAM tenant",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.tenants.list",
+            method: "GET",
+            operation_id: "tenants.list",
+            path: "/backend/v3/api/iam/tenants",
+            path_param_names: &[],
+            permission: Some("iam.tenants.read"),
+            public: false,
+            resource: "iam.tenants",
+            summary: "List SDKWork IAM tenants",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub mod members {
+            pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.tenants.members.create",
+                method: "POST",
+                operation_id: "tenants.members.create",
+                path: "/backend/v3/api/iam/tenants/{tenantId}/members",
+                path_param_names: &["tenantId"],
+                permission: Some("iam.tenants.members.create"),
+                public: false,
+                resource: "iam.tenants.members",
+                summary: "Create SDKWork IAM tenant member",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+
+            pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.tenants.members.delete",
+                method: "DELETE",
+                operation_id: "tenants.members.delete",
+                path: "/backend/v3/api/iam/tenants/{tenantId}/members/{userId}",
+                path_param_names: &["tenantId", "userId"],
+                permission: Some("iam.tenants.members.delete"),
+                public: false,
+                resource: "iam.tenants.members",
+                summary: "Delete SDKWork IAM tenant member",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+
+            pub const LIST: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.tenants.members.list",
+                method: "GET",
+                operation_id: "tenants.members.list",
+                path: "/backend/v3/api/iam/tenants/{tenantId}/members",
+                path_param_names: &["tenantId"],
+                permission: Some("iam.tenants.members.read"),
+                public: false,
+                resource: "iam.tenants.members",
+                summary: "List SDKWork IAM tenant members",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+
+            pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.tenants.members.update",
+                method: "PATCH",
+                operation_id: "tenants.members.update",
+                path: "/backend/v3/api/iam/tenants/{tenantId}/members/{userId}",
+                path_param_names: &["tenantId", "userId"],
+                permission: Some("iam.tenants.members.update"),
+                public: false,
+                resource: "iam.tenants.members",
+                summary: "Update SDKWork IAM tenant member",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+        }
+
+        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.tenants.retrieve",
+            method: "GET",
+            operation_id: "tenants.retrieve",
+            path: "/backend/v3/api/iam/tenants/{tenantId}",
+            path_param_names: &["tenantId"],
+            permission: Some("iam.tenants.read"),
+            public: false,
+            resource: "iam.tenants",
+            summary: "Get SDKWork IAM tenant",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.tenants.update",
+            method: "PATCH",
+            operation_id: "tenants.update",
+            path: "/backend/v3/api/iam/tenants/{tenantId}",
+            path_param_names: &["tenantId"],
+            permission: Some("iam.tenants.update"),
+            public: false,
+            resource: "iam.tenants",
+            summary: "Update SDKWork IAM tenant",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+    }
+
+    pub mod users {
+        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.users.create",
+            method: "POST",
+            operation_id: "users.create",
+            path: "/backend/v3/api/iam/users",
+            path_param_names: &[],
+            permission: Some("iam.users.create"),
+            public: false,
+            resource: "iam.users",
+            summary: "Create SDKWork IAM user",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.users.delete",
+            method: "DELETE",
+            operation_id: "users.delete",
+            path: "/backend/v3/api/iam/users/{userId}",
+            path_param_names: &["userId"],
+            permission: Some("iam.users.delete"),
+            public: false,
+            resource: "iam.users",
+            summary: "Delete SDKWork IAM user",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.users.list",
+            method: "GET",
+            operation_id: "users.list",
+            path: "/backend/v3/api/iam/users",
+            path_param_names: &[],
+            permission: Some("iam.users.read"),
+            public: false,
+            resource: "iam.users",
+            summary: "List SDKWork IAM users",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.users.retrieve",
+            method: "GET",
+            operation_id: "users.retrieve",
+            path: "/backend/v3/api/iam/users/{userId}",
+            path_param_names: &["userId"],
+            permission: Some("iam.users.read"),
+            public: false,
+            resource: "iam.users",
+            summary: "Get SDKWork IAM user",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub mod roles {
+            pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.users.roles.create",
+                method: "POST",
+                operation_id: "users.roles.create",
+                path: "/backend/v3/api/iam/users/{userId}/roles",
+                path_param_names: &["userId"],
+                permission: Some("iam.users.roles.create"),
+                public: false,
+                resource: "iam.users.roles",
+                summary: "Create SDKWork IAM user role",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+
+            pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.users.roles.delete",
+                method: "DELETE",
+                operation_id: "users.roles.delete",
+                path: "/backend/v3/api/iam/users/{userId}/roles/{roleId}",
+                path_param_names: &["userId", "roleId"],
+                permission: Some("iam.users.roles.delete"),
+                public: false,
+                resource: "iam.users.roles",
+                summary: "Delete SDKWork IAM user role",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+
+            pub const LIST: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.users.roles.list",
+                method: "GET",
+                operation_id: "users.roles.list",
+                path: "/backend/v3/api/iam/users/{userId}/roles",
+                path_param_names: &["userId"],
+                permission: Some("iam.users.roles.read"),
+                public: false,
+                resource: "iam.users.roles",
+                summary: "List SDKWork IAM user roles",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+        }
+
+        pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.users.update",
+            method: "PATCH",
+            operation_id: "users.update",
+            path: "/backend/v3/api/iam/users/{userId}",
+            path_param_names: &["userId"],
+            permission: Some("iam.users.update"),
+            public: false,
+            resource: "iam.users",
+            summary: "Update SDKWork IAM user",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
     }
 }
 
@@ -170,10 +993,57 @@ pub mod platform {
 }
 
 pub const OPERATIONS: &[SdkOperation] = &[
+    iam::api_keys::LIST,
+    iam::api_keys::REVOKE,
     iam::audit_events::LIST,
+    iam::organizations::CREATE,
+    iam::organizations::DELETE,
+    iam::organizations::LIST,
+    iam::organizations::members::CREATE,
+    iam::organizations::members::DELETE,
+    iam::organizations::members::LIST,
+    iam::organizations::members::UPDATE,
+    iam::organizations::RETRIEVE,
+    iam::organizations::tree::RETRIEVE,
+    iam::organizations::UPDATE,
+    iam::permissions::CREATE,
+    iam::permissions::DELETE,
+    iam::permissions::LIST,
+    iam::permissions::RETRIEVE,
+    iam::permissions::UPDATE,
+    iam::policies::CREATE,
+    iam::policies::DELETE,
     iam::policies::LIST,
+    iam::policies::RETRIEVE,
+    iam::policies::UPDATE,
+    iam::roles::CREATE,
+    iam::roles::DELETE,
+    iam::roles::LIST,
+    iam::roles::permissions::CREATE,
+    iam::roles::permissions::DELETE,
+    iam::roles::permissions::LIST,
+    iam::roles::RETRIEVE,
+    iam::roles::UPDATE,
+    iam::security_events::LIST,
     iam::teams::LIST,
     iam::teams::members::LIST,
+    iam::tenants::CREATE,
+    iam::tenants::DELETE,
+    iam::tenants::LIST,
+    iam::tenants::members::CREATE,
+    iam::tenants::members::DELETE,
+    iam::tenants::members::LIST,
+    iam::tenants::members::UPDATE,
+    iam::tenants::RETRIEVE,
+    iam::tenants::UPDATE,
+    iam::users::CREATE,
+    iam::users::DELETE,
+    iam::users::LIST,
+    iam::users::RETRIEVE,
+    iam::users::roles::CREATE,
+    iam::users::roles::DELETE,
+    iam::users::roles::LIST,
+    iam::users::UPDATE,
     platform::deployment_governance::LIST,
     platform::projects::deployment_targets::LIST,
     platform::releases::LIST,

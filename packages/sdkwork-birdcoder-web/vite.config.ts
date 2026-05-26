@@ -20,6 +20,7 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
   const runtimeEnvSource = loadEnv(mode, __dirname, '');
+  const isWindows = process.platform === 'win32';
 
   return ({
     esbuild: false,
@@ -34,8 +35,9 @@ export default defineConfig(({ mode }) => {
       include: [...BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE],
     },
     build: {
-      minify: false,
-      cssMinify: false,
+      minify: !isWindows && mode === 'production',
+      cssMinify: !isWindows && mode === 'production',
+      sourcemap: false,
       modulePreload: {
         resolveDependencies(_filename, deps, context) {
           if (context.hostType !== 'html') {
@@ -44,7 +46,7 @@ export default defineConfig(({ mode }) => {
 
           return deps.filter(
             (dependency) =>
-              !/^assets\/(?:birdcoder-iam-surface|birdcoder-user-center-core|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code-surface|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-skills-surface|birdcoder-templates-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
+              !/^assets\/(?:birdcoder-iam-surface|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code-surface|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-skills-surface|birdcoder-templates-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
                 dependency,
               ),
           );
@@ -73,12 +75,19 @@ export default defineConfig(({ mode }) => {
             const appSdkSourceRoot = '/spring-ai-plus-app-api/sdkwork-sdk-app/sdkwork-app-sdk-typescript/src/';
             const appSdkApiSourceRoot = `${appSdkSourceRoot}api/`;
             const sdkCommonSourceRoot = '/sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/';
-            if (
-              id.includes('/packages/sdkwork-birdcoder-i18n/src/') ||
-              id.includes('/node_modules/react-i18next/') ||
-              id.includes('/node_modules/i18next/')
-            ) {
-              return 'vendor-i18n';
+          if (
+            id === '\0vite/preload-helper.js' ||
+            id.includes('/node_modules/vite/modulepreload-polyfill')
+          ) {
+            return 'vite-preload-helper';
+          }
+
+          if (
+            id.includes('/packages/sdkwork-birdcoder-i18n/src/') ||
+            id.includes('/node_modules/react-i18next/') ||
+            id.includes('/node_modules/i18next/')
+          ) {
+            return 'vendor-i18n';
             }
 
           if (
@@ -500,42 +509,14 @@ export default defineConfig(({ mode }) => {
               '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/components/oauth-provider-grid.tsx',
               '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/components/qr-login-panel.tsx',
               '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/pages/userCenterAuthSurfacePage.tsx',
             ])
           ) {
             return 'birdcoder-iam-surface';
-          }
-
-          if (
-            isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/domain/userCenterAppearance.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/domain/userCenterSurfaceRouting.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/types/userCenterSurfaceTypes.ts',
-            ])
-          ) {
-            return 'birdcoder-iam-surface';
-          }
-
-          if (
-            isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/src/',
-            ])
-          ) {
-            return 'birdcoder-user-center-core';
           }
 
           if (
             isAnySourcePath([
               '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/pages/canonicalSurfacePages.tsx',
-            ])
-          ) {
-            return 'birdcoder-iam-surface';
-          }
-
-          if (
-            isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/pages/userCenterProfileSurfacePage.tsx',
             ])
           ) {
             return 'birdcoder-iam-surface';
@@ -596,10 +577,13 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/appSessionToken.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/backendSdkTransport.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/sessionService.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/sdkTransportShared.ts',
               '/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/',
@@ -632,7 +616,6 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-infrastructure/src/services/userCenterRuntimeBridge.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeAuthService.ts',
             ])
           ) {
@@ -661,9 +644,12 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/apiRequestId.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/apiJson.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/appSessionEvents.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/codingSessionMessageProjection.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/codingSessionSelection.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/currentUserScope.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/projectContentConfigData.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeApiRetry.ts',
             ])

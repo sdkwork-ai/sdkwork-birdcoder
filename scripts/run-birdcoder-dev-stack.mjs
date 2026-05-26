@@ -10,9 +10,9 @@ import {
   resolveBirdcoderCommandEnv,
 } from './birdcoder-command-options.mjs';
 import {
-  DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_ACCOUNT,
-  DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD,
-  DEFAULT_SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE,
+  DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT,
+  DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD,
+  DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE,
   resolveBirdcoderIamCommandEnv,
 } from './birdcoder-iam-env.mjs';
 import { createWorkspacePackageScriptPlan } from './run-workspace-package-script.mjs';
@@ -24,18 +24,26 @@ const DEFAULT_SERVER_READY_REQUEST_TIMEOUT_MS = 800;
 const DEFAULT_SERVER_READY_TIMEOUT_MS = 30000;
 const DEFAULT_SERVER_READY_PATHS = Object.freeze([
   '/app/v3/api/system/health',
-  '/app/v3/api/auth/config',
+  '/app/v3/api/system/iam/runtime',
 ]);
+const DEFAULT_STACK_VITE_MODE = 'development';
+const STACK_VITE_MODES = new Set(['development', 'test']);
 
 const STACK_SURFACE_CONFIGS = Object.freeze({
   desktop: {
     clientPackageDir: 'packages/sdkwork-birdcoder-desktop',
-    clientScriptName: 'tauri:dev:base',
+    clientScriptNamesByViteMode: {
+      development: 'tauri:dev:base',
+      test: 'tauri:dev:test:base',
+    },
     target: 'desktop-dev',
   },
   web: {
     clientPackageDir: 'packages/sdkwork-birdcoder-web',
-    clientScriptName: 'dev:base',
+    clientScriptNamesByViteMode: {
+      development: 'dev:base',
+      test: 'dev:test:base',
+    },
     target: 'web-dev',
   },
 });
@@ -57,8 +65,15 @@ function readTrimmedValue(value) {
   return normalizedValue || undefined;
 }
 
-function isBuiltinLocalProvider(providerKind) {
-  return providerKind === 'builtin-local';
+function resolveStackViteMode(value) {
+  const normalizedValue = readTrimmedValue(value) ?? DEFAULT_STACK_VITE_MODE;
+  if (!STACK_VITE_MODES.has(normalizedValue)) {
+    throw new Error(
+      `run-birdcoder-dev-stack only supports --vite-mode ${[...STACK_VITE_MODES].join(' or ')}.`,
+    );
+  }
+
+  return normalizedValue;
 }
 
 function parseArgs(argv = []) {
@@ -95,8 +110,9 @@ function parseArgs(argv = []) {
 
   const {
     iamMode,
-    userCenterProvider,
+    viteMode,
   } = parseBirdcoderIamCliOptions(iamTokens, {
+    allowViteMode: true,
     commandName: 'run-birdcoder-dev-stack',
   });
 
@@ -105,7 +121,7 @@ function parseArgs(argv = []) {
     dryRun,
     iamMode,
     target,
-    userCenterProvider,
+    viteMode: resolveStackViteMode(viteMode),
   };
 }
 
@@ -145,7 +161,7 @@ function resolveStackPlans({
   env = process.env,
   iamMode,
   target,
-  userCenterProvider,
+  viteMode = DEFAULT_STACK_VITE_MODE,
 } = {}) {
   if (target === 'web' && iamMode === 'desktop-local') {
     throw new Error(
@@ -153,26 +169,22 @@ function resolveStackPlans({
     );
   }
 
-  if (
-    iamMode === 'desktop-local'
-    && userCenterProvider
-    && userCenterProvider !== 'builtin-local'
-  ) {
+  const stackSurfaceConfig = STACK_SURFACE_CONFIGS[target];
+  const resolvedViteMode = resolveStackViteMode(viteMode);
+  const clientScriptName = stackSurfaceConfig.clientScriptNamesByViteMode[resolvedViteMode];
+  if (!clientScriptName) {
     throw new Error(
-      'desktop-local only supports the builtin-local user-center provider.',
+      `No BirdCoder ${target} client script is configured for vite mode ${resolvedViteMode}.`,
     );
   }
-
-  const stackSurfaceConfig = STACK_SURFACE_CONFIGS[target];
   const commandEnv = resolveBirdcoderCommandEnv({
     env,
-    userCenterProvider,
   });
   const clientResolvedIam = resolveBirdcoderIamCommandEnv({
     env: commandEnv,
     iamMode,
     target: stackSurfaceConfig.target,
-    viteMode: 'development',
+    viteMode: resolvedViteMode,
   });
   const needsServer = clientResolvedIam.iamMode !== 'desktop-local';
   const serverResolvedIam = needsServer
@@ -180,7 +192,7 @@ function resolveStackPlans({
         env: commandEnv,
         iamMode,
         target: SERVER_DEV_CONFIG.target,
-        viteMode: 'development',
+        viteMode: resolvedViteMode,
       })
     : null;
   const errors = [
@@ -194,7 +206,7 @@ function resolveStackPlans({
   const clientPlan = createWorkspacePackageScriptPlan({
     env: clientResolvedIam.env,
     packageDir: stackSurfaceConfig.clientPackageDir,
-    scriptName: stackSurfaceConfig.clientScriptName,
+    scriptName: clientScriptName,
   });
   const serverPlan = serverResolvedIam
     ? createWorkspacePackageScriptPlan({
@@ -203,10 +215,10 @@ function resolveStackPlans({
         scriptName: SERVER_DEV_CONFIG.scriptName,
       })
     : null;
-  const providerKind =
-    readTrimmedValue(clientResolvedIam.env.SDKWORK_USER_CENTER_MODE)
-    || readTrimmedValue(serverResolvedIam?.env.SDKWORK_USER_CENTER_MODE)
-    || 'builtin-local';
+  const sdkworkIamMode =
+    readTrimmedValue(clientResolvedIam.env.SDKWORK_IAM_MODE)
+    || readTrimmedValue(serverResolvedIam?.env.SDKWORK_IAM_MODE)
+    || 'local';
   const apiOriginUrl = resolveApiOriginUrl(clientResolvedIam.env);
 
   return {
@@ -214,10 +226,11 @@ function resolveStackPlans({
     clientPlan: appendPlanArgs(clientPlan, clientArgs),
     clientResolvedIam,
     needsServer,
-    providerKind,
+    sdkworkIamMode,
     serverPlan,
     serverResolvedIam,
     target,
+    viteMode: resolvedViteMode,
   };
 }
 
@@ -225,13 +238,15 @@ function printStackSummary({
   apiOriginUrl,
   clientPlan,
   clientResolvedIam,
-  providerKind,
+  sdkworkIamMode,
   serverPlan,
   target,
+  viteMode,
 } = {}) {
   console.log(`[birdcoder-stack] surface=${target}`);
   console.log(`[birdcoder-stack] iamMode=${clientResolvedIam.iamMode}`);
-  console.log(`[birdcoder-stack] provider=${providerKind}`);
+  console.log(`[birdcoder-stack] viteMode=${viteMode}`);
+  console.log(`[birdcoder-stack] sdkworkIamMode=${sdkworkIamMode}`);
   if (apiOriginUrl) {
     console.log(`[birdcoder-stack] apiBaseUrl=${apiOriginUrl.origin}${apiOriginUrl.pathname === '/' ? '' : apiOriginUrl.pathname}`);
   }
@@ -242,16 +257,16 @@ function printStackSummary({
   }
   console.log(`[birdcoder-stack] client=${formatCommandPlan(clientPlan)}`);
 
-  if (isBuiltinLocalProvider(providerKind)) {
+  if (sdkworkIamMode !== 'cloud') {
     const bootstrapAccount =
-      readTrimmedValue(clientResolvedIam.env.SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_EMAIL)
-      || DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_ACCOUNT;
+      readTrimmedValue(clientResolvedIam.env.SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL)
+      || DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT;
     const bootstrapPassword =
-      readTrimmedValue(clientResolvedIam.env.SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD)
-      || DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD;
+      readTrimmedValue(clientResolvedIam.env.SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD)
+      || DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD;
     const verifyCode =
-      readTrimmedValue(clientResolvedIam.env.SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED)
-      || DEFAULT_SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE;
+      readTrimmedValue(clientResolvedIam.env.SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED)
+      || DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE;
 
     console.log(`[birdcoder-stack] sampleAccount=${bootstrapAccount}`);
     console.log(`[birdcoder-stack] samplePassword=${bootstrapPassword}`);
@@ -408,7 +423,7 @@ export async function runBirdcoderDevStack({
     env,
     iamMode: options.iamMode,
     target: options.target,
-    userCenterProvider: options.userCenterProvider,
+    viteMode: options.viteMode,
   });
 
   printStackSummary(stackPlans);

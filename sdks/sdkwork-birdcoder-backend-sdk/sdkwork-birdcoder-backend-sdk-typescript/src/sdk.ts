@@ -4,10 +4,10 @@ import {
   createBirdcoderSdkOperationRequester,
   type BirdcoderSdkAuthTokens,
   type BirdcoderSdkTransport,
-} from './http';
-import { BIRDCODER_BACKEND_SDK_OPERATION_INDEX } from './types';
-import { createIamApi, type IamApi } from './api/iam';
-import { createPlatformApi, type PlatformApi } from './api/platform';
+} from './http/index.ts';
+import { BIRDCODER_BACKEND_SDK_OPERATION_INDEX } from './types/index.ts';
+import { createIamApi, type IamApi } from './api/iam.ts';
+import { createPlatformApi, type PlatformApi } from './api/platform.ts';
 
 export interface CreateBirdcoderBackendSdkClientOptions {
   accessToken?: string;

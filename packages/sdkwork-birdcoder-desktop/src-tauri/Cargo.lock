@@ -3587,7 +3587,10 @@ dependencies = [
  "rusqlite",
  "sdkwork-birdcoder-codeengine",
  "sdkwork-birdcoder-git",
- "sdkwork_user_center_native",
+ "sdkwork_iam_core",
+ "sdkwork_iam_http",
+ "sdkwork_iam_storage_sqlx",
+ "sdkwork_iam_tauri",
  "serde",
  "serde_json",
  "sha2",
@@ -3661,20 +3664,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork_user_center_native"
+name = "sdkwork_iam_core"
+version = "0.1.0"
+
+[[package]]
+name = "sdkwork_iam_http"
 version = "0.1.0"
 dependencies = [
- "argon2",
- "axum",
- "base64 0.22.1",
- "hmac",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "time",
- "ureq",
- "uuid",
+ "sdkwork_iam_core",
+]
+
+[[package]]
+name = "sdkwork_iam_storage_sqlx"
+version = "0.1.0"
+dependencies = [
+ "sdkwork_iam_core",
+]
+
+[[package]]
+name = "sdkwork_iam_tauri"
+version = "0.1.0"
+dependencies = [
+ "sdkwork_iam_core",
+ "sdkwork_iam_http",
 ]
 
 [[package]]

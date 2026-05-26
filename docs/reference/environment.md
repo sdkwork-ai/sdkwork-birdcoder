@@ -1,28 +1,32 @@
 # Environment
 
-BirdCoder keeps IAM and release configuration explicit and machine-readable. The canonical deployment-profile, command-matrix, and seed-contract rules come from `sdkwork-appbase`; this page is the BirdCoder operator-facing reference for the env names that those contracts resolve to.
+BirdCoder uses the SDKWork IAM environment model directly. The app does not define a second identity provider, user bridge, or compatibility mode.
 
-## Deployment selectors
+## Deployment Selectors
 
 - `BIRDCODER_IAM_DEPLOYMENT_MODE`
-- `SDKWORK_USER_CENTER_MODE`
-- `SDKWORK_USER_CENTER_PROVIDER_KEY`
+- `SDKWORK_IAM_MODE`
 - `BIRDCODER_API_BASE_URL`
 - `VITE_BIRDCODER_API_BASE_URL`
+- `VITE_BIRDCODER_IAM_DEPLOYMENT_MODE`
+- `VITE_SDKWORK_DEPLOYMENT_MODE`
 - `BIRDCODER_CODING_SERVER_SQLITE_FILE`
 
-These selectors choose one canonical deployment profile before runtime bootstrap:
+Supported deployment modes:
 
-- `desktop-local`: embedded builtin-local authority, SQLite storage, local bootstrap seed enabled
-- `server-private`: dedicated BirdCoder server with the same facade routes, provider kind can be `builtin-local` or `external-user-center`
-- `cloud-saas`: BirdCoder server delegates IAM to `sdkwork-cloud-app-api` and must not fall back to builtin-local authority seed
+- `desktop-local`: embedded BirdCoder server, local SDKWork IAM authority, local SQLite storage
+- `server-private`: browser or desktop client targets a private BirdCoder server with SDKWork IAM private authority
+- `cloud-saas`: BirdCoder server delegates IAM to SDKWork cloud app API
 
-## Builtin-local bootstrap and fast-login variables
+Public frontend mode uses `VITE_SDKWORK_DEPLOYMENT_MODE=local`, `private`, or `saas`. Server-side SDKWork IAM mode uses `SDKWORK_IAM_MODE=local`, `private`, or `cloud`.
 
-- `SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_EMAIL`
-- `SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE`
-- `SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD`
-- `SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED`
+## Local Bootstrap And Developer Prefill
+
+- `SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL`
+- `SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE`
+- `SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD`
+- `SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED`
+- `SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS`
 - `BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT`
 - `VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED`
 - `VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT`
@@ -32,59 +36,20 @@ These selectors choose one canonical deployment profile before runtime bootstrap
 - `VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD`
 - `VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE`
 
-`desktop-local` and `server-private` with `builtin-local` default the local bootstrap user, fixed verification code, and development-prefill values so the shared auth UI can exercise password, email-code, and phone-code login without manual typing. When the authority has no active projects, BirdCoder also creates one starter project beside the sqlite authority file under `bootstrap-projects/<sqlite-file-stem>/100000000000000201` unless `BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT` overrides the directory.
+`desktop-local` and `server-private` default the local bootstrap account to `local-default@sdkwork-iam.local`, the local phone to `13800000000`, the development password to `dev123456`, and the fixed development verification code to `123456` unless the operator overrides them. These values are developer experience defaults only; production packaging must not depend on them.
 
-## Local OAuth sample variables
+## Cloud IAM App API
 
-- `SDKWORK_USER_CENTER_LOCAL_OAUTH_PROVIDERS`
-- `SDKWORK_USER_CENTER_LOCAL_OAUTH_WECHAT_NAME`
-- `SDKWORK_USER_CENTER_LOCAL_OAUTH_WECHAT_EMAIL`
-- `SDKWORK_USER_CENTER_LOCAL_OAUTH_DOUYIN_NAME`
-- `SDKWORK_USER_CENTER_LOCAL_OAUTH_DOUYIN_EMAIL`
-- `SDKWORK_USER_CENTER_LOCAL_OAUTH_GITHUB_NAME`
-- `SDKWORK_USER_CENTER_LOCAL_OAUTH_GITHUB_EMAIL`
+- `SDKWORK_IAM_APP_API_BASE_URL`
+- `SDKWORK_IAM_APP_API_TIMEOUT_MS`
+- `SDKWORK_IAM_APP_ID`
+- `SDKWORK_IAM_SECRET_ID`
+- `SDKWORK_IAM_SHARED_SECRET`
+- `SDKWORK_IAM_APP_API_OAUTH_PROVIDERS`
 
-These variables only affect the builtin-local provider lane. The same BirdCoder facade routes stay stable at `/app/v3/api/auth/oauth_authorization_urls` and `/app/v3/api/auth/oauth_sessions`.
+Cloud mode is fail-closed. If the SDKWork IAM app API base URL or credentials are incomplete, cloud doctor/startup checks must report the configuration gap instead of creating local fallback identity data.
 
-## Cloud app-api bridge variables
-
-- `SDKWORK_USER_CENTER_APP_API_BASE_URL`
-- `SDKWORK_USER_CENTER_APP_API_TIMEOUT_MS`
-- `SDKWORK_USER_CENTER_APP_ID`
-- `SDKWORK_USER_CENTER_SECRET_ID`
-- `SDKWORK_USER_CENTER_SHARED_SECRET`
-- `SDKWORK_USER_CENTER_APP_API_OAUTH_PROVIDERS`
-
-Cloud mode is fail-closed. If these upstream bridge variables are incomplete, `iam:doctor:*:cloud` and cloud server startup must report the configuration gap instead of synthesizing builtin-local fallback IAM data.
-
-## External user-center bridge variables
-
-- `SDKWORK_USER_CENTER_EXTERNAL_ID_HEADER`
-- `SDKWORK_USER_CENTER_EXTERNAL_EMAIL_HEADER`
-- `SDKWORK_USER_CENTER_EXTERNAL_NAME_HEADER`
-- `SDKWORK_USER_CENTER_EXTERNAL_AVATAR_HEADER`
-
-The external-provider lane still runs under the `server-private` IAM mode, but the provider kind becomes `external-user-center`. Frontend code continues to call the same BirdCoder facade routes and does not branch on provider kind.
-
-## Seed and prefill policy
-
-- builtin-local modes seed the bootstrap user, fixed verification code, and starter workspace when canonical seed contracts allow it
-- remote-provider modes do not invent builtin-local fallback users, verification codes, or starter projects
-- development prefill is automatic for builtin-local development and test flows
-- cloud and external-provider flows only receive development prefill when explicit values are configured
-
-Use the canonical inspectors when you need to see or validate the resolved policy:
-
-```bash
-pnpm iam:show:desktop:local
-pnpm iam:show:web:private
-pnpm iam:show:server:cloud
-pnpm iam:doctor:desktop:local
-pnpm iam:doctor:web:private
-pnpm iam:doctor:server:cloud
-```
-
-## Common release variables
+## Common Release Variables
 
 - `SDKWORK_RELEASE_TAG`
 - `SDKWORK_RELEASE_OUTPUT_DIR`
@@ -97,6 +62,15 @@ pnpm iam:doctor:server:cloud
 - `SDKWORK_RELEASE_IMAGE_TAG`
 - `SDKWORK_RELEASE_IMAGE_DIGEST`
 
-## Guidance
+## Inspection Commands
 
-Use workspace defaults for normal development. Override variables only when you need to validate a specific deployment slice, point at a real upstream authority, or package a release artifact. For canonical contract ownership and generated deployment-profile semantics, refer back to `sdkwork-appbase/packages/pc-react/iam`.
+```bash
+pnpm iam:show:desktop:local
+pnpm iam:show:web:private
+pnpm iam:show:server:cloud
+pnpm iam:doctor:desktop:local
+pnpm iam:doctor:web:private
+pnpm iam:doctor:server:cloud
+```
+
+Use workspace defaults for normal development. Override variables only when validating a specific deployment lane, pointing at a real SDKWork IAM cloud authority, or packaging a release artifact.

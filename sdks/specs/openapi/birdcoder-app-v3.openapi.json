@@ -13,15 +13,15 @@
   "tags": [
     {
       "name": "auth",
-      "description": "Appbase IAM authentication and session resources."
-    },
-    {
-      "name": "billing",
-      "description": "Membership, VIP, and billing-facing app resources."
+      "description": "SDKWork IAM authentication and session resources."
     },
     {
       "name": "collaboration",
       "description": "Workspace collaboration and team catalog resources."
+    },
+    {
+      "name": "commerce",
+      "description": "Commerce membership, package catalog, entitlement, order, and payment resources."
     },
     {
       "name": "content",
@@ -29,11 +29,15 @@
     },
     {
       "name": "iam",
-      "description": "IAM user, team, member, and policy resources."
+      "description": "IAM user, tenant, organization, role, permission, policy, and audit resources."
     },
     {
       "name": "intelligence",
       "description": "Coding session, checkpoint, approval, and question resources."
+    },
+    {
+      "name": "openPlatform",
+      "description": "openPlatform resources."
     },
     {
       "name": "platform",
@@ -2059,78 +2063,21 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/app_templates": {
+    "/app/v3/api/system/iam/runtime": {
       "get": {
-        "operationId": "appTemplates.list",
-        "summary": "List app templates",
-        "description": "List app templates. Requires an authenticated BirdCoder user session.",
+        "operationId": "iam.runtime.retrieve",
+        "summary": "Get SDKWork IAM runtime metadata",
+        "description": "Get SDKWork IAM runtime metadata. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "templates"
+          "system"
         ],
         "responses": {
           "200": {
-            "description": "App template catalog returned successfully.",
+            "description": "SDKWork IAM runtime settings returned successfully.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderAppTemplateSummaryListEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "organization",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "ecosystem",
-        "x-sdkwork-permission": "ecosystem.appTemplates.read",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "ecosystem.appTemplates",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      }
-    },
-    "/app/v3/api/auth/qr_login_codes": {
-      "post": {
-        "operationId": "qrLoginCodes.create",
-        "summary": "Generate user center login QR code",
-        "description": "Generate user center login QR code. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "auth"
-        ],
-        "responses": {
-          "200": {
-            "description": "User center login QR challenge created successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterLoginQrCodeEnvelope"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "User center login QR challenge could not be created.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/BirdCoderIamRuntimeSettingsEnvelope"
                 }
               }
             }
@@ -2152,47 +2099,26 @@
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.qrLoginCodes",
+        "x-sdkwork-resource": "iam.runtime",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
     },
-    "/app/v3/api/auth/qr_login_codes/{qrKey}": {
+    "/app/v3/api/system/iam/verification_policy": {
       "get": {
-        "operationId": "qrLoginCodes.retrieve",
-        "summary": "Check user center login QR code status",
-        "description": "Check user center login QR code status. Requires an authenticated BirdCoder user session.",
+        "operationId": "iam.verificationPolicy.retrieve",
+        "summary": "Get SDKWork IAM verification policy",
+        "description": "Get SDKWork IAM verification policy. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "auth"
-        ],
-        "parameters": [
-          {
-            "name": "qrKey",
-            "in": "path",
-            "required": true,
-            "description": "BirdCoder login QR challenge identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
+          "system"
         ],
         "responses": {
           "200": {
-            "description": "User center login QR status returned successfully.",
+            "description": "SDKWork IAM verification policy returned successfully.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterLoginQrStatusEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "User center login QR challenge was not found.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/BirdCoderIamVerificationPolicyEnvelope"
                 }
               }
             }
@@ -2214,7 +2140,7 @@
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.qrLoginCodes",
+        "x-sdkwork-resource": "iam.verificationPolicy",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -2222,8 +2148,8 @@
     "/app/v3/api/auth/oauth_authorization_urls": {
       "get": {
         "operationId": "oauthAuthorizationUrls.retrieve",
-        "summary": "Resolve OAuth authorization URL for social sign-in",
-        "description": "Resolve OAuth authorization URL for social sign-in. Requires an authenticated BirdCoder user session.",
+        "summary": "Resolve OAuth authorization URL for SDKWork IAM sign-in",
+        "description": "Resolve OAuth authorization URL for SDKWork IAM sign-in. Requires an authenticated BirdCoder user session.",
         "tags": [
           "auth"
         ],
@@ -2269,7 +2195,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterOAuthAuthorizationEnvelope"
+                  "$ref": "#/components/schemas/BirdCoderIamOAuthAuthorizationEnvelope"
                 }
               }
             }
@@ -2309,8 +2235,8 @@
     "/app/v3/api/auth/oauth_sessions": {
       "post": {
         "operationId": "oauthSessions.create",
-        "summary": "Create user center session with OAuth authorization code",
-        "description": "Create user center session with OAuth authorization code. Requires an authenticated BirdCoder user session.",
+        "summary": "Create SDKWork IAM session with OAuth authorization code",
+        "description": "Create SDKWork IAM session with OAuth authorization code. Requires an authenticated BirdCoder user session.",
         "tags": [
           "auth"
         ],
@@ -2319,18 +2245,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BirdCoderUserCenterOAuthLoginRequest"
+                "$ref": "#/components/schemas/BirdCoderIamOAuthSessionCreateRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "User center session created successfully with OAuth authorization.",
+            "description": "SDKWork IAM session created successfully with OAuth authorization.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterSessionEnvelope"
+                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
                 }
               }
             }
@@ -2375,6 +2301,1016 @@
         "x-sdkwork-resource": "iam.oauthSessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/auth/password_reset_requests": {
+      "post": {
+        "operationId": "passwordResetRequests.create",
+        "summary": "Create SDKWork IAM password reset request",
+        "description": "Create SDKWork IAM password reset request. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamPasswordResetRequestCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset challenge accepted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Password reset challenge request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.passwordResetRequests",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/auth/password_resets": {
+      "post": {
+        "operationId": "passwordResets.create",
+        "summary": "Reset SDKWork IAM password",
+        "description": "Reset SDKWork IAM password. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamPasswordResetCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset completed successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Password reset request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Password reset verification failed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.passwordResets",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/auth/registrations": {
+      "post": {
+        "operationId": "registrations.create",
+        "summary": "Register SDKWork IAM user",
+        "description": "Register SDKWork IAM user. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamRegistrationCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM user registered successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM registration request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.registrations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/auth/sessions": {
+      "post": {
+        "operationId": "sessions.create",
+        "summary": "Create SDKWork IAM session",
+        "description": "Create SDKWork IAM session. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamCreateSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM session created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM login request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SDKWork IAM credentials were rejected.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.sessions",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/auth/sessions/current": {
+      "get": {
+        "operationId": "sessions.current.retrieve",
+        "summary": "Get current SDKWork IAM session",
+        "description": "Get current SDKWork IAM session. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Current SDKWork IAM session returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "user",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.sessions.current.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.sessions.current",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "patch": {
+        "operationId": "sessions.current.update",
+        "summary": "Update current SDKWork IAM session",
+        "description": "Update current SDKWork IAM session. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamUpdateCurrentSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current SDKWork IAM session updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "user",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.sessions.current.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.sessions.current",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "delete": {
+        "operationId": "sessions.current.delete",
+        "summary": "Delete current SDKWork IAM session",
+        "description": "Delete current SDKWork IAM session. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM session revoked successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "user",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.sessions.current.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.sessions.current",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/app/v3/api/auth/sessions/refresh": {
+      "post": {
+        "operationId": "sessions.refresh",
+        "summary": "Refresh SDKWork IAM session",
+        "description": "Refresh SDKWork IAM session. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamRefreshSessionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM session refreshed successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM session refresh request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "SDKWork IAM refresh token was rejected.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.sessions",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/auth/verification_codes": {
+      "post": {
+        "operationId": "verificationCodes.create",
+        "summary": "Create SDKWork IAM verification code",
+        "description": "Create SDKWork IAM verification code. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamVerificationCodeCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification code dispatch accepted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Verification code request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.verificationCodes",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/auth/verification_codes/verify": {
+      "post": {
+        "operationId": "verificationCodes.verify",
+        "summary": "Verify SDKWork IAM verification code",
+        "description": "Verify SDKWork IAM verification code. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamVerificationCodeVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification code checked successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Verification code verify request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Verification code was rejected.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.verificationCodes",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/iam/users/current": {
+      "get": {
+        "operationId": "users.current.retrieve",
+        "summary": "Get current SDKWork IAM user",
+        "description": "Get current SDKWork IAM user. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user profile returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamUserProfileEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "user",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.users.current.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.users.current",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "patch": {
+        "operationId": "users.current.update",
+        "summary": "Update current SDKWork IAM user profile",
+        "description": "Update current SDKWork IAM user profile. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "iam"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpdateCurrentUserProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Current user profile updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamUserProfileEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "user",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.users.current.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.users.current",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/app/v3/api/open_platform/qr_auth/sessions": {
+      "post": {
+        "operationId": "qrAuth.sessions.create",
+        "summary": "Create SDKWork IAM QR auth session",
+        "description": "Create SDKWork IAM QR auth session. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "openPlatform"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamQrAuthSessionCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM QR auth session created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamQrAuthSessionEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "SDKWork IAM QR auth session could not be created.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.qrAuth.sessions",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}": {
+      "get": {
+        "operationId": "qrAuth.sessions.retrieve",
+        "summary": "Get SDKWork IAM QR auth session",
+        "description": "Get SDKWork IAM QR auth session. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "openPlatform"
+        ],
+        "parameters": [
+          {
+            "name": "sessionKey",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM QR auth session key.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM QR auth session returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamQrAuthSessionEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM QR auth session was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.qrAuth.sessions",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans": {
+      "post": {
+        "operationId": "qrAuth.sessions.scans.create",
+        "summary": "Create SDKWork IAM QR auth scan",
+        "description": "Create SDKWork IAM QR auth scan. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "openPlatform"
+        ],
+        "parameters": [
+          {
+            "name": "sessionKey",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM QR auth session key.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamQrAuthSessionScanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM QR auth session scan accepted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.qrAuth.sessions.scans",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords": {
+      "post": {
+        "operationId": "qrAuth.sessions.passwords.create",
+        "summary": "Complete SDKWork IAM QR auth session with password",
+        "description": "Complete SDKWork IAM QR auth session with password. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "openPlatform"
+        ],
+        "parameters": [
+          {
+            "name": "sessionKey",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM QR auth session key.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamQrAuthSessionPasswordRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM QR auth session completed by password successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "iam.qrAuth.sessions.passwords",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/app_templates": {
+      "get": {
+        "operationId": "appTemplates.list",
+        "summary": "List app templates",
+        "description": "List app templates. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "templates"
+        ],
+        "responses": {
+          "200": {
+            "description": "App template catalog returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderAppTemplateSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "ecosystem",
+        "x-sdkwork-permission": "ecosystem.appTemplates.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "ecosystem.appTemplates",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
       }
     },
     "/app/v3/api/projects": {
@@ -3370,7 +4306,7 @@
           {
             "name": "sessionId",
             "in": "query",
-            "description": "Runtime user-center session id used to authorize the websocket upgrade.",
+            "description": "Runtime SDKWork IAM session id used to authorize the websocket upgrade.",
             "schema": {
               "type": "string"
             }
@@ -3391,7 +4327,7 @@
             }
           },
           "401": {
-            "description": "A valid user-center session is required.",
+            "description": "A valid SDKWork IAM session is required.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4503,21 +5439,21 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/auth/config": {
+    "/app/v3/api/memberships/current": {
       "get": {
-        "operationId": "config.retrieve",
-        "summary": "Get active user-center provider metadata and login capability switches.",
-        "description": "Get active user-center provider metadata and login capability switches.. Requires an authenticated BirdCoder user session.",
+        "operationId": "memberships.current.retrieve",
+        "summary": "Get current SDKWork commerce membership",
+        "description": "Get current SDKWork commerce membership. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "auth"
+          "commerce"
         ],
         "responses": {
           "200": {
-            "description": "User center provider metadata returned successfully.",
+            "description": "Current SDKWork commerce membership returned successfully.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterMetadataEnvelope"
+                  "$ref": "#/components/schemas/BirdCoderCommerceMembershipCurrentEnvelope"
                 }
               }
             }
@@ -4540,31 +5476,31 @@
           }
         ],
         "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.config.read",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.memberships.current.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.config",
+        "x-sdkwork-resource": "commerce.memberships.current",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/auth/sessions/current": {
+    "/app/v3/api/memberships/package_groups": {
       "get": {
-        "operationId": "sessions.current.retrieve",
-        "summary": "Get the current login session snapshot for the active principal.",
-        "description": "Get the current login session snapshot for the active principal.. Requires an authenticated BirdCoder user session.",
+        "operationId": "memberships.packageGroups.list",
+        "summary": "List SDKWork commerce membership package groups",
+        "description": "List SDKWork commerce membership package groups. Requires an authenticated BirdCoder user session.",
         "tags": [
-          "auth"
+          "commerce"
         ],
         "responses": {
           "200": {
-            "description": "Current user center session returned successfully.",
+            "description": "SDKWork commerce membership package groups returned successfully.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderNullableUserCenterSessionEnvelope"
+                  "$ref": "#/components/schemas/BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope"
                 }
               }
             }
@@ -4589,647 +5525,12 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.sessions.current.read",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.memberships.packageGroups.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.sessions.current",
+        "x-sdkwork-resource": "commerce.memberships.packageGroups",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
-      },
-      "post": {
-        "operationId": "sessions.current.delete",
-        "summary": "Revoke the current user-center login session and its token shadows.",
-        "description": "Revoke the current user-center login session and its token shadows.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "auth"
-        ],
-        "responses": {
-          "200": {
-            "description": "User center session revoked successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "user",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.sessions.current.delete",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.sessions.current",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      }
-    },
-    "/app/v3/api/auth/session_exchanges": {
-      "post": {
-        "operationId": "sessionExchanges.create",
-        "summary": "Exchange an upstream or third-party session into the local AuthToken and AccessToken bundle.",
-        "description": "Exchange an upstream or third-party session into the local AuthToken and AccessToken bundle.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderUserCenterSessionExchangeRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "External appbase IAM session exchanged successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterSessionEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "User center session exchange request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.sessionExchanges",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
-      }
-    },
-    "/app/v3/api/billing/vip/info": {
-      "get": {
-        "operationId": "vip.info.retrieve",
-        "summary": "Get the current user's VIP or membership projection.",
-        "description": "Get the current user's VIP or membership projection.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "billing"
-        ],
-        "responses": {
-          "200": {
-            "description": "Current user membership returned successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterMembershipEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "user",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "billing",
-        "x-sdkwork-permission": "billing.vip.info.read",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "billing.vip.info",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      },
-      "patch": {
-        "operationId": "vip.info.update",
-        "summary": "Update the current user's VIP or membership projection for local authority mode.",
-        "description": "Update the current user's VIP or membership projection for local authority mode.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "billing"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderUpdateCurrentUserMembershipRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Current user membership updated successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterMembershipEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "user",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "billing",
-        "x-sdkwork-permission": "billing.vip.info.update",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "billing.vip.info",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      }
-    },
-    "/app/v3/api/iam/users/current": {
-      "get": {
-        "operationId": "users.current.retrieve",
-        "summary": "Get the current user's canonical profile projection.",
-        "description": "Get the current user's canonical profile projection.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "iam"
-        ],
-        "responses": {
-          "200": {
-            "description": "Current user profile returned successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterProfileEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "user",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.current.read",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users.current",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      },
-      "patch": {
-        "operationId": "users.current.update",
-        "summary": "Update the current user's canonical profile projection.",
-        "description": "Update the current user's canonical profile projection.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "iam"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderUpdateCurrentUserProfileRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Current user profile updated successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterProfileEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "user",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.current.update",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users.current",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      }
-    },
-    "/app/v3/api/auth/sessions": {
-      "post": {
-        "operationId": "sessions.create",
-        "summary": "Create a login session with account and password credentials.",
-        "description": "Create a login session with account and password credentials.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderUserCenterLoginRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "User center session created successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterSessionEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "User center login request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "User center credentials were rejected.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.sessions",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
-      }
-    },
-    "/app/v3/api/auth/password_reset_requests": {
-      "post": {
-        "operationId": "passwordResetRequests.create",
-        "summary": "Request a password-reset challenge through the configured verification channel.",
-        "description": "Request a password-reset challenge through the configured verification channel.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderUserCenterPasswordResetChallengeRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Password reset challenge accepted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Password reset challenge request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.passwordResetRequests",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
-      }
-    },
-    "/app/v3/api/auth/registrations": {
-      "post": {
-        "operationId": "registrations.create",
-        "summary": "Register a local user and return the initial account projection when enabled.",
-        "description": "Register a local user and return the initial account projection when enabled.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderUserCenterRegisterRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "User center user registered successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderUserCenterSessionEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "User center registration request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.registrations",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
-      }
-    },
-    "/app/v3/api/auth/password_resets": {
-      "post": {
-        "operationId": "passwordResets.create",
-        "summary": "Reset the current account password using a verified recovery challenge.",
-        "description": "Reset the current account password using a verified recovery challenge.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderUserCenterPasswordResetRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Password reset completed successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Password reset request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Password reset verification failed.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.passwordResets",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
-      }
-    },
-    "/app/v3/api/auth/verification_codes": {
-      "post": {
-        "operationId": "verificationCodes.create",
-        "summary": "Send a verification challenge for login, registration, or password reset.",
-        "description": "Send a verification challenge for login, registration, or password reset.. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderUserCenterSendVerifyCodeRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Verification code dispatch accepted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Verification code request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.verificationCodes",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
       }
     }
   },
@@ -5243,7 +5544,7 @@
       "sdkworkAccessToken": {
         "type": "apiKey",
         "in": "header",
-        "name": "Sdkwork-Access-Token"
+        "name": "Access-Token"
       }
     },
     "schemas": {
@@ -6595,6 +6896,282 @@
         },
         "additionalProperties": false
       },
+      "BirdCoderCommerceMembershipBenefitSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "benefitKey": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "claimed": {
+            "type": "boolean"
+          },
+          "usageLimit": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "usedCount": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "claimed"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceMembershipCurrentEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderCommerceMembershipCurrentSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceMembershipCurrentSummary": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "ownerUserId": {
+            "type": "string"
+          },
+          "planId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "planName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remainingDays": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "totalDays": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "totalSpent": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "points": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "growthValue": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "upgradeGrowthValue": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "benefits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderCommerceMembershipBenefitSummary"
+            }
+          }
+        },
+        "required": [
+          "ownerUserId",
+          "planName",
+          "status",
+          "totalSpent",
+          "points",
+          "growthValue",
+          "upgradeGrowthValue",
+          "benefits"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceMembershipPackageGroupSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "sortWeight": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "packages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderCommerceMembershipPackageSummary"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "sortWeight",
+          "packages"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderCommerceMembershipPackageGroupSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceMembershipPackageSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "originalPrice": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "pointAmount": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "durationDays": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "planName": {
+            "type": "string"
+          },
+          "sortWeight": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "recommended": {
+            "type": "boolean"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "price",
+          "pointAmount",
+          "durationDays",
+          "sortWeight",
+          "recommended",
+          "tags"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderCommitProjectGitChangesRequest": {
         "type": "object",
         "properties": {
@@ -7858,6 +8435,710 @@
         ],
         "additionalProperties": false
       },
+      "BirdCoderIamCreateSessionRequest": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "appVersion": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "deviceName": {
+            "type": "string"
+          },
+          "deviceType": {
+            "type": "string",
+            "enum": [
+              "android",
+              "desktop",
+              "ios",
+              "web"
+            ]
+          },
+          "email": {
+            "type": "string"
+          },
+          "grantType": {
+            "type": "string",
+            "enum": [
+              "password",
+              "email_code",
+              "phone_code",
+              "session_bridge"
+            ]
+          },
+          "loginMethod": {
+            "type": "string",
+            "enum": [
+              "emailCode",
+              "password",
+              "phoneCode",
+              "sessionBridge"
+            ]
+          },
+          "password": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderIamOAuthAuthorizationEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamOAuthAuthorizationSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamOAuthAuthorizationSummary": {
+        "type": "object",
+        "properties": {
+          "authUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "authUrl"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamOAuthSessionCreateRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "deviceId": {
+            "type": "string"
+          },
+          "deviceType": {
+            "type": "string",
+            "enum": [
+              "android",
+              "desktop",
+              "ios",
+              "web"
+            ]
+          },
+          "provider": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "provider"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamPasswordResetCreateRequest": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "confirmPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "account",
+          "code",
+          "newPassword"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamPasswordResetRequestCreateRequest": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "SMS"
+            ]
+          }
+        },
+        "required": [
+          "account",
+          "channel"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamQrAuthSessionCreateRequest": {
+        "type": "object",
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "login",
+              "register"
+            ]
+          },
+          "redirectUri": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "purpose"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamQrAuthSessionEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamQrAuthSessionSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamQrAuthSessionPasswordRequest": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "username"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamQrAuthSessionScanRequest": {
+        "type": "object",
+        "properties": {
+          "scanSource": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderIamQrAuthSessionSummary": {
+        "type": "object",
+        "properties": {
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "qrContent": {
+            "type": "string"
+          },
+          "qrUrl": {
+            "type": "string"
+          },
+          "sessionKey": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "scanned",
+              "confirmed",
+              "expired"
+            ]
+          }
+        },
+        "required": [
+          "sessionKey",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamRefreshSessionRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamRegistrationCreateRequest": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "PHONE"
+            ]
+          },
+          "confirmPassword": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "verificationCode": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderIamRuntimeSettingsEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamRuntimeSettingsSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamRuntimeSettingsSummary": {
+        "type": "object",
+        "properties": {
+          "leftRailMode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "highlights-only",
+              "qr-only"
+            ]
+          },
+          "loginMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "emailCode",
+                "password",
+                "phoneCode",
+                "sessionBridge"
+              ]
+            }
+          },
+          "oauthLoginEnabled": {
+            "type": "boolean"
+          },
+          "oauthProviders": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "qrLoginEnabled": {
+            "type": "boolean"
+          },
+          "qrLoginType": {
+            "type": "string",
+            "enum": [
+              "web",
+              "official",
+              "mini"
+            ]
+          },
+          "recoveryMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "email",
+                "phone"
+              ]
+            }
+          },
+          "registerMethods": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "email",
+                "phone"
+              ]
+            }
+          },
+          "verificationPolicy": {
+            "$ref": "#/components/schemas/BirdCoderIamVerificationPolicySummary"
+          }
+        },
+        "required": [
+          "leftRailMode",
+          "loginMethods",
+          "oauthLoginEnabled",
+          "oauthProviders",
+          "qrLoginEnabled",
+          "qrLoginType",
+          "recoveryMethods",
+          "registerMethods",
+          "verificationPolicy"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamSessionEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamSessionSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamSessionSummary": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "authToken": {
+            "type": "string"
+          },
+          "context": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/BirdCoderAuthenticatedUserSummary"
+          }
+        },
+        "required": [
+          "accessToken",
+          "authToken"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamUpdateCurrentSessionRequest": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string"
+          },
+          "deviceName": {
+            "type": "string"
+          },
+          "trusted": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderIamUserProfileEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamUserProfileSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamUserProfileSummary": {
+        "type": "object",
+        "properties": {
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "bio": {
+            "type": "string"
+          },
+          "company": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "uuid",
+          "createdAt",
+          "updatedAt",
+          "bio",
+          "company",
+          "displayName",
+          "email",
+          "userId",
+          "location",
+          "website"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamVerificationCodeCreateRequest": {
+        "type": "object",
+        "properties": {
+          "scene": {
+            "type": "string",
+            "enum": [
+              "LOGIN",
+              "REGISTER",
+              "RESET_PASSWORD"
+            ]
+          },
+          "target": {
+            "type": "string"
+          },
+          "verifyType": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "PHONE"
+            ]
+          }
+        },
+        "required": [
+          "scene",
+          "target",
+          "verifyType"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamVerificationCodeVerifyRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string",
+            "enum": [
+              "LOGIN",
+              "REGISTER",
+              "RESET_PASSWORD"
+            ]
+          },
+          "target": {
+            "type": "string"
+          },
+          "verifyType": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "PHONE"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "scene",
+          "target",
+          "verifyType"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamVerificationPolicyEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamVerificationPolicySummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamVerificationPolicySummary": {
+        "type": "object",
+        "properties": {
+          "emailCodeLoginEnabled": {
+            "type": "boolean"
+          },
+          "emailRegistrationVerificationRequired": {
+            "type": "boolean"
+          },
+          "phoneCodeLoginEnabled": {
+            "type": "boolean"
+          },
+          "phoneRegistrationVerificationRequired": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "emailCodeLoginEnabled",
+          "emailRegistrationVerificationRequired",
+          "phoneCodeLoginEnabled",
+          "phoneRegistrationVerificationRequired"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderInstallSkillPackageRequest": {
         "type": "object",
         "properties": {
@@ -8469,40 +9750,6 @@
           "requestId",
           "timestamp",
           "items",
-          "meta"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderNullableUserCenterSessionEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/BirdCoderUserCenterSessionSummary"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
-          }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
           "meta"
         ],
         "additionalProperties": false
@@ -9727,41 +10974,6 @@
         },
         "additionalProperties": false
       },
-      "BirdCoderUpdateCurrentUserMembershipRequest": {
-        "type": "object",
-        "properties": {
-          "vipLevelId": {
-            "type": "string"
-          },
-          "pointBalance": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "totalRechargedPoints": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "status": {
-            "type": "string"
-          },
-          "validFrom": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "validTo": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "lastActiveTime": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "remark": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
-      },
       "BirdCoderUpdateCurrentUserProfileRequest": {
         "type": "object",
         "properties": {
@@ -10076,758 +11288,6 @@
             ]
           }
         ]
-      },
-      "BirdCoderUserCenterLoginQrCodeEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderUserCenterLoginQrCodeSummary"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
-          }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterLoginQrCodeSummary": {
-        "type": "object",
-        "properties": {
-          "description": {
-            "type": "string"
-          },
-          "expireTime": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "qrContent": {
-            "type": "string"
-          },
-          "qrKey": {
-            "type": "string"
-          },
-          "qrUrl": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "qrKey"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterLoginQrStatusEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderUserCenterLoginQrStatusSummary"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
-          }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterLoginQrStatusSummary": {
-        "type": "object",
-        "properties": {
-          "session": {
-            "$ref": "#/components/schemas/BirdCoderUserCenterSessionSummary"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "scanned",
-              "confirmed",
-              "expired"
-            ]
-          },
-          "user": {
-            "$ref": "#/components/schemas/BirdCoderAuthenticatedUserSummary"
-          }
-        },
-        "required": [
-          "status"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterLoginRequest": {
-        "type": "object",
-        "properties": {
-          "account": {
-            "type": "string"
-          },
-          "appVersion": {
-            "type": "string"
-          },
-          "code": {
-            "type": "string"
-          },
-          "deviceId": {
-            "type": "string"
-          },
-          "deviceName": {
-            "type": "string"
-          },
-          "deviceType": {
-            "type": "string",
-            "enum": [
-              "android",
-              "desktop",
-              "ios",
-              "web"
-            ]
-          },
-          "email": {
-            "type": "string"
-          },
-          "loginMethod": {
-            "type": "string",
-            "enum": [
-              "emailCode",
-              "password",
-              "phoneCode",
-              "sessionBridge"
-            ]
-          },
-          "password": {
-            "type": "string"
-          },
-          "phone": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterMembershipEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderUserCenterMembershipSummary"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
-          }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterMembershipSummary": {
-        "type": "object",
-        "properties": {
-          "uuid": {
-            "type": "string"
-          },
-          "tenantId": {
-            "type": "string"
-          },
-          "organizationId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "vipLevelId": {
-            "type": "string"
-          },
-          "pointBalance": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "totalRechargedPoints": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "status": {
-            "type": "string"
-          },
-          "validFrom": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "validTo": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "lastActiveTime": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "remark": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "uuid",
-          "createdAt",
-          "updatedAt",
-          "userId",
-          "pointBalance",
-          "totalRechargedPoints",
-          "status"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterMetadataEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderUserCenterMetadataSummary"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
-          }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterMetadataSummary": {
-        "type": "object",
-        "properties": {
-          "integrationKind": {
-            "type": "string"
-          },
-          "loginMethods": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "emailCode",
-                "password",
-                "phoneCode",
-                "sessionBridge"
-              ]
-            }
-          },
-          "mode": {
-            "type": "string",
-            "enum": [
-              "builtin-local",
-              "sdkwork-cloud-app-api",
-              "external-user-center"
-            ]
-          },
-          "oauthLoginEnabled": {
-            "type": "boolean"
-          },
-          "oauthProviders": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "providerKey": {
-            "type": "string"
-          },
-          "qrLoginEnabled": {
-            "type": "boolean"
-          },
-          "recoveryMethods": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "email",
-                "phone"
-              ]
-            }
-          },
-          "registerMethods": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "email",
-                "phone"
-              ]
-            }
-          },
-          "sessionHeaderName": {
-            "type": "string"
-          },
-          "supportsLocalCredentials": {
-            "type": "boolean"
-          },
-          "supportsMembershipWrite": {
-            "type": "boolean"
-          },
-          "supportsProfileWrite": {
-            "type": "boolean"
-          },
-          "supportsSessionExchange": {
-            "type": "boolean"
-          },
-          "upstreamBaseUrl": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "loginMethods",
-          "mode",
-          "oauthLoginEnabled",
-          "oauthProviders",
-          "providerKey",
-          "qrLoginEnabled",
-          "recoveryMethods",
-          "registerMethods",
-          "sessionHeaderName",
-          "supportsLocalCredentials",
-          "supportsMembershipWrite",
-          "supportsProfileWrite",
-          "supportsSessionExchange"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterOAuthAuthorizationEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderUserCenterOAuthAuthorizationSummary"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
-          }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterOAuthAuthorizationSummary": {
-        "type": "object",
-        "properties": {
-          "authUrl": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "authUrl"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterOAuthLoginRequest": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "deviceId": {
-            "type": "string"
-          },
-          "deviceType": {
-            "type": "string",
-            "enum": [
-              "android",
-              "desktop",
-              "ios",
-              "web"
-            ]
-          },
-          "provider": {
-            "type": "string"
-          },
-          "state": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "code",
-          "provider"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterPasswordResetChallengeRequest": {
-        "type": "object",
-        "properties": {
-          "account": {
-            "type": "string"
-          },
-          "channel": {
-            "type": "string",
-            "enum": [
-              "EMAIL",
-              "SMS"
-            ]
-          }
-        },
-        "required": [
-          "account",
-          "channel"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterPasswordResetRequest": {
-        "type": "object",
-        "properties": {
-          "account": {
-            "type": "string"
-          },
-          "code": {
-            "type": "string"
-          },
-          "confirmPassword": {
-            "type": "string"
-          },
-          "newPassword": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "account",
-          "code",
-          "newPassword"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterProfileEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderUserCenterProfileSummary"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
-          }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterProfileSummary": {
-        "type": "object",
-        "properties": {
-          "uuid": {
-            "type": "string"
-          },
-          "tenantId": {
-            "type": "string"
-          },
-          "organizationId": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "avatarUrl": {
-            "type": "string"
-          },
-          "bio": {
-            "type": "string"
-          },
-          "company": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "location": {
-            "type": "string"
-          },
-          "website": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "uuid",
-          "createdAt",
-          "updatedAt",
-          "bio",
-          "company",
-          "displayName",
-          "email",
-          "userId",
-          "location",
-          "website"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterRegisterRequest": {
-        "type": "object",
-        "properties": {
-          "channel": {
-            "type": "string",
-            "enum": [
-              "EMAIL",
-              "PHONE"
-            ]
-          },
-          "confirmPassword": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "password": {
-            "type": "string"
-          },
-          "phone": {
-            "type": "string"
-          },
-          "username": {
-            "type": "string"
-          },
-          "verificationCode": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterSendVerifyCodeRequest": {
-        "type": "object",
-        "properties": {
-          "scene": {
-            "type": "string",
-            "enum": [
-              "LOGIN",
-              "REGISTER",
-              "RESET_PASSWORD"
-            ]
-          },
-          "target": {
-            "type": "string"
-          },
-          "verifyType": {
-            "type": "string",
-            "enum": [
-              "EMAIL",
-              "PHONE"
-            ]
-          }
-        },
-        "required": [
-          "scene",
-          "target",
-          "verifyType"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterSessionEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderUserCenterSessionSummary"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
-          }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterSessionExchangeRequest": {
-        "type": "object",
-        "properties": {
-          "avatarUrl": {
-            "type": "string"
-          },
-          "email": {
-            "type": "string"
-          },
-          "userId": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "providerKey": {
-            "type": "string"
-          },
-          "subject": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "email"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderUserCenterSessionSummary": {
-        "type": "object",
-        "properties": {
-          "uuid": {
-            "type": "string"
-          },
-          "tenantId": {
-            "type": "string"
-          },
-          "organizationId": {
-            "type": "string"
-          },
-          "accessToken": {
-            "type": "string"
-          },
-          "authToken": {
-            "type": "string"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "providerKey": {
-            "type": "string"
-          },
-          "providerMode": {
-            "type": "string",
-            "enum": [
-              "builtin-local",
-              "sdkwork-cloud-app-api",
-              "external-user-center"
-            ]
-          },
-          "refreshToken": {
-            "type": "string"
-          },
-          "sessionId": {
-            "type": "string"
-          },
-          "tokenType": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "user": {
-            "$ref": "#/components/schemas/BirdCoderAuthenticatedUserSummary"
-          }
-        },
-        "required": [
-          "uuid",
-          "accessToken",
-          "authToken",
-          "createdAt",
-          "providerKey",
-          "providerMode",
-          "sessionId",
-          "tokenType",
-          "updatedAt",
-          "user"
-        ],
-        "additionalProperties": false
       },
       "BirdCoderUserQuestionAnswerResult": {
         "type": "object",

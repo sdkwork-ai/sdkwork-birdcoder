@@ -8,6 +8,7 @@ use std::{
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+mod iam_authority;
 mod native_sessions;
 
 use axum::{
@@ -19,6 +20,15 @@ use axum::{
     response::{Html, Response},
     routing::{get, patch, post},
     Json, Router,
+};
+use iam_authority::{
+    ensure_sqlite_iam_bootstrap_user, ensure_sqlite_iam_schema, IamLoginQrCodePayload,
+    IamLoginQrStatusPayload, IamLoginRequest, IamMetadataPayload, IamOAuthAuthorizationRequest,
+    IamOAuthLoginRequest, IamOAuthUrlPayload, IamPasswordResetChallengeRequest,
+    IamPasswordResetRequest, IamProfilePayload, IamQrAuthSessionPasswordRequest,
+    IamRefreshSessionRequest, IamRegisterRequest, IamSendVerifyCodeRequest, IamSessionPayload,
+    IamState, IamVerificationPolicyPayload, IamVerifyCodeRequest, UpdateIamProfileRequest,
+    IAM_ACCESS_TOKEN_HEADER_NAME, IAM_AUTHORIZATION_SCHEME, IAM_SESSION_HEADER_NAME,
 };
 use rusqlite::{params, types::ValueRef, Connection, OptionalExtension};
 use sdkwork_birdcoder_codeengine::{
@@ -39,21 +49,6 @@ use sdkwork_birdcoder_git::{
     inspect_project_git_overview, prune_project_git_worktrees, push_project_git_branch,
     remove_project_git_worktree, switch_project_git_branch, GitMutationError, GitProjectOverview,
 };
-use sdkwork_user_center_native::{
-    ensure_sqlite_user_center_bootstrap_user, ensure_sqlite_user_center_schema,
-    UpdateUserCenterProfileRequest, UpdateUserCenterVipMembershipRequest,
-    UserCenterLoginQrCodePayload, UserCenterLoginQrConfirmRequest,
-    UserCenterLoginQrStatusPayload, UserCenterLoginRequest, UserCenterMetadataPayload,
-    UserCenterOAuthAuthorizationRequest, UserCenterOAuthLoginRequest, UserCenterOAuthUrlPayload,
-    UserCenterPasswordResetChallengeRequest, UserCenterPasswordResetRequest,
-    UserCenterProfilePayload, UserCenterRegisterRequest,
-    UserCenterSendVerifyCodeRequest, UserCenterSessionExchangeRequest, UserCenterSessionPayload,
-    UserCenterState, UserCenterVipMembershipPayload, USER_CENTER_AUTHORIZATION_SCHEME,
-    USER_CENTER_SESSION_HEADER_NAME, USER_CENTER_ACCESS_TOKEN_HEADER_NAME,
-    USER_CENTER_APP_ID_HEADER_NAME, USER_CENTER_HANDSHAKE_MODE_HEADER_NAME,
-    USER_CENTER_PROVIDER_KEY_HEADER_NAME, USER_CENTER_SECRET_ID_HEADER_NAME,
-    USER_CENTER_SIGNATURE_HEADER_NAME, USER_CENTER_SIGNED_AT_HEADER_NAME,
-};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::json;
 use tokio::sync::broadcast;
@@ -72,33 +67,35 @@ pub const CODING_SERVER_APP_API_PREFIX: &str = "/app/v3/api";
 pub const CODING_SERVER_BACKEND_API_PREFIX: &str = "/backend/v3/api";
 pub const CODING_SERVER_ROUTE_CATALOG_PATH: &str = "/app/v3/api/system/routes";
 pub const BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV: &str = "BIRDCODER_CODING_SERVER_SQLITE_FILE";
+const DEFAULT_LIST_PAGE_SIZE: usize = 20;
+const MAX_LIST_PAGE_SIZE: usize = 200;
 pub const BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT_ENV: &str =
     "BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT";
 pub const BIRDCODER_CODING_SERVER_SNAPSHOT_FILE_ENV: &str = "BIRDCODER_CODING_SERVER_SNAPSHOT_FILE";
 pub const BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS_ENV: &str =
     "BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS";
-const USER_CENTER_AUTH_CONFIG_PATH: &str = "/app/v3/api/auth/config";
-const USER_CENTER_AUTH_SESSION_PATH: &str = "/app/v3/api/auth/sessions/current";
-const USER_CENTER_AUTH_LOGIN_PATH: &str = "/app/v3/api/auth/sessions";
-const USER_CENTER_AUTH_LOGOUT_PATH: &str = "/app/v3/api/auth/sessions/current";
-const USER_CENTER_AUTH_SESSION_EXCHANGE_PATH: &str = "/app/v3/api/auth/session_exchanges";
-const USER_CENTER_AUTH_REGISTER_PATH: &str = "/app/v3/api/auth/registrations";
-const USER_CENTER_AUTH_VERIFICATION_CODES_PATH: &str = "/app/v3/api/auth/verification_codes";
-const USER_CENTER_AUTH_PASSWORD_RESET_REQUEST_PATH: &str =
-    "/app/v3/api/auth/password_reset_requests";
-const USER_CENTER_AUTH_PASSWORD_RESET_PATH: &str = "/app/v3/api/auth/password_resets";
-const USER_CENTER_AUTH_QR_GENERATE_PATH: &str = "/app/v3/api/auth/qr_login_codes";
-const USER_CENTER_AUTH_QR_LOGIN_CODE_PATH: &str = "/app/v3/api/auth/qr_login_codes/{qrKey}";
-const USER_CENTER_AUTH_QR_ENTRY_PATH: &str = "/app/v3/api/auth/qr_login_codes/{qrKey}/entry";
-const USER_CENTER_AUTH_QR_CALLBACK_PATH: &str =
-    "/app/v3/api/auth/qr_login_codes/{qrKey}/callback";
-const USER_CENTER_AUTH_QR_CONFIRM_PATH: &str = "/app/v3/api/auth/qr_login_codes/confirm";
-const USER_CENTER_AUTH_OAUTH_URL_PATH: &str = "/app/v3/api/auth/oauth_authorization_urls";
-const USER_CENTER_AUTH_OAUTH_LOGIN_PATH: &str = "/app/v3/api/auth/oauth_sessions";
-const USER_CENTER_USER_PROFILE_PATH: &str = "/app/v3/api/iam/users/current";
-const USER_CENTER_BILLING_VIP_MEMBERSHIP_PATH: &str = "/app/v3/api/billing/vip/info";
-const BIRDCODER_USER_CENTER_SESSION_TOKEN_STORAGE_KEY: &str =
-    "sdkwork-birdcoder.user-center.session-token";
+const IAM_RUNTIME_PATH: &str = "/app/v3/api/system/iam/runtime";
+const IAM_VERIFICATION_POLICY_PATH: &str = "/app/v3/api/system/iam/verification_policy";
+const IAM_AUTH_SESSION_PATH: &str = "/app/v3/api/auth/sessions/current";
+const IAM_AUTH_LOGIN_PATH: &str = "/app/v3/api/auth/sessions";
+const IAM_AUTH_SESSION_REFRESH_PATH: &str = "/app/v3/api/auth/sessions/refresh";
+const IAM_AUTH_REGISTER_PATH: &str = "/app/v3/api/auth/registrations";
+const IAM_AUTH_VERIFICATION_CODES_PATH: &str = "/app/v3/api/auth/verification_codes";
+const IAM_AUTH_VERIFICATION_CODES_VERIFY_PATH: &str = "/app/v3/api/auth/verification_codes/verify";
+const IAM_AUTH_PASSWORD_RESET_REQUEST_PATH: &str = "/app/v3/api/auth/password_reset_requests";
+const IAM_AUTH_PASSWORD_RESET_PATH: &str = "/app/v3/api/auth/password_resets";
+const IAM_AUTH_OAUTH_URL_PATH: &str = "/app/v3/api/auth/oauth_authorization_urls";
+const IAM_AUTH_OAUTH_LOGIN_PATH: &str = "/app/v3/api/auth/oauth_sessions";
+const IAM_QR_AUTH_SESSION_PATH: &str = "/app/v3/api/open_platform/qr_auth/sessions";
+const IAM_QR_AUTH_SESSION_STATUS_PATH: &str =
+    "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}";
+const IAM_QR_AUTH_SESSION_SCAN_PATH: &str =
+    "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans";
+const IAM_QR_AUTH_SESSION_PASSWORD_PATH: &str =
+    "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords";
+const IAM_USER_PROFILE_PATH: &str = "/app/v3/api/iam/users/current";
+const COMMERCE_MEMBERSHIP_CURRENT_PATH: &str = "/app/v3/api/memberships/current";
+const COMMERCE_MEMBERSHIP_PACKAGE_GROUPS_PATH: &str = "/app/v3/api/memberships/package_groups";
 
 const PROVIDER_CODING_SESSIONS_TABLE: &str = "ai_coding_session";
 const PROVIDER_CODING_SESSION_RUNTIMES_TABLE: &str = "ai_coding_session_runtime";
@@ -1584,6 +1581,81 @@ struct PolicyPayload {
     status: String,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CommerceMembershipBenefitPayload {
+    id: String,
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    benefit_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    r#type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icon: Option<String>,
+    claimed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    usage_limit: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    used_count: Option<String>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CommerceMembershipCurrentPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tenant_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    organization_id: Option<String>,
+    owner_user_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    plan_id: Option<String>,
+    plan_name: String,
+    status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    started_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    expires_at: Option<String>,
+    remaining_days: String,
+    total_days: String,
+    total_spent: String,
+    points: String,
+    growth_value: String,
+    upgrade_growth_value: String,
+    benefits: Vec<CommerceMembershipBenefitPayload>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CommerceMembershipPackagePayload {
+    id: String,
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    price: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    original_price: Option<String>,
+    point_amount: String,
+    duration_days: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    plan_name: Option<String>,
+    sort_weight: String,
+    recommended: bool,
+    tags: Vec<String>,
+}
+
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CommerceMembershipPackageGroupPayload {
+    id: String,
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    sort_weight: String,
+    packages: Vec<CommerceMembershipPackagePayload>,
+}
+
 #[derive(Default)]
 struct AuthorityBootstrapConfig {
     sqlite_file: Option<PathBuf>,
@@ -2096,7 +2168,7 @@ struct AppState {
     projections: ProjectionAuthorityState,
     model_config: Arc<RwLock<CodeEngineModelConfigPayload>>,
     realtime: WorkspaceRealtimeHub,
-    user_center: UserCenterState,
+    iam: IamState,
     audits: Vec<AuditPayload>,
     deployments: Vec<DeploymentPayload>,
     targets: Vec<DeploymentTargetPayload>,
@@ -2240,7 +2312,7 @@ struct RouteSpec {
 fn surface_description(surface: &str) -> &'static str {
     match surface {
         "app" => {
-            "Application-facing coding runtime, workspace, project, collaboration, and user-center routes."
+            "Application-facing coding runtime, workspace, project, collaboration, and iam routes."
         }
         "backend" => "Backend governance, audit, release, deployment, and team-management routes.",
         _ => "Unified BirdCoder API surface.",
@@ -2251,11 +2323,14 @@ fn openapi_tag_description(tag: &str) -> &'static str {
     match tag {
         "audit" => "Audit and operational evidence resources.",
         "auth" => "Appbase IAM authentication and session resources.",
-        "billing" => "Membership, VIP, and billing-facing app resources.",
+        "commerce" => {
+            "Commerce membership, package catalog, entitlement, order, and payment resources."
+        }
         "collaboration" => "Workspace collaboration and team catalog resources.",
         "coding" => "Coding session, checkpoint, approval, and question resources.",
         "content" => "Project document and content resources.",
         "iam" => "IAM user, team, member, and policy resources.",
+        "open_platform" => "Open platform and QR authorization resources.",
         "platform" => "Workspace, project, release, deployment, and delivery resources.",
         "runtime" => "Runtime engine, model, native session, and local operation resources.",
         "skills" => "Skill package catalog and installation resources.",
@@ -2266,10 +2341,7 @@ fn openapi_tag_description(tag: &str) -> &'static str {
 }
 
 fn openapi_tag_for_operation_id(operation_id: &str) -> &'static str {
-    if operation_id.starts_with("config.")
-        || operation_id.starts_with("sessions.")
-        || operation_id.starts_with("sessionExchanges.")
-        || operation_id.starts_with("qrLoginCodes.")
+    if operation_id.starts_with("sessions.")
         || operation_id.starts_with("oauthAuthorizationUrls.")
         || operation_id.starts_with("oauthSessions.")
         || operation_id.starts_with("registrations.")
@@ -2279,8 +2351,11 @@ fn openapi_tag_for_operation_id(operation_id: &str) -> &'static str {
     {
         return "auth";
     }
-    if operation_id.starts_with("vip.") {
-        return "billing";
+    if operation_id.starts_with("qrAuth.") {
+        return "open_platform";
+    }
+    if operation_id.starts_with("memberships.") {
+        return "commerce";
     }
     if operation_id.starts_with("codingSessions.")
         || operation_id.starts_with("approvals.")
@@ -2607,7 +2682,7 @@ fn build_coding_server_docs_html() -> String {
     <section class="panel">
       <strong>Gateway Surfaces</strong>
       <ul>
-        <li><code>{app_prefix}</code> auth, user center, coding runtime, workspaces, projects, collaborators, teams, and deployments</li>
+        <li><code>{app_prefix}</code> auth, IAM, coding runtime, workspaces, projects, collaborators, teams, and deployments</li>
         <li><code>{backend_prefix}</code> audit, policies, teams, releases, deployments, and governed targets</li>
         <li><code>{route_catalog_path}</code> route catalog and generated SDK route evidence</li>
       </ul>
@@ -2932,17 +3007,17 @@ const SEED_SKILLS_BIRDCODER: &[SeedSkillEntry] = &[
         id: "skill-birdcoder-auth",
         slug: "birdcoder-auth",
         name: "BirdCoder Auth",
-        description: "Local and external user-center integration patterns.",
+        description: "Local and external iam integration patterns.",
         icon: "AU",
         author: "SDKWork",
         install_count: 3900,
-        long_description: "Support user-center plugin design, authentication wiring, and IAM-scoped API flows.",
-        tags: &["BirdCoder", "Auth", "User Center"],
+        long_description: "Support iam plugin design, authentication wiring, and IAM-scoped API flows.",
+        tags: &["BirdCoder", "Auth", "IAM"],
         license: Some("Apache-2.0"),
         repository_url: Some("https://github.com/sdkwork/birdcoder-auth"),
         readme: None,
-        capability_key: "birdcoder.user-center",
-        capability_description: "Integrate BirdCoder user-center modules and auth flows.",
+        capability_key: "birdcoder.iam",
+        capability_description: "Integrate BirdCoder iam modules and auth flows.",
     },
 ];
 
@@ -3894,7 +3969,9 @@ fn normalize_data_scope(value: Option<String>) -> Result<Option<String>, &'stati
         "2" | "ORGANIZATION" => "ORGANIZATION",
         "3" | "TENANT" => "TENANT",
         "4" | "PUBLIC" => "PUBLIC",
-        _ => return Err("dataScope must be DEFAULT, PRIVATE, ORGANIZATION, TENANT, PUBLIC, or 0-4."),
+        _ => {
+            return Err("dataScope must be DEFAULT, PRIVATE, ORGANIZATION, TENANT, PUBLIC, or 0-4.")
+        }
     };
 
     Ok(Some(normalized_scope.to_owned()))
@@ -4410,6 +4487,32 @@ pub(crate) fn sqlite_table_exists(
     rows.next()
         .map(|row| row.is_some())
         .map_err(|error| format!("read sqlite table probe for {table_name} failed: {error}"))
+}
+
+fn sqlite_user_table_count(connection: &Connection) -> Result<i64, String> {
+    connection
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| format!("count sqlite authority tables failed: {error}"))
+}
+
+fn open_sqlite_authority_connection(path: &FsPath, label: &str) -> Result<Connection, String> {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent).map_err(|error| {
+                format!(
+                    "create sqlite authority directory {} failed: {error}",
+                    parent.display()
+                )
+            })?;
+        }
+    }
+
+    Connection::open(path)
+        .map_err(|error| format!("open {label} {} failed: {error}", path.display()))
 }
 
 fn sqlite_column_exists(
@@ -5076,15 +5179,21 @@ fn backfill_deployment_target_business_columns(connection: &mut Connection) -> R
             records.push((
                 row.get::<_, String>(0)
                     .map_err(|error| format!("read studio_deployment_target id failed: {error}"))?,
-                row.get::<_, Option<String>>(1)
-                    .map_err(|error| format!("read studio_deployment_target uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "studio_deployment_target.tenant_id").map_err(
-                    |error| format!("read studio_deployment_target tenant_id failed: {error}"),
-                )?,
-                sqlite_row_optional_string_value(row, 3, "studio_deployment_target.organization_id")
+                row.get::<_, Option<String>>(1).map_err(|error| {
+                    format!("read studio_deployment_target uuid failed: {error}")
+                })?,
+                sqlite_row_optional_string_value(row, 2, "studio_deployment_target.tenant_id")
                     .map_err(|error| {
-                        format!("read studio_deployment_target organization_id failed: {error}")
+                        format!("read studio_deployment_target tenant_id failed: {error}")
                     })?,
+                sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "studio_deployment_target.organization_id",
+                )
+                .map_err(|error| {
+                    format!("read studio_deployment_target organization_id failed: {error}")
+                })?,
                 sqlite_row_optional_string_value(row, 4, "projects.tenant_id")
                     .map_err(|error| format!("read parent project tenant_id failed: {error}"))?,
                 sqlite_row_optional_string_value(row, 5, "projects.organization_id").map_err(
@@ -5158,15 +5267,21 @@ fn backfill_deployment_record_business_columns(connection: &mut Connection) -> R
             records.push((
                 row.get::<_, String>(0)
                     .map_err(|error| format!("read studio_deployment_record id failed: {error}"))?,
-                row.get::<_, Option<String>>(1)
-                    .map_err(|error| format!("read studio_deployment_record uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "studio_deployment_record.tenant_id").map_err(
-                    |error| format!("read studio_deployment_record tenant_id failed: {error}"),
-                )?,
-                sqlite_row_optional_string_value(row, 3, "studio_deployment_record.organization_id")
+                row.get::<_, Option<String>>(1).map_err(|error| {
+                    format!("read studio_deployment_record uuid failed: {error}")
+                })?,
+                sqlite_row_optional_string_value(row, 2, "studio_deployment_record.tenant_id")
                     .map_err(|error| {
-                        format!("read studio_deployment_record organization_id failed: {error}")
+                        format!("read studio_deployment_record tenant_id failed: {error}")
                     })?,
+                sqlite_row_optional_string_value(
+                    row,
+                    3,
+                    "studio_deployment_record.organization_id",
+                )
+                .map_err(|error| {
+                    format!("read studio_deployment_record organization_id failed: {error}")
+                })?,
                 sqlite_row_optional_string_value(row, 4, "projects.tenant_id")
                     .map_err(|error| format!("read parent project tenant_id failed: {error}"))?,
                 sqlite_row_optional_string_value(row, 5, "projects.organization_id").map_err(
@@ -5233,8 +5348,9 @@ fn backfill_release_record_business_columns(connection: &mut Connection) -> Resu
                     .map_err(|error| format!("read ops_release_record id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read ops_release_record uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "ops_release_record.tenant_id")
-                    .map_err(|error| format!("read ops_release_record tenant_id failed: {error}"))?,
+                sqlite_row_optional_string_value(row, 2, "ops_release_record.tenant_id").map_err(
+                    |error| format!("read ops_release_record tenant_id failed: {error}"),
+                )?,
                 sqlite_row_optional_string_value(row, 3, "ops_release_record.organization_id")
                     .map_err(|error| {
                         format!("read ops_release_record organization_id failed: {error}")
@@ -5298,9 +5414,10 @@ fn backfill_audit_event_business_columns(connection: &mut Connection) -> Result<
                     .map_err(|error| format!("read audit_events uuid failed: {error}"))?,
                 sqlite_row_optional_string_value(row, 2, "ops_audit_event.tenant_id")
                     .map_err(|error| format!("read audit_events tenant_id failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 3, "ops_audit_event.organization_id").map_err(
-                    |error| format!("read audit_events organization_id failed: {error}"),
-                )?,
+                sqlite_row_optional_string_value(row, 3, "ops_audit_event.organization_id")
+                    .map_err(|error| {
+                        format!("read audit_events organization_id failed: {error}")
+                    })?,
                 row.get::<_, String>(4)
                     .map_err(|error| format!("read audit_events scope_type failed: {error}"))?,
                 row.get::<_, String>(5)
@@ -5366,13 +5483,14 @@ fn backfill_governance_policy_business_columns(connection: &mut Connection) -> R
                     .map_err(|error| format!("read governance_policies id failed: {error}"))?,
                 row.get::<_, Option<String>>(1)
                     .map_err(|error| format!("read governance_policies uuid failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 2, "ops_governance_policy.tenant_id").map_err(
-                    |error| format!("read governance_policies tenant_id failed: {error}"),
-                )?,
+                sqlite_row_optional_string_value(row, 2, "ops_governance_policy.tenant_id")
+                    .map_err(|error| {
+                        format!("read governance_policies tenant_id failed: {error}")
+                    })?,
                 sqlite_row_optional_string_value(row, 3, "ops_governance_policy.organization_id")
                     .map_err(|error| {
-                        format!("read governance_policies organization_id failed: {error}")
-                    })?,
+                    format!("read governance_policies organization_id failed: {error}")
+                })?,
                 row.get::<_, String>(4).map_err(|error| {
                     format!("read governance_policies scope_type failed: {error}")
                 })?,
@@ -5968,9 +6086,10 @@ fn backfill_team_business_columns(connection: &mut Connection) -> Result<(), Str
                     .map_err(|error| format!("read team canonical owner_id failed: {error}"))?,
                 sqlite_row_optional_string_value(row, 6, "studio_team.leader_id")
                     .map_err(|error| format!("read team canonical leader_id failed: {error}"))?,
-                sqlite_row_optional_string_value(row, 7, "studio_team.created_by_user_id").map_err(
-                    |error| format!("read team canonical created_by_user_id failed: {error}"),
-                )?,
+                sqlite_row_optional_string_value(row, 7, "studio_team.created_by_user_id")
+                    .map_err(|error| {
+                        format!("read team canonical created_by_user_id failed: {error}")
+                    })?,
                 row.get::<_, Option<String>>(8)
                     .map_err(|error| format!("read team canonical uuid failed: {error}"))?,
                 row.get::<_, Option<String>>(9)
@@ -6096,31 +6215,37 @@ fn backfill_team_member_business_columns(connection: &mut Connection) -> Result<
                 WHERE studio_team_member.is_deleted = 0
                 "#,
             )
-            .map_err(|error| format!("prepare studio_team_member canonical migration failed: {error}"))?;
-        let mut rows = statement
-            .query([])
-            .map_err(|error| format!("query studio_team_member canonical migration failed: {error}"))?;
+            .map_err(|error| {
+                format!("prepare studio_team_member canonical migration failed: {error}")
+            })?;
+        let mut rows = statement.query([]).map_err(|error| {
+            format!("query studio_team_member canonical migration failed: {error}")
+        })?;
         let mut records = Vec::new();
-        while let Some(row) = rows
-            .next()
-            .map_err(|error| format!("read studio_team_member canonical migration row failed: {error}"))?
-        {
+        while let Some(row) = rows.next().map_err(|error| {
+            format!("read studio_team_member canonical migration row failed: {error}")
+        })? {
             records.push((
-                sqlite_row_required_string_value(row, 0, "studio_team_member.id")
-                    .map_err(|error| format!("read studio_team_member canonical id failed: {error}"))?,
-                row.get::<_, Option<String>>(1)
-                    .map_err(|error| format!("read studio_team_member canonical uuid failed: {error}"))?,
+                sqlite_row_required_string_value(row, 0, "studio_team_member.id").map_err(
+                    |error| format!("read studio_team_member canonical id failed: {error}"),
+                )?,
+                row.get::<_, Option<String>>(1).map_err(|error| {
+                    format!("read studio_team_member canonical uuid failed: {error}")
+                })?,
                 sqlite_row_optional_string_value(row, 2, "studio_team_member.tenant_id").map_err(
                     |error| format!("read studio_team_member canonical tenant_id failed: {error}"),
                 )?,
-                sqlite_row_optional_string_value(row, 3, "studio_team_member.organization_id").map_err(
-                    |error| format!("read studio_team_member canonical organization_id failed: {error}"),
+                sqlite_row_optional_string_value(row, 3, "studio_team_member.organization_id")
+                    .map_err(|error| {
+                        format!("read studio_team_member canonical organization_id failed: {error}")
+                    })?,
+                sqlite_row_optional_string_value(row, 4, "studio_team.tenant_id").map_err(
+                    |error| format!("read studio_team_member parent tenant_id failed: {error}"),
                 )?,
-                sqlite_row_optional_string_value(row, 4, "studio_team.tenant_id").map_err(|error| {
-                    format!("read studio_team_member parent tenant_id failed: {error}")
-                })?,
                 sqlite_row_optional_string_value(row, 5, "studio_team.organization_id").map_err(
-                    |error| format!("read studio_team_member parent organization_id failed: {error}"),
+                    |error| {
+                        format!("read studio_team_member parent organization_id failed: {error}")
+                    },
                 )?,
             ));
         }
@@ -6328,7 +6453,9 @@ fn backfill_project_collaborator_business_columns(
                 ],
             )
             .map_err(|error| {
-                format!("backfill studio_project_collaborator canonical fields {id} failed: {error}")
+                format!(
+                    "backfill studio_project_collaborator canonical fields {id} failed: {error}"
+                )
             })?;
     }
 
@@ -7471,8 +7598,9 @@ fn load_provider_event_rows(connection: &Connection) -> Result<Vec<CodingSession
 
     let mut records = Vec::new();
     for row in rows {
-        records
-            .push(row.map_err(|error| format!("read ai_coding_session_event row failed: {error}"))?);
+        records.push(
+            row.map_err(|error| format!("read ai_coding_session_event row failed: {error}"))?,
+        );
     }
     Ok(records)
 }
@@ -8503,7 +8631,11 @@ fn load_provider_document_payloads(
             Ok(DocumentPayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: sqlite_row_optional_string_value(row, 2, "studio_project_document.tenant_id")?,
+                tenant_id: sqlite_row_optional_string_value(
+                    row,
+                    2,
+                    "studio_project_document.tenant_id",
+                )?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
@@ -8584,7 +8716,9 @@ fn load_provider_deployment_payloads(
 
     let mut records = Vec::new();
     for row in rows {
-        records.push(row.map_err(|error| format!("read studio_deployment_record row failed: {error}"))?);
+        records.push(
+            row.map_err(|error| format!("read studio_deployment_record row failed: {error}"))?,
+        );
     }
     Ok(records)
 }
@@ -8673,7 +8807,11 @@ fn load_provider_team_payloads(connection: &Connection) -> Result<Vec<TeamPayloa
             id: sqlite_row_required_string_value(row, 0, "studio_team.id")?,
             uuid: row.get(1)?,
             tenant_id: sqlite_row_optional_string_value(row, 2, "studio_team.tenant_id")?,
-            organization_id: sqlite_row_optional_string_value(row, 3, "studio_team.organization_id")?,
+            organization_id: sqlite_row_optional_string_value(
+                row,
+                3,
+                "studio_team.organization_id",
+            )?,
             created_at: Some(row.get(4)?),
             updated_at: Some(row.get(5)?),
             workspace_id: sqlite_row_required_string_value(row, 6, "studio_team.workspace_id")?,
@@ -8770,7 +8908,11 @@ fn load_provider_team_member_payloads(
             Ok(TeamMemberPayload {
                 id: sqlite_row_required_string_value(row, 0, "studio_team_member.id")?,
                 uuid: row.get(1)?,
-                tenant_id: sqlite_row_optional_string_value(row, 2, "studio_team_member.tenant_id")?,
+                tenant_id: sqlite_row_optional_string_value(
+                    row,
+                    2,
+                    "studio_team_member.tenant_id",
+                )?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
@@ -8832,7 +8974,11 @@ fn load_provider_workspace_member_payloads(
             Ok(WorkspaceMemberPayload {
                 id: sqlite_row_required_string_value(row, 0, "studio_workspace_member.id")?,
                 uuid: row.get(1)?,
-                tenant_id: sqlite_row_optional_string_value(row, 2, "studio_workspace_member.tenant_id")?,
+                tenant_id: sqlite_row_optional_string_value(
+                    row,
+                    2,
+                    "studio_workspace_member.tenant_id",
+                )?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
@@ -8843,11 +8989,19 @@ fn load_provider_workspace_member_payloads(
                     4,
                     "studio_workspace_member.workspace_id",
                 )?,
-                user_id: sqlite_row_required_string_value(row, 5, "studio_workspace_member.user_id")?,
+                user_id: sqlite_row_required_string_value(
+                    row,
+                    5,
+                    "studio_workspace_member.user_id",
+                )?,
                 user_email: row.get(6)?,
                 user_display_name: row.get(7)?,
                 user_avatar_url: row.get(8)?,
-                team_id: sqlite_row_optional_string_value(row, 9, "studio_workspace_member.team_id")?,
+                team_id: sqlite_row_optional_string_value(
+                    row,
+                    9,
+                    "studio_workspace_member.team_id",
+                )?,
                 role: row.get(10)?,
                 created_by_user_id: sqlite_row_optional_string_value(
                     row,
@@ -8868,7 +9022,9 @@ fn load_provider_workspace_member_payloads(
 
     let mut records = Vec::new();
     for row in rows {
-        records.push(row.map_err(|error| format!("read studio_workspace_member row failed: {error}"))?);
+        records.push(
+            row.map_err(|error| format!("read studio_workspace_member row failed: {error}"))?,
+        );
     }
     Ok(records)
 }
@@ -8931,7 +9087,11 @@ fn load_provider_project_collaborator_payloads(
                     5,
                     "studio_project_collaborator.workspace_id",
                 )?,
-                user_id: sqlite_row_required_string_value(row, 6, "studio_project_collaborator.user_id")?,
+                user_id: sqlite_row_required_string_value(
+                    row,
+                    6,
+                    "studio_project_collaborator.user_id",
+                )?,
                 user_email: row.get(7)?,
                 user_display_name: row.get(8)?,
                 user_avatar_url: row.get(9)?,
@@ -8960,8 +9120,9 @@ fn load_provider_project_collaborator_payloads(
 
     let mut records = Vec::new();
     for row in rows {
-        records
-            .push(row.map_err(|error| format!("read studio_project_collaborator row failed: {error}"))?);
+        records.push(
+            row.map_err(|error| format!("read studio_project_collaborator row failed: {error}"))?,
+        );
     }
     Ok(records)
 }
@@ -9170,7 +9331,11 @@ fn load_provider_release_payloads(connection: &Connection) -> Result<Vec<Release
             Ok(ReleasePayload {
                 id: row.get(0)?,
                 uuid: row.get(1)?,
-                tenant_id: sqlite_row_optional_string_value(row, 2, "ops_release_record.tenant_id")?,
+                tenant_id: sqlite_row_optional_string_value(
+                    row,
+                    2,
+                    "ops_release_record.tenant_id",
+                )?,
                 organization_id: sqlite_row_optional_string_value(
                     row,
                     3,
@@ -12227,13 +12392,35 @@ fn ensure_sqlite_provider_authority(
     let has_projection_tables = sqlite_has_direct_projection_provider_tables(connection)?;
     let has_app_admin_tables = sqlite_has_direct_app_admin_provider_tables(connection)?;
 
+    if !has_projection_tables && !has_app_admin_tables && sqlite_user_table_count(connection)? == 0
+    {
+        initialize_sqlite_provider_authority_schema(connection)?;
+        ensure_sqlite_provider_authority_schema_upgrade(connection)?;
+        ensure_sqlite_table_column_is_not_null(connection, "ai_coding_session", "model_id")?;
+        ensure_sqlite_table_column_is_not_null(
+            connection,
+            "ai_coding_session_runtime",
+            "model_id",
+        )?;
+        ensure_sqlite_provider_authority_timestamp_normalization(connection)?;
+        ensure_sqlite_iam_schema(connection)?;
+        ensure_sqlite_iam_bootstrap_user(connection)?;
+        ensure_sqlite_bootstrap_user_context(connection, path)?;
+        ensure_sqlite_catalog_seed_data(connection)?;
+        return Ok(());
+    }
+
     if has_projection_tables && has_app_admin_tables {
         ensure_sqlite_provider_authority_schema_upgrade(connection)?;
         ensure_sqlite_table_column_is_not_null(connection, "ai_coding_session", "model_id")?;
-        ensure_sqlite_table_column_is_not_null(connection, "ai_coding_session_runtime", "model_id")?;
+        ensure_sqlite_table_column_is_not_null(
+            connection,
+            "ai_coding_session_runtime",
+            "model_id",
+        )?;
         ensure_sqlite_provider_authority_timestamp_normalization(connection)?;
-        ensure_sqlite_user_center_schema(connection)?;
-        ensure_sqlite_user_center_bootstrap_user(connection)?;
+        ensure_sqlite_iam_schema(connection)?;
+        ensure_sqlite_iam_bootstrap_user(connection)?;
         ensure_sqlite_bootstrap_user_context(connection, path)?;
         ensure_sqlite_catalog_seed_data(connection)?;
         return Ok(());
@@ -13454,12 +13641,7 @@ impl ProjectionReadState {
     }
 
     fn from_sqlite_file(path: &FsPath) -> Result<Self, String> {
-        let mut connection = Connection::open(path).map_err(|error| {
-            format!(
-                "open sqlite projection file {} failed: {error}",
-                path.display()
-            )
-        })?;
+        let mut connection = open_sqlite_authority_connection(path, "sqlite projection file")?;
         ensure_sqlite_provider_authority(&mut connection, path)?;
         recover_sqlite_provider_ai_coding_session_runtime_on_boot(&mut connection)?;
         Self::from_sqlite_provider_connection(&connection)
@@ -15147,7 +15329,7 @@ impl AppState {
             projections: ProjectionAuthorityState::new(ProjectionReadState::demo(), None),
             model_config: Arc::new(RwLock::new(build_model_config())),
             realtime: WorkspaceRealtimeHub::new(),
-            user_center: UserCenterState::from_env(),
+            iam: IamState::from_env(),
             audits: vec![AuditPayload {
                 id: "audit-demo-release".to_owned(),
                 uuid: Some("audit-uuid-demo-release".to_owned()),
@@ -15379,12 +15561,8 @@ impl AppState {
 
     fn load(bootstrap: &AuthorityBootstrapConfig) -> Result<Self, String> {
         if let Some(path) = bootstrap.sqlite_file.as_deref() {
-            let mut connection = Connection::open(path).map_err(|error| {
-                format!(
-                    "open sqlite console authority file {} failed: {error}",
-                    path.display()
-                )
-            })?;
+            let mut connection =
+                open_sqlite_authority_connection(path, "sqlite console authority file")?;
             ensure_sqlite_provider_authority(&mut connection, path)?;
             recover_sqlite_provider_ai_coding_session_runtime_on_boot(&mut connection)?;
 
@@ -15395,7 +15573,7 @@ impl AppState {
                 ),
                 model_config: Arc::new(RwLock::new(build_model_config())),
                 realtime: WorkspaceRealtimeHub::new(),
-                user_center: UserCenterState::from_env(),
+                iam: IamState::from_env(),
                 audits: load_provider_audit_payloads(&connection)?,
                 deployments: load_provider_deployment_payloads(&connection)?,
                 targets: load_provider_deployment_target_payloads(&connection)?,
@@ -15416,7 +15594,7 @@ impl AppState {
             projections: ProjectionAuthorityState::new(ProjectionReadState::load(bootstrap)?, None),
             model_config: Arc::new(RwLock::new(build_model_config())),
             realtime: WorkspaceRealtimeHub::new(),
-            user_center: UserCenterState::from_env(),
+            iam: IamState::from_env(),
             audits: demo.audits,
             deployments: demo.deployments,
             targets: demo.targets,
@@ -15488,7 +15666,7 @@ fn schedule_coding_session_runtime_initialization_if_needed(
     });
 }
 
-const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 80] = [
+const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 85] = [
     RouteSpec {
         method: "get",
         operation_id: "descriptor.retrieve",
@@ -15680,121 +15858,156 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 80] = [
     },
     RouteSpec {
         method: "get",
-        operation_id: "config.retrieve",
-        path: USER_CENTER_AUTH_CONFIG_PATH,
-        summary: "Get user center provider metadata",
+        operation_id: "iam.runtime.retrieve",
+        path: IAM_RUNTIME_PATH,
+        summary: "Get SDKWork IAM runtime metadata",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "get",
+        operation_id: "iam.verificationPolicy.retrieve",
+        path: IAM_VERIFICATION_POLICY_PATH,
+        summary: "Get SDKWork IAM verification policy",
         tag: "app",
     },
     RouteSpec {
         method: "get",
         operation_id: "sessions.current.retrieve",
-        path: USER_CENTER_AUTH_SESSION_PATH,
-        summary: "Get current user center session",
+        path: IAM_AUTH_SESSION_PATH,
+        summary: "Get current SDKWork IAM session",
         tag: "app",
     },
     RouteSpec {
         method: "post",
         operation_id: "sessions.create",
-        path: USER_CENTER_AUTH_LOGIN_PATH,
-        summary: "Create user center session with local credentials",
+        path: IAM_AUTH_LOGIN_PATH,
+        summary: "Create SDKWork IAM session",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "patch",
+        operation_id: "sessions.current.update",
+        path: IAM_AUTH_SESSION_PATH,
+        summary: "Update current SDKWork IAM session",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "delete",
+        operation_id: "sessions.current.delete",
+        path: IAM_AUTH_SESSION_PATH,
+        summary: "Delete current SDKWork IAM session",
         tag: "app",
     },
     RouteSpec {
         method: "post",
-        operation_id: "qrLoginCodes.create",
-        path: USER_CENTER_AUTH_QR_GENERATE_PATH,
-        summary: "Generate user center login QR code",
+        operation_id: "sessions.refresh",
+        path: IAM_AUTH_SESSION_REFRESH_PATH,
+        summary: "Refresh SDKWork IAM session",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "qrAuth.sessions.create",
+        path: IAM_QR_AUTH_SESSION_PATH,
+        summary: "Create SDKWork IAM QR auth session",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "qrLoginCodes.retrieve",
-        path: USER_CENTER_AUTH_QR_LOGIN_CODE_PATH,
-        summary: "Check user center login QR code status",
+        operation_id: "qrAuth.sessions.retrieve",
+        path: IAM_QR_AUTH_SESSION_STATUS_PATH,
+        summary: "Get SDKWork IAM QR auth session",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "qrAuth.sessions.scans.create",
+        path: IAM_QR_AUTH_SESSION_SCAN_PATH,
+        summary: "Create SDKWork IAM QR auth scan",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
+        operation_id: "qrAuth.sessions.passwords.create",
+        path: IAM_QR_AUTH_SESSION_PASSWORD_PATH,
+        summary: "Complete SDKWork IAM QR auth session with password",
         tag: "app",
     },
     RouteSpec {
         method: "get",
         operation_id: "oauthAuthorizationUrls.retrieve",
-        path: USER_CENTER_AUTH_OAUTH_URL_PATH,
-        summary: "Get OAuth authorization URL for social sign-in",
+        path: IAM_AUTH_OAUTH_URL_PATH,
+        summary: "Resolve OAuth authorization URL for SDKWork IAM sign-in",
         tag: "app",
     },
     RouteSpec {
         method: "post",
         operation_id: "oauthSessions.create",
-        path: USER_CENTER_AUTH_OAUTH_LOGIN_PATH,
-        summary: "Create user center session with OAuth authorization code",
+        path: IAM_AUTH_OAUTH_LOGIN_PATH,
+        summary: "Create IAM session with OAuth authorization code",
         tag: "app",
     },
     RouteSpec {
         method: "post",
         operation_id: "registrations.create",
-        path: USER_CENTER_AUTH_REGISTER_PATH,
-        summary: "Register local user center user",
+        path: IAM_AUTH_REGISTER_PATH,
+        summary: "Register local IAM user",
         tag: "app",
     },
     RouteSpec {
         method: "post",
         operation_id: "verificationCodes.create",
-        path: USER_CENTER_AUTH_VERIFICATION_CODES_PATH,
+        path: IAM_AUTH_VERIFICATION_CODES_PATH,
         summary: "Send verification code for login, registration, or password reset",
         tag: "app",
     },
     RouteSpec {
         method: "post",
+        operation_id: "verificationCodes.verify",
+        path: IAM_AUTH_VERIFICATION_CODES_VERIFY_PATH,
+        summary: "Verify SDKWork IAM verification code",
+        tag: "app",
+    },
+    RouteSpec {
+        method: "post",
         operation_id: "passwordResetRequests.create",
-        path: USER_CENTER_AUTH_PASSWORD_RESET_REQUEST_PATH,
+        path: IAM_AUTH_PASSWORD_RESET_REQUEST_PATH,
         summary: "Request password reset verification challenge",
         tag: "app",
     },
     RouteSpec {
         method: "post",
         operation_id: "passwordResets.create",
-        path: USER_CENTER_AUTH_PASSWORD_RESET_PATH,
-        summary: "Reset local user center password",
-        tag: "app",
-    },
-    RouteSpec {
-        method: "post",
-        operation_id: "sessions.current.delete",
-        path: USER_CENTER_AUTH_LOGOUT_PATH,
-        summary: "Revoke current user center session",
-        tag: "app",
-    },
-    RouteSpec {
-        method: "post",
-        operation_id: "sessionExchanges.create",
-        path: USER_CENTER_AUTH_SESSION_EXCHANGE_PATH,
-        summary: "Exchange third-party user into a BirdCoder session",
+        path: IAM_AUTH_PASSWORD_RESET_PATH,
+        summary: "Reset local IAM password",
         tag: "app",
     },
     RouteSpec {
         method: "get",
         operation_id: "users.current.retrieve",
-        path: USER_CENTER_USER_PROFILE_PATH,
-        summary: "Get current user profile",
+        path: IAM_USER_PROFILE_PATH,
+        summary: "Get current SDKWork IAM user",
         tag: "app",
     },
     RouteSpec {
         method: "patch",
         operation_id: "users.current.update",
-        path: USER_CENTER_USER_PROFILE_PATH,
+        path: IAM_USER_PROFILE_PATH,
         summary: "Update current user profile",
         tag: "app",
     },
     RouteSpec {
         method: "get",
-        operation_id: "vip.info.retrieve",
-        path: USER_CENTER_BILLING_VIP_MEMBERSHIP_PATH,
-        summary: "Get current user membership",
+        operation_id: "memberships.current.retrieve",
+        path: COMMERCE_MEMBERSHIP_CURRENT_PATH,
+        summary: "Get current SDKWork commerce membership",
         tag: "app",
     },
     RouteSpec {
-        method: "patch",
-        operation_id: "vip.info.update",
-        path: USER_CENTER_BILLING_VIP_MEMBERSHIP_PATH,
-        summary: "Update current user membership",
+        method: "get",
+        operation_id: "memberships.packageGroups.list",
+        path: COMMERCE_MEMBERSHIP_PACKAGE_GROUPS_PATH,
+        summary: "List SDKWork commerce membership package groups",
         tag: "app",
     },
     RouteSpec {
@@ -16051,9 +16264,9 @@ const CODING_SERVER_OPENAPI_ROUTE_SPECS: [RouteSpec; 80] = [
     },
 ];
 
-fn create_envelope<T>(seed: &str, data: T) -> ApiEnvelope<T> {
+fn create_envelope<T>(_seed: &str, data: T) -> ApiEnvelope<T> {
     ApiEnvelope {
-        request_id: format!("req:{seed}:rust"),
+        request_id: new_api_request_id(),
         timestamp: SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock before unix epoch")
@@ -16064,6 +16277,10 @@ fn create_envelope<T>(seed: &str, data: T) -> ApiEnvelope<T> {
             version: CODING_SERVER_API_VERSION,
         },
     }
+}
+
+fn new_api_request_id() -> String {
+    Uuid::new_v4().to_string()
 }
 
 fn build_openapi_document() -> OpenApiDocument {
@@ -16103,10 +16320,11 @@ fn build_openapi_document() -> OpenApiDocument {
         tags: vec![
             "audit",
             "auth",
-            "billing",
+            "commerce",
             "coding",
             "content",
             "iam",
+            "open_platform",
             "platform",
             "runtime",
             "skills",
@@ -16147,10 +16365,10 @@ async fn core_route_catalog() -> Json<ApiListEnvelope<RouteCatalogEntryPayload>>
     ))
 }
 
-fn create_list_envelope<T>(seed: &str, items: Vec<T>) -> ApiListEnvelope<T> {
+fn create_list_envelope<T>(_seed: &str, items: Vec<T>) -> ApiListEnvelope<T> {
     let total = items.len();
     ApiListEnvelope {
-        request_id: format!("req:{seed}:rust"),
+        request_id: new_api_request_id(),
         timestamp: SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock before unix epoch")
@@ -16167,7 +16385,7 @@ fn create_list_envelope<T>(seed: &str, items: Vec<T>) -> ApiListEnvelope<T> {
 }
 
 fn create_paged_list_envelope<T>(
-    seed: &str,
+    _seed: &str,
     items: Vec<T>,
     offset: usize,
     requested_page_size: Option<usize>,
@@ -16176,7 +16394,7 @@ fn create_paged_list_envelope<T>(
     let page_size = requested_page_size.unwrap_or(items.len());
     let page_base = if page_size == 0 { 1 } else { page_size };
     ApiListEnvelope {
-        request_id: format!("req:{seed}:rust"),
+        request_id: new_api_request_id(),
         timestamp: SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock before unix epoch")
@@ -16199,19 +16417,16 @@ fn paginate_vec<T>(
 ) -> (Vec<T>, usize, Option<usize>, usize) {
     let total = items.len();
     let normalized_offset = offset.unwrap_or(0).min(total);
-    let requested_page_size = limit.filter(|value| *value > 0);
-    let paged_items = if let Some(page_size) = requested_page_size {
-        items
-            .into_iter()
-            .skip(normalized_offset)
-            .take(page_size)
-            .collect::<Vec<_>>()
-    } else {
-        items
-            .into_iter()
-            .skip(normalized_offset)
-            .collect::<Vec<_>>()
-    };
+    let page_size = limit
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_LIST_PAGE_SIZE)
+        .min(MAX_LIST_PAGE_SIZE);
+    let requested_page_size = Some(page_size);
+    let paged_items = items
+        .into_iter()
+        .skip(normalized_offset)
+        .take(page_size)
+        .collect::<Vec<_>>();
 
     (paged_items, normalized_offset, requested_page_size, total)
 }
@@ -16267,7 +16482,10 @@ async fn core_engine_capabilities(
 }
 
 async fn core_models() -> Json<ApiListEnvelope<ModelCatalogEntryPayload>> {
-    Json(create_list_envelope("core-models", build_ai_model_catalog()))
+    Json(create_list_envelope(
+        "core-models",
+        build_ai_model_catalog(),
+    ))
 }
 
 async fn core_model_config(
@@ -16417,27 +16635,25 @@ impl WorkspaceRealtimeHub {
     }
 }
 
-fn try_resolve_current_user_center_session(
+fn try_resolve_current_iam_session(
     state: &AppState,
     headers: &HeaderMap,
-) -> Option<UserCenterSessionPayload> {
+) -> Option<IamSessionPayload> {
     let connection = state.open_authority_connection_for_write().ok()?;
     state
-        .user_center
+        .iam
         .resolve_session(&connection, headers)
         .ok()
         .flatten()
 }
 
-fn resolve_current_user_center_session(
+fn resolve_current_iam_session(
     state: &AppState,
     headers: &HeaderMap,
     unavailable_seed: &str,
     unauthorized_seed: &str,
-) -> Result<
-    (Connection, UserCenterSessionPayload),
-    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
-> {
+) -> Result<(Connection, IamSessionPayload), (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)>
+{
     let connection = state
         .open_authority_connection_for_write()
         .map_err(|error| {
@@ -16449,7 +16665,7 @@ fn resolve_current_user_center_session(
             )
         })?;
     let session = state
-        .user_center
+        .iam
         .resolve_session(&connection, headers)
         .map_err(|error| {
             problem_response(
@@ -16464,7 +16680,7 @@ fn resolve_current_user_center_session(
                 unauthorized_seed,
                 StatusCode::UNAUTHORIZED,
                 "unauthorized",
-                "A valid user center session is required.",
+                "A valid IAM session is required.",
             )
         })?;
     Ok((connection, session))
@@ -16475,7 +16691,7 @@ fn resolve_headers_with_optional_session_query(
     query_session_id: Option<&str>,
 ) -> Result<HeaderMap, String> {
     let mut resolved_headers = headers.clone();
-    if resolved_headers.contains_key(USER_CENTER_SESSION_HEADER_NAME) {
+    if resolved_headers.contains_key(IAM_SESSION_HEADER_NAME) {
         return Ok(resolved_headers);
     }
 
@@ -16487,225 +16703,10 @@ fn resolve_headers_with_optional_session_query(
     let session_header_value = HeaderValue::from_str(session_id.as_str())
         .map_err(|error| format!("Invalid realtime sessionId query parameter: {error}"))?;
     resolved_headers.insert(
-        HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
+        HeaderName::from_static(IAM_SESSION_HEADER_NAME),
         session_header_value,
     );
     Ok(resolved_headers)
-}
-
-fn resolve_request_base_url(headers: &HeaderMap) -> Option<String> {
-    if let Some(origin) = headers
-        .get(header::ORIGIN)
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        return Some(origin.to_owned());
-    }
-
-    let host = headers
-        .get(header::HOST)
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())?;
-    let scheme = headers
-        .get("x-forwarded-proto")
-        .and_then(|value| value.to_str().ok())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .unwrap_or("http");
-
-    Some(format!("{scheme}://{host}"))
-}
-
-fn render_user_center_qr_entry_html(qr_key: &str) -> String {
-    let qr_key_json = serde_json::to_string(qr_key).unwrap_or_else(|_| "\"\"".to_owned());
-    let confirm_path_json = serde_json::to_string(USER_CENTER_AUTH_QR_CONFIRM_PATH)
-        .unwrap_or_else(|_| "\"\"".to_owned());
-    let session_header_name_json =
-        serde_json::to_string(USER_CENTER_SESSION_HEADER_NAME).unwrap_or_else(|_| "\"\"".to_owned());
-    let session_storage_key_json =
-        serde_json::to_string(BIRDCODER_USER_CENTER_SESSION_TOKEN_STORAGE_KEY)
-            .unwrap_or_else(|_| "\"\"".to_owned());
-
-    format!(
-        r#"<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>BirdCoder QR Sign In</title>
-    <style>
-      :root {{
-        color-scheme: dark;
-        font-family: "Segoe UI", system-ui, sans-serif;
-      }}
-      body {{
-        margin: 0;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background:
-          radial-gradient(circle at top, rgba(74, 144, 226, 0.18), transparent 42%),
-          linear-gradient(180deg, #09090b 0%, #0f172a 100%);
-        color: #f4f4f5;
-      }}
-      .card {{
-        width: min(460px, calc(100vw - 32px));
-        border-radius: 28px;
-        padding: 28px;
-        background: rgba(12, 18, 28, 0.9);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: 0 32px 80px rgba(0, 0, 0, 0.45);
-      }}
-      .eyebrow {{
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
-        font-size: 12px;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-      }}
-      h1 {{
-        margin: 18px 0 10px;
-        font-size: 30px;
-        line-height: 1.15;
-      }}
-      p {{
-        margin: 0;
-        color: rgba(228, 228, 231, 0.78);
-        line-height: 1.7;
-      }}
-      .panel {{
-        margin-top: 24px;
-        padding: 18px;
-        border-radius: 22px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-      }}
-      .status {{
-        color: #bfdbfe;
-        font-weight: 700;
-        margin-bottom: 8px;
-      }}
-      .meta {{
-        margin-top: 14px;
-        font-size: 12px;
-        color: rgba(161, 161, 170, 0.88);
-        word-break: break-all;
-      }}
-      button {{
-        margin-top: 22px;
-        width: 100%;
-        height: 48px;
-        border: 0;
-        border-radius: 16px;
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        color: white;
-        font-size: 15px;
-        font-weight: 700;
-        cursor: pointer;
-      }}
-      button:disabled {{
-        opacity: 0.55;
-        cursor: wait;
-      }}
-    </style>
-  </head>
-  <body>
-    <main class="card">
-      <div class="eyebrow">BirdCoder QR Session</div>
-      <h1>Confirm Sign In</h1>
-      <p>Open this page on a device that is already signed in to BirdCoder, then confirm to transfer that session back to the original login screen.</p>
-      <section class="panel">
-        <div id="status" class="status">Waiting for confirmation</div>
-        <p id="message">If this device is already signed in, confirmation will run automatically. Otherwise sign in first and retry.</p>
-        <div class="meta">QR Key: <span id="qr-key"></span></div>
-      </section>
-      <button id="confirm-button" type="button">Confirm Sign In</button>
-    </main>
-    <script>
-      const qrKey = {qr_key_json};
-      const confirmPath = {confirm_path_json};
-      const sessionHeaderName = {session_header_name_json};
-      const sessionStorageKey = {session_storage_key_json};
-      const statusElement = document.getElementById("status");
-      const messageElement = document.getElementById("message");
-      const confirmButton = document.getElementById("confirm-button");
-      const qrKeyElement = document.getElementById("qr-key");
-      qrKeyElement.textContent = qrKey;
-
-      function readSessionToken() {{
-        const stores = [window.localStorage, window.sessionStorage];
-        for (const store of stores) {{
-          try {{
-            const value = store.getItem(sessionStorageKey);
-            if (value && value.trim()) {{
-              return value.trim();
-            }}
-          }} catch (_error) {{
-          }}
-        }}
-        return "";
-      }}
-
-      async function confirmLogin() {{
-        const sessionToken = readSessionToken();
-        if (!sessionToken) {{
-          statusElement.textContent = "Sign in required";
-          messageElement.textContent = "No BirdCoder session token was found on this device. Sign in to BirdCoder here first, then retry confirmation.";
-          return;
-        }}
-
-        confirmButton.disabled = true;
-        statusElement.textContent = "Confirming sign in";
-        messageElement.textContent = "Syncing this signed-in BirdCoder session back to the original device.";
-
-        try {{
-          const response = await fetch(confirmPath, {{
-            method: "POST",
-            headers: {{
-              "Content-Type": "application/json",
-              [sessionHeaderName]: sessionToken,
-            }},
-            body: JSON.stringify({{ qrKey }}),
-          }});
-          const payload = await response.json().catch(() => null);
-
-          if (!response.ok) {{
-            const nextMessage =
-              payload?.data?.message
-              || payload?.message
-              || "BirdCoder could not confirm this QR session.";
-            throw new Error(nextMessage);
-          }}
-
-          statusElement.textContent = "Sign in confirmed";
-          messageElement.textContent = "The original BirdCoder login screen can finish sign-in now. You can close this page.";
-          confirmButton.style.display = "none";
-        }} catch (error) {{
-          statusElement.textContent = "Confirmation failed";
-          messageElement.textContent =
-            error instanceof Error ? error.message : "BirdCoder could not confirm this QR session.";
-          confirmButton.disabled = false;
-        }}
-      }}
-
-      confirmButton.addEventListener("click", () => {{
-        void confirmLogin();
-      }});
-
-      if (readSessionToken()) {{
-        void confirmLogin();
-      }}
-    </script>
-  </body>
-</html>"#
-    )
 }
 
 async fn send_workspace_realtime_message(
@@ -16820,7 +16821,7 @@ async fn app_workspace_realtime(
                     error,
                 )
             })?;
-    let (_, session) = resolve_current_user_center_session(
+    let (_, session) = resolve_current_iam_session(
         &state,
         &resolved_headers,
         "workspace-realtime-auth-unavailable",
@@ -16840,164 +16841,225 @@ async fn app_workspace_realtime(
     }))
 }
 
-async fn app_user_center_config(
+async fn app_iam_runtime(State(state): State<AppState>) -> Json<ApiEnvelope<IamMetadataPayload>> {
+    Json(create_envelope("app-iam-runtime", state.iam.metadata()))
+}
+
+async fn app_iam_verification_policy(
     State(state): State<AppState>,
-) -> Json<ApiEnvelope<UserCenterMetadataPayload>> {
+) -> Json<ApiEnvelope<IamVerificationPolicyPayload>> {
     Json(create_envelope(
-        "app-user-center-config",
-        state.user_center.metadata(),
+        "app-iam-verification-policy",
+        state.iam.verification_policy(),
     ))
 }
 
-async fn app_user_center_session(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> (
-    HeaderMap,
-    Json<ApiEnvelope<Option<UserCenterSessionPayload>>>,
-) {
-    let session = state
-        .open_authority_connection_for_write()
-        .ok()
-        .and_then(|connection| {
-            state
-                .user_center
-                .resolve_session(&connection, &headers)
-                .ok()
-        })
-        .flatten();
-    (
-        create_user_center_session_response_headers(session.as_ref()),
-        Json(create_envelope("app-user-center-session", session)),
-    )
-}
-
-async fn app_user_center_login_qr_generate(
+async fn app_iam_session(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<
-    Json<ApiEnvelope<UserCenterLoginQrCodePayload>>,
+    (HeaderMap, Json<ApiEnvelope<IamSessionPayload>>),
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let (_connection, session) = resolve_current_iam_session(
+        &state,
+        &headers,
+        "app-iam-session-unavailable",
+        "app-iam-session-unauthorized",
+    )?;
+    Ok((
+        create_iam_session_response_headers(Some(&session)),
+        Json(create_envelope("app-iam-session", session)),
+    ))
+}
+
+async fn app_update_current_iam_session(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<
+    (HeaderMap, Json<ApiEnvelope<IamSessionPayload>>),
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let (_connection, session) = resolve_current_iam_session(
+        &state,
+        &headers,
+        "app-iam-session-update-unavailable",
+        "app-iam-session-update-unauthorized",
+    )?;
+    Ok((
+        create_iam_session_response_headers(Some(&session)),
+        Json(create_envelope("app-iam-session-update", session)),
+    ))
+}
+
+async fn app_iam_refresh_session(
+    State(state): State<AppState>,
+    Json(request): Json<IamRefreshSessionRequest>,
+) -> Result<
+    (HeaderMap, Json<ApiEnvelope<IamSessionPayload>>),
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
     let mut connection = state
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
-                "app-user-center-qr-generate-unavailable",
+                "app-iam-session-refresh-unavailable",
                 StatusCode::NOT_IMPLEMENTED,
                 "system_error",
                 error,
             )
         })?;
-    let base_url = resolve_request_base_url(&headers);
-    let qr_code = state
-        .user_center
-        .generate_login_qr_code(&mut connection, base_url.as_deref())
+    let session = state
+        .iam
+        .refresh_session(&mut connection, request.refresh_token.as_deref())
         .map_err(|error| {
+            let rejected = error.contains("invalid") || error.contains("expired");
             problem_response(
-                "app-user-center-qr-generate-failed",
-                StatusCode::BAD_REQUEST,
-                "argument_invalid",
+                "app-iam-session-refresh-failed",
+                if rejected {
+                    StatusCode::UNAUTHORIZED
+                } else {
+                    StatusCode::BAD_REQUEST
+                },
+                if rejected {
+                    "unauthorized"
+                } else {
+                    "argument_invalid"
+                },
                 error,
             )
         })?;
-    Ok(Json(create_envelope(
-        "app-user-center-qr-generate",
-        qr_code,
-    )))
+    Ok((
+        create_iam_session_response_headers(Some(&session)),
+        Json(create_envelope("app-iam-session-refresh", session)),
+    ))
 }
 
-async fn app_user_center_qr_login_code(
+async fn app_iam_qr_auth_session_create(
     State(state): State<AppState>,
-    AxumPath(qr_key): AxumPath<String>,
 ) -> Result<
-    (HeaderMap, Json<ApiEnvelope<UserCenterLoginQrStatusPayload>>),
+    Json<ApiEnvelope<IamLoginQrCodePayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
     let mut connection = state
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
-                "app-user-center-qr-status-unavailable",
+                "app-iam-qr-auth-create-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+    let qr_code = state
+        .iam
+        .generate_login_qr_code(&mut connection)
+        .map_err(|error| {
+            problem_response(
+                "app-iam-qr-auth-create-failed",
+                StatusCode::BAD_REQUEST,
+                "argument_invalid",
+                error,
+            )
+        })?;
+    Ok(Json(create_envelope("app-iam-qr-auth-create", qr_code)))
+}
+
+async fn app_iam_qr_auth_session_status(
+    State(state): State<AppState>,
+    AxumPath(session_key): AxumPath<String>,
+) -> Result<
+    Json<ApiEnvelope<IamLoginQrStatusPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let mut connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "app-iam-qr-status-unavailable",
                 StatusCode::NOT_IMPLEMENTED,
                 "system_error",
                 error,
             )
         })?;
     let status = state
-        .user_center
-        .resolve_login_qr_status(&mut connection, &qr_key)
+        .iam
+        .resolve_login_qr_status(&mut connection, &session_key)
         .map_err(|error| {
             problem_response(
-                "app-user-center-qr-status-failed",
+                "app-iam-qr-status-failed",
                 StatusCode::BAD_REQUEST,
                 "argument_invalid",
                 error,
             )
         })?;
-    Ok((
-        create_user_center_session_response_headers(status.session.as_ref()),
-        Json(create_envelope("app-user-center-qr-status", status)),
-    ))
+    Ok(Json(create_envelope("app-iam-qr-status", status)))
 }
 
-async fn app_user_center_login_qr_entry(
+async fn app_iam_qr_auth_session_scan(
     State(state): State<AppState>,
-    AxumPath(qr_key): AxumPath<String>,
-) -> Result<Html<String>, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)> {
+    AxumPath(session_key): AxumPath<String>,
+) -> Result<
+    Json<ApiEnvelope<BooleanResultPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
     let mut connection = state
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
-                "app-user-center-qr-entry-unavailable",
+                "app-iam-qr-scan-unavailable",
                 StatusCode::NOT_IMPLEMENTED,
                 "system_error",
                 error,
             )
         })?;
     state
-        .user_center
-        .mark_login_qr_scanned(&mut connection, &qr_key)
+        .iam
+        .mark_login_qr_scanned(&mut connection, &session_key)
         .map_err(|error| {
             problem_response(
-                "app-user-center-qr-entry-failed",
+                "app-iam-qr-scan-failed",
                 StatusCode::BAD_REQUEST,
                 "argument_invalid",
                 error,
             )
         })?;
-    Ok(Html(render_user_center_qr_entry_html(qr_key.as_str())))
+    Ok(Json(create_envelope(
+        "app-iam-qr-scan",
+        BooleanResultPayload { success: true },
+    )))
 }
 
-async fn app_user_center_login_qr_confirm(
+async fn app_iam_qr_auth_session_password(
     State(state): State<AppState>,
-    headers: HeaderMap,
-    Json(request): Json<UserCenterLoginQrConfirmRequest>,
+    AxumPath(session_key): AxumPath<String>,
+    Json(request): Json<IamQrAuthSessionPasswordRequest>,
 ) -> Result<
-    (HeaderMap, Json<ApiEnvelope<UserCenterLoginQrStatusPayload>>),
+    (HeaderMap, Json<ApiEnvelope<IamSessionPayload>>),
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
     let mut connection = state
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
-                "app-user-center-qr-confirm-unavailable",
+                "app-iam-qr-password-unavailable",
                 StatusCode::NOT_IMPLEMENTED,
                 "system_error",
                 error,
             )
         })?;
-    let status = state
-        .user_center
-        .confirm_login_qr(&mut connection, &headers, request.qr_key.as_str())
+    let session = state
+        .iam
+        .confirm_login_qr_with_password(&mut connection, &session_key, &request)
         .map_err(|error| {
-            let status_code = if error.contains("signed-in user-center session") {
+            let rejected = error.contains("Invalid") || error.contains("not found");
+            let status_code = if rejected {
                 StatusCode::UNAUTHORIZED
             } else {
                 StatusCode::BAD_REQUEST
             };
             problem_response(
-                "app-user-center-qr-confirm-failed",
+                "app-iam-qr-password-failed",
                 status_code,
                 if status_code == StatusCode::UNAUTHORIZED {
                     "unauthorized"
@@ -17008,140 +17070,154 @@ async fn app_user_center_login_qr_confirm(
             )
         })?;
     Ok((
-        create_user_center_session_response_headers(status.session.as_ref()),
-        Json(create_envelope("app-user-center-qr-confirm", status)),
+        create_iam_session_response_headers(Some(&session)),
+        Json(create_envelope("app-iam-qr-password", session)),
     ))
 }
 
-async fn app_user_center_login(
+async fn app_iam_login(
     State(state): State<AppState>,
-    Json(request): Json<UserCenterLoginRequest>,
+    Json(request): Json<IamLoginRequest>,
 ) -> Result<
-    (HeaderMap, Json<ApiEnvelope<UserCenterSessionPayload>>),
+    (HeaderMap, Json<ApiEnvelope<IamSessionPayload>>),
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
     let mut connection = state
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
-                "app-user-center-login-unavailable",
+                "app-iam-login-unavailable",
                 StatusCode::NOT_IMPLEMENTED,
                 "system_error",
                 error,
             )
         })?;
     let session = state
-        .user_center
+        .iam
         .login(&mut connection, &request)
         .map_err(|error| {
+            if is_iam_invalid_credential_error(&error) {
+                return problem_response(
+                    "app-iam-login-failed",
+                    StatusCode::UNAUTHORIZED,
+                    "unauthorized",
+                    IAM_INVALID_CREDENTIALS_MESSAGE,
+                );
+            }
             problem_response(
-                "app-user-center-login-failed",
+                "app-iam-login-failed",
                 StatusCode::BAD_REQUEST,
                 "argument_invalid",
                 error,
             )
         })?;
     Ok((
-        create_user_center_session_response_headers(Some(&session)),
-        Json(create_envelope("app-user-center-login", session)),
+        create_iam_session_response_headers(Some(&session)),
+        Json(create_envelope("app-iam-login", session)),
     ))
 }
 
-async fn app_user_center_oauth_authorization_url(
+const IAM_INVALID_CREDENTIALS_MESSAGE: &str = "Invalid account or password.";
+
+fn is_iam_invalid_credential_error(error: &str) -> bool {
+    error == "password is invalid."
+        || error == "IAM password credential was not found."
+        || (error.starts_with("IAM user ") && error.ends_with(" was not found."))
+        || (error.starts_with("IAM user with phone ") && error.ends_with(" was not found."))
+}
+
+async fn app_iam_oauth_authorization_url(
     State(state): State<AppState>,
-    Query(request): Query<UserCenterOAuthAuthorizationRequest>,
+    Query(request): Query<IamOAuthAuthorizationRequest>,
 ) -> Result<
-    Json<ApiEnvelope<UserCenterOAuthUrlPayload>>,
+    Json<ApiEnvelope<IamOAuthUrlPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
     let oauth_url = state
-        .user_center
+        .iam
         .get_oauth_authorization_url(&request)
         .map_err(|error| {
             problem_response(
-                "app-user-center-oauth-url-failed",
+                "app-iam-oauth-url-failed",
                 StatusCode::BAD_REQUEST,
                 "argument_invalid",
                 error,
             )
         })?;
-    Ok(Json(create_envelope(
-        "app-user-center-oauth-url",
-        oauth_url,
-    )))
+    Ok(Json(create_envelope("app-iam-oauth-url", oauth_url)))
 }
 
-async fn app_user_center_login_with_oauth(
+async fn app_iam_login_with_oauth(
     State(state): State<AppState>,
-    Json(request): Json<UserCenterOAuthLoginRequest>,
+    Json(request): Json<IamOAuthLoginRequest>,
 ) -> Result<
-    (HeaderMap, Json<ApiEnvelope<UserCenterSessionPayload>>),
+    (HeaderMap, Json<ApiEnvelope<IamSessionPayload>>),
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
     let mut connection = state
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
-                "app-user-center-oauth-login-unavailable",
+                "app-iam-oauth-login-unavailable",
                 StatusCode::NOT_IMPLEMENTED,
                 "system_error",
                 error,
             )
         })?;
     let session = state
-        .user_center
+        .iam
         .login_with_oauth(&mut connection, &request)
         .map_err(|error| {
             problem_response(
-                "app-user-center-oauth-login-failed",
+                "app-iam-oauth-login-failed",
                 StatusCode::BAD_REQUEST,
                 "argument_invalid",
                 error,
             )
         })?;
     Ok((
-        create_user_center_session_response_headers(Some(&session)),
-        Json(create_envelope("app-user-center-oauth-login", session)),
+        create_iam_session_response_headers(Some(&session)),
+        Json(create_envelope("app-iam-oauth-login", session)),
     ))
 }
 
-async fn app_user_center_register(
+async fn app_iam_register(
     State(state): State<AppState>,
-    Json(request): Json<UserCenterRegisterRequest>,
+    Json(request): Json<IamRegisterRequest>,
 ) -> Result<
-    (HeaderMap, Json<ApiEnvelope<UserCenterSessionPayload>>),
+    (HeaderMap, Json<ApiEnvelope<IamSessionPayload>>),
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
     let mut connection = state
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
-                "app-user-center-register-unavailable",
+                "app-iam-register-unavailable",
                 StatusCode::NOT_IMPLEMENTED,
                 "system_error",
                 error,
             )
         })?;
     let session = state
-        .user_center
+        .iam
         .register(&mut connection, &request)
         .map_err(|error| {
             problem_response(
-                "app-user-center-register-failed",
+                "app-iam-register-failed",
                 StatusCode::BAD_REQUEST,
                 "argument_invalid",
                 error,
             )
         })?;
     Ok((
-        create_user_center_session_response_headers(Some(&session)),
-        Json(create_envelope("app-user-center-register", session)),
+        create_iam_session_response_headers(Some(&session)),
+        Json(create_envelope("app-iam-register", session)),
     ))
 }
 
-async fn app_user_center_send_verify_code(
+async fn app_iam_send_verify_code(
     State(state): State<AppState>,
-    Json(request): Json<UserCenterSendVerifyCodeRequest>,
+    Json(request): Json<IamSendVerifyCodeRequest>,
 ) -> Result<
     Json<ApiEnvelope<BooleanResultPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
@@ -17150,32 +17226,32 @@ async fn app_user_center_send_verify_code(
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
-                "app-user-center-send-verify-code-unavailable",
+                "app-iam-send-verify-code-unavailable",
                 StatusCode::NOT_IMPLEMENTED,
                 "system_error",
                 error,
             )
         })?;
     state
-        .user_center
+        .iam
         .send_verify_code(&mut connection, &request)
         .map_err(|error| {
             problem_response(
-                "app-user-center-send-verify-code-failed",
+                "app-iam-send-verify-code-failed",
                 StatusCode::BAD_REQUEST,
                 "argument_invalid",
                 error,
             )
         })?;
     Ok(Json(create_envelope(
-        "app-user-center-send-verify-code",
+        "app-iam-send-verify-code",
         BooleanResultPayload { success: true },
     )))
 }
 
-async fn app_user_center_request_password_reset(
+async fn app_iam_verify_code(
     State(state): State<AppState>,
-    Json(request): Json<UserCenterPasswordResetChallengeRequest>,
+    Json(request): Json<IamVerifyCodeRequest>,
 ) -> Result<
     Json<ApiEnvelope<BooleanResultPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
@@ -17184,32 +17260,66 @@ async fn app_user_center_request_password_reset(
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
-                "app-user-center-password-reset-request-unavailable",
+                "app-iam-verify-code-unavailable",
                 StatusCode::NOT_IMPLEMENTED,
                 "system_error",
                 error,
             )
         })?;
     state
-        .user_center
+        .iam
+        .verify_code(&mut connection, &request)
+        .map_err(|error| {
+            problem_response(
+                "app-iam-verify-code-failed",
+                StatusCode::UNAUTHORIZED,
+                "unauthorized",
+                error,
+            )
+        })?;
+    Ok(Json(create_envelope(
+        "app-iam-verify-code",
+        BooleanResultPayload { success: true },
+    )))
+}
+
+async fn app_iam_request_password_reset(
+    State(state): State<AppState>,
+    Json(request): Json<IamPasswordResetChallengeRequest>,
+) -> Result<
+    Json<ApiEnvelope<BooleanResultPayload>>,
+    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
+> {
+    let mut connection = state
+        .open_authority_connection_for_write()
+        .map_err(|error| {
+            problem_response(
+                "app-iam-password-reset-request-unavailable",
+                StatusCode::NOT_IMPLEMENTED,
+                "system_error",
+                error,
+            )
+        })?;
+    state
+        .iam
         .request_password_reset(&mut connection, &request)
         .map_err(|error| {
             problem_response(
-                "app-user-center-password-reset-request-failed",
+                "app-iam-password-reset-request-failed",
                 StatusCode::BAD_REQUEST,
                 "argument_invalid",
                 error,
             )
         })?;
     Ok(Json(create_envelope(
-        "app-user-center-password-reset-request",
+        "app-iam-password-reset-request",
         BooleanResultPayload { success: true },
     )))
 }
 
-async fn app_user_center_reset_password(
+async fn app_iam_reset_password(
     State(state): State<AppState>,
-    Json(request): Json<UserCenterPasswordResetRequest>,
+    Json(request): Json<IamPasswordResetRequest>,
 ) -> Result<
     Json<ApiEnvelope<BooleanResultPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
@@ -17218,30 +17328,30 @@ async fn app_user_center_reset_password(
         .open_authority_connection_for_write()
         .map_err(|error| {
             problem_response(
-                "app-user-center-password-reset-unavailable",
+                "app-iam-password-reset-unavailable",
                 StatusCode::NOT_IMPLEMENTED,
                 "system_error",
                 error,
             )
         })?;
     state
-        .user_center
+        .iam
         .reset_password(&mut connection, &request)
         .map_err(|error| {
             problem_response(
-                "app-user-center-password-reset-failed",
+                "app-iam-password-reset-failed",
                 StatusCode::BAD_REQUEST,
                 "argument_invalid",
                 error,
             )
         })?;
     Ok(Json(create_envelope(
-        "app-user-center-password-reset",
+        "app-iam-password-reset",
         BooleanResultPayload { success: true },
     )))
 }
 
-async fn app_user_center_logout(
+async fn app_iam_logout(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<
@@ -17250,7 +17360,7 @@ async fn app_user_center_logout(
 > {
     if let Ok(mut connection) = state.open_authority_connection_for_write() {
         let session = state
-            .user_center
+            .iam
             .resolve_session(&connection, &headers)
             .ok()
             .flatten();
@@ -17258,11 +17368,11 @@ async fn app_user_center_logout(
             .as_ref()
             .map(|current_session| current_session.session_id.as_str());
         state
-            .user_center
+            .iam
             .logout(&mut connection, session_id)
             .map_err(|error| {
                 problem_response(
-                    "app-user-center-logout-failed",
+                    "app-iam-logout-failed",
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "system_error",
                     error,
@@ -17271,163 +17381,124 @@ async fn app_user_center_logout(
     }
 
     Ok(Json(create_envelope(
-        "app-user-center-logout",
+        "app-iam-logout",
         BooleanResultPayload { success: true },
     )))
 }
 
-async fn app_user_center_exchange_session(
-    State(state): State<AppState>,
-    Json(request): Json<UserCenterSessionExchangeRequest>,
-) -> Result<
-    (HeaderMap, Json<ApiEnvelope<UserCenterSessionPayload>>),
-    (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
-> {
-    let mut connection = state
-        .open_authority_connection_for_write()
-        .map_err(|error| {
-            problem_response(
-                "app-user-center-session-exchange-unavailable",
-                StatusCode::NOT_IMPLEMENTED,
-                "system_error",
-                error,
-            )
-        })?;
-    let session = state
-        .user_center
-        .exchange_session(&mut connection, &request)
-        .map_err(|error| {
-            problem_response(
-                "app-user-center-session-exchange-failed",
-                StatusCode::BAD_REQUEST,
-                "argument_invalid",
-                error,
-            )
-        })?;
-    Ok((
-        create_user_center_session_response_headers(Some(&session)),
-        Json(create_envelope("app-user-center-session-exchange", session)),
-    ))
-}
-
-async fn app_user_center_profile(
+async fn app_iam_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<
-    Json<ApiEnvelope<UserCenterProfilePayload>>,
+    Json<ApiEnvelope<IamProfilePayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let (connection, session) = resolve_current_user_center_session(
+    let (connection, session) = resolve_current_iam_session(
         &state,
         &headers,
-        "app-user-center-profile-unavailable",
-        "app-user-center-profile-unauthorized",
+        "app-iam-profile-unavailable",
+        "app-iam-profile-unauthorized",
     )?;
     let mut connection = connection;
     let profile = state
-        .user_center
+        .iam
         .read_profile(&mut connection, &session)
         .map_err(|error| {
             problem_response(
-                "app-user-center-profile-read-failed",
+                "app-iam-profile-read-failed",
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "system_error",
                 error,
             )
         })?;
-    Ok(Json(create_envelope("app-user-center-profile", profile)))
+    Ok(Json(create_envelope("app-iam-profile", profile)))
 }
 
-async fn app_update_user_center_profile(
+async fn app_update_iam_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(request): Json<UpdateUserCenterProfileRequest>,
+    Json(request): Json<UpdateIamProfileRequest>,
 ) -> Result<
-    Json<ApiEnvelope<UserCenterProfilePayload>>,
+    Json<ApiEnvelope<IamProfilePayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let (mut connection, session) = resolve_current_user_center_session(
+    let (mut connection, session) = resolve_current_iam_session(
         &state,
         &headers,
-        "app-user-center-profile-update-unavailable",
-        "app-user-center-profile-update-unauthorized",
+        "app-iam-profile-update-unavailable",
+        "app-iam-profile-update-unauthorized",
     )?;
     let profile = state
-        .user_center
+        .iam
         .update_profile(&mut connection, &session, &request)
         .map_err(|error| {
             problem_response(
-                "app-user-center-profile-update-failed",
+                "app-iam-profile-update-failed",
                 StatusCode::BAD_REQUEST,
                 "argument_invalid",
                 error,
             )
         })?;
-    Ok(Json(create_envelope(
-        "app-user-center-profile-update",
-        profile,
-    )))
+    Ok(Json(create_envelope("app-iam-profile-update", profile)))
 }
 
-async fn app_user_center_membership(
+fn build_commerce_membership_current_payload(
+    session: &IamSessionPayload,
+) -> CommerceMembershipCurrentPayload {
+    CommerceMembershipCurrentPayload {
+        tenant_id: session.user.tenant_id.clone(),
+        organization_id: session.user.organization_id.clone(),
+        owner_user_id: session.user.id.clone(),
+        plan_id: None,
+        plan_name: "Free".to_owned(),
+        status: "inactive".to_owned(),
+        started_at: None,
+        expires_at: None,
+        remaining_days: "0".to_owned(),
+        total_days: "0".to_owned(),
+        total_spent: "0".to_owned(),
+        points: "0".to_owned(),
+        growth_value: "0".to_owned(),
+        upgrade_growth_value: "0".to_owned(),
+        benefits: Vec::new(),
+    }
+}
+
+async fn app_commerce_membership_current(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<
-    Json<ApiEnvelope<UserCenterVipMembershipPayload>>,
+    Json<ApiEnvelope<CommerceMembershipCurrentPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let (connection, session) = resolve_current_user_center_session(
+    let (_connection, session) = resolve_current_iam_session(
         &state,
         &headers,
-        "app-user-center-membership-unavailable",
-        "app-user-center-membership-unauthorized",
+        "app-commerce-membership-current-unavailable",
+        "app-commerce-membership-current-unauthorized",
     )?;
-    let mut connection = connection;
-    let membership = state
-        .user_center
-        .read_vip_membership(&mut connection, &session)
-        .map_err(|error| {
-            problem_response(
-                "app-user-center-membership-read-failed",
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "system_error",
-                error,
-            )
-        })?;
     Ok(Json(create_envelope(
-        "app-user-center-membership",
-        membership,
+        "app-commerce-membership-current",
+        build_commerce_membership_current_payload(&session),
     )))
 }
 
-async fn app_update_user_center_membership(
+async fn app_commerce_membership_package_groups(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(request): Json<UpdateUserCenterVipMembershipRequest>,
 ) -> Result<
-    Json<ApiEnvelope<UserCenterVipMembershipPayload>>,
+    Json<ApiListEnvelope<CommerceMembershipPackageGroupPayload>>,
     (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>),
 > {
-    let (mut connection, session) = resolve_current_user_center_session(
+    let (_connection, _session) = resolve_current_iam_session(
         &state,
         &headers,
-        "app-user-center-membership-update-unavailable",
-        "app-user-center-membership-update-unauthorized",
+        "app-commerce-membership-package-groups-unavailable",
+        "app-commerce-membership-package-groups-unauthorized",
     )?;
-    let membership = state
-        .user_center
-        .update_vip_membership(&mut connection, &session, &request)
-        .map_err(|error| {
-            problem_response(
-                "app-user-center-membership-update-failed",
-                StatusCode::BAD_REQUEST,
-                "argument_invalid",
-                error,
-            )
-        })?;
-    Ok(Json(create_envelope(
-        "app-user-center-membership-update",
-        membership,
+    Ok(Json(create_list_envelope(
+        "app-commerce-membership-package-groups",
+        Vec::new(),
     )))
 }
 
@@ -17438,7 +17509,7 @@ async fn app_workspaces(
 ) -> Json<ApiListEnvelope<WorkspacePayload>> {
     let console_state = state.read_console_state();
     let user_filter = normalize_optional_string(query.user_id).or_else(|| {
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id)
     });
     let workspaces = console_state
         .workspaces
@@ -17551,7 +17622,7 @@ async fn app_create_workspace(
     let requested_is_public = request.is_public.unwrap_or(false);
     let requested_is_template = request.is_template.unwrap_or(false);
     let current_user_id =
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id);
     let created_by_user_id = current_user_id
         .clone()
         .or(requested_created_by_user_id)
@@ -18221,7 +18292,7 @@ async fn app_projects(
         .map(normalize_project_root_path_for_lookup);
     let workspace_filter = normalize_optional_string(query.workspace_id);
     let user_filter = normalize_optional_string(query.user_id).or_else(|| {
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id)
     });
     let workspace_lookup = workspace_lookup_map(&console_state.workspaces);
     let projects = console_state
@@ -18325,7 +18396,7 @@ fn resolve_visible_app_project_payload(
     not_found_detail: &str,
 ) -> Result<ProjectPayload, (StatusCode, Json<ApiEnvelope<ProblemDetailsPayload>>)> {
     let current_user_id =
-        try_resolve_current_user_center_session(state, headers).map(|session| session.user.id);
+        try_resolve_current_iam_session(state, headers).map(|session| session.user.id);
     let console_state = state.read_console_state();
     let workspace_lookup = workspace_lookup_map(&console_state.workspaces);
 
@@ -19140,7 +19211,7 @@ async fn app_create_project(
             )
         })?;
     let current_user_id =
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id);
     let status = normalize_project_status(request.status)
         .map_err(|message| {
             problem_response(
@@ -20132,7 +20203,7 @@ async fn app_workspace_members(
         ));
     };
     if let Some(current_user_id) =
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id)
     {
         let viewer_role = resolve_workspace_viewer_role(
             &workspace,
@@ -20197,7 +20268,7 @@ async fn app_upsert_workspace_member(
         .unwrap_or_else(|| "active".to_owned());
     let team_id = normalize_optional_string(request.team_id);
     let current_user_id =
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id);
     let console_state = state.read_console_state();
     let workspace_projection = console_state
         .workspaces
@@ -20276,7 +20347,7 @@ async fn app_upsert_workspace_member(
     }
 
     let resolved_user = state
-        .user_center
+        .iam
         .ensure_user_account(
             &mut connection,
             request.user_id.as_deref(),
@@ -20510,7 +20581,7 @@ async fn app_project_collaborators(
         ));
     };
     if let Some(current_user_id) =
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id)
     {
         let viewer_role = resolve_project_viewer_role(
             &project,
@@ -20580,7 +20651,7 @@ async fn app_upsert_project_collaborator(
         .unwrap_or_else(|| "active".to_owned());
     let team_id = normalize_optional_string(request.team_id);
     let current_user_id =
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id);
     let console_state = state.read_console_state();
     let project_projection = console_state
         .projects
@@ -20659,7 +20730,7 @@ async fn app_upsert_project_collaborator(
     }
 
     let resolved_user = state
-        .user_center
+        .iam
         .ensure_user_account(
             &mut connection,
             request.user_id.as_deref(),
@@ -20912,7 +20983,7 @@ async fn app_publish_project(
     let requested_rollout_stage = normalize_optional_string(request.rollout_stage);
     let requested_endpoint_url = normalize_optional_string(request.endpoint_url);
     let current_user_id =
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id);
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id);
     let console_state = state.read_console_state();
     let project_projection = console_state
         .projects
@@ -21303,7 +21374,7 @@ async fn app_teams(
     let console_state = state.read_console_state();
     let workspace_filter = normalize_optional_string(query.workspace_id);
     let user_filter = normalize_optional_string(query.user_id).or_else(|| {
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id)
     });
     let teams = console_state
         .teams
@@ -21347,7 +21418,7 @@ async fn admin_teams(
     let console_state = state.read_console_state();
     let workspace_filter = normalize_optional_string(query.workspace_id);
     let user_filter = normalize_optional_string(query.user_id).or_else(|| {
-        try_resolve_current_user_center_session(&state, &headers).map(|session| session.user.id)
+        try_resolve_current_iam_session(&state, &headers).map(|session| session.user.id)
     });
     let teams = console_state
         .teams
@@ -21483,14 +21554,12 @@ fn insert_optional_response_header(
     headers.insert(header_name, header_value);
 }
 
-fn parse_canonical_user_center_header_name(header_name: &str) -> HeaderName {
+fn parse_canonical_iam_header_name(header_name: &str) -> HeaderName {
     HeaderName::from_bytes(header_name.as_bytes())
-        .expect("sdkwork-appbase user-center header name must be a valid HTTP header name")
+        .expect("sdkwork-appbase iam header name must be a valid HTTP header name")
 }
 
-fn create_user_center_session_response_headers(
-    session: Option<&UserCenterSessionPayload>,
-) -> HeaderMap {
+fn create_iam_session_response_headers(session: Option<&IamSessionPayload>) -> HeaderMap {
     let mut headers = HeaderMap::new();
     let Some(session) = session else {
         return headers;
@@ -21498,12 +21567,7 @@ fn create_user_center_session_response_headers(
 
     insert_optional_response_header(
         &mut headers,
-        HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
-        Some(session.session_id.as_str()),
-    );
-    insert_optional_response_header(
-        &mut headers,
-        parse_canonical_user_center_header_name(USER_CENTER_ACCESS_TOKEN_HEADER_NAME),
+        parse_canonical_iam_header_name(IAM_ACCESS_TOKEN_HEADER_NAME),
         Some(session.access_token.as_str()),
     );
     insert_optional_response_header(
@@ -21516,7 +21580,7 @@ fn create_user_center_session_response_headers(
     let authorization_token = session.auth_token.trim();
     if !authorization_token.is_empty() {
         let normalized_scheme = if authorization_scheme.is_empty() {
-            USER_CENTER_AUTHORIZATION_SCHEME
+            IAM_AUTHORIZATION_SCHEME
         } else {
             authorization_scheme
         };
@@ -22587,7 +22651,7 @@ async fn core_sessions(
     let scoped_projects = filter_projects_by_scope(
         console_state.projects,
         normalized_workspace_id.as_deref(),
-        None,
+        normalized_project_id.as_deref(),
     );
     let native_sessions = if scoped_projects.is_empty() {
         Vec::new()
@@ -22596,7 +22660,7 @@ async fn core_sessions(
             scoped_projects,
             native_sessions::NativeSessionQuery {
                 workspace_id: normalized_workspace_id.clone(),
-                project_id: None,
+                project_id: normalized_project_id.clone(),
                 engine_id: normalized_engine_id.clone(),
                 limit: None,
             },
@@ -23895,10 +23959,7 @@ fn build_app_with_state(state: AppState) -> Router {
             get(core_native_session_providers),
         )
         .route("/app/v3/api/native_sessions", get(core_native_sessions))
-        .route(
-            "/app/v3/api/native_sessions/{id}",
-            get(core_native_session),
-        )
+        .route("/app/v3/api/native_sessions/{id}", get(core_native_session))
         .route(
             "/app/v3/api/engines/{engineKey}/capabilities",
             get(core_engine_capabilities),
@@ -23950,69 +24011,66 @@ fn build_app_with_state(state: AppState) -> Router {
             "/app/v3/api/questions/{questionId}/answer",
             post(core_submit_user_question_answer),
         )
+        .route("/app/v3/api/operations/{operationId}", get(core_operation))
+        .route(IAM_RUNTIME_PATH, get(app_iam_runtime))
         .route(
-            "/app/v3/api/operations/{operationId}",
-            get(core_operation),
-        )
-        .route(USER_CENTER_AUTH_CONFIG_PATH, get(app_user_center_config))
-        .route(USER_CENTER_AUTH_SESSION_PATH, get(app_user_center_session))
-        .route(USER_CENTER_AUTH_LOGIN_PATH, post(app_user_center_login))
-        .route(
-            USER_CENTER_AUTH_OAUTH_URL_PATH,
-            get(app_user_center_oauth_authorization_url),
+            IAM_VERIFICATION_POLICY_PATH,
+            get(app_iam_verification_policy),
         )
         .route(
-            USER_CENTER_AUTH_OAUTH_LOGIN_PATH,
-            post(app_user_center_login_with_oauth),
+            IAM_AUTH_SESSION_PATH,
+            get(app_iam_session)
+                .patch(app_update_current_iam_session)
+                .delete(app_iam_logout),
+        )
+        .route(IAM_AUTH_LOGIN_PATH, post(app_iam_login))
+        .route(IAM_AUTH_SESSION_REFRESH_PATH, post(app_iam_refresh_session))
+        .route(
+            IAM_AUTH_OAUTH_URL_PATH,
+            get(app_iam_oauth_authorization_url),
+        )
+        .route(IAM_AUTH_OAUTH_LOGIN_PATH, post(app_iam_login_with_oauth))
+        .route(IAM_AUTH_REGISTER_PATH, post(app_iam_register))
+        .route(
+            IAM_AUTH_VERIFICATION_CODES_PATH,
+            post(app_iam_send_verify_code),
         )
         .route(
-            USER_CENTER_AUTH_REGISTER_PATH,
-            post(app_user_center_register),
+            IAM_AUTH_VERIFICATION_CODES_VERIFY_PATH,
+            post(app_iam_verify_code),
         )
         .route(
-            USER_CENTER_AUTH_VERIFICATION_CODES_PATH,
-            post(app_user_center_send_verify_code),
+            IAM_AUTH_PASSWORD_RESET_REQUEST_PATH,
+            post(app_iam_request_password_reset),
+        )
+        .route(IAM_AUTH_PASSWORD_RESET_PATH, post(app_iam_reset_password))
+        .route(
+            IAM_QR_AUTH_SESSION_PATH,
+            post(app_iam_qr_auth_session_create),
         )
         .route(
-            USER_CENTER_AUTH_PASSWORD_RESET_REQUEST_PATH,
-            post(app_user_center_request_password_reset),
+            IAM_QR_AUTH_SESSION_STATUS_PATH,
+            get(app_iam_qr_auth_session_status),
         )
         .route(
-            USER_CENTER_AUTH_PASSWORD_RESET_PATH,
-            post(app_user_center_reset_password),
-        )
-        .route(USER_CENTER_AUTH_LOGOUT_PATH, post(app_user_center_logout))
-        .route(
-            USER_CENTER_AUTH_SESSION_EXCHANGE_PATH,
-            post(app_user_center_exchange_session),
+            IAM_QR_AUTH_SESSION_SCAN_PATH,
+            post(app_iam_qr_auth_session_scan),
         )
         .route(
-            USER_CENTER_AUTH_QR_GENERATE_PATH,
-            post(app_user_center_login_qr_generate),
+            IAM_QR_AUTH_SESSION_PASSWORD_PATH,
+            post(app_iam_qr_auth_session_password),
         )
         .route(
-            USER_CENTER_AUTH_QR_LOGIN_CODE_PATH,
-            get(app_user_center_qr_login_code),
+            IAM_USER_PROFILE_PATH,
+            get(app_iam_profile).patch(app_update_iam_profile),
         )
         .route(
-            USER_CENTER_AUTH_QR_ENTRY_PATH,
-            get(app_user_center_login_qr_entry),
+            COMMERCE_MEMBERSHIP_CURRENT_PATH,
+            get(app_commerce_membership_current),
         )
         .route(
-            USER_CENTER_AUTH_QR_CALLBACK_PATH,
-            get(app_user_center_login_qr_entry),
-        )
-        .route(
-            USER_CENTER_AUTH_QR_CONFIRM_PATH,
-            post(app_user_center_login_qr_confirm),
-        )
-        .route(
-            USER_CENTER_USER_PROFILE_PATH,
-            get(app_user_center_profile).patch(app_update_user_center_profile),
-        )
-        .route(
-            USER_CENTER_BILLING_VIP_MEMBERSHIP_PATH,
-            get(app_user_center_membership).patch(app_update_user_center_membership),
+            COMMERCE_MEMBERSHIP_PACKAGE_GROUPS_PATH,
+            get(app_commerce_membership_package_groups),
         )
         .route(
             "/app/v3/api/workspaces",
@@ -24157,20 +24215,14 @@ fn build_local_cors_layer() -> CorsLayer {
             header::ACCEPT,
             header::AUTHORIZATION,
             header::CONTENT_TYPE,
-            HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
-            HeaderName::from_static(USER_CENTER_APP_ID_HEADER_NAME),
-            HeaderName::from_static(USER_CENTER_PROVIDER_KEY_HEADER_NAME),
-            HeaderName::from_static(USER_CENTER_HANDSHAKE_MODE_HEADER_NAME),
-            HeaderName::from_static(USER_CENTER_SECRET_ID_HEADER_NAME),
-            HeaderName::from_static(USER_CENTER_SIGNATURE_HEADER_NAME),
-            HeaderName::from_static(USER_CENTER_SIGNED_AT_HEADER_NAME),
-            parse_canonical_user_center_header_name(USER_CENTER_ACCESS_TOKEN_HEADER_NAME),
+            parse_canonical_iam_header_name(IAM_ACCESS_TOKEN_HEADER_NAME),
+            HeaderName::from_static("idempotency-key"),
+            HeaderName::from_static("x-request-id"),
             HeaderName::from_static("refresh-token"),
         ])
         .expose_headers([
             header::AUTHORIZATION,
-            HeaderName::from_static(USER_CENTER_SESSION_HEADER_NAME),
-            parse_canonical_user_center_header_name(USER_CENTER_ACCESS_TOKEN_HEADER_NAME),
+            parse_canonical_iam_header_name(IAM_ACCESS_TOKEN_HEADER_NAME),
             HeaderName::from_static("refresh-token"),
         ])
         .allow_origin(AllowOrigin::predicate(
@@ -24216,6 +24268,32 @@ mod tests {
     const PROVIDER_PROJECT_ID: &str = "200000000000000201";
     const PROVIDER_TEAM_ID: &str = "200000000000000301";
     const PROVIDER_TEAM_MEMBER_ID: &str = "200000000000000302";
+
+    #[test]
+    fn paginate_vec_uses_bounded_default_page_size_when_limit_is_absent() {
+        let (paged_items, normalized_offset, requested_page_size, total) =
+            paginate_vec((0..75).collect::<Vec<_>>(), None, None);
+
+        assert_eq!(normalized_offset, 0);
+        assert_eq!(requested_page_size, Some(20));
+        assert_eq!(total, 75);
+        assert_eq!(paged_items.len(), 20);
+        assert_eq!(paged_items.first(), Some(&0));
+        assert_eq!(paged_items.last(), Some(&19));
+    }
+
+    #[test]
+    fn paginate_vec_clamps_requested_page_size_to_maximum() {
+        let (paged_items, normalized_offset, requested_page_size, total) =
+            paginate_vec((0..250).collect::<Vec<_>>(), Some(10), Some(500));
+
+        assert_eq!(normalized_offset, 10);
+        assert_eq!(requested_page_size, Some(200));
+        assert_eq!(total, 250);
+        assert_eq!(paged_items.len(), 200);
+        assert_eq!(paged_items.first(), Some(&10));
+        assert_eq!(paged_items.last(), Some(&209));
+    }
 
     struct FakeCodexCliGuard {
         fixture_directory: PathBuf,
@@ -26268,6 +26346,48 @@ exit 1\n"
     }
 
     #[tokio::test]
+    async fn core_health_route_returns_unique_uuid_request_ids() {
+        let first_response = build_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/app/v3/api/system/health")
+                    .body(Body::empty())
+                    .expect("build first request"),
+            )
+            .await
+            .expect("serve first request");
+        let second_response = build_app()
+            .oneshot(
+                Request::builder()
+                    .uri("/app/v3/api/system/health")
+                    .body(Body::empty())
+                    .expect("build second request"),
+            )
+            .await
+            .expect("serve second request");
+
+        assert_eq!(first_response.status(), StatusCode::OK);
+        assert_eq!(second_response.status(), StatusCode::OK);
+
+        let first_body = to_bytes(first_response.into_body(), usize::MAX)
+            .await
+            .expect("read first body");
+        let second_body = to_bytes(second_response.into_body(), usize::MAX)
+            .await
+            .expect("read second body");
+        let first_json: serde_json::Value =
+            serde_json::from_slice(&first_body).expect("parse first response");
+        let second_json: serde_json::Value =
+            serde_json::from_slice(&second_body).expect("parse second response");
+        let first_request_id = first_json["requestId"].as_str().expect("first requestId");
+        let second_request_id = second_json["requestId"].as_str().expect("second requestId");
+
+        Uuid::parse_str(first_request_id).expect("first requestId is a UUID");
+        Uuid::parse_str(second_request_id).expect("second requestId is a UUID");
+        assert_ne!(first_request_id, second_request_id);
+    }
+
+    #[tokio::test]
     async fn descriptor_route_returns_coding_server_descriptor() {
         let response = build_app()
             .oneshot(
@@ -26296,10 +26416,7 @@ exit 1\n"
             json["data"]["surfaces"],
             serde_json::json!(["app", "backend"])
         );
-        assert_eq!(
-            json["data"]["gateway"].get("basePath").is_none(),
-            true
-        );
+        assert_eq!(json["data"]["gateway"].get("basePath").is_none(), true);
         assert_eq!(
             json["data"]["gateway"]["routeCatalogPath"],
             CODING_SERVER_ROUTE_CATALOG_PATH
@@ -26388,9 +26505,11 @@ exit 1\n"
                 .as_array()
                 .expect("route catalog items")
                 .iter()
-                .any(|item| item["operationId"] == "projects.git.worktrees.create"
-                    && item["openApiPath"] == "/app/v3/api/projects/{projectId}/git/worktrees"
-                    && item["surface"] == "app"),
+                .any(
+                    |item| item["operationId"] == "projects.git.worktrees.create"
+                        && item["openApiPath"] == "/app/v3/api/projects/{projectId}/git/worktrees"
+                        && item["surface"] == "app"
+                ),
             true
         );
         assert_eq!(
@@ -26398,10 +26517,12 @@ exit 1\n"
                 .as_array()
                 .expect("route catalog items")
                 .iter()
-                .any(|item| item["operationId"] == "projects.git.worktreeRemovals.create"
-                    && item["openApiPath"]
-                        == "/app/v3/api/projects/{projectId}/git/worktree_removals"
-                    && item["surface"] == "app"),
+                .any(
+                    |item| item["operationId"] == "projects.git.worktreeRemovals.create"
+                        && item["openApiPath"]
+                            == "/app/v3/api/projects/{projectId}/git/worktree_removals"
+                        && item["surface"] == "app"
+                ),
             true
         );
         assert_eq!(
@@ -26409,10 +26530,12 @@ exit 1\n"
                 .as_array()
                 .expect("route catalog items")
                 .iter()
-                .any(|item| item["operationId"] == "projects.git.worktreePrune.create"
-                    && item["openApiPath"]
-                        == "/app/v3/api/projects/{projectId}/git/worktree_prune"
-                    && item["surface"] == "app"),
+                .any(
+                    |item| item["operationId"] == "projects.git.worktreePrune.create"
+                        && item["openApiPath"]
+                            == "/app/v3/api/projects/{projectId}/git/worktree_prune"
+                        && item["surface"] == "app"
+                ),
             true
         );
     }
@@ -30294,7 +30417,8 @@ exit 1\n"
         .await;
         let app_workspaces_response = issue_get_request(&app, "/app/v3/api/workspaces").await;
         let app_deployments_response = issue_get_request(&app, "/app/v3/api/deployments").await;
-        let admin_deployments_response = issue_get_request(&app, "/backend/v3/api/deployments").await;
+        let admin_deployments_response =
+            issue_get_request(&app, "/backend/v3/api/deployments").await;
         let app_projects_response = issue_get_request(&app, "/app/v3/api/projects").await;
         let app_documents_response = issue_get_request(&app, "/app/v3/api/documents").await;
         let app_teams_response = issue_get_request(&app, "/app/v3/api/teams").await;
@@ -30307,7 +30431,8 @@ exit 1\n"
         let admin_team_members_response =
             issue_get_request(&app, "/backend/v3/api/iam/teams/200000000000000301/members").await;
         let admin_releases_response = issue_get_request(&app, "/backend/v3/api/releases").await;
-        let admin_audit_response = issue_get_request(&app, "/backend/v3/api/iam/audit_events").await;
+        let admin_audit_response =
+            issue_get_request(&app, "/backend/v3/api/iam/audit_events").await;
         let admin_policies_response = issue_get_request(&app, "/backend/v3/api/iam/policies").await;
 
         std::env::remove_var("BIRDCODER_CODING_SERVER_SQLITE_FILE");
@@ -31557,13 +31682,21 @@ exit 1\n"
             "studio_workspace_member table should expose granted_by_user_id"
         );
         assert!(
-            sqlite_column_exists(&connection, "studio_project_collaborator", "created_by_user_id")
-                .expect("probe studio_project_collaborator.created_by_user_id"),
+            sqlite_column_exists(
+                &connection,
+                "studio_project_collaborator",
+                "created_by_user_id"
+            )
+            .expect("probe studio_project_collaborator.created_by_user_id"),
             "studio_project_collaborator table should expose created_by_user_id"
         );
         assert!(
-            sqlite_column_exists(&connection, "studio_project_collaborator", "granted_by_user_id")
-                .expect("probe studio_project_collaborator.granted_by_user_id"),
+            sqlite_column_exists(
+                &connection,
+                "studio_project_collaborator",
+                "granted_by_user_id"
+            )
+            .expect("probe studio_project_collaborator.granted_by_user_id"),
             "studio_project_collaborator table should expose granted_by_user_id"
         );
 
@@ -31603,14 +31736,14 @@ exit 1\n"
     }
 
     #[tokio::test]
-    async fn build_app_from_sqlite_file_initializes_user_center_for_direct_provider_authority() {
+    async fn build_app_from_sqlite_file_initializes_iam_for_direct_provider_authority() {
         let _guard = ENV_LOCK.lock().expect("lock env");
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
-            "birdcoder-coding-server-direct-user-center.sqlite3",
+            "birdcoder-coding-server-direct-iam.sqlite3",
         );
-        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
-        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
 
         let _ = build_app_from_sqlite_file(&sqlite_path).expect("load direct sqlite authority");
 
@@ -31629,13 +31762,6 @@ exit 1\n"
                 |row| row.get(0),
             )
             .expect("read bootstrap profile count");
-        let membership_count: i64 = connection
-            .query_row(
-                "SELECT COUNT(*) FROM iam_vip_membership WHERE is_deleted = 0",
-                [],
-                |row| row.get(0),
-            )
-            .expect("read bootstrap membership count");
         let bootstrap_user: (String, String, String) = connection
             .query_row(
                 "SELECT id, email, provider_key FROM iam_user WHERE id = ?1",
@@ -31652,38 +31778,30 @@ exit 1\n"
 
         drop(connection);
         fs::remove_file(sqlite_path).expect("remove direct sqlite authority fixture");
-        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
-        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
 
         assert_eq!(user_count, 1);
         assert_eq!(profile_count, 1);
-        assert_eq!(membership_count, 1);
         assert_eq!(bootstrap_user.0, BOOTSTRAP_WORKSPACE_OWNER_USER_ID);
-        assert_eq!(bootstrap_user.1, "local-default@sdkwork-user-center.local");
+        assert_eq!(bootstrap_user.1, "local-default@sdkwork-iam.local");
         assert_eq!(bootstrap_user.2, "local");
     }
 
     #[test]
-    fn build_app_from_sqlite_file_skips_builtin_local_user_center_seed_for_cloud_mode() {
+    fn build_app_from_sqlite_file_skips_builtin_local_iam_seed_for_cloud_mode() {
         let _guard = ENV_LOCK.lock().expect("lock env");
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
-            "birdcoder-coding-server-cloud-user-center.sqlite3",
+            "birdcoder-coding-server-cloud-iam.sqlite3",
         );
 
-        std::env::set_var(
-            "SDKWORK_USER_CENTER_MODE",
-            "sdkwork-cloud-app-api",
-        );
-        std::env::set_var(
-            "SDKWORK_USER_CENTER_APP_API_BASE_URL",
-            "https://cloud.sdkwork.test/app",
-        );
+        std::env::set_var("SDKWORK_IAM_MODE", "cloud");
 
         let _ = build_app_from_sqlite_file(&sqlite_path).expect("load cloud sqlite authority");
 
-        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
-        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
 
         let connection = Connection::open(&sqlite_path).expect("open cloud sqlite authority");
         let user_count: i64 = connection
@@ -31693,54 +31811,45 @@ exit 1\n"
                 |row| row.get(0),
             )
             .expect("read cloud user count");
-        let membership_count: i64 = connection
-            .query_row(
-                "SELECT COUNT(*) FROM iam_vip_membership WHERE is_deleted = 0",
-                [],
-                |row| row.get(0),
-            )
-            .expect("read cloud membership count");
 
         drop(connection);
         fs::remove_file(sqlite_path).expect("remove cloud sqlite authority fixture");
 
         assert_eq!(user_count, 0);
-        assert_eq!(membership_count, 0);
     }
 
     #[tokio::test]
-    async fn app_user_center_config_route_exposes_canonical_builtin_local_mode() {
+    async fn app_iam_runtime_route_exposes_standard_runtime_settings() {
         let _guard = ENV_LOCK.lock().expect("lock env");
-        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
-        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
         let response = build_app()
             .oneshot(
                 Request::builder()
-                    .uri(USER_CENTER_AUTH_CONFIG_PATH)
+                    .uri(IAM_RUNTIME_PATH)
                     .body(Body::empty())
-                    .expect("build auth config request"),
+                    .expect("build iam runtime request"),
             )
             .await
-            .expect("serve auth config request");
+            .expect("serve iam runtime request");
 
         assert_eq!(response.status(), StatusCode::OK);
 
         let body = to_bytes(response.into_body(), usize::MAX)
             .await
-            .expect("read auth config body");
+            .expect("read iam runtime body");
         let json: serde_json::Value =
-            serde_json::from_slice(&body).expect("parse auth config response");
+            serde_json::from_slice(&body).expect("parse iam runtime response");
 
-        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
-        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
 
-        assert_eq!(json["data"]["mode"], "builtin-local");
-        assert_eq!(json["data"]["integrationKind"], "builtin-local");
+        assert_eq!(json["data"]["leftRailMode"], "qr-only");
         assert_eq!(
             json["data"]["loginMethods"],
-            serde_json::json!(["password", "emailCode"])
+            serde_json::json!(["password", "emailCode", "phoneCode", "sessionBridge"])
         );
         assert_eq!(
             json["data"]["loginMethods"]
@@ -31748,7 +31857,7 @@ exit 1\n"
                 .expect("login methods array")
                 .iter()
                 .any(|method| method == "phoneCode"),
-            false
+            true
         );
         assert_eq!(
             json["data"]["registerMethods"],
@@ -31764,20 +31873,24 @@ exit 1\n"
             serde_json::json!(["wechat", "douyin", "github"])
         );
         assert_eq!(json["data"]["qrLoginEnabled"], true);
-        assert_eq!(json["data"]["supportsLocalCredentials"], true);
+        assert_eq!(json["data"]["qrLoginType"], "web");
+        assert_eq!(
+            json["data"]["verificationPolicy"]["emailCodeLoginEnabled"],
+            true
+        );
     }
 
     #[tokio::test]
-    async fn app_user_center_login_route_returns_canonical_builtin_local_provider_mode() {
+    async fn app_iam_login_route_returns_canonical_builtin_local_provider_mode() {
         let _guard = ENV_LOCK.lock().expect("lock env");
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
             "birdcoder-coding-server-auth-login.sqlite3",
         );
-        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
-        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
         let request_body = serde_json::json!({
-            "email": "local-default@sdkwork-user-center.local",
+            "email": "local-default@sdkwork-iam.local",
             "password": "dev123456"
         });
 
@@ -31786,7 +31899,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(USER_CENTER_AUTH_LOGIN_PATH)
+                    .uri(IAM_AUTH_LOGIN_PATH)
                     .header("content-type", "application/json")
                     .body(Body::from(request_body.to_string()))
                     .expect("build auth login request"),
@@ -31795,9 +31908,9 @@ exit 1\n"
             .expect("serve auth login request");
 
         fs::remove_file(sqlite_path).expect("remove auth login sqlite fixture");
-        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
-        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
 
         assert_eq!(response.status(), StatusCode::OK);
 
@@ -31807,25 +31920,131 @@ exit 1\n"
         let json: serde_json::Value =
             serde_json::from_slice(&body).expect("parse auth login response");
 
-        assert_eq!(json["data"]["providerMode"], "builtin-local");
         assert_eq!(
             json["data"]["user"]["email"],
-            "local-default@sdkwork-user-center.local"
+            "local-default@sdkwork-iam.local"
+        );
+        assert_eq!(json["data"]["tokenType"], serde_json::Value::Null);
+    }
+
+    #[tokio::test]
+    async fn app_iam_login_route_hides_user_existence_on_invalid_credentials() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let sqlite_path = write_empty_sqlite_provider_authority_fixture(
+            "birdcoder-coding-server-auth-login-invalid.sqlite3",
+        );
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        let request_body = serde_json::json!({
+            "email": "test2@sdkwork.com",
+            "password": "dev123456"
+        });
+
+        let response = build_app_from_sqlite_file(&sqlite_path)
+            .expect("load sqlite-backed auth app")
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(IAM_AUTH_LOGIN_PATH)
+                    .header("content-type", "application/json")
+                    .body(Body::from(request_body.to_string()))
+                    .expect("build invalid auth login request"),
+            )
+            .await
+            .expect("serve invalid auth login request");
+
+        fs::remove_file(sqlite_path).expect("remove invalid auth login sqlite fixture");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read invalid auth login body");
+        let json: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse invalid auth login response");
+
+        assert_eq!(json["data"]["code"], "unauthorized");
+        assert_eq!(json["data"]["message"], "Invalid account or password.");
+        assert!(
+            !json["data"]["message"]
+                .as_str()
+                .expect("invalid auth login message")
+                .contains("test2@sdkwork.com"),
+            "login error must not reveal whether a user account exists"
+        );
+        Uuid::parse_str(
+            json["requestId"]
+                .as_str()
+                .expect("invalid auth login requestId"),
+        )
+        .expect("invalid auth login requestId is a UUID");
+    }
+
+    #[tokio::test]
+    async fn app_iam_qr_auth_session_create_returns_qr_content_without_status_image_url() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let sqlite_path = write_empty_sqlite_provider_authority_fixture(
+            "birdcoder-coding-server-auth-qr.sqlite3",
+        );
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+
+        let response = build_app_from_sqlite_file(&sqlite_path)
+            .expect("load sqlite-backed qr auth app")
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(IAM_QR_AUTH_SESSION_PATH)
+                    .header("origin", "http://localhost:1520")
+                    .body(Body::empty())
+                    .expect("build qr auth create request"),
+            )
+            .await
+            .expect("serve qr auth create request");
+
+        fs::remove_file(sqlite_path).expect("remove qr auth sqlite fixture");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let body = to_bytes(response.into_body(), usize::MAX)
+            .await
+            .expect("read qr auth create body");
+        let json: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse qr auth create response");
+
+        let qr_content = json["data"]["qrContent"]
+            .as_str()
+            .expect("qrContent must be present");
+        assert!(
+            qr_content.starts_with("sdkwork://birdcoder/iam/qr_auth/"),
+            "qrContent must carry the appbase-rendered QR payload"
+        );
+        assert_eq!(
+            json["data"].get("qrUrl"),
+            None,
+            "qrUrl must be absent unless the server returns a real QR image URL"
         );
     }
 
     #[tokio::test]
-    async fn app_user_center_membership_route_accepts_and_returns_long_integers_as_decimal_strings()
-    {
+    async fn app_commerce_membership_routes_return_standard_read_models() {
         let _guard = ENV_LOCK.lock().expect("lock env");
         let sqlite_path = write_empty_sqlite_provider_authority_fixture(
-            "birdcoder-coding-server-membership-long-integer.sqlite3",
+            "birdcoder-coding-server-commerce-memberships.sqlite3",
         );
-        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
-        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
         let login_request = serde_json::json!({
-            "email": "local-default@sdkwork-user-center.local",
+            "email": "local-default@sdkwork-iam.local",
             "password": "dev123456"
         });
         let app = build_app_from_sqlite_file(&sqlite_path).expect("load membership sqlite app");
@@ -31835,7 +32054,7 @@ exit 1\n"
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri(USER_CENTER_AUTH_LOGIN_PATH)
+                    .uri(IAM_AUTH_LOGIN_PATH)
                     .header("content-type", "application/json")
                     .body(Body::from(login_request.to_string()))
                     .expect("build auth login request"),
@@ -31843,44 +32062,72 @@ exit 1\n"
             .await
             .expect("serve auth login request");
         assert_eq!(login_response.status(), StatusCode::OK);
-        let session_header = login_response
+        let authorization_header = login_response
             .headers()
-            .get(USER_CENTER_SESSION_HEADER_NAME)
+            .get(header::AUTHORIZATION)
             .cloned()
-            .expect("login response session header");
+            .expect("login response authorization header");
+        let access_token_header = login_response
+            .headers()
+            .get(IAM_ACCESS_TOKEN_HEADER_NAME)
+            .cloned()
+            .expect("login response access token header");
 
-        let membership_request = serde_json::json!({
-            "pointBalance": "101777208078558104",
-            "totalRechargedPoints": "101777208078558105",
-            "status": "active"
-        });
-        let membership_response = app
+        let current_response = app
+            .clone()
             .oneshot(
                 Request::builder()
-                    .method("PATCH")
-                    .uri(USER_CENTER_BILLING_VIP_MEMBERSHIP_PATH)
-                    .header("content-type", "application/json")
-                    .header(USER_CENTER_SESSION_HEADER_NAME, session_header)
-                    .body(Body::from(membership_request.to_string()))
-                    .expect("build membership update request"),
+                    .method("GET")
+                    .uri(COMMERCE_MEMBERSHIP_CURRENT_PATH)
+                    .header(header::AUTHORIZATION, authorization_header.clone())
+                    .header(IAM_ACCESS_TOKEN_HEADER_NAME, access_token_header.clone())
+                    .body(Body::empty())
+                    .expect("build current membership request"),
             )
             .await
-            .expect("serve membership update request");
-        assert_eq!(membership_response.status(), StatusCode::OK);
+            .expect("serve current membership request");
+        assert_eq!(current_response.status(), StatusCode::OK);
 
-        let body = to_bytes(membership_response.into_body(), usize::MAX)
+        let body = to_bytes(current_response.into_body(), usize::MAX)
             .await
-            .expect("read membership update body");
-        let json: serde_json::Value =
-            serde_json::from_slice(&body).expect("parse membership update response");
+            .expect("read current membership body");
+        let current_json: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse current membership response");
+
+        let groups_response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(COMMERCE_MEMBERSHIP_PACKAGE_GROUPS_PATH)
+                    .header(header::AUTHORIZATION, authorization_header)
+                    .header(IAM_ACCESS_TOKEN_HEADER_NAME, access_token_header)
+                    .body(Body::empty())
+                    .expect("build membership package groups request"),
+            )
+            .await
+            .expect("serve membership package groups request");
+        assert_eq!(groups_response.status(), StatusCode::OK);
+
+        let groups_body = to_bytes(groups_response.into_body(), usize::MAX)
+            .await
+            .expect("read membership package groups body");
+        let groups_json: serde_json::Value =
+            serde_json::from_slice(&groups_body).expect("parse membership package groups response");
 
         fs::remove_file(sqlite_path).expect("remove membership sqlite fixture");
-        std::env::remove_var("SDKWORK_USER_CENTER_MODE");
-        std::env::remove_var("SDKWORK_USER_CENTER_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
 
-        assert_eq!(json["data"]["pointBalance"], "101777208078558104");
-        assert_eq!(json["data"]["totalRechargedPoints"], "101777208078558105");
+        assert_eq!(
+            current_json["data"]["ownerUserId"],
+            BOOTSTRAP_WORKSPACE_OWNER_USER_ID
+        );
+        assert_eq!(current_json["data"]["planName"], "Free");
+        assert_eq!(current_json["data"]["status"], "inactive");
+        assert_eq!(current_json["data"]["points"], "0");
+        assert_eq!(current_json["data"]["totalSpent"], "0");
+        assert_eq!(groups_json["items"], serde_json::json!([]));
     }
 
     #[tokio::test]
@@ -31918,10 +32165,81 @@ exit 1\n"
         assert_eq!(json["data"]["operationId"], "provider-turn:operation");
     }
 
-    #[test]
-    fn build_app_from_env_returns_error_when_sqlite_authority_has_no_direct_tables() {
+    #[tokio::test]
+    async fn build_app_from_env_initializes_missing_sqlite_authority_for_private_dev() {
         let _guard = ENV_LOCK.lock().expect("lock env");
-        let sqlite_path = write_empty_sqlite_fixture("birdcoder-empty-coding-server.sqlite3");
+        let sqlite_dir = unique_sqlite_fixture_path("birdcoder-fresh-private-authority.sqlite3")
+            .with_extension("dir");
+        if sqlite_dir.exists() {
+            fs::remove_dir_all(&sqlite_dir).expect("remove existing fresh sqlite fixture dir");
+        }
+        let sqlite_path = sqlite_dir.join("authority.sqlite3");
+
+        std::env::set_var(
+            "BIRDCODER_CODING_SERVER_SQLITE_FILE",
+            sqlite_path.as_os_str(),
+        );
+        std::env::set_var("SDKWORK_IAM_MODE", "private");
+        std::env::set_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED", "123456");
+
+        let app = build_app_from_env().expect("initialize missing private sqlite authority");
+        let qr_response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(IAM_QR_AUTH_SESSION_PATH)
+                    .header("origin", "http://localhost:3000")
+                    .body(Body::empty())
+                    .expect("build qr auth create request"),
+            )
+            .await
+            .expect("serve qr auth request");
+
+        std::env::remove_var("BIRDCODER_CODING_SERVER_SQLITE_FILE");
+        std::env::remove_var("SDKWORK_IAM_MODE");
+        std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
+        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+
+        assert_eq!(qr_response.status(), StatusCode::OK);
+        let qr_body = to_bytes(qr_response.into_body(), usize::MAX)
+            .await
+            .expect("read qr body");
+        let qr_json: serde_json::Value =
+            serde_json::from_slice(&qr_body).expect("parse qr response");
+
+        let connection = Connection::open(&sqlite_path).expect("open initialized private sqlite");
+        let workspace_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM studio_workspace", [], |row| {
+                row.get(0)
+            })
+            .expect("read initialized workspace count");
+        let iam_user_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM iam_user", [], |row| row.get(0))
+            .expect("read initialized iam user count");
+
+        drop(connection);
+        fs::remove_dir_all(sqlite_dir).expect("remove fresh private sqlite fixture dir");
+
+        assert_eq!(workspace_count, 1);
+        assert_eq!(iam_user_count, 1);
+        assert!(
+            qr_json["data"]["qrContent"]
+                .as_str()
+                .is_some_and(|value| value.starts_with("sdkwork://birdcoder/iam/qr_auth/")),
+            "fresh private sqlite QR auth must return appbase-rendered qrContent"
+        );
+        assert_eq!(qr_json["data"].get("qrUrl"), None);
+    }
+
+    #[test]
+    fn build_app_from_env_returns_error_when_sqlite_authority_has_partial_unknown_tables() {
+        let _guard = ENV_LOCK.lock().expect("lock env");
+        let sqlite_path = write_empty_sqlite_fixture("birdcoder-partial-coding-server.sqlite3");
+        let connection = Connection::open(&sqlite_path).expect("open partial sqlite fixture");
+        connection
+            .execute("CREATE TABLE unrelated_table (id TEXT PRIMARY KEY)", [])
+            .expect("create unrelated table");
+        drop(connection);
 
         std::env::set_var(
             "BIRDCODER_CODING_SERVER_SQLITE_FILE",
@@ -31931,7 +32249,7 @@ exit 1\n"
         let result = build_app_from_env();
 
         std::env::remove_var("BIRDCODER_CODING_SERVER_SQLITE_FILE");
-        fs::remove_file(sqlite_path).expect("remove empty sqlite fixture");
+        fs::remove_file(sqlite_path).expect("remove partial sqlite fixture");
 
         assert_eq!(result.is_err(), true);
     }
@@ -32129,15 +32447,10 @@ exit 1\n"
                         [
                             header::CONTENT_TYPE.as_str(),
                             header::AUTHORIZATION.as_str(),
-                            USER_CENTER_SESSION_HEADER_NAME,
-                            USER_CENTER_ACCESS_TOKEN_HEADER_NAME,
+                            IAM_ACCESS_TOKEN_HEADER_NAME,
                             "refresh-token",
-                            USER_CENTER_APP_ID_HEADER_NAME,
-                            USER_CENTER_PROVIDER_KEY_HEADER_NAME,
-                            USER_CENTER_HANDSHAKE_MODE_HEADER_NAME,
-                            USER_CENTER_SECRET_ID_HEADER_NAME,
-                            USER_CENTER_SIGNATURE_HEADER_NAME,
-                            USER_CENTER_SIGNED_AT_HEADER_NAME,
+                            "idempotency-key",
+                            "x-request-id",
                         ]
                         .join(", "),
                     )
@@ -32180,20 +32493,15 @@ exit 1\n"
         for expected_header in [
             header::CONTENT_TYPE.as_str(),
             header::AUTHORIZATION.as_str(),
-            USER_CENTER_SESSION_HEADER_NAME,
-            USER_CENTER_ACCESS_TOKEN_HEADER_NAME,
+            IAM_ACCESS_TOKEN_HEADER_NAME,
             "refresh-token",
-            USER_CENTER_APP_ID_HEADER_NAME,
-            USER_CENTER_PROVIDER_KEY_HEADER_NAME,
-            USER_CENTER_HANDSHAKE_MODE_HEADER_NAME,
-            USER_CENTER_SECRET_ID_HEADER_NAME,
-            USER_CENTER_SIGNATURE_HEADER_NAME,
-            USER_CENTER_SIGNED_AT_HEADER_NAME,
+            "idempotency-key",
+            "x-request-id",
         ] {
             let expected_header = expected_header.to_ascii_lowercase();
             assert!(
                 allowed_headers.contains(&expected_header),
-                "preflight responses must allow user-center app API header {expected_header} used by browser-hosted local clients.",
+                "preflight responses must allow iam app API header {expected_header} used by browser-hosted local clients.",
             );
         }
     }

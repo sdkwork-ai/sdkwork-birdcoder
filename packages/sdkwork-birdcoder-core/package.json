@@ -9,7 +9,6 @@
     "typecheck": "node ../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
-    "@sdkwork/user-center-core-pc-react": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*"
   },
   "devDependencies": {

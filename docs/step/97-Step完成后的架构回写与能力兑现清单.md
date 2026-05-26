@@ -26,7 +26,7 @@
 | `11` | 多平台交付矩阵、Docker/K8s、Release 产物链 | `06` `09` `10` | 产物索引、Smoke、校验和 |
 | `12` | 测试矩阵、CI 门禁、回归自动化 | `06` `08` `10` | 矩阵表、门禁结果、失败归档 |
 | `13` | GitHub Flow、灰度、回滚、发布后回写 | `09` `10` `11` `14` | 发布演练、灰度记录、回滚记录 |
-| `14` | Appbase Auth/User/VIP 主边界统一 | `17` | Bridge 清单、Route Intent、Parity Contract |
+| `14` | SDKWork IAM Auth/User 主边界统一 | `17` | SDK runtime 清单、Route Intent、Parity Contract |
 | `15` | 多数据库 Provider、Dialect、Migration、BlobStore | `07` `18` | Provider Contract、迁移回放、authority 模式结果 |
 | `16` | Prompt/SkillHub/AppTemplate/项目模板注入链 | `13` `19` | 注入顺序、绑定表、模板实例化验证 |
 | `17` | `app/backend` API、App/Backend Console、统一生命周期资源 | `09` `20` | 路由矩阵、OpenAPI、Console Contract、权限矩阵 |

@@ -9,7 +9,6 @@ import {
   type SdkworkCanonicalUserSectionRouteIntent,
   type SdkworkCanonicalUserWorkspaceManifest,
 } from '@sdkwork/user-pc-react';
-import { BIRDCODER_USER_CENTER_ROUTES } from '@sdkwork/birdcoder-core';
 
 export type BirdCoderUserSectionId = 'overview' | 'profile' | 'security' | 'membership';
 export type BirdCoderUserCapability = SdkworkCanonicalUserCapability<'@sdkwork/user-pc-react'>;
@@ -35,15 +34,17 @@ export interface CreateBirdCoderUserRouteIntentOptions
 export type CreateBirdCoderUserSectionRouteIntentOptions =
   CreateSdkworkCanonicalUserDefinitionSectionRouteIntentOptions<'@sdkwork/user-pc-react'>;
 
+export const BIRDCODER_USER_ROUTE_PATH = '/user';
+
 const birdCoderUserDefinition = createSdkworkCanonicalUserDefinition({
   architecture: 'birdcoder-user',
   bridgePackageName: '@sdkwork/birdcoder-user',
   description:
-    'BirdCoder user workspace aligned to sdkwork-appbase account-center routing, section navigation, and profile orchestration standards.',
+    'BirdCoder user workspace aligned to SDKWork IAM account-center routing, section navigation, and profile orchestration standards.',
   host: 'tauri',
   id: 'sdkwork-birdcoder-user',
   packageNames: ['@sdkwork/birdcoder-user'],
-  routePath: BIRDCODER_USER_CENTER_ROUTES.userRoutePath,
+  routePath: BIRDCODER_USER_ROUTE_PATH,
   sourcePackageName: '@sdkwork/user-pc-react',
   title: 'User',
 });
@@ -52,7 +53,7 @@ export const BIRDCODER_USER_DEFINITION = birdCoderUserDefinition;
 export const BIRDCODER_USER_SOURCE_PACKAGE = birdCoderUserDefinition.sourcePackageName;
 
 export function createBirdCoderUserCapability(
-  routePath: string = BIRDCODER_USER_CENTER_ROUTES.userRoutePath,
+  routePath: string = BIRDCODER_USER_ROUTE_PATH,
 ): BirdCoderUserCapability {
   return birdCoderUserDefinition.createCapability(routePath);
 }

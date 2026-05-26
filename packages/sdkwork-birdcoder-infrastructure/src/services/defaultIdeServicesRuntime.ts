@@ -1,28 +1,14 @@
 import type { BirdHostDescriptor } from '@sdkwork/birdcoder-host-core';
-import type { BirdCoderRuntimeUserCenterProviderKind } from '@sdkwork/birdcoder-core';
-import {
-  resolveBirdCoderRuntimeUserCenterProviderKind,
-} from '@sdkwork/birdcoder-core';
-import type {
-  BirdCoderUserCenterMetadataSummary,
-} from '@sdkwork/birdcoder-types';
 import type {
   BirdCoderAppSdkApiClient,
   BirdCoderBackendSdkApiClient,
 } from './sdkClients.ts';
-
-export interface BirdCoderRuntimeUserCenterBindingConfig {
-  baseUrl?: string;
-  providerKey?: string;
-  providerKind?: BirdCoderRuntimeUserCenterProviderKind;
-}
 
 export interface BirdCoderDefaultIdeServicesRuntimeConfig {
   apiBaseUrl?: string;
   appClient?: BirdCoderAppSdkApiClient;
   backendClient?: BirdCoderBackendSdkApiClient;
   executionAuthorityMode?: 'auto' | 'remote-required';
-  userCenter?: BirdCoderRuntimeUserCenterBindingConfig;
 }
 
 export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
@@ -31,7 +17,6 @@ export interface BindDefaultBirdCoderIdeServicesRuntimeOptions {
   backendClient?: BirdCoderBackendSdkApiClient;
   executionAuthorityMode?: 'auto' | 'remote-required';
   host?: BirdHostDescriptor;
-  userCenter?: BirdCoderRuntimeUserCenterBindingConfig;
 }
 
 let defaultIdeServicesRuntimeConfig: BirdCoderDefaultIdeServicesRuntimeConfig = {};
@@ -39,31 +24,6 @@ let defaultIdeServicesRuntimeConfig: BirdCoderDefaultIdeServicesRuntimeConfig = 
 function normalizeApiBaseUrl(apiBaseUrl?: string): string | undefined {
   const normalizedApiBaseUrl = apiBaseUrl?.trim();
   return normalizedApiBaseUrl ? normalizedApiBaseUrl : undefined;
-}
-
-function normalizeUserCenterRuntimeConfig(
-  config?: BirdCoderRuntimeUserCenterBindingConfig,
-): BirdCoderRuntimeUserCenterBindingConfig | undefined {
-  if (!config) {
-    return undefined;
-  }
-
-  const baseUrl = normalizeApiBaseUrl(config.baseUrl);
-  const providerKey = config.providerKey?.trim() || undefined;
-  const providerKind =
-    baseUrl || providerKey || config.providerKind
-      ? resolveBirdCoderRuntimeUserCenterProviderKind(config.providerKind)
-      : undefined;
-
-  if (!baseUrl && !providerKey && !providerKind) {
-    return undefined;
-  }
-
-  return {
-    ...(baseUrl ? { baseUrl } : {}),
-    ...(providerKey ? { providerKey } : {}),
-    ...(providerKind ? { providerKind } : {}),
-  };
 }
 
 function resolveBoundApiBaseUrl(
@@ -98,13 +58,6 @@ function resolveExecutionAuthorityMode(
 export function getDefaultBirdCoderIdeServicesRuntimeConfig(): BirdCoderDefaultIdeServicesRuntimeConfig {
   return {
     ...defaultIdeServicesRuntimeConfig,
-    ...(defaultIdeServicesRuntimeConfig.userCenter
-      ? {
-          userCenter: {
-            ...defaultIdeServicesRuntimeConfig.userCenter,
-          },
-        }
-      : {}),
   };
 }
 
@@ -116,7 +69,6 @@ export function configureDefaultBirdCoderIdeServicesRuntime(
     backendClient: config.backendClient,
     executionAuthorityMode: config.executionAuthorityMode ?? 'auto',
     apiBaseUrl: normalizeApiBaseUrl(config.apiBaseUrl),
-    userCenter: normalizeUserCenterRuntimeConfig(config.userCenter),
   };
 }
 
@@ -128,30 +80,6 @@ export function bindDefaultBirdCoderIdeServicesRuntime(
     backendClient: options.backendClient,
     executionAuthorityMode: resolveExecutionAuthorityMode(options),
     apiBaseUrl: resolveBoundApiBaseUrl(options),
-    userCenter: normalizeUserCenterRuntimeConfig(options.userCenter),
-  });
-}
-
-export function syncBirdCoderRuntimeUserCenterBindingFromMetadata(
-  metadata?: BirdCoderUserCenterMetadataSummary | null,
-): void {
-  if (!metadata) {
-    return;
-  }
-
-  const currentConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
-  const providerKey = metadata.providerKey?.trim() || undefined;
-  const providerKind = resolveBirdCoderRuntimeUserCenterProviderKind(
-    metadata.mode,
-  );
-
-  configureDefaultBirdCoderIdeServicesRuntime({
-    ...currentConfig,
-    userCenter: {
-      ...(currentConfig.userCenter ?? {}),
-      ...(providerKey ? { providerKey } : {}),
-      providerKind,
-    },
   });
 }
 

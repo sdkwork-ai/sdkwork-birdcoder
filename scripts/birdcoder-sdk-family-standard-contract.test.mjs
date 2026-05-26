@@ -307,8 +307,8 @@ function assertOpenApiStandard(surface) {
   );
   assert.equal(
     document.components?.securitySchemes?.sdkworkAccessToken?.name,
-    'Sdkwork-Access-Token',
-    `${surface.inputSpecPath} must use Sdkwork-Access-Token as canonical access token header.`,
+    'Access-Token',
+    `${surface.inputSpecPath} must use Access-Token as canonical access token header.`,
   );
 
   const pathKeys = Object.keys(document.paths ?? {}).sort();
@@ -394,11 +394,22 @@ function assertOpenApiStandard(surface) {
       false,
       'backend SDK OpenAPI must not expose auth/session login endpoints.',
     );
-    assert.equal(
-      operations.some((operation) => operation.operation.operationId === 'users.list'),
-      false,
-      'backend SDK OpenAPI must not duplicate appbase-owned IAM user administration.',
-    );
+    for (const requiredBackendIamOperationId of [
+      'users.create',
+      'users.delete',
+      'users.list',
+      'users.retrieve',
+      'users.roles.create',
+      'users.roles.delete',
+      'users.roles.list',
+      'users.update',
+    ]) {
+      assert.equal(
+        operations.some((operation) => operation.operation.operationId === requiredBackendIamOperationId),
+        true,
+        `backend SDK OpenAPI must expose standard IAM operation ${requiredBackendIamOperationId}.`,
+      );
+    }
   }
 }
 
@@ -507,6 +518,16 @@ function assertReadmesAndGeneratedOutputs() {
   assert.match(rootReadme, /client\.auth\.sessions\.create/u);
   assert.match(
     rootReadme,
+    /Access-Token/u,
+    'SDK root README must document the canonical SDKWork v3 Access-Token header.',
+  );
+  assert.doesNotMatch(
+    rootReadme,
+    /Sdkwork-Access-Token/u,
+    'SDK root README must not document the retired non-standard Sdkwork-Access-Token header.',
+  );
+  assert.match(
+    rootReadme,
     /App SDK examples[\s\S]*client\.collaboration\.workspaceTeams\.list\(params\)/u,
     'SDK root README must separate app SDK examples and show workspace team reads through the collaboration workspaceTeams surface.',
   );
@@ -530,6 +551,16 @@ function assertReadmesAndGeneratedOutputs() {
     /client\.iam\.teams\.list\(params\)/u,
     'SDK root README backend examples must show backend IAM team governance.',
   );
+  assert.match(
+    backendSdkExampleSection,
+    /client\.iam\.users\.list\(\)/u,
+    'SDK root README backend examples must show standard IAM user administration.',
+  );
+  assert.match(
+    backendSdkExampleSection,
+    /client\.iam\.users\.roles\.list\(\{ userId \}\)/u,
+    'SDK root README backend examples must show standard IAM user role administration.',
+  );
   assert.doesNotMatch(
     backendSdkExampleSection,
     /client\.auth\.sessions\.create/u,
@@ -538,15 +569,20 @@ function assertReadmesAndGeneratedOutputs() {
   assert.doesNotMatch(rootReadme, /\/app\/v3\/api\/(?:platform|intelligence)\//u);
   assert.doesNotMatch(rootReadme, /\/backend\/v3\/api\/platform\//u);
   assert.doesNotMatch(rootReadme, /\bidentity\b/iu);
-  assert.doesNotMatch(
-    rootReadme,
-    /client\.iam\.(?:users|roles)\.list/u,
-    'SDK root README must not advertise appbase-owned IAM administration as BirdCoder generated SDK surface.',
-  );
   assert.match(
     rootReadme,
     /client\.iam\.users\.current\.retrieve\(\)/u,
     'SDK root README must show the app SDK current-user IAM surface instead of IAM user administration.',
+  );
+  assert.match(
+    rootReadme,
+    /client\.iam\.users\.list\(\)/u,
+    'SDK root README must show the backend SDK standard IAM users surface.',
+  );
+  assert.match(
+    rootReadme,
+    /client\.iam\.users\.roles\.list\(\{ userId \}\)/u,
+    'SDK root README must show the backend SDK standard IAM user roles surface.',
   );
   assert.match(
     rootReadme,
@@ -569,13 +605,12 @@ function assertReadmesAndGeneratedOutputs() {
     assert.match(readme, new RegExp(expected.packageName.replace('/', '\\/'), 'u'));
     assert.match(readme, new RegExp(expected.apiPrefix.replaceAll('/', '\\/'), 'u'));
     assert.match(readme, /Do not edit generated output by hand/u);
-    assert.doesNotMatch(
-      readme,
-      /client\.iam\.(?:users|roles)\.list/u,
-      `${expected.rootDir}/README.md must not advertise appbase-owned IAM administration as BirdCoder generated SDK surface.`,
-    );
-
     if (expected.surface === 'app') {
+      assert.doesNotMatch(
+        readme,
+        /client\.iam\.(?:users|roles)\.list/u,
+        'app SDK README must not advertise backend IAM administration.',
+      );
       assert.match(
         readme,
         /client\.auth\.sessions\.create\(body\)/u,
@@ -609,6 +644,16 @@ function assertReadmesAndGeneratedOutputs() {
         /client\.iam\.teams\.list\(params\)/u,
         'backend SDK README must show backend teams listing.',
       );
+      assert.match(
+        readme,
+        /client\.iam\.users\.list\(\)/u,
+        'backend SDK README must show standard IAM user listing.',
+      );
+      assert.match(
+        readme,
+        /client\.iam\.users\.roles\.list\(\{ userId \}\)/u,
+        'backend SDK README must show standard IAM user role listing.',
+      );
     }
 
     const tsPackageJson = readJson(`${expected.typescriptOutputPath}/package.json`);
@@ -637,7 +682,8 @@ function assertReadmesAndGeneratedOutputs() {
     assert.match(tsSdkSource, /createBirdcoder(?:App|Backend)SdkClient/u);
     assert.match(tsSdkSource, /from '\.\/api/u);
     assert.match(tsSdkSource, /from '\.\/http/u);
-    assert.match(tsHttpSource, /Sdkwork-Access-Token/u);
+    assert.match(tsHttpSource, /Access-Token/u);
+    assert.doesNotMatch(tsHttpSource, /Sdkwork-Access-Token/u);
     assert.match(tsHttpSource, /Authorization/u);
     assert.match(tsHttpSource, /export interface BirdcoderSdkTransport/u);
     assert.match(tsApiIndexSource, /export \* from/u);
@@ -733,10 +779,25 @@ function assertReadmesAndGeneratedOutputs() {
         /"key": "iam\.auditEvents\.list"[\s\S]*"domain": "iam"[\s\S]*"permission": "iam\.auditEvents\.read"[\s\S]*"resource": "iam\.auditEvents"[\s\S]*"tenantScope": "tenant"/u,
         'backend SDK generated descriptors must preserve canonical audit permission metadata.',
       );
-      assert.doesNotMatch(
+      assert.match(
         tsTypesIndexSource,
-        /"key": "iam\.users\.list"|export interface IamUsersListQuery/u,
-        'backend SDK must not regenerate appbase-owned IAM user operations.',
+        /"key": "iam\.users\.list"[\s\S]*"domain": "iam"[\s\S]*"permission": "iam\.users\.read"[\s\S]*"resource": "iam\.users"[\s\S]*"tenantScope": "tenant"/u,
+        'backend SDK generated descriptors must preserve standard IAM users metadata.',
+      );
+      assert.match(
+        tsTypesIndexSource,
+        /export interface BirdCoderCreateIamUserRequest/u,
+        'backend SDK must expose the standard IAM user create request schema.',
+      );
+      assert.match(
+        tsTypesIndexSource,
+        /export interface BirdCoderIamUserSummaryListEnvelope/u,
+        'backend SDK must expose the standard IAM user list response schema.',
+      );
+      assert.match(
+        tsTypesIndexSource,
+        /export interface BirdCoderIamUserRoleSummaryListEnvelope/u,
+        'backend SDK must expose the standard IAM user role list response schema.',
       );
       assert.match(
         tsTypesIndexSource,

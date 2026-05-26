@@ -95,9 +95,9 @@ const AuthPage = lazy(async () => {
   return loadAuthPage();
 });
 
-const UserCenterPage = lazy(async () => {
-  const { loadUserCenterPage } = await import('./pageLoaders.ts');
-  return loadUserCenterPage();
+const UserPage = lazy(async () => {
+  const { loadUserPage } = await import('./pageLoaders.ts');
+  return loadUserPage();
 });
 
 const VipPage = lazy(async () => {
@@ -290,8 +290,7 @@ function readDesktopWindowFrameStateClockMs(): number {
 }
 
 function persistWorkbenchRecoverySnapshot(snapshot: WorkbenchRecoverySnapshot): void {
-  void setStoredJson('workbench', 'recovery-context', snapshot).catch(() => {
-  });
+  void setStoredJson('workbench', 'recovery-context', snapshot).catch(() => {});
 }
 
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -321,7 +320,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             {this.props.t('app.unexpectedError')}
           </p>
           <div className="bg-[#18181b] p-4 rounded-lg border border-white/10 w-full max-w-2xl overflow-auto text-sm text-red-400 font-mono">
-            {this.state.error?.toString()}
+            {import.meta.env.PROD ? 'An unexpected error occurred. Please reload the application.' : this.state.error?.toString()}
           </div>
           <button 
             onClick={() => window.location.reload()}
@@ -743,7 +742,7 @@ const AppMainBody = React.memo(function AppMainBody({
           )}
           {activeTab === 'auth' && <AuthPage />}
           {activeTab === 'user' && (
-            <UserCenterPage
+            <UserPage
               onAuthenticationRequired={() => onRequireAuth('user')}
             />
           )}

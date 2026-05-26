@@ -14,6 +14,8 @@ Example TypeScript calls:
 ```ts
 client.iam.auditEvents.list();
 client.iam.policies.list();
+client.iam.users.list();
+client.iam.users.roles.list({ userId });
 client.iam.teams.list(params);
 client.iam.teams.members.list({ teamId });
 client.platform.releases.list(params);

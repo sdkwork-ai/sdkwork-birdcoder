@@ -329,17 +329,15 @@ assert.deepEqual(
     'release-deployment-release-assets',
     'sdkwork-birdcoder-architecture',
     'birdcoder-iam-standard',
-    'user-center-standard',
-    'user-center-upstream-sync-payload',
-    'user-center-upstream-sync-workflow',
+    'birdcoder-iam-no-legacy-identity',
     'release-closure',
   ],
 );
 assert.deepEqual(executedChecks, GOVERNANCE_REGRESSION_CHECKS.map((check) => check.id));
 assert.equal(passedReport.status, 'passed');
 assert.equal(passedReport.generatedAt, '2026-04-08T15:30:00.000Z');
-assert.equal(passedReport.summary.totalChecks, 112);
-assert.equal(passedReport.summary.passedCount, 112);
+assert.equal(passedReport.summary.totalChecks, 110);
+assert.equal(passedReport.summary.passedCount, 110);
 assert.equal(passedReport.summary.blockedCount, 0);
 assert.equal(passedReport.summary.failedCount, 0);
 assert.deepEqual(passedReport.summary.blockedCheckIds, []);
@@ -459,9 +457,7 @@ assert.deepEqual(
     'node scripts/release/smoke-deployment-release-assets.test.mjs',
     'node scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
     'node scripts/birdcoder-iam-standard-contract.test.mjs',
-    'node scripts/run-user-center-standard.mjs',
-    'node scripts/user-center-upstream-sync-payload.test.mjs',
-    'node scripts/user-center-upstream-sync-workflow.test.mjs',
+    'node scripts/birdcoder-iam-no-legacy-identity-contract.test.mjs',
     'node scripts/check-release-closure.mjs',
   ],
 );
@@ -517,7 +513,7 @@ const blockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(blockedReport.status, 'blocked');
-assert.equal(blockedReport.summary.passedCount, 111);
+assert.equal(blockedReport.summary.passedCount, 109);
 assert.equal(blockedReport.summary.blockedCount, 1);
 assert.equal(blockedReport.summary.failedCount, 0);
 assert.deepEqual(blockedReport.summary.blockedCheckIds, ['web-bundle-budget']);
@@ -576,7 +572,7 @@ const runnerBlockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(runnerBlockedReport.status, 'blocked');
-assert.equal(runnerBlockedReport.summary.passedCount, 111);
+assert.equal(runnerBlockedReport.summary.passedCount, 109);
 assert.equal(runnerBlockedReport.summary.blockedCount, 1);
 assert.equal(runnerBlockedReport.summary.failedCount, 0);
 assert.deepEqual(runnerBlockedReport.summary.blockedCheckIds, ['web-bundle-budget']);

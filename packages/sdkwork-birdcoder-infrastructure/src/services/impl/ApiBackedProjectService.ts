@@ -31,6 +31,7 @@ import {
   retryBirdCoderTransientApiTask,
 } from '../runtimeApiRetry.ts';
 import { resolveRequiredCodingSessionSelection } from '../codingSessionSelection.ts';
+import { CurrentUserScopeResolver } from '../currentUserScope.ts';
 import type {
   BirdCoderCodingSessionMirrorSnapshot,
   BirdCoderProjectMirrorSnapshot,
@@ -87,21 +88,6 @@ type LocalProjectSnapshot =
 
 interface CodingSessionProjectionOptions {
   preserveLocalMessages?: boolean;
-}
-
-function isOptionalIdentityResolutionError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return (
-    error.message.includes('/app/v3/api/iam/users/current')
-    || error.message.includes('/app/v3/api/auth/sessions/current')
-    || error.message.includes('requires a bound coding-server runtime')
-    || error.message.includes(' -> 401')
-    || error.message.includes(' -> 403')
-    || error.message.includes(' -> 404')
-  );
 }
 
 function hasCodingSessionMessages(
@@ -1480,7 +1466,7 @@ export class ApiBackedProjectService implements IProjectService {
   private readonly appClient: BirdCoderAppSdkApiClient;
   private readonly codingSessionMirror?: IProjectSessionMirror;
   private readonly codingRuntimeClient: BirdCoderAppRuntimeSdkApiClient;
-  private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  private readonly currentUserScopeResolver: CurrentUserScopeResolver;
   private readonly projectMirror?: ProjectSummaryMirror;
   private readonly projectSummaryMirrors: readonly ProjectSummaryMirror[];
   private readonly readCache = new Map<string, ReadCacheEntry<unknown>>();
@@ -1505,7 +1491,9 @@ export class ApiBackedProjectService implements IProjectService {
     this.appClient = appClient;
     this.codingSessionMirror = codingSessionMirror;
     this.codingRuntimeClient = (codingRuntimeClient ?? appClient) as BirdCoderAppRuntimeSdkApiClient;
-    this.currentUserProvider = currentUserProvider;
+    this.currentUserScopeResolver = new CurrentUserScopeResolver({
+      currentUserProvider,
+    });
     this.projectMirror = projectMirror;
     this.projectSummaryMirrors = collectProjectSummaryMirrors(
       projectMirror,
@@ -1516,17 +1504,8 @@ export class ApiBackedProjectService implements IProjectService {
   }
 
   private async resolveCurrentUserId(): Promise<string | undefined> {
-    try {
-      const user = await this.currentUserProvider?.getCurrentUser();
-      const userId = user?.id?.trim();
-      return userId && userId.length > 0 ? userId : undefined;
-    } catch (error) {
-      if (isOptionalIdentityResolutionError(error)) {
-        return undefined;
-      }
-
-      throw error;
-    }
+    const scope = await this.currentUserScopeResolver.resolve();
+    return scope.userId === 'anonymous' ? undefined : scope.userId;
   }
 
   private buildCacheKey(scope: string, payload?: unknown): string {

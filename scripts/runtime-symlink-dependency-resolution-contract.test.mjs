@@ -192,7 +192,6 @@ const packageDependencyExpectations = [
     packageName: '@sdkwork/birdcoder-user',
     dependencies: {
       '@babel/runtime': '^7.29.2',
-      'react-i18next': '^17.0.2',
     },
   },
   {
@@ -259,16 +258,6 @@ const runtimeResolutionChecks = [
   {
     packageName: '@sdkwork/birdcoder-auth',
     entryPath: ['src', 'pages', 'AuthPage.tsx'],
-    dependencies: ['react-i18next'],
-  },
-  {
-    packageName: '@sdkwork/birdcoder-user',
-    entryPath: ['src', 'pages', 'UserCenterPage.tsx'],
-    dependencies: ['react-i18next'],
-  },
-  {
-    packageName: '@sdkwork/birdcoder-user',
-    entryPath: ['src', 'pages', 'VipPage.tsx'],
     dependencies: ['react-i18next'],
   },
   {

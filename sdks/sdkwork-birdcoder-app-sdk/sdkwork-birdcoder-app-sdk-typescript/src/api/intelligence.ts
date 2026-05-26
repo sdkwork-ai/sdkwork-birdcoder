@@ -3,8 +3,8 @@
 import type {
   BirdcoderSdkRequestOperation,
   BirdcoderSdkRequestOptions,
-} from '../http';
-import type * as Types from '../types';
+} from '../http/index.ts';
+import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 type IntelligenceApprovalsDecisionsCreatePathParams = Types.IntelligenceApprovalsDecisionsCreatePathParams;

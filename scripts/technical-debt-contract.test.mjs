@@ -71,11 +71,6 @@ const allowedDebtTokenLines = [
     reason: 'database migration guidance requires a deprecation timestamp field',
   },
   {
-    relativePath: '../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/src/user_center_authority.rs',
-    pattern: /deprecated_at TEXT NULL/u,
-    reason: 'appbase native user-center schema carries a nullable lifecycle timestamp column',
-  },
-  {
     relativePath: 'packages/sdkwork-birdcoder-server/src/index.ts',
     pattern: /BIRDCODER_MODEL_STATUSES = \['active', 'preview', 'deprecated', 'disabled'\]/u,
     reason: 'model catalog exposes deprecated as a business lifecycle status',
@@ -96,19 +91,14 @@ const allowedDebtTokenLines = [
     reason: 'contract forbids reintroducing a deprecated VIP route option',
   },
   {
-    relativePath: 'scripts/user-center-plus-entity-standard-contract.test.mjs',
-    pattern: /'deprecated_at'/u,
-    reason: 'user-center schema contract freezes the lifecycle timestamp column',
-  },
-  {
-    relativePath: 'scripts/user-center-plus-entity-standard-contract.test.mjs',
-    pattern: /deprecated_at: 'TEXT NULL'/u,
-    reason: 'user-center schema contract freezes nullable lifecycle timestamp DDL',
-  },
-  {
     relativePath: 'sdks/specs/openapi/birdcoder-app-v3.openapi.json',
     pattern: /^\s*"deprecated",\s*$/u,
     reason: 'SDK OpenAPI model catalog exposes deprecated as a business lifecycle status',
+  },
+  {
+    relativePath: 'sdks/server/windows/x64/openapi/coding-server-v1.json',
+    pattern: /^\s*"deprecated",\s*$/u,
+    reason: 'generated coding-server OpenAPI model catalog exposes deprecated as a business lifecycle status',
   },
   {
     relativePath:

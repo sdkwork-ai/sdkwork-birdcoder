@@ -813,7 +813,9 @@ function buildJavaLongIdentifierColumnSql(
   column: BirdCoderSchemaColumnDefinition,
   providerId: SupportedBirdCoderProviderId,
 ): string | null {
-  const javaLongColumns = JAVA_LONG_IDENTIFIER_COLUMNS_BY_ENTITY[definition.entityName];
+  const javaLongColumns = JAVA_LONG_IDENTIFIER_COLUMNS_BY_ENTITY[
+    definition.entityName as keyof typeof JAVA_LONG_IDENTIFIER_COLUMNS_BY_ENTITY
+  ];
   if (!(javaLongColumns as readonly string[] | undefined)?.includes(column.name)) {
     return null;
   }
@@ -1150,7 +1152,9 @@ function buildJavaBaseJsonConverterTextColumnSql(
   definition: BirdCoderEntityDefinition,
   column: BirdCoderSchemaColumnDefinition,
 ): string | null {
-  const textColumns = JAVA_BASE_JSON_CONVERTER_TEXT_COLUMNS_BY_ENTITY[definition.entityName];
+  const textColumns = JAVA_BASE_JSON_CONVERTER_TEXT_COLUMNS_BY_ENTITY[
+    definition.entityName as keyof typeof JAVA_BASE_JSON_CONVERTER_TEXT_COLUMNS_BY_ENTITY
+  ];
   if (!(textColumns as readonly string[] | undefined)?.includes(column.name)) {
     return null;
   }
@@ -1168,7 +1172,9 @@ function buildSqliteInlineUniqueTextColumnSql(
     return null;
   }
 
-  const uniqueTextColumns = SQLITE_INLINE_UNIQUE_TEXT_COLUMNS_BY_ENTITY[definition.entityName];
+  const uniqueTextColumns = SQLITE_INLINE_UNIQUE_TEXT_COLUMNS_BY_ENTITY[
+    definition.entityName as keyof typeof SQLITE_INLINE_UNIQUE_TEXT_COLUMNS_BY_ENTITY
+  ];
   if (!(uniqueTextColumns as readonly string[] | undefined)?.includes(column.name)) {
     return null;
   }

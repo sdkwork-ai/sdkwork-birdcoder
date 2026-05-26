@@ -1,4 +1,8 @@
 import { stringifyBirdCoderApiJson } from '@sdkwork/birdcoder-types';
+import {
+  CurrentUserScopeResolver,
+  type CurrentUserScope,
+} from '../currentUserScope.ts';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { IAppRuntimeReadService } from '../interfaces/IAppRuntimeReadService.ts';
 import type { BirdCoderAppRuntimeReadSdkApiClient } from '../sdkClients.ts';
@@ -12,6 +16,11 @@ interface ReadCacheEntry<T> {
   expiresAt: number;
   inflight: Promise<T> | null;
   value?: T;
+}
+
+interface UserScopedCacheKey {
+  cacheable: boolean;
+  key: string;
 }
 
 const INFLIGHT_ONLY_TTL_MS = 0;
@@ -49,26 +58,32 @@ function stableSerializeCacheKeyPart(value: unknown): string {
 
 export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
   private readonly client: BirdCoderAppRuntimeReadSdkApiClient;
-  private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  private readonly currentUserScopeResolver: CurrentUserScopeResolver;
   private readonly readCache = new Map<string, ReadCacheEntry<unknown>>();
 
   constructor({ client, currentUserProvider }: ApiBackedAppRuntimeReadServiceOptions) {
     this.client = client;
-    this.currentUserProvider = currentUserProvider;
-  }
-
-  private async resolveCurrentUserScope(): Promise<string> {
-    const user = await this.currentUserProvider?.getCurrentUser();
-    const userId = user?.id?.trim();
-    return userId && userId.length > 0 ? userId : 'anonymous';
-  }
-
-  private async buildUserScopedCacheKey(scope: string, payload?: unknown): Promise<string> {
-    const userScope = await this.resolveCurrentUserScope();
-    return this.buildCacheKey(scope, {
-      payload: payload ?? null,
-      userId: userScope,
+    this.currentUserScopeResolver = new CurrentUserScopeResolver({
+      currentUserProvider,
     });
+  }
+
+  private async resolveCurrentUserScope(): Promise<CurrentUserScope> {
+    return this.currentUserScopeResolver.resolve();
+  }
+
+  private async buildUserScopedCacheKey(
+    scope: string,
+    payload?: unknown,
+  ): Promise<UserScopedCacheKey> {
+    const userScope = await this.resolveCurrentUserScope();
+    return {
+      cacheable: userScope.cacheable,
+      key: this.buildCacheKey(scope, {
+        payload: payload ?? null,
+        userId: userScope.userId,
+      }),
+    };
   }
 
   private buildCacheKey(scope: string, payload?: unknown): string {
@@ -153,10 +168,10 @@ export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
   }
 
   async getCodingSession(codingSessionId: string) {
-    const key = await this.buildUserScopedCacheKey('getCodingSession', codingSessionId);
+    const cacheKey = await this.buildUserScopedCacheKey('getCodingSession', codingSessionId);
     return this.readThroughCache(
-      key,
-      SESSION_DETAIL_TTL_MS,
+      cacheKey.key,
+      cacheKey.cacheable ? SESSION_DETAIL_TTL_MS : INFLIGHT_ONLY_TTL_MS,
       () => this.client.getCodingSession(codingSessionId),
     );
   }
@@ -182,13 +197,13 @@ export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
   }
 
   async getNativeSession(codingSessionId: string, request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['getNativeSession']>[1]) {
-    const key = await this.buildUserScopedCacheKey('getNativeSession', {
+    const cacheKey = await this.buildUserScopedCacheKey('getNativeSession', {
       codingSessionId,
       request,
     });
     return this.readThroughCache(
-      key,
-      SESSION_DETAIL_TTL_MS,
+      cacheKey.key,
+      cacheKey.cacheable ? SESSION_DETAIL_TTL_MS : INFLIGHT_ONLY_TTL_MS,
       () => this.client.getNativeSession(codingSessionId, request),
     );
   }
@@ -206,43 +221,43 @@ export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
   }
 
   async listCodingSessionArtifacts(codingSessionId: string) {
-    const key = await this.buildUserScopedCacheKey(
+    const cacheKey = await this.buildUserScopedCacheKey(
       'listCodingSessionArtifacts',
       codingSessionId,
     );
     return this.readThroughCache(
-      key,
+      cacheKey.key,
       INFLIGHT_ONLY_TTL_MS,
       () => this.client.listCodingSessionArtifacts(codingSessionId),
     );
   }
 
   async listCodingSessionCheckpoints(codingSessionId: string) {
-    const key = await this.buildUserScopedCacheKey(
+    const cacheKey = await this.buildUserScopedCacheKey(
       'listCodingSessionCheckpoints',
       codingSessionId,
     );
     return this.readThroughCache(
-      key,
+      cacheKey.key,
       INFLIGHT_ONLY_TTL_MS,
       () => this.client.listCodingSessionCheckpoints(codingSessionId),
     );
   }
 
   async listCodingSessionEvents(codingSessionId: string) {
-    const key = await this.buildUserScopedCacheKey('listCodingSessionEvents', codingSessionId);
+    const cacheKey = await this.buildUserScopedCacheKey('listCodingSessionEvents', codingSessionId);
     return this.readThroughCache(
-      key,
-      SESSION_DETAIL_TTL_MS,
+      cacheKey.key,
+      cacheKey.cacheable ? SESSION_DETAIL_TTL_MS : INFLIGHT_ONLY_TTL_MS,
       () => this.client.listCodingSessionEvents(codingSessionId),
     );
   }
 
   async listCodingSessions(request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listCodingSessions']>[0]) {
-    const key = await this.buildUserScopedCacheKey('listCodingSessions', request);
+    const cacheKey = await this.buildUserScopedCacheKey('listCodingSessions', request);
     return this.readThroughCache(
-      key,
-      SESSION_INVENTORY_TTL_MS,
+      cacheKey.key,
+      cacheKey.cacheable ? SESSION_INVENTORY_TTL_MS : INFLIGHT_ONLY_TTL_MS,
       () => this.client.listCodingSessions(request),
     );
   }
@@ -280,10 +295,10 @@ export class ApiBackedAppRuntimeReadService implements IAppRuntimeReadService {
   }
 
   async listNativeSessions(request?: Parameters<BirdCoderAppRuntimeReadSdkApiClient['listNativeSessions']>[0]) {
-    const key = await this.buildUserScopedCacheKey('listNativeSessions', request);
+    const cacheKey = await this.buildUserScopedCacheKey('listNativeSessions', request);
     return this.readThroughCache(
-      key,
-      SESSION_INVENTORY_TTL_MS,
+      cacheKey.key,
+      cacheKey.cacheable ? SESSION_INVENTORY_TTL_MS : INFLIGHT_ONLY_TTL_MS,
       () => this.client.listNativeSessions(request),
     );
   }

@@ -158,11 +158,12 @@ const transport = {
         return createListEnvelope([
           {
             id: 'audit-generated-facade',
-            scopeType: 'workspace',
-            scopeId: 'workspace-generated-facade',
-            eventType: 'release.promoted',
+            tenantId: '0',
+            action: 'release.promoted',
+            resourceType: 'workspace',
+            resourceId: 'workspace-generated-facade',
             createdAt: '2026-04-11T15:00:00.000Z',
-            payload: {
+            detail: {
               actor: 'release-bot',
               stage: 'stable',
             },
@@ -172,12 +173,17 @@ const transport = {
         return createListEnvelope([
           {
             id: 'policy-generated-facade',
-            scopeType: 'workspace',
-            scopeId: 'workspace-generated-facade',
-            policyCategory: 'terminal',
-            targetType: 'engine',
-            targetId: 'codex',
-            approvalPolicy: 'Restricted',
+            tenantId: '0',
+            code: 'terminal.engine.codex',
+            name: 'Codex terminal approval policy',
+            policy: {
+              approvalPolicy: 'Restricted',
+              policyCategory: 'terminal',
+              scopeId: 'workspace-generated-facade',
+              scopeType: 'workspace',
+              targetId: 'codex',
+              targetType: 'engine',
+            },
             status: 'active',
             updatedAt: '2026-04-11T16:30:00.000Z',
           },
@@ -225,9 +231,9 @@ assert.equal(deploymentTargets[0]?.projectId, 'project-generated-facade');
 assert.equal(deploymentTargets[0]?.runtime, 'web');
 assert.equal(releases[0]?.id, 'release-generated-facade');
 assert.equal(auditEvents[0]?.id, 'audit-generated-facade');
-assert.equal(auditEvents[0]?.scopeId, 'workspace-generated-facade');
+assert.equal(auditEvents[0]?.resourceId, 'workspace-generated-facade');
 assert.equal(policies[0]?.id, 'policy-generated-facade');
-assert.equal(policies[0]?.approvalPolicy, 'Restricted');
+assert.equal(policies[0]?.policy.approvalPolicy, 'Restricted');
 assert.deepEqual(
   observedRequests.map((request) => ({
     method: request.method,

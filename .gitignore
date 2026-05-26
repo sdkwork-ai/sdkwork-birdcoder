@@ -26,5 +26,6 @@ claude-*.txt
 codex-*.txt
 console.log*
 packages/sdkwork-birdcoder-desktop/.local/
+packages/sdkwork-birdcoder-server/.local/
 .env*
 !.env.example

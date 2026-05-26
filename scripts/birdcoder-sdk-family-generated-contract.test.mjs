@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -30,6 +31,35 @@ function run(command, args, options = {}) {
 
 run(process.execPath, ['scripts/sync-birdcoder-sdk-openapi.mjs', '--check']);
 run(process.execPath, ['scripts/generate-birdcoder-sdk-family.mjs', '--check']);
+
+function assertNoStaleGeneratedApiFiles(relativePackageDir) {
+  const apiDir = path.join(rootDir, relativePackageDir, 'src', 'api');
+  const apiIndexSource = fs.readFileSync(path.join(apiDir, 'index.ts'), 'utf8');
+  const exportedApiFiles = new Set(
+    Array.from(
+      apiIndexSource.matchAll(/export\s+\*\s+from ['"]\.\/([^'"]+\.ts)['"]/gu),
+      (match) => match[1],
+    ),
+  );
+  const actualApiFiles = new Set(
+    fs.readdirSync(apiDir)
+      .filter((fileName) => fileName.endsWith('.ts'))
+      .filter((fileName) => fileName !== 'index.ts'),
+  );
+
+  assert.deepEqual(
+    [...actualApiFiles].sort(),
+    [...exportedApiFiles].sort(),
+    `${relativePackageDir}/src/api must not keep stale generated API files that are no longer exported by src/api/index.ts.`,
+  );
+}
+
+for (const relativeDir of [
+  'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript',
+  'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript',
+]) {
+  assertNoStaleGeneratedApiFiles(relativeDir);
+}
 
 for (const relativeDir of [
   'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript',

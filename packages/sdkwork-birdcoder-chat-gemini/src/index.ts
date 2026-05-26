@@ -1019,7 +1019,7 @@ export class GeminiChatEngine implements IChatEngine {
       loader: this.officialSdkBridgeLoader,
       messages,
       options,
-      fallback: async function* fallbackStream(_streamOptions) {
+      fallback: async function* (this: GeminiChatEngine, _streamOptions: ChatOptions) {
         yield* this.streamMessageViaGeminiCli(messages, _streamOptions);
       }.bind(this),
     });

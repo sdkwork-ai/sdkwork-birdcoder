@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
-const appbaseRoot = path.resolve(workspaceRoot, '..', 'sdkwork-appbase');
 
 function readText(relativePath) {
   const absolutePath = path.join(workspaceRoot, relativePath);
@@ -11,17 +10,9 @@ function readText(relativePath) {
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
-function readAppbaseText(relativePath) {
-  const absolutePath = path.join(appbaseRoot, relativePath);
-  assert.ok(fs.existsSync(absolutePath), `Expected file to exist: ${absolutePath}`);
-  return fs.readFileSync(absolutePath, 'utf8');
-}
-
 const serverSource = readText('packages/sdkwork-birdcoder-server/src-host/src/lib.rs');
 const desktopSource = readText('packages/sdkwork-birdcoder-desktop/src-tauri/src/lib.rs');
-const userCenterSource = readAppbaseText(
-  'packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust/src/user_center_authority.rs',
-);
+const iamAuthoritySource = readText('packages/sdkwork-birdcoder-server/src-host/src/iam_authority.rs');
 const bootstrapCatalogSource = readText(
   'packages/sdkwork-birdcoder-infrastructure/src/storage/bootstrapConsoleCatalog.ts',
 );
@@ -93,9 +84,14 @@ for (const [label, source, expectedPattern] of [
     /const DEFAULT_BOOTSTRAP_WORKSPACE_OWNER_USER_ID: &str = "100000000000000001";/u,
   ],
   [
-    'User center bootstrap tenant id',
-    userCenterSource,
-    /const DEFAULT_LOCAL_TENANT_ID: &str = "0";/u,
+    'BirdCoder IAM authority bootstrap tenant id',
+    iamAuthoritySource,
+    /const DEFAULT_TENANT_ID: &str = "0";/u,
+  ],
+  [
+    'BirdCoder IAM authority bootstrap organization id',
+    iamAuthoritySource,
+    /const DEFAULT_ORGANIZATION_ID: &str = "0";/u,
   ],
 ]) {
   assert.match(source, expectedPattern, `${label} must use decimal-string long identifiers.`);

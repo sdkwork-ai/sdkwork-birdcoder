@@ -9,7 +9,6 @@ const requiredPaths = [
   '.github/workflows/ci.yml',
   '.github/workflows/release.yml',
   '.github/workflows/release-reusable.yml',
-  '.github/workflows/user-center-upstream-sync.yml',
   'deploy/docker/Dockerfile',
   'deploy/docker/docker-compose.yml',
   'deploy/kubernetes/Chart.yaml',
@@ -72,15 +71,10 @@ const requiredPaths = [
   'scripts/generate-birdcoder-sdk-family.mjs',
   'scripts/birdcoder-sdk-family-standard-contract.test.mjs',
   'scripts/birdcoder-sdk-family-generated-contract.test.mjs',
-  'scripts/run-user-center-standard.mjs',
-  'scripts/run-user-center-standard.test.mjs',
   'scripts/birdcoder-iam-standard-contract.test.mjs',
-  'scripts/birdcoder-iam-appbase-parity-contract.test.mjs',
-  'scripts/user-center-plus-entity-standard-contract.test.mjs',
-  'scripts/user-center-upstream-sync-payload.mjs',
-  'scripts/user-center-upstream-sync-payload.test.mjs',
-  'scripts/user-center-upstream-sync-workflow.test.mjs',
-  'scripts/user-center-standard.test.mjs',
+  'scripts/birdcoder-iam-shared-surface-contract.test.mjs',
+  'scripts/birdcoder-iam-runtime-standard-contract.test.mjs',
+  'scripts/birdcoder-iam-no-legacy-identity-contract.test.mjs',
   'scripts/governance-regression-report.mjs',
   'scripts/governance-regression-report.test.mjs',
   'scripts/quality-gate-execution-report.mjs',
@@ -175,6 +169,7 @@ const requiredPaths = [
   'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust/src/lib.rs',
   'packages/sdkwork-birdcoder-shell/package.json',
   'packages/sdkwork-birdcoder-shell-runtime/package.json',
+  'packages/sdkwork-birdcoder-iam/package.json',
   'packages/sdkwork-birdcoder-auth/package.json',
   'packages/sdkwork-birdcoder-user/package.json',
   'packages/sdkwork-birdcoder-web/package.json',
@@ -234,8 +229,8 @@ assert.match(
 );
 assert.match(
   rootPackageJson.scripts?.['check:iam-standard'] ?? '',
-  /user-center-plus-entity-standard-contract\.test\.mjs/,
-  'check:iam-standard must include the appbase user-center physical schema contract so IAM database standard drift cannot bypass architecture governance.',
+  /birdcoder-iam-no-legacy-identity-contract\.test\.mjs/,
+  'check:iam-standard must include the no-legacy-identity contract so retired compatibility surfaces cannot bypass architecture governance.',
 );
 assert.ok(rootPackageJson.scripts?.['check:data-kernel'], 'Missing check:data-kernel script');
 for (const dataKernelContract of [
@@ -255,8 +250,8 @@ for (const dataKernelContract of [
 }
 assert.equal(
   rootPackageJson.scripts?.['test:user-center-standard'],
-  'node scripts/run-user-center-standard.mjs',
-  'Root package must expose the canonical user-center standard runner as a first-class verification command.',
+  undefined,
+  'Root package must not expose the retired user-center standard runner.',
 );
 assert.equal(
   rootPackageJson.scripts?.['check:sdkwork-birdcoder-structure-contract'],
@@ -387,8 +382,13 @@ const shellPackageJson = JSON.parse(
 
 assert.equal(
   shellPackageJson.dependencies?.['@sdkwork/birdcoder-auth'],
+  undefined,
+  '@sdkwork/birdcoder-shell must not bind directly to the auth UI package; runtime-backed auth loading is owned by @sdkwork/birdcoder-iam.',
+);
+assert.equal(
+  shellPackageJson.dependencies?.['@sdkwork/birdcoder-iam'],
   'workspace:*',
-  '@sdkwork/birdcoder-shell must depend on the unified @sdkwork/birdcoder-auth integration package.',
+  '@sdkwork/birdcoder-shell must depend on the standard @sdkwork/birdcoder-iam integration package.',
 );
 assert.equal(
   shellPackageJson.dependencies?.['@sdkwork/birdcoder-user'],
@@ -396,6 +396,9 @@ assert.equal(
   '@sdkwork/birdcoder-shell must depend on the unified @sdkwork/birdcoder-user integration package.',
 );
 
+const iamPackageJson = JSON.parse(
+  fs.readFileSync(path.join(rootDir, 'packages', 'sdkwork-birdcoder-iam', 'package.json'), 'utf8'),
+);
 const authPackageJson = JSON.parse(
   fs.readFileSync(path.join(rootDir, 'packages', 'sdkwork-birdcoder-auth', 'package.json'), 'utf8'),
 );
@@ -404,9 +407,29 @@ const userPackageJson = JSON.parse(
 );
 
 assert.equal(
+  iamPackageJson.name,
+  '@sdkwork/birdcoder-iam',
+  'The IAM integration package must be named @sdkwork/birdcoder-iam.',
+);
+assert.equal(
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-auth'],
+  'workspace:*',
+  'The IAM integration package must compose the auth UI package.',
+);
+assert.equal(
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure'],
+  'workspace:*',
+  'The IAM integration package must bind auth UI to the generated-SDK backed infrastructure runtime.',
+);
+assert.equal(
   authPackageJson.name,
   '@sdkwork/birdcoder-auth',
-  'The unified auth bridge package must be named @sdkwork/birdcoder-auth.',
+  'The auth UI bridge package must be named @sdkwork/birdcoder-auth.',
+);
+assert.equal(
+  authPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure-runtime'],
+  undefined,
+  'The auth UI bridge package must not depend on infrastructure runtime; runtime injection belongs to @sdkwork/birdcoder-iam.',
 );
 assert.equal(
   userPackageJson.name,
@@ -441,12 +464,10 @@ assert.doesNotMatch(
 
 for (const exportTarget of [
   './pageLoaders.ts',
-  './storage.ts',
-  './user-center-runtime.ts',
-  './user-center.ts',
   './user.ts',
-  './validation.ts',
   './vip.ts',
+  './user-surface.ts',
+  './vip-surface.ts',
 ]) {
   assert.match(
     userIndexSource,
@@ -460,13 +481,13 @@ assert.doesNotMatch(
   'sdkwork-birdcoder-user/src/index.ts must not export retired local profile/VIP storage.',
 );
 for (const lazyPageTarget of [
-  './pages/UserCenterPage.tsx',
+  './pages/UserPage.tsx',
   './pages/VipPage.tsx',
 ]) {
   assert.doesNotMatch(
     userIndexSource,
     new RegExp(`export \\* from ['"]${lazyPageTarget.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]`, 'u'),
-    `sdkwork-birdcoder-user/src/index.ts must not statically export ${lazyPageTarget} because user-center pages load through pageLoaders to preserve lazy page boundaries.`,
+    `sdkwork-birdcoder-user/src/index.ts must not statically export ${lazyPageTarget} because user pages load through pageLoaders to preserve lazy page boundaries.`,
   );
 }
 
@@ -482,15 +503,9 @@ const vipSource = fs.readFileSync(
   path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'src', 'vip.ts'),
   'utf8',
 );
-const userCenterSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'src', 'user-center.ts'),
-  'utf8',
-);
-
 for (const sourcePackageName of [
   '@sdkwork/auth-pc-react',
   '@sdkwork/user-pc-react',
-  '@sdkwork/vip-pc-react',
 ]) {
   assert.match(
     `${authSource}\n${userSource}\n${vipSource}`,
@@ -498,6 +513,11 @@ for (const sourcePackageName of [
     `BirdCoder IAM adapters must trace the upstream ${sourcePackageName} capability.`,
   );
 }
+assert.doesNotMatch(
+  vipSource,
+  /@sdkwork\/vip-pc-react/u,
+  'BirdCoder VIP adapter must not trace the retired shared VIP UI package; commerce membership is owned by the generated BirdCoder app SDK.',
+);
 
 for (const requiredAuthSurface of [
   'BirdCoderAuthWorkspaceManifest',
@@ -543,23 +563,10 @@ for (const requiredVipSurface of [
   );
 }
 
-for (const requiredUserCenterSurface of [
-  'createBirdCoderUserCenterPluginDefinition',
-  'createBirdCoderUserCenterServerPluginDefinition',
-  'BIRDCODER_USER_CENTER_PLUGIN_PACKAGES',
-]) {
-  assert.match(
-    userCenterSource,
-    new RegExp(requiredUserCenterSurface.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
-    `sdkwork-birdcoder-user user-center bridge must expose ${requiredUserCenterSurface}.`,
-  );
-}
-
 for (const scriptName of [
   'dev',
   'build',
   'lint',
-  'test:user-center-standard',
   'check:arch',
   'check:sdkwork-birdcoder-structure',
   'check:governance-regression',

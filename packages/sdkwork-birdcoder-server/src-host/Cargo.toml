@@ -14,7 +14,10 @@ serde_json = "1"
 sha2 = "0.10"
 sdkwork-birdcoder-codeengine = { path = "../../sdkwork-birdcoder-codeengine/src-host" }
 sdkwork-birdcoder-git = { path = "../../sdkwork-birdcoder-git/src-host" }
-sdkwork_user_center_native = { path = "../../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-core-pc-react/native/tauri-rust" }
+sdkwork_iam_core = { path = "../../../../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-core-rust" }
+sdkwork_iam_http = { path = "../../../../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-http-rust" }
+sdkwork_iam_storage_sqlx = { path = "../../../../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust" }
+sdkwork_iam_tauri = { path = "../../../../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-tauri-rust" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
 tower-http = { version = "0.6", features = ["cors"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }

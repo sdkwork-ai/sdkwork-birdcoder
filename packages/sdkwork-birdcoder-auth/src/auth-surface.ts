@@ -1,27 +1,24 @@
 import {
-  createSdkworkAuthUserFromCanonicalIdentity,
-  createSdkworkCanonicalAuthController,
-  createSdkworkSyntheticAuthSession,
+  createSdkworkIamRuntimeAuthController,
   isSdkworkAuthLeftRailMode,
   isSdkworkAuthLoginMethod,
-  resolveSdkworkAuthRuntimeConfigFromMetadata,
-  type CreateSdkworkCanonicalAuthControllerOptions,
+  resolveSdkworkAuthDevelopmentPrefill,
+  resolveSdkworkAuthLoginMethods,
+  resolveSdkworkAuthOAuthProviderRegion,
+  resolveSdkworkAuthOAuthProviders,
+  resolveSdkworkAuthRecoveryMethods,
+  resolveSdkworkAuthRegisterMethods,
+  resolveSdkworkAuthVerificationPolicy,
+  type CreateSdkworkIamRuntimeAuthControllerOptions,
   type SdkworkAuthController,
   type SdkworkAuthDevelopmentPrefillConfig,
   type SdkworkAuthLeftRailMode,
   type SdkworkAuthRuntimeConfig,
-  type SdkworkAuthSession,
-  type SdkworkAuthUser,
 } from "@sdkwork/auth-pc-react";
-import type {
-  BirdCoderUserCenterMetadataSummary,
-  User,
-} from "@sdkwork/birdcoder-types";
-import {
-  resolveBirdCoderRuntimeUserCenterProviderKind,
-} from "@sdkwork/birdcoder-core";
 
 const DEFAULT_BIRDCODER_AUTH_LEFT_RAIL_MODE: SdkworkAuthLeftRailMode = "qr-only";
+const BIRDCODER_AUTH_METHOD_UNAVAILABLE_MESSAGE =
+  "This BirdCoder sign-in method is temporarily unavailable.";
 
 function readBirdCoderPublicEnvValue(...keys: string[]): string | undefined {
   const meta = import.meta as ImportMeta & {
@@ -71,31 +68,36 @@ function resolveBirdCoderAuthLeftRailMode(): SdkworkAuthLeftRailMode {
     : DEFAULT_BIRDCODER_AUTH_LEFT_RAIL_MODE;
 }
 
-function resolveBirdCoderAuthDevelopmentPrefill(
-  authConfig?: BirdCoderUserCenterMetadataSummary | null,
-): SdkworkAuthDevelopmentPrefillConfig | undefined {
+function resolveBirdCoderAuthDevelopmentPrefill(): SdkworkAuthDevelopmentPrefillConfig | undefined {
+  if (!isBirdCoderDevelopmentRuntime()) {
+    return resolveSdkworkAuthDevelopmentPrefill();
+  }
   const configuredAccount = readBirdCoderPublicEnvValue(
     "VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT",
+    "VITE_SDKWORK_AUTH_DEV_DEFAULT_ACCOUNT",
   );
   const configuredEmail = readBirdCoderPublicEnvValue(
     "VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL",
+    "VITE_SDKWORK_AUTH_DEV_DEFAULT_EMAIL",
   );
   const configuredPhone = readBirdCoderPublicEnvValue(
     "VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE",
+    "VITE_SDKWORK_AUTH_DEV_DEFAULT_PHONE",
   );
   const configuredPassword = readBirdCoderPublicEnvValue(
     "VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD",
+    "VITE_SDKWORK_AUTH_DEV_DEFAULT_PASSWORD",
   );
   const configuredLoginMethod = readBirdCoderPublicEnvValue(
     "VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD",
+    "VITE_SDKWORK_AUTH_DEV_DEFAULT_LOGIN_METHOD",
   );
   const explicitEnabled = parseBoolean(
-    readBirdCoderPublicEnvValue("VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED"),
+    readBirdCoderPublicEnvValue(
+      "VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED",
+      "VITE_SDKWORK_AUTH_DEV_PREFILL_ENABLED",
+    ),
   );
-  const resolvedProviderKind = resolveBirdCoderRuntimeUserCenterProviderKind(
-    authConfig?.mode,
-  );
-  const isBuiltinLocalMode = resolvedProviderKind === "builtin-local";
   const shouldEnable = explicitEnabled
     ?? (
       isBirdCoderDevelopmentRuntime()
@@ -116,73 +118,48 @@ function resolveBirdCoderAuthDevelopmentPrefill(
     email: configuredEmail || configuredAccount,
     enabled: true,
     loginMethod:
-      (
-        isSdkworkAuthLoginMethod(configuredLoginMethod)
-          ? configuredLoginMethod
-          : undefined
-      )
-      || (
-        isBuiltinLocalMode && configuredPassword
-          ? "password"
-          : undefined
-      ),
+      (isSdkworkAuthLoginMethod(configuredLoginMethod)
+        ? configuredLoginMethod
+        : undefined) || (configuredPassword ? "password" : undefined),
     password: configuredPassword,
     phone: configuredPhone,
   };
 }
 
-export function mapBirdCoderAuthUser(user: User): SdkworkAuthUser {
-  const email = user.email?.trim() ?? '';
-  return createSdkworkAuthUserFromCanonicalIdentity({
-    avatarUrl: user.avatarUrl,
-    email,
-    id: (user.id?.trim() || email) || undefined,
-    name: user.name?.trim() || email || undefined,
-    username: email || undefined,
-  });
-}
-
-export function createBirdCoderAuthSession(user: User): SdkworkAuthSession {
-  const email = user.email?.trim() ?? '';
-  return createSdkworkSyntheticAuthSession(mapBirdCoderAuthUser(user), {
-    sessionKey: `birdcoder:${user.id?.trim() || email}`,
-  });
-}
-
-export function resolveBirdCoderAuthRuntimeConfig(
-  authConfig?: BirdCoderUserCenterMetadataSummary | null,
-): SdkworkAuthRuntimeConfig {
-  const developmentPrefill = resolveBirdCoderAuthDevelopmentPrefill(authConfig);
+export function resolveBirdCoderAuthRuntimeConfig(): SdkworkAuthRuntimeConfig {
+  const developmentPrefill = resolveBirdCoderAuthDevelopmentPrefill();
+  const verificationPolicy = resolveSdkworkAuthVerificationPolicy();
 
   return {
     leftRailMode: resolveBirdCoderAuthLeftRailMode(),
-    ...resolveSdkworkAuthRuntimeConfigFromMetadata(authConfig),
+    loginMethods: resolveSdkworkAuthLoginMethods(undefined, verificationPolicy),
+    oauthLoginEnabled: true,
+    oauthProviderRegion: resolveSdkworkAuthOAuthProviderRegion(),
+    oauthProviders: resolveSdkworkAuthOAuthProviders(),
+    qrLoginEnabled: true,
+    recoveryMethods: resolveSdkworkAuthRecoveryMethods(),
+    registerMethods: resolveSdkworkAuthRegisterMethods(),
+    verificationPolicy,
     ...(developmentPrefill ? { developmentPrefill } : {}),
   };
 }
 
 export interface CreateBirdCoderAuthControllerOptions
   extends Omit<
-    CreateSdkworkCanonicalAuthControllerOptions<User, BirdCoderUserCenterMetadataSummary>,
-    | "resolveSessionBridgeProviderKey"
-    | "resolveSyntheticSessionKey"
-    | "toSession"
-    | "toUser"
-  > {}
+    CreateSdkworkIamRuntimeAuthControllerOptions,
+    "methodUnavailableMessage"
+  > {
+  methodUnavailableMessage?: string;
+}
 
 export function createBirdCoderAuthController(
   options: CreateBirdCoderAuthControllerOptions,
 ): SdkworkAuthController {
-  return createSdkworkCanonicalAuthController({
+  return createSdkworkIamRuntimeAuthController({
     ...options,
-    resolveSessionBridgeProviderKey(authConfig) {
-      return authConfig?.providerKey?.trim() || undefined;
-    },
-    resolveSyntheticSessionKey(user) {
-      const email = user.email?.trim() ?? '';
-      return `birdcoder:${user.id?.trim() || email}`;
-    },
-    toSession: createBirdCoderAuthSession,
-    toUser: mapBirdCoderAuthUser,
+    methodUnavailableMessage:
+      options.methodUnavailableMessage ?? BIRDCODER_AUTH_METHOD_UNAVAILABLE_MESSAGE,
   });
 }
+
+export type BirdCoderAuthController = ReturnType<typeof createBirdCoderAuthController>;

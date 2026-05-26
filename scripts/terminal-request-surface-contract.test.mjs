@@ -133,19 +133,19 @@ assert.match(
 
 assert.match(
   projectExplorerTypesSource,
-  /onOpenCodingSessionInTerminal\?: \(id: string, nativeSessionId\?: string\) => void;/,
-  'Project explorer props must expose a session-specific open-in-terminal action with the loaded nativeSessionId instead of overloading project terminal actions.',
+  /onOpenCodingSessionInTerminal\?: \(\s*id: string,\s*projectId: string,\s*nativeSessionId\?: string,\s*\) => void;/m,
+  'Project explorer props must expose a project-scoped session open-in-terminal action with the loaded nativeSessionId instead of overloading project terminal actions.',
 );
 
 assert.match(
   sessionContextMenuSource,
-  /onOpenInTerminal\?: \(id: string, nativeSessionId\?: string\) => void;/,
-  'Session context menu must accept an open-in-terminal callback with the loaded nativeSessionId.',
+  /onOpenInTerminal\?: \(id: string, projectId: string, nativeSessionId\?: string\) => void;/,
+  'Session context menu must accept a project-scoped open-in-terminal callback with the loaded nativeSessionId.',
 );
 assert.match(
   sessionContextMenuSource,
-  /onOpenInTerminal\?\.\(sessionId, session\?\.nativeSessionId\?\.trim\(\)\);[\s\S]*onClose\(\);[\s\S]*\{t\('code\.openInTerminal'\)\}/,
-  'Session context menu must render and invoke an open-in-terminal menu item with the target session nativeSessionId.',
+  /onOpenInTerminal\?\.\(sessionId, projectId, session\?\.nativeSessionId\?\.trim\(\)\);[\s\S]*onClose\(\);[\s\S]*\{t\('code\.openInTerminal'\)\}/,
+  'Session context menu must render and invoke an open-in-terminal menu item with the target projectId and session nativeSessionId.',
 );
 
 assert.match(
@@ -191,28 +191,33 @@ assert.match(
 );
 assert.match(
   codePageTerminalActionsSource,
-  /resolveCodingSessionNativeSessionId:\s*\(\s*codingSessionId: string,\s*\) => Promise<string \| null> \| string \| null;/m,
-  'Session terminal actions must accept the shared authoritative native-session-id resolver.',
+  /resolveCodingSessionNativeSessionId:\s*\(\s*codingSessionId: string,\s*projectId\?: string \| null,\s*\) => Promise<string \| null> \| string \| null;/m,
+  'Session terminal actions must accept the shared project-scoped authoritative native-session-id resolver.',
 );
 assert.match(
   codePageTerminalActionsSource,
-  /const handleOpenCodingSessionInTerminal = useCallback\(async \(\s*codingSessionId: string,\s*nativeSessionIdFromList\?: string \| null,\s*\) => \{[\s\S]*resolveSession\(codingSessionId\)[\s\S]*resolveProjectActionTarget\(resolvedSessionLocation\?\.project\)[\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*await resolveCodingSessionNativeSessionId\(codingSessionId\)[\s\S]*buildCodingSessionTerminalLaunchPlan\(\{[\s\S]*codingSession: \{ \.\.\.codingSession, nativeSessionId \},[\s\S]*projectPath: target\.projectPath[\s\S]*emitOpenTerminalRequest\(launchPlan\.request\);/m,
-  'Session context-menu terminal actions must use the loaded session-list native id before falling back to authoritative resolution.',
+  /const handleOpenCodingSessionInTerminal = useCallback\(async \(\s*codingSessionId: string,\s*projectId: string,\s*nativeSessionIdFromList\?: string \| null,\s*\) => \{[\s\S]*resolveSession\(codingSessionId, projectId\)[\s\S]*resolveProjectActionTarget\(resolvedSessionLocation\?\.project\)[\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*await resolveCodingSessionNativeSessionId\(codingSessionId, projectId\)[\s\S]*buildCodingSessionTerminalLaunchPlan\(\{[\s\S]*codingSession: \{ \.\.\.codingSession, nativeSessionId \},[\s\S]*projectPath: target\.projectPath[\s\S]*emitOpenTerminalRequest\(launchPlan\.request\);/m,
+  'Session context-menu terminal actions must resolve the selected project session and use the loaded session-list native id before falling back to authoritative resolution.',
 );
 assert.match(
   codePageTerminalActionsSource,
-  /const nativeSessionId = normalizeCodingSessionNativeSessionId\(\s*[\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*\(await resolveCodingSessionNativeSessionId\(codingSessionId\)\)\?\.trim\(\) \|\|[\s\S]*null,[\s\S]*codingSession\.engineId,[\s\S]*\);/m,
+  /const nativeSessionId = normalizeCodingSessionNativeSessionId\(\s*[\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*\(await resolveCodingSessionNativeSessionId\(codingSessionId, projectId\)\)\?\.trim\(\) \|\|[\s\S]*null,[\s\S]*codingSession\.engineId,[\s\S]*\);/m,
   'Session context-menu terminal actions must read nativeSessionId directly from the loaded session item and normalize legacy prefixes before terminal resume.',
 );
 assert.match(
   codePageSource,
-  /const resolveCodingSessionNativeSessionId = useCallback\(async \(codingSessionId: string\) => \{[\s\S]*resolveSession\(codingSessionId\)\?\.codingSession\.nativeSessionId\?\.trim\(\)[\s\S]*appRuntimeReadService\.getCodingSession\(codingSessionId\)[\s\S]*session\.nativeSessionId\?\.trim\(\)/m,
-  'CodePage must resolve native session ids from local state first and appRuntimeReadService second, matching the message-list authority path.',
+  /const resolveCodingSessionNativeSessionId = useCallback\(async \(\s*codingSessionId: string,\s*projectId\?: string \| null,\s*\) => \{[\s\S]*const resolvedSessionLocation = resolveSessionActionLocation\(\s*codingSessionId,\s*projectId,\s*\);[\s\S]*resolvedSessionLocation\?\.codingSession\.nativeSessionId\?\.trim\(\)[\s\S]*const expectedProjectId = resolvedSessionLocation\?\.project\.id\?\.trim\(\) \|\| projectId\?\.trim\(\) \|\| '';[\s\S]*const expectedEngineId = resolvedSessionLocation\?\.codingSession\.engineId\?\.trim\(\) \?\? '';[\s\S]*appRuntimeReadService\.getCodingSession\(codingSessionId\)[\s\S]*session\.projectId\?\.trim\(\) !== expectedProjectId[\s\S]*session\.engineId\?\.trim\(\) !== expectedEngineId[\s\S]*session\.nativeSessionId\?\.trim\(\) \|\| null/m,
+  'CodePage must resolve native session ids from project-scoped local state first and fall back to the BirdCoder coding-session summary with project/engine validation.',
+);
+assert.doesNotMatch(
+  codePageSource,
+  /const resolveCodingSessionNativeSessionId = useCallback\([\s\S]*?appRuntimeReadService\.getNativeSession\(codingSessionId/m,
+  'CodePage terminal resume fallback must not call native_sessions/{codingSessionId}; that endpoint expects a provider-native session id and returns 404 for standard BirdCoder session ids.',
 );
 assert.match(
   codePageTerminalActionsSource,
-  /const handleCopySessionId = useCallback\(async \(\s*codingSessionId: string,\s*nativeSessionIdFromList\?: string \| null,\s*\) => \{[\s\S]*resolveSession\(codingSessionId\)[\s\S]*normalizeCodingSessionNativeSessionId\([\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*await resolveCodingSessionNativeSessionId\(codingSessionId\)[\s\S]*copyTextToClipboard\(nativeSessionId\);/m,
-  'Session ID copy must copy the normalized raw provider-native session id through the shared clipboard boundary before falling back to authority.',
+  /const handleCopySessionId = useCallback\(async \(\s*codingSessionId: string,\s*projectId: string,\s*nativeSessionIdFromList\?: string \| null,\s*\) => \{[\s\S]*resolveSession\(codingSessionId, projectId\)[\s\S]*normalizeCodingSessionNativeSessionId\([\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*await resolveCodingSessionNativeSessionId\(codingSessionId, projectId\)[\s\S]*copyTextToClipboard\(nativeSessionId\);/m,
+  'Session ID copy must resolve the selected project session and copy the normalized raw provider-native session id through the shared clipboard boundary before falling back to authority.',
 );
 assert.doesNotMatch(
   codePageTerminalActionsSource,
@@ -221,38 +226,38 @@ assert.doesNotMatch(
 );
 assert.match(
   projectExplorerTypesSource,
-  /onOpenCodingSessionInTerminal\?: \(id: string, nativeSessionId\?: string\) => void;/,
-  'Project explorer session actions must pass the loaded session-list nativeSessionId to terminal resume.',
+  /onOpenCodingSessionInTerminal\?: \(\s*id: string,\s*projectId: string,\s*nativeSessionId\?: string,\s*\) => void;/m,
+  'Project explorer session actions must pass the projectId and loaded session-list nativeSessionId to terminal resume.',
 );
 assert.match(
   projectExplorerTypesSource,
-  /onCopyCodingSessionSessionId\?: \(id: string, nativeSessionId\?: string\) => void;/,
-  'Project explorer session actions must pass the loaded session-list nativeSessionId to copy session ID.',
+  /onCopyCodingSessionSessionId\?: \(\s*id: string,\s*projectId: string,\s*nativeSessionId\?: string,\s*\) => void;/m,
+  'Project explorer session actions must pass the projectId and loaded session-list nativeSessionId to copy session ID.',
 );
 assert.match(
   sessionContextMenuSource,
-  /onOpenInTerminal\?: \(id: string, nativeSessionId\?: string\) => void;/,
-  'Session context menu terminal action must accept the loaded nativeSessionId from its session item.',
+  /onOpenInTerminal\?: \(id: string, projectId: string, nativeSessionId\?: string\) => void;/,
+  'Session context menu terminal action must accept projectId and the loaded nativeSessionId from its session item.',
 );
 assert.match(
   sessionContextMenuSource,
-  /onCopySessionId\?: \(id: string, nativeSessionId\?: string\) => void;/,
-  'Session context menu copy action must accept the loaded nativeSessionId from its session item.',
+  /onCopySessionId\?: \(id: string, projectId: string, nativeSessionId\?: string\) => void;/,
+  'Session context menu copy action must accept projectId and the loaded nativeSessionId from its session item.',
 );
 assert.match(
   sessionContextMenuSource,
-  /onOpenInTerminal\?\.\(sessionId, session\?\.nativeSessionId\?\.trim\(\)\);/,
-  'Session context menu must pass session.nativeSessionId from the loaded session item to terminal resume.',
+  /onOpenInTerminal\?\.\(sessionId, projectId, session\?\.nativeSessionId\?\.trim\(\)\);/,
+  'Session context menu must pass projectId and session.nativeSessionId from the loaded session item to terminal resume.',
 );
 assert.match(
   sessionContextMenuSource,
-  /onCopySessionId\?\.\(sessionId, session\?\.nativeSessionId\?\.trim\(\)\);/,
-  'Session context menu must pass session.nativeSessionId from the loaded session item to copy session ID.',
+  /onCopySessionId\?\.\(sessionId, projectId, session\?\.nativeSessionId\?\.trim\(\)\);/,
+  'Session context menu must pass projectId and session.nativeSessionId from the loaded session item to copy session ID.',
 );
 assert.match(
   codePageSource,
-  /const \{[\s\S]*handleCopySessionId,[\s\S]*handleOpenCodingSessionInTerminal,[\s\S]*handleOpenInTerminal,[\s\S]*\} = useCodePageTerminalActions\(\{[\s\S]*resolveCodingSessionNativeSessionId,[\s\S]*resolveProjectActionTarget,[\s\S]*resolveProjectById,[\s\S]*resolveSession,[\s\S]*t,[\s\S]*\}\)/m,
-  'CodePage must delegate terminal actions to the dedicated terminal action hook to preserve componentization boundaries.',
+  /const \{[\s\S]*handleCopySessionId,[\s\S]*handleOpenCodingSessionInTerminal,[\s\S]*handleOpenInTerminal,[\s\S]*\} = useCodePageTerminalActions\(\{[\s\S]*resolveCodingSessionNativeSessionId,[\s\S]*resolveProjectActionTarget,[\s\S]*resolveProjectById,[\s\S]*resolveSession: resolveSessionActionLocation,[\s\S]*t,[\s\S]*\}\)/m,
+  'CodePage must delegate terminal actions to the dedicated terminal action hook with the project-scoped session resolver to preserve componentization boundaries.',
 );
 assert.match(
   sessionInventorySource,

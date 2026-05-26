@@ -24,9 +24,17 @@ export interface ProjectExplorerProps {
   onPinCodingSession?: (id: string, projectId: string) => void;
   onArchiveCodingSession?: (id: string, projectId: string) => void;
   onMarkCodingSessionUnread?: (id: string, projectId: string) => void;
-  onOpenCodingSessionInTerminal?: (id: string, nativeSessionId?: string) => void;
+  onOpenCodingSessionInTerminal?: (
+    id: string,
+    projectId: string,
+    nativeSessionId?: string,
+  ) => void;
   onCopyCodingSessionWorkingDirectory?: (id: string, projectId: string) => void;
-  onCopyCodingSessionSessionId?: (id: string, nativeSessionId?: string) => void;
+  onCopyCodingSessionSessionId?: (
+    id: string,
+    projectId: string,
+    nativeSessionId?: string,
+  ) => void;
   onCopyCodingSessionResumeCommand?: (
     id: string,
     projectId: string,

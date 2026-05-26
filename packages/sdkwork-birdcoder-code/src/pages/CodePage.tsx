@@ -184,18 +184,35 @@ function CodePageComponent({
       ? resolveSessionInProject(codingSessionId, scopedProjectId)
       : resolveSession(codingSessionId);
   }, [currentProjectId, resolveSession, resolveSessionInProject]);
-  const resolveCodingSessionNativeSessionId = useCallback(async (codingSessionId: string) => {
-    const local = resolveSession(codingSessionId)?.codingSession.nativeSessionId?.trim();
+  const resolveCodingSessionNativeSessionId = useCallback(async (
+    codingSessionId: string,
+    projectId?: string | null,
+  ) => {
+    const resolvedSessionLocation = resolveSessionActionLocation(
+      codingSessionId,
+      projectId,
+    );
+    const local = resolvedSessionLocation?.codingSession.nativeSessionId?.trim();
     if (local) {
       return local;
     }
 
+    const expectedProjectId = resolvedSessionLocation?.project.id?.trim() || projectId?.trim() || '';
+    const expectedEngineId = resolvedSessionLocation?.codingSession.engineId?.trim() ?? '';
     return appRuntimeReadService.getCodingSession(codingSessionId)
-      .then((session) => session.nativeSessionId?.trim() || null)
+      .then((session) => {
+        if (expectedProjectId && session.projectId?.trim() !== expectedProjectId) {
+          return null;
+        }
+        if (expectedEngineId && session.engineId?.trim() !== expectedEngineId) {
+          return null;
+        }
+        return session.nativeSessionId?.trim() || null;
+      })
       .catch(() => null);
   }, [
     appRuntimeReadService,
-    resolveSession,
+    resolveSessionActionLocation,
   ]);
   const projectGitOverviewState = useProjectGitOverview({
     projectId: currentProject?.id,
@@ -703,7 +720,7 @@ function CodePageComponent({
     resolveCodingSessionNativeSessionId,
     resolveProjectActionTarget,
     resolveProjectById,
-    resolveSession,
+    resolveSession: resolveSessionActionLocation,
     t,
   });
 

@@ -8,11 +8,9 @@
     "build:base": "node ../../scripts/run-birdcoder-server-build.mjs",
     "dev": "node ../../scripts/run-birdcoder-server-command.mjs dev --iam-mode server-private",
     "dev:private": "node ../../scripts/run-birdcoder-server-command.mjs dev --iam-mode server-private",
-    "dev:external": "node ../../scripts/run-birdcoder-server-command.mjs dev --iam-mode server-private --user-center-provider external-user-center",
     "dev:cloud": "node ../../scripts/run-birdcoder-server-command.mjs dev --iam-mode cloud-saas",
     "build": "node ../../scripts/run-birdcoder-server-command.mjs build --iam-mode server-private",
     "build:private": "node ../../scripts/run-birdcoder-server-command.mjs build --iam-mode server-private",
-    "build:external": "node ../../scripts/run-birdcoder-server-command.mjs build --iam-mode server-private --user-center-provider external-user-center",
     "build:cloud": "node ../../scripts/run-birdcoder-server-command.mjs build --iam-mode cloud-saas",
     "lint": "node ../../scripts/run-local-typescript.mjs --noEmit"
   },
@@ -23,7 +21,7 @@
     "@sdkwork/birdcoder-host-core": "workspace:*",
     "@sdkwork/birdcoder-infrastructure": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
-    "@sdkwork/user-center-core-pc-react": "workspace:*"
+    "@sdkwork/iam-contracts": "workspace:*"
   },
   "devDependencies": {
     "typescript": "catalog:"

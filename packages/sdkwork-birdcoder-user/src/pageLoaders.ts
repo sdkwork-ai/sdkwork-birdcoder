@@ -1,6 +1,6 @@
-export async function loadUserCenterPage() {
-  const module = await import('./pages/UserCenterPage.tsx');
-  return { default: module.UserCenterPage };
+export async function loadUserPage() {
+  const module = await import('./pages/UserPage.tsx');
+  return { default: module.UserPage };
 }
 
 export async function loadVipPage() {

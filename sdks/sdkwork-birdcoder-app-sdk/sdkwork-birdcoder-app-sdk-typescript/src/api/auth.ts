@@ -3,112 +3,95 @@
 import type {
   BirdcoderSdkRequestOperation,
   BirdcoderSdkRequestOptions,
-} from '../http';
-import type * as Types from '../types';
+} from '../http/index.ts';
+import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 type AuthOauthAuthorizationUrlsRetrieveQuery = Types.AuthOauthAuthorizationUrlsRetrieveQuery;
-type AuthQrLoginCodesRetrievePathParams = Types.AuthQrLoginCodesRetrievePathParams;
 
 export interface AuthApi {
-  config: {
-    retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterMetadataEnvelope>;
-  };
   oauthAuthorizationUrls: {
-    retrieve(query: AuthOauthAuthorizationUrlsRetrieveQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterOAuthAuthorizationEnvelope>;
+    retrieve(query: AuthOauthAuthorizationUrlsRetrieveQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOAuthAuthorizationEnvelope>;
   };
   oauthSessions: {
-    create(body: Types.BirdCoderUserCenterOAuthLoginRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterSessionEnvelope>;
+    create(body: Types.BirdCoderIamOAuthSessionCreateRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
   };
   passwordResetRequests: {
-    create(body: Types.BirdCoderUserCenterPasswordResetChallengeRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
+    create(body: Types.BirdCoderIamPasswordResetRequestCreateRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
   };
   passwordResets: {
-    create(body: Types.BirdCoderUserCenterPasswordResetRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
-  };
-  qrLoginCodes: {
-    create(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterLoginQrCodeEnvelope>;
-    retrieve(pathParams: AuthQrLoginCodesRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterLoginQrStatusEnvelope>;
+    create(body: Types.BirdCoderIamPasswordResetCreateRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
   };
   registrations: {
-    create(body: Types.BirdCoderUserCenterRegisterRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterSessionEnvelope>;
-  };
-  sessionExchanges: {
-    create(body: Types.BirdCoderUserCenterSessionExchangeRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterSessionEnvelope>;
+    create(body: Types.BirdCoderIamRegistrationCreateRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
   };
   sessions: {
-    create(body: Types.BirdCoderUserCenterLoginRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserCenterSessionEnvelope>;
+    create(body: Types.BirdCoderIamCreateSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
     current: {
       delete(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
-      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderNullableUserCenterSessionEnvelope>;
+      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
+      update(body: Types.BirdCoderIamUpdateCurrentSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
     };
+    refresh(body: Types.BirdCoderIamRefreshSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
   };
   verificationCodes: {
-    create(body: Types.BirdCoderUserCenterSendVerifyCodeRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
+    create(body: Types.BirdCoderIamVerificationCodeCreateRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
+    verify(body: Types.BirdCoderIamVerificationCodeVerifyRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
   };
 }
 
 export function createAuthApi(requestOperation: BirdcoderSdkRequestOperation): AuthApi {
   return {
-    config: {
-      retrieve(options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderUserCenterMetadataEnvelope>("auth.config.retrieve", {}, options);
-      }
-    },
     oauthAuthorizationUrls: {
       retrieve(query: AuthOauthAuthorizationUrlsRetrieveQuery, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderUserCenterOAuthAuthorizationEnvelope>("auth.oauthAuthorizationUrls.retrieve", { query }, options);
+        return requestOperation<Types.BirdCoderIamOAuthAuthorizationEnvelope>("auth.oauthAuthorizationUrls.retrieve", { query }, options);
       }
     },
     oauthSessions: {
-      create(body: Types.BirdCoderUserCenterOAuthLoginRequest, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderUserCenterSessionEnvelope>("auth.oauthSessions.create", { body }, options);
+      create(body: Types.BirdCoderIamOAuthSessionCreateRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamSessionEnvelope>("auth.oauthSessions.create", { body }, options);
       }
     },
     passwordResetRequests: {
-      create(body: Types.BirdCoderUserCenterPasswordResetChallengeRequest, options: BirdcoderSdkRequestOptions = {}) {
+      create(body: Types.BirdCoderIamPasswordResetRequestCreateRequest, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("auth.passwordResetRequests.create", { body }, options);
       }
     },
     passwordResets: {
-      create(body: Types.BirdCoderUserCenterPasswordResetRequest, options: BirdcoderSdkRequestOptions = {}) {
+      create(body: Types.BirdCoderIamPasswordResetCreateRequest, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("auth.passwordResets.create", { body }, options);
       }
     },
-    qrLoginCodes: {
-      create(options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderUserCenterLoginQrCodeEnvelope>("auth.qrLoginCodes.create", {}, options);
-      },
-      retrieve(pathParams: AuthQrLoginCodesRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderUserCenterLoginQrStatusEnvelope>("auth.qrLoginCodes.retrieve", { pathParams }, options);
-      }
-    },
     registrations: {
-      create(body: Types.BirdCoderUserCenterRegisterRequest, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderUserCenterSessionEnvelope>("auth.registrations.create", { body }, options);
-      }
-    },
-    sessionExchanges: {
-      create(body: Types.BirdCoderUserCenterSessionExchangeRequest, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderUserCenterSessionEnvelope>("auth.sessionExchanges.create", { body }, options);
+      create(body: Types.BirdCoderIamRegistrationCreateRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamSessionEnvelope>("auth.registrations.create", { body }, options);
       }
     },
     sessions: {
-      create(body: Types.BirdCoderUserCenterLoginRequest, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderUserCenterSessionEnvelope>("auth.sessions.create", { body }, options);
+      create(body: Types.BirdCoderIamCreateSessionRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamSessionEnvelope>("auth.sessions.create", { body }, options);
       },
       current: {
         delete(options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("auth.sessions.current.delete", {}, options);
         },
         retrieve(options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderNullableUserCenterSessionEnvelope>("auth.sessions.current.retrieve", {}, options);
+          return requestOperation<Types.BirdCoderIamSessionEnvelope>("auth.sessions.current.retrieve", {}, options);
+        },
+        update(body: Types.BirdCoderIamUpdateCurrentSessionRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamSessionEnvelope>("auth.sessions.current.update", { body }, options);
         }
+      },
+      refresh(body: Types.BirdCoderIamRefreshSessionRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamSessionEnvelope>("auth.sessions.refresh", { body }, options);
       }
     },
     verificationCodes: {
-      create(body: Types.BirdCoderUserCenterSendVerifyCodeRequest, options: BirdcoderSdkRequestOptions = {}) {
+      create(body: Types.BirdCoderIamVerificationCodeCreateRequest, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("auth.verificationCodes.create", { body }, options);
+      },
+      verify(body: Types.BirdCoderIamVerificationCodeVerifyRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("auth.verificationCodes.verify", { body }, options);
       }
     }
   };

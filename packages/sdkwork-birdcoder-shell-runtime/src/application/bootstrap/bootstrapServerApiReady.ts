@@ -1,7 +1,10 @@
 const DEFAULT_API_READY_MAX_ATTEMPTS = 30;
 const DEFAULT_API_READY_REQUEST_TIMEOUT_MS = 800;
 const DEFAULT_API_READY_RETRY_DELAY_MS = 150;
-const DEFAULT_API_READY_PATHS = ['/app/v3/api/system/health', '/app/v3/api/auth/config'] as const;
+const DEFAULT_API_READY_PATHS = [
+  '/app/v3/api/system/health',
+  '/app/v3/api/system/iam/runtime',
+] as const;
 const LOCAL_RUNTIME_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]', 'tauri.localhost']);
 
 export interface WaitForBirdCoderApiReadyOptions {
@@ -79,6 +82,7 @@ export async function waitForBirdCoderApiReady(
     options.retryDelayMs,
     DEFAULT_API_READY_RETRY_DELAY_MS,
   );
+  let lastFailure = 'readiness probe did not complete';
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
@@ -104,11 +108,22 @@ export async function waitForBirdCoderApiReady(
       if (responses.every((response) => response.ok)) {
         return;
       }
+      lastFailure = responses
+        .map((response, index) =>
+          response.ok
+            ? ''
+            : `${readinessUrls[index]} returned HTTP ${response.status}`,
+        )
+        .filter((failure) => failure.length > 0)
+        .join('; ') || 'readiness endpoint returned an unsuccessful response';
     } catch {
-      // Local desktop/web runtimes can publish the gateway base URL slightly before the
-      // embedded HTTP server begins serving traffic.
+      lastFailure = 'readiness request failed before the local API accepted connections';
     }
 
     await delay(retryDelayMs);
   }
+
+  throw new Error(
+    `BirdCoder local API is unavailable at ${apiBaseUrl}. Start the BirdCoder server with "pnpm dev" or "pnpm server:dev" before opening appbase-backed pages. Last readiness failure: ${lastFailure}.`,
+  );
 }

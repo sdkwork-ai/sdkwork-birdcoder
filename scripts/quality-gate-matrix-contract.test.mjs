@@ -111,7 +111,8 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['test:user-center-standard'],
-  'node scripts/run-user-center-standard.mjs',
+  undefined,
+  'BirdCoder is a new IAM application; the retired user-center standard runner must not be part of the quality matrix.',
 );
 assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scripts.lint);
 assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
@@ -121,7 +122,7 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:server'],
-  'node scripts/runtime-user-center-bridge-contract.test.mjs && node scripts/birdcoder-rust-user-center-validation-contract.test.mjs && node scripts/iam-seed-parity-contract.test.mjs && node scripts/rust-long-id-standard-contract.test.mjs && node scripts/rust-workspace-project-schema-parity-contract.test.mjs && node scripts/codeengine-catalog-tenant-standard-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-server --noEmit && cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
+  'node scripts/birdcoder-iam-runtime-standard-contract.test.mjs && node scripts/iam-seed-parity-contract.test.mjs && node scripts/rust-long-id-standard-contract.test.mjs && node scripts/rust-workspace-project-schema-parity-contract.test.mjs && node scripts/codeengine-catalog-tenant-standard-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-server --noEmit && cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
 );
 assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
@@ -129,7 +130,7 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.at(0), 'nod
 assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.at(-1), 'node scripts/run-workspace-package-script.mjs . check:ci-flow');
 assert.equal(
   qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
-    'node scripts/run-workspace-package-script.mjs . test:user-center-standard',
+    'node scripts/run-workspace-package-script.mjs . check:iam-standard',
   ),
   true,
 );

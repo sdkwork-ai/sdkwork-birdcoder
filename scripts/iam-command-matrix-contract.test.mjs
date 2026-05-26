@@ -8,6 +8,18 @@ const workspaceRoot = path.resolve(import.meta.dirname, '..');
 const workspacePackageJson = JSON.parse(
   fs.readFileSync(path.join(workspaceRoot, 'package.json'), 'utf8'),
 );
+const desktopPackageJson = JSON.parse(
+  fs.readFileSync(
+    path.join(workspaceRoot, 'packages', 'sdkwork-birdcoder-desktop', 'package.json'),
+    'utf8',
+  ),
+);
+const webPackageJson = JSON.parse(
+  fs.readFileSync(
+    path.join(workspaceRoot, 'packages', 'sdkwork-birdcoder-web', 'package.json'),
+    'utf8',
+  ),
+);
 
 async function loadModule() {
   return import(
@@ -17,7 +29,7 @@ async function loadModule() {
   );
 }
 
-test('birdcoder IAM command matrix governs canonical scripts and alias passthroughs', async () => {
+test('birdcoder IAM command matrix governs standard local, private, and cloud scripts', async () => {
   const module = await loadModule();
 
   assert.equal(typeof module.createBirdcoderIamCommandMatrix, 'function');
@@ -26,11 +38,15 @@ test('birdcoder IAM command matrix governs canonical scripts and alias passthrou
   const matrix = module.createBirdcoderIamCommandMatrix();
   const commands = matrix.map((entry) => entry.command);
 
-  assert.equal(matrix.length, 50);
+  assert.equal(matrix.length, 35);
   assert.equal(new Set(commands).size, matrix.length);
   assert.ok(
     matrix.every((entry) => !Object.hasOwn(entry, 'identityMode')),
     'BirdCoder IAM command matrix must not preserve legacy identityMode fields.',
+  );
+  assert.ok(
+    matrix.every((entry) => !Object.hasOwn(entry, 'providerKind')),
+    'BirdCoder IAM command matrix must not preserve providerKind fields after removing application-level provider switching.',
   );
   assert.deepEqual(
     matrix.find((entry) => entry.command === 'desktop:env:local'),
@@ -39,8 +55,17 @@ test('birdcoder IAM command matrix governs canonical scripts and alias passthrou
       iamMode: 'desktop-local',
       lifecycle: 'env',
       mode: 'local',
-      providerKind: 'builtin-local',
       surface: 'desktop',
+    },
+  );
+  assert.deepEqual(
+    matrix.find((entry) => entry.command === 'server:doctor:cloud'),
+    {
+      command: 'server:doctor:cloud',
+      iamMode: 'cloud-saas',
+      lifecycle: 'doctor',
+      mode: 'cloud',
+      surface: 'server',
     },
   );
 
@@ -50,40 +75,14 @@ test('birdcoder IAM command matrix governs canonical scripts and alias passthrou
   );
   assert.doesNotMatch(
     matrixSource,
-    /\bidentityMode\b/u,
-    'BirdCoder must consume appbase iamMode directly instead of carrying an identityMode adapter.',
-  );
-  assert.doesNotMatch(
-    matrixSource,
-    /\bidentity passthrough alias\b/iu,
-    'BirdCoder IAM command matrix comments must not preserve retired identity-mode wording.',
-  );
-  assert.match(
-    matrixSource,
-    /from ['"]@sdkwork\/user-center-core-pc-react['"]/u,
-    'BirdCoder IAM command matrix must consume appbase user-center command metadata through the canonical package root.',
+    /\bidentityMode\b|@sdkwork\/user-center-|sdkwork-appbase[\\/]|user-center-provider|external-user-center/u,
+    'BirdCoder IAM command matrix must be local and must not import retired appbase user-center command metadata.',
   );
   assert.equal(
     workspacePackageJson.devDependencies?.['@sdkwork/user-center-core-pc-react']
       ?? workspacePackageJson.dependencies?.['@sdkwork/user-center-core-pc-react'],
-    'workspace:*',
-    'BirdCoder root workspace must declare @sdkwork/user-center-core-pc-react so Node scripts consume the appbase package root.',
-  );
-  assert.doesNotMatch(
-    matrixSource,
-    /sdkwork-appbase[\\/]/u,
-    'BirdCoder IAM command matrix must not import sdkwork-appbase scripts through relative filesystem paths.',
-  );
-  assert.deepEqual(
-    matrix.find((entry) => entry.command === 'server:doctor:cloud'),
-    {
-      command: 'server:doctor:cloud',
-      iamMode: 'cloud-saas',
-      lifecycle: 'doctor',
-      mode: 'cloud',
-      providerKind: 'sdkwork-cloud-app-api',
-      surface: 'server',
-    },
+    undefined,
+    'BirdCoder root workspace must not declare @sdkwork/user-center-core-pc-react for command matrix generation.',
   );
   assert.ok(
     !matrix.some((entry) => entry.command === 'web:env:local'),
@@ -93,6 +92,10 @@ test('birdcoder IAM command matrix governs canonical scripts and alias passthrou
     !matrix.some((entry) => entry.command === 'server:doctor:local'),
     'BirdCoder must not publish unsupported server local command variants.',
   );
+  assert.ok(
+    !matrix.some((entry) => entry.command.includes(':external')),
+    'BirdCoder must not publish retired external-provider command variants.',
+  );
 
   const scriptCatalog = module.createBirdcoderIamScriptCatalog();
   for (const [scriptName, command] of Object.entries(scriptCatalog)) {
@@ -100,6 +103,14 @@ test('birdcoder IAM command matrix governs canonical scripts and alias passthrou
       workspacePackageJson.scripts?.[scriptName],
       command,
       `package.json must keep ${scriptName} aligned with the canonical command matrix projection.`,
+    );
+  }
+
+  for (const [scriptName, command] of Object.entries(workspacePackageJson.scripts ?? {})) {
+    assert.equal(
+      scriptName.includes(':external') || String(command).includes('external-user-center') || String(command).includes('--user-center-provider'),
+      false,
+      `package.json must not keep retired external IAM script ${scriptName}.`,
     );
   }
 
@@ -134,5 +145,35 @@ test('birdcoder IAM command matrix governs canonical scripts and alias passthrou
   assert.equal(
     workspacePackageJson.scripts?.['stack:desktop:local'],
     'node scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode desktop-local',
+  );
+  assert.equal(
+    workspacePackageJson.scripts?.['desktop:dev:private'],
+    'node scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode server-private',
+    'Root desktop private dev must start the standardized server+client stack so http://127.0.0.1:10240 is listening before Tauri loads.',
+  );
+  assert.equal(
+    workspacePackageJson.scripts?.['web:dev:private'],
+    'node scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
+    'Root web private dev must start the standardized server+client stack so appbase IAM QR APIs are reachable.',
+  );
+  assert.equal(
+    workspacePackageJson.scripts?.['tauri:dev:private'],
+    'node scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode server-private',
+    'Root tauri private dev must not launch only the client while BIRDCODER_API_BASE_URL points at the private local server.',
+  );
+  assert.equal(
+    desktopPackageJson.scripts?.['tauri:dev:private'],
+    'node ../../scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode server-private',
+    'Desktop package private dev must use the same stack entrypoint when launched from the package directory.',
+  );
+  assert.equal(
+    webPackageJson.scripts?.dev,
+    'node ../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
+    'Web package default dev is server-private and must start the standardized server+client stack when launched from the package directory.',
+  );
+  assert.equal(
+    webPackageJson.scripts?.['dev:private'],
+    'node ../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
+    'Web package private dev must use the same stack entrypoint when launched from the package directory.',
   );
 });

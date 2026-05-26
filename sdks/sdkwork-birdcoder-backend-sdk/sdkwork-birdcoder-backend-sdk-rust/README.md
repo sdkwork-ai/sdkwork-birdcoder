@@ -14,6 +14,8 @@ Example Rust operation descriptors:
 ```rust
 sdkwork_birdcoder_backend_sdk::iam::audit_events::LIST
 sdkwork_birdcoder_backend_sdk::iam::policies::LIST
+sdkwork_birdcoder_backend_sdk::iam::users::LIST
+sdkwork_birdcoder_backend_sdk::iam::users::roles::LIST
 sdkwork_birdcoder_backend_sdk::iam::teams::LIST
 sdkwork_birdcoder_backend_sdk::iam::teams::members::LIST
 sdkwork_birdcoder_backend_sdk::platform::releases::LIST

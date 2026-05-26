@@ -1020,7 +1020,7 @@ export class CodexChatEngine implements IChatEngine {
       loader: this.officialSdkBridgeLoader,
       messages,
       options,
-      fallback: async function* fallbackStream(streamOptions) {
+      fallback: async function* (this: CodexChatEngine, streamOptions: ChatOptions) {
         const id = `codex-chat-${Date.now()}`;
         const created = Math.floor(Date.now() / 1000);
         const model = streamOptions.model || 'codex';

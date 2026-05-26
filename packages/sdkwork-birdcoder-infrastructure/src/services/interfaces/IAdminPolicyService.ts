@@ -1,5 +1,5 @@
-import type { BirdCoderAdminPolicySummary } from '@sdkwork/birdcoder-types';
+import type { BirdCoderIamPolicySummary } from '@sdkwork/birdcoder-types';
 
 export interface IAdminPolicyService {
-  getPolicies(): Promise<BirdCoderAdminPolicySummary[]>;
+  getPolicies(): Promise<BirdCoderIamPolicySummary[]>;
 }

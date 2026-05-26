@@ -12,7 +12,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 | Type | `react-package` |
 | Root | `sdkwork-birdcoder/packages/sdkwork-birdcoder-iam` |
 | Domain | `iam` |
-| Capability | `user-center` |
+| Capability | `iam` |
 | Languages | `typescript` |
 | Status | `standardizing` |
 

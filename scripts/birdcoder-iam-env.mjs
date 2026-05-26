@@ -19,43 +19,44 @@ export const BIRDCODER_IAM_DEPLOYMENT_MODES = Object.freeze([
   'server-private',
   'cloud-saas',
 ]);
-export const SDKWORK_USER_CENTER_MODES = Object.freeze([
-  'builtin-local',
-  'sdkwork-cloud-app-api',
-  'external-user-center',
+export const SDKWORK_IAM_MODES = Object.freeze([
+  'local',
+  'private',
+  'cloud',
 ]);
 
-export const DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_ACCOUNT =
-  'local-default@sdkwork-user-center.local';
-export const DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE = '13800000000';
-export const DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD = 'dev123456';
-export const DEFAULT_SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE = '123456';
+export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT =
+  'local-default@sdkwork-iam.local';
+export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE = '13800000000';
+export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD = 'dev123456';
+export const DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE = '123456';
 export const DEFAULT_BIRDCODER_REMOTE_API_BASE_URL = 'http://127.0.0.1:10240';
-export const DEFAULT_SDKWORK_USER_CENTER_CLOUD_OAUTH_PROVIDERS = 'wechat,douyin,github';
-export const DEFAULT_SDKWORK_USER_CENTER_LOCAL_OAUTH_PROVIDERS = 'wechat,douyin,github';
+export const DEFAULT_SDKWORK_IAM_CLOUD_OAUTH_PROVIDERS = 'wechat,douyin,github';
+export const DEFAULT_SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS = 'wechat,douyin,github';
 
 const BIRDCODER_IAM_DEPLOYMENT_MODE_ENV =
   'BIRDCODER_IAM_DEPLOYMENT_MODE';
-const SDKWORK_USER_CENTER_MODE_ENV =
-  'SDKWORK_USER_CENTER_MODE';
-const VITE_SDKWORK_USER_CENTER_MODE_ENV =
-  'VITE_SDKWORK_USER_CENTER_MODE';
-const SDKWORK_USER_CENTER_APP_API_BASE_URL_ENV =
-  'SDKWORK_USER_CENTER_APP_API_BASE_URL';
-const SDKWORK_USER_CENTER_APP_API_OAUTH_PROVIDERS_ENV =
-  'SDKWORK_USER_CENTER_APP_API_OAUTH_PROVIDERS';
-const SDKWORK_USER_CENTER_LOCAL_OAUTH_PROVIDERS_ENV =
-  'SDKWORK_USER_CENTER_LOCAL_OAUTH_PROVIDERS';
+const VITE_BIRDCODER_IAM_DEPLOYMENT_MODE_ENV =
+  'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE';
+const VITE_SDKWORK_DEPLOYMENT_MODE_ENV = 'VITE_SDKWORK_DEPLOYMENT_MODE';
+const SDKWORK_IAM_MODE_ENV = 'SDKWORK_IAM_MODE';
+const SDKWORK_IAM_APP_API_BASE_URL_ENV = 'SDKWORK_IAM_APP_API_BASE_URL';
+const SDKWORK_IAM_APP_API_OAUTH_PROVIDERS_ENV =
+  'SDKWORK_IAM_APP_API_OAUTH_PROVIDERS';
+const SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS_ENV =
+  'SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS';
+const SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV = 'SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL';
+const SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV = 'SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE';
+const SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV =
+  'SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD';
+const SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV =
+  'SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED';
+const SDKWORK_IAM_LOCAL_OAUTH_ENV_PREFIX = 'SDKWORK_IAM_LOCAL_OAUTH_';
+const SDKWORK_IAM_APP_API_ENV_PREFIX = 'SDKWORK_IAM_APP_API_';
 const BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV =
   'BIRDCODER_CODING_SERVER_SQLITE_FILE';
 const BIRDCODER_API_BASE_URL_ENV = 'BIRDCODER_API_BASE_URL';
 const VITE_BIRDCODER_API_BASE_URL_ENV = 'VITE_BIRDCODER_API_BASE_URL';
-const SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_EMAIL_ENV = 'SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_EMAIL';
-const SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE_ENV = 'SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE';
-const SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD_ENV =
-  'SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD';
-const SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED_ENV =
-  'SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED';
 const BIRDCODER_ENABLE_RELEASE_DEMO_LOGIN_ENV =
   'BIRDCODER_ENABLE_RELEASE_DEMO_LOGIN';
 const VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED_ENV =
@@ -72,13 +73,6 @@ const VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD_ENV =
   'VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD';
 const VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE_ENV =
   'VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE';
-const VITE_BIRDCODER_IAM_DEPLOYMENT_MODE_ENV =
-  'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE';
-const SDKWORK_USER_CENTER_LOCAL_OAUTH_ENV_PREFIX = 'SDKWORK_USER_CENTER_LOCAL_OAUTH_';
-const SDKWORK_USER_CENTER_APP_API_ENV_PREFIX =
-  'SDKWORK_USER_CENTER_APP_API_';
-const SDKWORK_USER_CENTER_EXTERNAL_ENV_PREFIX =
-  'SDKWORK_USER_CENTER_EXTERNAL_';
 
 const DEFAULT_SQLITE_RELATIVE_PATHS = Object.freeze({
   'cloud-saas': path.join(
@@ -205,6 +199,30 @@ function resolveDefaultIamMode(target) {
   return 'desktop-local';
 }
 
+function resolveSdkworkIamMode(iamDeploymentMode) {
+  if (iamDeploymentMode === 'cloud-saas') {
+    return 'cloud';
+  }
+
+  if (iamDeploymentMode === 'server-private') {
+    return 'private';
+  }
+
+  return 'local';
+}
+
+function resolvePublicDeploymentMode(iamDeploymentMode) {
+  if (iamDeploymentMode === 'cloud-saas') {
+    return 'saas';
+  }
+
+  if (iamDeploymentMode === 'server-private') {
+    return 'private';
+  }
+
+  return 'local';
+}
+
 export function normalizeBirdcoderIamDeploymentMode(
   value,
   fallback = 'desktop-local',
@@ -221,107 +239,58 @@ export function normalizeBirdcoderIamDeploymentMode(
   return fallback;
 }
 
-export function normalizeBirdcoderUserCenterLoginProvider(value) {
+export function normalizeSdkworkIamMode(value) {
   const normalizedValue = readTrimmedValue(value)?.toLowerCase();
   if (!normalizedValue) {
     return undefined;
   }
 
-  if (SDKWORK_USER_CENTER_MODES.includes(normalizedValue)) {
-    return normalizedValue;
-  }
-
-  return undefined;
+  return SDKWORK_IAM_MODES.includes(normalizedValue)
+    ? normalizedValue
+    : undefined;
 }
 
-function resolveImplicitUserCenterLoginProvider(iamMode) {
-  return iamMode === 'cloud-saas'
-    ? 'sdkwork-cloud-app-api'
-    : 'builtin-local';
-}
-
-function applyProviderScopedEnvDefaults(env, providerKind) {
-  if (providerKind === 'builtin-local') {
-    clearEnvValuesByPrefix(env, SDKWORK_USER_CENTER_APP_API_ENV_PREFIX);
-    clearEnvValuesByPrefix(env, SDKWORK_USER_CENTER_EXTERNAL_ENV_PREFIX);
+function applyIamModeScopedEnvDefaults(env, sdkworkIamMode) {
+  if (sdkworkIamMode === 'local' || sdkworkIamMode === 'private') {
+    clearEnvValuesByPrefix(env, SDKWORK_IAM_APP_API_ENV_PREFIX);
     setEnvDefault(
       env,
-      SDKWORK_USER_CENTER_LOCAL_OAUTH_PROVIDERS_ENV,
-      DEFAULT_SDKWORK_USER_CENTER_LOCAL_OAUTH_PROVIDERS,
+      SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS_ENV,
+      DEFAULT_SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS,
     );
     return;
   }
 
-  clearEnvValuesByPrefix(env, SDKWORK_USER_CENTER_LOCAL_OAUTH_ENV_PREFIX);
-  clearEnvValues(env, SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED_ENV);
-
-  if (providerKind === 'sdkwork-cloud-app-api') {
-    clearEnvValuesByPrefix(env, SDKWORK_USER_CENTER_EXTERNAL_ENV_PREFIX);
-    setEnvDefault(
-      env,
-      SDKWORK_USER_CENTER_APP_API_OAUTH_PROVIDERS_ENV,
-      DEFAULT_SDKWORK_USER_CENTER_CLOUD_OAUTH_PROVIDERS,
-    );
-    return;
-  }
-
-  clearEnvValuesByPrefix(env, SDKWORK_USER_CENTER_APP_API_ENV_PREFIX);
-}
-
-function stripRemoteProviderSampleDevelopmentPrefill({
-  env,
-  providerKind,
-  bootstrapAccount,
-  bootstrapPhone,
-  bootstrapPassword,
-}) {
-  if (providerKind === 'builtin-local') {
-    return;
-  }
-
-  let removedSampleValue = false;
-  const sampleDefaults = [
-    [VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV, bootstrapAccount],
-    [VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL_ENV, bootstrapAccount],
-    [VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE_ENV, bootstrapPhone],
-    [VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD_ENV, bootstrapPassword],
-  ];
-
-  for (const [key, sampleValue] of sampleDefaults) {
-    if (readEnvValue(env, key) === sampleValue) {
-      delete env[key];
-      removedSampleValue = true;
-    }
-  }
-
-  const remainingPrefillValues = readEnvValue(
+  clearEnvValuesByPrefix(env, SDKWORK_IAM_LOCAL_OAUTH_ENV_PREFIX);
+  clearEnvValues(env, SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV);
+  setEnvDefault(
     env,
-    VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV,
-    VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL_ENV,
-    VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE_ENV,
-    VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD_ENV,
+    SDKWORK_IAM_APP_API_OAUTH_PROVIDERS_ENV,
+    DEFAULT_SDKWORK_IAM_CLOUD_OAUTH_PROVIDERS,
   );
-  const loginMethod = readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD_ENV);
-  if (removedSampleValue && loginMethod === 'password' && !remainingPrefillValues) {
-    delete env[VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD_ENV];
-  }
-
-  if (
-    removedSampleValue
-    && !readEnvValue(
-      env,
-      VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV,
-      VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL_ENV,
-      VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE_ENV,
-      VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD_ENV,
-      VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD_ENV,
-    )
-  ) {
-    setEnvValue(env, VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED_ENV, 'false');
-  }
 }
 
-export function loadBirdcoderWorkspaceEnv({
+function applyIamModeDefaults({
+  env,
+  iamMode,
+}) {
+  setEnvDefault(
+    env,
+    SDKWORK_IAM_MODE_ENV,
+    resolveSdkworkIamMode(iamMode),
+  );
+
+  const sdkworkIamMode = normalizeSdkworkIamMode(
+    readEnvValue(env, SDKWORK_IAM_MODE_ENV),
+  );
+  if (!sdkworkIamMode) {
+    return;
+  }
+
+  applyIamModeScopedEnvDefaults(env, sdkworkIamMode);
+}
+
+function loadBirdcoderWorkspaceEnv({
   env = process.env,
   viteMode = 'development',
   workspaceRootDir = resolveWorkspaceRootDir(),
@@ -407,85 +376,40 @@ function applyClientApiBaseUrl({
   setEnvValue(env, VITE_BIRDCODER_API_BASE_URL_ENV, resolvedApiBaseUrl);
 }
 
-function applyUserCenterProviderDefaults({
-  env,
-  iamMode,
-}) {
-  setEnvDefault(
-    env,
-    SDKWORK_USER_CENTER_MODE_ENV,
-    resolveImplicitUserCenterLoginProvider(iamMode),
-  );
-
-  const providerKind = normalizeBirdcoderUserCenterLoginProvider(
-    readEnvValue(env, SDKWORK_USER_CENTER_MODE_ENV),
-  );
-  if (!providerKind) {
-    return;
-  }
-
-  applyProviderScopedEnvDefaults(env, providerKind);
-}
-
-function applyUserCenterProviderPublicEnv(env) {
-  const providerKind = normalizeBirdcoderUserCenterLoginProvider(
-    readEnvValue(env, SDKWORK_USER_CENTER_MODE_ENV),
-  );
-  if (!providerKind) {
-    delete env[VITE_SDKWORK_USER_CENTER_MODE_ENV];
-    return;
-  }
-
-  setEnvValue(env, VITE_SDKWORK_USER_CENTER_MODE_ENV, providerKind);
-}
-
 function applyDevelopmentPrefillDefaults({
   env,
   iamMode,
   viteMode,
 }) {
   const isDevelopmentLike = viteMode === 'development' || viteMode === 'test';
-  const providerKind =
-    normalizeBirdcoderUserCenterLoginProvider(
-      readEnvValue(env, SDKWORK_USER_CENTER_MODE_ENV),
-    )
-    ?? (
-      readEnvValue(env, SDKWORK_USER_CENTER_MODE_ENV)
-        ? undefined
-        : resolveImplicitUserCenterLoginProvider(iamMode)
-    );
-  const isBuiltinLocalProvider = providerKind === 'builtin-local';
+  const sdkworkIamMode =
+    normalizeSdkworkIamMode(readEnvValue(env, SDKWORK_IAM_MODE_ENV))
+    ?? resolveSdkworkIamMode(iamMode);
+  const isLocalAuthority = sdkworkIamMode === 'local' || sdkworkIamMode === 'private';
   const explicitEnabled = parseBoolean(
     readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED_ENV),
   );
   const bootstrapAccount =
-    readEnvValue(env, SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_EMAIL_ENV)
-    ?? DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_ACCOUNT;
+    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV)
+    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT;
   const bootstrapPhone =
-    readEnvValue(env, SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE_ENV)
-    ?? DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE;
+    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV)
+    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE;
   const bootstrapPassword =
-    readEnvValue(env, SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD_ENV)
-    ?? DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD;
-  stripRemoteProviderSampleDevelopmentPrefill({
-    env,
-    providerKind,
-    bootstrapAccount,
-    bootstrapPhone,
-    bootstrapPassword,
-  });
+    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV)
+    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD;
   const resolvedDefaultAccount =
     readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV)
-    ?? (isBuiltinLocalProvider ? bootstrapAccount : undefined);
+    ?? (isLocalAuthority ? bootstrapAccount : undefined);
   const resolvedDefaultEmail =
     readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL_ENV)
-    ?? (isBuiltinLocalProvider ? bootstrapAccount : undefined);
+    ?? (isLocalAuthority ? bootstrapAccount : undefined);
   const resolvedDefaultPhone =
     readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE_ENV)
-    ?? (isBuiltinLocalProvider ? bootstrapPhone : undefined);
+    ?? (isLocalAuthority ? bootstrapPhone : undefined);
   const resolvedDefaultPassword =
     readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD_ENV)
-    ?? (isBuiltinLocalProvider ? bootstrapPassword : undefined);
+    ?? (isLocalAuthority ? bootstrapPassword : undefined);
   const resolvedDefaultLoginMethod =
     readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD_ENV)
     ?? (
@@ -506,24 +430,18 @@ function applyDevelopmentPrefillDefaults({
     explicitEnabled
     ?? (
       isDevelopmentLike
-      && Boolean(
-        hasResolvedPrefillValues,
-      )
+      && Boolean(hasResolvedPrefillValues)
     );
-  const resolvedShouldEnable =
-    !isBuiltinLocalProvider && !hasResolvedPrefillValues
-      ? false
-      : shouldEnable;
 
-  if (typeof resolvedShouldEnable === 'boolean') {
+  if (typeof shouldEnable === 'boolean') {
     setEnvValue(
       env,
       VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED_ENV,
-      resolvedShouldEnable ? 'true' : 'false',
+      shouldEnable ? 'true' : 'false',
     );
   }
 
-  if (!resolvedShouldEnable) {
+  if (!shouldEnable) {
     return;
   }
 
@@ -581,28 +499,22 @@ function applyReleaseDemoLoginDefaults({
     return;
   }
 
-  const providerKind =
-    normalizeBirdcoderUserCenterLoginProvider(
-      readEnvValue(env, SDKWORK_USER_CENTER_MODE_ENV),
-    )
-    ?? (
-      readEnvValue(env, SDKWORK_USER_CENTER_MODE_ENV)
-        ? undefined
-        : resolveImplicitUserCenterLoginProvider(iamMode)
-    );
-  if (providerKind !== 'builtin-local') {
+  const sdkworkIamMode =
+    normalizeSdkworkIamMode(readEnvValue(env, SDKWORK_IAM_MODE_ENV))
+    ?? resolveSdkworkIamMode(iamMode);
+  if (sdkworkIamMode === 'cloud') {
     return;
   }
 
   const bootstrapAccount =
-    readEnvValue(env, SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_EMAIL_ENV)
-    ?? DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_ACCOUNT;
+    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV)
+    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT;
   const bootstrapPhone =
-    readEnvValue(env, SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE_ENV)
-    ?? DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE;
+    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV)
+    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE;
   const bootstrapPassword =
-    readEnvValue(env, SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD_ENV)
-    ?? DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD;
+    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV)
+    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD;
 
   setEnvValue(env, VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED_ENV, 'true');
   setEnvDefault(
@@ -646,27 +558,21 @@ function applyLocalVerifyCodeDefaults({
 }) {
   const isDevelopmentLike = viteMode === 'development' || viteMode === 'test';
   const isServerRuntimeTarget = target === 'desktop-dev' || target === 'server-dev';
-  const providerKind =
-    normalizeBirdcoderUserCenterLoginProvider(
-      readEnvValue(env, SDKWORK_USER_CENTER_MODE_ENV),
-    )
-    ?? (
-      readEnvValue(env, SDKWORK_USER_CENTER_MODE_ENV)
-        ? undefined
-        : resolveImplicitUserCenterLoginProvider(iamMode)
-    );
+  const sdkworkIamMode =
+    normalizeSdkworkIamMode(readEnvValue(env, SDKWORK_IAM_MODE_ENV))
+    ?? resolveSdkworkIamMode(iamMode);
   if (
     !isDevelopmentLike
     || !isServerRuntimeTarget
-    || providerKind !== 'builtin-local'
+    || sdkworkIamMode === 'cloud'
   ) {
     return;
   }
 
   setEnvDefault(
     env,
-    SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED_ENV,
-    DEFAULT_SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE,
+    SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV,
+    DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE,
   );
 }
 
@@ -679,29 +585,23 @@ export function resolveBirdcoderIamDeveloperExperience({
     iamMode,
     'desktop-local',
   );
-  const providerKind =
-    normalizeBirdcoderUserCenterLoginProvider(
-      readEnvValue(env, SDKWORK_USER_CENTER_MODE_ENV),
-    )
-    ?? (
-      readEnvValue(env, SDKWORK_USER_CENTER_MODE_ENV)
-        ? undefined
-        : resolveImplicitUserCenterLoginProvider(resolvedIamMode)
-    );
+  const sdkworkIamMode =
+    normalizeSdkworkIamMode(readEnvValue(env, SDKWORK_IAM_MODE_ENV))
+    ?? resolveSdkworkIamMode(resolvedIamMode);
   const isDevelopmentLike = viteMode === 'development' || viteMode === 'test';
   const bootstrapAccount =
-    readEnvValue(env, SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_EMAIL_ENV)
-    ?? DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_ACCOUNT;
+    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV)
+    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT;
   const bootstrapPhone =
-    readEnvValue(env, SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE_ENV)
-    ?? DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PHONE;
+    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV)
+    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE;
   const bootstrapPassword =
-    readEnvValue(env, SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD_ENV)
-    ?? DEFAULT_SDKWORK_USER_CENTER_LOCAL_BOOTSTRAP_PASSWORD;
+    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV)
+    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD;
   const verifyCode =
-    readEnvValue(env, SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE_FIXED_ENV)
-    ?? DEFAULT_SDKWORK_USER_CENTER_LOCAL_VERIFY_CODE;
-  const localProviderEnabled = providerKind === 'builtin-local';
+    readEnvValue(env, SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV)
+    ?? DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE;
+  const localAuthorityEnabled = sdkworkIamMode !== 'cloud';
   const configuredQuickLoginAccount = readEnvValue(
     env,
     VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV,
@@ -732,33 +632,33 @@ export function resolveBirdcoderIamDeveloperExperience({
 
   return {
     bootstrapUser:
-      localProviderEnabled
+      localAuthorityEnabled
         ? {
             account: bootstrapAccount,
             email: bootstrapAccount,
             phone: bootstrapPhone,
           }
         : null,
-    providerKind,
+    iamMode: sdkworkIamMode,
     quickLogin:
-      isDevelopmentLike && (localProviderEnabled || explicitQuickLoginConfigured)
+      isDevelopmentLike && (localAuthorityEnabled || explicitQuickLoginConfigured)
         ? {
             account:
               configuredQuickLoginAccount
-              ?? (localProviderEnabled ? bootstrapAccount : undefined),
+              ?? (localAuthorityEnabled ? bootstrapAccount : undefined),
             email:
               configuredQuickLoginEmail
-              ?? (localProviderEnabled ? bootstrapAccount : undefined),
+              ?? (localAuthorityEnabled ? bootstrapAccount : undefined),
             phone:
               configuredQuickLoginPhone
-              ?? (localProviderEnabled ? bootstrapPhone : undefined),
+              ?? (localAuthorityEnabled ? bootstrapPhone : undefined),
             password:
               configuredQuickLoginPassword
-              ?? (localProviderEnabled ? bootstrapPassword : undefined),
+              ?? (localAuthorityEnabled ? bootstrapPassword : undefined),
             loginMethod:
               configuredQuickLoginMethod
               ?? 'password',
-            ...(localProviderEnabled
+            ...(localAuthorityEnabled
               ? {
                   verifyCode,
                 }
@@ -789,6 +689,7 @@ export function resolveBirdcoderIamCommandEnv({
     resolveDefaultIamMode(target),
   );
   const errors = [];
+  const sdkworkIamMode = resolveSdkworkIamMode(resolvedIamMode);
 
   setEnvValue(
     nextEnv,
@@ -800,26 +701,25 @@ export function resolveBirdcoderIamCommandEnv({
     VITE_BIRDCODER_IAM_DEPLOYMENT_MODE_ENV,
     resolvedIamMode,
   );
+  setEnvValue(
+    nextEnv,
+    VITE_SDKWORK_DEPLOYMENT_MODE_ENV,
+    resolvePublicDeploymentMode(resolvedIamMode),
+  );
+  setEnvValue(nextEnv, SDKWORK_IAM_MODE_ENV, sdkworkIamMode);
 
-  applyUserCenterProviderDefaults({
+  applyIamModeDefaults({
     env: nextEnv,
     iamMode: resolvedIamMode,
   });
-  const resolvedProviderKind = normalizeBirdcoderUserCenterLoginProvider(
-    readEnvValue(nextEnv, SDKWORK_USER_CENTER_MODE_ENV),
+  const resolvedSdkworkIamMode = normalizeSdkworkIamMode(
+    readEnvValue(nextEnv, SDKWORK_IAM_MODE_ENV),
   );
-  if (!resolvedProviderKind) {
+  if (!resolvedSdkworkIamMode) {
     errors.push(
-      `${SDKWORK_USER_CENTER_MODE_ENV} must be one of: ${SDKWORK_USER_CENTER_MODES.join(', ')}.`,
-    );
-  } else {
-    setEnvValue(
-      nextEnv,
-      SDKWORK_USER_CENTER_MODE_ENV,
-      resolvedProviderKind,
+      `${SDKWORK_IAM_MODE_ENV} must be one of: ${SDKWORK_IAM_MODES.join(', ')}.`,
     );
   }
-  applyUserCenterProviderPublicEnv(nextEnv);
 
   applyClientApiBaseUrl({
     env: nextEnv,
@@ -872,10 +772,10 @@ export function resolveBirdcoderIamCommandEnv({
   if (
     resolvedIamMode === 'cloud-saas'
     && (target === 'server-build' || target === 'server-dev')
-    && !readEnvValue(nextEnv, SDKWORK_USER_CENTER_APP_API_BASE_URL_ENV)
+    && !readEnvValue(nextEnv, SDKWORK_IAM_APP_API_BASE_URL_ENV)
   ) {
     errors.push(
-      `${SDKWORK_USER_CENTER_APP_API_BASE_URL_ENV} is required when ${BIRDCODER_IAM_DEPLOYMENT_MODE_ENV}=cloud-saas for server commands.`,
+      `${SDKWORK_IAM_APP_API_BASE_URL_ENV} is required when ${BIRDCODER_IAM_DEPLOYMENT_MODE_ENV}=cloud-saas for server commands.`,
     );
   }
 
@@ -883,6 +783,7 @@ export function resolveBirdcoderIamCommandEnv({
     env: nextEnv,
     errors,
     iamMode: resolvedIamMode,
+    sdkworkIamMode: resolvedSdkworkIamMode,
     viteMode: resolvedViteMode,
   };
 }

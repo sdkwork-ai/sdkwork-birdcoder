@@ -61,14 +61,14 @@
     }
   },
   "dependencies": {
-    "@sdkwork/auth-runtime-pc-react": "workspace:*",
     "@sdkwork/birdcoder-app-sdk": "workspace:*",
     "@sdkwork/birdcoder-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-core": "workspace:*",
     "@sdkwork/birdcoder-host-core": "workspace:*",
-    "@sdkwork/user-center-core-pc-react": "workspace:*",
-    "@sdkwork/user-center-validation-pc-react": "workspace:*",
+    "@sdkwork/iam-runtime": "workspace:*",
+    "@sdkwork/iam-service": "workspace:*",
+    "@sdkwork/iam-sdk-ports": "workspace:*",
     "@tauri-apps/api": "catalog:",
     "@sdkwork/birdcoder-types": "workspace:*"
   }

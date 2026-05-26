@@ -1,20 +1,25 @@
 import type { BirdCoderBackendSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
-  BirdCoderAdminPolicySummary,
+  BirdCoderIamPolicySummary,
 } from '@sdkwork/birdcoder-types';
 import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
 import { createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
 
-const policyFixtures: BirdCoderAdminPolicySummary[] = [
+const policyFixtures: BirdCoderIamPolicySummary[] = [
   {
     id: 'admin-policy-contract-1',
-    scopeType: 'workspace',
-    scopeId: 'workspace-contract-1',
-    policyCategory: 'terminal',
-    targetType: 'engine',
-    targetId: 'codex',
-    approvalPolicy: 'Restricted',
+    tenantId: '0',
+    code: 'terminal.engine.codex',
+    name: 'Codex terminal approval policy',
+    policy: {
+      approvalPolicy: 'Restricted',
+      policyCategory: 'terminal',
+      scopeId: 'workspace-contract-1',
+      scopeType: 'workspace',
+      targetId: 'codex',
+      targetType: 'engine',
+    },
     status: 'active',
     updatedAt: '2026-04-11T16:35:00.000Z',
   },
@@ -38,7 +43,7 @@ const policies = await services.adminPolicyService.getPolicies();
 assert.deepEqual(
   policies,
   policyFixtures,
-  'default IDE services must expose admin policy reads through the backend SDK client.',
+  'default IDE services must expose IAM policy reads through the backend SDK client.',
 );
 
 assert.equal(

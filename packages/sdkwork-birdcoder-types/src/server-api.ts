@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   BirdCoderCodingSessionArtifact,
   BirdCoderCodingSessionCheckpoint,
   BirdCoderCodingSessionEvent,
@@ -26,7 +26,6 @@ import type {
   BirdCoderSyncCodeEngineModelConfigRequest,
 } from './engine.ts';
 import type { BirdcoderApprovalPolicy } from './governance.ts';
-import { createBirdCoderFinalizedCodingServerClient } from './generated/coding-server-client.ts';
 
 export const BIRDCODER_API_SURFACES = ['app', 'backend'] as const;
 
@@ -735,119 +734,100 @@ export interface BirdCoderProjectPublishResult {
   target: BirdCoderDeploymentTargetSummary;
 }
 
-export interface BirdCoderAdminAuditEventSummary {
+export interface BirdCoderIamAuditEventSummary {
   id: string;
-  uuid?: string;
-  tenantId?: string;
+  tenantId: string;
   organizationId?: string;
+  actorUserId?: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  requestId?: string;
+  appId?: string;
+  environment?: string;
+  shardingKey?: string;
+  detail: Record<string, unknown>;
   createdAt?: string;
-  updatedAt?: string;
-  scopeType: string;
-  scopeId: string;
-  eventType: string;
-  payload: Record<string, unknown>;
 }
 
-export interface BirdCoderAdminPolicySummary {
+export interface BirdCoderIamPolicySummary {
   id: string;
-  uuid?: string;
-  tenantId?: string;
-  organizationId?: string;
+  tenantId: string;
+  code: string;
+  name: string;
+  policy: Record<string, unknown>;
+  status: string;
   createdAt?: string;
   updatedAt?: string;
-  scopeType: 'global' | 'workspace' | 'project' | 'team' | 'release' | 'runtime' | (string & {});
-  scopeId: string;
-  policyCategory:
-    | 'terminal'
-    | 'engine'
-    | 'deployment'
-    | 'release'
-    | 'workspace'
-    | 'project'
-    | (string & {});
-  targetType:
-    | 'engine'
-    | 'workflow'
-    | 'terminal-profile'
-    | 'deployment-target'
-    | 'workspace'
-    | 'project'
-    | (string & {});
-  targetId: string;
-  approvalPolicy: BirdcoderApprovalPolicy;
-  rationale?: string;
-  status: 'draft' | 'active' | 'archived' | (string & {});
 }
 
-export type BirdCoderUserCenterMode = 'builtin-local' | 'sdkwork-cloud-app-api' | 'external-user-center';
-
-export const BIRDCODER_USER_CENTER_LOGIN_METHODS = [
+export const BIRDCODER_IAM_LOGIN_METHODS = [
   'emailCode',
   'password',
   'phoneCode',
   'sessionBridge',
 ] as const;
 
-export type BirdCoderUserCenterLoginMethod =
-  (typeof BIRDCODER_USER_CENTER_LOGIN_METHODS)[number];
+export type BirdCoderIamLoginMethod =
+  (typeof BIRDCODER_IAM_LOGIN_METHODS)[number];
 
-export const BIRDCODER_USER_CENTER_REGISTER_METHODS = [
+export const BIRDCODER_IAM_REGISTER_METHODS = [
   'email',
   'phone',
 ] as const;
 
-export type BirdCoderUserCenterRegisterMethod =
-  (typeof BIRDCODER_USER_CENTER_REGISTER_METHODS)[number];
+export type BirdCoderIamRegisterMethod =
+  (typeof BIRDCODER_IAM_REGISTER_METHODS)[number];
 
-export const BIRDCODER_USER_CENTER_RECOVERY_METHODS = [
+export const BIRDCODER_IAM_RECOVERY_METHODS = [
   'email',
   'phone',
 ] as const;
 
-export type BirdCoderUserCenterRecoveryMethod =
-  (typeof BIRDCODER_USER_CENTER_RECOVERY_METHODS)[number];
+export type BirdCoderIamRecoveryMethod =
+  (typeof BIRDCODER_IAM_RECOVERY_METHODS)[number];
 
-export const BIRDCODER_USER_CENTER_VERIFY_TYPES = ['EMAIL', 'PHONE'] as const;
+export const BIRDCODER_IAM_VERIFY_TYPES = ['EMAIL', 'PHONE'] as const;
 
-export type BirdCoderUserCenterVerifyType =
-  (typeof BIRDCODER_USER_CENTER_VERIFY_TYPES)[number];
+export type BirdCoderIamVerifyType =
+  (typeof BIRDCODER_IAM_VERIFY_TYPES)[number];
 
-export const BIRDCODER_USER_CENTER_VERIFY_SCENES = [
+export const BIRDCODER_IAM_VERIFY_SCENES = [
   'LOGIN',
   'REGISTER',
   'RESET_PASSWORD',
 ] as const;
 
-export type BirdCoderUserCenterVerifyScene =
-  (typeof BIRDCODER_USER_CENTER_VERIFY_SCENES)[number];
+export type BirdCoderIamVerifyScene =
+  (typeof BIRDCODER_IAM_VERIFY_SCENES)[number];
 
-export const BIRDCODER_USER_CENTER_PASSWORD_RESET_CHANNELS = [
+export const BIRDCODER_IAM_PASSWORD_RESET_CHANNELS = [
   'EMAIL',
   'SMS',
 ] as const;
 
-export type BirdCoderUserCenterPasswordResetChannel =
-  (typeof BIRDCODER_USER_CENTER_PASSWORD_RESET_CHANNELS)[number];
+export type BirdCoderIamPasswordResetChannel =
+  (typeof BIRDCODER_IAM_PASSWORD_RESET_CHANNELS)[number];
 
-export const BIRDCODER_USER_CENTER_DEVICE_TYPES = [
+export const BIRDCODER_IAM_DEVICE_TYPES = [
   'android',
   'desktop',
   'ios',
   'web',
 ] as const;
 
-export type BirdCoderUserCenterDeviceType =
-  (typeof BIRDCODER_USER_CENTER_DEVICE_TYPES)[number];
+export type BirdCoderIamDeviceType =
+  (typeof BIRDCODER_IAM_DEVICE_TYPES)[number];
 
-export const BIRDCODER_USER_CENTER_LOGIN_QR_STATUSES = [
+export const BIRDCODER_IAM_QR_AUTH_STATUSES = [
   'pending',
   'scanned',
   'confirmed',
   'expired',
 ] as const;
 
-export type BirdCoderUserCenterLoginQrStatus =
-  (typeof BIRDCODER_USER_CENTER_LOGIN_QR_STATUSES)[number];
+export type BirdCoderIamQrAuthStatus =
+  (typeof BIRDCODER_IAM_QR_AUTH_STATUSES)[number];
 
 export interface BirdCoderAuthenticatedUserSummary {
   id: string;
@@ -861,55 +841,62 @@ export interface BirdCoderAuthenticatedUserSummary {
   avatarUrl?: string;
 }
 
-export interface BirdCoderUserCenterMetadataSummary {
-  integrationKind?: string;
-  loginMethods: BirdCoderUserCenterLoginMethod[];
-  mode: BirdCoderUserCenterMode;
+export interface BirdCoderIamVerificationPolicySummary {
+  emailCodeLoginEnabled: boolean;
+  emailRegistrationVerificationRequired: boolean;
+  phoneCodeLoginEnabled: boolean;
+  phoneRegistrationVerificationRequired: boolean;
+}
+
+export interface BirdCoderIamRuntimeSettingsSummary {
+  leftRailMode: 'auto' | 'highlights-only' | 'qr-only';
+  loginMethods: BirdCoderIamLoginMethod[];
   oauthLoginEnabled: boolean;
   oauthProviders: string[];
-  providerKey: string;
   qrLoginEnabled: boolean;
-  recoveryMethods: BirdCoderUserCenterRecoveryMethod[];
-  registerMethods: BirdCoderUserCenterRegisterMethod[];
-  sessionHeaderName: string;
-  supportsLocalCredentials: boolean;
-  supportsMembershipWrite: boolean;
-  supportsProfileWrite: boolean;
-  supportsSessionExchange: boolean;
-  upstreamBaseUrl?: string;
+  qrLoginType: 'web' | 'official' | 'mini';
+  recoveryMethods: BirdCoderIamRecoveryMethod[];
+  registerMethods: BirdCoderIamRegisterMethod[];
+  verificationPolicy: BirdCoderIamVerificationPolicySummary;
 }
 
-export interface BirdCoderUserCenterSessionSummary {
+export interface BirdCoderIamSessionSummary {
   accessToken: string;
   authToken: string;
-  uuid: string;
-  tenantId?: string;
-  organizationId?: string;
-  createdAt: string;
-  providerKey: string;
-  providerMode: BirdCoderUserCenterMode;
+  context?: Record<string, unknown>;
+  expiresAt?: string;
   refreshToken?: string | null;
-  sessionId: string;
-  tokenType: string;
-  updatedAt: string;
-  user: BirdCoderAuthenticatedUserSummary;
+  sessionId?: string;
+  user?: BirdCoderAuthenticatedUserSummary;
 }
 
-export interface BirdCoderUserCenterLoginRequest {
+export interface BirdCoderIamCreateSessionRequest {
   account?: string;
   appVersion?: string;
   code?: string;
   deviceId?: string;
   deviceName?: string;
-  deviceType?: BirdCoderUserCenterDeviceType;
+  deviceType?: BirdCoderIamDeviceType;
   email?: string;
-  loginMethod?: BirdCoderUserCenterLoginMethod;
+  grantType?: 'password' | 'email_code' | 'phone_code' | 'session_bridge';
+  loginMethod?: BirdCoderIamLoginMethod;
   password?: string;
   phone?: string;
+  username?: string;
 }
 
-export interface BirdCoderUserCenterRegisterRequest {
-  channel?: BirdCoderUserCenterVerifyType;
+export interface BirdCoderIamUpdateCurrentSessionRequest {
+  deviceId?: string;
+  deviceName?: string;
+  trusted?: boolean;
+}
+
+export interface BirdCoderIamRefreshSessionRequest {
+  refreshToken: string;
+}
+
+export interface BirdCoderIamRegistrationCreateRequest {
+  channel?: BirdCoderIamVerifyType;
   confirmPassword?: string;
   email?: string;
   name?: string;
@@ -919,87 +906,66 @@ export interface BirdCoderUserCenterRegisterRequest {
   verificationCode?: string;
 }
 
-export interface BirdCoderUserCenterSendVerifyCodeRequest {
-  scene: BirdCoderUserCenterVerifyScene;
+export interface BirdCoderIamVerificationCodeCreateRequest {
+  scene: BirdCoderIamVerifyScene;
   target: string;
-  verifyType: BirdCoderUserCenterVerifyType;
+  verifyType: BirdCoderIamVerifyType;
 }
 
-export interface BirdCoderUserCenterEmailCodeLoginRequest {
-  appVersion?: string;
+export interface BirdCoderIamVerificationCodeVerifyRequest {
   code: string;
-  deviceId?: string;
-  deviceName?: string;
-  deviceType?: BirdCoderUserCenterDeviceType;
-  email: string;
+  scene: BirdCoderIamVerifyScene;
+  target: string;
+  verifyType: BirdCoderIamVerifyType;
 }
 
-export interface BirdCoderUserCenterPhoneCodeLoginRequest {
-  appVersion?: string;
-  code: string;
-  deviceId?: string;
-  deviceName?: string;
-  deviceType?: BirdCoderUserCenterDeviceType;
-  phone: string;
-}
-
-export interface BirdCoderUserCenterPasswordResetChallengeRequest {
+export interface BirdCoderIamPasswordResetRequestCreateRequest {
   account: string;
-  channel: BirdCoderUserCenterPasswordResetChannel;
+  channel: BirdCoderIamPasswordResetChannel;
 }
 
-export interface BirdCoderUserCenterPasswordResetRequest {
+export interface BirdCoderIamPasswordResetCreateRequest {
   account: string;
   code: string;
   confirmPassword?: string;
   newPassword: string;
 }
 
-export interface BirdCoderUserCenterOAuthAuthorizationRequest {
-  provider: string;
-  redirectUri: string;
-  scope?: string;
-  state?: string;
-}
-
-export interface BirdCoderUserCenterOAuthLoginRequest {
+export interface BirdCoderIamOAuthSessionCreateRequest {
   code: string;
   deviceId?: string;
-  deviceType?: BirdCoderUserCenterDeviceType;
+  deviceType?: BirdCoderIamDeviceType;
   provider: string;
   state?: string;
 }
 
-export interface BirdCoderUserCenterOAuthAuthorizationSummary {
+export interface BirdCoderIamOAuthAuthorizationSummary {
   authUrl: string;
 }
 
-export interface BirdCoderUserCenterSessionExchangeRequest {
-  avatarUrl?: string;
-  email: string;
-  userId?: string;
-  name?: string;
-  providerKey?: string;
-  subject?: string;
+export interface BirdCoderIamQrAuthSessionCreateRequest {
+  purpose: 'login' | 'register';
+  redirectUri?: string;
 }
 
-export interface BirdCoderUserCenterLoginQrCodeSummary {
-  description?: string;
-  expireTime?: number;
+export interface BirdCoderIamQrAuthSessionSummary {
+  expiresAt?: string;
   qrContent?: string;
-  qrKey: string;
   qrUrl?: string;
-  title?: string;
-  type?: string;
+  sessionKey: string;
+  status: BirdCoderIamQrAuthStatus;
 }
 
-export interface BirdCoderUserCenterLoginQrStatusSummary {
-  session?: BirdCoderUserCenterSessionSummary;
-  status: BirdCoderUserCenterLoginQrStatus;
-  user?: BirdCoderAuthenticatedUserSummary;
+export interface BirdCoderIamQrAuthSessionScanRequest {
+  scanSource?: string;
 }
 
-export interface BirdCoderUserCenterProfileSummary {
+export interface BirdCoderIamQrAuthSessionPasswordRequest {
+  password: string;
+  username: string;
+}
+
+export interface BirdCoderIamUserProfileSummary {
   uuid: string;
   tenantId?: string;
   organizationId?: string;
@@ -1024,34 +990,6 @@ export interface BirdCoderUpdateCurrentUserProfileRequest {
   website?: string;
 }
 
-export interface BirdCoderUserCenterMembershipSummary {
-  uuid: string;
-  tenantId?: string;
-  organizationId?: string;
-  createdAt: string;
-  updatedAt: string;
-  userId: string;
-  vipLevelId?: string;
-  pointBalance: BirdCoderLongIntegerString;
-  totalRechargedPoints: BirdCoderLongIntegerString;
-  status: string;
-  validFrom?: string;
-  validTo?: string;
-  lastActiveTime?: string;
-  remark?: string;
-}
-
-export interface BirdCoderUpdateCurrentUserMembershipRequest {
-  vipLevelId?: string;
-  pointBalance?: BirdCoderLongIntegerString;
-  totalRechargedPoints?: BirdCoderLongIntegerString;
-  status?: string;
-  validFrom?: string;
-  validTo?: string;
-  lastActiveTime?: string;
-  remark?: string;
-}
-
 export interface BirdCoderWorkspaceScopedListRequest {
   userId?: string;
   workspaceId?: string;
@@ -1059,52 +997,6 @@ export interface BirdCoderWorkspaceScopedListRequest {
 
 export interface BirdCoderProjectListRequest extends BirdCoderWorkspaceScopedListRequest {
   rootPath?: string;
-}
-
-export interface BirdCoderUserCenterApiClient {
-  checkLoginQrCodeStatus(
-    qrKey: string,
-  ): Promise<BirdCoderUserCenterLoginQrStatusSummary>;
-  exchangeSession(
-    request: BirdCoderUserCenterSessionExchangeRequest,
-  ): Promise<BirdCoderUserCenterSessionSummary>;
-  generateLoginQrCode(): Promise<BirdCoderUserCenterLoginQrCodeSummary>;
-  getConfig(): Promise<BirdCoderUserCenterMetadataSummary>;
-  getCurrentMembership(): Promise<BirdCoderUserCenterMembershipSummary>;
-  getCurrentProfile(): Promise<BirdCoderUserCenterProfileSummary>;
-  getCurrentSession(): Promise<BirdCoderUserCenterSessionSummary | null>;
-  getOAuthAuthorizationUrl(
-    request: BirdCoderUserCenterOAuthAuthorizationRequest,
-  ): Promise<string>;
-  loginWithEmailCode(
-    request: BirdCoderUserCenterEmailCodeLoginRequest,
-  ): Promise<BirdCoderUserCenterSessionSummary>;
-  loginWithOAuth(
-    request: BirdCoderUserCenterOAuthLoginRequest,
-  ): Promise<BirdCoderUserCenterSessionSummary>;
-  loginWithPhoneCode(
-    request: BirdCoderUserCenterPhoneCodeLoginRequest,
-  ): Promise<BirdCoderUserCenterSessionSummary>;
-  login(request: BirdCoderUserCenterLoginRequest): Promise<BirdCoderUserCenterSessionSummary>;
-  logout(): Promise<void>;
-  requestPasswordReset(
-    request: BirdCoderUserCenterPasswordResetChallengeRequest,
-  ): Promise<void>;
-  register(
-    request: BirdCoderUserCenterRegisterRequest,
-  ): Promise<BirdCoderUserCenterSessionSummary>;
-  resetPassword(request: BirdCoderUserCenterPasswordResetRequest): Promise<void>;
-  sendVerifyCode(request: BirdCoderUserCenterSendVerifyCodeRequest): Promise<void>;
-  updateCurrentMembership(
-    request: BirdCoderUpdateCurrentUserMembershipRequest,
-  ): Promise<BirdCoderUserCenterMembershipSummary>;
-  updateCurrentProfile(
-    request: BirdCoderUpdateCurrentUserProfileRequest,
-  ): Promise<BirdCoderUserCenterProfileSummary>;
-}
-
-export interface CreateBirdCoderGeneratedUserCenterApiClientOptions {
-  transport: BirdCoderApiTransport;
 }
 
 export interface BirdCoderCoreHealthSummary {
@@ -1297,66 +1189,9 @@ export interface BirdCoderAppRuntimeApiContract {
   updateCodingSession: BirdCoderApiRouteDefinition;
 }
 
-export interface BirdCoderAppApiContract {
-  appTemplates: BirdCoderApiRouteDefinition;
-  authConfig: BirdCoderApiRouteDefinition;
-  authOAuthLogin: BirdCoderApiRouteDefinition;
-  authOAuthUrl: BirdCoderApiRouteDefinition;
-  authQrGenerate: BirdCoderApiRouteDefinition;
-  authQrStatus: BirdCoderApiRouteDefinition;
-  authSession: BirdCoderApiRouteDefinition;
-  commitProjectGitChanges: BirdCoderApiRouteDefinition;
-  createProjectGitBranch: BirdCoderApiRouteDefinition;
-  createProjectGitWorktree: BirdCoderApiRouteDefinition;
-  createProject: BirdCoderApiRouteDefinition;
-  createProjectCollaborator: BirdCoderApiRouteDefinition;
-  createWorkspace: BirdCoderApiRouteDefinition;
-  createWorkspaceMember: BirdCoderApiRouteDefinition;
-  deleteProject: BirdCoderApiRouteDefinition;
-  deleteWorkspace: BirdCoderApiRouteDefinition;
-  deployments: BirdCoderApiRouteDefinition;
-  documents: BirdCoderApiRouteDefinition;
-  exchangeUserCenterSession: BirdCoderApiRouteDefinition;
-  getCurrentUserMembership: BirdCoderApiRouteDefinition;
-  getCurrentUserProfile: BirdCoderApiRouteDefinition;
-  loginWithEmailCode: BirdCoderApiRouteDefinition;
-  loginWithPhoneCode: BirdCoderApiRouteDefinition;
-  project: BirdCoderApiRouteDefinition;
-  projectGitOverview: BirdCoderApiRouteDefinition;
-  installSkillPackage: BirdCoderApiRouteDefinition;
-  login: BirdCoderApiRouteDefinition;
-  logout: BirdCoderApiRouteDefinition;
-  pruneProjectGitWorktrees: BirdCoderApiRouteDefinition;
-  publishProject: BirdCoderApiRouteDefinition;
-  pushProjectGitBranch: BirdCoderApiRouteDefinition;
-  projectCollaborators: BirdCoderApiRouteDefinition;
-  projects: BirdCoderApiRouteDefinition;
-  requestPasswordReset: BirdCoderApiRouteDefinition;
-  register: BirdCoderApiRouteDefinition;
-  resetPassword: BirdCoderApiRouteDefinition;
-  removeProjectGitWorktree: BirdCoderApiRouteDefinition;
-  sendVerifyCode: BirdCoderApiRouteDefinition;
-  skillPackages: BirdCoderApiRouteDefinition;
-  switchProjectGitBranch: BirdCoderApiRouteDefinition;
-  subscribeWorkspaceRealtime: BirdCoderApiRouteDefinition;
-  teams: BirdCoderApiRouteDefinition;
-  updateCurrentUserMembership: BirdCoderApiRouteDefinition;
-  updateCurrentUserProfile: BirdCoderApiRouteDefinition;
-  updateProject: BirdCoderApiRouteDefinition;
-  updateWorkspace: BirdCoderApiRouteDefinition;
-  workspaceMembers: BirdCoderApiRouteDefinition;
-  workspaces: BirdCoderApiRouteDefinition;
-}
+export type BirdCoderAppApiContract = Record<string, BirdCoderApiRouteDefinition>;
 
-export interface BirdCoderBackendApiContract {
-  audit: BirdCoderApiRouteDefinition;
-  deployments: BirdCoderApiRouteDefinition;
-  deploymentTargets: BirdCoderApiRouteDefinition;
-  policies: BirdCoderApiRouteDefinition;
-  releases: BirdCoderApiRouteDefinition;
-  teamMembers: BirdCoderApiRouteDefinition;
-  teams: BirdCoderApiRouteDefinition;
-}
+export type BirdCoderBackendApiContract = Record<string, BirdCoderApiRouteDefinition>;
 
 export interface BirdCoderAppRuntimeApiModel {
   artifacts: BirdCoderCodingSessionArtifact[];
@@ -1374,10 +1209,9 @@ export interface BirdCoderAppRuntimeApiModel {
 
 export interface BirdCoderAppApiModel {
   appTemplates: BirdCoderAppTemplateSummary[];
-  authConfig?: BirdCoderUserCenterMetadataSummary;
-  currentMembership?: BirdCoderUserCenterMembershipSummary;
-  currentProfile?: BirdCoderUserCenterProfileSummary;
-  currentSession?: BirdCoderUserCenterSessionSummary | null;
+  currentIamSession?: BirdCoderIamSessionSummary | null;
+  currentProfile?: BirdCoderIamUserProfileSummary;
+  iamRuntimeSettings?: BirdCoderIamRuntimeSettingsSummary;
   deployments: BirdCoderDeploymentRecordSummary[];
   documents: BirdCoderProjectDocumentSummary[];
   projectCollaborators: BirdCoderProjectCollaboratorSummary[];
@@ -1391,10 +1225,10 @@ export interface BirdCoderAppApiModel {
 }
 
 export interface BirdCoderBackendApiModel {
-  audits: BirdCoderAdminAuditEventSummary[];
+  audits: BirdCoderIamAuditEventSummary[];
   deploymentTargets: BirdCoderDeploymentTargetSummary[];
   members: BirdCoderTeamMemberSummary[];
-  policies: BirdCoderAdminPolicySummary[];
+  policies: BirdCoderIamPolicySummary[];
   releases: BirdCoderReleaseSummary[];
   teams: BirdCoderTeamSummary[];
 }
@@ -1651,272 +1485,4 @@ function normalizeCollaborationStatus(
   }
 
   return normalizedValue as BirdCoderCollaborationStatus;
-}
-
-export function createBirdCoderGeneratedUserCenterApiClient({
-  transport,
-}: CreateBirdCoderGeneratedUserCenterApiClientOptions): BirdCoderUserCenterApiClient {
-  const client = createBirdCoderFinalizedCodingServerClient(transport);
-
-  return {
-    async checkLoginQrCodeStatus(
-      qrKey: string,
-    ): Promise<BirdCoderUserCenterLoginQrStatusSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterLoginQrStatusSummary>,
-        'qrLoginCodes.retrieve'
-      >('qrLoginCodes.retrieve', {
-        pathParams: {
-          qrKey: normalizeRequiredIdentifier(qrKey, 'qrKey'),
-        },
-      });
-      return response.data;
-    },
-    async getConfig(): Promise<BirdCoderUserCenterMetadataSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterMetadataSummary>,
-        'config.retrieve'
-      >('config.retrieve');
-      return response.data;
-    },
-    async generateLoginQrCode(): Promise<BirdCoderUserCenterLoginQrCodeSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterLoginQrCodeSummary>,
-        'qrLoginCodes.create'
-      >('qrLoginCodes.create');
-      return response.data;
-    },
-    async getOAuthAuthorizationUrl(
-      request: BirdCoderUserCenterOAuthAuthorizationRequest,
-    ): Promise<string> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterOAuthAuthorizationSummary>,
-        'oauthAuthorizationUrls.retrieve'
-      >('oauthAuthorizationUrls.retrieve', {
-        query: {
-          provider: normalizeRequiredIdentifier(request.provider, 'provider'),
-          redirectUri: normalizeRequiredIdentifier(request.redirectUri, 'redirectUri'),
-          scope: normalizeOptionalText(request.scope),
-          state: normalizeOptionalText(request.state),
-        },
-      });
-      return normalizeRequiredIdentifier(response.data.authUrl, 'authUrl');
-    },
-    async getCurrentSession(): Promise<BirdCoderUserCenterSessionSummary | null> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary | null>,
-        'sessions.current.retrieve'
-      >('sessions.current.retrieve');
-      return response.data ?? null;
-    },
-    async login(
-      request: BirdCoderUserCenterLoginRequest,
-    ): Promise<BirdCoderUserCenterSessionSummary> {
-      const account =
-        normalizeOptionalText(request.account) ??
-        normalizeRequiredIdentifier(request.email, 'email');
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>,
-        'sessions.create'
-      >('sessions.create', {
-        body: {
-          account,
-          email: normalizeOptionalText(request.email) ?? account,
-          loginMethod: 'password',
-          password: normalizeOptionalText(request.password),
-        },
-      });
-      return response.data;
-    },
-    async loginWithEmailCode(
-      request: BirdCoderUserCenterEmailCodeLoginRequest,
-    ): Promise<BirdCoderUserCenterSessionSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>,
-        'sessions.create'
-      >('sessions.create', {
-        body: {
-          appVersion: normalizeOptionalText(request.appVersion),
-          code: normalizeRequiredIdentifier(request.code, 'code'),
-          deviceId: normalizeOptionalText(request.deviceId),
-          deviceName: normalizeOptionalText(request.deviceName),
-          deviceType: normalizeOptionalText(request.deviceType),
-          email: normalizeRequiredIdentifier(request.email, 'email'),
-          loginMethod: 'emailCode',
-        },
-      });
-      return response.data;
-    },
-    async loginWithOAuth(
-      request: BirdCoderUserCenterOAuthLoginRequest,
-    ): Promise<BirdCoderUserCenterSessionSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>,
-        'oauthSessions.create'
-      >('oauthSessions.create', {
-        body: {
-          code: normalizeRequiredIdentifier(request.code, 'code'),
-          deviceId: normalizeOptionalText(request.deviceId),
-          deviceType: normalizeOptionalText(request.deviceType),
-          provider: normalizeRequiredIdentifier(request.provider, 'provider'),
-          state: normalizeOptionalText(request.state),
-        },
-      });
-      return response.data;
-    },
-    async loginWithPhoneCode(
-      request: BirdCoderUserCenterPhoneCodeLoginRequest,
-    ): Promise<BirdCoderUserCenterSessionSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>,
-        'sessions.create'
-      >('sessions.create', {
-        body: {
-          appVersion: normalizeOptionalText(request.appVersion),
-          code: normalizeRequiredIdentifier(request.code, 'code'),
-          deviceId: normalizeOptionalText(request.deviceId),
-          deviceName: normalizeOptionalText(request.deviceName),
-          deviceType: normalizeOptionalText(request.deviceType),
-          loginMethod: 'phoneCode',
-          phone: normalizeRequiredIdentifier(request.phone, 'phone'),
-        },
-      });
-      return response.data;
-    },
-    async register(
-      request: BirdCoderUserCenterRegisterRequest,
-    ): Promise<BirdCoderUserCenterSessionSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>,
-        'registrations.create'
-      >('registrations.create', {
-        body: {
-          channel: normalizeOptionalText(request.channel),
-          confirmPassword: normalizeOptionalText(request.confirmPassword),
-          email: normalizeOptionalText(request.email),
-          name: normalizeOptionalText(request.name),
-          password: normalizeOptionalText(request.password),
-          phone: normalizeOptionalText(request.phone),
-          username: normalizeOptionalText(request.username),
-          verificationCode: normalizeOptionalText(request.verificationCode),
-        },
-      });
-      return response.data;
-    },
-    async sendVerifyCode(
-      request: BirdCoderUserCenterSendVerifyCodeRequest,
-    ): Promise<void> {
-      await client.request<
-        BirdCoderApiEnvelope<{ success: boolean }>,
-        'verificationCodes.create'
-      >('verificationCodes.create', {
-        body: {
-          scene: normalizeRequiredIdentifier(request.scene, 'scene'),
-          target: normalizeRequiredIdentifier(request.target, 'target'),
-          verifyType: normalizeRequiredIdentifier(request.verifyType, 'verifyType'),
-        },
-      });
-    },
-    async requestPasswordReset(
-      request: BirdCoderUserCenterPasswordResetChallengeRequest,
-    ): Promise<void> {
-      await client.request<
-        BirdCoderApiEnvelope<{ success: boolean }>,
-        'passwordResetRequests.create'
-      >('passwordResetRequests.create', {
-        body: {
-          account: normalizeRequiredIdentifier(request.account, 'account'),
-          channel: normalizeRequiredIdentifier(request.channel, 'channel'),
-        },
-      });
-    },
-    async resetPassword(
-      request: BirdCoderUserCenterPasswordResetRequest,
-    ): Promise<void> {
-      await client.request<
-        BirdCoderApiEnvelope<{ success: boolean }>,
-        'passwordResets.create'
-      >('passwordResets.create', {
-        body: {
-          account: normalizeRequiredIdentifier(request.account, 'account'),
-          code: normalizeRequiredIdentifier(request.code, 'code'),
-          confirmPassword: normalizeOptionalText(request.confirmPassword),
-          newPassword: normalizeRequiredIdentifier(request.newPassword, 'newPassword'),
-        },
-      });
-    },
-    async logout(): Promise<void> {
-      await client.request<BirdCoderApiEnvelope<{ success: boolean }>, 'sessions.current.delete'>('sessions.current.delete');
-    },
-    async exchangeSession(
-      request: BirdCoderUserCenterSessionExchangeRequest,
-    ): Promise<BirdCoderUserCenterSessionSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterSessionSummary>,
-        'sessionExchanges.create'
-      >('sessionExchanges.create', {
-        body: {
-          avatarUrl: normalizeOptionalText(request.avatarUrl),
-          email: normalizeRequiredIdentifier(request.email, 'email'),
-          userId: normalizeOptionalText(request.userId),
-          name: normalizeOptionalText(request.name),
-          providerKey: normalizeOptionalText(request.providerKey),
-          subject: normalizeOptionalText(request.subject),
-        },
-      });
-      return response.data;
-    },
-    async getCurrentProfile(): Promise<BirdCoderUserCenterProfileSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterProfileSummary>,
-        'users.current.retrieve'
-      >('users.current.retrieve');
-      return response.data;
-    },
-    async updateCurrentProfile(
-      request: BirdCoderUpdateCurrentUserProfileRequest,
-    ): Promise<BirdCoderUserCenterProfileSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterProfileSummary>,
-        'users.current.update'
-      >('users.current.update', {
-        body: {
-          avatarUrl: normalizeOptionalText(request.avatarUrl),
-          bio: normalizeOptionalText(request.bio),
-          company: normalizeOptionalText(request.company),
-          displayName: normalizeOptionalText(request.displayName),
-          location: normalizeOptionalText(request.location),
-          website: normalizeOptionalText(request.website),
-        },
-      });
-      return response.data;
-    },
-    async getCurrentMembership(): Promise<BirdCoderUserCenterMembershipSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterMembershipSummary>,
-        'vip.info.retrieve'
-      >('vip.info.retrieve');
-      return response.data;
-    },
-    async updateCurrentMembership(
-      request: BirdCoderUpdateCurrentUserMembershipRequest,
-    ): Promise<BirdCoderUserCenterMembershipSummary> {
-      const response = await client.request<
-        BirdCoderApiEnvelope<BirdCoderUserCenterMembershipSummary>,
-        'vip.info.update'
-      >('vip.info.update', {
-        body: {
-          vipLevelId: normalizeOptionalText(request.vipLevelId),
-          pointBalance: request.pointBalance,
-          totalRechargedPoints: request.totalRechargedPoints,
-          status: normalizeOptionalText(request.status),
-          validFrom: normalizeOptionalText(request.validFrom),
-          validTo: normalizeOptionalText(request.validTo),
-          lastActiveTime: normalizeOptionalText(request.lastActiveTime),
-          remark: normalizeOptionalText(request.remark),
-        },
-      });
-      return response.data;
-    },
-  };
 }

@@ -7,7 +7,7 @@
 ## 2. 当前主线
 
 - 主产品主线：`Code -> Studio -> coding-server -> release / governance`
-- 架构主线：`appbase / provider / prompt-skill-template / engine adapter`
+- 架构主线：`iam / provider / prompt-skill-template / engine adapter`
 - `Terminal` 已调整为外部工程集成边界，不再是本仓主线实现 Step。
 
 ## 3. 总体执行顺序
@@ -18,7 +18,7 @@
 | `01` | 现状基线冻结与差距审计 | 冻结当前事实与风险目录 | `00` | 基线矩阵 | 串行 |
 | `02` | Shell/Host/Kernel 骨架收敛 | 统一宿主、壳层、Kernel 边界 | `01` | 基础骨架 | 串行 |
 | `03` | 领域模型-接口契约-数据标准冻结 | 冻结实体、DTO、Repository、Schema | `02` | 统一数据与协议基线 | 串行 |
-| `04` | Workspace/Project/Auth/Settings 治理 | 冻结工作台上下文与 appbase 边界 | `03` | Workspace / Project 语义 | 串行 |
+| `04` | Workspace/Project/Auth/Settings 治理 | 冻结工作台上下文与 IAM 边界 | `03` | Workspace / Project 语义 | 串行 |
 | `05` | Code Engine SPI 与统一会话内核 | 冻结多 Engine SPI 与会话语义 | `03-04` | Engine SPI / Session Kernel | 串行 |
 | `06` | Code 视图-编辑器-文件系统重构 | 打磨左侧 Code 主工作面 | `05` | Code 主链路 | 高并行 |
 | `07` | Studio 视图-预览-模拟器-编译环境体系 | 打磨 Studio 所见即所得主链路 | `05` | Studio 主链路 | 高并行 |
@@ -28,7 +28,7 @@
 | `11` | Docker-K8s-部署-打包-Release 链路 | 打通多宿主交付链 | `09-10,15` | 交付矩阵 | 串行为主 |
 | `12` | 测试矩阵-质量门禁-回归自动化 | 建立契约、集成、E2E、回归闭环 | `09-10,15,18` | 测试矩阵 / CI 门禁 | 条件并行 |
 | `13` | 发布就绪-GitHub Flow-灰度回滚闭环 | 固化发布、灰度、回滚、Release 证据 | `10-12,17` | 发布与回滚闭环 | 串行 |
-| `14` | Appbase Auth/User/VIP 统一接入实施 | 用 appbase 替换本地平行模块 | `04` | appbase 主边界 | 条件并行 |
+| `14` | SDKWork IAM 统一接入实施 | 用 SDKWork IAM 替换本地平行身份模块 | `04` | IAM 主边界 | 条件并行 |
 | `15` | 多数据库 Provider 与迁移标准化 | 固化 `sqlite/postgresql` Provider 与 authority | `03` | Provider / Dialect / Migration 标准 | 条件并行 |
 | `16` | Prompt/SkillHub/AppTemplate-项目模板体系 | 固化 Prompt、Skill、Template 注入链 | `05` | Prompt / Skill / Template 体系 | 条件并行 |
 | `17` | Coding-Server Core/App/Backend API 与控制台实现 | 落地统一 API 与项目生命周期控制台 | `09,14,16` | `app/backend` API 与控制台 | 串行为主 |
@@ -49,5 +49,5 @@
 
 - 不得让 Terminal 集成阻塞 `Code / Studio` 主线。
 - 不得在本仓继续扩张 Terminal authority 数据模型、Repository、SQLite 迁移与 UI 深化。
-- 不得绕过 `coding-server`、`types`、`appbase`、Provider 标准做平行实现。
+- 不得绕过 `coding-server`、`types`、SDKWork IAM、Provider 标准做平行实现。
 - 每个 Step 完成后都必须回写 `/docs/架构/`、`/docs/step/`、`/docs/release/`。

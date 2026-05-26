@@ -34,10 +34,10 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCatalogPath, '/app/v3/api/system/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 80);
+  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 132);
   assert.deepEqual(writtenDocument['x-sdkwork-api-gateway']?.routesBySurface, {
-    app: 73,
-    backend: 7,
+    app: 78,
+    backend: 54,
   });
   const publishedOperationIds = Object.values(writtenDocument.paths).flatMap((methods) =>
     Object.values(methods ?? {}).map((operation: { operationId?: string }) => operation.operationId),
@@ -59,17 +59,33 @@ try {
     '/app/v3/api/auth/phone_login',
     '/app/v3/api/auth/qr_generate',
     '/app/v3/api/auth/qr_status/{qrKey}',
+    '/app/v3/api/auth/config',
     '/app/v3/api/auth/session',
+    '/app/v3/api/auth/session_exchanges',
+    '/app/v3/api/auth/qr_login_codes',
+    '/app/v3/api/auth/qr_login_codes/{qrKey}',
+    '/app/v3/api/auth/qr_login_codes/{qrKey}/entry',
+    '/app/v3/api/auth/qr_login_codes/{qrKey}/callback',
+    '/app/v3/api/auth/qr_login_codes/confirm',
     '/app/v3/api/auth/verify_send',
     '/app/v3/api/iam/user_profile',
     '/app/v3/api/billing/vip_info',
+    '/app/v3/api/billing/vip/info',
   ]) {
     assert.equal(
       writtenDocument.paths[oldAppbasePath],
       undefined,
-      `${oldAppbasePath} must not be exposed because BirdCoder uses the canonical appbase IAM route set.`,
+      `${oldAppbasePath} must not be exposed because BirdCoder uses the canonical SDKWork IAM and commerce route set.`,
     );
   }
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/system/iam/runtime']?.get?.operationId,
+    'iam.runtime.retrieve',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/system/iam/verification_policy']?.get?.operationId,
+    'iam.verificationPolicy.retrieve',
+  );
   assert.equal(
     writtenDocument.paths['/app/v3/api/system/routes']?.get?.operationId,
     'routes.list',
@@ -169,16 +185,20 @@ try {
     'sessions.create',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/auth/sessions/current']?.post?.operationId,
+    writtenDocument.paths['/app/v3/api/auth/sessions/current']?.delete?.operationId,
     'sessions.current.delete',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/auth/sessions/current']?.patch?.operationId,
+    'sessions.current.update',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/auth/sessions/refresh']?.post?.operationId,
+    'sessions.refresh',
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/auth/registrations']?.post?.operationId,
     'registrations.create',
-  );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/auth/session_exchanges']?.post?.operationId,
-    'sessionExchanges.create',
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/auth/password_reset_requests']?.post?.operationId,
@@ -193,12 +213,26 @@ try {
     'verificationCodes.create',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/auth/qr_login_codes']?.post?.operationId,
-    'qrLoginCodes.create',
+    writtenDocument.paths['/app/v3/api/auth/verification_codes/verify']?.post?.operationId,
+    'verificationCodes.verify',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/auth/qr_login_codes/{qrKey}']?.get?.operationId,
-    'qrLoginCodes.retrieve',
+    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions']?.post?.operationId,
+    'qrAuth.sessions.create',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}']?.get?.operationId,
+    'qrAuth.sessions.retrieve',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans']?.post
+      ?.operationId,
+    'qrAuth.sessions.scans.create',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords']?.post
+      ?.operationId,
+    'qrAuth.sessions.passwords.create',
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/auth/oauth_authorization_urls']?.get?.operationId,
@@ -225,8 +259,98 @@ try {
     'users.current.retrieve',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/billing/vip/info']?.get?.operationId,
-    'vip.info.retrieve',
+    writtenDocument.paths['/backend/v3/api/iam/users']?.get?.operationId,
+    'users.list',
+  );
+  assert.equal(
+    writtenDocument.paths['/backend/v3/api/iam/users']?.get?.responses['200']?.content[
+      'application/json'
+    ]?.schema?.['$ref'],
+    '#/components/schemas/BirdCoderIamUserSummaryListEnvelope',
+  );
+  assert.equal(
+    writtenDocument.paths['/backend/v3/api/iam/users']?.post?.operationId,
+    'users.create',
+  );
+  assert.equal(
+    writtenDocument.paths['/backend/v3/api/iam/users']?.post?.requestBody?.content[
+      'application/json'
+    ]?.schema?.['$ref'],
+    '#/components/schemas/BirdCoderCreateIamUserRequest',
+  );
+  assert.equal(
+    writtenDocument.paths['/backend/v3/api/iam/users/{userId}']?.get?.operationId,
+    'users.retrieve',
+  );
+  assert.equal(
+    writtenDocument.paths['/backend/v3/api/iam/users/{userId}']?.patch?.operationId,
+    'users.update',
+  );
+  assert.equal(
+    writtenDocument.paths['/backend/v3/api/iam/users/{userId}']?.delete?.operationId,
+    'users.delete',
+  );
+  assert.equal(
+    writtenDocument.paths['/backend/v3/api/iam/users/{userId}/roles']?.get?.operationId,
+    'users.roles.list',
+  );
+  assert.equal(
+    writtenDocument.paths['/backend/v3/api/iam/users/{userId}/roles']?.post?.operationId,
+    'users.roles.create',
+  );
+  assert.equal(
+    writtenDocument.paths['/backend/v3/api/iam/users/{userId}/roles/{roleId}']?.delete?.operationId,
+    'users.roles.delete',
+  );
+  assert.equal(
+    writtenDocument.paths['/backend/v3/api/iam/users/{userId}/roles']?.get?.responses['200']
+      ?.content['application/json']?.schema?.['$ref'],
+    '#/components/schemas/BirdCoderIamUserRoleSummaryListEnvelope',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/memberships/current']?.get?.operationId,
+    'memberships.current.retrieve',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/memberships/current']?.get?.['x-sdkwork-domain'],
+    'commerce',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/memberships/current']?.patch,
+    undefined,
+    'exported coding-server OpenAPI must not keep a local current-membership patch route.',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/memberships/package_groups']?.get?.operationId,
+    'memberships.packageGroups.list',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/memberships/package_groups']?.get?.['x-sdkwork-domain'],
+    'commerce',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/memberships/package_groups']?.patch,
+    undefined,
+    'exported coding-server OpenAPI must not keep a local membership package group patch route.',
+  );
+  assert.equal(
+    Object.keys(writtenDocument.components?.schemas ?? {}).some((schemaName) =>
+      /UserCenter/u.test(schemaName),
+    ),
+    false,
+    'exported coding-server OpenAPI must not publish retired UserCenter schemas.',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/auth/sessions']?.post?.requestBody?.content[
+      'application/json'
+    ]?.schema?.['$ref'],
+    '#/components/schemas/BirdCoderIamCreateSessionRequest',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/auth/sessions/current']?.get?.responses['200']?.content[
+      'application/json'
+    ]?.schema?.['$ref'],
+    '#/components/schemas/BirdCoderIamSessionEnvelope',
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/workspaces/{workspaceId}/realtime']?.get?.operationId,

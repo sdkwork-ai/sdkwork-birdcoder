@@ -73,4 +73,90 @@ try {
   console.warn = originalConsoleWarn;
 }
 
+const cachedScopeCalls: string[] = [];
+const cachedScopeService = new ApiBackedWorkspaceService({
+  appClient: {
+    async listWorkspaces(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listWorkspaces']>>> {
+      cachedScopeCalls.push('listWorkspaces');
+      return [
+        {
+          id: 'workspace-cache-hit',
+          uuid: 'workspace-cache-hit-uuid',
+          tenantId: '0',
+          name: 'Workspace cache hit',
+          title: 'Workspace cache hit',
+          ownerId: 'user-b',
+          leaderId: 'user-b',
+          createdByUserId: 'user-b',
+          status: 'active',
+        },
+      ] as Awaited<ReturnType<BirdCoderAppSdkApiClient['listWorkspaces']>>;
+    },
+  } as unknown as BirdCoderAppSdkApiClient,
+  currentUserProvider: {
+    async getCurrentUser() {
+      cachedScopeCalls.push('getCurrentUser');
+      return {
+        id: 'user-b',
+        name: 'User B',
+        email: 'user-b@example.com',
+      };
+    },
+  },
+  writeService: {
+    async getWorkspaces(): Promise<IWorkspace[]> {
+      cachedScopeCalls.push('getLocalWorkspaces');
+      return [];
+    },
+  } as unknown as IWorkspaceService,
+});
+
+await cachedScopeService.getWorkspaces();
+await cachedScopeService.getWorkspaces();
+assert.equal(
+  cachedScopeCalls.filter((call) => call === 'getCurrentUser').length,
+  1,
+  'workspace list cache hits must reuse the resolved current-user scope instead of reloading /iam/users/current before every cached read.',
+);
+assert.equal(
+  cachedScopeCalls.filter((call) => call === 'listWorkspaces').length,
+  1,
+  'workspace list cache hits must still avoid repeating the remote workspace list request.',
+);
+
+const unavailableScopeService = new ApiBackedWorkspaceService({
+  appClient: {
+    async listWorkspaces(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listWorkspaces']>>> {
+      throw new Error('Failed to fetch workspace catalog');
+    },
+  } as unknown as BirdCoderAppSdkApiClient,
+  currentUserProvider: {
+    async getCurrentUser() {
+      throw new Error(
+        'BirdCoder API request timed out after 8000ms: GET /app/v3/api/iam/users/current',
+      );
+    },
+  },
+  writeService: {
+    async getWorkspaces(): Promise<IWorkspace[]> {
+      return [
+        structuredClone(userAWorkspace),
+        structuredClone(userBWorkspace),
+      ];
+    },
+  } as unknown as IWorkspaceService,
+});
+
+console.warn = () => {};
+try {
+  const fallbackWorkspaces = await unavailableScopeService.getWorkspaces();
+  assert.deepEqual(
+    fallbackWorkspaces,
+    [],
+    'workspace fallback must fail closed to an empty local mirror when current-user scope is unavailable, instead of throwing or exposing workspaces owned by another user.',
+  );
+} finally {
+  console.warn = originalConsoleWarn;
+}
+
 console.log('api backed workspace service user-scope fallback contract passed.');

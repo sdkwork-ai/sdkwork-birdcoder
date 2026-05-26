@@ -62,4 +62,22 @@ assert.match(
   'Desktop shell bootstrap must resolve API base URL from the Tauri runtime config before binding API-backed services.',
 );
 
+assert.doesNotMatch(
+  desktopMainSource,
+  /readStoredBirdCoderServerBaseUrl|resolveBirdCoderBootstrapServerBaseUrl/,
+  'Desktop shell bootstrap must not fall back to stored or distribution default API URLs when the embedded runtime config is unavailable.',
+);
+
+assert.match(
+  desktopMainSource,
+  /throw new Error\(\s*`Failed to resolve BirdCoder desktop runtime API base URL:/,
+  'Desktop shell bootstrap must surface desktop_runtime_config failures instead of rendering app SDK consumers against a dead default :10240 endpoint.',
+);
+
+assert.match(
+  desktopMainSource,
+  /throw new Error\('BirdCoder desktop runtime config did not provide an API base URL\.'/,
+  'Desktop shell bootstrap must fail when desktop_runtime_config returns no usable API base URL.',
+);
+
 console.log('desktop embedded coding server contract passed.');

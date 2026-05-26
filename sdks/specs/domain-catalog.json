@@ -17,18 +17,22 @@
       "owner": "sdkwork-platform",
       "level": "L3",
       "classification": "shared-foundation",
-      "boundary": "Tenant, organization, user, authentication, authorization, policy, audit, and appbase user-center integration.",
+      "boundary": "Tenant, organization, user, authentication, authorization, policy, audit, and SDKWork IAM runtime integration.",
       "databasePrefix": "iam",
       "databasePrefixes": [
         "iam"
       ],
       "apiTags": [
         "auth",
-        "iam"
+        "iam",
+        "openPlatform",
+        "system"
       ],
       "sdkNamespaces": [
         "auth",
-        "iam"
+        "iam",
+        "openPlatform",
+        "system"
       ],
       "permissionPrefixes": [
         "iam"
@@ -43,6 +47,9 @@
       ],
       "capabilities": [
         "authSessions",
+        "runtimeSettings",
+        "verificationPolicy",
+        "qrAuth",
         "currentUser",
         "teamMembership",
         "teams",
@@ -356,41 +363,39 @@
       "rustParity": "required"
     },
     {
-      "domain": "billing",
-      "status": "app-local-extension",
+      "domain": "commerce",
+      "status": "standard",
       "owner": "sdkwork-commerce",
       "level": "L3",
-      "classification": "app-local-extension",
-      "boundary": "BirdCoder user-facing VIP and billing status APIs composed over the SDKWork commerce domain.",
+      "classification": "shared-business",
+      "boundary": "Membership, package catalog, entitlement, order, payment, and commercial account resources exposed to BirdCoder app clients through the SDKWork commerce domain.",
       "databasePrefix": "commerce",
       "databasePrefixes": [
         "commerce"
       ],
       "apiTags": [
-        "billing"
+        "commerce"
       ],
       "sdkNamespaces": [
-        "billing"
+        "commerce"
       ],
       "permissionPrefixes": [
-        "billing"
+        "commerce"
       ],
       "eventPrefixes": [
-        "billing"
+        "commerce"
       ],
       "frontendPackages": [
         "@sdkwork/birdcoder-user"
       ],
       "capabilities": [
-        "vipInfo",
-        "vipStatus"
+        "membershipsCurrent",
+        "membershipsPackageGroups"
       ],
       "dependsOn": [
         "iam"
       ],
-      "extends": [
-        "commerce"
-      ],
+      "extends": [],
       "javaParity": "required",
       "rustParity": "required"
     }

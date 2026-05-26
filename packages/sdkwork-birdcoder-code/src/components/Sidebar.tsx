@@ -998,9 +998,9 @@ export const Sidebar = React.memo(function Sidebar({
               const renamingVisibleSessionId = entry.visibleSessions.some(
                 (session) =>
                   entry.project.id === renamingCodingSession?.projectId &&
-                  session.id === renamingCodingSession.id,
+                  session.id === renamingCodingSession?.id,
               )
-                ? renamingCodingSession.id
+                ? renamingCodingSession?.id ?? null
                 : null;
 
               return (

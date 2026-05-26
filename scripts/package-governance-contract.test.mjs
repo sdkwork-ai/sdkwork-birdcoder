@@ -34,54 +34,6 @@ const approvedExternalSdkworkLinkDirectories = new Map([
     ),
   ],
   [
-    '@sdkwork/auth-runtime-pc-react',
-    path.join(
-      rootDir,
-      '..',
-      'sdkwork-appbase',
-      'packages',
-      'pc-react',
-      'iam',
-      'sdkwork-auth-runtime-pc-react',
-    ),
-  ],
-  [
-    '@sdkwork/user-center-core-pc-react',
-    path.join(
-      rootDir,
-      '..',
-      'sdkwork-appbase',
-      'packages',
-      'pc-react',
-      'iam',
-      'sdkwork-user-center-core-pc-react',
-    ),
-  ],
-  [
-    '@sdkwork/user-center-pc-react',
-    path.join(
-      rootDir,
-      '..',
-      'sdkwork-appbase',
-      'packages',
-      'pc-react',
-      'iam',
-      'sdkwork-user-center-pc-react',
-    ),
-  ],
-  [
-    '@sdkwork/user-center-validation-pc-react',
-    path.join(
-      rootDir,
-      '..',
-      'sdkwork-appbase',
-      'packages',
-      'pc-react',
-      'iam',
-      'sdkwork-user-center-validation-pc-react',
-    ),
-  ],
-  [
     '@sdkwork/user-pc-react',
     path.join(
       rootDir,
@@ -91,18 +43,6 @@ const approvedExternalSdkworkLinkDirectories = new Map([
       'pc-react',
       'iam',
       'sdkwork-user-pc-react',
-    ),
-  ],
-  [
-    '@sdkwork/vip-pc-react',
-    path.join(
-      rootDir,
-      '..',
-      'sdkwork-appbase',
-      'packages',
-      'pc-react',
-      'commerce',
-      'sdkwork-vip-pc-react',
     ),
   ],
 ]);

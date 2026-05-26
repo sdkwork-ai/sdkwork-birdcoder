@@ -1,49 +1,44 @@
-﻿# Getting Started
+# Getting Started
 
-SDKWork BirdCoder is a package-first AI IDE workspace aligned with the Claw Studio architecture standard.
+SDKWork BirdCoder is a package-first AI IDE workspace aligned with the SDKWork application architecture standard.
 
-## Install dependencies
+## Install Dependencies
 
 ```bash
 pnpm install
 ```
 
-## Start the default local web sample stack
+## Start The Default Local Web Sample Stack
 
 ```bash
 pnpm dev
 ```
 
-## Start the canonical sample modes
+## Start The Canonical Sample Modes
 
 ```bash
 pnpm dev:local
-pnpm dev:external
 pnpm dev:cloud
 pnpm tauri:dev
-pnpm tauri:dev:external
 pnpm server:dev
-pnpm server:dev:external
 pnpm server:dev:cloud
 ```
 
-BirdCoder keeps one frontend-facing auth facade while switching deployment and provider authority underneath it:
+BirdCoder keeps one frontend-facing SDKWork IAM facade while switching deployment mode underneath it:
 
-- `pnpm dev:local` or `pnpm tauri:dev` for the local single-machine sample with builtin local user center
-- `pnpm dev`, `pnpm dev:private`, or `pnpm stack:web:private` for the private BirdCoder web sample stack with builtin local authority, default dev account prefill, and automatic server startup
-- `pnpm dev:external` or `pnpm server:dev:external` for a private BirdCoder server that delegates IAM to `external-user-center`
-- `pnpm dev:cloud` or `pnpm server:dev:cloud` for a BirdCoder server that delegates IAM to `sdkwork-cloud-app-api`
+- `pnpm dev:local` or `pnpm tauri:dev` for the desktop-local sample with local SDKWork IAM storage
+- `pnpm dev`, `pnpm dev:private`, or `pnpm stack:web:private` for the private BirdCoder web sample stack with automatic server startup
+- `pnpm dev:cloud` or `pnpm server:dev:cloud` for the cloud-backed SDKWork IAM lane
 
-When you need to inspect the resolved startup env before running a mode, use:
+When the resolved startup env needs inspection before running a mode, use:
 
 ```bash
 pnpm iam:show:desktop:local
 pnpm iam:show:server:private
-pnpm iam:show:server:external
 pnpm iam:show:server:cloud
 ```
 
-## Useful next steps
+## Useful Next Steps
 
 - Read [Application Modes](./application-modes.md)
 - Review [Architecture](/core/architecture)

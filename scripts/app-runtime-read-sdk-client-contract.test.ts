@@ -70,7 +70,7 @@ const client = createBirdCoderAppSdkApiClient({
                   {
                     authMode: 'user',
                     basePath: '/app/v3/api',
-                    description: 'Application-facing coding runtime, workspace, project, collaboration, and user-center routes.',
+                    description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
                     name: 'app',
                     routeCount: 51,
                   },

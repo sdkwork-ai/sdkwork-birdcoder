@@ -13,18 +13,12 @@ const bootstrapGateSource = fs.readFileSync(
   ),
   'utf8',
 );
-const bootstrapRuntimeUserCenterPath = new URL(
+const retiredBootstrapRuntimeIdentityPath = new URL(
   '../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapRuntimeUserCenter.ts',
   import.meta.url,
 );
-assert.equal(
-  fs.existsSync(bootstrapRuntimeUserCenterPath),
-  true,
-  'Shell runtime must own a dedicated user-center bootstrap helper so delivery entries do not import @sdkwork/birdcoder-core directly.',
-);
-const bootstrapRuntimeUserCenterSource = fs.readFileSync(bootstrapRuntimeUserCenterPath, 'utf8');
 
-const userCenterStartupEntrySources = [
+const startupEntrySources = [
   [
     'web',
     fs.readFileSync(new URL('../packages/sdkwork-birdcoder-web/src/main.tsx', import.meta.url), 'utf8'),
@@ -34,17 +28,6 @@ const userCenterStartupEntrySources = [
     fs.readFileSync(new URL('../packages/sdkwork-birdcoder-desktop/src/main.tsx', import.meta.url), 'utf8'),
   ],
 ];
-
-function escapeRegex(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-}
-
-function runtimeImportPattern(specifier) {
-  return new RegExp(
-    `import\\s+(?!type\\b)[^;\\n]+from\\s+['"]${escapeRegex(specifier)}['"]`,
-    'u',
-  );
-}
 
 for (const entryPath of entryPaths) {
   const source = fs.readFileSync(entryPath, 'utf8');
@@ -62,7 +45,13 @@ for (const entryPath of entryPaths) {
   );
 }
 
-for (const [label, source] of userCenterStartupEntrySources) {
+assert.equal(
+  fs.existsSync(retiredBootstrapRuntimeIdentityPath),
+  false,
+  'Shell runtime must not keep the retired local identity bootstrap helper after SDKWork IAM runtime migration.',
+);
+
+for (const [label, source] of startupEntrySources) {
   assert.doesNotMatch(
     source,
     /@sdkwork\/birdcoder-core/u,
@@ -71,22 +60,16 @@ for (const [label, source] of userCenterStartupEntrySources) {
 
   assert.match(
     source,
-    /resolveBirdCoderBootstrapRuntimeUserCenterProviderKind\(\)/u,
-    `${label} startup should resolve the user-center provider through the shell-runtime bootstrap helper after the bootstrap gate has yielded.`,
+    /waitForBirdCoderApiReady\(resolvedApiBaseUrl\)/u,
+    `${label} startup should wait for the SDKWork IAM-ready server facade after the bootstrap gate has yielded.`,
+  );
+
+  assert.doesNotMatch(
+    source,
+    /UserCenter|user-center|resolveBirdCoderBootstrapRuntimeUserCenterProviderKind/u,
+    `${label} startup must not keep retired identity bootstrap wiring.`,
   );
 }
-
-assert.doesNotMatch(
-  bootstrapRuntimeUserCenterSource,
-  runtimeImportPattern('@sdkwork/birdcoder-core'),
-  'The shell-runtime user-center bootstrap helper must not statically import @sdkwork/birdcoder-core because that would relink the core barrel into the startup runtime chunk.',
-);
-
-assert.match(
-  bootstrapRuntimeUserCenterSource,
-  /await\s+import\(['"]@sdkwork\/birdcoder-core['"]\)/u,
-  'The shell-runtime user-center bootstrap helper should dynamically load @sdkwork/birdcoder-core only when bootstrap work has already been deferred.',
-);
 
 assert.match(
   bootstrapGateSource,

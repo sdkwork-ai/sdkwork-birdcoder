@@ -56,6 +56,22 @@ function collectCreateTableBodies(source, tableName) {
 
 const commonCamelFields = ['uuid', 'tenantId', 'organizationId', 'createdAt', 'updatedAt'];
 const commonSnakeFields = ['uuid', 'tenant_id', 'organization_id', 'created_at', 'updated_at'];
+const iamAuditCamelFields = [
+  'id',
+  'tenantId',
+  'organizationId',
+  'actorUserId',
+  'action',
+  'resourceType',
+  'resourceId',
+  'requestId',
+  'appId',
+  'environment',
+  'shardingKey',
+  'detail',
+  'createdAt',
+];
+const iamPolicyCamelFields = ['id', 'tenantId', 'code', 'name', 'policy', 'status', 'createdAt', 'updatedAt'];
 
 const serverTypeExpectations = [
   {
@@ -88,24 +104,14 @@ const serverTypeExpectations = [
     fields: [...commonCamelFields, 'releaseVersion', 'releaseKind', 'rolloutStage', 'manifest', 'status'],
   },
   {
-    anchor: 'export interface BirdCoderAdminAuditEventSummary {',
-    label: 'BirdCoderAdminAuditEventSummary types',
-    fields: [...commonCamelFields, 'scopeType', 'scopeId', 'eventType', 'payload'],
+    anchor: 'export interface BirdCoderIamAuditEventSummary {',
+    label: 'BirdCoderIamAuditEventSummary types',
+    fields: iamAuditCamelFields,
   },
   {
-    anchor: 'export interface BirdCoderAdminPolicySummary {',
-    label: 'BirdCoderAdminPolicySummary types',
-    fields: [
-      ...commonCamelFields,
-      'scopeType',
-      'scopeId',
-      'policyCategory',
-      'targetType',
-      'targetId',
-      'approvalPolicy',
-      'rationale',
-      'status',
-    ],
+    anchor: 'export interface BirdCoderIamPolicySummary {',
+    label: 'BirdCoderIamPolicySummary types',
+    fields: iamPolicyCamelFields,
   },
 ];
 
@@ -144,24 +150,14 @@ const openApiExpectations = [
     fields: [...commonCamelFields, 'releaseVersion', 'releaseKind', 'rolloutStage', 'manifest', 'status'],
   },
   {
-    anchor: 'BirdCoderAdminAuditEventSummary: createOpenApiObjectSchema(',
-    label: 'BirdCoderAdminAuditEventSummary openapi schema',
-    fields: [...commonCamelFields, 'scopeType', 'scopeId', 'eventType', 'payload'],
+    anchor: 'BirdCoderIamAuditEventSummary: createOpenApiObjectSchema(',
+    label: 'BirdCoderIamAuditEventSummary openapi schema',
+    fields: iamAuditCamelFields,
   },
   {
-    anchor: 'BirdCoderAdminPolicySummary: createOpenApiObjectSchema(',
-    label: 'BirdCoderAdminPolicySummary openapi schema',
-    fields: [
-      ...commonCamelFields,
-      'scopeType',
-      'scopeId',
-      'policyCategory',
-      'targetType',
-      'targetId',
-      'approvalPolicy',
-      'rationale',
-      'status',
-    ],
+    anchor: 'BirdCoderIamPolicySummary: createOpenApiObjectSchema(',
+    label: 'BirdCoderIamPolicySummary openapi schema',
+    fields: iamPolicyCamelFields,
   },
 ];
 

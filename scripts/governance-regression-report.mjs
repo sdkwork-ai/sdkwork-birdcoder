@@ -684,22 +684,10 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     command: 'node scripts/birdcoder-iam-standard-contract.test.mjs',
   },
   {
-    id: 'user-center-standard',
-    label: 'Unified user-center standard contract',
-    scriptPath: 'scripts/user-center-standard.test.mjs',
-    command: 'node scripts/run-user-center-standard.mjs',
-  },
-  {
-    id: 'user-center-upstream-sync-payload',
-    label: 'User-center upstream sync payload contract',
-    scriptPath: 'scripts/user-center-upstream-sync-payload.test.mjs',
-    command: 'node scripts/user-center-upstream-sync-payload.test.mjs',
-  },
-  {
-    id: 'user-center-upstream-sync-workflow',
-    label: 'User-center upstream sync workflow contract',
-    scriptPath: 'scripts/user-center-upstream-sync-workflow.test.mjs',
-    command: 'node scripts/user-center-upstream-sync-workflow.test.mjs',
+    id: 'birdcoder-iam-no-legacy-identity',
+    label: 'BirdCoder IAM no legacy identity contract',
+    scriptPath: 'scripts/birdcoder-iam-no-legacy-identity-contract.test.mjs',
+    command: 'node scripts/birdcoder-iam-no-legacy-identity-contract.test.mjs',
   },
   {
     id: 'release-closure',

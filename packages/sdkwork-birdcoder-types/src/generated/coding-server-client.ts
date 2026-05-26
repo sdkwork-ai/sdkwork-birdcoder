@@ -7,6 +7,24 @@ import type {
 } from '../server-api.ts';
 
 export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
+  "apiKeys.list":     {
+      "method": "GET",
+      "operationId": "apiKeys.list",
+      "path": "/backend/v3/api/iam/api_keys",
+      "pathParamNames": [],
+      "summary": "List SDKWork IAM API keys",
+      "surface": "backend"
+    },
+  "apiKeys.revoke":     {
+      "method": "POST",
+      "operationId": "apiKeys.revoke",
+      "path": "/backend/v3/api/iam/api_keys/{apiKeyId}/revoke",
+      "pathParamNames": [
+        "apiKeyId"
+      ],
+      "summary": "Revoke SDKWork IAM API key",
+      "surface": "backend"
+    },
   "approvals.decisions.create":     {
       "method": "POST",
       "operationId": "approvals.decisions.create",
@@ -30,7 +48,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "auditEvents.list",
       "path": "/backend/v3/api/iam/audit_events",
       "pathParamNames": [],
-      "summary": "List audit events",
+      "summary": "List SDKWork IAM audit events",
       "surface": "backend"
     },
   "codingSessions.artifacts.list":     {
@@ -151,14 +169,6 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Update coding session",
       "surface": "app"
     },
-  "config.retrieve":     {
-      "method": "GET",
-      "operationId": "config.retrieve",
-      "path": "/app/v3/api/auth/config",
-      "pathParamNames": [],
-      "summary": "Get active user-center provider metadata and login capability switches.",
-      "surface": "app"
-    },
   "deploymentGovernance.list":     {
       "method": "GET",
       "operationId": "deploymentGovernance.list",
@@ -217,6 +227,38 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Get coding-server health",
       "surface": "app"
     },
+  "iam.runtime.retrieve":     {
+      "method": "GET",
+      "operationId": "iam.runtime.retrieve",
+      "path": "/app/v3/api/system/iam/runtime",
+      "pathParamNames": [],
+      "summary": "Get SDKWork IAM runtime metadata",
+      "surface": "app"
+    },
+  "iam.verificationPolicy.retrieve":     {
+      "method": "GET",
+      "operationId": "iam.verificationPolicy.retrieve",
+      "path": "/app/v3/api/system/iam/verification_policy",
+      "pathParamNames": [],
+      "summary": "Get SDKWork IAM verification policy",
+      "surface": "app"
+    },
+  "memberships.current.retrieve":     {
+      "method": "GET",
+      "operationId": "memberships.current.retrieve",
+      "path": "/app/v3/api/memberships/current",
+      "pathParamNames": [],
+      "summary": "Get current SDKWork commerce membership",
+      "surface": "app"
+    },
+  "memberships.packageGroups.list":     {
+      "method": "GET",
+      "operationId": "memberships.packageGroups.list",
+      "path": "/app/v3/api/memberships/package_groups",
+      "pathParamNames": [],
+      "summary": "List SDKWork commerce membership package groups",
+      "surface": "app"
+    },
   "modelConfig.retrieve":     {
       "method": "GET",
       "operationId": "modelConfig.retrieve",
@@ -272,7 +314,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "oauthAuthorizationUrls.retrieve",
       "path": "/app/v3/api/auth/oauth_authorization_urls",
       "pathParamNames": [],
-      "summary": "Resolve OAuth authorization URL for social sign-in",
+      "summary": "Resolve OAuth authorization URL for SDKWork IAM sign-in",
       "surface": "app"
     },
   "oauthSessions.create":     {
@@ -280,7 +322,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "oauthSessions.create",
       "path": "/app/v3/api/auth/oauth_sessions",
       "pathParamNames": [],
-      "summary": "Create user center session with OAuth authorization code",
+      "summary": "Create SDKWork IAM session with OAuth authorization code",
       "surface": "app"
     },
   "operations.retrieve":     {
@@ -293,12 +335,108 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Get operation status",
       "surface": "app"
     },
+  "organizations.create":     {
+      "method": "POST",
+      "operationId": "organizations.create",
+      "path": "/backend/v3/api/iam/organizations",
+      "pathParamNames": [],
+      "summary": "Create SDKWork IAM organization",
+      "surface": "backend"
+    },
+  "organizations.delete":     {
+      "method": "DELETE",
+      "operationId": "organizations.delete",
+      "path": "/backend/v3/api/iam/organizations/{organizationId}",
+      "pathParamNames": [
+        "organizationId"
+      ],
+      "summary": "Delete SDKWork IAM organization",
+      "surface": "backend"
+    },
+  "organizations.list":     {
+      "method": "GET",
+      "operationId": "organizations.list",
+      "path": "/backend/v3/api/iam/organizations",
+      "pathParamNames": [],
+      "summary": "List SDKWork IAM organizations",
+      "surface": "backend"
+    },
+  "organizations.members.create":     {
+      "method": "POST",
+      "operationId": "organizations.members.create",
+      "path": "/backend/v3/api/iam/organizations/{organizationId}/members",
+      "pathParamNames": [
+        "organizationId"
+      ],
+      "summary": "Create SDKWork IAM organization member",
+      "surface": "backend"
+    },
+  "organizations.members.delete":     {
+      "method": "DELETE",
+      "operationId": "organizations.members.delete",
+      "path": "/backend/v3/api/iam/organizations/{organizationId}/members/{userId}",
+      "pathParamNames": [
+        "organizationId",
+        "userId"
+      ],
+      "summary": "Delete SDKWork IAM organization member",
+      "surface": "backend"
+    },
+  "organizations.members.list":     {
+      "method": "GET",
+      "operationId": "organizations.members.list",
+      "path": "/backend/v3/api/iam/organizations/{organizationId}/members",
+      "pathParamNames": [
+        "organizationId"
+      ],
+      "summary": "List SDKWork IAM organization members",
+      "surface": "backend"
+    },
+  "organizations.members.update":     {
+      "method": "PATCH",
+      "operationId": "organizations.members.update",
+      "path": "/backend/v3/api/iam/organizations/{organizationId}/members/{userId}",
+      "pathParamNames": [
+        "organizationId",
+        "userId"
+      ],
+      "summary": "Update SDKWork IAM organization member",
+      "surface": "backend"
+    },
+  "organizations.retrieve":     {
+      "method": "GET",
+      "operationId": "organizations.retrieve",
+      "path": "/backend/v3/api/iam/organizations/{organizationId}",
+      "pathParamNames": [
+        "organizationId"
+      ],
+      "summary": "Get SDKWork IAM organization",
+      "surface": "backend"
+    },
+  "organizations.tree.retrieve":     {
+      "method": "GET",
+      "operationId": "organizations.tree.retrieve",
+      "path": "/backend/v3/api/iam/organizations/tree",
+      "pathParamNames": [],
+      "summary": "Get SDKWork IAM organization tree",
+      "surface": "backend"
+    },
+  "organizations.update":     {
+      "method": "PATCH",
+      "operationId": "organizations.update",
+      "path": "/backend/v3/api/iam/organizations/{organizationId}",
+      "pathParamNames": [
+        "organizationId"
+      ],
+      "summary": "Update SDKWork IAM organization",
+      "surface": "backend"
+    },
   "passwordResetRequests.create":     {
       "method": "POST",
       "operationId": "passwordResetRequests.create",
       "path": "/app/v3/api/auth/password_reset_requests",
       "pathParamNames": [],
-      "summary": "Request a password-reset challenge through the configured verification channel.",
+      "summary": "Create SDKWork IAM password reset request",
       "surface": "app"
     },
   "passwordResets.create":     {
@@ -306,15 +444,99 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "passwordResets.create",
       "path": "/app/v3/api/auth/password_resets",
       "pathParamNames": [],
-      "summary": "Reset the current account password using a verified recovery challenge.",
+      "summary": "Reset SDKWork IAM password",
       "surface": "app"
+    },
+  "permissions.create":     {
+      "method": "POST",
+      "operationId": "permissions.create",
+      "path": "/backend/v3/api/iam/permissions",
+      "pathParamNames": [],
+      "summary": "Create SDKWork IAM permission",
+      "surface": "backend"
+    },
+  "permissions.delete":     {
+      "method": "DELETE",
+      "operationId": "permissions.delete",
+      "path": "/backend/v3/api/iam/permissions/{permissionId}",
+      "pathParamNames": [
+        "permissionId"
+      ],
+      "summary": "Delete SDKWork IAM permission",
+      "surface": "backend"
+    },
+  "permissions.list":     {
+      "method": "GET",
+      "operationId": "permissions.list",
+      "path": "/backend/v3/api/iam/permissions",
+      "pathParamNames": [],
+      "summary": "List SDKWork IAM permissions",
+      "surface": "backend"
+    },
+  "permissions.retrieve":     {
+      "method": "GET",
+      "operationId": "permissions.retrieve",
+      "path": "/backend/v3/api/iam/permissions/{permissionId}",
+      "pathParamNames": [
+        "permissionId"
+      ],
+      "summary": "Get SDKWork IAM permission",
+      "surface": "backend"
+    },
+  "permissions.update":     {
+      "method": "PATCH",
+      "operationId": "permissions.update",
+      "path": "/backend/v3/api/iam/permissions/{permissionId}",
+      "pathParamNames": [
+        "permissionId"
+      ],
+      "summary": "Update SDKWork IAM permission",
+      "surface": "backend"
+    },
+  "policies.create":     {
+      "method": "POST",
+      "operationId": "policies.create",
+      "path": "/backend/v3/api/iam/policies",
+      "pathParamNames": [],
+      "summary": "Create SDKWork IAM policy",
+      "surface": "backend"
+    },
+  "policies.delete":     {
+      "method": "DELETE",
+      "operationId": "policies.delete",
+      "path": "/backend/v3/api/iam/policies/{policyId}",
+      "pathParamNames": [
+        "policyId"
+      ],
+      "summary": "Delete SDKWork IAM policy",
+      "surface": "backend"
     },
   "policies.list":     {
       "method": "GET",
       "operationId": "policies.list",
       "path": "/backend/v3/api/iam/policies",
       "pathParamNames": [],
-      "summary": "List governance policies",
+      "summary": "List SDKWork IAM policies",
+      "surface": "backend"
+    },
+  "policies.retrieve":     {
+      "method": "GET",
+      "operationId": "policies.retrieve",
+      "path": "/backend/v3/api/iam/policies/{policyId}",
+      "pathParamNames": [
+        "policyId"
+      ],
+      "summary": "Get SDKWork IAM policy",
+      "surface": "backend"
+    },
+  "policies.update":     {
+      "method": "PATCH",
+      "operationId": "policies.update",
+      "path": "/backend/v3/api/iam/policies/{policyId}",
+      "pathParamNames": [
+        "policyId"
+      ],
+      "summary": "Update SDKWork IAM policy",
       "surface": "backend"
     },
   "projects.collaborators.list":     {
@@ -483,22 +705,42 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Update project",
       "surface": "app"
     },
-  "qrLoginCodes.create":     {
+  "qrAuth.sessions.create":     {
       "method": "POST",
-      "operationId": "qrLoginCodes.create",
-      "path": "/app/v3/api/auth/qr_login_codes",
+      "operationId": "qrAuth.sessions.create",
+      "path": "/app/v3/api/open_platform/qr_auth/sessions",
       "pathParamNames": [],
-      "summary": "Generate user center login QR code",
+      "summary": "Create SDKWork IAM QR auth session",
       "surface": "app"
     },
-  "qrLoginCodes.retrieve":     {
-      "method": "GET",
-      "operationId": "qrLoginCodes.retrieve",
-      "path": "/app/v3/api/auth/qr_login_codes/{qrKey}",
+  "qrAuth.sessions.passwords.create":     {
+      "method": "POST",
+      "operationId": "qrAuth.sessions.passwords.create",
+      "path": "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords",
       "pathParamNames": [
-        "qrKey"
+        "sessionKey"
       ],
-      "summary": "Check user center login QR code status",
+      "summary": "Complete SDKWork IAM QR auth session with password",
+      "surface": "app"
+    },
+  "qrAuth.sessions.retrieve":     {
+      "method": "GET",
+      "operationId": "qrAuth.sessions.retrieve",
+      "path": "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}",
+      "pathParamNames": [
+        "sessionKey"
+      ],
+      "summary": "Get SDKWork IAM QR auth session",
+      "surface": "app"
+    },
+  "qrAuth.sessions.scans.create":     {
+      "method": "POST",
+      "operationId": "qrAuth.sessions.scans.create",
+      "path": "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans",
+      "pathParamNames": [
+        "sessionKey"
+      ],
+      "summary": "Create SDKWork IAM QR auth scan",
       "surface": "app"
     },
   "questions.answers.create":     {
@@ -516,7 +758,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "registrations.create",
       "path": "/app/v3/api/auth/registrations",
       "pathParamNames": [],
-      "summary": "Register a local user and return the initial account projection when enabled.",
+      "summary": "Register SDKWork IAM user",
       "surface": "app"
     },
   "releases.list":     {
@@ -525,6 +767,83 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "path": "/backend/v3/api/releases",
       "pathParamNames": [],
       "summary": "List releases",
+      "surface": "backend"
+    },
+  "roles.create":     {
+      "method": "POST",
+      "operationId": "roles.create",
+      "path": "/backend/v3/api/iam/roles",
+      "pathParamNames": [],
+      "summary": "Create SDKWork IAM role",
+      "surface": "backend"
+    },
+  "roles.delete":     {
+      "method": "DELETE",
+      "operationId": "roles.delete",
+      "path": "/backend/v3/api/iam/roles/{roleId}",
+      "pathParamNames": [
+        "roleId"
+      ],
+      "summary": "Delete SDKWork IAM role",
+      "surface": "backend"
+    },
+  "roles.list":     {
+      "method": "GET",
+      "operationId": "roles.list",
+      "path": "/backend/v3/api/iam/roles",
+      "pathParamNames": [],
+      "summary": "List SDKWork IAM roles",
+      "surface": "backend"
+    },
+  "roles.permissions.create":     {
+      "method": "POST",
+      "operationId": "roles.permissions.create",
+      "path": "/backend/v3/api/iam/roles/{roleId}/permissions",
+      "pathParamNames": [
+        "roleId"
+      ],
+      "summary": "Create SDKWork IAM role permission",
+      "surface": "backend"
+    },
+  "roles.permissions.delete":     {
+      "method": "DELETE",
+      "operationId": "roles.permissions.delete",
+      "path": "/backend/v3/api/iam/roles/{roleId}/permissions/{permissionId}",
+      "pathParamNames": [
+        "roleId",
+        "permissionId"
+      ],
+      "summary": "Delete SDKWork IAM role permission",
+      "surface": "backend"
+    },
+  "roles.permissions.list":     {
+      "method": "GET",
+      "operationId": "roles.permissions.list",
+      "path": "/backend/v3/api/iam/roles/{roleId}/permissions",
+      "pathParamNames": [
+        "roleId"
+      ],
+      "summary": "List SDKWork IAM role permissions",
+      "surface": "backend"
+    },
+  "roles.retrieve":     {
+      "method": "GET",
+      "operationId": "roles.retrieve",
+      "path": "/backend/v3/api/iam/roles/{roleId}",
+      "pathParamNames": [
+        "roleId"
+      ],
+      "summary": "Get SDKWork IAM role",
+      "surface": "backend"
+    },
+  "roles.update":     {
+      "method": "PATCH",
+      "operationId": "roles.update",
+      "path": "/backend/v3/api/iam/roles/{roleId}",
+      "pathParamNames": [
+        "roleId"
+      ],
+      "summary": "Update SDKWork IAM role",
       "surface": "backend"
     },
   "routes.list":     {
@@ -543,28 +862,28 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Get runtime metadata",
       "surface": "app"
     },
-  "sessionExchanges.create":     {
-      "method": "POST",
-      "operationId": "sessionExchanges.create",
-      "path": "/app/v3/api/auth/session_exchanges",
+  "securityEvents.list":     {
+      "method": "GET",
+      "operationId": "securityEvents.list",
+      "path": "/backend/v3/api/iam/security_events",
       "pathParamNames": [],
-      "summary": "Exchange an upstream or third-party session into the local AuthToken and AccessToken bundle.",
-      "surface": "app"
+      "summary": "List SDKWork IAM security events",
+      "surface": "backend"
     },
   "sessions.create":     {
       "method": "POST",
       "operationId": "sessions.create",
       "path": "/app/v3/api/auth/sessions",
       "pathParamNames": [],
-      "summary": "Create a login session with account and password credentials.",
+      "summary": "Create SDKWork IAM session",
       "surface": "app"
     },
   "sessions.current.delete":     {
-      "method": "POST",
+      "method": "DELETE",
       "operationId": "sessions.current.delete",
       "path": "/app/v3/api/auth/sessions/current",
       "pathParamNames": [],
-      "summary": "Revoke the current user-center login session and its token shadows.",
+      "summary": "Delete current SDKWork IAM session",
       "surface": "app"
     },
   "sessions.current.retrieve":     {
@@ -572,7 +891,23 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "sessions.current.retrieve",
       "path": "/app/v3/api/auth/sessions/current",
       "pathParamNames": [],
-      "summary": "Get the current login session snapshot for the active principal.",
+      "summary": "Get current SDKWork IAM session",
+      "surface": "app"
+    },
+  "sessions.current.update":     {
+      "method": "PATCH",
+      "operationId": "sessions.current.update",
+      "path": "/app/v3/api/auth/sessions/current",
+      "pathParamNames": [],
+      "summary": "Update current SDKWork IAM session",
+      "surface": "app"
+    },
+  "sessions.refresh":     {
+      "method": "POST",
+      "operationId": "sessions.refresh",
+      "path": "/app/v3/api/auth/sessions/refresh",
+      "pathParamNames": [],
+      "summary": "Refresh SDKWork IAM session",
       "surface": "app"
     },
   "skillPackages.installations.create":     {
@@ -611,12 +946,108 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "List team members",
       "surface": "backend"
     },
+  "tenants.create":     {
+      "method": "POST",
+      "operationId": "tenants.create",
+      "path": "/backend/v3/api/iam/tenants",
+      "pathParamNames": [],
+      "summary": "Create SDKWork IAM tenant",
+      "surface": "backend"
+    },
+  "tenants.delete":     {
+      "method": "DELETE",
+      "operationId": "tenants.delete",
+      "path": "/backend/v3/api/iam/tenants/{tenantId}",
+      "pathParamNames": [
+        "tenantId"
+      ],
+      "summary": "Delete SDKWork IAM tenant",
+      "surface": "backend"
+    },
+  "tenants.list":     {
+      "method": "GET",
+      "operationId": "tenants.list",
+      "path": "/backend/v3/api/iam/tenants",
+      "pathParamNames": [],
+      "summary": "List SDKWork IAM tenants",
+      "surface": "backend"
+    },
+  "tenants.members.create":     {
+      "method": "POST",
+      "operationId": "tenants.members.create",
+      "path": "/backend/v3/api/iam/tenants/{tenantId}/members",
+      "pathParamNames": [
+        "tenantId"
+      ],
+      "summary": "Create SDKWork IAM tenant member",
+      "surface": "backend"
+    },
+  "tenants.members.delete":     {
+      "method": "DELETE",
+      "operationId": "tenants.members.delete",
+      "path": "/backend/v3/api/iam/tenants/{tenantId}/members/{userId}",
+      "pathParamNames": [
+        "tenantId",
+        "userId"
+      ],
+      "summary": "Delete SDKWork IAM tenant member",
+      "surface": "backend"
+    },
+  "tenants.members.list":     {
+      "method": "GET",
+      "operationId": "tenants.members.list",
+      "path": "/backend/v3/api/iam/tenants/{tenantId}/members",
+      "pathParamNames": [
+        "tenantId"
+      ],
+      "summary": "List SDKWork IAM tenant members",
+      "surface": "backend"
+    },
+  "tenants.members.update":     {
+      "method": "PATCH",
+      "operationId": "tenants.members.update",
+      "path": "/backend/v3/api/iam/tenants/{tenantId}/members/{userId}",
+      "pathParamNames": [
+        "tenantId",
+        "userId"
+      ],
+      "summary": "Update SDKWork IAM tenant member",
+      "surface": "backend"
+    },
+  "tenants.retrieve":     {
+      "method": "GET",
+      "operationId": "tenants.retrieve",
+      "path": "/backend/v3/api/iam/tenants/{tenantId}",
+      "pathParamNames": [
+        "tenantId"
+      ],
+      "summary": "Get SDKWork IAM tenant",
+      "surface": "backend"
+    },
+  "tenants.update":     {
+      "method": "PATCH",
+      "operationId": "tenants.update",
+      "path": "/backend/v3/api/iam/tenants/{tenantId}",
+      "pathParamNames": [
+        "tenantId"
+      ],
+      "summary": "Update SDKWork IAM tenant",
+      "surface": "backend"
+    },
+  "users.create":     {
+      "method": "POST",
+      "operationId": "users.create",
+      "path": "/backend/v3/api/iam/users",
+      "pathParamNames": [],
+      "summary": "Create SDKWork IAM user",
+      "surface": "backend"
+    },
   "users.current.retrieve":     {
       "method": "GET",
       "operationId": "users.current.retrieve",
       "path": "/app/v3/api/iam/users/current",
       "pathParamNames": [],
-      "summary": "Get the current user's canonical profile projection.",
+      "summary": "Get current SDKWork IAM user",
       "surface": "app"
     },
   "users.current.update":     {
@@ -624,31 +1055,92 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "users.current.update",
       "path": "/app/v3/api/iam/users/current",
       "pathParamNames": [],
-      "summary": "Update the current user's canonical profile projection.",
+      "summary": "Update current SDKWork IAM user profile",
       "surface": "app"
+    },
+  "users.delete":     {
+      "method": "DELETE",
+      "operationId": "users.delete",
+      "path": "/backend/v3/api/iam/users/{userId}",
+      "pathParamNames": [
+        "userId"
+      ],
+      "summary": "Delete SDKWork IAM user",
+      "surface": "backend"
+    },
+  "users.list":     {
+      "method": "GET",
+      "operationId": "users.list",
+      "path": "/backend/v3/api/iam/users",
+      "pathParamNames": [],
+      "summary": "List SDKWork IAM users",
+      "surface": "backend"
+    },
+  "users.retrieve":     {
+      "method": "GET",
+      "operationId": "users.retrieve",
+      "path": "/backend/v3/api/iam/users/{userId}",
+      "pathParamNames": [
+        "userId"
+      ],
+      "summary": "Get SDKWork IAM user",
+      "surface": "backend"
+    },
+  "users.roles.create":     {
+      "method": "POST",
+      "operationId": "users.roles.create",
+      "path": "/backend/v3/api/iam/users/{userId}/roles",
+      "pathParamNames": [
+        "userId"
+      ],
+      "summary": "Create SDKWork IAM user role",
+      "surface": "backend"
+    },
+  "users.roles.delete":     {
+      "method": "DELETE",
+      "operationId": "users.roles.delete",
+      "path": "/backend/v3/api/iam/users/{userId}/roles/{roleId}",
+      "pathParamNames": [
+        "userId",
+        "roleId"
+      ],
+      "summary": "Delete SDKWork IAM user role",
+      "surface": "backend"
+    },
+  "users.roles.list":     {
+      "method": "GET",
+      "operationId": "users.roles.list",
+      "path": "/backend/v3/api/iam/users/{userId}/roles",
+      "pathParamNames": [
+        "userId"
+      ],
+      "summary": "List SDKWork IAM user roles",
+      "surface": "backend"
+    },
+  "users.update":     {
+      "method": "PATCH",
+      "operationId": "users.update",
+      "path": "/backend/v3/api/iam/users/{userId}",
+      "pathParamNames": [
+        "userId"
+      ],
+      "summary": "Update SDKWork IAM user",
+      "surface": "backend"
     },
   "verificationCodes.create":     {
       "method": "POST",
       "operationId": "verificationCodes.create",
       "path": "/app/v3/api/auth/verification_codes",
       "pathParamNames": [],
-      "summary": "Send a verification challenge for login, registration, or password reset.",
+      "summary": "Create SDKWork IAM verification code",
       "surface": "app"
     },
-  "vip.info.retrieve":     {
-      "method": "GET",
-      "operationId": "vip.info.retrieve",
-      "path": "/app/v3/api/billing/vip/info",
+  "verificationCodes.verify":     {
+      "method": "POST",
+      "operationId": "verificationCodes.verify",
+      "path": "/app/v3/api/auth/verification_codes/verify",
       "pathParamNames": [],
-      "summary": "Get the current user's VIP or membership projection.",
-      "surface": "app"
-    },
-  "vip.info.update":     {
-      "method": "PATCH",
-      "operationId": "vip.info.update",
-      "path": "/app/v3/api/billing/vip/info",
-      "pathParamNames": [],
-      "summary": "Update the current user's VIP or membership projection for local authority mode.",
+      "summary": "Verify SDKWork IAM verification code",
       "surface": "app"
     },
   "workspaces.create":     {
@@ -731,6 +1223,8 @@ export type BirdCoderFinalizedCodingServerClientOperationId =
   keyof typeof BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS;
 
 interface BirdCoderFinalizedCodingServerClientPathParamsMap {
+  "apiKeys.list": {};
+  "apiKeys.revoke": { apiKeyId: string };
   "approvals.decisions.create": { approvalId: string };
   "appTemplates.list": {};
   "auditEvents.list": {};
@@ -746,7 +1240,6 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "codingSessions.retrieve": { id: string };
   "codingSessions.turns.create": { id: string };
   "codingSessions.update": { id: string };
-  "config.retrieve": {};
   "deploymentGovernance.list": {};
   "deployments.list": {};
   "descriptor.retrieve": {};
@@ -754,6 +1247,10 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "engines.capabilities.retrieve": { engineKey: string };
   "engines.list": {};
   "health.retrieve": {};
+  "iam.runtime.retrieve": {};
+  "iam.verificationPolicy.retrieve": {};
+  "memberships.current.retrieve": {};
+  "memberships.packageGroups.list": {};
   "modelConfig.retrieve": {};
   "modelConfig.sync": {};
   "models.list": {};
@@ -763,9 +1260,28 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "oauthAuthorizationUrls.retrieve": {};
   "oauthSessions.create": {};
   "operations.retrieve": { operationId: string };
+  "organizations.create": {};
+  "organizations.delete": { organizationId: string };
+  "organizations.list": {};
+  "organizations.members.create": { organizationId: string };
+  "organizations.members.delete": { organizationId: string; userId: string };
+  "organizations.members.list": { organizationId: string };
+  "organizations.members.update": { organizationId: string; userId: string };
+  "organizations.retrieve": { organizationId: string };
+  "organizations.tree.retrieve": {};
+  "organizations.update": { organizationId: string };
   "passwordResetRequests.create": {};
   "passwordResets.create": {};
+  "permissions.create": {};
+  "permissions.delete": { permissionId: string };
+  "permissions.list": {};
+  "permissions.retrieve": { permissionId: string };
+  "permissions.update": { permissionId: string };
+  "policies.create": {};
+  "policies.delete": { policyId: string };
   "policies.list": {};
+  "policies.retrieve": { policyId: string };
+  "policies.update": { policyId: string };
   "projects.collaborators.list": { projectId: string };
   "projects.collaborators.upsert": { projectId: string };
   "projects.create": {};
@@ -783,26 +1299,54 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "projects.publish.create": { projectId: string };
   "projects.retrieve": { projectId: string };
   "projects.update": { projectId: string };
-  "qrLoginCodes.create": {};
-  "qrLoginCodes.retrieve": { qrKey: string };
+  "qrAuth.sessions.create": {};
+  "qrAuth.sessions.passwords.create": { sessionKey: string };
+  "qrAuth.sessions.retrieve": { sessionKey: string };
+  "qrAuth.sessions.scans.create": { sessionKey: string };
   "questions.answers.create": { questionId: string };
   "registrations.create": {};
   "releases.list": {};
+  "roles.create": {};
+  "roles.delete": { roleId: string };
+  "roles.list": {};
+  "roles.permissions.create": { roleId: string };
+  "roles.permissions.delete": { roleId: string; permissionId: string };
+  "roles.permissions.list": { roleId: string };
+  "roles.retrieve": { roleId: string };
+  "roles.update": { roleId: string };
   "routes.list": {};
   "runtime.retrieve": {};
-  "sessionExchanges.create": {};
+  "securityEvents.list": {};
   "sessions.create": {};
   "sessions.current.delete": {};
   "sessions.current.retrieve": {};
+  "sessions.current.update": {};
+  "sessions.refresh": {};
   "skillPackages.installations.create": { packageId: string };
   "skillPackages.list": {};
   "teams.list": {};
   "teams.members.list": { teamId: string };
+  "tenants.create": {};
+  "tenants.delete": { tenantId: string };
+  "tenants.list": {};
+  "tenants.members.create": { tenantId: string };
+  "tenants.members.delete": { tenantId: string; userId: string };
+  "tenants.members.list": { tenantId: string };
+  "tenants.members.update": { tenantId: string; userId: string };
+  "tenants.retrieve": { tenantId: string };
+  "tenants.update": { tenantId: string };
+  "users.create": {};
   "users.current.retrieve": {};
   "users.current.update": {};
+  "users.delete": { userId: string };
+  "users.list": {};
+  "users.retrieve": { userId: string };
+  "users.roles.create": { userId: string };
+  "users.roles.delete": { userId: string; roleId: string };
+  "users.roles.list": { userId: string };
+  "users.update": { userId: string };
   "verificationCodes.create": {};
-  "vip.info.retrieve": {};
-  "vip.info.update": {};
+  "verificationCodes.verify": {};
   "workspaces.create": {};
   "workspaces.delete": { workspaceId: string };
   "workspaces.list": {};

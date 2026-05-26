@@ -58,6 +58,36 @@ assert.equal(result.openapi, '3.1.0');
 assert.equal(result.version, 'v1');
 assert.equal(result.title, 'SDKWork BirdCoder Coding Server API');
 
+const devWorkspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-openapi-dev-codegen-input-'));
+const devReleaseAssetsDir = path.join(devWorkspaceRoot, 'artifacts', 'release');
+const devOpenApiDir = path.join(devWorkspaceRoot, 'artifacts', 'openapi');
+const devSnapshotPath = path.join(devOpenApiDir, 'coding-server-v1.json');
+fs.mkdirSync(devOpenApiDir, { recursive: true });
+fs.writeFileSync(
+  devSnapshotPath,
+  JSON.stringify({
+    openapi: '3.1.0',
+    info: {
+      title: 'SDKWork BirdCoder Coding Server API',
+      version: 'v1',
+    },
+    paths: {},
+  }, null, 2),
+);
+
+const devResult = readCodingServerOpenApiCodegenInput({
+  releaseAssetsDir: devReleaseAssetsDir,
+});
+
+assert.equal(devResult.releaseTag, 'development');
+assert.equal(devResult.canonicalRelativePath, 'artifacts/openapi/coding-server-v1.json');
+assert.equal(devResult.canonicalSnapshotPath, devSnapshotPath);
+assert.deepEqual(devResult.targets, ['development']);
+assert.equal(devResult.openapi, '3.1.0');
+assert.equal(devResult.version, 'v1');
+assert.equal(devResult.title, 'SDKWork BirdCoder Coding Server API');
+assert.match(devResult.sha256, /^[a-f0-9]{64}$/u);
+
 fs.writeFileSync(
   path.join(releaseAssetsDir, 'release-manifest.json'),
   JSON.stringify({
@@ -73,4 +103,5 @@ assert.throws(
 );
 
 fs.rmSync(releaseAssetsDir, { recursive: true, force: true });
+fs.rmSync(devWorkspaceRoot, { recursive: true, force: true });
 console.log('coding server openapi codegen input contract passed.');

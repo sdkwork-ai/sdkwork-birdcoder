@@ -1,14 +1,14 @@
 import {
   BIRDCODER_CODING_SERVER_API_PREFIXES,
   BIRDCODER_CODING_SERVER_API_VERSION,
-  type BirdCoderAdminAuditEventSummary,
-  type BirdCoderAdminPolicySummary,
   type BirdCoderApiListEnvelope,
   type BirdCoderApiQueryValue,
   type BirdCoderApiTransport,
   type BirdCoderApiTransportRequest,
   type BirdCoderDeploymentRecordSummary,
   type BirdCoderDeploymentTargetSummary,
+  type BirdCoderIamAuditEventSummary,
+  type BirdCoderIamPolicySummary,
   type BirdCoderProjectDocumentSummary,
   type BirdCoderProjectSummary,
   type BirdCoderReleaseSummary,
@@ -16,11 +16,13 @@ import {
   type BirdCoderTeamSummary,
   type BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-types';
+import { BIRDCODER_DEFAULT_LOCAL_TENANT_ID } from '../storage/bootstrapConsoleCatalog.ts';
 import {
   normalizeBirdCoderApiQueryValue,
   parseBirdCoderApiJson,
   stringifyBirdCoderApiJson,
 } from './apiJson.ts';
+import { createBirdCoderApiRequestId } from './apiRequestId.ts';
 import type { BirdCoderConsoleQueries } from './consoleQueries.ts';
 
 export interface CreateBirdCoderHttpApiTransportOptions {
@@ -34,16 +36,11 @@ type BirdCoderFetchLike = typeof fetch;
 
 const DEFAULT_BIRDCODER_HTTP_API_TIMEOUT_MS = 8_000;
 
-function buildRequestId(path: string): string {
-  const normalizedPath = path.replace(/\//gu, '.').replace(/^\.+/u, '');
-  return `req.${normalizedPath}.${Date.now().toString(36)}`;
-}
-
 export function createListEnvelope<TItem>(
   items: readonly TItem[],
 ): BirdCoderApiListEnvelope<TItem> {
   return {
-    requestId: buildRequestId('list'),
+    requestId: createBirdCoderApiRequestId(),
     timestamp: new Date().toISOString(),
     items: [...items],
     meta: {
@@ -57,7 +54,7 @@ export function createListEnvelope<TItem>(
 
 export function createEnvelope<TData>(data: TData) {
   return {
-    requestId: buildRequestId('data'),
+    requestId: createBirdCoderApiRequestId(),
     timestamp: new Date().toISOString(),
     data,
   };
@@ -288,41 +285,47 @@ export function mapReleaseSummary(
 
 export function mapAuditSummary(
   auditEvent: Awaited<ReturnType<BirdCoderConsoleQueries['listAuditEvents']>>[number],
-): BirdCoderAdminAuditEventSummary {
-  const canonical = auditEvent as Partial<BirdCoderAdminAuditEventSummary>;
+): BirdCoderIamAuditEventSummary {
+  const canonical = auditEvent as Partial<BirdCoderIamAuditEventSummary>;
   return {
     id: auditEvent.id,
-    uuid: canonical.uuid,
-    tenantId: canonical.tenantId,
+    tenantId: canonical.tenantId ?? auditEvent.tenantId ?? BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
     organizationId: canonical.organizationId,
+    actorUserId: canonical.actorUserId,
+    action: canonical.action ?? auditEvent.eventType,
+    resourceType: canonical.resourceType ?? auditEvent.scopeType,
+    resourceId: canonical.resourceId ?? auditEvent.scopeId,
+    requestId: canonical.requestId,
+    appId: canonical.appId,
+    environment: canonical.environment,
+    shardingKey: canonical.shardingKey,
+    detail: canonical.detail ?? auditEvent.payload,
     createdAt: canonical.createdAt ?? auditEvent.createdAt,
-    updatedAt: canonical.updatedAt ?? auditEvent.updatedAt,
-    scopeType: auditEvent.scopeType,
-    scopeId: auditEvent.scopeId,
-    eventType: auditEvent.eventType,
-    payload: auditEvent.payload,
   };
 }
 
 export function mapPolicySummary(
   policy: Awaited<ReturnType<BirdCoderConsoleQueries['listPolicies']>>[number],
-): BirdCoderAdminPolicySummary {
-  const canonical = policy as Partial<BirdCoderAdminPolicySummary>;
+): BirdCoderIamPolicySummary {
+  const canonical = policy as Partial<BirdCoderIamPolicySummary>;
+  const policyDetail = canonical.policy ?? {
+    approvalPolicy: policy.approvalPolicy,
+    policyCategory: policy.policyCategory,
+    rationale: policy.rationale,
+    scopeId: policy.scopeId,
+    scopeType: policy.scopeType,
+    targetId: policy.targetId,
+    targetType: policy.targetType,
+  };
   return {
     id: policy.id,
-    uuid: canonical.uuid,
-    tenantId: canonical.tenantId,
-    organizationId: canonical.organizationId,
+    tenantId: canonical.tenantId ?? policy.tenantId ?? BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
+    code: canonical.code ?? `${policy.policyCategory}.${policy.targetType}.${policy.targetId}`,
+    name: canonical.name ?? policy.rationale ?? policy.id,
+    policy: policyDetail,
+    status: canonical.status ?? policy.status,
     createdAt: canonical.createdAt ?? policy.createdAt,
     updatedAt: canonical.updatedAt ?? policy.updatedAt,
-    scopeType: policy.scopeType as BirdCoderAdminPolicySummary['scopeType'],
-    scopeId: policy.scopeId,
-    policyCategory: policy.policyCategory as BirdCoderAdminPolicySummary['policyCategory'],
-    targetType: policy.targetType as BirdCoderAdminPolicySummary['targetType'],
-    targetId: policy.targetId,
-    approvalPolicy: policy.approvalPolicy as BirdCoderAdminPolicySummary['approvalPolicy'],
-    rationale: policy.rationale,
-    status: policy.status as BirdCoderAdminPolicySummary['status'],
   };
 }
 

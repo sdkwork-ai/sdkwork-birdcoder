@@ -3,19 +3,98 @@
 import type {
   BirdcoderSdkRequestOperation,
   BirdcoderSdkRequestOptions,
-} from '../http';
-import type * as Types from '../types';
+} from '../http/index.ts';
+import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
+type IamApiKeysRevokePathParams = Types.IamApiKeysRevokePathParams;
+type IamOrganizationsDeletePathParams = Types.IamOrganizationsDeletePathParams;
+type IamOrganizationsMembersCreatePathParams = Types.IamOrganizationsMembersCreatePathParams;
+type IamOrganizationsMembersDeletePathParams = Types.IamOrganizationsMembersDeletePathParams;
+type IamOrganizationsMembersListPathParams = Types.IamOrganizationsMembersListPathParams;
+type IamOrganizationsMembersUpdatePathParams = Types.IamOrganizationsMembersUpdatePathParams;
+type IamOrganizationsRetrievePathParams = Types.IamOrganizationsRetrievePathParams;
+type IamOrganizationsUpdatePathParams = Types.IamOrganizationsUpdatePathParams;
+type IamPermissionsDeletePathParams = Types.IamPermissionsDeletePathParams;
+type IamPermissionsRetrievePathParams = Types.IamPermissionsRetrievePathParams;
+type IamPermissionsUpdatePathParams = Types.IamPermissionsUpdatePathParams;
+type IamPoliciesDeletePathParams = Types.IamPoliciesDeletePathParams;
+type IamPoliciesRetrievePathParams = Types.IamPoliciesRetrievePathParams;
+type IamPoliciesUpdatePathParams = Types.IamPoliciesUpdatePathParams;
+type IamRolesDeletePathParams = Types.IamRolesDeletePathParams;
+type IamRolesPermissionsCreatePathParams = Types.IamRolesPermissionsCreatePathParams;
+type IamRolesPermissionsDeletePathParams = Types.IamRolesPermissionsDeletePathParams;
+type IamRolesPermissionsListPathParams = Types.IamRolesPermissionsListPathParams;
+type IamRolesRetrievePathParams = Types.IamRolesRetrievePathParams;
+type IamRolesUpdatePathParams = Types.IamRolesUpdatePathParams;
 type IamTeamsListQuery = Types.IamTeamsListQuery;
 type IamTeamsMembersListPathParams = Types.IamTeamsMembersListPathParams;
+type IamTenantsDeletePathParams = Types.IamTenantsDeletePathParams;
+type IamTenantsMembersCreatePathParams = Types.IamTenantsMembersCreatePathParams;
+type IamTenantsMembersDeletePathParams = Types.IamTenantsMembersDeletePathParams;
+type IamTenantsMembersListPathParams = Types.IamTenantsMembersListPathParams;
+type IamTenantsMembersUpdatePathParams = Types.IamTenantsMembersUpdatePathParams;
+type IamTenantsRetrievePathParams = Types.IamTenantsRetrievePathParams;
+type IamTenantsUpdatePathParams = Types.IamTenantsUpdatePathParams;
+type IamUsersDeletePathParams = Types.IamUsersDeletePathParams;
+type IamUsersRetrievePathParams = Types.IamUsersRetrievePathParams;
+type IamUsersRolesCreatePathParams = Types.IamUsersRolesCreatePathParams;
+type IamUsersRolesDeletePathParams = Types.IamUsersRolesDeletePathParams;
+type IamUsersRolesListPathParams = Types.IamUsersRolesListPathParams;
+type IamUsersUpdatePathParams = Types.IamUsersUpdatePathParams;
 
 export interface IamApi {
+  apiKeys: {
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamApiKeySummaryListEnvelope>;
+    revoke(pathParams: IamApiKeysRevokePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
+  };
   auditEvents: {
-    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderAdminAuditEventSummaryListEnvelope>;
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamAuditEventSummaryListEnvelope>;
+  };
+  organizations: {
+    create(body: Types.BirdCoderCreateIamOrganizationRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationSummaryEnvelope>;
+    delete(pathParams: IamOrganizationsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeletedResourceEnvelope>;
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationSummaryListEnvelope>;
+    members: {
+      create(pathParams: IamOrganizationsMembersCreatePathParams, body: Types.BirdCoderCreateIamOrganizationMemberRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationMemberSummaryEnvelope>;
+      delete(pathParams: IamOrganizationsMembersDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
+      list(pathParams: IamOrganizationsMembersListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationMemberSummaryListEnvelope>;
+      update(pathParams: IamOrganizationsMembersUpdatePathParams, body: Types.BirdCoderUpdateIamOrganizationMemberRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationMemberSummaryEnvelope>;
+    };
+    retrieve(pathParams: IamOrganizationsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationSummaryEnvelope>;
+    tree: {
+      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationSummaryListEnvelope>;
+    };
+    update(pathParams: IamOrganizationsUpdatePathParams, body: Types.BirdCoderUpdateIamOrganizationRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationSummaryEnvelope>;
+  };
+  permissions: {
+    create(body: Types.BirdCoderCreateIamPermissionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamPermissionSummaryEnvelope>;
+    delete(pathParams: IamPermissionsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeletedResourceEnvelope>;
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamPermissionSummaryListEnvelope>;
+    retrieve(pathParams: IamPermissionsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamPermissionSummaryEnvelope>;
+    update(pathParams: IamPermissionsUpdatePathParams, body: Types.BirdCoderUpdateIamPermissionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamPermissionSummaryEnvelope>;
   };
   policies: {
-    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderAdminPolicySummaryListEnvelope>;
+    create(body: Types.BirdCoderCreateIamPolicyRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamPolicySummaryEnvelope>;
+    delete(pathParams: IamPoliciesDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeletedResourceEnvelope>;
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamPolicySummaryListEnvelope>;
+    retrieve(pathParams: IamPoliciesRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamPolicySummaryEnvelope>;
+    update(pathParams: IamPoliciesUpdatePathParams, body: Types.BirdCoderUpdateIamPolicyRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamPolicySummaryEnvelope>;
+  };
+  roles: {
+    create(body: Types.BirdCoderCreateIamRoleRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamRoleSummaryEnvelope>;
+    delete(pathParams: IamRolesDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeletedResourceEnvelope>;
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamRoleSummaryListEnvelope>;
+    permissions: {
+      create(pathParams: IamRolesPermissionsCreatePathParams, body: Types.BirdCoderCreateIamRolePermissionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamRolePermissionSummaryEnvelope>;
+      delete(pathParams: IamRolesPermissionsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
+      list(pathParams: IamRolesPermissionsListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamRolePermissionSummaryListEnvelope>;
+    };
+    retrieve(pathParams: IamRolesRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamRoleSummaryEnvelope>;
+    update(pathParams: IamRolesUpdatePathParams, body: Types.BirdCoderUpdateIamRoleRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamRoleSummaryEnvelope>;
+  };
+  securityEvents: {
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSecurityEventSummaryListEnvelope>;
   };
   teams: {
     list(query?: IamTeamsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderTeamSummaryListEnvelope>;
@@ -23,18 +102,149 @@ export interface IamApi {
       list(pathParams: IamTeamsMembersListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderTeamMemberSummaryListEnvelope>;
     };
   };
+  tenants: {
+    create(body: Types.BirdCoderCreateIamTenantRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamTenantSummaryEnvelope>;
+    delete(pathParams: IamTenantsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeletedResourceEnvelope>;
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamTenantSummaryListEnvelope>;
+    members: {
+      create(pathParams: IamTenantsMembersCreatePathParams, body: Types.BirdCoderCreateIamTenantMemberRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamTenantMemberSummaryEnvelope>;
+      delete(pathParams: IamTenantsMembersDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
+      list(pathParams: IamTenantsMembersListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamTenantMemberSummaryListEnvelope>;
+      update(pathParams: IamTenantsMembersUpdatePathParams, body: Types.BirdCoderUpdateIamTenantMemberRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamTenantMemberSummaryEnvelope>;
+    };
+    retrieve(pathParams: IamTenantsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamTenantSummaryEnvelope>;
+    update(pathParams: IamTenantsUpdatePathParams, body: Types.BirdCoderUpdateIamTenantRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamTenantSummaryEnvelope>;
+  };
+  users: {
+    create(body: Types.BirdCoderCreateIamUserRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamUserSummaryEnvelope>;
+    delete(pathParams: IamUsersDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeletedResourceEnvelope>;
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamUserSummaryListEnvelope>;
+    retrieve(pathParams: IamUsersRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamUserSummaryEnvelope>;
+    roles: {
+      create(pathParams: IamUsersRolesCreatePathParams, body: Types.BirdCoderCreateIamUserRoleRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamUserRoleSummaryEnvelope>;
+      delete(pathParams: IamUsersRolesDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
+      list(pathParams: IamUsersRolesListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamUserRoleSummaryListEnvelope>;
+    };
+    update(pathParams: IamUsersUpdatePathParams, body: Types.BirdCoderUpdateIamUserRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamUserSummaryEnvelope>;
+  };
 }
 
 export function createIamApi(requestOperation: BirdcoderSdkRequestOperation): IamApi {
   return {
+    apiKeys: {
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamApiKeySummaryListEnvelope>("iam.apiKeys.list", {}, options);
+      },
+      revoke(pathParams: IamApiKeysRevokePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("iam.apiKeys.revoke", { pathParams }, options);
+      }
+    },
     auditEvents: {
       list(options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderAdminAuditEventSummaryListEnvelope>("iam.auditEvents.list", {}, options);
+        return requestOperation<Types.BirdCoderIamAuditEventSummaryListEnvelope>("iam.auditEvents.list", {}, options);
+      }
+    },
+    organizations: {
+      create(body: Types.BirdCoderCreateIamOrganizationRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamOrganizationSummaryEnvelope>("iam.organizations.create", { body }, options);
+      },
+      delete(pathParams: IamOrganizationsDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderDeletedResourceEnvelope>("iam.organizations.delete", { pathParams }, options);
+      },
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamOrganizationSummaryListEnvelope>("iam.organizations.list", {}, options);
+      },
+      members: {
+        create(pathParams: IamOrganizationsMembersCreatePathParams, body: Types.BirdCoderCreateIamOrganizationMemberRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamOrganizationMemberSummaryEnvelope>("iam.organizations.members.create", { pathParams, body }, options);
+        },
+        delete(pathParams: IamOrganizationsMembersDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("iam.organizations.members.delete", { pathParams }, options);
+        },
+        list(pathParams: IamOrganizationsMembersListPathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamOrganizationMemberSummaryListEnvelope>("iam.organizations.members.list", { pathParams }, options);
+        },
+        update(pathParams: IamOrganizationsMembersUpdatePathParams, body: Types.BirdCoderUpdateIamOrganizationMemberRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamOrganizationMemberSummaryEnvelope>("iam.organizations.members.update", { pathParams, body }, options);
+        }
+      },
+      retrieve(pathParams: IamOrganizationsRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamOrganizationSummaryEnvelope>("iam.organizations.retrieve", { pathParams }, options);
+      },
+      tree: {
+        retrieve(options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamOrganizationSummaryListEnvelope>("iam.organizations.tree.retrieve", {}, options);
+        }
+      },
+      update(pathParams: IamOrganizationsUpdatePathParams, body: Types.BirdCoderUpdateIamOrganizationRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamOrganizationSummaryEnvelope>("iam.organizations.update", { pathParams, body }, options);
+      }
+    },
+    permissions: {
+      create(body: Types.BirdCoderCreateIamPermissionRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamPermissionSummaryEnvelope>("iam.permissions.create", { body }, options);
+      },
+      delete(pathParams: IamPermissionsDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderDeletedResourceEnvelope>("iam.permissions.delete", { pathParams }, options);
+      },
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamPermissionSummaryListEnvelope>("iam.permissions.list", {}, options);
+      },
+      retrieve(pathParams: IamPermissionsRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamPermissionSummaryEnvelope>("iam.permissions.retrieve", { pathParams }, options);
+      },
+      update(pathParams: IamPermissionsUpdatePathParams, body: Types.BirdCoderUpdateIamPermissionRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamPermissionSummaryEnvelope>("iam.permissions.update", { pathParams, body }, options);
       }
     },
     policies: {
+      create(body: Types.BirdCoderCreateIamPolicyRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamPolicySummaryEnvelope>("iam.policies.create", { body }, options);
+      },
+      delete(pathParams: IamPoliciesDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderDeletedResourceEnvelope>("iam.policies.delete", { pathParams }, options);
+      },
       list(options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderAdminPolicySummaryListEnvelope>("iam.policies.list", {}, options);
+        return requestOperation<Types.BirdCoderIamPolicySummaryListEnvelope>("iam.policies.list", {}, options);
+      },
+      retrieve(pathParams: IamPoliciesRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamPolicySummaryEnvelope>("iam.policies.retrieve", { pathParams }, options);
+      },
+      update(pathParams: IamPoliciesUpdatePathParams, body: Types.BirdCoderUpdateIamPolicyRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamPolicySummaryEnvelope>("iam.policies.update", { pathParams, body }, options);
+      }
+    },
+    roles: {
+      create(body: Types.BirdCoderCreateIamRoleRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamRoleSummaryEnvelope>("iam.roles.create", { body }, options);
+      },
+      delete(pathParams: IamRolesDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderDeletedResourceEnvelope>("iam.roles.delete", { pathParams }, options);
+      },
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamRoleSummaryListEnvelope>("iam.roles.list", {}, options);
+      },
+      permissions: {
+        create(pathParams: IamRolesPermissionsCreatePathParams, body: Types.BirdCoderCreateIamRolePermissionRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamRolePermissionSummaryEnvelope>("iam.roles.permissions.create", { pathParams, body }, options);
+        },
+        delete(pathParams: IamRolesPermissionsDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("iam.roles.permissions.delete", { pathParams }, options);
+        },
+        list(pathParams: IamRolesPermissionsListPathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamRolePermissionSummaryListEnvelope>("iam.roles.permissions.list", { pathParams }, options);
+        }
+      },
+      retrieve(pathParams: IamRolesRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamRoleSummaryEnvelope>("iam.roles.retrieve", { pathParams }, options);
+      },
+      update(pathParams: IamRolesUpdatePathParams, body: Types.BirdCoderUpdateIamRoleRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamRoleSummaryEnvelope>("iam.roles.update", { pathParams, body }, options);
+      }
+    },
+    securityEvents: {
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamSecurityEventSummaryListEnvelope>("iam.securityEvents.list", {}, options);
       }
     },
     teams: {
@@ -45,6 +255,65 @@ export function createIamApi(requestOperation: BirdcoderSdkRequestOperation): Ia
         list(pathParams: IamTeamsMembersListPathParams, options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<Types.BirdCoderTeamMemberSummaryListEnvelope>("iam.teams.members.list", { pathParams }, options);
         }
+      }
+    },
+    tenants: {
+      create(body: Types.BirdCoderCreateIamTenantRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamTenantSummaryEnvelope>("iam.tenants.create", { body }, options);
+      },
+      delete(pathParams: IamTenantsDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderDeletedResourceEnvelope>("iam.tenants.delete", { pathParams }, options);
+      },
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamTenantSummaryListEnvelope>("iam.tenants.list", {}, options);
+      },
+      members: {
+        create(pathParams: IamTenantsMembersCreatePathParams, body: Types.BirdCoderCreateIamTenantMemberRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamTenantMemberSummaryEnvelope>("iam.tenants.members.create", { pathParams, body }, options);
+        },
+        delete(pathParams: IamTenantsMembersDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("iam.tenants.members.delete", { pathParams }, options);
+        },
+        list(pathParams: IamTenantsMembersListPathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamTenantMemberSummaryListEnvelope>("iam.tenants.members.list", { pathParams }, options);
+        },
+        update(pathParams: IamTenantsMembersUpdatePathParams, body: Types.BirdCoderUpdateIamTenantMemberRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamTenantMemberSummaryEnvelope>("iam.tenants.members.update", { pathParams, body }, options);
+        }
+      },
+      retrieve(pathParams: IamTenantsRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamTenantSummaryEnvelope>("iam.tenants.retrieve", { pathParams }, options);
+      },
+      update(pathParams: IamTenantsUpdatePathParams, body: Types.BirdCoderUpdateIamTenantRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamTenantSummaryEnvelope>("iam.tenants.update", { pathParams, body }, options);
+      }
+    },
+    users: {
+      create(body: Types.BirdCoderCreateIamUserRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamUserSummaryEnvelope>("iam.users.create", { body }, options);
+      },
+      delete(pathParams: IamUsersDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderDeletedResourceEnvelope>("iam.users.delete", { pathParams }, options);
+      },
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamUserSummaryListEnvelope>("iam.users.list", {}, options);
+      },
+      retrieve(pathParams: IamUsersRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamUserSummaryEnvelope>("iam.users.retrieve", { pathParams }, options);
+      },
+      roles: {
+        create(pathParams: IamUsersRolesCreatePathParams, body: Types.BirdCoderCreateIamUserRoleRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamUserRoleSummaryEnvelope>("iam.users.roles.create", { pathParams, body }, options);
+        },
+        delete(pathParams: IamUsersRolesDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("iam.users.roles.delete", { pathParams }, options);
+        },
+        list(pathParams: IamUsersRolesListPathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamUserRoleSummaryListEnvelope>("iam.users.roles.list", { pathParams }, options);
+        }
+      },
+      update(pathParams: IamUsersUpdatePathParams, body: Types.BirdCoderUpdateIamUserRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamUserSummaryEnvelope>("iam.users.update", { pathParams, body }, options);
       }
     }
   };

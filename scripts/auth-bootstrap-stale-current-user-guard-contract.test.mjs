@@ -9,40 +9,32 @@ const authContextSource = fs.readFileSync(
 assert.match(
   authContextSource,
   /const authMutationVersionRef = useRef\(0\);/,
-  'AuthContext must track auth mutations so startup profile requests cannot publish stale results over user actions.',
+  'AuthContext must track auth mutations so in-flight current-user requests cannot publish stale results over user actions.',
 );
 
 assert.match(
   authContextSource,
-  /const initialAuthMutationVersion = authMutationVersionRef\.current;[\s\S]*const loadCurrentUser = async \(\) => \{[\s\S]*if \(!isMounted \|\| authMutationVersionRef\.current !== initialAuthMutationVersion\) \{[\s\S]*return;[\s\S]*\}[\s\S]*setUser\(currentUser\);/,
-  'Initial current-user hydration must skip publishing when a login, registration, exchange, or logout happened after bootstrap began.',
+  /async function loadCurrentUser\(\) \{\s*const currentAuthMutationVersion = authMutationVersionRef\.current;[\s\S]*if \(!isMounted \|\| authMutationVersionRef\.current !== currentAuthMutationVersion\) \{[\s\S]*return;[\s\S]*\}[\s\S]*setUser\(currentUser\);/u,
+  'Each current-user hydration pass must capture its own auth mutation version so app-session changes after mount can publish fresh SDKWork IAM users.',
 );
 
 assert.match(
   authContextSource,
-  /catch \(error\) \{[\s\S]*if \(!isMounted \|\| authMutationVersionRef\.current !== initialAuthMutationVersion\) \{[\s\S]*return;[\s\S]*\}[\s\S]*setUser\(null\);/,
-  'Initial current-user hydration failures must not clear a user adopted by a newer auth mutation.',
+  /catch \(error\) \{[\s\S]*if \(!isMounted \|\| authMutationVersionRef\.current !== currentAuthMutationVersion\) \{[\s\S]*return;[\s\S]*\}[\s\S]*setUser\(null\);/u,
+  'Current-user hydration failures must not clear a user adopted by a newer auth mutation.',
 );
 
 assert.match(
   authContextSource,
-  /const runAuthenticatedUserMutation = useCallback\(\s*async \(operation: \(\) => Promise<User>\) => \{[\s\S]*authMutationVersionRef\.current = authMutationVersion;[\s\S]*const authenticatedUser = await operation\(\);/,
-  'AuthContext must centralize authenticated-user mutations so every login-like operation invalidates stale startup current-user hydration before awaiting the auth service.',
+  /finally \{[\s\S]*if \(isMounted && authMutationVersionRef\.current === currentAuthMutationVersion\) \{[\s\S]*setIsLoading\(false\);[\s\S]*\}/u,
+  'Current-user hydration must only close the loading gate for the latest auth mutation version.',
 );
 
 assert.match(
   authContextSource,
-  /const refreshCurrentUserAfterAuthMutation = useCallback\(\s*async \(fallbackUser\?: User\) => \{[\s\S]*authMutationVersionRef\.current = authMutationVersion;[\s\S]*return await refreshCurrentUserWithFallback\(fallbackUser\);/,
-  'AuthContext must provide a mutation-aware refresh path for external auth confirmations that do not directly return through a context login method.',
+  /const refreshAuthMutationVersion = authMutationVersionRef\.current;[\s\S]*if \(authMutationVersionRef\.current !== refreshAuthMutationVersion\) \{[\s\S]*return null;[\s\S]*\}/u,
+  'Manual current-user refresh must not publish a stale SDKWork IAM profile when a newer auth mutation starts while the request is in flight.',
 );
-
-for (const operation of ['login', 'register', 'exchangeUserCenterSession']) {
-  assert.match(
-    authContextSource,
-    new RegExp(`const ${operation} = useCallback[\\s\\S]*runAuthenticatedUserMutation\\(`),
-    `AuthContext ${operation} must use the centralized authenticated-user mutation boundary.`,
-  );
-}
 
 assert.match(
   authContextSource,

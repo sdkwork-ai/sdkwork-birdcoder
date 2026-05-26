@@ -139,7 +139,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node scripts/release/smoke-deployment-release-assets.test.mjs',
   'node scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
   'node scripts/birdcoder-iam-standard-contract.test.mjs',
-  'node scripts/birdcoder-iam-appbase-parity-contract.test.mjs',
+  'node scripts/birdcoder-iam-shared-surface-contract.test.mjs',
   'node scripts/ui-bundle-segmentation-contract.test.mjs',
   'node scripts/web-react-compat-mode-contract.test.mjs',
   'node scripts/commons-shell-entry-contract.test.mjs',

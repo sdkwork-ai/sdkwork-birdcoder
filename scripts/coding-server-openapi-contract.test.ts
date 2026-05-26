@@ -20,11 +20,12 @@ assert.match(document.info.description, /unified same-port API gateway/i);
 assert.equal(document.servers[0]?.url, '/');
 assert.deepEqual(document.tags.map((tag) => tag.name), [
   'auth',
-  'billing',
   'collaboration',
+  'commerce',
   'content',
   'iam',
   'intelligence',
+  'openPlatform',
   'platform',
   'runtime',
   'skills',
@@ -34,7 +35,7 @@ assert.deepEqual(document.tags.map((tag) => tag.name), [
 assert.equal(document.components.securitySchemes.bearerAuth.type, 'http');
 assert.equal(document.components.securitySchemes.sdkworkAccessToken.type, 'apiKey');
 assert.equal(document.components.securitySchemes.sdkworkAccessToken.in, 'header');
-assert.equal(document.components.securitySchemes.sdkworkAccessToken.name, 'Sdkwork-Access-Token');
+assert.equal(document.components.securitySchemes.sdkworkAccessToken.name, 'Access-Token');
 assert.equal(document['x-sdkwork-api-gateway'].liveOpenApiPath, '/openapi.json');
 assert.equal(document['x-sdkwork-api-gateway'].docsPath, '/docs');
 assert.equal(document['x-sdkwork-api-gateway'].routeCatalogPath, '/app/v3/api/system/routes');
@@ -106,15 +107,23 @@ for (const oldAppbasePath of [
   '/app/v3/api/auth/phone_login',
   '/app/v3/api/auth/qr_generate',
   '/app/v3/api/auth/qr_status/{qrKey}',
+  '/app/v3/api/auth/config',
   '/app/v3/api/auth/session',
+  '/app/v3/api/auth/session_exchanges',
+  '/app/v3/api/auth/qr_login_codes',
+  '/app/v3/api/auth/qr_login_codes/{qrKey}',
+  '/app/v3/api/auth/qr_login_codes/{qrKey}/entry',
+  '/app/v3/api/auth/qr_login_codes/{qrKey}/callback',
+  '/app/v3/api/auth/qr_login_codes/confirm',
   '/app/v3/api/auth/verify_send',
   '/app/v3/api/iam/user_profile',
   '/app/v3/api/billing/vip_info',
+  '/app/v3/api/billing/vip/info',
 ]) {
   assert.equal(
     document.paths[oldAppbasePath],
     undefined,
-    `${oldAppbasePath} must not be exposed because BirdCoder uses the canonical appbase IAM route set.`,
+    `${oldAppbasePath} must not be exposed because BirdCoder uses the canonical SDKWork IAM and commerce route set.`,
   );
 }
 assert.equal(document.paths['/app/v3/api/system/routes']?.get?.operationId, 'routes.list');
@@ -142,16 +151,34 @@ assert.equal(
   document.paths['/app/v3/api/questions/{questionId}/answer']?.post?.operationId,
   'questions.answers.create',
 );
-assert.equal(document.paths['/app/v3/api/auth/config']?.get?.operationId, 'config.retrieve');
+assert.equal(document.paths['/app/v3/api/system/iam/runtime']?.get?.operationId, 'iam.runtime.retrieve');
+assert.equal(
+  document.paths['/app/v3/api/system/iam/verification_policy']?.get?.operationId,
+  'iam.verificationPolicy.retrieve',
+);
 assert.equal(document.paths['/app/v3/api/auth/sessions/current']?.get?.operationId, 'sessions.current.retrieve');
+assert.equal(document.paths['/app/v3/api/auth/sessions/current']?.patch?.operationId, 'sessions.current.update');
+assert.equal(document.paths['/app/v3/api/auth/sessions/current']?.delete?.operationId, 'sessions.current.delete');
 assert.equal(document.paths['/app/v3/api/auth/sessions']?.post?.operationId, 'sessions.create');
 assert.equal(
-  document.paths['/app/v3/api/auth/qr_login_codes']?.post?.operationId,
-  'qrLoginCodes.create',
+  document.paths['/app/v3/api/auth/sessions/refresh']?.post?.operationId,
+  'sessions.refresh',
 );
 assert.equal(
-  document.paths['/app/v3/api/auth/qr_login_codes/{qrKey}']?.get?.operationId,
-  'qrLoginCodes.retrieve',
+  document.paths['/app/v3/api/open_platform/qr_auth/sessions']?.post?.operationId,
+  'qrAuth.sessions.create',
+);
+assert.equal(
+  document.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}']?.get?.operationId,
+  'qrAuth.sessions.retrieve',
+);
+assert.equal(
+  document.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans']?.post?.operationId,
+  'qrAuth.sessions.scans.create',
+);
+assert.equal(
+  document.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords']?.post?.operationId,
+  'qrAuth.sessions.passwords.create',
 );
 assert.equal(
   document.paths['/app/v3/api/auth/oauth_authorization_urls']?.get?.operationId,
@@ -179,6 +206,10 @@ assert.equal(
   'verificationCodes.create',
 );
 assert.equal(
+  document.paths['/app/v3/api/auth/verification_codes/verify']?.post?.operationId,
+  'verificationCodes.verify',
+);
+assert.equal(
   document.paths['/app/v3/api/auth/password_reset_requests']?.post?.operationId,
   'passwordResetRequests.create',
 );
@@ -186,12 +217,34 @@ assert.equal(
   document.paths['/app/v3/api/auth/password_resets']?.post?.operationId,
   'passwordResets.create',
 );
-assert.equal(document.paths['/app/v3/api/auth/sessions/current']?.post?.operationId, 'sessions.current.delete');
-assert.equal(document.paths['/app/v3/api/auth/session_exchanges']?.post?.operationId, 'sessionExchanges.create');
 assert.equal(document.paths['/app/v3/api/iam/users/current']?.get?.operationId, 'users.current.retrieve');
 assert.equal(document.paths['/app/v3/api/iam/users/current']?.patch?.operationId, 'users.current.update');
-assert.equal(document.paths['/app/v3/api/billing/vip/info']?.get?.operationId, 'vip.info.retrieve');
-assert.equal(document.paths['/app/v3/api/billing/vip/info']?.patch?.operationId, 'vip.info.update');
+assert.equal(
+  document.paths['/app/v3/api/memberships/current']?.get?.operationId,
+  'memberships.current.retrieve',
+);
+assert.equal(
+  document.paths['/app/v3/api/memberships/current']?.get?.['x-sdkwork-domain'],
+  'commerce',
+);
+assert.equal(
+  document.paths['/app/v3/api/memberships/current']?.patch,
+  undefined,
+  'Current membership is commerce read state; BirdCoder must not keep a local patch mutation endpoint.',
+);
+assert.equal(
+  document.paths['/app/v3/api/memberships/package_groups']?.get?.operationId,
+  'memberships.packageGroups.list',
+);
+assert.equal(
+  document.paths['/app/v3/api/memberships/package_groups']?.get?.['x-sdkwork-domain'],
+  'commerce',
+);
+assert.equal(
+  document.paths['/app/v3/api/memberships/package_groups']?.patch,
+  undefined,
+  'Membership package groups are commerce catalog read state; BirdCoder must not keep a local patch mutation endpoint.',
+);
 assert.equal(document.paths['/app/v3/api/projects']?.get?.operationId, 'projects.list');
 assert.equal(document.paths['/app/v3/api/projects']?.post?.operationId, 'projects.create');
 assert.equal(
@@ -251,6 +304,42 @@ assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.operationId, 'tea
 assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-domain'], 'iam');
 assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-resource'], 'iam.teams');
 assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-permission'], 'iam.teams.read');
+assert.equal(document.paths['/backend/v3/api/iam/users']?.get?.operationId, 'users.list');
+assert.equal(document.paths['/backend/v3/api/iam/users']?.get?.['x-sdkwork-domain'], 'iam');
+assert.equal(document.paths['/backend/v3/api/iam/users']?.get?.['x-sdkwork-resource'], 'iam.users');
+assert.equal(document.paths['/backend/v3/api/iam/users']?.get?.['x-sdkwork-permission'], 'iam.users.read');
+assert.equal(
+  document.paths['/backend/v3/api/iam/users']?.get?.responses['200']?.content['application/json']
+    ?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderIamUserSummaryListEnvelope',
+);
+assert.equal(document.paths['/backend/v3/api/iam/users']?.post?.operationId, 'users.create');
+assert.equal(
+  document.paths['/backend/v3/api/iam/users']?.post?.requestBody?.content['application/json']
+    ?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderCreateIamUserRequest',
+);
+assert.equal(document.paths['/backend/v3/api/iam/users/{userId}']?.get?.operationId, 'users.retrieve');
+assert.equal(document.paths['/backend/v3/api/iam/users/{userId}']?.patch?.operationId, 'users.update');
+assert.equal(document.paths['/backend/v3/api/iam/users/{userId}']?.delete?.operationId, 'users.delete');
+assert.equal(
+  document.paths['/backend/v3/api/iam/users/{userId}/roles']?.get?.operationId,
+  'users.roles.list',
+);
+assert.equal(
+  document.paths['/backend/v3/api/iam/users/{userId}/roles']?.get?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderIamUserRoleSummaryListEnvelope',
+);
+assert.equal(
+  document.paths['/backend/v3/api/iam/users/{userId}/roles']?.post?.operationId,
+  'users.roles.create',
+);
+assert.equal(
+  document.paths['/backend/v3/api/iam/users/{userId}/roles/{roleId}']?.delete?.operationId,
+  'users.roles.delete',
+);
 assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.operationId, 'teams.members.list');
 assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.['x-sdkwork-domain'], 'iam');
 assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.['x-sdkwork-resource'], 'iam.teams.members');
@@ -329,10 +418,8 @@ const skillCatalogEntryProperties = document.components.schemas.BirdCoderSkillCa
   .properties as Record<string, { type?: string }>;
 const skillPackageProperties = document.components.schemas.BirdCoderSkillPackageSummary
   .properties as Record<string, { type?: string }>;
-const userCenterMembershipProperties = document.components.schemas.BirdCoderUserCenterMembershipSummary
+const commerceMembershipCurrentProperties = document.components.schemas.BirdCoderCommerceMembershipCurrentSummary
   .properties as Record<string, { type?: string }>;
-const updateUserCenterMembershipRequestProperties = document.components.schemas
-  .BirdCoderUpdateCurrentUserMembershipRequest.properties as Record<string, { type?: string }>;
 const standardDataScopeEnum = ['DEFAULT', 'PRIVATE', 'ORGANIZATION', 'TENANT', 'PUBLIC'];
 for (const [schemaName, properties] of [
   ['BirdCoderWorkspaceSummary', workspaceSummaryProperties],
@@ -426,19 +513,25 @@ for (const [schemaName, properties] of [
     `${schemaName}.installCount must be a string because it maps to a Java Long/BIGINT field.`,
   );
 }
-for (const [schemaName, properties] of [
-  ['BirdCoderUserCenterMembershipSummary', userCenterMembershipProperties],
-  ['BirdCoderUpdateCurrentUserMembershipRequest', updateUserCenterMembershipRequestProperties],
-] as const) {
+assert.equal(
+  commerceMembershipCurrentProperties.points?.type,
+  'string',
+  'BirdCoderCommerceMembershipCurrentSummary.points must be a string because it maps to a Java Long/BIGINT field.',
+);
+assert.equal(
+  commerceMembershipCurrentProperties.totalSpent?.type,
+  'string',
+  'BirdCoderCommerceMembershipCurrentSummary.totalSpent must be a string because monetary totals are serialized as strings.',
+);
+for (const retiredSchemaName of [
+  'BirdCoderBillingVipMembershipEnvelope',
+  'BirdCoderBillingVipMembershipSummary',
+  'BirdCoderUpdateCurrentUserMembershipRequest',
+]) {
   assert.equal(
-    properties.pointBalance?.type,
-    'string',
-    `${schemaName}.pointBalance must be a string because it maps to a Java Long/BIGINT field.`,
-  );
-  assert.equal(
-    properties.totalRechargedPoints?.type,
-    'string',
-    `${schemaName}.totalRechargedPoints must be a string because it maps to a Java Long/BIGINT field.`,
+    document.components.schemas?.[retiredSchemaName],
+    undefined,
+    `${retiredSchemaName} must not be published; BirdCoder membership uses SDKWork commerce current-membership schemas.`,
   );
 }
 assert.ok(document.components.schemas?.BirdCoderProjectGitOverview);
@@ -448,26 +541,59 @@ assert.ok(document.components.schemas?.BirdCoderCommitProjectGitChangesRequest);
 assert.ok(document.components.schemas?.BirdCoderPushProjectGitBranchRequest);
 assert.ok(document.components.schemas?.BirdCoderCreateProjectGitWorktreeRequest);
 assert.ok(document.components.schemas?.BirdCoderRemoveProjectGitWorktreeRequest);
-assert.ok(document.components.schemas?.BirdCoderUserCenterSessionSummary);
-const userCenterMetadataProperties = document.components.schemas
-  ?.BirdCoderUserCenterMetadataSummary?.properties as
-  | Record<string, { enum?: unknown }>
-  | undefined;
-const userCenterSessionProperties = document.components.schemas
-  ?.BirdCoderUserCenterSessionSummary?.properties as
-  | Record<string, { enum?: unknown }>
-  | undefined;
+for (const retiredSchemaName of Object.keys(document.components.schemas ?? {}).filter((schemaName) =>
+  /UserCenter/u.test(schemaName),
+)) {
+  assert.fail(
+    `${retiredSchemaName} must not be published; BirdCoder coding-server contracts use standard SDKWork IAM schemas.`,
+  );
+}
+assert.ok(document.components.schemas?.BirdCoderIamRuntimeSettingsSummary);
+assert.ok(document.components.schemas?.BirdCoderIamVerificationPolicySummary);
+assert.ok(document.components.schemas?.BirdCoderIamSessionSummary);
+assert.ok(document.components.schemas?.BirdCoderIamCreateSessionRequest);
+assert.ok(document.components.schemas?.BirdCoderIamUpdateCurrentSessionRequest);
+assert.ok(document.components.schemas?.BirdCoderIamRefreshSessionRequest);
+assert.ok(document.components.schemas?.BirdCoderIamRegistrationCreateRequest);
+assert.ok(document.components.schemas?.BirdCoderIamVerificationCodeCreateRequest);
+assert.ok(document.components.schemas?.BirdCoderIamVerificationCodeVerifyRequest);
+assert.ok(document.components.schemas?.BirdCoderIamPasswordResetRequestCreateRequest);
+assert.ok(document.components.schemas?.BirdCoderIamPasswordResetCreateRequest);
+assert.ok(document.components.schemas?.BirdCoderIamOAuthAuthorizationSummary);
+assert.ok(document.components.schemas?.BirdCoderIamOAuthSessionCreateRequest);
+assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionSummary);
+assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionCreateRequest);
+assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionScanRequest);
+assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionPasswordRequest);
+assert.ok(document.components.schemas?.BirdCoderIamUserProfileSummary);
 assert.deepEqual(
-  userCenterMetadataProperties?.mode?.enum,
-  ['builtin-local', 'sdkwork-cloud-app-api', 'external-user-center'],
-  'user-center metadata schema must expose the canonical unified deployment selectors.',
+  document.components.schemas.BirdCoderIamRuntimeSettingsSummary.required,
+  [
+    'leftRailMode',
+    'loginMethods',
+    'oauthLoginEnabled',
+    'oauthProviders',
+    'qrLoginEnabled',
+    'qrLoginType',
+    'recoveryMethods',
+    'registerMethods',
+    'verificationPolicy',
+  ],
+  'IAM runtime settings schema must expose the standard Auth UI capability matrix.',
 );
-assert.deepEqual(
-  userCenterSessionProperties?.providerMode?.enum,
-  ['builtin-local', 'sdkwork-cloud-app-api', 'external-user-center'],
-  'user-center session schema must expose the canonical unified deployment selectors.',
+assert.equal(
+  document.components.schemas?.BirdCoderAdminAuditEventSummary,
+  undefined,
+  'coding-server OpenAPI must not keep retired admin audit schemas after IAM auditEvents becomes standard.',
 );
-assert.ok(document.components.schemas?.BirdCoderAdminPolicySummary);
+assert.equal(
+  document.components.schemas?.BirdCoderAdminPolicySummary,
+  undefined,
+  'coding-server OpenAPI must not keep retired admin policy schemas after IAM policies becomes standard.',
+);
+assert.ok(document.components.schemas?.BirdCoderIamPolicySummary);
+assert.ok(document.components.schemas?.BirdCoderCreateIamPolicyRequest);
+assert.ok(document.components.schemas?.BirdCoderUpdateIamPolicyRequest);
 assert.ok(document.components.schemas?.BirdCoderEngineDescriptor);
 const engineDescriptorRequired = Array.isArray(
   document.components.schemas?.BirdCoderEngineDescriptor?.required,
@@ -540,13 +666,25 @@ assert.equal(
 assert.equal(
   document.paths['/app/v3/api/auth/sessions']?.post?.requestBody?.content['application/json']
     ?.schema?.['$ref'],
-  '#/components/schemas/BirdCoderUserCenterLoginRequest',
+  '#/components/schemas/BirdCoderIamCreateSessionRequest',
 );
 assert.equal(
   document.paths['/app/v3/api/auth/sessions/current']?.get?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
-  '#/components/schemas/BirdCoderNullableUserCenterSessionEnvelope',
+  '#/components/schemas/BirdCoderIamSessionEnvelope',
+);
+assert.equal(
+  document.paths['/app/v3/api/auth/sessions/current']?.patch?.requestBody?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderIamUpdateCurrentSessionRequest',
+);
+assert.equal(
+  document.paths['/app/v3/api/auth/sessions/refresh']?.post?.requestBody?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  '#/components/schemas/BirdCoderIamRefreshSessionRequest',
 );
 assert.equal(
   document.paths['/app/v3/api/workspaces']?.get?.responses['200']?.content['application/json']
@@ -655,7 +793,7 @@ assert.equal(
 assert.equal(
   document.paths['/backend/v3/api/iam/policies']?.get?.responses['200']?.content['application/json']
     ?.schema?.['$ref'],
-  '#/components/schemas/BirdCoderAdminPolicySummaryListEnvelope',
+  '#/components/schemas/BirdCoderIamPolicySummaryListEnvelope',
 );
 assert.equal(
   document.paths['/backend/v3/api/projects/{projectId}/deployment_targets']?.get?.responses[

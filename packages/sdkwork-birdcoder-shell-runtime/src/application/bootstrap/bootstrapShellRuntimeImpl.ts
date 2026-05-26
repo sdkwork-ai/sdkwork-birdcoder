@@ -4,7 +4,6 @@ import {
   loadDefaultBirdCoderIdeService,
   type BirdCoderAppSdkApiClient,
   type BirdCoderBackendSdkApiClient,
-  type BirdCoderRuntimeUserCenterBindingConfig,
 } from '@sdkwork/birdcoder-infrastructure-runtime';
 import { bootstrapShellUserState } from './bootstrapShellUserState.ts';
 
@@ -21,7 +20,6 @@ export interface BootstrapShellRuntimeOptions {
   backendClient?: BirdCoderBackendSdkApiClient;
   bootstrapTimeoutMs?: number;
   host?: BirdHostDescriptor;
-  userCenter?: BirdCoderRuntimeUserCenterBindingConfig;
 }
 
 interface ShellRuntimeBootstrapTimeoutBoundary {

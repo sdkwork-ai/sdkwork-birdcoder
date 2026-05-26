@@ -97,9 +97,9 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-ui',
   ])],
   ['@sdkwork/birdcoder-shell', new Set([
-    '@sdkwork/birdcoder-auth',
     '@sdkwork/birdcoder-code',
     '@sdkwork/birdcoder-commons',
+    '@sdkwork/birdcoder-iam',
     '@sdkwork/birdcoder-i18n',
     '@sdkwork/birdcoder-multiwindow',
     '@sdkwork/birdcoder-settings',

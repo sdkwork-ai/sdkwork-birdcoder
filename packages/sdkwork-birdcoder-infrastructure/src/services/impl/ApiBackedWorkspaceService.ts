@@ -6,6 +6,10 @@ import {
   isBirdCoderTransientApiError,
   retryBirdCoderTransientApiTask,
 } from '../runtimeApiRetry.ts';
+import {
+  CurrentUserScopeResolver,
+  type CurrentUserScope,
+} from '../currentUserScope.ts';
 
 export interface ApiBackedWorkspaceServiceOptions {
   appClient: BirdCoderAppSdkApiClient;
@@ -23,6 +27,7 @@ interface WorkspaceCacheEntry<T> {
 }
 
 const WORKSPACE_LIST_CACHE_TTL_MS = 10_000;
+const INFLIGHT_ONLY_TTL_MS = 0;
 
 function resolveLocalWorkspaceUserScope(workspace: IWorkspace): string | undefined {
   const userScopeCandidates = [
@@ -47,7 +52,7 @@ function isLocalWorkspaceVisibleForUser(
 ): boolean {
   const normalizedUserId = userId?.trim();
   if (!normalizedUserId) {
-    return true;
+    return false;
   }
 
   return resolveLocalWorkspaceUserScope(workspace) === normalizedUserId;
@@ -96,7 +101,7 @@ function mapWorkspaceSummaryToWorkspace(
 
 export class ApiBackedWorkspaceService implements IWorkspaceService {
   private readonly appClient: BirdCoderAppSdkApiClient;
-  private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  private readonly currentUserScopeResolver: CurrentUserScopeResolver;
   private readonly readCacheByUserScope = new Map<string, WorkspaceCacheEntry<IWorkspace[]>>();
   private readonly workspaceMirror?: {
     syncWorkspaceSummary(summary: BirdCoderWorkspaceSummary): Promise<IWorkspace>;
@@ -110,15 +115,15 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
     writeService,
   }: ApiBackedWorkspaceServiceOptions) {
     this.appClient = appClient;
-    this.currentUserProvider = currentUserProvider;
+    this.currentUserScopeResolver = new CurrentUserScopeResolver({
+      currentUserProvider,
+    });
     this.workspaceMirror = workspaceMirror;
     this.writeService = writeService;
   }
 
-  private async resolveCurrentUserScope(): Promise<string> {
-    const user = await this.currentUserProvider?.getCurrentUser();
-    const userId = user?.id?.trim();
-    return userId && userId.length > 0 ? userId : 'anonymous';
+  private async resolveCurrentUserScope(): Promise<CurrentUserScope> {
+    return this.currentUserScopeResolver.resolve();
   }
 
   private readThroughCache(
@@ -169,18 +174,13 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
   }
 
   async getWorkspaces(): Promise<IWorkspace[]> {
-    const userScope = await this.resolveCurrentUserScope();
-    const userId = userScope === 'anonymous' ? undefined : userScope;
+    const currentUserScope = await this.resolveCurrentUserScope();
+    const userId = currentUserScope.userId === 'anonymous' ? undefined : currentUserScope.userId;
+    const canReadUserScopedLocalMirror = currentUserScope.cacheable && Boolean(userId);
     return this.readThroughCache(
-      userScope,
-      WORKSPACE_LIST_CACHE_TTL_MS,
+      currentUserScope.userId,
+      currentUserScope.cacheable ? WORKSPACE_LIST_CACHE_TTL_MS : INFLIGHT_ONLY_TTL_MS,
       async () => {
-        const localWorkspaces = await this.writeService.getWorkspaces();
-        const userScopedLocalWorkspaces = filterLocalWorkspacesForUser(
-          localWorkspaces,
-          userId,
-        );
-
         try {
           const workspaces = await retryBirdCoderTransientApiTask(() =>
             this.appClient.listWorkspaces({
@@ -196,7 +196,24 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
             (left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
           );
         } catch (error) {
-          if (userScopedLocalWorkspaces.length > 0 && isBirdCoderTransientApiError(error)) {
+          if (!isBirdCoderTransientApiError(error)) {
+            throw error;
+          }
+
+          if (!canReadUserScopedLocalMirror) {
+            console.warn(
+              'Remote workspace API is temporarily unavailable and current-user scope is unavailable; returning an empty local workspace fallback.',
+              error,
+            );
+            return [];
+          }
+
+          const localWorkspaces = await this.writeService.getWorkspaces();
+          const userScopedLocalWorkspaces = filterLocalWorkspacesForUser(
+            localWorkspaces,
+            userId,
+          );
+          if (userScopedLocalWorkspaces.length > 0) {
             console.warn(
               'Falling back to locally mirrored workspaces because the remote workspace API is temporarily unavailable.',
               error,
@@ -206,7 +223,7 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
                 left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
             );
           }
-          throw error;
+          return [];
         }
       },
     );
@@ -214,7 +231,8 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
 
   async createWorkspace(name: string, description?: string): Promise<IWorkspace> {
     const currentUserScope = await this.resolveCurrentUserScope();
-    const currentUserId = currentUserScope === 'anonymous' ? undefined : currentUserScope;
+    const currentUserId =
+      currentUserScope.userId === 'anonymous' ? undefined : currentUserScope.userId;
     const summary = await this.appClient.createWorkspace({
       name,
       description,

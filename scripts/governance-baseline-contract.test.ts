@@ -124,10 +124,10 @@ assert.equal(
 );
 assert.equal(
   qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
-    'node scripts/run-workspace-package-script.mjs . test:user-center-standard',
+    'node scripts/run-workspace-package-script.mjs . check:iam-standard',
   ),
   true,
-  'root lint gate should include the canonical unified user-center standard through the governed quality-fast runner.',
+  'root lint gate should include the canonical SDKWork IAM standard through the governed quality-fast runner.',
 );
 
 console.log('governance baseline contract passed.');

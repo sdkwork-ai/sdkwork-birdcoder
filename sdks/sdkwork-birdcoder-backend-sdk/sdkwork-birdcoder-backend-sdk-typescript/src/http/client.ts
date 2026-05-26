@@ -3,10 +3,10 @@
 import type {
   BirdcoderSdkOperationDescriptor,
   BirdcoderSdkQueryValue,
-} from '../types';
+} from '../types/index.ts';
 
 export const AUTHORIZATION_HEADER = 'Authorization';
-export const SDKWORK_ACCESS_TOKEN_HEADER = 'Sdkwork-Access-Token';
+export const SDKWORK_ACCESS_TOKEN_HEADER = 'Access-Token';
 
 export interface BirdcoderSdkTransportRequest {
   body?: unknown;

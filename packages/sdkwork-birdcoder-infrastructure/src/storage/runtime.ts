@@ -115,7 +115,8 @@ function readBrowserLocalStoreKeyIndex(scope: string): string[] {
     }
 
     return [...indexedKeys].sort((left, right) => left.localeCompare(right));
-  } catch {
+  } catch (error) {
+    console.warn('[BirdCoder Storage] Failed to read stored value, returning empty:', error);
     return [];
   }
 }
@@ -136,8 +137,9 @@ function writeBrowserLocalStoreKeyIndex(scope: string, keys: readonly string[]):
     }
 
     window.localStorage.setItem(indexKey, JSON.stringify(normalizedKeys));
-  } catch {
+  } catch (error) {
     // Ignore browser storage failures and keep callers non-fatal.
+    console.warn('[BirdCoder Storage] Browser storage operation failed:', error);
   }
 }
 
@@ -326,7 +328,8 @@ function listBrowserStoredRawValues(
 
       appendEntry(key, value);
     }
-  } catch {
+  } catch (error) {
+    console.warn('[BirdCoder Storage] Failed to read stored value, returning empty:', error);
     return [];
   }
 
@@ -389,8 +392,9 @@ function setBrowserStoredRawValue(scope: string, key: string, value: string): vo
   try {
     window.localStorage.setItem(buildLocalStoreKey(scope, key), value);
     addBrowserLocalStoreKeyIndexEntry(scope, key);
-  } catch {
+  } catch (error) {
     // Ignore browser storage failures and keep callers non-fatal.
+    console.warn('[BirdCoder Storage] Browser storage operation failed:', error);
   }
 }
 
@@ -419,8 +423,9 @@ function removeBrowserStoredValue(scope: string, key: string): void {
   try {
     window.localStorage.removeItem(buildLocalStoreKey(scope, key));
     removeBrowserLocalStoreKeyIndexEntry(scope, key);
-  } catch {
+  } catch (error) {
     // Ignore browser storage failures and keep callers non-fatal.
+    console.warn('[BirdCoder Storage] Browser storage operation failed:', error);
   }
 }
 

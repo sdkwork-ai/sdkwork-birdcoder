@@ -303,6 +303,14 @@ assert.equal(
   'Web Vite config should resolve sdkwork-terminal subpath aliases from the sibling workspace.',
 );
 assert.equal(
+  (webConfig.resolve?.alias ?? []).some((candidate) =>
+    candidate?.find === '@sdkwork/vip-pc-react'
+    || (candidate?.find instanceof RegExp && candidate.find.test('@sdkwork/vip-pc-react/vip')),
+  ),
+  false,
+  'Web Vite config must not keep aliases for the retired shared VIP UI package.',
+);
+assert.equal(
   webConfig.build?.minify,
   false,
   'Web Vite build must avoid esbuild minification in the current Windows environment.',
@@ -330,9 +338,12 @@ for (const platformRuntimeModuleId of [
   );
 }
 for (const platformApiClientModuleId of [
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/appSessionToken.ts',
   '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
   '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts',
   '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
+  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/sessionService.ts',
 ]) {
   assert.equal(
     webManualChunks(platformApiClientModuleId),
@@ -340,6 +351,11 @@ for (const platformApiClientModuleId of [
     `Web Vite config must split API transport/client/session-token runtime from generic platform orchestration for ${platformApiClientModuleId}.`,
   );
 }
+assert.equal(
+  webManualChunks('\0vite/preload-helper.js'),
+  'vite-preload-helper',
+  'Web Vite config must isolate the Vite preload helper so lazy runtime chunks cannot form artificial circular chunk edges through helper placement.',
+);
 for (const platformFileSystemModuleId of [
   '/repo/packages/sdkwork-birdcoder-infrastructure/src/platform/tauriRuntime.ts',
   '/repo/packages/sdkwork-birdcoder-infrastructure/src/platform/tauriFileSystemRuntime.ts',
@@ -581,15 +597,13 @@ for (const identitySurfaceModuleId of [
   '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
   '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/AuthPage.tsx',
   '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/index.ts',
-  '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/domain/userCenterSurfaceRouting.ts',
-  '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-center-pc-react/src/pages/userCenterProfileSurfacePage.tsx',
   '/repo/packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx',
-  '/repo/packages/sdkwork-birdcoder-user/src/pages/UserCenterPage.tsx',
+  '/repo/packages/sdkwork-birdcoder-user/src/pages/UserPage.tsx',
 ]) {
   assert.equal(
     webManualChunks(identitySurfaceModuleId),
     'birdcoder-iam-surface',
-    `Web Vite config must keep mutually dependent auth/user/user-center surfaces in one lazy IAM chunk to avoid circular chunk warnings for ${identitySurfaceModuleId}.`,
+    `Web Vite config must keep mutually dependent auth and user IAM surfaces in one lazy IAM chunk to avoid circular chunk warnings for ${identitySurfaceModuleId}.`,
   );
 }
 assert.deepEqual(
@@ -689,6 +703,14 @@ assert.equal(
   desktopTerminalSubpathAlias.replacement,
   path.resolve(workspaceRootDir, '../sdkwork-terminal/packages/sdkwork-terminal-$1/src', '$2'),
   'Desktop Vite config should resolve sdkwork-terminal subpath aliases from the sibling workspace.',
+);
+assert.equal(
+  (desktopConfig.resolve?.alias ?? []).some((candidate) =>
+    candidate?.find === '@sdkwork/vip-pc-react'
+    || (candidate?.find instanceof RegExp && candidate.find.test('@sdkwork/vip-pc-react/vip')),
+  ),
+  false,
+  'Desktop Vite config must not keep aliases for the retired shared VIP UI package.',
 );
 assert.deepEqual(
   desktopConfig.server?.fs?.allow,

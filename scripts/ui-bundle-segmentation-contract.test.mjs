@@ -206,7 +206,6 @@ for (const requiredChunkName of [
   'birdcoder-codeengine',
   'birdcoder-platform-auth-runtime',
   'birdcoder-iam-surface',
-  'birdcoder-user-center-core',
   'birdcoder-code-surface',
   'birdcoder-studio-surface',
   'birdcoder-multiwindow-surface',
@@ -249,7 +248,6 @@ assert.match(
 for (const filteredChunk of [
   'ui-workbench',
   'birdcoder-iam-surface',
-  'birdcoder-user-center-core',
   'birdcoder-platform',
   'birdcoder-platform-api-client',
   'birdcoder-platform-filesystem',

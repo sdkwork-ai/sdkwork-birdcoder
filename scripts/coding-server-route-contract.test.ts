@@ -17,25 +17,25 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/app/v3/api/system/routes',
-    routeCount: 80,
+    routeCount: 132,
     routesBySurface: {
-      app: 73,
-      backend: 7,
+      app: 78,
+      backend: 54,
     },
     surfaces: [
       {
         authMode: 'user',
         basePath: '/app/v3/api',
-        description: 'Application-facing coding runtime, workspace, project, collaboration, and user-center routes.',
+        description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
         name: 'app',
-        routeCount: 73,
+        routeCount: 78,
       },
       {
         authMode: 'admin',
         basePath: '/backend/v3/api',
         description: 'Backend governance, audit, release, deployment, and team-management routes.',
         name: 'backend',
-        routeCount: 7,
+        routeCount: 54,
       },
     ],
   },
@@ -72,40 +72,50 @@ assert.equal(appRuntimeContract.syncModelConfig.path, '/app/v3/api/model_config'
 assert.equal(appRuntimeContract.routes.path, '/app/v3/api/system/routes');
 
 const app = getBirdCoderAppApiContract();
-assert.equal(app.authConfig.method, 'GET');
-assert.equal(app.authConfig.path, '/app/v3/api/auth/config');
-assert.equal(app.authSession.method, 'GET');
-assert.equal(app.authSession.path, '/app/v3/api/auth/sessions/current');
-assert.equal(app.login.method, 'POST');
-assert.equal(app.login.path, '/app/v3/api/auth/sessions');
-assert.equal(app.loginWithEmailCode.method, 'POST');
-assert.equal(app.loginWithEmailCode.path, '/app/v3/api/auth/sessions');
-assert.equal(app.loginWithPhoneCode.method, 'POST');
-assert.equal(app.loginWithPhoneCode.path, '/app/v3/api/auth/sessions');
-assert.equal(app.register.method, 'POST');
-assert.equal(app.register.path, '/app/v3/api/auth/registrations');
-assert.equal(app.sendVerifyCode.method, 'POST');
-assert.equal(app.sendVerifyCode.path, '/app/v3/api/auth/verification_codes');
-assert.equal(app.requestPasswordReset.method, 'POST');
-assert.equal(app.requestPasswordReset.path, '/app/v3/api/auth/password_reset_requests');
-assert.equal(app.resetPassword.method, 'POST');
-assert.equal(app.resetPassword.path, '/app/v3/api/auth/password_resets');
-assert.equal(app.logout.method, 'POST');
-assert.equal(app.logout.path, '/app/v3/api/auth/sessions/current');
-assert.equal(app.exchangeUserCenterSession.method, 'POST');
-assert.equal(app.exchangeUserCenterSession.path, '/app/v3/api/auth/session_exchanges');
-assert.equal(app.authOAuthUrl.method, 'GET');
-assert.equal(app.authOAuthUrl.path, '/app/v3/api/auth/oauth_authorization_urls');
-assert.equal(app.authOAuthLogin.method, 'POST');
-assert.equal(app.authOAuthLogin.path, '/app/v3/api/auth/oauth_sessions');
-assert.equal(app.getCurrentUserProfile.method, 'GET');
-assert.equal(app.getCurrentUserProfile.path, '/app/v3/api/iam/users/current');
+assert.equal(app.iamRuntime.method, 'GET');
+assert.equal(app.iamRuntime.path, '/app/v3/api/system/iam/runtime');
+assert.equal(app.iamVerificationPolicy.method, 'GET');
+assert.equal(app.iamVerificationPolicy.path, '/app/v3/api/system/iam/verification_policy');
+assert.equal(app.authSession.method, 'POST');
+assert.equal(app.authSession.path, '/app/v3/api/auth/sessions');
+assert.equal(app.authCurrentSession.method, 'GET');
+assert.equal(app.authCurrentSession.path, '/app/v3/api/auth/sessions/current');
+assert.equal(app.authCurrentSessionUpdate.method, 'PATCH');
+assert.equal(app.authCurrentSessionUpdate.path, '/app/v3/api/auth/sessions/current');
+assert.equal(app.authCurrentSessionDelete.method, 'DELETE');
+assert.equal(app.authCurrentSessionDelete.path, '/app/v3/api/auth/sessions/current');
+assert.equal(app.authSessionRefresh.method, 'POST');
+assert.equal(app.authSessionRefresh.path, '/app/v3/api/auth/sessions/refresh');
+assert.equal(app.authRegistration.method, 'POST');
+assert.equal(app.authRegistration.path, '/app/v3/api/auth/registrations');
+assert.equal(app.authVerificationCode.method, 'POST');
+assert.equal(app.authVerificationCode.path, '/app/v3/api/auth/verification_codes');
+assert.equal(app.authVerificationCodeVerify.method, 'POST');
+assert.equal(app.authVerificationCodeVerify.path, '/app/v3/api/auth/verification_codes/verify');
+assert.equal(app.authPasswordResetRequest.method, 'POST');
+assert.equal(app.authPasswordResetRequest.path, '/app/v3/api/auth/password_reset_requests');
+assert.equal(app.authPasswordReset.method, 'POST');
+assert.equal(app.authPasswordReset.path, '/app/v3/api/auth/password_resets');
+assert.equal(app.authOAuthAuthorizationUrl.method, 'GET');
+assert.equal(app.authOAuthAuthorizationUrl.path, '/app/v3/api/auth/oauth_authorization_urls');
+assert.equal(app.authOAuthSession.method, 'POST');
+assert.equal(app.authOAuthSession.path, '/app/v3/api/auth/oauth_sessions');
+assert.equal(app.qrAuthSession.method, 'POST');
+assert.equal(app.qrAuthSession.path, '/app/v3/api/open_platform/qr_auth/sessions');
+assert.equal(app.qrAuthSessionStatus.method, 'GET');
+assert.equal(app.qrAuthSessionStatus.path, '/app/v3/api/open_platform/qr_auth/sessions/:sessionKey');
+assert.equal(app.qrAuthSessionScan.method, 'POST');
+assert.equal(app.qrAuthSessionScan.path, '/app/v3/api/open_platform/qr_auth/sessions/:sessionKey/scans');
+assert.equal(app.qrAuthSessionPassword.method, 'POST');
+assert.equal(app.qrAuthSessionPassword.path, '/app/v3/api/open_platform/qr_auth/sessions/:sessionKey/passwords');
+assert.equal(app.currentIamUser.method, 'GET');
+assert.equal(app.currentIamUser.path, '/app/v3/api/iam/users/current');
 assert.equal(app.updateCurrentUserProfile.method, 'PATCH');
 assert.equal(app.updateCurrentUserProfile.path, '/app/v3/api/iam/users/current');
-assert.equal(app.getCurrentUserMembership.method, 'GET');
-assert.equal(app.getCurrentUserMembership.path, '/app/v3/api/billing/vip/info');
-assert.equal(app.updateCurrentUserMembership.method, 'PATCH');
-assert.equal(app.updateCurrentUserMembership.path, '/app/v3/api/billing/vip/info');
+assert.equal(app.membershipCurrent.method, 'GET');
+assert.equal(app.membershipCurrent.path, '/app/v3/api/memberships/current');
+assert.equal(app.membershipPackageGroups.method, 'GET');
+assert.equal(app.membershipPackageGroups.path, '/app/v3/api/memberships/package_groups');
 assert.equal(app.createWorkspace.method, 'POST');
 assert.equal(app.createWorkspace.path, '/app/v3/api/workspaces');
 assert.equal(app.updateWorkspace.method, 'PATCH');
@@ -153,6 +163,14 @@ assert.equal(app.deployments.path, '/app/v3/api/deployments');
 const admin = getBirdCoderBackendApiContract();
 assert.equal(admin.audit.path, '/backend/v3/api/iam/audit_events');
 assert.equal(admin.policies.path, '/backend/v3/api/iam/policies');
+assert.equal(admin.iamUsers.path, '/backend/v3/api/iam/users');
+assert.equal(admin.iamUser.path, '/backend/v3/api/iam/users/:userId');
+assert.equal(admin.createIamUser.path, '/backend/v3/api/iam/users');
+assert.equal(admin.updateIamUser.path, '/backend/v3/api/iam/users/:userId');
+assert.equal(admin.deleteIamUser.path, '/backend/v3/api/iam/users/:userId');
+assert.equal(admin.iamUserRoles.path, '/backend/v3/api/iam/users/:userId/roles');
+assert.equal(admin.createIamUserRole.path, '/backend/v3/api/iam/users/:userId/roles');
+assert.equal(admin.deleteIamUserRole.path, '/backend/v3/api/iam/users/:userId/roles/:roleId');
 assert.equal(admin.teams.path, '/backend/v3/api/iam/teams');
 assert.equal(admin.teamMembers.path, '/backend/v3/api/iam/teams/:teamId/members');
 assert.equal(admin.deploymentTargets.path, '/backend/v3/api/projects/:projectId/deployment_targets');
@@ -160,7 +178,7 @@ assert.equal(admin.releases.path, '/backend/v3/api/releases');
 assert.equal(admin.deployments.path, '/backend/v3/api/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 80, 'coding-server should expose the full app/backend route matrix');
+assert.equal(routes.length, 132, 'coding-server should expose the full app/backend route matrix');
 assert.equal(
   routes.every((route) => route.path.startsWith('/app/v3/api') || route.path.startsWith('/backend/v3/api')),
   true,
@@ -185,15 +203,23 @@ for (const oldAppbasePath of [
   '/app/v3/api/auth/password_login',
   '/app/v3/api/auth/password_reset',
   '/app/v3/api/auth/phone_login',
+  '/app/v3/api/auth/config',
   '/app/v3/api/auth/session',
+  '/app/v3/api/auth/session_exchanges',
+  '/app/v3/api/auth/qr_login_codes',
+  '/app/v3/api/auth/qr_login_codes/{qrKey}',
+  '/app/v3/api/auth/qr_login_codes/{qrKey}/entry',
+  '/app/v3/api/auth/qr_login_codes/{qrKey}/callback',
+  '/app/v3/api/auth/qr_login_codes/confirm',
   '/app/v3/api/auth/verify_send',
   '/app/v3/api/iam/user_profile',
   '/app/v3/api/billing/vip_info',
+  '/app/v3/api/billing/vip/info',
 ]) {
   assert.equal(
     routeCatalog.some((route) => route.openApiPath === oldAppbasePath),
     false,
-    `${oldAppbasePath} must not be exposed because BirdCoder uses the canonical appbase IAM route set.`,
+    `${oldAppbasePath} must not be exposed because BirdCoder uses the canonical SDKWork IAM and commerce route set.`,
   );
 }
 assert.equal(
@@ -331,6 +357,30 @@ assert.deepEqual(
   },
 );
 assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'iam.runtime.retrieve'),
+  {
+    authMode: 'user',
+    method: 'GET',
+    openApiPath: '/app/v3/api/system/iam/runtime',
+    operationId: 'iam.runtime.retrieve',
+    path: '/app/v3/api/system/iam/runtime',
+    surface: 'app',
+    summary: 'Get SDKWork IAM runtime metadata',
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'iam.verificationPolicy.retrieve'),
+  {
+    authMode: 'user',
+    method: 'GET',
+    openApiPath: '/app/v3/api/system/iam/verification_policy',
+    operationId: 'iam.verificationPolicy.retrieve',
+    path: '/app/v3/api/system/iam/verification_policy',
+    surface: 'app',
+    summary: 'Get SDKWork IAM verification policy',
+  },
+);
+assert.deepEqual(
   routeCatalog.find((route) => route.operationId === 'sessions.create'),
   {
     authMode: 'user',
@@ -339,7 +389,7 @@ assert.deepEqual(
     operationId: 'sessions.create',
     path: '/app/v3/api/auth/sessions',
     surface: 'app',
-    summary: 'Create a login session with account and password credentials.',
+    summary: 'Create SDKWork IAM session',
   },
 );
 assert.deepEqual(
@@ -351,7 +401,31 @@ assert.deepEqual(
     operationId: 'sessions.current.retrieve',
     path: '/app/v3/api/auth/sessions/current',
     surface: 'app',
-    summary: 'Get the current login session snapshot for the active principal.',
+    summary: 'Get current SDKWork IAM session',
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'sessions.current.delete'),
+  {
+    authMode: 'user',
+    method: 'DELETE',
+    openApiPath: '/app/v3/api/auth/sessions/current',
+    operationId: 'sessions.current.delete',
+    path: '/app/v3/api/auth/sessions/current',
+    surface: 'app',
+    summary: 'Delete current SDKWork IAM session',
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'sessions.refresh'),
+  {
+    authMode: 'user',
+    method: 'POST',
+    openApiPath: '/app/v3/api/auth/sessions/refresh',
+    operationId: 'sessions.refresh',
+    path: '/app/v3/api/auth/sessions/refresh',
+    surface: 'app',
+    summary: 'Refresh SDKWork IAM session',
   },
 );
 assert.deepEqual(
@@ -363,7 +437,19 @@ assert.deepEqual(
     operationId: 'oauthAuthorizationUrls.retrieve',
     path: '/app/v3/api/auth/oauth_authorization_urls',
     surface: 'app',
-    summary: 'Resolve OAuth authorization URL for social sign-in',
+    summary: 'Resolve OAuth authorization URL for SDKWork IAM sign-in',
+  },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'qrAuth.sessions.create'),
+  {
+    authMode: 'user',
+    method: 'POST',
+    openApiPath: '/app/v3/api/open_platform/qr_auth/sessions',
+    operationId: 'qrAuth.sessions.create',
+    path: '/app/v3/api/open_platform/qr_auth/sessions',
+    surface: 'app',
+    summary: 'Create SDKWork IAM QR auth session',
   },
 );
 assert.deepEqual(
@@ -375,20 +461,115 @@ assert.deepEqual(
     operationId: 'users.current.retrieve',
     path: '/app/v3/api/iam/users/current',
     surface: 'app',
-    summary: "Get the current user's canonical profile projection.",
+    summary: 'Get current SDKWork IAM user',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'vip.info.retrieve'),
+  routeCatalog.find((route) => route.operationId === 'memberships.current.retrieve'),
   {
     authMode: 'user',
     method: 'GET',
-    openApiPath: '/app/v3/api/billing/vip/info',
-    operationId: 'vip.info.retrieve',
-    path: '/app/v3/api/billing/vip/info',
+    openApiPath: '/app/v3/api/memberships/current',
+    operationId: 'memberships.current.retrieve',
+    path: '/app/v3/api/memberships/current',
     surface: 'app',
-    summary: "Get the current user's VIP or membership projection.",
+    summary: 'Get current SDKWork commerce membership',
   },
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'memberships.packageGroups.list'),
+  {
+    authMode: 'user',
+    method: 'GET',
+    openApiPath: '/app/v3/api/memberships/package_groups',
+    operationId: 'memberships.packageGroups.list',
+    path: '/app/v3/api/memberships/package_groups',
+    surface: 'app',
+    summary: 'List SDKWork commerce membership package groups',
+  },
+);
+assert.equal(
+  routeCatalog.some((route) => route.operationId === 'vip.info.retrieve' || route.operationId === 'vip.info.update'),
+  false,
+  'BirdCoder must not publish retired billing.vip route aliases; membership belongs to SDKWork commerce.',
+);
+assert.deepEqual(
+  routeCatalog.filter((route) => route.openApiPath.startsWith('/backend/v3/api/iam/users')),
+  [
+    {
+      authMode: 'admin',
+      method: 'GET',
+      openApiPath: '/backend/v3/api/iam/users',
+      operationId: 'users.list',
+      path: '/backend/v3/api/iam/users',
+      surface: 'backend',
+      summary: 'List SDKWork IAM users',
+    },
+    {
+      authMode: 'admin',
+      method: 'GET',
+      openApiPath: '/backend/v3/api/iam/users/{userId}',
+      operationId: 'users.retrieve',
+      path: '/backend/v3/api/iam/users/:userId',
+      surface: 'backend',
+      summary: 'Get SDKWork IAM user',
+    },
+    {
+      authMode: 'admin',
+      method: 'POST',
+      openApiPath: '/backend/v3/api/iam/users',
+      operationId: 'users.create',
+      path: '/backend/v3/api/iam/users',
+      surface: 'backend',
+      summary: 'Create SDKWork IAM user',
+    },
+    {
+      authMode: 'admin',
+      method: 'PATCH',
+      openApiPath: '/backend/v3/api/iam/users/{userId}',
+      operationId: 'users.update',
+      path: '/backend/v3/api/iam/users/:userId',
+      surface: 'backend',
+      summary: 'Update SDKWork IAM user',
+    },
+    {
+      authMode: 'admin',
+      method: 'DELETE',
+      openApiPath: '/backend/v3/api/iam/users/{userId}',
+      operationId: 'users.delete',
+      path: '/backend/v3/api/iam/users/:userId',
+      surface: 'backend',
+      summary: 'Delete SDKWork IAM user',
+    },
+    {
+      authMode: 'admin',
+      method: 'GET',
+      openApiPath: '/backend/v3/api/iam/users/{userId}/roles',
+      operationId: 'users.roles.list',
+      path: '/backend/v3/api/iam/users/:userId/roles',
+      surface: 'backend',
+      summary: 'List SDKWork IAM user roles',
+    },
+    {
+      authMode: 'admin',
+      method: 'POST',
+      openApiPath: '/backend/v3/api/iam/users/{userId}/roles',
+      operationId: 'users.roles.create',
+      path: '/backend/v3/api/iam/users/:userId/roles',
+      surface: 'backend',
+      summary: 'Create SDKWork IAM user role',
+    },
+    {
+      authMode: 'admin',
+      method: 'DELETE',
+      openApiPath: '/backend/v3/api/iam/users/{userId}/roles/{roleId}',
+      operationId: 'users.roles.delete',
+      path: '/backend/v3/api/iam/users/:userId/roles/:roleId',
+      surface: 'backend',
+      summary: 'Delete SDKWork IAM user role',
+    },
+  ],
+  'backend route catalog must expose the standard IAM users and user roles resource surface.',
 );
 assert.deepEqual(
   routeCatalog.find((route) => route.operationId === 'workspaces.realtime.subscribe'),

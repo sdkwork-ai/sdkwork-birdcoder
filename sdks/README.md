@@ -38,13 +38,15 @@ client.collaboration.workspaceTeams.list(params);
 Backend SDK examples:
 
 ```ts
+client.iam.users.list();
+client.iam.users.roles.list({ userId });
 client.iam.teams.list(params);
 client.iam.teams.members.list({ teamId });
 client.iam.policies.list();
 client.iam.auditEvents.list();
 ```
 
-Auth tokens are set through generated SDK APIs. Consumers must not assemble `Authorization` or `Sdkwork-Access-Token` headers in UI or service code.
+Auth tokens are set through generated SDK APIs. Consumers must not assemble `Authorization` or `Access-Token` headers in UI or service code.
 
 ## Commands
 

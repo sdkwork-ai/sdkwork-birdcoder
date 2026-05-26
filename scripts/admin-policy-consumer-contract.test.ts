@@ -1,28 +1,38 @@
 import assert from 'node:assert/strict';
-import type { BirdCoderAdminPolicySummary } from '@sdkwork/birdcoder-types';
+import type { BirdCoderIamPolicySummary } from '@sdkwork/birdcoder-types';
 import type { IAdminPolicyService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAdminPolicyService.ts';
 import { loadAdminPolicies } from '../packages/sdkwork-birdcoder-commons/src/hooks/useAdminPolicies.ts';
 
-const policyFixtures: BirdCoderAdminPolicySummary[] = [
+const policyFixtures: BirdCoderIamPolicySummary[] = [
   {
     id: 'admin-policy-consumer-contract-restricted',
-    scopeType: 'workspace',
-    scopeId: 'workspace-consumer-contract',
-    policyCategory: 'terminal',
-    targetType: 'engine',
-    targetId: 'codex',
-    approvalPolicy: 'Restricted',
+    tenantId: '0',
+    code: 'terminal.engine.codex',
+    name: 'Codex terminal approval policy',
+    policy: {
+      approvalPolicy: 'Restricted',
+      policyCategory: 'terminal',
+      scopeId: 'workspace-consumer-contract',
+      scopeType: 'workspace',
+      targetId: 'codex',
+      targetType: 'engine',
+    },
     status: 'active',
     updatedAt: '2026-04-11T16:40:00.000Z',
   },
   {
     id: 'admin-policy-consumer-contract-on-request',
-    scopeType: 'workspace',
-    scopeId: 'workspace-consumer-contract',
-    policyCategory: 'terminal',
-    targetType: 'engine',
-    targetId: 'claude-code',
-    approvalPolicy: 'OnRequest',
+    tenantId: '0',
+    code: 'terminal.engine.claude-code',
+    name: 'Claude Code terminal approval policy',
+    policy: {
+      approvalPolicy: 'OnRequest',
+      policyCategory: 'terminal',
+      scopeId: 'workspace-consumer-contract',
+      scopeType: 'workspace',
+      targetId: 'claude-code',
+      targetType: 'engine',
+    },
     status: 'active',
     updatedAt: '2026-04-11T16:39:00.000Z',
   },
@@ -42,7 +52,7 @@ const policies = await loadAdminPolicies(policyService);
 assert.deepEqual(
   policies,
   policyFixtures,
-  'admin policy consumer loader must return the shared admin policy service payload unchanged.',
+  'admin policy consumer loader must return the shared IAM policy service payload unchanged.',
 );
 
 assert.equal(

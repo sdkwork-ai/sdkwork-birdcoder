@@ -18,8 +18,8 @@ interface ProjectExplorerSessionContextMenuProps {
   onArchive?: (id: string, projectId: string) => void;
   onMarkUnread?: (id: string, projectId: string) => void;
   onCopyWorkingDirectory?: (id: string, projectId: string) => void;
-  onOpenInTerminal?: (id: string, nativeSessionId?: string) => void;
-  onCopySessionId?: (id: string, nativeSessionId?: string) => void;
+  onOpenInTerminal?: (id: string, projectId: string, nativeSessionId?: string) => void;
+  onCopySessionId?: (id: string, projectId: string, nativeSessionId?: string) => void;
   onCopyResumeCommand?: (id: string, projectId: string, nativeSessionId?: string) => void;
   onCopyDeeplink?: (id: string, projectId: string) => void;
   onForkLocal?: (id: string, projectId: string) => void;
@@ -131,7 +131,7 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onOpenInTerminal?.(sessionId, session?.nativeSessionId?.trim());
+          onOpenInTerminal?.(sessionId, projectId, session?.nativeSessionId?.trim());
           onClose();
         }}
       >
@@ -141,7 +141,7 @@ export function ProjectExplorerSessionContextMenu({
         type="button"
         className="w-full px-4 py-1.5 text-left hover:bg-white/10 hover:text-white transition-colors"
         onClick={() => {
-          onCopySessionId?.(sessionId, session?.nativeSessionId?.trim());
+          onCopySessionId?.(sessionId, projectId, session?.nativeSessionId?.trim());
           onClose();
         }}
       >

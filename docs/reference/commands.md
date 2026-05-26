@@ -6,97 +6,76 @@
 pnpm dev
 pnpm dev:local
 pnpm dev:private
-pnpm dev:external
 pnpm dev:cloud
 pnpm iam:show -- desktop-dev --iam-mode desktop-local
-pnpm iam:show -- server-dev --iam-mode server-private --user-center-provider external-user-center
 pnpm tauri:dev
 pnpm tauri:dev:private
-pnpm tauri:dev:external
 pnpm tauri:dev:cloud
 pnpm desktop:dev:local
 pnpm desktop:dev:private
-pnpm desktop:dev:external
 pnpm desktop:dev:cloud
 pnpm stack:desktop:local
 pnpm stack:desktop:private
-pnpm stack:desktop:external
 pnpm stack:desktop:cloud
 pnpm web:dev:private
-pnpm web:dev:external
 pnpm web:dev:cloud
 pnpm stack:web:private
-pnpm stack:web:external
 pnpm stack:web:cloud
 pnpm server:dev
 pnpm server:dev:private
-pnpm server:dev:external
 pnpm server:dev:cloud
 ```
 
-`pnpm dev` starts the default private BirdCoder web sample stack. It launches the native BirdCoder server first, waits until both `/app/v3/api/system/health` and `/app/v3/api/auth/config` succeed, then boots the browser host while defaulting `VITE_BIRDCODER_API_BASE_URL` to `http://127.0.0.1:10240` for local iteration when no explicit value is configured.
-`pnpm dev:local` starts the canonical single-machine BirdCoder sample loop by delegating to the desktop-local Tauri host with the embedded coding server and local sqlite user center.
+`pnpm dev` starts the default private BirdCoder web sample stack. It launches the native BirdCoder server first, waits until `/app/v3/api/system/health` succeeds, then boots the browser host while defaulting `VITE_BIRDCODER_API_BASE_URL` to `http://127.0.0.1:10240` for local iteration when no explicit value is configured.
+`pnpm dev:local` starts the canonical single-machine BirdCoder sample loop by delegating to the desktop-local Tauri host with the embedded coding server and local SDKWork IAM authority.
 `pnpm dev:private` is the explicit alias for that same managed private web sample stack.
-`pnpm dev:external` is the explicit browser-hosted alias for the private-server lane when the BirdCoder server binds `external-user-center`.
 `pnpm dev:cloud` starts the shared BirdCoder web workbench against a cloud-backed BirdCoder server.
 `pnpm iam:show -- <target> --iam-mode <mode>` prints the resolved managed IAM env after `.env` loading and mode normalization, with secret-like fields masked so mode switching can be inspected safely.
-`pnpm iam:show -- <target> --iam-mode server-private --user-center-provider external-user-center` prints that same resolved env for the standardized external-provider lane without requiring ad hoc shell env overrides.
-`pnpm tauri:dev` starts the governed desktop-local development loop so the Tauri shell, embedded coding server, local sqlite user center, and packaged-app interaction paths can be exercised together during local iteration.
+`pnpm tauri:dev` starts the governed desktop-local development loop so the Tauri shell, embedded coding server, local SDKWork IAM authority, and packaged-app interaction paths can be exercised together during local iteration.
 `pnpm tauri:dev:private` starts the governed desktop shell against a separately running private BirdCoder server, defaulting the client API base URL to `http://127.0.0.1:10240` when no explicit override is configured.
-`pnpm tauri:dev:external` starts the governed desktop shell against a private BirdCoder server that keeps the same facade but uses the `external-user-center` provider.
-`pnpm tauri:dev:cloud` starts the governed desktop shell against a separately running BirdCoder server that is expected to delegate IAM to `sdkwork-cloud-app-api`.
-`pnpm desktop:dev:local`, `pnpm desktop:dev:private`, `pnpm desktop:dev:external`, and `pnpm desktop:dev:cloud` expose the same desktop matrix with explicit mode naming for operator documentation and sample-app onboarding.
-`pnpm web:dev:private`, `pnpm web:dev:external`, and `pnpm web:dev:cloud` expose the browser-hosted mode matrix with naming that matches the desktop and server families when you intentionally manage the corresponding server process yourself.
-`pnpm stack:desktop:local` keeps the BirdCoder reference sample on a one-command local desktop loop with the embedded server and builtin local user center.
-`pnpm stack:desktop:private`, `pnpm stack:desktop:external`, and `pnpm stack:desktop:cloud` start the native BirdCoder server first when needed, wait until both `/app/v3/api/system/health` and `/app/v3/api/auth/config` succeed, and then launch the desktop client against the same resolved IAM env.
-`pnpm stack:web:private`, `pnpm stack:web:external`, and `pnpm stack:web:cloud` do the same for the browser-hosted sample so private, external-provider, and cloud-backed lanes can be demonstrated without manually coordinating two terminals, while still proving the canonical auth contract is live before the host boots. `pnpm dev` is now the default alias for `pnpm stack:web:private`.
-`pnpm server:dev` starts the governed private BirdCoder server loop with the builtin local user center and local sqlite persistence.
+`pnpm tauri:dev:cloud` starts the governed desktop shell against a separately running BirdCoder server that delegates IAM through SDKWork cloud app API.
+`pnpm desktop:dev:local`, `pnpm desktop:dev:private`, and `pnpm desktop:dev:cloud` expose the same desktop matrix with explicit mode naming for operator documentation and sample-app onboarding.
+`pnpm web:dev:private` and `pnpm web:dev:cloud` expose the browser-hosted mode matrix with naming that matches the desktop and server families when you intentionally manage the corresponding server process yourself.
+`pnpm stack:desktop:local` keeps the BirdCoder reference sample on a one-command local desktop loop with the embedded server and SDKWork IAM authority.
+`pnpm stack:desktop:private` and `pnpm stack:desktop:cloud` start the native BirdCoder server first when needed, wait until `/app/v3/api/system/health` succeeds, and then launch the desktop client against the same resolved IAM env.
+`pnpm stack:web:private` and `pnpm stack:web:cloud` do the same for the browser-hosted sample so private and cloud-backed lanes can be demonstrated without manually coordinating two terminals, while still proving the canonical auth contract is live before the host boots. `pnpm dev` is now the default alias for `pnpm stack:web:private`.
+`pnpm server:dev` starts the governed private BirdCoder server loop with SDKWork IAM private authority and local sqlite persistence.
 `pnpm server:dev:private` is the explicit private-server alias for the same governed native-server loop.
-`pnpm server:dev:external` starts the governed native-server loop on the same `server-private` deployment lane but binds the IAM provider to `external-user-center`.
-`pnpm server:dev:cloud` starts the governed BirdCoder server loop in cloud IAM mode and requires `SDKWORK_USER_CENTER_APP_API_BASE_URL`.
-All of these development commands keep the frontend contract on the same BirdCoder facade routes, including `/app/v3/api/auth/*`, `/app/v3/api/iam/users/current`, and `/app/v3/api/billing/vip/info`, even when the server switches between builtin-local, `sdkwork-cloud-app-api`, or `external-user-center` providers. The wrappers mirror `SDKWORK_USER_CENTER_MODE` to `VITE_SDKWORK_USER_CENTER_MODE`, and the web/desktop hosts now pass that provider kind into the shared runtime bootstrap directly. `VITE_BIRDCODER_IAM_DEPLOYMENT_MODE` remains the fallback inference source for the three standardized deployment modes, and once `/app/v3/api/auth/config` is loaded BirdCoder synchronizes the server-reported `providerKind` and `providerKey` back into the runtime binding.
+`pnpm server:dev:cloud` starts the governed BirdCoder server loop in cloud IAM mode and requires `SDKWORK_IAM_APP_API_BASE_URL`.
+All of these development commands keep the frontend contract on the same BirdCoder facade routes, including `/app/v3/api/auth/*`, `/app/v3/api/iam/users/current`, `/app/v3/api/memberships/current`, and `/app/v3/api/memberships/package_groups`, across local, private, and cloud IAM modes. `VITE_BIRDCODER_IAM_DEPLOYMENT_MODE` and `VITE_SDKWORK_DEPLOYMENT_MODE` publish only deployment mode; runtime auth state and commerce membership state come from the generated app SDK and SDKWork IAM runtime.
 
 ## Build
 
 ```bash
 pnpm build
 pnpm build:private
-pnpm build:external
 pnpm build:cloud
 pnpm tauri:build
 pnpm tauri:build:private
-pnpm tauri:build:external
 pnpm tauri:build:cloud
 pnpm server:build
-pnpm server:build:external
 pnpm server:build:cloud
 pnpm package:desktop:local
 pnpm package:desktop:private
-pnpm package:desktop:external
 pnpm package:desktop:cloud
 pnpm package:web:private
-pnpm package:web:external
 pnpm package:web:cloud
 pnpm package:server:private
-pnpm package:server:external
 pnpm package:server:cloud
 pnpm docs:build
 ```
 
 `pnpm build` executes the shared browser-hosted production build for private BirdCoder server integration, while preserving explicit `VITE_BIRDCODER_API_BASE_URL` when it is configured.
 `pnpm build:private` is the explicit private-server alias for that same browser-hosted build flow.
-`pnpm build:external` executes the shared browser-hosted production build for the private-server deployment lane with `external-user-center` binding.
 `pnpm build:cloud` executes the shared browser-hosted production build for cloud-backed BirdCoder server integration.
 `pnpm tauri:build` packages the desktop shell for the embedded local deployment mode.
 `pnpm tauri:build:private` packages the desktop shell so it targets an external private BirdCoder server, and it requires `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL`.
-`pnpm tauri:build:external` packages the desktop shell for a private BirdCoder server that delegates IAM through the external-provider bridge and also requires `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL`.
 `pnpm tauri:build:cloud` packages the desktop shell so it targets a cloud-backed BirdCoder server, and it requires `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL`.
-`pnpm server:build` packages the BirdCoder server for private local-user-center deployment.
-`pnpm server:build:external` packages the BirdCoder server for private deployment with `external-user-center` authority.
-`pnpm server:build:cloud` packages the BirdCoder server for cloud `sdkwork-cloud-app-api` IAM deployment.
-`pnpm package:desktop:local`, `pnpm package:desktop:private`, `pnpm package:desktop:external`, and `pnpm package:desktop:cloud` are thin packaging aliases over the standardized desktop build matrix.
-`pnpm package:web:private`, `pnpm package:web:external`, and `pnpm package:web:cloud` are thin packaging aliases over the standardized browser build matrix.
-`pnpm package:server:private`, `pnpm package:server:external`, and `pnpm package:server:cloud` are thin packaging aliases over the standardized native-server build matrix.
+`pnpm server:build` packages the BirdCoder server for private SDKWork IAM deployment.
+`pnpm server:build:cloud` packages the BirdCoder server for cloud SDKWork IAM deployment.
+`pnpm package:desktop:local`, `pnpm package:desktop:private`, and `pnpm package:desktop:cloud` are thin packaging aliases over the standardized desktop build matrix.
+`pnpm package:web:private` and `pnpm package:web:cloud` are thin packaging aliases over the standardized browser build matrix.
+`pnpm package:server:private` and `pnpm package:server:cloud` are thin packaging aliases over the standardized native-server build matrix.
 `pnpm docs:build` executes the documentation site production build so architecture, Step, prompt, and operator-reference changes are validated as publishable VitePress output before release-facing docs updates are treated as stable.
 
 ## Verification
@@ -122,7 +101,6 @@ pnpm check:quality:release
 pnpm quality:report
 pnpm quality:execution-report
 pnpm check:iam-standard
-pnpm test:user-center-standard
 ```
 
 `pnpm lint` executes the repository lint baseline so formatting, static style expectations, and lint-governed source hygiene regressions are caught before broader quality or release verification begins.
@@ -135,7 +113,7 @@ pnpm test:user-center-standard
 `pnpm check:web-react-compat-mode` freezes production-mode propagation into the shared Vite plugin factory so production bundles cannot silently emit React dev-compat runtime helpers.
 `pnpm check:commons-shell-entry` freezes the `@sdkwork/birdcoder-commons/shell` app-shell boundary so the root app bootstrap cannot re-import the broader commons barrel.
 `pnpm check:multi-mode` verifies the shared desktop, server, container, kubernetes, and web release surface together so cross-family packaging changes do not drift apart.
-`pnpm check:iam:sample` is the BirdCoder sample-app IAM verification shortcut. It runs the standardized desktop, web, and server IAM inspectors for local, private, external-provider, and cloud lanes, then builds the web and server artifacts for private, external, and cloud deployment. If `SDKWORK_USER_CENTER_APP_API_BASE_URL` is not already configured, it injects `https://app-api.example.com` as the cloud placeholder so the cloud sample path remains deterministic during local governance runs.
+`pnpm check:iam:sample` is the BirdCoder sample-app IAM verification shortcut. It runs the standardized desktop, web, and server IAM inspectors for local, private, and cloud lanes, then builds the web and server artifacts for private and cloud deployment. If `SDKWORK_IAM_APP_API_BASE_URL` is not already configured, it injects `https://app-api.example.com` as the cloud placeholder so the cloud sample path remains deterministic during local governance runs.
 `pnpm check:governance-regression` regenerates the machine-readable governance report and proves that the current repository contract set still closes cleanly as one release-facing baseline, including the full official-SDK-first engine governance set for official SDK presence, runtime selection, canonical runtime and kernel projection, provider SDK governance, browser safety, bridge error propagation, provider bridge contracts, engine conformance, tool protocol, and resume or recovery closure. The web performance slice is now self-built through `pnpm build`, so missing `dist` artifacts no longer hide the real web bundle budget outcome. If the governed Vite or esbuild path hits `[vite:define] spawn EPERM` on the current host, the report now preserves `blockedCheckIds`, `blockingDiagnosticIds`, and `environmentDiagnostics` such as `vite-host-build-preflight` instead of misreporting that condition as a failed repository regression.
 `pnpm check:quality-matrix` verifies the declared `fast -> standard -> release` quality tiers before reports or release evidence are generated, and it now fails when an existing workspace `artifacts/quality/quality-gate-matrix-report.json` no longer matches the current generated tier, workflow, or root manifest truth.
 `pnpm check:quality:fast` executes the fastest executable quality tier and is the first operator checkpoint for whether repo-local safeguards are still green before broader release verification begins. Its desktop startup-graph lane now selects a free loopback port and freezes that collision case through `check:desktop-startup-graph`, so an unrelated listener on the legacy `127.0.0.1:1537` port no longer fabricates a fast-tier failure.
@@ -158,8 +136,7 @@ For `formal` or any `general-availability` rollout-stage finalize, that same pac
 When `scripts/release/render-release-notes.mjs` renders `release-notes.md` directly into the release asset directory and `SHA256SUMS.txt` is already present, it now refreshes the checksum inventory from `release-manifest.json.artifacts` when a finalized manifest is present. Rendered notes stay publishable beside the assets without being silently added to the publishable artifact checksum view.
 Those rendered notes now also carry runtime blocked tiers, runtime failed tiers, and runtime blocking diagnostics into `Stop-ship signals`, so packaged runtime execution evidence and operator release decisions stay aligned.
 `pnpm check:live-docs-governance-baseline` freezes live architecture, Step, and core release docs against the current governance-regression check count so active docs do not drift behind the machine-readable baseline.
-`pnpm check:iam-standard` freezes `sdkwork-birdcoder-auth` and `sdkwork-birdcoder-user` against the upstream `sdkwork-appbase` auth, user-center, validation, and vip bridge standard.
-`pnpm test:user-center-standard` freezes the canonical unified user-center lane so appbase parity, the independent validation plugin boundary, and the Rust-side validation handoff continue to move together behind one root-owned command.
+`pnpm check:iam-standard` freezes `sdkwork-birdcoder-auth` and `sdkwork-birdcoder-user` against the SDKWork IAM, auth UI, user profile, and VIP bridge standard.
 
 ## Release
 

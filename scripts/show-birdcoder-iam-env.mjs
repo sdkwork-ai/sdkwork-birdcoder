@@ -42,9 +42,9 @@ const MASKED_ENV_NAME_TOKENS = Object.freeze([
 ]);
 const MANAGED_ENV_PREFIXES = Object.freeze([
   'BIRDCODER_',
-  'SDKWORK_USER_CENTER_',
+  'SDKWORK_IAM_',
   'VITE_BIRDCODER_',
-  'VITE_SDKWORK_USER_CENTER_',
+  'VITE_SDKWORK_DEPLOYMENT_MODE',
 ]);
 
 export function parseBirdcoderIamEnvCliArgs(argv = []) {
@@ -58,7 +58,6 @@ export function parseBirdcoderIamEnvCliArgs(argv = []) {
 
   const {
     iamMode,
-    userCenterProvider,
     viteMode,
   } = parseBirdcoderIamCliOptions(tokens, {
     allowViteMode: true,
@@ -68,7 +67,6 @@ export function parseBirdcoderIamEnvCliArgs(argv = []) {
   return {
     iamMode,
     target,
-    userCenterProvider,
     viteMode: viteMode ?? DEFAULT_BIRDCODER_IAM_ENV_VITE_MODE_BY_TARGET[target],
   };
 }
@@ -103,12 +101,10 @@ export function createBirdcoderIamEnvReport({
   env = process.env,
   iamMode,
   target = 'desktop-dev',
-  userCenterProvider,
   viteMode = DEFAULT_BIRDCODER_IAM_ENV_VITE_MODE_BY_TARGET[target] ?? 'development',
 } = {}) {
   const commandEnv = resolveBirdcoderCommandEnv({
     env,
-    userCenterProvider,
   });
   const resolved = resolveBirdcoderIamCommandEnv({
     env: commandEnv,
@@ -116,9 +112,8 @@ export function createBirdcoderIamEnvReport({
     target,
     viteMode,
   });
-  const providerKind = String(
-    resolved.env.SDKWORK_USER_CENTER_MODE
-    ?? resolved.env.VITE_SDKWORK_USER_CENTER_MODE
+  const sdkworkIamMode = String(
+    resolved.env.SDKWORK_IAM_MODE
     ?? '',
   ).trim() || undefined;
 
@@ -130,7 +125,7 @@ export function createBirdcoderIamEnvReport({
     surface: resolveSurfaceFromTarget(target),
     viteMode: resolved.viteMode,
     iamMode: resolved.iamMode,
-    providerKind,
+    sdkworkIamMode,
     errors: resolved.errors,
     managedEnv: pickManagedEnv(resolved.env),
     developerExperience: resolveBirdcoderIamDeveloperExperience({
@@ -145,13 +140,11 @@ function showBirdcoderIamEnv() {
   const {
     target,
     iamMode,
-    userCenterProvider,
     viteMode,
   } = parseBirdcoderIamEnvCliArgs(process.argv.slice(2));
   const output = createBirdcoderIamEnvReport({
     iamMode,
     target,
-    userCenterProvider,
     viteMode,
   });
 

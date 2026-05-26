@@ -1,8 +1,4 @@
 import {
-  createBirdCoderGeneratedUserCenterApiClient,
-  type BirdCoderUserCenterApiClient,
-} from '@sdkwork/birdcoder-types';
-import {
   createBirdCoderStorageProvider,
   type BirdCoderTransactionalStorageProvider,
 } from '../storage/dataKernel.ts';
@@ -92,7 +88,6 @@ export interface BirdCoderDefaultIdeSharedRuntime {
 }
 
 const DEFAULT_RUNTIME_HTTP_API_TIMEOUT_MS = 20_000;
-const DEFAULT_RUNTIME_USER_CENTER_TIMEOUT_MS = 20_000;
 
 function isBrowserRuntime(): boolean {
   return typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -184,21 +179,6 @@ function resolveRuntimeBackendClient(): BirdCoderBackendSdkApiClient | undefined
   }
 
   return undefined;
-}
-
-function resolveRuntimeUserCenterClient(): BirdCoderUserCenterApiClient | undefined {
-  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
-  if (!runtimeConfig.apiBaseUrl) {
-    return undefined;
-  }
-
-  return createBirdCoderGeneratedUserCenterApiClient({
-    transport: createBirdCoderHttpApiTransport({
-      baseUrl: runtimeConfig.apiBaseUrl,
-      resolveHeaders: resolveRuntimeServerSessionHeaders,
-      timeoutMs: DEFAULT_RUNTIME_USER_CENTER_TIMEOUT_MS,
-    }),
-  });
 }
 
 function createUnavailableBirdCoderAppClient(): BirdCoderAppSdkApiClient {
@@ -305,9 +285,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     (runtimeConfig.executionAuthorityMode === 'remote-required'
       ? createUnavailableBirdCoderBackendClient()
       : createInProcessBirdCoderBackendClient(queries));
-  const authService = createBirdCoderRuntimeAuthService({
-    client: resolveRuntimeUserCenterClient(),
-  });
+  const authService = createBirdCoderRuntimeAuthService();
 
   return {
     appClient,

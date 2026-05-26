@@ -34,13 +34,13 @@ export async function loadSettingsPage() {
 }
 
 export async function loadAuthPage() {
-  const module = await import('@sdkwork/birdcoder-auth');
+  const module = await import('@sdkwork/birdcoder-iam');
   return module.loadAuthPage();
 }
 
-export async function loadUserCenterPage() {
+export async function loadUserPage() {
   const module = await import('@sdkwork/birdcoder-user');
-  return module.loadUserCenterPage();
+  return module.loadUserPage();
 }
 
 export async function loadVipPage() {

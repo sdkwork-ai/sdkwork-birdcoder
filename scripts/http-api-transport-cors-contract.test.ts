@@ -113,14 +113,9 @@ for (const [requiredHeader, allowListPattern, preflightPattern] of [
     /header::AUTHORIZATION\.as_str\(\)/,
   ],
   [
-    'x-sdkwork-user-center-session-id',
-    /HeaderName::from_static\(USER_CENTER_SESSION_HEADER_NAME\)/,
-    /USER_CENTER_SESSION_HEADER_NAME/,
-  ],
-  [
-    'Sdkwork-Access-Token',
-    /parse_canonical_user_center_header_name\(USER_CENTER_ACCESS_TOKEN_HEADER_NAME\)/,
-    /USER_CENTER_ACCESS_TOKEN_HEADER_NAME/,
+    'Access-Token',
+    /parse_canonical_iam_header_name\(IAM_ACCESS_TOKEN_HEADER_NAME\)/,
+    /IAM_ACCESS_TOKEN_HEADER_NAME/,
   ],
   [
     'refresh-token',
@@ -128,34 +123,14 @@ for (const [requiredHeader, allowListPattern, preflightPattern] of [
     /"refresh-token"/,
   ],
   [
-    'x-sdkwork-app-id',
-    /HeaderName::from_static\(USER_CENTER_APP_ID_HEADER_NAME\)/,
-    /USER_CENTER_APP_ID_HEADER_NAME/,
+    'idempotency-key',
+    /HeaderName::from_static\("idempotency-key"\)/,
+    /"idempotency-key"/,
   ],
   [
-    'x-sdkwork-user-center-provider-key',
-    /HeaderName::from_static\(USER_CENTER_PROVIDER_KEY_HEADER_NAME\)/,
-    /USER_CENTER_PROVIDER_KEY_HEADER_NAME/,
-  ],
-  [
-    'x-sdkwork-user-center-handshake-mode',
-    /HeaderName::from_static\(USER_CENTER_HANDSHAKE_MODE_HEADER_NAME\)/,
-    /USER_CENTER_HANDSHAKE_MODE_HEADER_NAME/,
-  ],
-  [
-    'x-sdkwork-user-center-secret-id',
-    /HeaderName::from_static\(USER_CENTER_SECRET_ID_HEADER_NAME\)/,
-    /USER_CENTER_SECRET_ID_HEADER_NAME/,
-  ],
-  [
-    'x-sdkwork-user-center-signature',
-    /HeaderName::from_static\(USER_CENTER_SIGNATURE_HEADER_NAME\)/,
-    /USER_CENTER_SIGNATURE_HEADER_NAME/,
-  ],
-  [
-    'x-sdkwork-user-center-signed-at',
-    /HeaderName::from_static\(USER_CENTER_SIGNED_AT_HEADER_NAME\)/,
-    /USER_CENTER_SIGNED_AT_HEADER_NAME/,
+    'x-request-id',
+    /HeaderName::from_static\("x-request-id"\)/,
+    /"x-request-id"/,
   ],
 ] as const) {
   assert.match(
@@ -166,7 +141,7 @@ for (const [requiredHeader, allowListPattern, preflightPattern] of [
   assert.match(
     rustPreflightTestSource,
     preflightPattern,
-    `Rust browser preflight regression test must request ${requiredHeader} so local web/desktop shells cannot regress the user-center app API handshake.`,
+    `Rust browser preflight regression test must request ${requiredHeader} so local web/desktop shells cannot regress the SDKWork IAM app API transport.`,
   );
 }
 

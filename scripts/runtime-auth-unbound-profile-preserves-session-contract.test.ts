@@ -4,87 +4,143 @@ const runtimeAuthModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeAuthService.ts',
   import.meta.url,
 );
-const runtimeConfigModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesRuntime.ts',
-  import.meta.url,
-);
-const runtimeSessionModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
-  import.meta.url,
+
+const runtimeAuthModule = await import(
+  `${runtimeAuthModulePath.href}?runtime-auth=${Date.now()}`
 );
 
-const localStore = new Map<string, string>();
-const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
-const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+function createRuntimeFixture({
+  storedSession = {},
+  retrieveCurrentUser,
+}: {
+  storedSession?: Record<string, string | undefined>;
+  retrieveCurrentUser?: () => Promise<unknown>;
+} = {}) {
+  let tokenSession = { ...storedSession };
+  let clearCalls = 0;
+  let contextClearCalls = 0;
+  let sessionDeleteCalls = 0;
 
-const localStorage = {
-  getItem(key: string) {
-    return localStore.has(key) ? localStore.get(key)! : null;
-  },
-  removeItem(key: string) {
-    localStore.delete(key);
-  },
-  setItem(key: string, value: string) {
-    localStore.set(key, value);
-  },
-};
+  const runtime = {
+    contextStore: {
+      clear: async () => {
+        contextClearCalls += 1;
+      },
+    },
+    service: {
+      auth: {
+        sessions: {
+          current: {
+            delete: async () => {
+              sessionDeleteCalls += 1;
+            },
+          },
+        },
+      },
+      iam: {
+        users: {
+          current: {
+            retrieve: retrieveCurrentUser ?? (async () => ({
+              displayName: 'Runtime User',
+              email: 'runtime@example.com',
+              id: 'runtime-user',
+            })),
+          },
+        },
+      },
+    },
+    tokenStore: {
+      clear: async () => {
+        clearCalls += 1;
+        tokenSession = {};
+      },
+      get: () => tokenSession,
+    },
+  };
 
-Object.defineProperty(globalThis, 'window', {
-  configurable: true,
-  value: {
-    localStorage,
-  },
-});
-Object.defineProperty(globalThis, 'localStorage', {
-  configurable: true,
-  value: localStorage,
-});
+  return {
+    readStats: () => ({
+      clearCalls,
+      contextClearCalls,
+      sessionDeleteCalls,
+      tokenSession,
+    }),
+    runtime,
+  };
+}
 
-try {
-  const runtimeConfigModule = await import(
-    `${runtimeConfigModulePath.href}?unbound-runtime=${Date.now()}`
-  );
-  const runtimeSessionModule = await import(
-    `${runtimeSessionModulePath.href}?unbound-runtime=${Date.now()}`
-  );
-  const runtimeAuthModule = await import(
-    `${runtimeAuthModulePath.href}?unbound-runtime=${Date.now()}`
-  );
-
-  runtimeConfigModule.resetDefaultBirdCoderIdeServicesRuntimeForTests();
-
-  runtimeSessionModule.writeRuntimeServerSessionId('session-before-runtime-binding');
-  const authService = runtimeAuthModule.createBirdCoderRuntimeAuthService();
-
+{
+  const fixture = createRuntimeFixture();
+  const authService = runtimeAuthModule.createBirdCoderRuntimeAuthService({
+    getRuntime: () => fixture.runtime,
+  });
+  assert.equal(await authService.getCurrentUser(), null);
   assert.equal(
-    await authService.getCurrentUser(),
-    null,
-    'getCurrentUser should remain unauthenticated while the runtime user-center binding is unavailable.',
+    fixture.readStats().clearCalls,
+    0,
+    'getCurrentUser without a stored SDKWork IAM session must not clear token storage.',
   );
-  assert.equal(
-    runtimeSessionModule.readRuntimeServerSessionId(),
-    'session-before-runtime-binding',
-    'an unavailable runtime profile client must not clear the durable session token because user-center metadata can bind the runtime later in the same bootstrap pass.',
-  );
+}
 
+{
+  const fixture = createRuntimeFixture({
+    storedSession: {
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+    },
+  });
+  const authService = runtimeAuthModule.createBirdCoderRuntimeAuthService({
+    getRuntime: () => fixture.runtime,
+  });
+  assert.deepEqual(await authService.getCurrentUser(), {
+    email: 'runtime@example.com',
+    id: 'runtime-user',
+    name: 'Runtime User',
+  });
+}
+
+{
+  const fixture = createRuntimeFixture({
+    retrieveCurrentUser: async () => {
+      throw new Error('profile unavailable');
+    },
+    storedSession: {
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+    },
+  });
+  const authService = runtimeAuthModule.createBirdCoderRuntimeAuthService({
+    getRuntime: () => fixture.runtime,
+  });
+  await assert.rejects(() => authService.getCurrentUser(), /profile unavailable/);
+  assert.equal(
+    fixture.readStats().clearCalls,
+    0,
+    'a transient SDKWork IAM profile failure must not clear the durable app session token.',
+  );
+}
+
+{
+  const fixture = createRuntimeFixture({
+    storedSession: {
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+    },
+  });
+  const authService = runtimeAuthModule.createBirdCoderRuntimeAuthService({
+    getRuntime: () => fixture.runtime,
+  });
   await authService.logout();
-  assert.equal(
-    runtimeSessionModule.readRuntimeServerSessionId(),
-    null,
-    'logout must still clear the local durable session without surfacing a runtime-binding error when no remote logout endpoint is available yet.',
+  assert.deepEqual(
+    fixture.readStats(),
+    {
+      clearCalls: 1,
+      contextClearCalls: 1,
+      sessionDeleteCalls: 1,
+      tokenSession: {},
+    },
+    'logout must revoke the SDKWork IAM app session and clear token/context stores.',
   );
-} finally {
-  if (originalWindowDescriptor) {
-    Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
-  } else {
-    Reflect.deleteProperty(globalThis, 'window');
-  }
-
-  if (originalLocalStorageDescriptor) {
-    Object.defineProperty(globalThis, 'localStorage', originalLocalStorageDescriptor);
-  } else {
-    Reflect.deleteProperty(globalThis, 'localStorage');
-  }
 }
 
 console.log('runtime auth unbound profile session preservation contract passed.');

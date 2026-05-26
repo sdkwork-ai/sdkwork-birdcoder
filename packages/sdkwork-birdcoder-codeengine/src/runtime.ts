@@ -508,6 +508,7 @@ export function createWorkbenchCanonicalChatEngine(
     ): AsyncGenerator<ChatCanonicalEvent, void, unknown> {
       const runtime = await resolveStreamingRuntimeDescriptor(engine, binding, options);
       let sequence = 0;
+      const MAX_COMBINED_CONTENT_LENGTH = 2 * 1024 * 1024;
       let combinedContent = '';
       let sawToolCall = false;
       let sawNonToolTerminalFinishReason = false;
@@ -566,7 +567,9 @@ export function createWorkbenchCanonicalChatEngine(
           }
 
           if (typeof delta.content === 'string' && delta.content.length > 0) {
-            combinedContent += delta.content;
+            if (combinedContent.length < MAX_COMBINED_CONTENT_LENGTH) {
+              combinedContent += delta.content;
+            }
             yield createCanonicalEvent(++sequence, 'message.delta', 'streaming', {
               chunkId: chunk.id,
               model: chunk.model,

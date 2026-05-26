@@ -969,10 +969,9 @@ export async function loadCodingSessionPendingInteractionState(
 ): Promise<BirdCoderCodingSessionPendingInteractions> {
   const projection = await loadCodingSessionProjection(appRuntimeReadService, codingSessionId);
   const normalizedExpectedProjectId = expectedProjectId?.trim() ?? '';
-  const projectionProjectId = projection.session.projectId.trim();
+  const projectionProjectId = projection.session?.projectId?.trim() ?? '';
   if (
     normalizedExpectedProjectId &&
-    projectionProjectId &&
     projectionProjectId !== normalizedExpectedProjectId
   ) {
     return EMPTY_PENDING_INTERACTIONS;

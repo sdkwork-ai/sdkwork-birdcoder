@@ -16,11 +16,7 @@
   },
   "dependencies": {
     "@sdkwork/birdcoder-auth": "workspace:*",
-    "@sdkwork/birdcoder-core": "workspace:*",
-    "@sdkwork/birdcoder-infrastructure": "workspace:*",
-    "@sdkwork/birdcoder-user": "workspace:*",
-    "@sdkwork/user-center-core-pc-react": "workspace:*",
-    "@sdkwork/user-center-validation-pc-react": "workspace:*"
+    "@sdkwork/birdcoder-infrastructure": "workspace:*"
   },
   "peerDependencies": {
     "react": "catalog:",

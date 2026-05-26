@@ -4,7 +4,7 @@ pub const SDKWORK_STANDARD_PROFILE: &str = "sdkwork-v3";
 pub const API_PREFIX: &str = "/app/v3/api";
 pub const PACKAGE_NAME: &str = "@sdkwork/birdcoder-app-sdk";
 pub const AUTHORIZATION_HEADER: &str = "Authorization";
-pub const SDKWORK_ACCESS_TOKEN_HEADER: &str = "Sdkwork-Access-Token";
+pub const SDKWORK_ACCESS_TOKEN_HEADER: &str = "Access-Token";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SdkOperation {
@@ -31,25 +31,6 @@ pub struct SdkAuthTokens {
 }
 
 pub mod auth {
-    pub mod config {
-        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
-            data_scope: "organization",
-            deployment: "all",
-            domain: "iam",
-            key: "auth.config.retrieve",
-            method: "GET",
-            operation_id: "config.retrieve",
-            path: "/app/v3/api/auth/config",
-            path_param_names: &[],
-            permission: Some("iam.config.read"),
-            public: false,
-            resource: "iam.config",
-            summary: "Get active user-center provider metadata and login capability switches.",
-            tag: "auth",
-            tenant_scope: "tenant",
-        };
-    }
-
     pub mod oauth_authorization_urls {
         pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
             data_scope: "platform",
@@ -63,7 +44,7 @@ pub mod auth {
             permission: None,
             public: true,
             resource: "iam.oauthAuthorizationUrls",
-            summary: "Resolve OAuth authorization URL for social sign-in",
+            summary: "Resolve OAuth authorization URL for SDKWork IAM sign-in",
             tag: "auth",
             tenant_scope: "platform",
         };
@@ -82,7 +63,7 @@ pub mod auth {
             permission: None,
             public: true,
             resource: "iam.oauthSessions",
-            summary: "Create user center session with OAuth authorization code",
+            summary: "Create SDKWork IAM session with OAuth authorization code",
             tag: "auth",
             tenant_scope: "platform",
         };
@@ -101,7 +82,7 @@ pub mod auth {
             permission: None,
             public: true,
             resource: "iam.passwordResetRequests",
-            summary: "Request a password-reset challenge through the configured verification channel.",
+            summary: "Create SDKWork IAM password reset request",
             tag: "auth",
             tenant_scope: "platform",
         };
@@ -120,43 +101,7 @@ pub mod auth {
             permission: None,
             public: true,
             resource: "iam.passwordResets",
-            summary: "Reset the current account password using a verified recovery challenge.",
-            tag: "auth",
-            tenant_scope: "platform",
-        };
-    }
-
-    pub mod qr_login_codes {
-        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
-            data_scope: "platform",
-            deployment: "all",
-            domain: "iam",
-            key: "auth.qrLoginCodes.create",
-            method: "POST",
-            operation_id: "qrLoginCodes.create",
-            path: "/app/v3/api/auth/qr_login_codes",
-            path_param_names: &[],
-            permission: None,
-            public: true,
-            resource: "iam.qrLoginCodes",
-            summary: "Generate user center login QR code",
-            tag: "auth",
-            tenant_scope: "platform",
-        };
-
-        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
-            data_scope: "platform",
-            deployment: "all",
-            domain: "iam",
-            key: "auth.qrLoginCodes.retrieve",
-            method: "GET",
-            operation_id: "qrLoginCodes.retrieve",
-            path: "/app/v3/api/auth/qr_login_codes/{qrKey}",
-            path_param_names: &["qrKey"],
-            permission: None,
-            public: true,
-            resource: "iam.qrLoginCodes",
-            summary: "Check user center login QR code status",
+            summary: "Reset SDKWork IAM password",
             tag: "auth",
             tenant_scope: "platform",
         };
@@ -175,26 +120,7 @@ pub mod auth {
             permission: None,
             public: true,
             resource: "iam.registrations",
-            summary: "Register a local user and return the initial account projection when enabled.",
-            tag: "auth",
-            tenant_scope: "platform",
-        };
-    }
-
-    pub mod session_exchanges {
-        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
-            data_scope: "platform",
-            deployment: "all",
-            domain: "iam",
-            key: "auth.sessionExchanges.create",
-            method: "POST",
-            operation_id: "sessionExchanges.create",
-            path: "/app/v3/api/auth/session_exchanges",
-            path_param_names: &[],
-            permission: None,
-            public: true,
-            resource: "iam.sessionExchanges",
-            summary: "Exchange an upstream or third-party session into the local AuthToken and AccessToken bundle.",
+            summary: "Register SDKWork IAM user",
             tag: "auth",
             tenant_scope: "platform",
         };
@@ -213,7 +139,7 @@ pub mod auth {
             permission: None,
             public: true,
             resource: "iam.sessions",
-            summary: "Create a login session with account and password credentials.",
+            summary: "Create SDKWork IAM session",
             tag: "auth",
             tenant_scope: "platform",
         };
@@ -224,14 +150,14 @@ pub mod auth {
                 deployment: "all",
                 domain: "iam",
                 key: "auth.sessions.current.delete",
-                method: "POST",
+                method: "DELETE",
                 operation_id: "sessions.current.delete",
                 path: "/app/v3/api/auth/sessions/current",
                 path_param_names: &[],
                 permission: Some("iam.sessions.current.delete"),
                 public: false,
                 resource: "iam.sessions.current",
-                summary: "Revoke the current user-center login session and its token shadows.",
+                summary: "Delete current SDKWork IAM session",
                 tag: "auth",
                 tenant_scope: "tenant",
             };
@@ -248,11 +174,45 @@ pub mod auth {
                 permission: Some("iam.sessions.current.read"),
                 public: false,
                 resource: "iam.sessions.current",
-                summary: "Get the current login session snapshot for the active principal.",
+                summary: "Get current SDKWork IAM session",
+                tag: "auth",
+                tenant_scope: "tenant",
+            };
+
+            pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "user",
+                deployment: "all",
+                domain: "iam",
+                key: "auth.sessions.current.update",
+                method: "PATCH",
+                operation_id: "sessions.current.update",
+                path: "/app/v3/api/auth/sessions/current",
+                path_param_names: &[],
+                permission: Some("iam.sessions.current.update"),
+                public: false,
+                resource: "iam.sessions.current",
+                summary: "Update current SDKWork IAM session",
                 tag: "auth",
                 tenant_scope: "tenant",
             };
         }
+
+        pub const REFRESH: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "platform",
+            deployment: "all",
+            domain: "iam",
+            key: "auth.sessions.refresh",
+            method: "POST",
+            operation_id: "sessions.refresh",
+            path: "/app/v3/api/auth/sessions/refresh",
+            path_param_names: &[],
+            permission: None,
+            public: true,
+            resource: "iam.sessions",
+            summary: "Refresh SDKWork IAM session",
+            tag: "auth",
+            tenant_scope: "platform",
+        };
     }
 
     pub mod verification_codes {
@@ -268,50 +228,27 @@ pub mod auth {
             permission: None,
             public: true,
             resource: "iam.verificationCodes",
-            summary: "Send a verification challenge for login, registration, or password reset.",
+            summary: "Create SDKWork IAM verification code",
             tag: "auth",
             tenant_scope: "platform",
         };
-    }
-}
 
-pub mod billing {
-    pub mod vip {
-        pub mod info {
-            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
-                data_scope: "user",
-                deployment: "all",
-                domain: "billing",
-                key: "billing.vip.info.retrieve",
-                method: "GET",
-                operation_id: "vip.info.retrieve",
-                path: "/app/v3/api/billing/vip/info",
-                path_param_names: &[],
-                permission: Some("billing.vip.info.read"),
-                public: false,
-                resource: "billing.vip.info",
-                summary: "Get the current user's VIP or membership projection.",
-                tag: "billing",
-                tenant_scope: "tenant",
-            };
-
-            pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
-                data_scope: "user",
-                deployment: "all",
-                domain: "billing",
-                key: "billing.vip.info.update",
-                method: "PATCH",
-                operation_id: "vip.info.update",
-                path: "/app/v3/api/billing/vip/info",
-                path_param_names: &[],
-                permission: Some("billing.vip.info.update"),
-                public: false,
-                resource: "billing.vip.info",
-                summary: "Update the current user's VIP or membership projection for local authority mode.",
-                tag: "billing",
-                tenant_scope: "tenant",
-            };
-        }
+        pub const VERIFY: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "platform",
+            deployment: "all",
+            domain: "iam",
+            key: "auth.verificationCodes.verify",
+            method: "POST",
+            operation_id: "verificationCodes.verify",
+            path: "/app/v3/api/auth/verification_codes/verify",
+            path_param_names: &[],
+            permission: None,
+            public: true,
+            resource: "iam.verificationCodes",
+            summary: "Verify SDKWork IAM verification code",
+            tag: "auth",
+            tenant_scope: "platform",
+        };
     }
 }
 
@@ -333,6 +270,48 @@ pub mod collaboration {
             tag: "collaboration",
             tenant_scope: "tenant",
         };
+    }
+}
+
+pub mod commerce {
+    pub mod memberships {
+        pub mod current {
+            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "user",
+                deployment: "all",
+                domain: "commerce",
+                key: "commerce.memberships.current.retrieve",
+                method: "GET",
+                operation_id: "memberships.current.retrieve",
+                path: "/app/v3/api/memberships/current",
+                path_param_names: &[],
+                permission: Some("commerce.memberships.current.read"),
+                public: false,
+                resource: "commerce.memberships.current",
+                summary: "Get current SDKWork commerce membership",
+                tag: "commerce",
+                tenant_scope: "tenant",
+            };
+        }
+
+        pub mod package_groups {
+            pub const LIST: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "user",
+                deployment: "all",
+                domain: "commerce",
+                key: "commerce.memberships.packageGroups.list",
+                method: "GET",
+                operation_id: "memberships.packageGroups.list",
+                path: "/app/v3/api/memberships/package_groups",
+                path_param_names: &[],
+                permission: Some("commerce.memberships.packageGroups.read"),
+                public: false,
+                resource: "commerce.memberships.packageGroups",
+                summary: "List SDKWork commerce membership package groups",
+                tag: "commerce",
+                tenant_scope: "tenant",
+            };
+        }
     }
 }
 
@@ -372,7 +351,7 @@ pub mod iam {
                 permission: Some("iam.users.current.read"),
                 public: false,
                 resource: "iam.users.current",
-                summary: "Get the current user's canonical profile projection.",
+                summary: "Get current SDKWork IAM user",
                 tag: "iam",
                 tenant_scope: "tenant",
             };
@@ -389,7 +368,7 @@ pub mod iam {
                 permission: Some("iam.users.current.update"),
                 public: false,
                 resource: "iam.users.current",
-                summary: "Update the current user's canonical profile projection.",
+                summary: "Update current SDKWork IAM user profile",
                 tag: "iam",
                 tenant_scope: "tenant",
             };
@@ -693,6 +672,84 @@ pub mod intelligence {
                 tag: "intelligence",
                 tenant_scope: "tenant",
             };
+        }
+    }
+}
+
+pub mod open_platform {
+    pub mod qr_auth {
+        pub mod sessions {
+            pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "platform",
+                deployment: "all",
+                domain: "iam",
+                key: "openPlatform.qrAuth.sessions.create",
+                method: "POST",
+                operation_id: "qrAuth.sessions.create",
+                path: "/app/v3/api/open_platform/qr_auth/sessions",
+                path_param_names: &[],
+                permission: None,
+                public: true,
+                resource: "iam.qrAuth.sessions",
+                summary: "Create SDKWork IAM QR auth session",
+                tag: "openPlatform",
+                tenant_scope: "platform",
+            };
+
+            pub mod passwords {
+                pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                    data_scope: "platform",
+                    deployment: "all",
+                    domain: "iam",
+                    key: "openPlatform.qrAuth.sessions.passwords.create",
+                    method: "POST",
+                    operation_id: "qrAuth.sessions.passwords.create",
+                    path: "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords",
+                    path_param_names: &["sessionKey"],
+                    permission: None,
+                    public: true,
+                    resource: "iam.qrAuth.sessions.passwords",
+                    summary: "Complete SDKWork IAM QR auth session with password",
+                    tag: "openPlatform",
+                    tenant_scope: "platform",
+                };
+            }
+
+            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "platform",
+                deployment: "all",
+                domain: "iam",
+                key: "openPlatform.qrAuth.sessions.retrieve",
+                method: "GET",
+                operation_id: "qrAuth.sessions.retrieve",
+                path: "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}",
+                path_param_names: &["sessionKey"],
+                permission: None,
+                public: true,
+                resource: "iam.qrAuth.sessions",
+                summary: "Get SDKWork IAM QR auth session",
+                tag: "openPlatform",
+                tenant_scope: "platform",
+            };
+
+            pub mod scans {
+                pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                    data_scope: "platform",
+                    deployment: "all",
+                    domain: "iam",
+                    key: "openPlatform.qrAuth.sessions.scans.create",
+                    method: "POST",
+                    operation_id: "qrAuth.sessions.scans.create",
+                    path: "/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans",
+                    path_param_names: &["sessionKey"],
+                    permission: None,
+                    public: true,
+                    resource: "iam.qrAuth.sessions.scans",
+                    summary: "Create SDKWork IAM QR auth scan",
+                    tag: "openPlatform",
+                    tenant_scope: "platform",
+                };
+            }
         }
     }
 }
@@ -1332,6 +1389,46 @@ pub mod system {
         };
     }
 
+    pub mod iam {
+        pub mod runtime {
+            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "platform",
+                deployment: "all",
+                domain: "iam",
+                key: "system.iam.runtime.retrieve",
+                method: "GET",
+                operation_id: "iam.runtime.retrieve",
+                path: "/app/v3/api/system/iam/runtime",
+                path_param_names: &[],
+                permission: None,
+                public: true,
+                resource: "iam.runtime",
+                summary: "Get SDKWork IAM runtime metadata",
+                tag: "system",
+                tenant_scope: "platform",
+            };
+        }
+
+        pub mod verification_policy {
+            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "platform",
+                deployment: "all",
+                domain: "iam",
+                key: "system.iam.verificationPolicy.retrieve",
+                method: "GET",
+                operation_id: "iam.verificationPolicy.retrieve",
+                path: "/app/v3/api/system/iam/verification_policy",
+                path_param_names: &[],
+                permission: None,
+                public: true,
+                resource: "iam.verificationPolicy",
+                summary: "Get SDKWork IAM verification policy",
+                tag: "system",
+                tenant_scope: "platform",
+            };
+        }
+    }
+
     pub mod operations {
         pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
             data_scope: "user",
@@ -1412,22 +1509,21 @@ pub mod templates {
 }
 
 pub const OPERATIONS: &[SdkOperation] = &[
-    auth::config::RETRIEVE,
     auth::oauth_authorization_urls::RETRIEVE,
     auth::oauth_sessions::CREATE,
     auth::password_reset_requests::CREATE,
     auth::password_resets::CREATE,
-    auth::qr_login_codes::CREATE,
-    auth::qr_login_codes::RETRIEVE,
     auth::registrations::CREATE,
-    auth::session_exchanges::CREATE,
     auth::sessions::CREATE,
     auth::sessions::current::DELETE,
     auth::sessions::current::RETRIEVE,
+    auth::sessions::current::UPDATE,
+    auth::sessions::REFRESH,
     auth::verification_codes::CREATE,
-    billing::vip::info::RETRIEVE,
-    billing::vip::info::UPDATE,
+    auth::verification_codes::VERIFY,
     collaboration::workspace_teams::LIST,
+    commerce::memberships::current::RETRIEVE,
+    commerce::memberships::package_groups::LIST,
     content::documents::LIST,
     iam::users::current::RETRIEVE,
     iam::users::current::UPDATE,
@@ -1447,6 +1543,10 @@ pub const OPERATIONS: &[SdkOperation] = &[
     intelligence::coding_sessions::turns::CREATE,
     intelligence::coding_sessions::UPDATE,
     intelligence::questions::answers::CREATE,
+    open_platform::qr_auth::sessions::CREATE,
+    open_platform::qr_auth::sessions::passwords::CREATE,
+    open_platform::qr_auth::sessions::RETRIEVE,
+    open_platform::qr_auth::sessions::scans::CREATE,
     platform::deployments::LIST,
     platform::projects::collaborators::LIST,
     platform::projects::collaborators::UPSERT,
@@ -1481,6 +1581,8 @@ pub const OPERATIONS: &[SdkOperation] = &[
     skills::skill_packages::LIST,
     system::descriptor::RETRIEVE,
     system::health::RETRIEVE,
+    system::iam::runtime::RETRIEVE,
+    system::iam::verification_policy::RETRIEVE,
     system::operations::RETRIEVE,
     system::routes::LIST,
     system::runtime::RETRIEVE,

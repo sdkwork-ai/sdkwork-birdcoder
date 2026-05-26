@@ -1,3 +1,5 @@
+/// <reference path="./qrcode-browser.d.ts" />
+
 export interface QRCodeToDataUrlOptions {
   color?: {
     dark?: string;

@@ -17,15 +17,9 @@
   "dependencies": {
     "@babel/runtime": "catalog:",
     "@sdkwork/birdcoder-commons": "workspace:*",
-    "@sdkwork/birdcoder-core": "workspace:*",
     "@sdkwork/birdcoder-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
-    "@sdkwork/user-center-core-pc-react": "workspace:*",
-    "@sdkwork/user-center-pc-react": "workspace:*",
-    "@sdkwork/user-center-validation-pc-react": "workspace:*",
-    "@sdkwork/user-pc-react": "workspace:*",
-    "@sdkwork/vip-pc-react": "workspace:*",
-    "react-i18next": "catalog:"
+    "@sdkwork/user-pc-react": "workspace:*"
   },
   "peerDependencies": {
     "react": "catalog:",

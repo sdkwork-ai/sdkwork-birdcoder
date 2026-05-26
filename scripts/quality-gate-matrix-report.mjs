@@ -27,7 +27,7 @@ export const QUALITY_GATE_TIERS = Object.freeze([
     focus: Object.freeze([
       'typecheck',
       'lint and contract drift',
-      'architecture and appbase parity',
+      'architecture and SDKWork IAM parity',
     ]),
     evidence: Object.freeze([
       'typecheck stdout/stderr',

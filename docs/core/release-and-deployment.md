@@ -18,14 +18,13 @@ Release packaging follows the same IAM standard as development. BirdCoder keeps 
 
 | IAM lane | Standard build commands | Standard package commands | Authority |
 | --- | --- | --- | --- |
-| `desktop-local` | `pnpm tauri:build`, `pnpm desktop:build:local` | `pnpm package:desktop:local` | Embedded local sqlite user center |
-| `server-private` + `builtin-local` | `pnpm build`, `pnpm desktop:build:private`, `pnpm web:build:private`, `pnpm server:build`, `pnpm server:build:private` | `pnpm package:web:private`, `pnpm package:server:private`, `pnpm package:desktop:private` | Private BirdCoder server with builtin local authority |
-| `server-private` + `external-user-center` | `pnpm build:external`, `pnpm desktop:build:external`, `pnpm web:build:external`, `pnpm server:build:external` | `pnpm package:web:external`, `pnpm package:server:external`, `pnpm package:desktop:external` | Private BirdCoder server with external IAM bridge |
-| `cloud-saas` + `sdkwork-cloud-app-api` | `pnpm build:cloud`, `pnpm desktop:build:cloud`, `pnpm web:build:cloud`, `pnpm server:build:cloud` | `pnpm package:web:cloud`, `pnpm package:server:cloud`, `pnpm package:desktop:cloud` | BirdCoder server delegates IAM to `sdkwork-cloud-app-api` |
+| `desktop-local` | `pnpm tauri:build`, `pnpm desktop:build:local` | `pnpm package:desktop:local` | Embedded SDKWork IAM authority with local SQLite |
+| `server-private` | `pnpm build`, `pnpm desktop:build:private`, `pnpm web:build:private`, `pnpm server:build`, `pnpm server:build:private` | `pnpm package:web:private`, `pnpm package:server:private`, `pnpm package:desktop:private` | Private BirdCoder server with SDKWork IAM private authority |
+| `cloud-saas` | `pnpm build:cloud`, `pnpm desktop:build:cloud`, `pnpm web:build:cloud`, `pnpm server:build:cloud` | `pnpm package:web:cloud`, `pnpm package:server:cloud`, `pnpm package:desktop:cloud` | BirdCoder server delegates IAM to SDKWork cloud app API |
 
-The release standard is not 鈥渄ifferent API per deployment.鈥?It is 鈥渄ifferent server binding behind the same BirdCoder facade.鈥?Packaged desktop and web clients still consume the same canonical `/app/v3/api/auth/*`, `/app/v3/api/iam/users/current`, and `/app/v3/api/billing/vip/info` routes after packaging.
+The release standard is not 鈥渄ifferent API per deployment.鈥?It is 鈥渄ifferent server binding behind the same BirdCoder facade.鈥?Packaged desktop and web clients still consume the same canonical `/app/v3/api/auth/*`, `/app/v3/api/iam/users/current`, `/app/v3/api/memberships/current`, and `/app/v3/api/memberships/package_groups` routes after packaging.
 
-For remote desktop packaging lanes such as `private`, `external`, and `cloud`, `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL` must be set explicitly so packaged artifacts never fall back to localhost by accident.
+For remote desktop packaging lanes such as `private` and `cloud`, `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL` must be set explicitly so packaged artifacts never fall back to localhost by accident.
 
 ## Local Verification And Packaging
 
@@ -74,7 +73,7 @@ pnpm check:governance-regression
 pnpm check:live-docs-governance-baseline
 ```
 
-This emits `artifacts/governance/governance-regression-report.json` and currently aggregates 112 existing checks across package and governance baseline, web budget, host runtime and host-studio lanes, Studio execution and evidence lanes, run-configuration and workbench runtime governance, chat and local-store governance, the official-SDK-first engine lane, i18n, desktop Tauri and Vite host governance, UI dependency and bundle governance, shared SDK and source-parse governance, architecture and structure governance, release and CI flow governance, prompt and template governance, PostgreSQL live-smoke governance, coding-server API_SPEC path governance, release packaging, desktop signing environment preflight, desktop installer trust verification, smoke governance, release checksum publication-view governance, release readiness assertion, release readiness complete-matrix governance, release readiness fixture generator governance, release candidate dry-run evidence governance, release rehearsal verification governance, release notes governance, BirdCoder architecture, appbase parity, unified user-center standard governance, and release closure. When a command-backed slice reaches the governed Vite or esbuild path and the host stops at `[vite:define] spawn EPERM`, the same report now records `blockedCheckIds`, `blockingDiagnosticIds`, and `environmentDiagnostics` such as `vite-host-build-preflight` instead of classifying that host limitation as a failed repository regression. `pnpm check:live-docs-governance-baseline` complements that machine-readable report by freezing active architecture, Step, and release docs against the same governance vocabulary.
+This emits `artifacts/governance/governance-regression-report.json` and currently aggregates 110 existing checks across package and governance baseline, web budget, host runtime and host-studio lanes, Studio execution and evidence lanes, run-configuration and workbench runtime governance, chat and local-store governance, the official-SDK-first engine lane, i18n, desktop Tauri and Vite host governance, UI dependency and bundle governance, shared SDK and source-parse governance, architecture and structure governance, release and CI flow governance, prompt and template governance, PostgreSQL live-smoke governance, coding-server API_SPEC path governance, release packaging, desktop signing environment preflight, desktop installer trust verification, smoke governance, release checksum publication-view governance, release readiness assertion, release readiness complete-matrix governance, release readiness fixture generator governance, release candidate dry-run evidence governance, release rehearsal verification governance, release notes governance, BirdCoder architecture, SDKWork IAM parity, SDKWork IAM no-legacy governance, and release closure. When a command-backed slice reaches the governed Vite or esbuild path and the host stops at `[vite:define] spawn EPERM`, the same report now records `blockedCheckIds`, `blockingDiagnosticIds`, and `environmentDiagnostics` such as `vite-host-build-preflight` instead of classifying that host limitation as a failed repository regression. `pnpm check:live-docs-governance-baseline` complements that machine-readable report by freezing active architecture, Step, and release docs against the same governance vocabulary.
 
 When a change touches Step 12 quality tiers, run:
 
@@ -113,14 +112,6 @@ pnpm check:iam-standard
 ```
 
 This keeps release-facing verification aligned with the same `sdkwork-birdcoder-auth` and `sdkwork-birdcoder-user` split IAM contract already frozen by architecture docs, Step docs, prompt governance, and `check:release-flow`.
-
-When a change touches the unified user-center bridge or the independent validation plugin boundary, run:
-
-```bash
-pnpm test:user-center-standard
-```
-
-This keeps release-facing verification aligned with the same root-owned user-center standard lane that freezes appbase parity, the independent validation plugin contract, and the Rust host handoff under one canonical command.
 
 When a change touches workspace package ownership, package naming, or root-managed dependency governance, run:
 
@@ -161,13 +152,10 @@ When you need BirdCoder-mode packaging rather than family-only release bundles, 
 ```bash
 pnpm package:desktop:local
 pnpm package:desktop:private
-pnpm package:desktop:external
 pnpm package:desktop:cloud
 pnpm package:web:private
-pnpm package:web:external
 pnpm package:web:cloud
 pnpm package:server:private
-pnpm package:server:external
 pnpm package:server:cloud
 ```
 

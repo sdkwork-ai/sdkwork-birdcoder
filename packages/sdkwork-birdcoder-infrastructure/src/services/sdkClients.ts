@@ -24,8 +24,6 @@ import {
   type IamTeamsListQuery as BackendIamTeamsListQuery,
 } from '@sdkwork/birdcoder-backend-sdk';
 import type {
-  BirdCoderAdminAuditEventSummary,
-  BirdCoderAdminPolicySummary,
   BirdCoderApiRouteCatalogEntry,
   BirdCoderApiTransport,
   BirdCoderAppTemplateSummary,
@@ -58,6 +56,8 @@ import type {
   BirdCoderForkCodingSessionRequest,
   BirdCoderGetNativeSessionRequest,
   BirdCoderInstallSkillPackageRequest,
+  BirdCoderIamAuditEventSummary,
+  BirdCoderIamPolicySummary,
   BirdCoderListCodingSessionsRequest,
   BirdCoderListNativeSessionsRequest,
   BirdCoderModelCatalogEntry,
@@ -91,6 +91,14 @@ import type {
   BirdCoderWorkspaceMemberSummary,
   BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-types';
+import {
+  clearStoredAppSessionToken,
+  getStoredAppSessionAccessToken,
+  getStoredAppSessionAuthToken,
+} from './appSessionToken.ts';
+import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
+import { resolveRuntimeServerSessionHeaders } from './runtimeServerSession.ts';
+import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
 
 export interface BirdCoderWorkspaceScopedListRequest {
   userId?: string;
@@ -229,11 +237,11 @@ export interface BirdCoderAppSdkApiClient {
 }
 
 export interface BirdCoderBackendSdkApiClient {
-  listAuditEvents(): Promise<BirdCoderAdminAuditEventSummary[]>;
+  listAuditEvents(): Promise<BirdCoderIamAuditEventSummary[]>;
   listDeploymentTargets(projectId: string): Promise<BirdCoderDeploymentTargetSummary[]>;
   listGovernanceDeployments(): Promise<BirdCoderDeploymentRecordSummary[]>;
   listGovernanceTeams(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderTeamSummary[]>;
-  listPolicies(): Promise<BirdCoderAdminPolicySummary[]>;
+  listPolicies(): Promise<BirdCoderIamPolicySummary[]>;
   listReleases(): Promise<BirdCoderReleaseSummary[]>;
   listTeamMembers(teamId: string): Promise<BirdCoderTeamMemberSummary[]>;
 }
@@ -287,6 +295,22 @@ export interface CreateBirdCoderBackendSdkApiClientOptions {
   accessToken?: string;
   authToken?: string;
   transport: BirdCoderApiTransport;
+}
+
+export interface BirdCoderGeneratedAppSdkClientOptions {
+  accessToken?: string;
+  apiBaseUrl?: string;
+  authToken?: string;
+  timeoutMs?: number;
+  transport?: BirdCoderApiTransport;
+}
+
+export interface BirdCoderGeneratedBackendSdkClientOptions {
+  accessToken?: string;
+  apiBaseUrl?: string;
+  authToken?: string;
+  timeoutMs?: number;
+  transport?: BirdCoderApiTransport;
 }
 
 interface DataEnvelope<TData> {
@@ -447,6 +471,295 @@ function toGeneratedBackendTeamQuery(
     ...(options.userId ? { userId: options.userId } : {}),
     ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
   };
+}
+
+let generatedAppClient: BirdcoderAppSdkClient | null = null;
+let generatedAppClientSessionKey: string | undefined;
+let generatedBackendClient: BirdcoderBackendSdkClient | null = null;
+let generatedBackendClientSessionKey: string | undefined;
+let sessionAuthRedirectTarget: string | null = null;
+
+const SESSION_AUTH_ERROR_CODES = new Set([
+  '401',
+  '4010',
+  'UNAUTHORIZED',
+  'TOKEN_EXPIRED',
+  'TOKEN_INVALID',
+]);
+const SESSION_AUTH_ERROR_MESSAGES = [
+  'app session token has expired',
+  'session token has expired',
+  'token has expired',
+  'not logged in',
+  'not login',
+  'unauthorized',
+];
+
+export function createBirdCoderGeneratedAppSdkClient(
+  options: BirdCoderGeneratedAppSdkClientOptions = {},
+): BirdcoderAppSdkClient {
+  return createBirdcoderAppSdkClient({
+    accessToken: options.accessToken ?? getStoredAppSessionAccessToken(),
+    authToken: options.authToken ?? getStoredAppSessionAuthToken(),
+    transport: createBirdCoderSessionAwareTransport(
+      resolveBirdCoderGeneratedSdkTransport(options),
+    ),
+  });
+}
+
+export function createBirdCoderGeneratedBackendSdkClient(
+  options: BirdCoderGeneratedBackendSdkClientOptions = {},
+): BirdcoderBackendSdkClient {
+  return createBirdcoderBackendSdkClient({
+    accessToken: options.accessToken ?? getStoredAppSessionAccessToken(),
+    authToken: options.authToken ?? getStoredAppSessionAuthToken(),
+    transport: createBirdCoderSessionAwareTransport(
+      resolveBirdCoderGeneratedSdkTransport(options),
+    ),
+  });
+}
+
+export function getBirdCoderGeneratedAppSdkClient(
+  options: BirdCoderGeneratedAppSdkClientOptions = {},
+): BirdcoderAppSdkClient {
+  if (hasGeneratedSdkRuntimeOverrides(options)) {
+    return createBirdCoderGeneratedAppSdkClient(options);
+  }
+
+  const authToken = getStoredAppSessionAuthToken();
+  const accessToken = getStoredAppSessionAccessToken();
+  const sessionKey = createSessionKey(authToken, accessToken);
+  if (!generatedAppClient || generatedAppClientSessionKey !== sessionKey) {
+    generatedAppClient = createBirdCoderGeneratedAppSdkClient(
+      authToken || accessToken ? { accessToken, authToken } : {},
+    );
+    generatedAppClientSessionKey = sessionKey;
+  }
+  return generatedAppClient;
+}
+
+export function getBirdCoderGeneratedBackendSdkClient(
+  options: BirdCoderGeneratedBackendSdkClientOptions = {},
+): BirdcoderBackendSdkClient {
+  if (hasGeneratedSdkRuntimeOverrides(options)) {
+    return createBirdCoderGeneratedBackendSdkClient(options);
+  }
+
+  const authToken = getStoredAppSessionAuthToken();
+  const accessToken = getStoredAppSessionAccessToken();
+  const sessionKey = createSessionKey(authToken, accessToken);
+  if (!generatedBackendClient || generatedBackendClientSessionKey !== sessionKey) {
+    generatedBackendClient = createBirdCoderGeneratedBackendSdkClient(
+      authToken || accessToken ? { accessToken, authToken } : {},
+    );
+    generatedBackendClientSessionKey = sessionKey;
+  }
+  return generatedBackendClient;
+}
+
+export function resetBirdCoderSdkClients(): void {
+  generatedAppClient = null;
+  generatedAppClientSessionKey = undefined;
+  generatedBackendClient = null;
+  generatedBackendClientSessionKey = undefined;
+}
+
+export function resetBirdCoderSdkSessionAuthRedirectState(): void {
+  sessionAuthRedirectTarget = null;
+}
+
+export function isBirdCoderSdkSessionAuthError(error: unknown): boolean {
+  const code = readBirdCoderSdkErrorCode(error);
+  const httpStatus = readBirdCoderSdkErrorHttpStatus(error);
+  const businessCode = readBirdCoderSdkBusinessCode(error);
+  if (httpStatus === 401) {
+    return true;
+  }
+  if (code && SESSION_AUTH_ERROR_CODES.has(code.toUpperCase())) {
+    return true;
+  }
+  if (businessCode && SESSION_AUTH_ERROR_CODES.has(businessCode.toUpperCase())) {
+    return true;
+  }
+
+  const message = readBirdCoderSdkErrorMessage(error).toLowerCase();
+  return SESSION_AUTH_ERROR_MESSAGES.some((pattern) => message.includes(pattern));
+}
+
+export function handleBirdCoderSdkSessionAuthError(error: unknown): boolean {
+  if (!isBirdCoderSdkSessionAuthError(error)) {
+    return false;
+  }
+
+  clearStoredAppSessionToken();
+  resetBirdCoderSdkClients();
+  redirectBrowserToBirdCoderLoginAfterSessionAuthError(readBrowserWindow());
+  return true;
+}
+
+function resolveBirdCoderGeneratedSdkTransport(
+  options: BirdCoderGeneratedAppSdkClientOptions | BirdCoderGeneratedBackendSdkClientOptions,
+): BirdCoderApiTransport {
+  if (options.transport) {
+    return options.transport;
+  }
+
+  const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
+  const baseUrl = options.apiBaseUrl ?? runtimeConfig.apiBaseUrl;
+  if (baseUrl) {
+    return createBirdCoderHttpApiTransport({
+      baseUrl,
+      resolveHeaders: resolveRuntimeServerSessionHeaders,
+      timeoutMs: options.timeoutMs,
+    });
+  }
+
+  return createUnavailableBirdCoderGeneratedSdkTransport();
+}
+
+function createUnavailableBirdCoderGeneratedSdkTransport(): BirdCoderApiTransport {
+  return {
+    async request(request: Parameters<BirdCoderApiTransport['request']>[0]) {
+      throw new Error(
+        `BirdCoder generated SDK client is unavailable. Configure a real server API base URL or explicit generated SDK transport before using ${request.method} ${request.path}.`,
+      );
+    },
+  };
+}
+
+function createBirdCoderSessionAwareTransport(transport: BirdCoderApiTransport): BirdCoderApiTransport {
+  return {
+    async request<TResponse>(
+      request: Parameters<BirdCoderApiTransport['request']>[0],
+    ): Promise<TResponse> {
+      try {
+        return await transport.request<TResponse>(request);
+      } catch (error) {
+        handleBirdCoderSdkSessionAuthError(error);
+        throw error;
+      }
+    },
+  };
+}
+
+function hasGeneratedSdkRuntimeOverrides(
+  options: BirdCoderGeneratedAppSdkClientOptions | BirdCoderGeneratedBackendSdkClientOptions,
+): boolean {
+  return Object.keys(options).length > 0;
+}
+
+function createSessionKey(authToken: string | undefined, accessToken: string | undefined): string {
+  return `${authToken ?? ''}:${accessToken ?? ''}`;
+}
+
+type BrowserLocationWithReplace = {
+  hash?: string;
+  pathname?: string;
+  replace?: (url: string) => void;
+  search?: string;
+};
+
+type BrowserWindowWithLocation = {
+  location?: BrowserLocationWithReplace;
+};
+
+function readBrowserWindow(): BrowserWindowWithLocation | undefined {
+  const candidate = globalThis as typeof globalThis & { window?: BrowserWindowWithLocation };
+  return candidate.window;
+}
+
+function redirectBrowserToBirdCoderLoginAfterSessionAuthError(
+  browserWindow: BrowserWindowWithLocation | undefined,
+): void {
+  const location = browserWindow?.location;
+  if (!location || typeof location.replace !== 'function') {
+    return;
+  }
+
+  const pathname = normalizeBrowserLocationPathname(location.pathname);
+  if (pathname === '/auth' || pathname.startsWith('/auth/')) {
+    return;
+  }
+
+  const redirectTo = buildBirdCoderAuthLoginRedirect({
+    hash: location.hash,
+    pathname,
+    search: location.search,
+  });
+  if (sessionAuthRedirectTarget === redirectTo) {
+    return;
+  }
+
+  sessionAuthRedirectTarget = redirectTo;
+  location.replace(redirectTo);
+}
+
+function buildBirdCoderAuthLoginRedirect({
+  hash,
+  pathname,
+  search,
+}: {
+  hash?: string;
+  pathname: string;
+  search?: string;
+}): string {
+  const redirectPath = `${pathname}${search ?? ''}${hash ?? ''}`;
+  const params = new URLSearchParams();
+  if (redirectPath && redirectPath !== '/') {
+    params.set('redirect', redirectPath);
+  }
+  const query = params.toString();
+  return query ? `/auth?${query}` : '/auth';
+}
+
+function normalizeBrowserLocationPathname(pathname: string | undefined): string {
+  const normalized = pathname?.trim();
+  if (!normalized) {
+    return '/';
+  }
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
+function readBirdCoderSdkErrorCode(error: unknown): string {
+  const value = readBirdCoderSdkErrorField(error, 'code');
+  return normalizeBirdCoderSdkErrorCode(value);
+}
+
+function readBirdCoderSdkBusinessCode(error: unknown): string {
+  const value = readBirdCoderSdkErrorField(error, 'businessCode');
+  return normalizeBirdCoderSdkErrorCode(value);
+}
+
+function readBirdCoderSdkErrorHttpStatus(error: unknown): number | undefined {
+  const value = readBirdCoderSdkErrorField(error, 'httpStatus');
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function readBirdCoderSdkErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  const value = readBirdCoderSdkErrorField(error, 'message')
+    ?? readBirdCoderSdkErrorField(error, 'msg');
+  return typeof value === 'string' ? value : '';
+}
+
+function readBirdCoderSdkErrorField(error: unknown, key: string): unknown {
+  if (!isBirdCoderSdkErrorRecord(error)) {
+    return undefined;
+  }
+  return error[key];
+}
+
+function normalizeBirdCoderSdkErrorCode(value: unknown): string {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.trunc(value));
+  }
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function isBirdCoderSdkErrorRecord(error: unknown): error is Record<string, unknown> {
+  return typeof error === 'object' && error !== null && !Array.isArray(error);
 }
 
 export function createBirdCoderAppSdkApiClient({

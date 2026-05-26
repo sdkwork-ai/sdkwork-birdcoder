@@ -2,6 +2,7 @@ import type { BirdCoderTeam } from '@sdkwork/birdcoder-types';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { ITeamService } from '../interfaces/ITeamService.ts';
 import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
+import { CurrentUserScopeResolver } from '../currentUserScope.ts';
 
 function mapTeamSummaryToTeam(
   team: Awaited<ReturnType<BirdCoderAppSdkApiClient['listTeams']>>[number],
@@ -33,17 +34,18 @@ export interface ApiBackedTeamServiceOptions {
 
 export class ApiBackedTeamService implements ITeamService {
   private readonly appClient: BirdCoderAppSdkApiClient;
-  private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  private readonly currentUserScopeResolver: CurrentUserScopeResolver;
 
   constructor({ appClient, currentUserProvider }: ApiBackedTeamServiceOptions) {
     this.appClient = appClient;
-    this.currentUserProvider = currentUserProvider;
+    this.currentUserScopeResolver = new CurrentUserScopeResolver({
+      currentUserProvider,
+    });
   }
 
   private async resolveCurrentUserId(): Promise<string | undefined> {
-    const user = await this.currentUserProvider?.getCurrentUser();
-    const userId = user?.id?.trim();
-    return userId && userId.length > 0 ? userId : undefined;
+    const scope = await this.currentUserScopeResolver.resolve();
+    return scope.userId === 'anonymous' ? undefined : scope.userId;
   }
 
   async getTeams(workspaceId?: string): Promise<BirdCoderTeam[]> {

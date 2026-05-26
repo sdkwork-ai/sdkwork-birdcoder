@@ -17,91 +17,107 @@ function readAppbaseText(relativePath) {
   return fs.readFileSync(path.resolve(appbaseWorkspaceRoot, relativePath), 'utf8');
 }
 
-function readAppbaseJson(relativePath) {
-  return JSON.parse(readAppbaseText(relativePath));
+function assertNoUserCenterDependency(packageJson, label) {
+  const dependencies = {
+    ...(packageJson.dependencies ?? {}),
+    ...(packageJson.devDependencies ?? {}),
+    ...(packageJson.peerDependencies ?? {}),
+  };
+
+  for (const dependencyName of Object.keys(dependencies)) {
+    assert.equal(
+      dependencyName.startsWith('@sdkwork/user-center-'),
+      false,
+      `${label} must not depend on ${dependencyName}; BirdCoder uses the standard IAM runtime and the split auth/user/vip packages directly.`,
+    );
+  }
+}
+
+function assertNoUserCenterSource(source, label) {
+  assert.doesNotMatch(
+    source,
+    /@sdkwork\/user-center-|createSdkworkCanonicalAuthSurfacePage|createSdkworkCanonicalUserCenterSurfacePage|userCenterRuntimeBridge|UserCenterRuntime|user-center-runtime/u,
+    `${label} must not keep the retired application-level user-center surface.`,
+  );
 }
 
 const authPackageJson = readJson('packages/sdkwork-birdcoder-auth/package.json');
-const authTsconfig = readJson('packages/sdkwork-birdcoder-auth/tsconfig.json');
+const iamPackageJson = readJson('packages/sdkwork-birdcoder-iam/package.json');
 const userPackageJson = readJson('packages/sdkwork-birdcoder-user/package.json');
+const workspacePackageJson = readJson('package.json');
+const authTsconfig = readJson('packages/sdkwork-birdcoder-auth/tsconfig.json');
 const userTsconfig = readJson('packages/sdkwork-birdcoder-user/tsconfig.json');
 const authPageSource = readText('packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx');
+const authSurfaceSource = readText('packages/sdkwork-birdcoder-auth/src/auth-surface.ts');
+const iamIntegrationSource = readText('packages/sdkwork-birdcoder-iam/src/iamIntegration.ts');
+const userPageSource = readText('packages/sdkwork-birdcoder-user/src/pages/UserPage.tsx');
+const vipPageSource = readText('packages/sdkwork-birdcoder-user/src/pages/VipPage.tsx');
+const userSurfaceSource = readText('packages/sdkwork-birdcoder-user/src/user-surface.ts');
+const vipSurfaceSource = readText('packages/sdkwork-birdcoder-user/src/vip-surface.ts');
 const vitePluginSource = readText('scripts/create-birdcoder-vite-plugins.mjs');
 const shellStylesheetSource = readText('packages/sdkwork-birdcoder-shell/src/styles/index.css');
-const workspacePackageJson = readJson('package.json');
-const sharedAuthPackageJson = readAppbaseJson('packages/pc-react/iam/sdkwork-auth-pc-react/package.json');
-const sharedUserCenterPackageJson = readAppbaseJson(
-  'packages/pc-react/iam/sdkwork-user-center-pc-react/package.json',
+const sharedAuthRoutesSource = readAppbaseText('packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/IamAuthRoutes.tsx');
+const sharedAuthRuntimeSource = readAppbaseText('packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-iam-runtime.ts');
+const sharedUserPackageJson = JSON.parse(
+  readAppbaseText('packages/pc-react/iam/sdkwork-user-pc-react/package.json'),
 );
-const sharedAuthPageSource = readAppbaseText('packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/AuthPage.tsx');
-const sharedAuthShellSource = readAppbaseText('packages/pc-react/iam/sdkwork-auth-pc-react/src/components/auth-page-shell.tsx');
-
 assert.equal(
   authPackageJson.dependencies?.['@sdkwork/auth-pc-react'],
   'workspace:*',
-  'sdkwork-birdcoder-auth must declare the canonical @sdkwork/auth-pc-react package directly.',
+  'sdkwork-birdcoder-auth must consume the canonical @sdkwork/auth-pc-react package directly.',
+);
+assert.equal(
+  authPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure-runtime'],
+  undefined,
+  'sdkwork-birdcoder-auth must stay UI-only; runtime binding is owned by sdkwork-birdcoder-iam.',
+);
+assert.equal(
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-auth'],
+  'workspace:*',
+  'sdkwork-birdcoder-iam must compose the BirdCoder auth UI package.',
+);
+assert.equal(
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure'],
+  'workspace:*',
+  'sdkwork-birdcoder-iam must bind auth UI to the infrastructure IAM runtime through the public package entry.',
+);
+assert.equal(
+  userPackageJson.dependencies?.['@sdkwork/user-pc-react'],
+  'workspace:*',
+  'sdkwork-birdcoder-user must consume the canonical @sdkwork/user-pc-react package directly.',
+);
+assert.equal(
+  userPackageJson.dependencies?.['@sdkwork/vip-pc-react'],
+  undefined,
+  'sdkwork-birdcoder-user must not depend on the retired shared VIP UI package; commerce membership uses the generated BirdCoder app SDK.',
 );
 
-assert.equal(
-  authPackageJson.dependencies?.['@sdkwork/ui-pc-react'],
-  'workspace:*',
-  'sdkwork-birdcoder-auth must declare the shared @sdkwork/ui-pc-react package required by shared auth UI.',
-);
-
-assert.equal(
-  authPackageJson.dependencies?.['@sdkwork/user-center-pc-react'],
-  'workspace:*',
-  'sdkwork-birdcoder-auth must declare the canonical @sdkwork/user-center-pc-react package directly.',
-);
+assertNoUserCenterDependency(authPackageJson, 'sdkwork-birdcoder-auth');
+assertNoUserCenterDependency(iamPackageJson, 'sdkwork-birdcoder-iam');
+assertNoUserCenterDependency(userPackageJson, 'sdkwork-birdcoder-user');
+assertNoUserCenterDependency(workspacePackageJson, 'workspace root');
 
 assert.equal(
   authTsconfig.compilerOptions?.paths?.['@sdkwork/auth-pc-react'],
   undefined,
-  'sdkwork-birdcoder-auth tsconfig must not override @sdkwork/auth-pc-react; the canonical shared auth package must resolve through the workspace package root.',
+  'sdkwork-birdcoder-auth tsconfig must not override @sdkwork/auth-pc-react; shared package resolution must come from the workspace package root.',
 );
-
-assert.equal(
-  authTsconfig.compilerOptions?.paths?.['@sdkwork/user-center-pc-react'],
-  undefined,
-  'sdkwork-birdcoder-auth tsconfig must not override @sdkwork/user-center-pc-react; the canonical shared user-center package must resolve through the workspace package root.',
-);
-
 assert.equal(
   userTsconfig.compilerOptions?.paths?.['@sdkwork/user-pc-react'],
   undefined,
-  'sdkwork-birdcoder-user tsconfig must not override @sdkwork/user-pc-react; the canonical shared user package must resolve through the workspace package root.',
+  'sdkwork-birdcoder-user tsconfig must not override @sdkwork/user-pc-react; shared package resolution must come from the workspace package root.',
 );
 
-assert.equal(
-  userPackageJson.dependencies?.['@sdkwork/user-pc-react'],
-  'workspace:*',
-  'sdkwork-birdcoder-user must declare the canonical @sdkwork/user-pc-react package directly.',
+assert.match(
+  sharedAuthRoutesSource,
+  /export function SdkworkIamAuthRoutes/u,
+  'sdkwork-auth-pc-react must expose the standard IAM auth route renderer.',
 );
-
-assert.equal(
-  userPackageJson.dependencies?.['@sdkwork/user-center-pc-react'],
-  'workspace:*',
-  'sdkwork-birdcoder-user must declare the canonical @sdkwork/user-center-pc-react package directly.',
+assert.match(
+  sharedAuthRuntimeSource,
+  /createSdkworkIamRuntimeAuthController/u,
+  'sdkwork-auth-pc-react must expose the standard IAM runtime auth controller.',
 );
-
-assert.deepEqual(
-  sharedAuthPackageJson.exports?.['.'],
-  {
-    types: './src/index.ts',
-    import: './src/index.ts',
-    default: './src/index.ts',
-  },
-  'sdkwork-auth-pc-react must publish the canonical root entry for embedded host applications.',
-);
-
-assert.equal(
-  sharedAuthPackageJson.exports?.['./surface'],
-  undefined,
-  'sdkwork-auth-pc-react must not publish subpath surface exports; root-package imports are the only standard.',
-);
-
-const sharedUserPackageJson = readAppbaseJson('packages/pc-react/iam/sdkwork-user-pc-react/package.json');
-
 assert.deepEqual(
   sharedUserPackageJson.exports?.['.'],
   {
@@ -111,81 +127,78 @@ assert.deepEqual(
   },
   'sdkwork-user-pc-react must publish the canonical root entry for embedded host applications.',
 );
-
-assert.equal(
-  sharedUserPackageJson.exports?.['./surface'],
-  undefined,
-  'sdkwork-user-pc-react must not publish subpath surface exports; root-package imports are the only standard.',
-);
-
-assert.deepEqual(
-  sharedUserCenterPackageJson.exports?.['.'],
-  {
-    types: './src/index.ts',
-    import: './src/index.ts',
-    default: './src/index.ts',
-  },
-  'sdkwork-user-center-pc-react must publish the canonical root entry for embedded host applications.',
-);
-
-assert.match(
-  sharedAuthPageSource,
-  /components\/auth\/AccountPasswordLoginForm\.tsx/u,
-  'sdkwork-auth-pc-react must keep the claw-aligned account-password form extracted into the shared auth component layer.',
-);
-
-assert.match(
-  sharedAuthPageSource,
-  /components\/auth\/RegisterFlow\.tsx/u,
-  'sdkwork-auth-pc-react must keep the claw-aligned register flow extracted into the shared auth component layer.',
-);
-
-assert.match(
-  sharedAuthShellSource,
-  /rounded-\[32px\]/u,
-  'sdkwork-auth-pc-react shell must keep the claw-aligned rounded auth workspace container.',
-);
-
 assert.match(
   authPageSource,
-  /from ['"]@sdkwork\/user-center-pc-react['"]/u,
-  'BirdCoder auth page must import the canonical shared user-center root entry.',
+  /SdkworkIamAuthRoutes/u,
+  'BirdCoder AuthPage must render SdkworkIamAuthRoutes.',
+);
+assert.match(
+  authPageSource,
+  /getRuntime=\{getRuntime\}/u,
+  'BirdCoder AuthPage must receive the IAM runtime from the IAM integration boundary.',
+);
+assert.match(
+  iamIntegrationSource,
+  /loadAuthPage\(\{ getRuntime: getBirdCoderIamRuntime \}\)/u,
+  'BirdCoder IAM integration must inject the generated-SDK backed IAM runtime into the auth page loader.',
+);
+assert.match(
+  authSurfaceSource,
+  /createSdkworkIamRuntimeAuthController/u,
+  'BirdCoder auth surface must use the standard IAM runtime auth controller.',
 );
 
+for (const [source, label] of [
+  [authPageSource, 'BirdCoder AuthPage'],
+  [authSurfaceSource, 'BirdCoder auth surface'],
+  [userPageSource, 'BirdCoder user page'],
+  [vipPageSource, 'BirdCoder VIP page'],
+  [userSurfaceSource, 'BirdCoder user surface'],
+  [vipSurfaceSource, 'BirdCoder VIP surface'],
+]) {
+  assertNoUserCenterSource(source, label);
+}
+
+assert.match(
+  userSurfaceSource,
+  /createSdkworkCanonicalUserController/u,
+  'BirdCoder user surface must use the canonical sdkwork user controller.',
+);
+assert.match(
+  vipSurfaceSource,
+  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships\.current\.retrieve\(\)/u,
+  'BirdCoder VIP surface must read current membership through the generated commerce.memberships.current SDK surface.',
+);
+assert.match(
+  vipSurfaceSource,
+  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships\.packageGroups\.list\(\)/u,
+  'BirdCoder VIP surface must read membership package groups through the generated commerce.memberships.packageGroups SDK surface.',
+);
 assert.doesNotMatch(
-  authPageSource,
-  /from ['"]@sdkwork\/user-center-pc-react\/.+['"]/u,
-  'BirdCoder auth page must not import @sdkwork/user-center-pc-react subpath entries directly.',
-);
-
-assert.match(
-  authPageSource,
-  /createSdkworkCanonicalAuthSurfacePage/u,
-  'BirdCoder auth page must render the shared canonical auth surface factory from sdkwork-appbase.',
-);
-
-assert.doesNotMatch(
-  authPageSource,
-  /useBirdcoderIamSurfaceAppearance|mergeUserCenterSurfaceAppearanceInputs|mergeSdkworkAuthAppearanceConfigs|BIRDCODER_AUTH_SURFACE_RUNTIME_INVARIANT|qrLoginEnabled/u,
-  'BirdCoder auth page must not inject BirdCoder-specific IAM appearance or runtime overrides around the appbase canonical auth surface.',
-);
-
-assert.match(
-  authPageSource,
-  /\.\.\/auth-surface(?:\.ts)?/u,
-  'BirdCoder auth page must delegate controller assembly to the split auth surface adapter.',
+  vipSurfaceSource,
+  /@sdkwork\/vip-pc-react|createSdkworkVipController|createSdkworkVipService|\/billing\/vip/u,
+  'BirdCoder VIP surface must not keep the retired shared VIP UI, local VIP service, or billing/vip alias.',
 );
 
 assert.match(
   vitePluginSource,
   /find: ['"]@sdkwork\/auth-pc-react['"]/u,
-  'BirdCoder Vite aliases must resolve @sdkwork/auth-pc-react from the sdkwork-appbase source tree.',
+  'BirdCoder Vite aliases must resolve @sdkwork/auth-pc-react from sdkwork-appbase.',
 );
-
 assert.match(
   vitePluginSource,
-  /find: ['"]@sdkwork\/user-center-pc-react['"]/u,
-  'BirdCoder Vite aliases must resolve @sdkwork/user-center-pc-react from the sdkwork-appbase source tree.',
+  /find: ['"]@sdkwork\/user-pc-react['"]/u,
+  'BirdCoder Vite aliases must resolve @sdkwork/user-pc-react from sdkwork-appbase.',
+);
+assert.doesNotMatch(
+  vitePluginSource,
+  /find:\s*(?:['"]@sdkwork\/vip-pc-react['"]|\/\^@sdkwork\\\/vip-pc-react\\\/)/u,
+  'BirdCoder Vite aliases must not keep the retired shared VIP UI package entrypoints.',
+);
+assert.doesNotMatch(
+  vitePluginSource,
+  /find: ['"]@sdkwork\/(?:user-center|auth-runtime)-pc-react['"]/u,
+  'BirdCoder Vite aliases must not keep retired user-center/auth-runtime appbase entrypoints.',
 );
 
 assert.match(
@@ -193,17 +206,21 @@ assert.match(
   /sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-auth-pc-react\/src/u,
   'BirdCoder shell stylesheet must scan the shared auth source tree for Tailwind classes.',
 );
-
+assert.match(
+  shellStylesheetSource,
+  /sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-user-pc-react\/src/u,
+  'BirdCoder shell stylesheet must scan the shared user source tree for Tailwind classes.',
+);
 assert.match(
   shellStylesheetSource,
   /sdkwork-ui\/sdkwork-ui-pc-react\/src/u,
-  'BirdCoder shell stylesheet must scan the shared UI source tree required by shared auth components.',
+  'BirdCoder shell stylesheet must scan the shared UI source tree required by shared auth/user components.',
 );
 
 assert.match(
   workspacePackageJson.scripts?.['check:iam-standard'] ?? '',
   /auth-ui-standard-contract\.test\.mjs/u,
-  'BirdCoder parity checks must include the auth UI standard contract.',
+  'BirdCoder IAM standard checks must include the auth UI standard contract.',
 );
 
 console.log('birdcoder auth ui standard contract passed.');

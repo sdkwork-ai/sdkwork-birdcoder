@@ -21,7 +21,7 @@ const qrFallbackUser = buildUser(
 const canonicalRuntimeUser = buildUser(
   '100000000000000501',
   'user@example.com',
-  'Canonical user-center profile',
+  'Canonical IAM profile',
 );
 const staleRuntimeUser = buildUser(
   '100000000000000999',
@@ -37,7 +37,7 @@ const sameIdRuntimeUser = buildUser(
 assert.equal(
   hasSameBirdCoderAuthUserIdentity(qrFallbackUser, canonicalRuntimeUser),
   true,
-  'Auth identity matching must treat same email as the same user even when a QR/OAuth fallback id differs from the canonical user-center profile id.',
+  'Auth identity matching must treat same email as the same user even when a QR/OAuth fallback id differs from the canonical IAM profile id.',
 );
 
 assert.equal(

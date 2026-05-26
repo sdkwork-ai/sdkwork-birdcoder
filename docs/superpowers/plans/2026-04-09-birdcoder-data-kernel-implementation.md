@@ -4,7 +4,7 @@
 
 **Goal:** Build a unified data kernel for BirdCoder with domain models, storage abstractions, and SQLite/PostgreSQL-ready schema contracts while removing direct storage access from app-facing modules.
 
-**Architecture:** Define the domain and provider contracts in `@sdkwork/birdcoder-types`, implement shared browser/Tauri-backed repositories in `@sdkwork/birdcoder-commons`, then align appbase auth/user/vip storage and the desktop SQLite schema to the same contract.
+**Architecture:** Define the domain and provider contracts in `@sdkwork/birdcoder-types`, implement shared browser/Tauri-backed repositories in `@sdkwork/birdcoder-commons`, then align BirdCoder IAM, user, commerce membership, and the desktop SQLite schema to the same contract.
 
 **Tech Stack:** TypeScript, React 19, PNPM workspace, Tauri, Rust, SQLite, contract tests.
 
@@ -37,11 +37,11 @@
 - Create: `packages/sdkwork-birdcoder-commons/src/storage/dataKernel.ts`
 - Modify: `packages/sdkwork-birdcoder-commons/src/storage/localStore.ts`
 - Modify: `packages/sdkwork-birdcoder-commons/src/index.ts`
-- Modify: `packages/sdkwork-birdcoder-appbase/src/storage.ts`
-- Modify: `packages/sdkwork-birdcoder-appbase/src/pages/UserCenterPage.tsx`
-- Modify: `packages/sdkwork-birdcoder-appbase/src/pages/VipPage.tsx`
-- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/impl/MockAuthService.ts`
-- Modify: `packages/sdkwork-birdcoder-commons/src/services/impl/MockAuthService.ts`
+- Modify: `packages/sdkwork-birdcoder-user/src/user-surface.ts`
+- Modify: `packages/sdkwork-birdcoder-user/src/pages/UserPage.tsx`
+- Modify: `packages/sdkwork-birdcoder-user/src/pages/VipPage.tsx`
+- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeAuthService.ts`
+- Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/appSessionToken.ts`
 
 - [ ] **Step 1: Implement provider-neutral repository helpers and canonical storage keys**
 - [ ] **Step 2: Replace raw appbase storage reads/writes with the shared repository helpers**

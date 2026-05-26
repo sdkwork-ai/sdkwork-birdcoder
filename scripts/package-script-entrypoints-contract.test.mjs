@@ -59,13 +59,6 @@ const entrypointContracts = [
     launchPattern: /process\.exit\(runQualityFastCheck\(\)\)/,
   },
   {
-    scriptName: 'test:user-center-standard',
-    command: 'node scripts/run-user-center-standard.mjs',
-    filePath: path.join(rootDir, 'scripts', 'run-user-center-standard.mjs'),
-    exportedFunctionPattern: /export function createUserCenterStandardTestPlan\(/,
-    launchPattern: /process\.exit\(runUserCenterStandardTestCli\(\)\)/,
-  },
-  {
     scriptName: 'check:quality:standard',
     command: 'node scripts/run-quality-standard-check.mjs',
     filePath: path.join(rootDir, 'scripts', 'run-quality-standard-check.mjs'),

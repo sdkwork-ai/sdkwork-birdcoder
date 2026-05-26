@@ -7,6 +7,7 @@ import type {
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 import type { ICollaborationService } from '../interfaces/ICollaborationService.ts';
 import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
+import { CurrentUserScopeResolver } from '../currentUserScope.ts';
 
 export interface ApiBackedCollaborationServiceOptions {
   appClient: BirdCoderAppSdkApiClient;
@@ -15,17 +16,18 @@ export interface ApiBackedCollaborationServiceOptions {
 
 export class ApiBackedCollaborationService implements ICollaborationService {
   private readonly appClient: BirdCoderAppSdkApiClient;
-  private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
+  private readonly currentUserScopeResolver: CurrentUserScopeResolver;
 
   constructor({ appClient, currentUserProvider }: ApiBackedCollaborationServiceOptions) {
     this.appClient = appClient;
-    this.currentUserProvider = currentUserProvider;
+    this.currentUserScopeResolver = new CurrentUserScopeResolver({
+      currentUserProvider,
+    });
   }
 
   private async resolveCurrentUserId(): Promise<string | undefined> {
-    const user = await this.currentUserProvider?.getCurrentUser();
-    const userId = user?.id?.trim();
-    return userId && userId.length > 0 ? userId : undefined;
+    const scope = await this.currentUserScopeResolver.resolve();
+    return scope.userId === 'anonymous' ? undefined : scope.userId;
   }
 
   async listProjectCollaborators(projectId: string): Promise<BirdCoderProjectCollaboratorSummary[]> {

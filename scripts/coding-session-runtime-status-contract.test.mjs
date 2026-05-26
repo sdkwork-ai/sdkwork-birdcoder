@@ -94,8 +94,14 @@ assert.match(
 
 assert.match(
   serverApiSource,
-  /export type BirdCoderUserCenterMode = 'builtin-local' \| 'sdkwork-cloud-app-api' \| 'external-user-center';/,
-  'BirdCoder server-api user-center mode type must expose the canonical unified deployment selectors.',
+  /export interface BirdCoderIamRuntimeSettingsSummary \{[\s\S]*loginMethods: BirdCoderIamLoginMethod\[];[\s\S]*verificationPolicy: BirdCoderIamVerificationPolicySummary;/,
+  'BirdCoder server-api contracts must expose standard SDKWork IAM runtime settings instead of a user-center deployment selector.',
+);
+
+assert.doesNotMatch(
+  serverApiSource,
+  /BirdCoderUserCenter|external-user-center|sdkwork-cloud-app-api|user-center/u,
+  'BirdCoder server-api contracts must not keep retired user-center compatibility types or deployment selectors.',
 );
 
 assert.match(

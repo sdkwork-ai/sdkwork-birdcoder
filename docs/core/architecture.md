@@ -1,6 +1,6 @@
-﻿# Architecture
+# Architecture
 
-SDKWork BirdCoder follows the Claw Studio architecture standard at the workspace, host, release, and deployment layers while keeping BirdCoder as a super AI IDE product.
+SDKWork BirdCoder follows the SDKWork application architecture standard at the workspace, host, release, and deployment layers while keeping BirdCoder as an AI IDE product.
 
 ## Layering
 
@@ -9,37 +9,40 @@ SDKWork BirdCoder follows the Claw Studio architecture standard at the workspace
 - Delivery hosts: `sdkwork-birdcoder-web`, `sdkwork-birdcoder-desktop`, `sdkwork-birdcoder-server`
 - Delivery and deployment: `sdkwork-birdcoder-distribution`, `deploy/docker`, `deploy/kubernetes`, `scripts/release`, `.github/workflows`
 
-## Product boundary
+## Product Boundary
 
-BirdCoder keeps its AI IDE business modules such as `code`, `studio`, `terminal`, `settings`, `skills`, and `templates`, while IAM and membership converge through the split `sdkwork-birdcoder-auth` and `sdkwork-birdcoder-user` packages. The shell consumes those two packages as the only IAM surface, and the user package keeps the runtime user-center, validation, storage, and membership contracts aligned with the upstream `sdkwork-appbase` shape. Active release governance now treats that alignment as executable policy through `check:iam-standard`, rather than a docs-only convention.
+BirdCoder keeps AI IDE business modules such as `code`, `studio`, `terminal`, `settings`, `skills`, and `templates` outside the shared IAM boundary. `@sdkwork/birdcoder-auth` owns login-facing route contracts and shared auth UI entrypoints. `@sdkwork/birdcoder-user` owns user-facing profile and VIP membership pages. Both packages consume SDKWork IAM through the generated app SDK and shared runtime boundary; they do not define a second identity system.
 
-## IAM standard
+Active release governance treats this as executable policy through `check:iam-standard`: source APIs, OpenAPI snapshots, generated SDKs, runtime services, and user-facing packages must stay aligned with SDKWork IAM naming and behavior.
 
-BirdCoder treats IAM as a three-layer standard instead of a per-app customization:
+## IAM Standard
+
+BirdCoder treats IAM as a deployment standard, not an app-local customization:
 
 - Delivery mode: `web`, `desktop`, `server`, `container`, `kubernetes`
 - IAM deployment mode: `desktop-local`, `server-private`, `cloud-saas`
-- User-center provider mode: `builtin-local`, `external-user-center`, `sdkwork-cloud-app-api`
+- Shared app API contract: generated SDK clients over `/app/v3/api`
 
-The important boundary is that deployment and provider selection are allowed to change, but the frontend service contract does not. BirdCoder keeps the same facade routes across all IAM modes:
+The important boundary is that deployment selection may change, but the frontend service contract does not. BirdCoder keeps the same facade routes across all IAM modes:
 
 - `/app/v3/api/auth/*`
 - `/app/v3/api/iam/users/current`
-- `/app/v3/api/billing/vip/info`
+- `/app/v3/api/memberships/current`
+- `/app/v3/api/memberships/package_groups`
 
-That route invariance is the sample-app standard. The shell and BirdCoder service layer stay branch-free while the server binding decides whether IAM is resolved locally, bridged to a third-party external user center, or delegated to `sdkwork-cloud-app-api`.
+That route invariance is the sample-app standard. The shell and BirdCoder service layer stay branch-free while the server binding resolves SDKWork IAM from local, private, or cloud authority according to deployment mode.
 
-## Quality gates
+## Quality Gates
 
-- Step 12 now freezes explicit `fast`, `standard`, and `release` quality gates at the workspace root through `check:quality:fast`, `check:quality:standard`, and `check:quality:release`.
-- `scripts/quality-gate-matrix-report.mjs` emits `artifacts/quality/quality-gate-matrix-report.json`, so CI and release tier drift becomes machine-verifiable alongside governance and appbase parity across both workflow bindings and root `package.json` quality-tier bindings.
-- The same quality report now carries `environmentDiagnostics` and `blockingDiagnosticIds`, which turns host-specific `toolchain-platform` blockers into structured evidence instead of release-note-only narrative.
-- `scripts/quality-gate-execution-report.mjs` adds the runtime side of Step 12 by recording the real `fast -> standard -> release` cascade into `artifacts/quality/quality-gate-execution-report.json`.
-- Release finalization now republishes the matrix evidence into `quality/quality-gate-matrix-report.json`, optionally archives the runtime report as `quality/quality-gate-execution-report.json`, freezes a normalized `qualityEvidence` summary in `release-manifest.json`, preserves Step 18 `releaseGovernanceCheckIds`, keeps manifest-bound counts beside workflow-bound counts, and lets rendered release notes reuse the same blocker and topology data.
+- Step 12 freezes explicit `fast`, `standard`, and `release` quality gates at the workspace root through `check:quality:fast`, `check:quality:standard`, and `check:quality:release`.
+- `scripts/quality-gate-matrix-report.mjs` emits `artifacts/quality/quality-gate-matrix-report.json`, so CI and release tier drift becomes machine-verifiable alongside governance and SDKWork IAM parity across both workflow bindings and root `package.json` quality-tier bindings.
+- The same quality report carries `environmentDiagnostics` and `blockingDiagnosticIds`, which turns host-specific `toolchain-platform` blockers into structured evidence instead of release-note-only narrative.
+- `scripts/quality-gate-execution-report.mjs` records the real `fast -> standard -> release` cascade into `artifacts/quality/quality-gate-execution-report.json`.
+- Release finalization republishes the matrix evidence into `quality/quality-gate-matrix-report.json`, optionally archives the runtime report as `quality/quality-gate-execution-report.json`, freezes a normalized `qualityEvidence` summary in `release-manifest.json`, preserves Step 18 `releaseGovernanceCheckIds`, keeps manifest-bound counts beside workflow-bound counts, and lets rendered release notes reuse the same blocker and topology data.
 
-## Canonical docs
+## Canonical Docs
 
 - Package topology: [Packages](./packages.md)
 - Desktop runtime shape: [Desktop Runtime](./desktop.md)
 - Release and deployment: [Release And Deployment](./release-and-deployment.md)
-- Full Chinese architecture standards: [鏋舵瀯鏂囨。鎬昏](../鏋舵瀯/README.md)
+- Full Chinese architecture standards: [Architecture Standards](../架构/README.md)

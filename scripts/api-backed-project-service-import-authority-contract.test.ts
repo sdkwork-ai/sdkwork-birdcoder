@@ -13,16 +13,28 @@ const serviceSource = await import('node:fs/promises').then((fs) => fs.readFile(
   ),
   'utf8',
 ));
+const currentUserScopeSource = await import('node:fs/promises').then((fs) => fs.readFile(
+  new URL(
+    '../packages/sdkwork-birdcoder-infrastructure/src/services/currentUserScope.ts',
+    import.meta.url,
+  ),
+  'utf8',
+));
 
 assert.doesNotMatch(
-  serviceSource,
+  currentUserScopeSource,
   /\/app\/v3\/api\/auth\/session(?:['"`\)]|$)/u,
-  'ApiBackedProjectService must not match retired singular /auth/session errors; use canonical /auth/sessions/current.',
+  'CurrentUserScopeResolver must not match retired singular /auth/session errors; use canonical /auth/sessions/current.',
+);
+assert.match(
+  currentUserScopeSource,
+  /\/app\/v3\/api\/auth\/sessions\/current/u,
+  'CurrentUserScopeResolver optional IAM fallback must recognize the canonical current-session path.',
 );
 assert.match(
   serviceSource,
-  /\/app\/v3\/api\/auth\/sessions\/current/u,
-  'ApiBackedProjectService optional IAM fallback must recognize the canonical current-session path.',
+  /CurrentUserScopeResolver/u,
+  'ApiBackedProjectService must use the shared current-user scope resolver instead of duplicating IAM fallback rules.',
 );
 
 const localProject: BirdCoderProject = {

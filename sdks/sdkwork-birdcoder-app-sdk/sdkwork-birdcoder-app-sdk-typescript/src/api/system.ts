@@ -3,8 +3,8 @@
 import type {
   BirdcoderSdkRequestOperation,
   BirdcoderSdkRequestOptions,
-} from '../http';
-import type * as Types from '../types';
+} from '../http/index.ts';
+import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 type SystemOperationsRetrievePathParams = Types.SystemOperationsRetrievePathParams;
@@ -15,6 +15,14 @@ export interface SystemApi {
   };
   health: {
     retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCoreHealthSummaryEnvelope>;
+  };
+  iam: {
+    runtime: {
+      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamRuntimeSettingsEnvelope>;
+    };
+    verificationPolicy: {
+      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamVerificationPolicyEnvelope>;
+    };
   };
   operations: {
     retrieve(pathParams: SystemOperationsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderOperationDescriptorEnvelope>;
@@ -37,6 +45,18 @@ export function createSystemApi(requestOperation: BirdcoderSdkRequestOperation):
     health: {
       retrieve(options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderCoreHealthSummaryEnvelope>("system.health.retrieve", {}, options);
+      }
+    },
+    iam: {
+      runtime: {
+        retrieve(options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamRuntimeSettingsEnvelope>("system.iam.runtime.retrieve", {}, options);
+        }
+      },
+      verificationPolicy: {
+        retrieve(options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamVerificationPolicyEnvelope>("system.iam.verificationPolicy.retrieve", {}, options);
+        }
       }
     },
     operations: {

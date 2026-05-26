@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -7,7 +6,6 @@ import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
 const ciWorkflow = fs.readFileSync(path.join(rootDir, '.github/workflows/ci.yml'), 'utf8');
-const userCenterUpstreamSyncWorkflowPath = path.join(rootDir, '.github/workflows/user-center-upstream-sync.yml');
 const nodeWrapperPath = path.join(rootDir, 'sdkwork-run-node');
 const pnpmWrapperPath = path.join(rootDir, 'sdkwork-run-pnpm');
 const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
@@ -134,9 +132,10 @@ assert.match(
 assert.match(ciWorkflow, /libgbm-dev/);
 assert.match(ciWorkflow, /libpipewire-0\.3-dev/);
 assert.match(ciWorkflow, /desktop-rust-windows:/);
-assert.ok(
-  fs.existsSync(userCenterUpstreamSyncWorkflowPath),
-  'BirdCoder CI governance must keep the dedicated user-center upstream sync workflow in the repository.',
+assert.equal(
+  fs.existsSync(path.join(rootDir, '.github/workflows/user-center-upstream-sync.yml')),
+  false,
+  'BirdCoder CI governance must not keep the retired user-center upstream sync workflow.',
 );
 
 assert.equal(rootPackageJson.scripts.typecheck, 'node scripts/run-local-typescript.mjs --noEmit');
@@ -170,12 +169,13 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['test:user-center-standard'],
-  'node scripts/run-user-center-standard.mjs',
+  undefined,
+  'BirdCoder CI governance must not expose the retired user-center standard runner.',
 );
 assert.equal(
   rootPackageJson.scripts['check:auth-session-standard'],
-  'node scripts/auth-bootstrap-gating-contract.test.mjs && node scripts/auth-required-tab-navigation-contract.test.mjs && node scripts/auth-workspace-loading-gating-contract.test.mjs && node scripts/auth-config-hydration-retry-contract.test.mjs && node scripts/auth-config-null-profile-preserves-adopted-user-contract.test.mjs && node scripts/auth-bootstrap-stale-current-user-guard-contract.test.mjs && node scripts/auth-interactive-refresh-stale-mutation-guard-contract.test.mjs && node --experimental-strip-types scripts/auth-user-identity-contract.test.ts && node scripts/auth-surface-successful-login-adoption-contract.test.mjs && node scripts/run-local-tsx-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/runtime-server-session-persistence-contract.test.ts && node scripts/run-local-tsx.mjs scripts/runtime-auth-unbound-profile-preserves-session-contract.test.ts',
-  'Root quality scripts must expose non-blocking auth bootstrap, urgent auth-required navigation, authenticated workspace loading gates, metadata-synchronized hydration retry, null-profile preservation, stale bootstrap guards, stale interactive refresh guards, canonical auth user identity matching, successful login adoption, and durable runtime session persistence as one first-class standard.',
+  'node scripts/auth-bootstrap-gating-contract.test.mjs && node scripts/auth-required-tab-navigation-contract.test.mjs && node scripts/auth-workspace-loading-gating-contract.test.mjs && node scripts/auth-bootstrap-stale-current-user-guard-contract.test.mjs && node --experimental-strip-types scripts/auth-user-identity-contract.test.ts && node scripts/auth-surface-successful-login-adoption-contract.test.mjs && node scripts/run-local-tsx-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/runtime-server-session-persistence-contract.test.ts && node scripts/run-local-tsx.mjs scripts/runtime-auth-unbound-profile-preserves-session-contract.test.ts',
+  'Root quality scripts must expose non-blocking SDKWork IAM auth bootstrap, urgent auth-required navigation, authenticated workspace loading gates, stale current-user guards, canonical auth user identity matching, IAM auth surface adoption, and durable runtime session persistence as one first-class standard.',
 );
 assert.equal(
   rootPackageJson.scripts['check:terminal-surface-standard'],
@@ -291,23 +291,6 @@ assert.match(
   'Root quality scripts must cover Tauri shell bootstrap so startup does not read reserved table.sqlite.* keys through local_store.',
 );
 
-for (const governedWorkflowContract of [
-  'scripts/user-center-upstream-sync-payload.test.mjs',
-  'scripts/user-center-upstream-sync-workflow.test.mjs',
-]) {
-  const result = spawnSync(process.execPath, [governedWorkflowContract], {
-    cwd: rootDir,
-    shell: false,
-    stdio: 'inherit',
-    windowsHide: process.platform === 'win32',
-  });
-
-  assert.equal(
-    result.status,
-    0,
-    `BirdCoder CI flow must pass the governed ${governedWorkflowContract} contract.`,
-  );
-}
 assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . typecheck',
   'node scripts/run-workspace-package-script.mjs . check:workspace-package-script-runner',
@@ -352,7 +335,7 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
     'node scripts/run-workspace-package-script.mjs . check:code-workbench-command-boundary',
     'node scripts/run-workspace-package-script.mjs . check:code-run-entry-boundary',
   'node scripts/run-workspace-package-script.mjs . check:api-transport-standard',
-  'node scripts/run-workspace-package-script.mjs . check:appbase-package-boundary',
+  'node scripts/run-workspace-package-script.mjs . check:sdkwork-shared-package-boundary',
   'node scripts/run-workspace-package-script.mjs . check:iam-standard',
   'node scripts/run-workspace-package-script.mjs . check:auth-session-standard',
   'node scripts/run-workspace-package-script.mjs . check:terminal-surface-standard',
@@ -367,7 +350,6 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:local-store-browser-fallback',
   'node scripts/run-workspace-package-script.mjs . check:package-governance',
   'node scripts/run-workspace-package-script.mjs . check:package-subpath-exports',
-  'node scripts/run-workspace-package-script.mjs . test:user-center-standard',
   'node scripts/run-workspace-package-script.mjs . check:governance-baseline',
   'node scripts/run-workspace-package-script.mjs . check:technical-debt',
   'node scripts/run-workspace-package-script.mjs . check:governance-regression-contract',

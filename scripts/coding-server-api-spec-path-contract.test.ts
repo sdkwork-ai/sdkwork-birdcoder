@@ -167,6 +167,19 @@ function assertNoRetiredOpenApiSeedBuilder(): void {
   );
 }
 
+function assertNoRetiredBillingVipServerTypes(): void {
+  assert.doesNotMatch(
+    typesServerApiSource,
+    /\b(?:BirdCoderBillingVipMembershipSummary|BirdCoderUpdateCurrentUserMembershipRequest)\b/u,
+    'packages/sdkwork-birdcoder-types/src/server-api.ts must not expose retired app-local billing/VIP membership types; membership read models belong to SDKWork commerce generated SDK schemas.',
+  );
+  assert.doesNotMatch(
+    typesServerApiSource,
+    /\bcurrentMembership\?:\s*BirdCoderBillingVipMembershipSummary\b/u,
+    'packages/sdkwork-birdcoder-types/src/server-api.ts must not keep a local currentMembership model slot for retired billing/VIP state.',
+  );
+}
+
 function assertNoForbiddenPrefix(value: string, context: string): void {
   for (const forbiddenPrefix of FORBIDDEN_PREFIXES) {
     assert.equal(
@@ -319,8 +332,9 @@ const descriptor = getBirdCoderCodingServerDescriptor();
 assertActiveDocsUseCanonicalApiAndSdkLanguage();
 assertNoRetiredAdminApiSurfaceNaming();
 assertNoRetiredOpenApiSeedBuilder();
-assert.equal(descriptor.gateway.routesBySurface.app, 73);
-assert.equal(descriptor.gateway.routesBySurface.backend, 7);
+assertNoRetiredBillingVipServerTypes();
+assert.equal(descriptor.gateway.routesBySurface.app, 78);
+assert.equal(descriptor.gateway.routesBySurface.backend, 54);
 assert.deepEqual(descriptor.surfaces, ['app', 'backend']);
 assert.equal(
   descriptor.gateway.surfaces.find((surface) => surface.name === 'app')?.basePath,
@@ -399,19 +413,20 @@ for (const route of routeCatalog) {
 const openApiDocument = buildBirdCoderCodingServerOpenApiDocument();
 assert.deepEqual(openApiDocument.tags.map((tag) => tag.name), [
   'auth',
-  'billing',
   'collaboration',
+  'commerce',
   'content',
   'iam',
   'intelligence',
+  'openPlatform',
   'platform',
   'runtime',
   'skills',
   'system',
   'templates',
 ]);
-assert.equal(openApiDocument['x-sdkwork-api-gateway'].routesBySurface.app, 73);
-assert.equal(openApiDocument['x-sdkwork-api-gateway'].routesBySurface.backend, 7);
+assert.equal(openApiDocument['x-sdkwork-api-gateway'].routesBySurface.app, 78);
+assert.equal(openApiDocument['x-sdkwork-api-gateway'].routesBySurface.backend, 54);
 assert.equal(
   'basePath' in openApiDocument['x-sdkwork-api-gateway'],
   false,

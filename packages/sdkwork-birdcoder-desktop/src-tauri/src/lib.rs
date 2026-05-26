@@ -1741,7 +1741,7 @@ fn validate_local_sql_statement(
         return Err("local SQL CREATE statements are only allowed for migration plans".to_string());
     }
 
-    for forbidden_token in ["ATTACH", "DETACH", "DROP", "PRAGMA", "VACUUM"] {
+    for forbidden_token in ["ATTACH", "DETACH", "DROP", "PRAGMA", "UNION", "VACUUM"] {
         if upper_sql
             .split(|character: char| !character.is_ascii_alphanumeric() && character != '_')
             .any(|token| token == forbidden_token)
@@ -2909,6 +2909,7 @@ mod tests {
             "DROP TABLE studio_project",
             "ATTACH DATABASE 'other.sqlite' AS other",
             "PRAGMA table_info(studio_project)",
+            "UNION SELECT * FROM other_table",
             "VACUUM",
         ] {
             assert!(

@@ -150,7 +150,6 @@ for (const forbiddenPreloadPrefix of [
   'vendor-tauri-window-',
   'ui-workbench-',
   'birdcoder-iam-surface-',
-  'birdcoder-user-center-core-',
   'birdcoder-platform-',
   'birdcoder-platform-api-client-',
   'birdcoder-platform-filesystem-',
@@ -233,7 +232,7 @@ const identitySurfaceAsset = findAssetByPrefix(jsAssets, 'birdcoder-iam-surface-
 
 assert.ok(
   identitySurfaceAsset,
-  'web bundle budget check expected BirdCoder auth, user, and user-center pages to build as a single birdcoder-iam-surface chunk.',
+  'web bundle budget check expected BirdCoder auth and user pages to build as a single birdcoder-iam-surface chunk.',
 );
 
 const markdownAsset = findAssetByPrefix(jsAssets, 'vendor-markdown-');

@@ -42,26 +42,11 @@
       "@sdkwork/auth-pc-react": [
         "src/appbase-public-types/auth-pc-react.d.ts"
       ],
-      "@sdkwork/auth-runtime-pc-react": [
-        "src/appbase-public-types/auth-runtime-pc-react.d.ts"
-      ],
       "@sdkwork/search-pc-react": [
         "src/appbase-public-types/search-pc-react.d.ts"
       ],
-      "@sdkwork/user-center-core-pc-react": [
-        "src/appbase-public-types/user-center-core-pc-react.d.ts"
-      ],
-      "@sdkwork/user-center-pc-react": [
-        "src/appbase-public-types/user-center-pc-react.d.ts"
-      ],
-      "@sdkwork/user-center-validation-pc-react": [
-        "src/appbase-public-types/user-center-validation-pc-react.d.ts"
-      ],
       "@sdkwork/user-pc-react": [
         "src/appbase-public-types/user-pc-react.d.ts"
-      ],
-      "@sdkwork/vip-pc-react": [
-        "src/appbase-public-types/vip-pc-react.d.ts"
       ],
       "@sdkwork/wallet-pc-react": [
         "src/appbase-public-types/wallet-pc-react.d.ts"
@@ -139,8 +124,7 @@
   },
   "include": [
     "src",
-    "packages",
-    "scripts"
+    "packages"
   ],
   "exclude": [
     "**/node_modules/**",

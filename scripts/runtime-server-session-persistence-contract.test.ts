@@ -1,24 +1,15 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-
-import {
-  BIRDCODER_USER_CENTER_STORAGE_PLAN,
-} from '../packages/sdkwork-birdcoder-core/src/userCenterSession.ts';
 
 const runtimeServerSessionModulePath = new URL(
   '../packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
   import.meta.url,
 );
-const runtimeBridgeSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/userCenterRuntimeBridge.ts', import.meta.url),
-  'utf8',
-);
 
 const localStore = new Map<string, string>();
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
-const originalLocalStorageDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+const originalSessionStorageDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
 
-const localStorage = {
+const sessionStorage = {
   getItem(key: string) {
     return localStore.has(key) ? localStore.get(key)! : null;
   },
@@ -33,65 +24,63 @@ const localStorage = {
 Object.defineProperty(globalThis, 'window', {
   configurable: true,
   value: {
-    localStorage,
+    sessionStorage,
   },
 });
-Object.defineProperty(globalThis, 'localStorage', {
+Object.defineProperty(globalThis, 'sessionStorage', {
   configurable: true,
-  value: localStorage,
+  value: sessionStorage,
 });
 
 try {
-  const firstRuntimeSession = await import(
+  const runtimeSession = await import(
     `${runtimeServerSessionModulePath.href}?persistence=first-${Date.now()}`
   );
 
-  localStore.set(
-    BIRDCODER_USER_CENTER_STORAGE_PLAN.refreshTokenKey,
-    'stale-refresh-token',
-  );
-
   assert.equal(
-    firstRuntimeSession.writeRuntimeServerSessionId('  session-after-login  '),
+    runtimeSession.writeRuntimeServerSessionId('  session-after-login  '),
     'session-after-login',
     'runtime session writer must normalize and return the persisted session id.',
   );
   assert.equal(
-    localStore.get(BIRDCODER_USER_CENTER_STORAGE_PLAN.sessionTokenKey),
+    runtimeSession.readRuntimeServerSessionId(),
     'session-after-login',
-    'login must persist the runtime session id to durable user-center storage, not only an in-memory token cache.',
-  );
-  assert.equal(
-    localStore.get(BIRDCODER_USER_CENTER_STORAGE_PLAN.refreshTokenKey),
-    undefined,
-    'a new login session must clear stale refresh tokens from a previous identity.',
+    'runtime session reader must recover the normalized SDKWork IAM session id.',
   );
 
-  const secondRuntimeSession = await import(
-    `${runtimeServerSessionModulePath.href}?persistence=second-${Date.now()}`
+  runtimeSession.writeRuntimeServerTokenBundle({
+    accessToken: ' access-token ',
+    authToken: ' auth-token ',
+    refreshToken: ' refresh-token ',
+    sessionToken: ' session-token ',
+  });
+
+  assert.deepEqual(
+    runtimeSession.readRuntimeServerTokenBundle(),
+    {
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+      refreshToken: 'refresh-token',
+      sessionToken: 'session-token',
+      tokenType: 'Bearer',
+    },
+    'runtime token store must persist the canonical SDKWork IAM auth/access token bundle.',
   );
 
-  assert.equal(
-    secondRuntimeSession.readRuntimeServerSessionId(),
-    'session-after-login',
-    'a freshly imported runtime session module must recover the login session id after an app refresh.',
-  );
-  assert.equal(
-    secondRuntimeSession.resolveRuntimeServerSessionHeaders()[
-      BIRDCODER_USER_CENTER_STORAGE_PLAN.sessionHeaderName
-    ],
-    'session-after-login',
-    'refreshed API clients must keep sending the recovered runtime session id header.',
-  );
-
-  assert.match(
-    runtimeBridgeSource,
-    /tokenStore:\s*runtimeClientOptions\.tokenStore\s*\?\?\s*createRuntimeServerTokenStore\(\)/,
-    'the canonical user-center runtime client must share the durable BirdCoder runtime token store so profile refreshes cannot migrate the token out of the auth bootstrap reader.',
+  assert.deepEqual(
+    runtimeSession.resolveRuntimeServerSessionHeaders(),
+    {
+      Authorization: 'Bearer auth-token',
+      'Access-Token': 'access-token',
+      'Refresh-Token': 'refresh-token',
+      'X-SDKWork-Session-Id': 'session-token',
+    },
+    'generated SDK transports must receive canonical SDKWork IAM auth/access/session headers.',
   );
 
   localStore.clear();
-  const quotaFailingLocalStorage = {
+  runtimeSession.clearRuntimeServerSessionId();
+  const quotaFailingSessionStorage = {
     getItem(key: string) {
       return localStore.has(key) ? localStore.get(key)! : null;
     },
@@ -105,82 +94,28 @@ try {
   Object.defineProperty(globalThis, 'window', {
     configurable: true,
     value: {
-      localStorage: quotaFailingLocalStorage,
+      sessionStorage: quotaFailingSessionStorage,
     },
   });
-  Object.defineProperty(globalThis, 'localStorage', {
+  Object.defineProperty(globalThis, 'sessionStorage', {
     configurable: true,
-    value: quotaFailingLocalStorage,
+    value: quotaFailingSessionStorage,
   });
 
-  const quotaRuntimeSession = await import(
-    `${runtimeServerSessionModulePath.href}?persistence=quota-${Date.now()}`
-  );
   assert.equal(
-    quotaRuntimeSession.writeRuntimeServerSessionId(' session-after-quota '),
+    runtimeSession.writeRuntimeServerSessionId(' session-after-quota '),
     'session-after-quota',
     'runtime session writer must not fail when browser storage quota is exhausted.',
   );
   assert.equal(
-    quotaRuntimeSession.readRuntimeServerSessionId(),
+    runtimeSession.readRuntimeServerSessionId(),
     'session-after-quota',
     'runtime session reader must preserve the in-memory session for the current startup when durable storage rejects writes.',
   );
   assert.equal(
-    quotaRuntimeSession.resolveRuntimeServerSessionHeaders()[
-      BIRDCODER_USER_CENTER_STORAGE_PLAN.sessionHeaderName
-    ],
+    runtimeSession.resolveRuntimeServerSessionHeaders()['X-SDKWork-Session-Id'],
     'session-after-quota',
     'API headers must continue to include the in-memory runtime session after a durable storage quota failure.',
-  );
-
-  localStore.clear();
-  localStore.set(
-    BIRDCODER_USER_CENTER_STORAGE_PLAN.sessionTokenKey,
-    'session-before-failed-clear',
-  );
-  const clearFailingLocalStorage = {
-    getItem(key: string) {
-      return localStore.has(key) ? localStore.get(key)! : null;
-    },
-    removeItem() {
-      throw new DOMException('simulated blocked storage removal', 'SecurityError');
-    },
-    setItem(key: string, value: string) {
-      localStore.set(key, value);
-    },
-  };
-  Object.defineProperty(globalThis, 'window', {
-    configurable: true,
-    value: {
-      localStorage: clearFailingLocalStorage,
-    },
-  });
-  Object.defineProperty(globalThis, 'localStorage', {
-    configurable: true,
-    value: clearFailingLocalStorage,
-  });
-
-  const clearRuntimeSession = await import(
-    `${runtimeServerSessionModulePath.href}?persistence=clear-${Date.now()}`
-  );
-  assert.equal(
-    clearRuntimeSession.readRuntimeServerSessionId(),
-    'session-before-failed-clear',
-    'the failed-clear fixture must start with a durable session token.',
-  );
-  clearRuntimeSession.clearRuntimeServerSessionId();
-  assert.equal(
-    clearRuntimeSession.readRuntimeServerSessionId(),
-    null,
-    'clearing the runtime session must not resurrect a stale durable token when storage removal fails.',
-  );
-  assert.equal(
-    clearRuntimeSession.resolveRuntimeServerSessionHeaders()[
-      BIRDCODER_USER_CENTER_STORAGE_PLAN.sessionHeaderName
-    ],
-    undefined,
-    'API headers must remain cleared after logout even when durable storage removal fails.',
   );
 } finally {
   if (originalWindowDescriptor) {
@@ -189,10 +124,10 @@ try {
     Reflect.deleteProperty(globalThis, 'window');
   }
 
-  if (originalLocalStorageDescriptor) {
-    Object.defineProperty(globalThis, 'localStorage', originalLocalStorageDescriptor);
+  if (originalSessionStorageDescriptor) {
+    Object.defineProperty(globalThis, 'sessionStorage', originalSessionStorageDescriptor);
   } else {
-    Reflect.deleteProperty(globalThis, 'localStorage');
+    Reflect.deleteProperty(globalThis, 'sessionStorage');
   }
 }
 

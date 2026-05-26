@@ -21,7 +21,6 @@
     "@sdkwork/birdcoder-core": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
     "@sdkwork/ui-pc-react": "workspace:*",
-    "@sdkwork/user-center-pc-react": "workspace:*",
     "react-i18next": "catalog:"
   },
   "peerDependencies": {
