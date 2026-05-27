@@ -491,6 +491,29 @@ function findCodingSessionInCollection(
   );
 }
 
+function isRecoverableCodingSessionMirrorSendError(
+  error: unknown,
+  projectId: string,
+  codingSessionId: string,
+): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const normalizedMessage = message.toLowerCase();
+  if (!normalizedMessage.includes('not found')) {
+    return false;
+  }
+
+  const normalizedProjectId = projectId.trim().toLowerCase();
+  const normalizedCodingSessionId = codingSessionId.trim().toLowerCase();
+  return (
+    (normalizedCodingSessionId.length > 0 &&
+      normalizedMessage.includes(normalizedCodingSessionId)) ||
+    normalizedMessage.includes('coding session projection') ||
+    normalizedMessage.includes('coding session') ||
+    normalizedMessage.includes('coding-session') ||
+    (normalizedProjectId.length > 0 && normalizedMessage.includes(normalizedProjectId))
+  );
+}
+
 function setProjectsStoreError(store: ProjectsStore, message: string): void {
   updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
     ...previousSnapshot,
@@ -1292,33 +1315,56 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     );
 
     try {
+      let preSendMirrorUpsert: Promise<void> | null = null;
       if (previousCodingSession && projectService.upsertCodingSession) {
-        try {
-          const previousProject = storeSnapshot.projects.find(
-            (candidateProject) => candidateProject.id === projectId,
-          );
-          const mirrorCodingSession = {
-            ...previousCodingSession,
-            projectId: previousCodingSession.projectId?.trim() || projectId,
-            workspaceId:
-              previousCodingSession.workspaceId?.trim() ||
-              previousProject?.workspaceId?.trim() ||
-              normalizedWorkspaceId,
-          };
-          await projectService.upsertCodingSession(projectId, mirrorCodingSession);
-        } catch (error) {
+        const previousProject = storeSnapshot.projects.find(
+          (candidateProject) => candidateProject.id === projectId,
+        );
+        const mirrorCodingSession = {
+          ...previousCodingSession,
+          projectId: previousCodingSession.projectId?.trim() || projectId,
+          workspaceId:
+            previousCodingSession.workspaceId?.trim() ||
+            previousProject?.workspaceId?.trim() ||
+            normalizedWorkspaceId,
+        };
+        preSendMirrorUpsert = projectService.upsertCodingSession(projectId, mirrorCodingSession).catch((error) => {
           console.warn(
             `Failed to synchronize coding session "${codingSessionId}" mirror before sending`,
             error,
           );
-        }
+          throw error;
+        });
+        void preSendMirrorUpsert.catch(() => undefined);
       }
 
-      const newMessage = await projectService.addCodingSessionMessage(projectId, codingSessionId, {
-        role: 'user',
-        content,
-        metadata: buildSendMessageMetadata(context, options),
-      });
+      let newMessage: BirdCoderChatMessage;
+      try {
+        newMessage = await projectService.addCodingSessionMessage(projectId, codingSessionId, {
+          role: 'user',
+          content,
+          metadata: buildSendMessageMetadata(context, options),
+        });
+      } catch (error) {
+        if (
+          !preSendMirrorUpsert ||
+          !isRecoverableCodingSessionMirrorSendError(error, projectId, codingSessionId)
+        ) {
+          throw error;
+        }
+
+        try {
+          await preSendMirrorUpsert;
+        } catch {
+          throw error;
+        }
+
+        newMessage = await projectService.addCodingSessionMessage(projectId, codingSessionId, {
+          role: 'user',
+          content,
+          metadata: buildSendMessageMetadata(context, options),
+        });
+      }
       const effectiveCodingSessionId = newMessage.codingSessionId.trim() || codingSessionId;
       if (effectiveCodingSessionId !== codingSessionId) {
         synchronizeProjectSessionInBackground(projectId, effectiveCodingSessionId, () => {

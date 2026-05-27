@@ -223,8 +223,14 @@ assert.match(
 
 assert.match(
   useProjectsSource,
-  /if \(previousCodingSession && projectService\.upsertCodingSession\) \{[\s\S]*const mirrorCodingSession = \{[\s\S]*projectId: previousCodingSession\.projectId\?\.trim\(\) \|\| projectId,[\s\S]*workspaceId:[\s\S]*previousCodingSession\.workspaceId\?\.trim\(\)[\s\S]*previousProject\?\.workspaceId\?\.trim\(\)[\s\S]*normalizedWorkspaceId,[\s\S]*await projectService\.upsertCodingSession\(projectId, mirrorCodingSession\);[\s\S]*const newMessage = await projectService\.addCodingSessionMessage\(projectId, codingSessionId,/s,
-  'sendMessage must repair the project-service session mirror from a selected store session enriched with project/workspace identity before creating the app runtime turn so stale mirror misses do not surface as delayed coding-session-not-found toasts.',
+  /if \(previousCodingSession && projectService\.upsertCodingSession\) \{[\s\S]*const mirrorCodingSession = \{[\s\S]*projectId: previousCodingSession\.projectId\?\.trim\(\) \|\| projectId,[\s\S]*workspaceId:[\s\S]*previousCodingSession\.workspaceId\?\.trim\(\)[\s\S]*previousProject\?\.workspaceId\?\.trim\(\)[\s\S]*normalizedWorkspaceId,[\s\S]*preSendMirrorUpsert = projectService\.upsertCodingSession\(projectId, mirrorCodingSession\)\.catch\([\s\S]*void preSendMirrorUpsert\.catch\(\(\) => undefined\);[\s\S]*newMessage = await projectService\.addCodingSessionMessage\(projectId, codingSessionId,/s,
+  'sendMessage must start project-service session mirror repair from the selected store session without blocking initial app runtime turn creation.',
+);
+
+assert.match(
+  useProjectsSource,
+  /catch \(error\) \{[\s\S]*!preSendMirrorUpsert[\s\S]*!isRecoverableCodingSessionMirrorSendError\(error, projectId, codingSessionId\)[\s\S]*await preSendMirrorUpsert;[\s\S]*newMessage = await projectService\.addCodingSessionMessage\(projectId, codingSessionId,/s,
+  'sendMessage must wait for the background mirror repair and retry once only when the first app runtime turn dispatch fails with a recoverable coding-session mirror miss.',
 );
 
 console.log('universal chat send recovery contract passed.');

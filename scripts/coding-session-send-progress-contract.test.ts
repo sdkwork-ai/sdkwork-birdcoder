@@ -33,7 +33,7 @@ assert.match(
 
 assert.match(
   sendMessageBlock,
-  /const newMessage = await projectService\.addCodingSessionMessage\(/,
+  /newMessage = await projectService\.addCodingSessionMessage\(/,
   'Send message flow must persist the authoritative user turn through the project service.',
 );
 
@@ -46,6 +46,25 @@ assert.match(
 assert.ok(
   !sendMessageBlock.includes('resolveSynchronizedProjectSession('),
   'Send message flow must not block on a full project re-read before the local transcript advances.',
+);
+
+assert.ok(
+  !/await\s+projectService\.upsertCodingSession\(/.test(sendMessageBlock),
+  'Send message flow must not wait for pre-send session mirror upsert before dispatching the authoritative code-engine turn.',
+);
+
+const firstTurnDispatchIndex = sendMessageBlock.indexOf(
+  'newMessage = await projectService.addCodingSessionMessage(',
+);
+assert.notEqual(
+  firstTurnDispatchIndex,
+  -1,
+  'Send message flow must dispatch the authoritative code-engine turn through addCodingSessionMessage.',
+);
+const sendPreflightBlock = sendMessageBlock.slice(0, firstTurnDispatchIndex);
+assert.ok(
+  !sendPreflightBlock.includes('await preSendMirrorUpsert'),
+  'Send message flow must not await background session mirror repair before the first authoritative code-engine turn dispatch.',
 );
 
 assert.match(
