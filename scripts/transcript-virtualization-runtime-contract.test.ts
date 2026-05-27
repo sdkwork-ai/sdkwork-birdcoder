@@ -214,8 +214,14 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /key=\{`\$\{cmdIdx\}\\u0001\$\{cmd\.toolCallId \?\? cmd\.command\}`\}/,
-  'UniversalChat command cards must include the command row position in React keys so repeated toolCallId snapshots cannot collide.',
+  /const commandKey = `\$\{cmdIdx\}\\u0001\$\{cmd\.toolCallId \?\? cmd\.command\}`;[\s\S]*renderCommandExecutionCard\(\{[\s\S]*commandKey,/,
+  'UniversalChat command cards must derive the delegated command key from row position plus provider identity so repeated toolCallId snapshots cannot collide.',
+);
+
+assert.match(
+  universalChatSource,
+  /function renderCommandExecutionCard\([\s\S]*<div key=\{commandKey\}/,
+  'UniversalChat command cards must apply the delegated command key to the helper root element.',
 );
 
 assert.doesNotMatch(

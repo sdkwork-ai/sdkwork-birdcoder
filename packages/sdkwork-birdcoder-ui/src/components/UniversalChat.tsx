@@ -666,6 +666,8 @@ interface CommandOutputPreview {
   text: string;
 }
 
+type CommandExecutionTone = 'approval' | 'error' | 'reply' | 'running' | 'success';
+
 interface UniversalChatActivitySummaryProps {
   commands?: readonly CommandExecution[];
   compact?: boolean;
@@ -675,6 +677,19 @@ interface UniversalChatActivitySummaryProps {
   fileChanges?: readonly ActivityFileChange[];
   messageId: string;
   successIconSize: number;
+}
+
+interface RenderCommandExecutionCardOptions {
+  cmd: CommandExecution;
+  commandKey: string;
+  commandOutputLabel: string;
+  copyLabel: string;
+  copyMessageToClipboard: (content: string) => void;
+  isCommandExpanded: boolean;
+  noCommandOutputLabel: string;
+  successIconSize: number;
+  t?: UniversalChatTranslate;
+  toggleCommandDetails: (commandKey: string) => void;
 }
 
 function normalizeActivityLineCount(value: number): number {
@@ -873,21 +888,41 @@ function buildCommandOutputPreview(output: string | undefined): CommandOutputPre
   };
 }
 
+function resolveCommandExecutionTone(cmd: CommandExecution): CommandExecutionTone {
+  const interactionState = resolveBirdCoderCodeEngineCommandInteractionState(cmd);
+  const isWaitingForReply = interactionState.requiresReply;
+  const isWaitingForApproval = interactionState.requiresApproval;
+  if (isWaitingForReply) {
+    return 'reply';
+  }
+  if (isWaitingForApproval) {
+    return 'approval';
+  }
+  if (cmd.status === 'success') {
+    return 'success';
+  }
+  if (cmd.status === 'error') {
+    return 'error';
+  }
+
+  return 'running';
+}
+
 function resolveCommandExecutionStatusLabel(
   command: CommandExecution,
   t: UniversalChatTranslate | undefined,
 ): string {
-  const interactionState = resolveBirdCoderCodeEngineCommandInteractionState(command);
-  if (interactionState.requiresReply) {
+  const tone = resolveCommandExecutionTone(command);
+  if (tone === 'reply') {
     return t?.('chat.commandNeedsReply') ?? 'Needs reply';
   }
-  if (interactionState.requiresApproval) {
+  if (tone === 'approval') {
     return t?.('chat.commandNeedsApproval') ?? 'Needs approval';
   }
-  if (command.status === 'success') {
+  if (tone === 'success') {
     return t?.('chat.commandSucceeded') ?? 'Succeeded';
   }
-  if (command.status === 'error') {
+  if (tone === 'error') {
     return t?.('chat.commandFailed') ?? 'Failed';
   }
 
@@ -912,11 +947,15 @@ function resolveDiffPreviewLineClassName(tone: ActivityDiffPreviewLineTone): str
 }
 
 function renderCommandStatusIcon(command: CommandExecution, size: number) {
-  if (command.status === 'success') {
+  const tone = resolveCommandExecutionTone(command);
+  if (tone === 'success') {
     return <CheckCircle2 size={size} className="text-emerald-400/80" />;
   }
-  if (command.status === 'error') {
+  if (tone === 'error') {
     return <AlertCircle size={size} className="text-red-400/80" />;
+  }
+  if (tone === 'reply' || tone === 'approval') {
+    return <AlertCircle size={size} className="text-amber-300/85" />;
   }
 
   return (
@@ -924,6 +963,87 @@ function renderCommandStatusIcon(command: CommandExecution, size: number) {
       className="inline-block rounded-full border-2 border-blue-500/25 border-t-blue-400 animate-spin"
       style={{ height: size, width: size }}
     />
+  );
+}
+
+function resolveCommandExecutionStatusClassName(command: CommandExecution): string {
+  const tone = resolveCommandExecutionTone(command);
+  if (tone === 'reply' || tone === 'approval') {
+    return 'bg-amber-500/10 text-amber-200';
+  }
+  if (tone === 'success') {
+    return 'bg-emerald-500/10 text-emerald-200';
+  }
+  if (tone === 'error') {
+    return 'bg-red-500/10 text-red-200';
+  }
+
+  return 'bg-white/5 text-gray-400';
+}
+
+function renderCommandExecutionCard({
+  cmd,
+  commandKey,
+  commandOutputLabel,
+  copyLabel,
+  copyMessageToClipboard,
+  isCommandExpanded,
+  noCommandOutputLabel,
+  successIconSize,
+  t,
+  toggleCommandDetails,
+}: RenderCommandExecutionCardOptions) {
+  const commandOutputPreview = buildCommandOutputPreview(cmd.output);
+  const commandStatusLabel = resolveCommandExecutionStatusLabel(cmd, t);
+  const commandStatusClassName = resolveCommandExecutionStatusClassName(cmd);
+  return (
+    <div key={commandKey} className="overflow-hidden">
+      <div className="flex items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-white/[0.035]">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          onClick={() => toggleCommandDetails(commandKey)}
+        >
+          <span className="shrink-0 text-blue-300">
+            {isCommandExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </span>
+          <span className="shrink-0">
+            {renderCommandStatusIcon(cmd, successIconSize)}
+          </span>
+          <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-gray-200">
+            {cmd.command}
+          </span>
+          <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] ${commandStatusClassName}`}>
+            {commandStatusLabel}
+          </span>
+        </button>
+        <button
+          type="button"
+          className="shrink-0 rounded-md p-1 text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-200"
+          title={copyLabel}
+          onClick={() => copyMessageToClipboard(cmd.command)}
+        >
+          <Copy size={12} />
+        </button>
+      </div>
+      {isCommandExpanded ? (
+        <div className="px-7 pb-2 pt-1">
+          <div className="mb-1 text-[11px] font-medium text-gray-500">
+            {commandOutputLabel}
+          </div>
+          {commandOutputPreview.text ? (
+            <pre className="max-h-64 overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 custom-scrollbar">
+              {commandOutputPreview.text}
+              {commandOutputPreview.isTruncated ? '\n...' : ''}
+            </pre>
+          ) : (
+            <div className="rounded-md bg-white/[0.025] px-2 py-2 text-[11px] text-gray-500">
+              {noCommandOutputLabel}
+            </div>
+          )}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1082,57 +1202,18 @@ function UniversalChatActivitySummary({
                 {commands.map((cmd, cmdIdx) => {
                   const commandKey = `${cmdIdx}\u0001${cmd.toolCallId ?? cmd.command}`;
                   const isCommandExpanded = expandedCommandKeys.has(commandKey);
-                  const commandOutputPreview = buildCommandOutputPreview(cmd.output);
-                  const commandStatusLabel = resolveCommandExecutionStatusLabel(cmd, environment?.t);
-                  return (
-                    <div key={`${cmdIdx}\u0001${cmd.toolCallId ?? cmd.command}`} className="overflow-hidden">
-                      <div className="flex items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-white/[0.035]">
-                        <button
-                          type="button"
-                          className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                          onClick={() => toggleCommandDetails(commandKey)}
-                        >
-                          <span className="shrink-0 text-blue-300">
-                            {isCommandExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                          </span>
-                          <span className="shrink-0">
-                            {renderCommandStatusIcon(cmd, successIconSize)}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-gray-200">
-                            {cmd.command}
-                          </span>
-                          <span className="shrink-0 rounded-md bg-white/5 px-1.5 py-0.5 text-[10px] text-gray-400">
-                            {commandStatusLabel}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="shrink-0 rounded-md p-1 text-gray-500 transition-colors hover:bg-white/10 hover:text-gray-200"
-                          title={copyLabel}
-                          onClick={() => copyMessageToClipboard(cmd.command)}
-                        >
-                          <Copy size={12} />
-                        </button>
-                      </div>
-                      {isCommandExpanded ? (
-                        <div className="px-7 pb-2 pt-1">
-                          <div className="mb-1 text-[11px] font-medium text-gray-500">
-                            {commandOutputLabel}
-                          </div>
-                          {commandOutputPreview.text ? (
-                            <pre className="max-h-64 overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 custom-scrollbar">
-                              {commandOutputPreview.text}
-                              {commandOutputPreview.isTruncated ? '\n...' : ''}
-                            </pre>
-                          ) : (
-                            <div className="rounded-md bg-white/[0.025] px-2 py-2 text-[11px] text-gray-500">
-                              {noCommandOutputLabel}
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
+                  return renderCommandExecutionCard({
+                    cmd,
+                    commandKey,
+                    commandOutputLabel,
+                    copyLabel,
+                    copyMessageToClipboard,
+                    isCommandExpanded,
+                    noCommandOutputLabel,
+                    successIconSize,
+                    t: environment?.t,
+                    toggleCommandDetails,
+                  });
                 })}
               </div>
             </div>
@@ -1488,6 +1569,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
           content={content}
           skills={environmentRef.current?.skills ?? []}
           mode={mode}
+          unknownSkillDescription={environmentRef.current?.t('chat.skillDetailsUnavailable') ?? 'Skill details unavailable'}
         />
       </Suspense>
     );

@@ -60,8 +60,8 @@ assert.match(
 
 assert.equal(
   (universalChatSource.match(/renderCommandExecutionCard\(/g) ?? []).length,
-  3,
-  'UniversalChat should define one shared command-card helper and call it from the two transcript layouts.',
+  2,
+  'UniversalChat should define one shared command-card helper and use it from the shared activity summary rendered by both transcript layouts.',
 );
 
 console.log('universal chat command semantics contract passed.');

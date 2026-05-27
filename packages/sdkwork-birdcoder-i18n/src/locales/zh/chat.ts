@@ -93,6 +93,7 @@ export default defineLocaleModule('chat', {
     commandFailed: '\u5931\u8d25',
     commandNeedsApproval: '\u9700\u8981\u5ba1\u6279',
     commandNeedsReply: '\u9700\u8981\u56de\u590d',
+    skillDetailsUnavailable: '\u6280\u80fd\u8be6\u60c5\u6682\u4e0d\u53ef\u7528',
     checkpointSaved: '\u68c0\u67e5\u70b9\u5df2\u4fdd\u5b58',
     restoreChanges: '\u6062\u590d',
     engineUnavailableModels:

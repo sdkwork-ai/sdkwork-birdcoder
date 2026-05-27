@@ -8,6 +8,7 @@ export interface UniversalChatMarkdownProps {
   content: string;
   skills?: ChatSkill[];
   mode?: 'basic' | 'rich';
+  unknownSkillDescription?: string;
 }
 
 const UniversalChatCodeBlock = lazy(async () => {
@@ -15,11 +16,31 @@ const UniversalChatCodeBlock = lazy(async () => {
   return { default: module.UniversalChatCodeBlock };
 });
 
-function processContent(content: string) {
-  return content.replace(
-    /Skill\s*([a-zA-Z0-9\s]+?)(?=[,.!\n]|\sas|$)/g,
-    '[$1](skill://$1)',
-  );
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+function processContent(content: string, skills: readonly ChatSkill[]) {
+  const skillNames = skills
+    .map((skill) => skill.name.trim())
+    .filter((name) => name.length > 0)
+    .sort((left, right) => right.length - left.length);
+
+  if (skillNames.length === 0) {
+    return content;
+  }
+
+  return skillNames.reduce((nextContent, skillName) => {
+    const skillMentionPattern = new RegExp(
+      `\\bSkill\\s+(${escapeRegExp(skillName)})(?=[,.!\\n]|\\sas\\b|$)`,
+      'giu',
+    );
+    return nextContent.replace(
+      skillMentionPattern,
+      (_match, matchedName: string) =>
+        `[${matchedName}](skill://${encodeURIComponent(skillName)})`,
+    );
+  }, content);
 }
 
 function PlainCodeBlock({
@@ -45,6 +66,7 @@ export function UniversalChatMarkdown({
   content,
   skills = [],
   mode = 'rich',
+  unknownSkillDescription = 'Skill details unavailable',
 }: UniversalChatMarkdownProps) {
   const safeLinkComponents = {
     a: ({ node, ...props }: any) => {
@@ -61,7 +83,7 @@ export function UniversalChatMarkdown({
           skills.find((entry) => entry.name.toLowerCase() === skillName.toLowerCase())
           || {
             name: skillName,
-            desc: `Provides specialized capabilities for ${skillName}.`,
+            desc: unknownSkillDescription,
           };
         return (
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 cursor-help group relative mx-1 align-middle">
@@ -122,7 +144,7 @@ export function UniversalChatMarkdown({
 
   return (
     <ReactMarkdown components={markdownComponents}>
-      {processContent(content)}
+      {processContent(content, skills)}
     </ReactMarkdown>
   );
 }

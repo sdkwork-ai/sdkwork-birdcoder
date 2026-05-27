@@ -92,6 +92,7 @@ export default defineLocaleModule('chat', {
     commandFailed: 'Failed',
     commandNeedsApproval: 'Needs approval',
     commandNeedsReply: 'Needs reply',
+    skillDetailsUnavailable: 'Skill details unavailable',
     checkpointSaved: 'Checkpoint saved',
     restoreChanges: 'Restore',
     engineUnavailableModels:

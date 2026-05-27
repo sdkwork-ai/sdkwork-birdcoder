@@ -12,7 +12,6 @@ const CHAT_RICH_MARKDOWN_PATTERNS = [
   /\[[^\]]+\]\([^)]+\)/u,
   /`[^`\n]+`/u,
   /<([a-z][\w-]*)(?:\s[^>]*)?>/iu,
-  /\bSkill\s+[a-zA-Z0-9][a-zA-Z0-9\s-]*/u,
 ];
 
 const EMPHASIS_PATTERN =

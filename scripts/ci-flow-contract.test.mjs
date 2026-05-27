@@ -194,8 +194,8 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:universal-chat-rendering-performance'],
-  'node scripts/universal-chat-inactive-gating-performance-contract.test.mjs && node scripts/universal-chat-row-animation-performance-contract.test.mjs && node scripts/transcript-inactive-measurement-gating-contract.test.mjs && node scripts/universal-chat-folder-upload-performance-contract.test.mjs && node --experimental-strip-types scripts/chat-markdown-rendering-performance-contract.test.ts && node scripts/universal-chat-activity-summary-contract.test.mjs && node scripts/universal-chat-task-progress-contract.test.mjs',
-  'Root quality scripts must expose UniversalChat inactive gating, no per-row animation churn, inactive transcript measurement gating, bounded attachment uploads, oversized markdown rendering avoidance, and professional activity summaries as one first-class rendering standard.',
+  'node scripts/universal-chat-inactive-gating-performance-contract.test.mjs && node scripts/universal-chat-row-animation-performance-contract.test.mjs && node scripts/transcript-inactive-measurement-gating-contract.test.mjs && node scripts/universal-chat-folder-upload-performance-contract.test.mjs && node --experimental-strip-types scripts/chat-markdown-rendering-performance-contract.test.ts && node --experimental-strip-types scripts/universal-chat-capability-message-display-contract.test.ts && node scripts/universal-chat-activity-summary-contract.test.mjs && node scripts/universal-chat-task-progress-contract.test.mjs',
+  'Root quality scripts must expose UniversalChat inactive gating, no per-row animation churn, inactive transcript measurement gating, bounded attachment uploads, oversized markdown rendering avoidance, capability message display, and professional activity summaries as one first-class rendering standard.',
 );
 assert.equal(
   rootPackageJson.scripts['check:project-explorer-hover-stability'],
