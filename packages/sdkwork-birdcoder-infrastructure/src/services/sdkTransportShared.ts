@@ -22,7 +22,7 @@ import {
   parseBirdCoderApiJson,
   stringifyBirdCoderApiJson,
 } from './apiJson.ts';
-import { createBirdCoderApiRequestId } from './apiRequestId.ts';
+import { createBirdCoderLocalServerRequestId } from './localServerRequestId.ts';
 import type { BirdCoderConsoleQueries } from './consoleQueries.ts';
 
 export interface CreateBirdCoderHttpApiTransportOptions {
@@ -40,7 +40,7 @@ export function createListEnvelope<TItem>(
   items: readonly TItem[],
 ): BirdCoderApiListEnvelope<TItem> {
   return {
-    requestId: createBirdCoderApiRequestId(),
+    requestId: createBirdCoderLocalServerRequestId(),
     timestamp: new Date().toISOString(),
     items: [...items],
     meta: {
@@ -54,7 +54,7 @@ export function createListEnvelope<TItem>(
 
 export function createEnvelope<TData>(data: TData) {
   return {
-    requestId: createBirdCoderApiRequestId(),
+    requestId: createBirdCoderLocalServerRequestId(),
     timestamp: new Date().toISOString(),
     data,
   };

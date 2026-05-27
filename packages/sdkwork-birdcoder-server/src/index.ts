@@ -55,7 +55,7 @@ import type {
   BirdCoderAppSdkApiClient,
   BirdCoderBackendSdkApiClient,
 } from '../../sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
-import { createBirdCoderApiRequestId } from '../../sdkwork-birdcoder-infrastructure/src/services/apiRequestId.ts';
+import { createBirdCoderServerRequestId } from './serverRequestId.ts';
 import {
   BIRDCODER_CODING_SERVER_API_VERSION as BIRDCODER_CODING_SERVER_API_VERSION_VALUE,
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
@@ -5330,7 +5330,7 @@ function buildBirdCoderApiGatewaySummary(): BirdCoderApiGatewaySummary {
 }
 
 function buildRequestId(_seed: string): string {
-  return createBirdCoderApiRequestId();
+  return createBirdCoderServerRequestId();
 }
 
 function createEmptyCoreSessionProjectionSnapshot(

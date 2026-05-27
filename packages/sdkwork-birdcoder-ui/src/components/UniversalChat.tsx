@@ -909,10 +909,9 @@ function resolveCommandExecutionTone(cmd: CommandExecution): CommandExecutionTon
 }
 
 function resolveCommandExecutionStatusLabel(
-  command: CommandExecution,
+  tone: CommandExecutionTone,
   t: UniversalChatTranslate | undefined,
 ): string {
-  const tone = resolveCommandExecutionTone(command);
   if (tone === 'reply') {
     return t?.('chat.commandNeedsReply') ?? 'Needs reply';
   }
@@ -946,8 +945,7 @@ function resolveDiffPreviewLineClassName(tone: ActivityDiffPreviewLineTone): str
   return 'text-gray-300';
 }
 
-function renderCommandStatusIcon(command: CommandExecution, size: number) {
-  const tone = resolveCommandExecutionTone(command);
+function renderCommandStatusIcon(tone: CommandExecutionTone, size: number) {
   if (tone === 'success') {
     return <CheckCircle2 size={size} className="text-emerald-400/80" />;
   }
@@ -966,8 +964,7 @@ function renderCommandStatusIcon(command: CommandExecution, size: number) {
   );
 }
 
-function resolveCommandExecutionStatusClassName(command: CommandExecution): string {
-  const tone = resolveCommandExecutionTone(command);
+function resolveCommandExecutionStatusClassName(tone: CommandExecutionTone): string {
   if (tone === 'reply' || tone === 'approval') {
     return 'bg-amber-500/10 text-amber-200';
   }
@@ -993,9 +990,10 @@ function renderCommandExecutionCard({
   t,
   toggleCommandDetails,
 }: RenderCommandExecutionCardOptions) {
-  const commandOutputPreview = buildCommandOutputPreview(cmd.output);
-  const commandStatusLabel = resolveCommandExecutionStatusLabel(cmd, t);
-  const commandStatusClassName = resolveCommandExecutionStatusClassName(cmd);
+  const commandTone = resolveCommandExecutionTone(cmd);
+  const commandOutputPreview = isCommandExpanded ? buildCommandOutputPreview(cmd.output) : null;
+  const commandStatusLabel = resolveCommandExecutionStatusLabel(commandTone, t);
+  const commandStatusClassName = resolveCommandExecutionStatusClassName(commandTone);
   return (
     <div key={commandKey} className="overflow-hidden">
       <div className="flex items-center gap-2 rounded-md px-1.5 py-1.5 transition-colors hover:bg-white/[0.035]">
@@ -1008,7 +1006,7 @@ function renderCommandExecutionCard({
             {isCommandExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </span>
           <span className="shrink-0">
-            {renderCommandStatusIcon(cmd, successIconSize)}
+            {renderCommandStatusIcon(commandTone, successIconSize)}
           </span>
           <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-gray-200">
             {cmd.command}
@@ -1031,7 +1029,7 @@ function renderCommandExecutionCard({
           <div className="mb-1 text-[11px] font-medium text-gray-500">
             {commandOutputLabel}
           </div>
-          {commandOutputPreview.text ? (
+          {commandOutputPreview?.text ? (
             <pre className="max-h-64 overflow-auto rounded-md bg-black/20 p-2 font-mono text-[11px] leading-relaxed text-gray-300 custom-scrollbar">
               {commandOutputPreview.text}
               {commandOutputPreview.isTruncated ? '\n...' : ''}
@@ -1559,7 +1557,7 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     content: string,
     mode: 'basic' | 'rich' = 'rich',
   ) => {
-    if (!shouldUseRichChatMarkdown(content, mode)) {
+    if (!shouldUseRichChatMarkdown(content, mode, environmentRef.current?.skills ?? [])) {
       return <PlainMessageContent content={content} />;
     }
 

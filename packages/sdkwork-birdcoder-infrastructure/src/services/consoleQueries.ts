@@ -33,6 +33,7 @@ import {
   buildBirdCoderProjectContentConfigData,
   readBirdCoderProjectRootPathFromConfigData,
 } from './projectContentConfigData.ts';
+import { createBirdCoderLocalBusinessUuid } from './localBusinessUuid.ts';
 
 export interface BirdCoderConsoleQueries {
   createProject(
@@ -132,7 +133,7 @@ function createIdentifier(prefix: string): string {
 }
 
 function createUuid(): string {
-  return crypto.randomUUID();
+  return createBirdCoderLocalBusinessUuid();
 }
 
 function normalizeOptionalText(value: string | null | undefined): string | undefined {

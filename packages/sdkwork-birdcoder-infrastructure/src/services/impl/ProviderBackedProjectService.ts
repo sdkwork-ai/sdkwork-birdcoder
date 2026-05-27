@@ -50,6 +50,7 @@ import {
   buildBirdCoderProjectContentConfigData,
   readBirdCoderProjectRootPathFromConfigData,
 } from '../projectContentConfigData.ts';
+import { createBirdCoderLocalBusinessUuid } from '../localBusinessUuid.ts';
 
 function createTimestamp(): string {
   return new Date().toISOString();
@@ -71,7 +72,7 @@ function createIdentifier(prefix: string): string {
 }
 
 function createUuid(): string {
-  return crypto.randomUUID();
+  return createBirdCoderLocalBusinessUuid();
 }
 
 function normalizeProjectPathForComparison(path: string | null | undefined): string | null {

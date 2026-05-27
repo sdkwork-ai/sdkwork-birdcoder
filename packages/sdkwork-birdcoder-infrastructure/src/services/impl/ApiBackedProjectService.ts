@@ -90,6 +90,11 @@ interface CodingSessionProjectionOptions {
   preserveLocalMessages?: boolean;
 }
 
+interface ProjectCodingSessionForTurn {
+  codingSession: BirdCoderCodingSession;
+  isLocallyMirrored: boolean;
+}
+
 function hasCodingSessionMessages(
   codingSession: LocalCodingSessionSnapshot | undefined,
 ): codingSession is BirdCoderCodingSession {
@@ -3002,26 +3007,79 @@ export class ApiBackedProjectService implements IProjectService {
     throw new Error(`Coding session ${codingSessionId} not found in project ${projectId}`);
   }
 
+  private async resolveLocalProjectCodingSessionForTurn(
+    projectId: string,
+    codingSessionId: string,
+  ): Promise<BirdCoderCodingSession | null> {
+    const normalizedProjectId = projectId.trim();
+    const normalizedCodingSessionId = codingSessionId.trim();
+    if (!normalizedProjectId || !normalizedCodingSessionId) {
+      return null;
+    }
+
+    const localProject = await this.writeService.getProjectById(normalizedProjectId);
+    const localCodingSession = localProject?.codingSessions.find(
+      (candidate) => candidate.id === normalizedCodingSessionId,
+    );
+    if (localCodingSession) {
+      return structuredClone(localCodingSession);
+    }
+
+    const currentUserId = await this.resolveCurrentUserId();
+    const cachedProject =
+      this.findFreshCachedProjectDetail(normalizedProjectId, currentUserId) ??
+      this.findFreshCachedProjectFromLists(
+        (candidateProject) => candidateProject.id === normalizedProjectId,
+        {
+          userId: currentUserId,
+          workspaceId: localProject?.workspaceId,
+        },
+      );
+    const cachedCodingSession = cachedProject?.codingSessions.find(
+      (candidate) => candidate.id === normalizedCodingSessionId,
+    );
+    return cachedCodingSession ? structuredClone(cachedCodingSession) : null;
+  }
+
   private async resolveProjectCodingSessionForTurn(
     projectId: string,
     codingSessionId: string,
-  ): Promise<BirdCoderCodingSession> {
-    try {
-      return await this.resolveProjectCodingSession(projectId, codingSessionId);
-    } catch (error) {
-      if (
-        !this.codingRuntimeClient ||
-        !isCodingSessionMissingInProjectError(error, projectId, codingSessionId)
-      ) {
-        throw error;
-      }
+  ): Promise<ProjectCodingSessionForTurn> {
+    const localCodingSession = await this.resolveLocalProjectCodingSessionForTurn(
+      projectId,
+      codingSessionId,
+    );
+    if (localCodingSession) {
+      return {
+        codingSession: localCodingSession,
+        isLocallyMirrored: true,
+      };
+    }
 
-      const summary = await this.codingRuntimeClient.getCodingSession(codingSessionId);
-      return this.hydrateAuthoritativeCodingSession(
-        summary.projectId.trim() || projectId,
-        summary,
+    if (!this.codingRuntimeClient) {
+      return {
+        codingSession: await this.resolveProjectCodingSession(projectId, codingSessionId),
+        isLocallyMirrored: true,
+      };
+    }
+
+    const summary = await this.codingRuntimeClient.getCodingSession(codingSessionId);
+    const normalizedProjectId = projectId.trim();
+    const summaryProjectId = summary.projectId.trim();
+    if (
+      normalizedProjectId &&
+      summaryProjectId &&
+      normalizedProjectId !== summaryProjectId
+    ) {
+      throw new Error(
+        `Authoritative coding session ${summary.id} belongs to project ${summaryProjectId}, not ${normalizedProjectId}.`,
       );
     }
+
+    return {
+      codingSession: mergeCodingSessionSummary(summary),
+      isLocallyMirrored: false,
+    };
   }
 
   private async recoverAuthoritativeCodingSessionForTurn(
@@ -3235,9 +3293,13 @@ export class ApiBackedProjectService implements IProjectService {
       );
     }
 
-    let existingCodingSession = this.codingRuntimeClient
+    let resolvedCodingSessionForTurn = this.codingRuntimeClient
       ? await this.resolveProjectCodingSessionForTurn(projectId, codingSessionId)
-      : await this.resolveProjectCodingSession(projectId, codingSessionId);
+      : {
+          codingSession: await this.resolveProjectCodingSession(projectId, codingSessionId),
+          isLocallyMirrored: true,
+        };
+    let existingCodingSession = resolvedCodingSessionForTurn.codingSession;
     let effectiveProjectId =
       existingCodingSession?.projectId?.trim() || projectId;
     let effectiveCodingSessionId = codingSessionId;
@@ -3261,6 +3323,10 @@ export class ApiBackedProjectService implements IProjectService {
       }
 
       existingCodingSession = recoveredCodingSession;
+      resolvedCodingSessionForTurn = {
+        codingSession: recoveredCodingSession,
+        isLocallyMirrored: true,
+      };
       effectiveProjectId =
         recoveredCodingSession.projectId?.trim() || effectiveProjectId;
       effectiveCodingSessionId = recoveredCodingSession.id;
@@ -3268,6 +3334,9 @@ export class ApiBackedProjectService implements IProjectService {
         effectiveCodingSessionId,
         remoteTurnRequest,
       );
+    }
+    if (!resolvedCodingSessionForTurn.isLocallyMirrored) {
+      await this.upsertCodingSession(effectiveProjectId, existingCodingSession);
     }
     const mirroredMessage = await this.writeService.addCodingSessionMessage(
       effectiveProjectId,

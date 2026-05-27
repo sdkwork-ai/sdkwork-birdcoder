@@ -145,8 +145,14 @@ assert.match(
 
 assert.match(
   projectsHookSource,
-  /if \(!isActive\) \{\s*return;\s*\}/s,
+  /if \(!isActive\) \{[\s\S]*return;\s*\}/s,
   'useProjects must skip store subscription, realtime setup, and mount fetching while inactive.',
+);
+
+assert.match(
+  projectsHookSource,
+  /if \(!isActive\) \{\s*setStoreSnapshot\(createProjectsStoreSnapshot\(\)\);\s*return;\s*\}[\s\S]*const store = getProjectsStore\(storeScopeKey\);/s,
+  'useProjects must bail out before creating or reading a project store while inactive so hidden workbench surfaces do not retain unused workspace stores.',
 );
 
 assert.match(

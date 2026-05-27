@@ -61,7 +61,7 @@ import {
 } from '@sdkwork/birdcoder-types';
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import { resolveRequiredCodingSessionSelection } from './codingSessionSelection.ts';
-import { createBirdCoderApiRequestId } from './apiRequestId.ts';
+import { createBirdCoderLocalServerRequestId } from './localServerRequestId.ts';
 
 export interface CreateBirdCoderInProcessAppRuntimeTransportOptions {
   hostMode?: BirdCoderHostMode;
@@ -156,7 +156,7 @@ const IN_PROCESS_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY = 'codeEngineS
 
 function createEnvelope<TData>(data: TData): BirdCoderApiEnvelope<TData> {
   return {
-    requestId: createBirdCoderApiRequestId(),
+    requestId: createBirdCoderLocalServerRequestId(),
     timestamp: new Date().toISOString(),
     data,
     meta: {
@@ -184,7 +184,7 @@ function createListEnvelope<TItem>(
       : 0;
   const pageBase = pageSize > 0 ? pageSize : Math.max(items.length, 1);
   return {
-    requestId: createBirdCoderApiRequestId(),
+    requestId: createBirdCoderLocalServerRequestId(),
     timestamp: new Date().toISOString(),
     items: [...items],
     meta: {

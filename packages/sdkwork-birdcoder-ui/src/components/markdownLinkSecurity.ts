@@ -10,11 +10,30 @@ const SAFE_MARKDOWN_LINK_PROTOCOLS = new Set([
 
 function isRelativeMarkdownHref(value: string): boolean {
   return (
-    value.startsWith('/') ||
+    (value.startsWith('/') && !value.startsWith('//')) ||
     value.startsWith('./') ||
     value.startsWith('../') ||
     value.startsWith('#')
   );
+}
+
+function normalizeSkillMarkdownHref(value: string): string | null {
+  if (!value.toLowerCase().startsWith('skill://')) {
+    return null;
+  }
+
+  const skillNameSegment = value.slice('skill://'.length).trim();
+  if (!skillNameSegment) {
+    return null;
+  }
+
+  try {
+    decodeURIComponent(skillNameSegment);
+  } catch {
+    return null;
+  }
+
+  return `skill://${skillNameSegment}`;
 }
 
 export function resolveSafeMarkdownHref(
@@ -31,7 +50,7 @@ export function resolveSafeMarkdownHref(
   }
 
   if (options.allowSkillLinks === true && normalizedHref.toLowerCase().startsWith('skill://')) {
-    return normalizedHref;
+    return normalizeSkillMarkdownHref(normalizedHref);
   }
 
   if (isRelativeMarkdownHref(normalizedHref)) {

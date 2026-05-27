@@ -26,6 +26,18 @@ assert.equal(
   'Plain BirdCoder capability-alignment messages must not enter rich markdown just because they contain the word Skill.',
 );
 
+assert.equal(
+  shouldUseRichChatMarkdown('Skill Refactor.', 'rich', [{ name: 'Refactor' }]),
+  true,
+  'Known configured skill mentions must enter rich markdown so UniversalChatMarkdown can render the skill badge.',
+);
+
+assert.equal(
+  shouldUseRichChatMarkdown('Skill runtime alignment status', 'rich', [{ name: 'Refactor' }]),
+  false,
+  'Unknown capability-alignment prose must stay plain even when other skills are configured.',
+);
+
 assert.match(
   universalChatMarkdownSource,
   /function processContent\(content: string,\s*skills: readonly ChatSkill\[\]/,
@@ -54,6 +66,12 @@ assert.match(
   universalChatMarkdownSource,
   /unknownSkillDescription\?: string;/,
   'UniversalChatMarkdown must accept a localized neutral fallback for unknown explicit skill links.',
+);
+
+assert.match(
+  universalChatSource,
+  /shouldUseRichChatMarkdown\(content,\s*mode,\s*environmentRef\.current\?\.skills \?\? \[\]\)/,
+  'UniversalChat must pass configured skills into the rich markdown gate so known skill mentions can render.',
 );
 
 assert.match(

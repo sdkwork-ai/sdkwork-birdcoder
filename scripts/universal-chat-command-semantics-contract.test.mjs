@@ -58,6 +58,18 @@ assert.match(
   'UniversalChat must render command cards through one shared helper for sidebar and main transcript layouts.',
 );
 
+assert.match(
+  universalChatSource,
+  /const commandTone = resolveCommandExecutionTone\(cmd\);[\s\S]*resolveCommandExecutionStatusLabel\(commandTone,\s*t\)[\s\S]*resolveCommandExecutionStatusClassName\(commandTone\)[\s\S]*renderCommandStatusIcon\(commandTone,\s*successIconSize\)/,
+  'UniversalChat command cards must resolve the command tone once per row and pass it into label, class, and icon helpers.',
+);
+
+assert.match(
+  universalChatSource,
+  /const commandOutputPreview = isCommandExpanded\s*\?\s*buildCommandOutputPreview\(cmd\.output\)\s*:\s*null;/,
+  'UniversalChat command cards must not split large command output while the row is collapsed.',
+);
+
 assert.equal(
   (universalChatSource.match(/renderCommandExecutionCard\(/g) ?? []).length,
   2,

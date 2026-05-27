@@ -801,12 +801,13 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       return;
     }
 
-    const store = getProjectsStore(storeScopeKey);
-    setStoreSnapshot(store.snapshot);
-
     if (!isActive) {
+      setStoreSnapshot(createProjectsStoreSnapshot());
       return;
     }
+
+    const store = getProjectsStore(storeScopeKey);
+    setStoreSnapshot(store.snapshot);
 
     const handleStoreChange = (nextSnapshot: ProjectsStoreSnapshot) => {
       startTransition(() => {

@@ -35,7 +35,7 @@ function createFallbackUuidV4(): string {
   ].join('-');
 }
 
-export function createBirdCoderApiRequestId(): string {
+export function createBirdCoderLocalUuidV4(): string {
   const randomUuid = readWebCrypto()?.randomUUID?.().toLowerCase();
   return randomUuid && UUID_V4_PATTERN.test(randomUuid)
     ? randomUuid

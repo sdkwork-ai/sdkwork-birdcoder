@@ -43,6 +43,15 @@ function processContent(content: string, skills: readonly ChatSkill[]) {
   }, content);
 }
 
+function decodeSkillHrefName(href: string): string | null {
+  try {
+    const skillName = decodeURIComponent(href.replace('skill://', '')).trim();
+    return skillName.length > 0 ? skillName : null;
+  } catch {
+    return null;
+  }
+}
+
 function PlainCodeBlock({
   language,
   children,
@@ -78,7 +87,10 @@ export function UniversalChatMarkdown({
       }
 
       if (safeHref.startsWith('skill://')) {
-        const skillName = decodeURIComponent(safeHref.replace('skill://', '')).trim();
+        const skillName = decodeSkillHrefName(safeHref);
+        if (!skillName) {
+          return <span>{props.children}</span>;
+        }
         const skill =
           skills.find((entry) => entry.name.toLowerCase() === skillName.toLowerCase())
           || {

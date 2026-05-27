@@ -644,7 +644,9 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-infrastructure/src/services/apiRequestId.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/localBusinessUuid.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/localServerRequestId.ts',
+              '/packages/sdkwork-birdcoder-infrastructure/src/services/localUuid.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/apiJson.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/appSessionEvents.ts',
               '/packages/sdkwork-birdcoder-infrastructure/src/services/codingSessionMessageProjection.ts',

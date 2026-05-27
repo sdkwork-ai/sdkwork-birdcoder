@@ -29,8 +29,8 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /if \(!shouldUseRichChatMarkdown\(content, mode\)\) \{[\s\S]*<PlainMessageContent content=\{content\} \/>[\s\S]*\}/,
-  'UniversalChat must keep the markdown heuristic as the gate before lazy-loading ReactMarkdown.',
+  /if \(!shouldUseRichChatMarkdown\(content,\s*mode,\s*environmentRef\.current\?\.skills \?\? \[\]\)\) \{[\s\S]*<PlainMessageContent content=\{content\} \/>[\s\S]*\}/,
+  'UniversalChat must keep the markdown heuristic as the gate before lazy-loading ReactMarkdown while passing configured skills for known skill mentions.',
 );
 
 assert.equal(

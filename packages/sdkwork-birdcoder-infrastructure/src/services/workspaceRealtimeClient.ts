@@ -30,6 +30,20 @@ function normalizeText(value: string | null | undefined): string | null {
   return normalizedValue.length > 0 ? normalizedValue : null;
 }
 
+function normalizeRealtimeBaseUrl(value: string | null | undefined): string | null {
+  const normalizedValue = normalizeText(value);
+  if (!normalizedValue) {
+    return null;
+  }
+
+  try {
+    new URL(normalizedValue);
+    return normalizedValue;
+  } catch {
+    return null;
+  }
+}
+
 function resolveWebSocketFactory(): BirdCoderWebSocketFactory | null {
   if (typeof WebSocket !== 'function') {
     return null;
@@ -74,7 +88,7 @@ export function canSubscribeBirdCoderWorkspaceRealtime(): boolean {
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
   return Boolean(
     resolveWebSocketFactory() &&
-      normalizeText(runtimeConfig.apiBaseUrl) &&
+      normalizeRealtimeBaseUrl(runtimeConfig.apiBaseUrl) &&
       normalizeText(readRuntimeServerSessionId()),
   );
 }
@@ -88,7 +102,7 @@ export function subscribeBirdCoderWorkspaceRealtime(
   }
 
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
-  const baseUrl = normalizeText(runtimeConfig.apiBaseUrl);
+  const baseUrl = normalizeRealtimeBaseUrl(runtimeConfig.apiBaseUrl);
   const sessionId = normalizeText(readRuntimeServerSessionId());
   const createWebSocket = resolveWebSocketFactory();
   if (!baseUrl || !sessionId || !createWebSocket) {

@@ -8,6 +8,7 @@ import {
   BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
   createBirdCoderBootstrapWorkspaceRecord,
 } from '../../storage/bootstrapConsoleCatalog.ts';
+import { createBirdCoderLocalBusinessUuid } from '../localBusinessUuid.ts';
 
 function createTimestamp(): string {
   return new Date().toISOString();
@@ -21,7 +22,7 @@ function createIdentifier(prefix: string): string {
 }
 
 function createUuid(): string {
-  return crypto.randomUUID();
+  return createBirdCoderLocalBusinessUuid();
 }
 
 function mapWorkspaceRecordToWorkspace(value: BirdCoderWorkspaceRecord): IWorkspace {
