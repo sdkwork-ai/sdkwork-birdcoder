@@ -26,38 +26,63 @@
   "canonicalSpecs": [
     {
       "file": "README.md",
-      "path": "../../../../specs/README.md",
+      "path": "../../sdkwork-specs/README.md",
       "purpose": "SDKWork root standards entrypoint."
     },
     {
       "file": "API_SPEC.md",
-      "path": "../../../../specs/API_SPEC.md",
+      "path": "../../sdkwork-specs/API_SPEC.md",
       "purpose": "OpenAPI source-of-truth, app/backend surface, path, tag, operationId, error, auth, and version rules."
     },
     {
       "file": "SDK_SPEC.md",
-      "path": "../../../../specs/SDK_SPEC.md",
+      "path": "../../sdkwork-specs/SDK_SPEC.md",
       "purpose": "SDK generation manifest, generated output, resource-style client surface, auth headers, and SDK verification rules."
     },
     {
       "file": "COMPONENT_SPEC.md",
-      "path": "../../../../specs/COMPONENT_SPEC.md",
+      "path": "../../sdkwork-specs/COMPONENT_SPEC.md",
       "purpose": "Local component specs directory and sdk-family manifest rules."
     },
     {
       "file": "DOCUMENTATION_SPEC.md",
-      "path": "../../../../specs/DOCUMENTATION_SPEC.md",
+      "path": "../../sdkwork-specs/DOCUMENTATION_SPEC.md",
       "purpose": "README and generated SDK example documentation rules."
     },
     {
       "file": "TEST_SPEC.md",
-      "path": "../../../../specs/TEST_SPEC.md",
+      "path": "../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Executable API, SDK, generated output, and documentation verification rules."
     },
     {
       "file": "DOMAIN_SPEC.md",
-      "path": "../../../../specs/DOMAIN_SPEC.md",
+      "path": "../../sdkwork-specs/DOMAIN_SPEC.md",
       "purpose": "Canonical domain ownership and iam/platform/intelligence naming rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable module and package boundary rules."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript and Node package rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate and module rules."
     }
   ],
   "contracts": {
@@ -84,7 +109,8 @@
     "configKeys": [
       ".sdkwork-assembly.json#standardProfile",
       ".sdkwork-assembly.json#surfaces"
-    ]
+    ],
+    "routeManifest": null
   },
   "integration": {
     "authority": "OpenAPI documents under sdks/specs/openapi are the SDK source of truth and must follow API_SPEC.md.",

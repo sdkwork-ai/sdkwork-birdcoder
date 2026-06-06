@@ -272,3 +272,42 @@ When the desktop or web host is opened on a direct auth callback path such as `/
 - The default entrypoint is this English `README.md`.
 - The Simplified Chinese counterpart lives at [README.zh-CN.md](./README.zh-CN.md).
 - Most operational docs are written in English, while the full architecture and Step standards are maintained in Chinese under [`docs/架构`](./docs/架构) and [`docs/step`](./docs/step/).
+
+## SDKWork Documentation Contract
+
+Domain: platform
+Capability: component
+Package type: react-tauri-app
+Status: ACTIVE
+
+### Public API
+
+Public exports are declared in `specs/component.spec.json` under `contracts.publicExports`.
+
+### Required SDK Surface
+
+- None declared in `specs/component.spec.json`.
+
+### Configuration
+
+Configuration keys and runtime entrypoints are declared in `specs/component.spec.json`.
+
+### SaaS/Private/Local Behavior
+
+This module follows the canonical standards linked from `specs/component.spec.json`, including deployment and runtime configuration rules where applicable.
+
+### Security
+
+Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module.
+
+### Extension Points
+
+Extension points are limited to declared public exports, runtime entrypoints, SDK clients, events, and config keys.
+
+### Verification
+
+- `pnpm --filter @sdkwork/birdcoder-workspace typecheck`
+
+### Owner And Status
+
+Owner and lifecycle status are tracked in `specs/component.spec.json`.
