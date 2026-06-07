@@ -75,8 +75,8 @@ export const QUALITY_GATE_TIERS = Object.freeze([
     label: 'Release quality gate',
     scriptName: 'check:quality:release',
     blockingScope: 'tag-and-release publication',
-    workflowFile: '.github/workflows/release-reusable.yml',
-    workflowStepName: 'Run release verification',
+    workflowFile: '.github/workflows/package.yml',
+    workflowStepName: 'Use sdkwork-github-workflow package workflow',
     owner: 'release-governance',
     focus: Object.freeze([
       'fast and standard gate closure',
@@ -93,15 +93,12 @@ export const QUALITY_GATE_TIERS = Object.freeze([
     governanceCheckIds: ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS,
     rerunPolicy: 'Any release-gate failure blocks packaging or publish; rerun the full release gate after the fix to keep release evidence coherent.',
     workflowBinding: Object.freeze({
-      kind: 'legacy-parity',
+      kind: 'standard-sdkwork-workflow',
       requiredCommands: Object.freeze([
-        'pnpm lint',
-        'pnpm check:desktop',
-        'pnpm check:server',
-        'node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
-        'pnpm build',
-        'pnpm server:build',
-        'pnpm docs:build',
+        'Sdkwork-Cloud/sdkwork-github-workflow/.github/workflows/sdkwork-package.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33',
+        'config_path: sdkwork.workflow.json',
+        'publish_release: true',
+        'upload_artifact: true',
       ]),
     }),
   }),
@@ -159,12 +156,16 @@ function readJson(filePath) {
 }
 
 function hasWorkflowBinding(workflowSource, tier) {
-  if (tier.workflowBinding?.kind !== 'legacy-parity' && !workflowSource.includes(tier.workflowStepName)) {
+  const requiredCommands = tier.workflowBinding?.requiredCommands ?? [];
+  if (requiredCommands.length === 0) {
     return false;
   }
 
-  const requiredCommands = tier.workflowBinding?.requiredCommands ?? [];
-  if (requiredCommands.length === 0) {
+  if (tier.workflowBinding?.kind === 'standard-sdkwork-workflow') {
+    return requiredCommands.every((command) => workflowSource.includes(command));
+  }
+
+  if (tier.workflowBinding?.kind !== 'legacy-parity' && !workflowSource.includes(tier.workflowStepName)) {
     return false;
   }
 
@@ -286,10 +287,7 @@ export function buildQualityGateMatrixReport({
   const packageJsonPath = path.join(rootDir, 'package.json');
   const packageJson = readJson(packageJsonPath);
   const ciWorkflowSource = fs.readFileSync(path.join(rootDir, '.github/workflows/ci.yml'), 'utf8');
-  const releaseWorkflowSource = fs.readFileSync(
-    path.join(rootDir, '.github/workflows/release-reusable.yml'),
-    'utf8',
-  );
+  const releaseWorkflowSource = fs.readFileSync(path.join(rootDir, '.github/workflows/package.yml'), 'utf8');
 
   const tiers = QUALITY_GATE_TIERS.map((tier) => {
     const command = String(packageJson.scripts?.[tier.scriptName] ?? '').trim();

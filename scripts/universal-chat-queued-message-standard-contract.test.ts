@@ -20,6 +20,12 @@ const universalChatSource = await readFile(
   resolve('packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx'),
   'utf8',
 );
+
+function indexOfSourcePattern(source: string, pattern: RegExp, startIndex = 0): number {
+  const match = pattern.exec(source.slice(startIndex));
+  return match?.index === undefined ? -1 : startIndex + match.index;
+}
+
 const handleSendStartIndex = universalChatSource.indexOf('const handleSend = async');
 const handleSendEndIndex = universalChatSource.indexOf('useEffect(() => {', handleSendStartIndex);
 const universalChatHandleSendSource = universalChatSource.slice(
@@ -41,11 +47,13 @@ const markQueuedTurnDispatchStartedSource =
         markQueuedTurnDispatchStartedEndIndex,
       )
     : '';
-const busyObserverEffectStartIndex = universalChatSource.indexOf(
-  'useEffect(() => {\n    setQueuedTurnFlushGate((previousState) =>\n      observeWorkbenchChatQueuedTurnBusyState',
+const busyObserverEffectStartIndex = indexOfSourcePattern(
+  universalChatSource,
+  /useEffect\(\(\) => \{\r?\n    setQueuedTurnFlushGate\(\(previousState\) =>\r?\n      observeWorkbenchChatQueuedTurnBusyState/u,
 );
-const busyObserverEffectEndIndex = universalChatSource.indexOf(
-  'useEffect(() => {\n    setIsQueueExpanded(false);',
+const busyObserverEffectEndIndex = indexOfSourcePattern(
+  universalChatSource,
+  /useEffect\(\(\) => \{\r?\n    setIsQueueExpanded\(false\);/u,
   busyObserverEffectStartIndex,
 );
 const busyObserverEffectSource =

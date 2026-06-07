@@ -34,7 +34,7 @@ assert.deepEqual(parseArgs(['serve', '--host', '127.0.0.1', '--port', '1520', '-
 
 const rootDir = process.cwd();
 const desktopRootDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
-const appbaseWorkspaceRoot = path.resolve(rootDir, '..', 'sdkwork-appbase');
+const rootNodeModulesDir = path.join(rootDir, 'node_modules');
 const config = createDesktopViteServerConfig({
   argv: ['--host', '127.0.0.1', '--port', '1520', '--strictPort', '--mode', 'test'],
   env: {
@@ -95,44 +95,44 @@ assert.equal(
 
 const reactRouterDomAlias = findAlias(
   (entry) => entry.find === 'react-router-dom',
-  'Desktop host config must resolve react-router-dom from the shared appbase workspace.',
+  'Desktop host config must resolve react-router-dom from the BirdCoder workspace dependency.',
 );
 assert.ok(
-  normalizePath(reactRouterDomAlias.replacement).startsWith(normalizePath(appbaseWorkspaceRoot)),
-  'Desktop host config must source react-router-dom from the shared appbase workspace root.',
+  normalizePath(reactRouterDomAlias.replacement).startsWith(normalizePath(rootNodeModulesDir)),
+  'Desktop host config must source react-router-dom from the BirdCoder workspace node_modules root.',
 );
 assert.match(
   normalizePath(reactRouterDomAlias.replacement),
   /\/react-router-dom\/dist\/index\.mjs$/u,
-  'Desktop host config must point react-router-dom at the ESM dist entry exported by the shared appbase workspace.',
+  'Desktop host config must point react-router-dom at the ESM dist entry exported by the BirdCoder workspace dependency.',
 );
 
 const reactRouterDomExportAlias = findAlias(
   (entry) => entry.find === 'react-router/dom',
-  'Desktop host config must resolve react-router/dom from the shared appbase workspace.',
+  'Desktop host config must resolve react-router/dom from the BirdCoder workspace dependency.',
 );
 assert.ok(
-  normalizePath(reactRouterDomExportAlias.replacement).startsWith(normalizePath(appbaseWorkspaceRoot)),
-  'Desktop host config must source react-router/dom from the shared appbase workspace root.',
+  normalizePath(reactRouterDomExportAlias.replacement).startsWith(normalizePath(rootNodeModulesDir)),
+  'Desktop host config must source react-router/dom from the BirdCoder workspace node_modules root.',
 );
 assert.match(
   normalizePath(reactRouterDomExportAlias.replacement),
   /\/react-router\/dist\/development\/dom-export\.mjs$/u,
-  'Desktop host config must point react-router/dom at the shared development DOM export entry.',
+  'Desktop host config must point react-router/dom at the BirdCoder workspace development DOM export entry.',
 );
 
 const reactRouterAlias = findAlias(
   (entry) => entry.find === 'react-router',
-  'Desktop host config must resolve react-router from the shared appbase workspace.',
+  'Desktop host config must resolve react-router from the BirdCoder workspace dependency.',
 );
 assert.ok(
-  normalizePath(reactRouterAlias.replacement).startsWith(normalizePath(appbaseWorkspaceRoot)),
-  'Desktop host config must source react-router from the shared appbase workspace root.',
+  normalizePath(reactRouterAlias.replacement).startsWith(normalizePath(rootNodeModulesDir)),
+  'Desktop host config must source react-router from the BirdCoder workspace node_modules root.',
 );
 assert.match(
   normalizePath(reactRouterAlias.replacement),
   /\/react-router\/dist\/development\/index\.mjs$/u,
-  'Desktop host config must point react-router at the shared development index entry.',
+  'Desktop host config must point react-router at the BirdCoder workspace development index entry.',
 );
 
 const tempWorkspaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-appbase-router-alias-'));
@@ -143,7 +143,13 @@ try {
     'packages',
     'sdkwork-birdcoder-desktop',
   );
-  const fixtureAppbaseAuthNodeModulesDir = path.join(
+  const fixtureRootNodeModulesDir = path.join(
+    fixtureDesktopRootDir,
+    '..',
+    '..',
+    'node_modules',
+  );
+  const fixtureAppbaseBridgeNodeModulesDir = path.join(
     tempWorkspaceRoot,
     'sdkwork-appbase',
     'packages',
@@ -152,6 +158,21 @@ try {
     'sdkwork-auth-pc-react',
     'node_modules',
   );
+
+  const writeFixturePackage = (nodeModulesDir, packageName, relativeEntryPaths = []) => {
+    const packageRoot = path.join(nodeModulesDir, ...packageName.split('/'));
+    fs.mkdirSync(packageRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(packageRoot, 'package.json'),
+      JSON.stringify({ name: packageName, version: '0.0.0-fixture' }, null, 2) + '\n',
+    );
+
+    for (const relativeEntryPath of relativeEntryPaths) {
+      const entryPath = path.join(packageRoot, ...relativeEntryPath);
+      fs.mkdirSync(path.dirname(entryPath), { recursive: true });
+      fs.writeFileSync(entryPath, relativeEntryPath.at(-1)?.endsWith('.css') ? '' : 'export {};\n');
+    }
+  };
 
   fs.mkdirSync(path.join(fixtureDesktopRootDir, '..', '..', 'scripts', 'vite-shims'), { recursive: true });
   fs.writeFileSync(
@@ -166,58 +187,43 @@ try {
     path.join(fixtureDesktopRootDir, '..', '..', 'scripts', 'vite-shims', 'set-cookie-parser-compat.mjs'),
     'export default {};\n',
   );
-  const fixtureQrcodePackageRoot = path.join(
-    fixtureDesktopRootDir,
-    '..',
-    '..',
-    'node_modules',
-    'qrcode',
-  );
-  fs.mkdirSync(path.join(fixtureQrcodePackageRoot, 'lib'), { recursive: true });
-  fs.writeFileSync(
-    path.join(fixtureQrcodePackageRoot, 'package.json'),
-    JSON.stringify({ name: 'qrcode', version: '1.5.4' }, null, 2) + '\n',
-  );
-  fs.writeFileSync(
-    path.join(fixtureQrcodePackageRoot, 'lib', 'browser.js'),
-    'module.exports = {};\n',
-  );
 
-  const routerPackages = [
-    ['react-router-dom', ['dist', 'index.mjs']],
-    ['react-router', ['dist', 'development', 'dom-export.mjs']],
-    ['react-router', ['dist', 'development', 'index.mjs']],
-  ];
-  for (const [packageName, relativeEntryPath] of routerPackages) {
-    const packageRoot = path.join(fixtureAppbaseAuthNodeModulesDir, packageName);
-    fs.mkdirSync(path.join(packageRoot, ...relativeEntryPath.slice(0, -1)), { recursive: true });
-    fs.writeFileSync(
-      path.join(packageRoot, 'package.json'),
-      JSON.stringify({ name: packageName, version: '7.14.0' }, null, 2) + '\n',
-    );
-    fs.writeFileSync(path.join(packageRoot, ...relativeEntryPath), 'export {};\n');
-  }
+  writeFixturePackage(fixtureRootNodeModulesDir, '@xterm/xterm', [['css', 'xterm.css']]);
+  writeFixturePackage(fixtureRootNodeModulesDir, '@tauri-apps/api', [['core.js']]);
+  writeFixturePackage(fixtureRootNodeModulesDir, 'lucide-react', [['dist', 'esm', 'lucide-react.js']]);
+  writeFixturePackage(fixtureRootNodeModulesDir, 'qrcode', [['lib', 'browser.js']]);
+  writeFixturePackage(fixtureRootNodeModulesDir, 'react-router-dom', [['dist', 'index.mjs']]);
+  writeFixturePackage(fixtureRootNodeModulesDir, 'react-router', [
+    ['dist', 'development', 'dom-export.mjs'],
+    ['dist', 'development', 'index.mjs'],
+  ]);
 
-  const appbaseBridgeAliasEntries = createBirdcoderWorkspaceAliasEntries(fixtureDesktopRootDir);
-  const appbaseBridgeRouterDomAlias = appbaseBridgeAliasEntries.find((entry) => entry.find === 'react-router-dom');
+  writeFixturePackage(fixtureAppbaseBridgeNodeModulesDir, 'react-router-dom', [['dist', 'index.mjs']]);
+  writeFixturePackage(fixtureAppbaseBridgeNodeModulesDir, 'react-router', [
+    ['dist', 'development', 'dom-export.mjs'],
+    ['dist', 'development', 'index.mjs'],
+  ]);
+
+  const birdcoderRootAliasEntries = createBirdcoderWorkspaceAliasEntries(fixtureDesktopRootDir);
+  const birdcoderRootRouterDomAlias = birdcoderRootAliasEntries.find((entry) => entry.find === 'react-router-dom');
   assert.ok(
-    appbaseBridgeRouterDomAlias,
-    'git-backed release aliases must still resolve react-router-dom when sdkwork-appbase has no root install.',
+    birdcoderRootRouterDomAlias,
+    'git-backed release aliases must still resolve react-router-dom from the BirdCoder workspace dependency root.',
   );
   assert.match(
-    normalizePath(appbaseBridgeRouterDomAlias.replacement),
-    /\/sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-auth-pc-react\/node_modules\/react-router-dom\/dist\/index\.mjs$/u,
-    'git-backed release aliases must fall back to the managed appbase package dependency bridge for react-router-dom.',
+    normalizePath(birdcoderRootRouterDomAlias.replacement),
+    /\/sdkwork-birdcoder\/node_modules\/react-router-dom\/dist\/index\.mjs$/u,
+    'git-backed release aliases must prefer BirdCoder root react-router-dom even when an appbase bridge dependency also exists.',
   );
-  const appbaseBridgeRouterAlias = appbaseBridgeAliasEntries.find((entry) => entry.find === 'react-router');
+  const birdcoderRootRouterAlias = birdcoderRootAliasEntries.find((entry) => entry.find === 'react-router');
   assert.ok(
-    appbaseBridgeRouterAlias,
-    'git-backed release aliases must still resolve react-router when sdkwork-appbase has no root install.',
+    birdcoderRootRouterAlias,
+    'git-backed release aliases must still resolve react-router from the BirdCoder workspace dependency root.',
   );
   assert.match(
-    normalizePath(appbaseBridgeRouterAlias.replacement),
-    /\/sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-auth-pc-react\/node_modules\/react-router\/dist\/development\/index\.mjs$/u,
-    'git-backed release aliases must fall back to the managed appbase package dependency bridge for react-router.',
+    normalizePath(birdcoderRootRouterAlias.replacement),
+    /\/sdkwork-birdcoder\/node_modules\/react-router\/dist\/development\/index\.mjs$/u,
+    'git-backed release aliases must prefer BirdCoder root react-router even when an appbase bridge dependency also exists.',
   );
 } finally {
   fs.rmSync(tempWorkspaceRoot, { recursive: true, force: true });
@@ -272,10 +278,12 @@ assert.deepEqual(config.server.fs.allow, [
   path.resolve(desktopRootDir, '../..'),
   path.resolve(rootDir, '..', 'sdkwork-appbase'),
   path.resolve(rootDir, '..', 'sdkwork-core'),
+  path.resolve(rootDir, '..', 'sdkwork-drive'),
+  path.resolve(rootDir, '..', 'sdkwork-messaging'),
+  path.resolve(rootDir, '..', 'sdkwork-sdk-commons'),
+  path.resolve(rootDir, '..', 'sdkwork-search'),
   path.resolve(rootDir, '..', 'sdkwork-ui'),
   path.resolve(rootDir, '..', 'sdkwork-terminal'),
-  path.resolve(rootDir, '..', '..', 'spring-ai-plus-app-api'),
-  path.resolve(rootDir, '..', '..', 'sdk'),
 ]);
 
 const uiRequire = createRequire(path.join(rootDir, 'packages', 'sdkwork-birdcoder-ui', 'package.json'));

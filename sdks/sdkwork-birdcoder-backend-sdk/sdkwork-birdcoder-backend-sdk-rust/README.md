@@ -15,47 +15,8 @@ Example Rust operation descriptors:
 sdkwork_birdcoder_backend_sdk::iam::audit_events::LIST
 sdkwork_birdcoder_backend_sdk::iam::policies::LIST
 sdkwork_birdcoder_backend_sdk::iam::users::LIST
-sdkwork_birdcoder_backend_sdk::iam::users::roles::LIST
+sdkwork_birdcoder_backend_sdk::iam::role_bindings::CREATE
 sdkwork_birdcoder_backend_sdk::iam::teams::LIST
 sdkwork_birdcoder_backend_sdk::iam::teams::members::LIST
 sdkwork_birdcoder_backend_sdk::platform::releases::LIST
 ```
-
-## SDKWork Documentation Contract
-
-Domain: platform
-Capability: birdcoder-backend-sdk
-Package type: rust-crate
-Status: standard
-
-### Public API
-
-Public exports are declared in `specs/component.spec.json` under `contracts.publicExports`.
-
-### Required SDK Surface
-
-- None declared in `specs/component.spec.json`.
-
-### Configuration
-
-Configuration keys and runtime entrypoints are declared in `specs/component.spec.json`.
-
-### SaaS/Private/Local Behavior
-
-This module follows the canonical standards linked from `specs/component.spec.json`, including deployment and runtime configuration rules where applicable.
-
-### Security
-
-Do not add secrets, live tokens, manual auth headers, or app-local credential handling to this module.
-
-### Extension Points
-
-Extension points are limited to declared public exports, runtime entrypoints, SDK clients, events, and config keys.
-
-### Verification
-
-- `cargo test`
-
-### Owner And Status
-
-Owner and lifecycle status are tracked in `specs/component.spec.json`.

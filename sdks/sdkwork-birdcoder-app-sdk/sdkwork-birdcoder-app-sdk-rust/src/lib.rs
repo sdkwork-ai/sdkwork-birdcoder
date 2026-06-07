@@ -214,42 +214,6 @@ pub mod auth {
             tenant_scope: "platform",
         };
     }
-
-    pub mod verification_codes {
-        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
-            data_scope: "platform",
-            deployment: "all",
-            domain: "iam",
-            key: "auth.verificationCodes.create",
-            method: "POST",
-            operation_id: "verificationCodes.create",
-            path: "/app/v3/api/auth/verification_codes",
-            path_param_names: &[],
-            permission: None,
-            public: true,
-            resource: "iam.verificationCodes",
-            summary: "Create SDKWork IAM verification code",
-            tag: "auth",
-            tenant_scope: "platform",
-        };
-
-        pub const VERIFY: crate::SdkOperation = crate::SdkOperation {
-            data_scope: "platform",
-            deployment: "all",
-            domain: "iam",
-            key: "auth.verificationCodes.verify",
-            method: "POST",
-            operation_id: "verificationCodes.verify",
-            path: "/app/v3/api/auth/verification_codes/verify",
-            path_param_names: &[],
-            permission: None,
-            public: true,
-            resource: "iam.verificationCodes",
-            summary: "Verify SDKWork IAM verification code",
-            tag: "auth",
-            tenant_scope: "platform",
-        };
-    }
 }
 
 pub mod collaboration {
@@ -337,6 +301,82 @@ pub mod content {
 }
 
 pub mod iam {
+    pub mod organization_memberships {
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.organizationMemberships.list",
+            method: "GET",
+            operation_id: "organizationMemberships.list",
+            path: "/app/v3/api/iam/organization_memberships",
+            path_param_names: &[],
+            permission: Some("iam.organizationMemberships.read"),
+            public: false,
+            resource: "iam.organizationMemberships",
+            summary: "List SDKWork IAM organization members",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+    }
+
+    pub mod organizations {
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.organizations.list",
+            method: "GET",
+            operation_id: "organizations.list",
+            path: "/app/v3/api/iam/organizations",
+            path_param_names: &[],
+            permission: Some("iam.organizations.read"),
+            public: false,
+            resource: "iam.organizations",
+            summary: "List SDKWork IAM organizations",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+
+        pub mod tree {
+            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "iam",
+                key: "iam.organizations.tree.retrieve",
+                method: "GET",
+                operation_id: "organizations.tree.retrieve",
+                path: "/app/v3/api/iam/organizations/tree",
+                path_param_names: &[],
+                permission: Some("iam.organizations.tree.read"),
+                public: false,
+                resource: "iam.organizations.tree",
+                summary: "Get SDKWork IAM organization tree",
+                tag: "iam",
+                tenant_scope: "tenant",
+            };
+        }
+    }
+
+    pub mod role_bindings {
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "iam",
+            key: "iam.roleBindings.list",
+            method: "GET",
+            operation_id: "roleBindings.list",
+            path: "/app/v3/api/iam/role_bindings",
+            path_param_names: &[],
+            permission: Some("iam.roleBindings.read"),
+            public: false,
+            resource: "iam.roleBindings",
+            summary: "List SDKWork IAM user role bindings",
+            tag: "iam",
+            tenant_scope: "tenant",
+        };
+    }
+
     pub mod users {
         pub mod current {
             pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
@@ -1519,12 +1559,14 @@ pub const OPERATIONS: &[SdkOperation] = &[
     auth::sessions::current::RETRIEVE,
     auth::sessions::current::UPDATE,
     auth::sessions::REFRESH,
-    auth::verification_codes::CREATE,
-    auth::verification_codes::VERIFY,
     collaboration::workspace_teams::LIST,
     commerce::memberships::current::RETRIEVE,
     commerce::memberships::package_groups::LIST,
     content::documents::LIST,
+    iam::organization_memberships::LIST,
+    iam::organizations::LIST,
+    iam::organizations::tree::RETRIEVE,
+    iam::role_bindings::LIST,
     iam::users::current::RETRIEVE,
     iam::users::current::UPDATE,
     iam::workspaces::members::LIST,

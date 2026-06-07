@@ -231,13 +231,6 @@ export interface BirdCoderIamOrganizationMemberSummaryEnvelope {
   timestamp: string;
 }
 
-export interface BirdCoderIamOrganizationMemberSummaryListEnvelope {
-  items: Array<BirdCoderIamOrganizationMemberSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
-}
-
 export interface BirdCoderIamOrganizationSummary {
   id: string;
   tenantId: string;
@@ -253,13 +246,6 @@ export interface BirdCoderIamOrganizationSummary {
 export interface BirdCoderIamOrganizationSummaryEnvelope {
   data: BirdCoderIamOrganizationSummary;
   meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderIamOrganizationSummaryListEnvelope {
-  items: Array<BirdCoderIamOrganizationSummary>;
-  meta: BirdCoderApiListMeta;
   requestId: string;
   timestamp: string;
 }
@@ -441,13 +427,6 @@ export interface BirdCoderIamUserRoleSummaryEnvelope {
   timestamp: string;
 }
 
-export interface BirdCoderIamUserRoleSummaryListEnvelope {
-  items: Array<BirdCoderIamUserRoleSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
-}
-
 export interface BirdCoderIamUserSummary {
   id: string;
   uuid: string;
@@ -608,26 +587,12 @@ export interface IamApiKeysRevokePathParams {
   apiKeyId: string;
 }
 
+export interface IamOrganizationMembershipsUpdatePathParams {
+  membershipId: string;
+}
+
 export interface IamOrganizationsDeletePathParams {
   organizationId: string;
-}
-
-export interface IamOrganizationsMembersCreatePathParams {
-  organizationId: string;
-}
-
-export interface IamOrganizationsMembersDeletePathParams {
-  organizationId: string;
-  userId: string;
-}
-
-export interface IamOrganizationsMembersListPathParams {
-  organizationId: string;
-}
-
-export interface IamOrganizationsMembersUpdatePathParams {
-  organizationId: string;
-  userId: string;
 }
 
 export interface IamOrganizationsRetrievePathParams {
@@ -660,6 +625,10 @@ export interface IamPoliciesRetrievePathParams {
 
 export interface IamPoliciesUpdatePathParams {
   policyId: string;
+}
+
+export interface IamRoleBindingsDeletePathParams {
+  roleBindingId: string;
 }
 
 export interface IamRolesDeletePathParams {
@@ -734,19 +703,6 @@ export interface IamUsersRetrievePathParams {
   userId: string;
 }
 
-export interface IamUsersRolesCreatePathParams {
-  userId: string;
-}
-
-export interface IamUsersRolesDeletePathParams {
-  userId: string;
-  roleId: string;
-}
-
-export interface IamUsersRolesListPathParams {
-  userId: string;
-}
-
 export interface IamUsersUpdatePathParams {
   userId: string;
 }
@@ -807,6 +763,40 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "tenantScope": "tenant"
   },
   {
+    "key": "iam.organizationMemberships.create",
+    "method": "POST",
+    "operationId": "organizationMemberships.create",
+    "path": "/backend/v3/api/iam/organization_memberships",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "iam",
+    "permission": "iam.organizationMemberships.create",
+    "public": false,
+    "resource": "iam.organizationMemberships",
+    "summary": "Create SDKWork IAM organization member",
+    "tag": "iam",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "iam.organizationMemberships.update",
+    "method": "PATCH",
+    "operationId": "organizationMemberships.update",
+    "path": "/backend/v3/api/iam/organization_memberships/{membershipId}",
+    "pathParamNames": [
+      "membershipId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "iam",
+    "permission": "iam.organizationMemberships.update",
+    "public": false,
+    "resource": "iam.organizationMemberships",
+    "summary": "Update SDKWork IAM organization member",
+    "tag": "iam",
+    "tenantScope": "tenant"
+  },
+  {
     "key": "iam.organizations.create",
     "method": "POST",
     "operationId": "organizations.create",
@@ -841,96 +831,6 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "tenantScope": "tenant"
   },
   {
-    "key": "iam.organizations.list",
-    "method": "GET",
-    "operationId": "organizations.list",
-    "path": "/backend/v3/api/iam/organizations",
-    "pathParamNames": [],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.organizations.read",
-    "public": false,
-    "resource": "iam.organizations",
-    "summary": "List SDKWork IAM organizations",
-    "tag": "iam",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "iam.organizations.members.create",
-    "method": "POST",
-    "operationId": "organizations.members.create",
-    "path": "/backend/v3/api/iam/organizations/{organizationId}/members",
-    "pathParamNames": [
-      "organizationId"
-    ],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.organizations.members.create",
-    "public": false,
-    "resource": "iam.organizations.members",
-    "summary": "Create SDKWork IAM organization member",
-    "tag": "iam",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "iam.organizations.members.delete",
-    "method": "DELETE",
-    "operationId": "organizations.members.delete",
-    "path": "/backend/v3/api/iam/organizations/{organizationId}/members/{userId}",
-    "pathParamNames": [
-      "organizationId",
-      "userId"
-    ],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.organizations.members.delete",
-    "public": false,
-    "resource": "iam.organizations.members",
-    "summary": "Delete SDKWork IAM organization member",
-    "tag": "iam",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "iam.organizations.members.list",
-    "method": "GET",
-    "operationId": "organizations.members.list",
-    "path": "/backend/v3/api/iam/organizations/{organizationId}/members",
-    "pathParamNames": [
-      "organizationId"
-    ],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.organizations.members.read",
-    "public": false,
-    "resource": "iam.organizations.members",
-    "summary": "List SDKWork IAM organization members",
-    "tag": "iam",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "iam.organizations.members.update",
-    "method": "PATCH",
-    "operationId": "organizations.members.update",
-    "path": "/backend/v3/api/iam/organizations/{organizationId}/members/{userId}",
-    "pathParamNames": [
-      "organizationId",
-      "userId"
-    ],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.organizations.members.update",
-    "public": false,
-    "resource": "iam.organizations.members",
-    "summary": "Update SDKWork IAM organization member",
-    "tag": "iam",
-    "tenantScope": "tenant"
-  },
-  {
     "key": "iam.organizations.retrieve",
     "method": "GET",
     "operationId": "organizations.retrieve",
@@ -945,22 +845,6 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "public": false,
     "resource": "iam.organizations",
     "summary": "Get SDKWork IAM organization",
-    "tag": "iam",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "iam.organizations.tree.retrieve",
-    "method": "GET",
-    "operationId": "organizations.tree.retrieve",
-    "path": "/backend/v3/api/iam/organizations/tree",
-    "pathParamNames": [],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.organizations.tree.read",
-    "public": false,
-    "resource": "iam.organizations.tree",
-    "summary": "Get SDKWork IAM organization tree",
     "tag": "iam",
     "tenantScope": "tenant"
   },
@@ -1151,6 +1035,40 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "public": false,
     "resource": "iam.policies",
     "summary": "Update SDKWork IAM policy",
+    "tag": "iam",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "iam.roleBindings.create",
+    "method": "POST",
+    "operationId": "roleBindings.create",
+    "path": "/backend/v3/api/iam/role_bindings",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "iam",
+    "permission": "iam.roleBindings.create",
+    "public": false,
+    "resource": "iam.roleBindings",
+    "summary": "Create SDKWork IAM user role binding",
+    "tag": "iam",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "iam.roleBindings.delete",
+    "method": "DELETE",
+    "operationId": "roleBindings.delete",
+    "path": "/backend/v3/api/iam/role_bindings/{roleBindingId}",
+    "pathParamNames": [
+      "roleBindingId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "iam",
+    "permission": "iam.roleBindings.delete",
+    "public": false,
+    "resource": "iam.roleBindings",
+    "summary": "Delete SDKWork IAM user role binding",
     "tag": "iam",
     "tenantScope": "tenant"
   },
@@ -1570,61 +1488,6 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "public": false,
     "resource": "iam.users",
     "summary": "Get SDKWork IAM user",
-    "tag": "iam",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "iam.users.roles.create",
-    "method": "POST",
-    "operationId": "users.roles.create",
-    "path": "/backend/v3/api/iam/users/{userId}/roles",
-    "pathParamNames": [
-      "userId"
-    ],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.users.roles.create",
-    "public": false,
-    "resource": "iam.users.roles",
-    "summary": "Create SDKWork IAM user role",
-    "tag": "iam",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "iam.users.roles.delete",
-    "method": "DELETE",
-    "operationId": "users.roles.delete",
-    "path": "/backend/v3/api/iam/users/{userId}/roles/{roleId}",
-    "pathParamNames": [
-      "userId",
-      "roleId"
-    ],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.users.roles.delete",
-    "public": false,
-    "resource": "iam.users.roles",
-    "summary": "Delete SDKWork IAM user role",
-    "tag": "iam",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "iam.users.roles.list",
-    "method": "GET",
-    "operationId": "users.roles.list",
-    "path": "/backend/v3/api/iam/users/{userId}/roles",
-    "pathParamNames": [
-      "userId"
-    ],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.users.roles.read",
-    "public": false,
-    "resource": "iam.users.roles",
-    "summary": "List SDKWork IAM user roles",
     "tag": "iam",
     "tenantScope": "tenant"
   },

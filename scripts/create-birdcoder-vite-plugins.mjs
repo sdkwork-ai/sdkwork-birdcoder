@@ -3,8 +3,6 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import tailwindcss from '@tailwindcss/vite';
-
 /**
  * Vite config helpers are consumed from multiple workspace packages that resolve
  * different physical Vite peer instances under pnpm. Keep plugin values opaque
@@ -79,13 +77,27 @@ function resolveSdkworkCorePcReactBrowserFacadePath() {
   );
 }
 
-function resolveWorkspacePackageEntryPath(appRootDir, specifier, relativeEntryPath) {
+function resolveWorkspacePackageEntryPath(
+  appRootDir,
+  specifier,
+  relativeEntryPath,
+  { allowMissing = false } = {},
+) {
   const packageJsonPath = resolvePackageJsonPathFromWorkspaceRoot(
     resolveWorkspaceRootDir(appRootDir),
     specifier,
   );
 
   if (!packageJsonPath) {
+    if (allowMissing) {
+      return path.join(
+        resolveWorkspaceRootDir(appRootDir),
+        'node_modules',
+        ...resolvePackageNameFromSpecifier(specifier).split('/'),
+        ...relativeEntryPath,
+      );
+    }
+
     throw new Error(
       `Unable to resolve ${specifier} from BirdCoder workspace ${resolveWorkspaceRootDir(appRootDir)}.`,
     );
@@ -97,11 +109,36 @@ function resolveWorkspacePackageEntryPath(appRootDir, specifier, relativeEntryPa
 function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRootDir) {
   return [
     {
+      find: '@xterm/xterm/css/xterm.css',
+      replacement: resolveWorkspacePackageEntryPath(
+        appRootDir,
+        '@xterm/xterm',
+        ['css', 'xterm.css'],
+      ),
+    },
+    {
+      find: /^@tauri-apps\/api\/(.+)$/u,
+      replacement: resolveWorkspacePackageEntryPath(
+        appRootDir,
+        '@tauri-apps/api',
+        ['$1.js'],
+      ),
+    },
+    {
+      find: 'lucide-react',
+      replacement: resolveWorkspacePackageEntryPath(
+        appRootDir,
+        'lucide-react',
+        ['dist', 'esm', 'lucide-react.js'],
+      ),
+    },
+    {
       find: /^qrcode\/lib\/browser\.js$/u,
       replacement: resolveWorkspacePackageEntryPath(
         appRootDir,
         'qrcode',
         ['lib', 'browser.js'],
+        { allowMissing: true },
       ),
     },
     {
@@ -113,7 +150,7 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: 'react-router-dom',
-      replacement: resolveAppbaseWorkspacePackageEntryPath(
+      replacement: resolveWorkspacePackageEntryPath(
         appRootDir,
         'react-router-dom',
         ['dist', 'index.mjs'],
@@ -121,7 +158,7 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: 'react-router/dom',
-      replacement: resolveAppbaseWorkspacePackageEntryPath(
+      replacement: resolveWorkspacePackageEntryPath(
         appRootDir,
         'react-router',
         ['dist', 'development', 'dom-export.mjs'],
@@ -129,7 +166,7 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: 'react-router',
-      replacement: resolveAppbaseWorkspacePackageEntryPath(
+      replacement: resolveWorkspacePackageEntryPath(
         appRootDir,
         'react-router',
         ['dist', 'development', 'index.mjs'],
@@ -161,31 +198,31 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: resolveSdkworkCorePcReactBrowserFacadePath(),
     },
     {
-      find: /^@sdkwork\/app-sdk\/(.+)$/u,
-      replacement: path.resolve(
-        appRootDir,
-        '../../../../spring-ai-plus-app-api/sdkwork-sdk-app/sdkwork-app-sdk-typescript/src/$1',
-      ),
-    },
-    {
-      find: '@sdkwork/app-sdk',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../../spring-ai-plus-app-api/sdkwork-sdk-app/sdkwork-app-sdk-typescript/src/index.ts',
-      ),
-    },
-    {
       find: /^@sdkwork\/sdk-common\/(.+)$/u,
       replacement: path.resolve(
         appRootDir,
-        '../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/$1',
+        '../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/$1',
       ),
     },
     {
       find: '@sdkwork/sdk-common',
       replacement: path.resolve(
         appRootDir,
-        '../../../../sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts',
+        '../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts',
+      ),
+    },
+    {
+      find: '@sdkwork/appbase-app-sdk',
+      replacement: path.resolve(
+        appRootDir,
+        '../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts',
+      ),
+    },
+    {
+      find: '@sdkwork/appbase-backend-sdk',
+      replacement: path.resolve(
+        appRootDir,
+        '../../../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts',
       ),
     },
     {
@@ -241,14 +278,28 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       find: /^@sdkwork\/search-pc-react\/(.+)$/u,
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-search-pc-react/src/$1',
+        '../../../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react/src/$1',
       ),
     },
     {
       find: '@sdkwork/search-pc-react',
       replacement: path.resolve(
         appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts',
+        '../../../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts',
+      ),
+    },
+    {
+      find: /^@sdkwork\/search-contracts\/(.+)$/u,
+      replacement: path.resolve(
+        appRootDir,
+        '../../../sdkwork-search/packages/common/search/sdkwork-search-contracts/src/$1',
+      ),
+    },
+    {
+      find: '@sdkwork/search-contracts',
+      replacement: path.resolve(
+        appRootDir,
+        '../../../sdkwork-search/packages/common/search/sdkwork-search-contracts/src/index.ts',
       ),
     },
     {
@@ -277,6 +328,20 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: path.resolve(
         appRootDir,
         '../../sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts',
+      ),
+    },
+    {
+      find: '@sdkwork/drive-app-sdk',
+      replacement: path.resolve(
+        appRootDir,
+        '../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts',
+      ),
+    },
+    {
+      find: '@sdkwork/messaging-app-sdk',
+      replacement: path.resolve(
+        appRootDir,
+        '../../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts',
       ),
     },
     {
@@ -314,10 +379,12 @@ function createBirdcoderWorkspaceFsAllowList(appRootDir = defaultBirdcoderAppRoo
     path.resolve(appRootDir, '../..'),
     path.resolve(appRootDir, '../../../sdkwork-appbase'),
     path.resolve(appRootDir, '../../../sdkwork-core'),
+    path.resolve(appRootDir, '../../../sdkwork-drive'),
+    path.resolve(appRootDir, '../../../sdkwork-messaging'),
+    path.resolve(appRootDir, '../../../sdkwork-sdk-commons'),
+    path.resolve(appRootDir, '../../../sdkwork-search'),
     path.resolve(appRootDir, '../../../sdkwork-ui'),
     path.resolve(appRootDir, '../../../sdkwork-terminal'),
-    path.resolve(appRootDir, '../../../../spring-ai-plus-app-api'),
-    path.resolve(appRootDir, '../../../../sdk'),
   ];
 }
 
@@ -687,8 +754,11 @@ function resolveAppbaseWorkspacePackageEntryPath(appRootDir, specifier, relative
     ?? resolveAppbaseManagedBridgePackageJsonPath(appbaseWorkspaceRootDir, specifier);
 
   if (!packageJsonPath) {
-    throw new Error(
-      `Unable to resolve ${specifier} from shared workspace ${appbaseWorkspaceRootDir}.`,
+    return path.join(
+      appbaseWorkspaceRootDir,
+      'node_modules',
+      ...resolvePackageNameFromSpecifier(specifier).split('/'),
+      ...relativeEntryPath,
     );
   }
 
@@ -1266,6 +1336,26 @@ function createBirdcoderRuntimeEnvBootstrapPlugin({
   return plugin;
 }
 
+function createBirdcoderTailwindcssPlugin({
+  namespace = defaultBirdcoderNamespace,
+  toolingRootDir = defaultBirdcoderToolingRootDir,
+} = {}) {
+  try {
+    const toolingRequire = createPackageRequire(toolingRootDir);
+    const tailwindcssModule = toolingRequire('@tailwindcss/vite');
+    const tailwindcss = tailwindcssModule?.default ?? tailwindcssModule;
+    if (typeof tailwindcss === 'function') {
+      return tailwindcss();
+    }
+  } catch {
+    // Static contract tests import this helper before dependencies are installed.
+  }
+
+  return {
+    name: `${namespace}-tailwindcss-unavailable`,
+  };
+}
+
 function createBirdcoderVitePlugins({
   appRootDir = defaultBirdcoderAppRootDir,
   runtimeEnvSource = process.env,
@@ -1307,7 +1397,10 @@ function createBirdcoderVitePlugins({
       mode,
       namespace,
     }),
-    tailwindcss(),
+    createBirdcoderTailwindcssPlugin({
+      namespace,
+      toolingRootDir,
+    }),
   ];
 
   return plugins;

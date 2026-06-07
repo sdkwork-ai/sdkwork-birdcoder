@@ -275,13 +275,12 @@ BirdCoder keeps the same multi-family metadata model across:
 
 ## GitHub Workflow
 
-`.github/workflows/release.yml` delegates to `.github/workflows/release-reusable.yml`.
+`.github/workflows/package.yml` delegates to the shared `Sdkwork-Cloud/sdkwork-github-workflow` package workflow. `sdkwork.workflow.json` declares the standard package matrix, aggregate release publication, and changelog source. `scripts/release/sdkwork-workflow-lifecycle.mjs` maps each standard target id to the existing BirdCoder release build, package, smoke, finalization, attestation, and readiness scripts.
 
-GitHub Actions follows the same release shape as Claw Studio:
+GitHub Actions follows the SDKWork package workflow shape:
 
-- prepare the release plan
-- verify workspace, desktop, server, web, and docs inputs
-- prove the synthetic release readiness fixture and uploadable release-candidate dry-run evidence in CI
+- plan the selected SDKWork package targets from `sdkwork.workflow.json`
+- install workspace dependencies and materialize shared SDK sources
 - package desktop, server, container, kubernetes, and web artifacts
 - smoke packaged artifacts before upload
 - publish OCI metadata for the server container family
@@ -289,15 +288,15 @@ GitHub Actions follows the same release shape as Claw Studio:
 - run finalized smoke so `qualityEvidence` and other attached evidence summaries are verified before note rendering and publication
 - render release notes before the final readiness assertion so the last script gate observes the final release directory shape
 - assert release readiness against `release-manifest.json.artifacts` and `SHA256SUMS.txt` immediately before attestation and publication
-- publish GitHub release assets
+- publish aggregate GitHub release assets through the shared workflow
 
-The desktop release job first runs `scripts/release/preflight-desktop-signing-environment.mjs --bundles ...`, then passes the same `matrix.bundles` into `scripts/run-desktop-release-build.mjs --bundles ...` for both Windows and Unix runners. That keeps the signing environment, build request, collected installer artifacts, smoke evidence, and `releaseCoverage` target matrix aligned instead of relying on implicit Tauri defaults.
+The desktop lifecycle first runs `scripts/release/preflight-desktop-signing-environment.mjs --bundles ...`, then passes the selected standard bundle into `scripts/run-desktop-release-build.mjs --bundles ...` for Windows, Linux, and macOS runners. That keeps the signing environment, build request, collected installer artifacts, smoke evidence, and `releaseCoverage` target matrix aligned instead of relying on implicit Tauri defaults.
 
 ## Artifact Families
 
 ### Desktop
 
-Desktop artifacts package the BirdCoder desktop host and keep installer plus packaged-launch smoke contracts in the reusable release workflow. Startup evidence remains a BirdCoder local/manual release check.
+Desktop artifacts package the BirdCoder desktop host and keep installer plus packaged-launch smoke contracts in the SDKWork lifecycle dispatcher. Startup evidence remains a BirdCoder local/manual release check.
 
 Desktop native installers are published under `desktop/<platform>/<arch>/installers/<bundle>/...` instead of being flattened into the platform directory. The extra bundle segment preserves the Tauri output type (`nsis`, `msi`, `deb`, `rpm`, `appimage`, `app`, or `dmg`) so same-name installer files cannot overwrite each other and release audit trails can map every installer back to the matrix bundle that produced it. Each installer artifact in the family manifest must explicitly declare `kind: installer`, `bundle`, `installerFormat`, the Rust `target`, and `signatureEvidence`; desktop installer smoke rejects manifests that require downstream path inference, extension inference, or implicit trust inference.
 Packaging initializes installer `signatureEvidence` as `status: pending` so local and canary batches can preserve an auditable signing gap without faking platform verification. The scheme is derived from the installer family: Windows `nsis`, `msi`, and `squirrel` use `windows-authenticode`; macOS `app` and `dmg` use `macos-codesign-notarization`; Linux `deb`, `rpm`, and `appimage` use `linux-package-metadata`; unknown native bundles use `native-installer-attestation`.

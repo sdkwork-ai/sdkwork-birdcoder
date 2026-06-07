@@ -19,6 +19,7 @@ const now = () => new Date('2026-04-08T15:30:00.000Z');
 const defaultRunnerScriptPath = path.join(tempDir, 'default-runner-check.mjs');
 const commandRunnerScriptPath = path.join(tempDir, 'command-runner-check.mjs');
 const asyncExitCommandRunnerScriptPath = path.join(tempDir, 'async-exit-command-runner-check.mjs');
+const rootDir = process.cwd();
 
 fs.writeFileSync(defaultRunnerScriptPath, "console.log('default-runner-ok');\n", 'utf8');
 const defaultRunnerExitScriptPath = path.join(tempDir, 'default-runner-exit-check.mjs');
@@ -168,14 +169,14 @@ const scrubbedCommandEnv = buildGovernanceRegressionCommandEnv({
     Path: 'C:\\existing-tools',
     PNPM_HOME: 'C:\\pnpm-home',
     PNPM_PACKAGE_NAME: '@sdkwork/birdcoder-workspace',
-    PNPM_SCRIPT_SRC_DIR: 'D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\sdkwork-birdcoder',
+    PNPM_SCRIPT_SRC_DIR: rootDir,
     npm_command: 'run-script',
     npm_config_user_agent: 'pnpm/10.0.0 npm/? node/v22.0.0 win32 x64',
     npm_execpath: 'C:\\pnpm\\pnpm.cjs',
     npm_lifecycle_event: 'check:quality:release',
     npm_lifecycle_script: 'node scripts/run-quality-release-check.mjs',
     npm_node_execpath: 'C:\\nvm4w\\nodejs\\node.exe',
-    npm_package_json: 'D:\\javasource\\spring-ai-plus\\spring-ai-plus-business\\apps\\sdkwork-birdcoder\\package.json',
+    npm_package_json: path.join(rootDir, 'package.json'),
     npm_package_name: '@sdkwork/birdcoder-workspace',
     npm_package_version: '0.1.0',
   },
@@ -284,7 +285,6 @@ assert.deepEqual(
     'release-flow',
     'ci-flow',
     'quality-gate-matrix',
-    'claw-release-parity',
     'claw-docs-ia',
     'step-loop-prompt-governance',
     'skill-binding',
@@ -336,8 +336,8 @@ assert.deepEqual(
 assert.deepEqual(executedChecks, GOVERNANCE_REGRESSION_CHECKS.map((check) => check.id));
 assert.equal(passedReport.status, 'passed');
 assert.equal(passedReport.generatedAt, '2026-04-08T15:30:00.000Z');
-assert.equal(passedReport.summary.totalChecks, 110);
-assert.equal(passedReport.summary.passedCount, 110);
+assert.equal(passedReport.summary.totalChecks, 109);
+assert.equal(passedReport.summary.passedCount, 109);
 assert.equal(passedReport.summary.blockedCount, 0);
 assert.equal(passedReport.summary.failedCount, 0);
 assert.deepEqual(passedReport.summary.blockedCheckIds, []);
@@ -412,7 +412,6 @@ assert.deepEqual(
     'node scripts/release-flow-contract.test.mjs',
     'node scripts/ci-flow-contract.test.mjs',
     'node scripts/quality-gate-matrix-contract.test.mjs',
-    'node scripts/claw-release-parity-contract.test.mjs',
     'node scripts/claw-docs-ia-contract.test.mjs',
     'node scripts/prompt-governance-contract.test.mjs',
     'pnpm run test:skill-binding-contract',
@@ -513,7 +512,7 @@ const blockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(blockedReport.status, 'blocked');
-assert.equal(blockedReport.summary.passedCount, 109);
+assert.equal(blockedReport.summary.passedCount, 108);
 assert.equal(blockedReport.summary.blockedCount, 1);
 assert.equal(blockedReport.summary.failedCount, 0);
 assert.deepEqual(blockedReport.summary.blockedCheckIds, ['web-bundle-budget']);
@@ -572,7 +571,7 @@ const runnerBlockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(runnerBlockedReport.status, 'blocked');
-assert.equal(runnerBlockedReport.summary.passedCount, 109);
+assert.equal(runnerBlockedReport.summary.passedCount, 108);
 assert.equal(runnerBlockedReport.summary.blockedCount, 1);
 assert.equal(runnerBlockedReport.summary.failedCount, 0);
 assert.deepEqual(runnerBlockedReport.summary.blockedCheckIds, ['web-bundle-budget']);

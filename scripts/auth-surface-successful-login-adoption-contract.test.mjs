@@ -62,8 +62,13 @@ assert.match(
 
 assert.match(
   iamRuntimeSource,
-  /createIamRuntime\(\{[\s\S]*app: createBirdCoderIamAppClientForSdkworkIamRuntime\([\s\S]*getBirdCoderGeneratedAppSdkClient\(\),[\s\S]*\),[\s\S]*backend: getBirdCoderGeneratedBackendSdkClient\(\),/u,
-  'BirdCoder IAM runtime must be composed from generated app and backend SDK clients, with the app SDK adapted to the sdkwork-appbase IAM service signature.',
+  /createAppbaseAppSdkClient\(\{[\s\S]*baseUrl:\s*sdkBaseUrls\.appbaseAppApiBaseUrl[\s\S]*tokenManager/u,
+  'BirdCoder IAM runtime must construct the appbase app SDK client as the login/session authority.',
+);
+assert.match(
+  iamRuntimeSource,
+  /createIamRuntime\(\{[\s\S]*clients:\s*\{[\s\S]*appbaseApp[\s\S]*appbaseBackend[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp/u,
+  'BirdCoder IAM runtime must compose appbase, BirdCoder product, and Drive SDK clients through the standard runtime clients shape.',
 );
 
 console.log('auth surface successful login adoption contract passed.');

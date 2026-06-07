@@ -302,7 +302,23 @@ function resolveRequiredDesktopBundles({
     );
   }
 
-  return requiredBundles.map((bundle) => String(bundle ?? '').trim()).filter(Boolean);
+  const configuredBundles = requiredBundles.map((bundle) => String(bundle ?? '').trim()).filter(Boolean);
+  const requestedBundles = String(descriptor?.bundles ?? '')
+    .split(',')
+    .map((bundle) => bundle.trim())
+    .filter(Boolean);
+  if (requestedBundles.length === 0) {
+    return configuredBundles;
+  }
+
+  const unsupportedBundles = requestedBundles.filter((bundle) => !configuredBundles.includes(bundle));
+  if (unsupportedBundles.length > 0) {
+    throw new Error(
+      `Unsupported desktop bundle override for profile ${profile?.id ?? descriptor?.profileId ?? 'unknown'}: ${unsupportedBundles.join(', ')}. Supported bundles: ${configuredBundles.join(', ')}.`,
+    );
+  }
+
+  return requestedBundles;
 }
 
 function desktopInstallerSatisfiesBundle({
@@ -734,6 +750,7 @@ function createReleaseDescriptor(family, options = {}) {
     arch: options.arch ?? (family === 'web' ? '' : process.arch),
     target: options.target ?? '',
     accelerator: options.accelerator ?? (family === 'container' || family === 'kubernetes' ? 'cpu' : ''),
+    bundles: options.bundles ?? '',
     imageRepository: options['image-repository'] ?? '',
     imageTag: options['image-tag'] ?? '',
     imageDigest: options['image-digest'] ?? '',

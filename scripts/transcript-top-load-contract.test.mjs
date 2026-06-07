@@ -40,7 +40,7 @@ assert.match(
 );
 
 const transcriptScrollHandlerMatch = progressiveTranscriptHookSource.match(
-  /const handleTranscriptScroll = \(\) => \{([\s\S]*?)\n    \};\n    const handleTranscriptPointerDown/,
+  /const handleTranscriptScroll = \(\) => \{([\s\S]*?)\r?\n    \};\r?\n    const handleTranscriptPointerDown/,
 );
 assert.ok(
   transcriptScrollHandlerMatch,

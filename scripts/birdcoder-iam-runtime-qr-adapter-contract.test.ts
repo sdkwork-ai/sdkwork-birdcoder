@@ -1,62 +1,42 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
-import { createBirdCoderIamAppClientForSdkworkIamRuntime } from '../packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts';
+const iamRuntimeSource = fs.readFileSync(
+  new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts', import.meta.url),
+  'utf8',
+);
+const appbaseOpenPlatformSdkSource = fs.readFileSync(
+  new URL(
+    '../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/api/open-platform.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
-const calls: Array<[string, unknown, unknown?]> = [];
-
-const generatedClient = {
-  openPlatform: {
-    qrAuth: {
-      sessions: {
-        async create(body: Record<string, unknown>) {
-          calls.push(['create', body]);
-          return { data: { sessionKey: 'qr-session-1', status: 'pending' } };
-        },
-        async retrieve(pathParams: { sessionKey: string }) {
-          calls.push(['retrieve', pathParams]);
-          return { data: { sessionKey: pathParams.sessionKey, status: 'pending' } };
-        },
-        scans: {
-          async create(pathParams: { sessionKey: string }, body: Record<string, unknown>) {
-            calls.push(['scans.create', pathParams, body]);
-            return { data: { success: true } };
-          },
-        },
-        passwords: {
-          async create(pathParams: { sessionKey: string }, body: Record<string, unknown>) {
-            calls.push(['passwords.create', pathParams, body]);
-            return { data: { sessionKey: pathParams.sessionKey, status: 'confirmed' } };
-          },
-        },
-      },
-    },
-  },
-} as never;
-
-const iamAppClient = createBirdCoderIamAppClientForSdkworkIamRuntime(generatedClient);
-
-await iamAppClient.openPlatform.qrAuth.sessions.create({ purpose: 'login' });
-await iamAppClient.openPlatform.qrAuth.sessions.retrieve('qr-session-1');
-await iamAppClient.openPlatform.qrAuth.sessions.scans.create('qr-session-1', {
-  scanSource: 'browser',
-});
-await iamAppClient.openPlatform.qrAuth.sessions.passwords.create('qr-session-1', {
-  password: 'dev123456',
-  username: 'local-default@sdkwork-iam.local',
-});
-
-assert.deepEqual(calls, [
-  ['create', { purpose: 'login' }],
-  ['retrieve', { sessionKey: 'qr-session-1' }],
-  ['scans.create', { sessionKey: 'qr-session-1' }, { scanSource: 'browser' }],
-  [
-    'passwords.create',
-    { sessionKey: 'qr-session-1' },
-    {
-      password: 'dev123456',
-      username: 'local-default@sdkwork-iam.local',
-    },
-  ],
-]);
+assert.match(
+  iamRuntimeSource,
+  /createAppbaseAppSdkClient\(\{[\s\S]*baseUrl:\s*sdkBaseUrls\.appbaseAppApiBaseUrl[\s\S]*tokenManager/u,
+  'BirdCoder IAM runtime must use the appbase app SDK as the QR auth authority.',
+);
+assert.doesNotMatch(
+  iamRuntimeSource,
+  /createBirdCoderIamAppClientForSdkworkIamRuntime|openPlatform:\s*\{[\s\S]*qrAuth:\s*\{[\s\S]*retrieve\(sessionKey:\s*string\)[\s\S]*\{\s*sessionKey\s*\}/u,
+  'BirdCoder IAM runtime must not keep a product-local QR path-parameter adapter.',
+);
+assert.match(
+  appbaseOpenPlatformSdkSource,
+  /retrieve\(sessionKey:\s*string\)/u,
+  'sdkwork-appbase generated app SDK must expose QR session retrieve(sessionKey).',
+);
+assert.match(
+  appbaseOpenPlatformSdkSource,
+  /scans[\s\S]*create\(sessionKey:\s*string,\s*body/u,
+  'sdkwork-appbase generated app SDK must expose QR scan create(sessionKey, body).',
+);
+assert.match(
+  appbaseOpenPlatformSdkSource,
+  /passwords[\s\S]*create\(sessionKey:\s*string,\s*body/u,
+  'sdkwork-appbase generated app SDK must expose QR password create(sessionKey, body).',
+);
 
 console.log('birdcoder IAM runtime QR adapter contract passed.');

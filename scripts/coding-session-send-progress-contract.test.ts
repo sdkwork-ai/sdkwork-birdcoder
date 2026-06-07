@@ -11,10 +11,11 @@ const apiProjectServiceSource = await readFile(
   'utf8',
 );
 
-function extractBlock(source: string, startMarker: string, endMarker: string): string {
+function extractBlock(source: string, startMarker: string, endMarker: RegExp): string {
   const startIndex = source.indexOf(startMarker);
   assert.notEqual(startIndex, -1, `Unable to find block start: ${startMarker}`);
-  const endIndex = source.indexOf(endMarker, startIndex);
+  const endMatch = source.slice(startIndex).match(endMarker);
+  const endIndex = endMatch?.index === undefined ? -1 : startIndex + endMatch.index;
   assert.notEqual(endIndex, -1, `Unable to find block end: ${endMarker}`);
   return source.slice(startIndex, endIndex);
 }
@@ -22,7 +23,7 @@ function extractBlock(source: string, startMarker: string, endMarker: string): s
 const sendMessageBlock = extractBlock(
   useProjectsSource,
   'const sendMessage = async (',
-  '\n\n  return {',
+  /\r?\n\r?\n  return \{/u,
 );
 
 assert.match(

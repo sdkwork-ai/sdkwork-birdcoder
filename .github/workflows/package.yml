@@ -1,0 +1,97 @@
+name: Package Application
+
+on:
+  push:
+    tags:
+      - 'release-*'
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag or source ref to package.
+        required: false
+        default: ''
+      package_version:
+        description: Package version used in artifact names and manifests.
+        required: false
+        default: ''
+      platform:
+        description: Platform filter.
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - windows
+          - linux
+          - macos
+          - web
+          - container
+      architecture:
+        description: CPU architecture filter.
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - x64
+          - arm64
+          - noarch
+      profile:
+        description: Runtime profile filter.
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - desktop
+          - server
+          - web
+      variant:
+        description: Package variant filter.
+        required: false
+        default: all
+      format:
+        description: Package format filter.
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - exe
+          - msi
+          - deb
+          - rpm
+          - appimage
+          - dmg
+          - tar.gz
+          - helm
+
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+  attestations: write
+  packages: write
+
+jobs:
+  package:
+    uses: Sdkwork-Cloud/sdkwork-github-workflow/.github/workflows/sdkwork-package.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33
+    with:
+      config_path: sdkwork.workflow.json
+      tag: ${{ github.event.inputs.tag || github.event.release.tag_name || github.ref_name }}
+      package_version: ${{ github.event.inputs.package_version || '' }}
+      platform: ${{ github.event.inputs.platform || 'all' }}
+      architecture: ${{ github.event.inputs.architecture || 'all' }}
+      profile: ${{ github.event.inputs.profile || 'all' }}
+      variant: ${{ github.event.inputs.variant || 'all' }}
+      format: ${{ github.event.inputs.format || 'all' }}
+      publish_release: true
+      upload_artifact: true
+      deploy: false
+      retention_days: 30
+      framework_ref: b1bdb5887f0f9e5683a46a02eaeb818c042b8a33
+      dependency_refs_json: '{}'
+    secrets: inherit

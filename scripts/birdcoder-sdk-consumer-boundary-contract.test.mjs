@@ -12,6 +12,23 @@ function assertExists(relativePath, message) {
   assert.ok(fs.existsSync(path.join(rootDir, relativePath)), message ?? `${relativePath} must exist.`);
 }
 
+function assertNoRetiredGenericSdkDebt(relativePath) {
+  const source = read(relativePath);
+  const retiredFragments = [
+    ['@sdkwork/', 'app-sdk'].join(''),
+    ['@sdkwork/', 'backend-sdk'].join(''),
+    ['sdkwork-', 'app-sdk'].join(''),
+    ['sdkwork-', 'backend-sdk'].join(''),
+    ['spring-ai-plus-', 'app-api'].join(''),
+    ['spring-ai-plus-', 'backend-api'].join(''),
+  ];
+  assert.doesNotMatch(
+    source,
+    new RegExp(retiredFragments.join('|'), 'u'),
+    `${relativePath} must not reference the retired generic Spring app/backend SDK family.`,
+  );
+}
+
 function assertNotExists(relativePath, message) {
   assert.equal(
     fs.existsSync(path.join(rootDir, relativePath)),
@@ -144,6 +161,19 @@ assert.equal(
   'workspace:*',
   'infrastructure package must depend on the generated backend SDK workspace package.',
 );
+for (const dependencyName of [
+  '@sdkwork/appbase-app-sdk',
+  '@sdkwork/appbase-backend-sdk',
+  '@sdkwork/drive-app-sdk',
+  '@sdkwork/messaging-app-sdk',
+  '@sdkwork/sdk-common',
+]) {
+  assert.equal(
+    infrastructurePackageJson.dependencies?.[dependencyName],
+    'workspace:*',
+    `infrastructure package must depend on ${dependencyName} for standard dependency SDK composition.`,
+  );
+}
 
 for (const [label, config] of [
   ['tsconfig.json', tsconfig],
@@ -159,6 +189,44 @@ for (const [label, config] of [
     ['sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts'],
     `${label} must resolve @sdkwork/birdcoder-backend-sdk to generated source.`,
   );
+  assert.deepEqual(
+    config.compilerOptions?.paths?.['@sdkwork/appbase-app-sdk'],
+    ['../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts'],
+    `${label} must resolve @sdkwork/appbase-app-sdk to the dependency generated app SDK package entry.`,
+  );
+  assert.deepEqual(
+    config.compilerOptions?.paths?.['@sdkwork/appbase-backend-sdk'],
+    ['../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts'],
+    `${label} must resolve @sdkwork/appbase-backend-sdk to the dependency generated backend SDK package entry.`,
+  );
+  assert.deepEqual(
+    config.compilerOptions?.paths?.['@sdkwork/drive-app-sdk'],
+    ['../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts'],
+    `${label} must resolve @sdkwork/drive-app-sdk to the dependency app SDK package entry.`,
+  );
+  assert.deepEqual(
+    config.compilerOptions?.paths?.['@sdkwork/messaging-app-sdk'],
+    ['../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts'],
+    `${label} must resolve @sdkwork/messaging-app-sdk to the dependency app SDK package entry.`,
+  );
+  assert.deepEqual(
+    config.compilerOptions?.paths?.['@sdkwork/sdk-common'],
+    ['../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts'],
+    `${label} must resolve @sdkwork/sdk-common to the shared SDK common package entry.`,
+  );
+}
+
+for (const relativePath of [
+  'tsconfig.json',
+  'tsconfig.runtime.json',
+  'packages/sdkwork-birdcoder-web/vite.config.ts',
+  'scripts/create-birdcoder-vite-plugins.mjs',
+  'scripts/prepare-shared-sdk-git-sources.mjs',
+  'scripts/prepare-shared-sdk-git-sources.test.mjs',
+  'scripts/run-desktop-vite-host.test.mjs',
+  'scripts/vite-config-esm-contract.test.mjs',
+]) {
+  assertNoRetiredGenericSdkDebt(relativePath);
 }
 
 const workspace = read('pnpm-workspace.yaml');
@@ -172,5 +240,45 @@ assert.match(
   /sdks\/sdkwork-birdcoder-backend-sdk\/sdkwork-birdcoder-backend-sdk-typescript/u,
   'pnpm workspace must include the generated backend SDK TypeScript package.',
 );
+assert.match(
+  workspace,
+  /\.\.\/sdkwork-appbase\/sdks\/sdkwork-appbase-app-sdk\/sdkwork-appbase-app-sdk-typescript\/generated\/server-openapi/u,
+  'pnpm workspace must include the appbase app SDK dependency package.',
+);
+assert.match(
+  workspace,
+  /\.\.\/sdkwork-appbase\/sdks\/sdkwork-appbase-backend-sdk\/sdkwork-appbase-backend-sdk-typescript\/generated\/server-openapi/u,
+  'pnpm workspace must include the appbase backend SDK dependency package.',
+);
+assert.match(
+  workspace,
+  /\.\.\/sdkwork-drive\/sdks\/sdkwork-drive-app-sdk\/sdkwork-drive-app-sdk-typescript/u,
+  'pnpm workspace must include the Drive app SDK dependency package.',
+);
+assert.match(
+  workspace,
+  /\.\.\/sdkwork-messaging\/sdks\/sdkwork-messaging-app-sdk\/sdkwork-messaging-app-sdk-typescript\/generated\/server-openapi/u,
+  'pnpm workspace must include the Messaging app SDK dependency package.',
+);
+assert.match(
+  workspace,
+  /\.\.\/sdkwork-sdk-commons\/sdkwork-sdk-common-typescript/u,
+  'pnpm workspace must include the shared SDK common dependency package.',
+);
+
+const vitePluginSource = read('scripts/create-birdcoder-vite-plugins.mjs');
+for (const dependencySpecifier of [
+  '@sdkwork/appbase-app-sdk',
+  '@sdkwork/appbase-backend-sdk',
+  '@sdkwork/drive-app-sdk',
+  '@sdkwork/messaging-app-sdk',
+  '@sdkwork/sdk-common',
+]) {
+  assert.match(
+    vitePluginSource,
+    new RegExp(`find:\\s*['"]${dependencySpecifier.replace('/', '\\/')}['"]`, 'u'),
+    `BirdCoder Vite aliases must resolve ${dependencySpecifier}.`,
+  );
+}
 
 console.log('birdcoder SDK consumer boundary contract passed.');

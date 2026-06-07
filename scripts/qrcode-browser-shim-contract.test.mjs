@@ -147,14 +147,22 @@ assert.ok(
   'BirdCoder Vite aliases must resolve qrcode/lib/browser.js explicitly so the shared qrcode compatibility shim can be prebundled from scripts/vite-shims in dev mode.',
 );
 assert.ok(
-  fs.existsSync(qrcodeBrowserAlias.replacement),
-  'The qrcode/lib/browser.js alias must point at an installed browser entry instead of relying on bare import resolution from scripts/vite-shims.',
+  path.normalize(qrcodeBrowserAlias.replacement).includes(
+    path.normalize(path.join('node_modules', 'qrcode', 'lib', 'browser.js')),
+  ),
+  'The qrcode/lib/browser.js alias must point at the qrcode browser implementation path instead of relying on bare import resolution from scripts/vite-shims.',
 );
 assert.match(
   path.normalize(qrcodeBrowserAlias.replacement),
   /[\\/]node_modules[\\/]qrcode[\\/]lib[\\/]browser\.js$/u,
   'The qrcode/lib/browser.js alias must resolve to the qrcode browser implementation shipped by the workspace dependency.',
 );
+if (fs.existsSync(path.join(webRootDir, 'node_modules'))) {
+  assert.ok(
+    fs.existsSync(qrcodeBrowserAlias.replacement),
+    'The qrcode/lib/browser.js alias must point at an installed browser entry when dependencies are installed.',
+  );
+}
 
 assert.match(
   workspaceSource,

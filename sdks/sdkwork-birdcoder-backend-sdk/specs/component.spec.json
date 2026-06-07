@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-backend-sdk",
+    "displayName": "SDKWork BirdCoder Backend SDK",
+    "version": "0.1.0",
+    "type": "sdk-family",
+    "root": "sdkwork-birdcoder/sdks/sdkwork-birdcoder-backend-sdk",
+    "domain": "platform",
+    "capability": "backend-sdk",
+    "status": "standardizing",
+    "languages": [
+      "typescript",
+      "rust"
+    ],
+    "generated": true,
+    "private": true,
+    "manifests": [
+      ".sdkwork-assembly.json"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "README.md",
+      "path": "../../../../sdkwork-specs/README.md",
+      "purpose": "SDKWork root standards entrypoint."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../../../../sdkwork-specs/API_SPEC.md",
+      "purpose": "HTTP/OpenAPI and generated SDK contract rules."
+    },
+    {
+      "file": "SDK_SPEC.md",
+      "path": "../../../../sdkwork-specs/SDK_SPEC.md",
+      "purpose": "SDK generation, SDK dependency, and SDK integration rules."
+    },
+    {
+      "file": "SDK_WORKSPACE_GENERATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/SDK_WORKSPACE_GENERATION_SPEC.md",
+      "purpose": "SDK workspace, SDK family naming, API authority naming, and OpenAPI generation rules."
+    },
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "Canonical domain ownership and naming rules."
+    },
+    {
+      "file": "DOCUMENTATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/DOCUMENTATION_SPEC.md",
+      "purpose": "README and generated SDK example documentation rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Verification and contract testing expectations."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript and Node package rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate and module rules."
+    }
+  ],
+  "contracts": {
+    "apiAuthority": {
+      "name": "sdkwork-birdcoder-backend-api",
+      "prefix": "/backend/v3/api",
+      "authorityOpenApi": "../openapi/sdkwork-birdcoder-backend-api.openapi.json",
+      "derivedOpenApi": [
+        "../openapi/sdkwork-birdcoder-backend-api.sdkgen.json"
+      ],
+      "owner": "sdkwork-birdcoder"
+    },
+    "publicExports": [
+      "@sdkwork/birdcoder-backend-sdk",
+      "sdkwork_birdcoder_backend_sdk"
+    ],
+    "runtimeEntrypoints": [
+      ".sdkwork-assembly.json"
+    ],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-appbase-backend-sdk",
+        "role": "appbase-backend-capability",
+        "required": true,
+        "dependencyMode": "consumer-sdk",
+        "apiPrefix": "/backend/v3/api",
+        "apiAuthority": "sdkwork-appbase-backend-api",
+        "generatedTransportImportPolicy": "forbidden",
+        "packageByLanguage": {
+          "typescript": "@sdkwork/appbase-backend-sdk",
+          "rust": "sdkwork-appbase-backend-sdk"
+        }
+      }
+    ],
+    "sdkClients": [
+      "@sdkwork/birdcoder-backend-sdk#createBirdcoderBackendSdkClient",
+      "sdkwork_birdcoder_backend_sdk"
+    ],
+    "events": [],
+    "configKeys": [
+      ".sdkwork-assembly.json",
+      "openapi/sdkwork-birdcoder-backend-api.sdkgen.json"
+    ],
+    "routeManifest": null
+  },
+  "integration": {
+    "authority": "BirdCoder backend SDK owns only sdkwork-birdcoder backend-api operations.",
+    "dependencyPolicy": "Appbase backend capabilities are consumed through dependency SDKs, not copied into BirdCoder generated transport.",
+    "sdkPolicy": "Generated transport must move under generated/server-openapi when canonical sdkgen dependencies are available.",
+    "languagePolicy": "TypeScript and Rust compatibility packages preserve current exports until composed wrappers replace direct generated compatibility output."
+  },
+  "verification": {
+    "commands": [
+      "pnpm check:sdk-family-standard"
+    ]
+  },
+  "metadata": {
+    "managedBy": "sdkwork-birdcoder-sdkwork-sdk-migration",
+    "standardVersion": "2026-06-06"
+  }
+}

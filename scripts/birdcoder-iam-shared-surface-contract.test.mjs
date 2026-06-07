@@ -263,13 +263,23 @@ assert.match(
 );
 assert.match(
   infrastructureSessionServiceSource,
-  /auth\.sessions\.create/u,
-  'birdcoder infrastructure must create app sessions through the generated auth.sessions SDK surface.',
+  /getBirdCoderIamRuntime/u,
+  'birdcoder infrastructure session service must use the standard appbase IAM runtime boundary.',
 );
 assert.match(
   infrastructureSessionServiceSource,
-  /auth\.sessions\.current\.delete/u,
-  'birdcoder infrastructure must revoke app sessions through the generated auth.sessions SDK surface.',
+  /runtime\.service\.auth\.sessions\.create/u,
+  'birdcoder infrastructure must create app sessions through the appbase IAM runtime service.',
+);
+assert.match(
+  infrastructureSessionServiceSource,
+  /runtime\.service\.auth\.sessions\.current\.delete/u,
+  'birdcoder infrastructure must revoke app sessions through the appbase IAM runtime service.',
+);
+assert.doesNotMatch(
+  infrastructureSessionServiceSource,
+  /getBirdCoderGeneratedAppSdkClient\([^)]*\)\.auth\.sessions/u,
+  'birdcoder infrastructure must not use the BirdCoder product app SDK as the IAM session authority.',
 );
 
 for (const retiredPath of [

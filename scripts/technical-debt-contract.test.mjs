@@ -96,6 +96,18 @@ const allowedDebtTokenLines = [
     reason: 'SDK OpenAPI model catalog exposes deprecated as a business lifecycle status',
   },
   {
+    relativePath:
+      'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
+    pattern: /^\s*"deprecated",\s*$/u,
+    reason: 'app SDK OpenAPI model catalog exposes deprecated as a business lifecycle status',
+  },
+  {
+    relativePath:
+      'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.sdkgen.json',
+    pattern: /^\s*"deprecated",\s*$/u,
+    reason: 'app SDK sdkgen model catalog exposes deprecated as a business lifecycle status',
+  },
+  {
     relativePath: 'sdks/server/windows/x64/openapi/coding-server-v1.json',
     pattern: /^\s*"deprecated",\s*$/u,
     reason: 'generated coding-server OpenAPI model catalog exposes deprecated as a business lifecycle status',

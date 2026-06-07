@@ -125,7 +125,7 @@ test('attestation evidence writer verifies finalized artifacts and writes machin
     assert.equal(written.repository, 'Sdkwork-Cloud/sdkwork-birdcoder');
     assert.equal(written.releaseTag, 'release-2026-04-12-01');
     assert.equal(written.predicateType, 'https://slsa.dev/provenance/v1');
-    assert.equal(written.signerWorkflow, '.github/workflows/release-reusable.yml');
+    assert.equal(written.signerWorkflow, '.github/workflows/package.yml');
     assert.equal(written.artifacts.length, 1);
     assert.deepEqual(
       {
@@ -146,7 +146,7 @@ test('attestation evidence writer verifies finalized artifacts and writes machin
         releaseTag: 'release-2026-04-12-01',
         sourceRef: 'refs/tags/release-2026-04-12-01',
         predicateType: 'https://slsa.dev/provenance/v1',
-        signerWorkflow: '.github/workflows/release-reusable.yml',
+        signerWorkflow: '.github/workflows/package.yml',
         verified: true,
         verifiedAt: '2026-04-12T02:03:04.000Z',
       },

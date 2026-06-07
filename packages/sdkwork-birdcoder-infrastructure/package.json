@@ -61,15 +61,21 @@
     }
   },
   "dependencies": {
+    "@sdkwork/appbase-app-sdk": "workspace:*",
+    "@sdkwork/appbase-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-app-sdk": "workspace:*",
     "@sdkwork/birdcoder-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-codeengine": "workspace:*",
     "@sdkwork/birdcoder-core": "workspace:*",
     "@sdkwork/birdcoder-host-core": "workspace:*",
+    "@sdkwork/birdcoder-types": "workspace:*",
+    "@sdkwork/drive-app-sdk": "workspace:*",
+    "@sdkwork/iam-sdk-adapter": "workspace:*",
     "@sdkwork/iam-runtime": "workspace:*",
     "@sdkwork/iam-service": "workspace:*",
     "@sdkwork/iam-sdk-ports": "workspace:*",
-    "@tauri-apps/api": "catalog:",
-    "@sdkwork/birdcoder-types": "workspace:*"
+    "@sdkwork/messaging-app-sdk": "workspace:*",
+    "@sdkwork/sdk-common": "workspace:*",
+    "@tauri-apps/api": "catalog:"
   }
 }

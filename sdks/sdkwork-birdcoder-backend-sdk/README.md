@@ -15,7 +15,7 @@ Example TypeScript calls:
 client.iam.auditEvents.list();
 client.iam.policies.list();
 client.iam.users.list();
-client.iam.users.roles.list({ userId });
+client.iam.roleBindings.create(body);
 client.iam.teams.list(params);
 client.platform.releases.list(params);
 ```

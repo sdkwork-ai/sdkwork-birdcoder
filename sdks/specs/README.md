@@ -28,13 +28,13 @@ Root SDKWork standards remain authoritative. The SDK family narrows those standa
 
 | Spec | Applies Because |
 | --- | --- |
-| [README.md](../../../../specs/README.md) | Root SDKWork standards entrypoint. |
-| [API_SPEC.md](../../../../specs/API_SPEC.md) | OpenAPI, app/backend surfaces, path, tag, operationId, auth, and error rules. |
-| [SDK_SPEC.md](../../../../specs/SDK_SPEC.md) | SDK generation manifest, resource-style clients, auth handling, and generated output rules. |
-| [COMPONENT_SPEC.md](../../../../specs/COMPONENT_SPEC.md) | Local sdk-family component spec and manifest rules. |
-| [DOCUMENTATION_SPEC.md](../../../../specs/DOCUMENTATION_SPEC.md) | SDK README and example documentation rules. |
-| [TEST_SPEC.md](../../../../specs/TEST_SPEC.md) | Executable API, SDK, generated output, and documentation verification rules. |
-| [DOMAIN_SPEC.md](../../../../specs/DOMAIN_SPEC.md) | Canonical domain naming plus the local extension catalog for BirdCoder runtime and billing API domains. |
+| [README.md](../../../sdkwork-specs/README.md) | Root SDKWork standards entrypoint. |
+| [API_SPEC.md](../../../sdkwork-specs/API_SPEC.md) | OpenAPI, app/backend surfaces, path, tag, operationId, auth, and error rules. |
+| [SDK_SPEC.md](../../../sdkwork-specs/SDK_SPEC.md) | SDK generation manifest, resource-style clients, auth handling, and generated output rules. |
+| [COMPONENT_SPEC.md](../../../sdkwork-specs/COMPONENT_SPEC.md) | Local sdk-family component spec and manifest rules. |
+| [DOCUMENTATION_SPEC.md](../../../sdkwork-specs/DOCUMENTATION_SPEC.md) | SDK README and example documentation rules. |
+| [TEST_SPEC.md](../../../sdkwork-specs/TEST_SPEC.md) | Executable API, SDK, generated output, and documentation verification rules. |
+| [DOMAIN_SPEC.md](../../../sdkwork-specs/DOMAIN_SPEC.md) | Canonical domain naming plus the local extension catalog for BirdCoder runtime and billing API domains. |
 
 ## Verification
 

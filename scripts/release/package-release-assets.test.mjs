@@ -503,6 +503,32 @@ withFixture((fixtureRoot) => {
 });
 
 withFixture((fixtureRoot) => {
+  writeDesktopDistFixture(fixtureRoot);
+  writePartialDesktopInstallerBundleFixture(fixtureRoot, 'x86_64-pc-windows-msvc');
+
+  const desktopExeResult = packageReleaseAssets('desktop', {
+    profile: 'sdkwork-birdcoder',
+    platform: 'windows',
+    arch: 'x64',
+    target: 'x86_64-pc-windows-msvc',
+    bundles: 'nsis',
+    'output-dir': 'artifacts/release',
+  });
+
+  assert.equal(desktopExeResult.manifest.family, 'desktop');
+  assert.equal(
+    desktopExeResult.manifest.artifacts.some((artifact) => artifact.relativePath.endsWith('.exe')),
+    true,
+    'standard windows-x64-desktop-exe packaging must publish the selected NSIS executable installer',
+  );
+  assert.equal(
+    desktopExeResult.manifest.artifacts.some((artifact) => artifact.relativePath.endsWith('.msi')),
+    false,
+    'standard windows-x64-desktop-exe packaging must not require or publish MSI artifacts',
+  );
+});
+
+withFixture((fixtureRoot) => {
   writeFile(
     path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'src', 'index.ts'),
     'export const sourceOnly = true;\n',

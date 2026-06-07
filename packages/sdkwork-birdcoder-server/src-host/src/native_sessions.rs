@@ -768,7 +768,7 @@ mod tests {
         let fixture_path = write_temp_jsonl(
             "codex-summary-title",
             concat!(
-                "{\"timestamp\":\"2026-04-17T05:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-a\",\"timestamp\":\"2026-04-17T05:00:00Z\",\"cwd\":\"D:/javasource/spring-ai-plus/spring-ai-plus-business/apps/sdkwork-birdcoder\",\"model\":\"gpt-5.4\"}}\n",
+                "{\"timestamp\":\"2026-04-17T05:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"019d-session-a\",\"timestamp\":\"2026-04-17T05:00:00Z\",\"cwd\":\"D:/workspace/sdkwork-birdcoder\",\"model\":\"gpt-5.4\"}}\n",
                 "{\"timestamp\":\"2026-04-17T05:00:01Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_text\",\"text\":\"developer instructions\"}]}}\n",
                 "{\"timestamp\":\"2026-04-17T05:00:02Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"# AGENTS.md instructions for D:/repo\\n<environment_context>cwd</environment_context>\"}]}}\n",
                 "{\"timestamp\":\"2026-04-17T05:00:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"修复 open folder 重复导入，并正确显示 session 标题\"}}\n"
@@ -793,7 +793,7 @@ mod tests {
         );
         assert_eq!(
             summary.native_cwd.as_deref(),
-            Some("D:/javasource/spring-ai-plus/spring-ai-plus-business/apps/sdkwork-birdcoder")
+            Some("D:/workspace/sdkwork-birdcoder")
         );
 
         fs::remove_file(&fixture_path).expect("remove codex summary fixture");

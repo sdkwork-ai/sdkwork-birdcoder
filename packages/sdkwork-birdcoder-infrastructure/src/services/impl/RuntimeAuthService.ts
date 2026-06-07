@@ -22,6 +22,13 @@ function normalizeText(value: unknown): string | undefined {
   return normalized || undefined;
 }
 
+function readIamUserAvatarUrl(user: IamUser): string | undefined {
+  return (
+    normalizeText(user.avatar?.publicUrl)
+    ?? normalizeText(user.avatar?.url)
+  );
+}
+
 function mapIamUser(user: IamUser): User {
   const email = normalizeText(user.email) ?? '';
   const displayName = (
@@ -34,9 +41,10 @@ function mapIamUser(user: IamUser): User {
     ?? normalizeText(user.username)
     ?? email
   ) || 'sdkwork-user';
+  const avatarUrl = readIamUserAvatarUrl(user);
 
   return {
-    ...(normalizeText(user.avatarUrl) ? { avatarUrl: normalizeText(user.avatarUrl) } : {}),
+    ...(avatarUrl ? { avatarUrl } : {}),
     email,
     id,
     name: displayName,

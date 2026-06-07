@@ -101,6 +101,35 @@ function createRuntimeFixture({
 
 {
   const fixture = createRuntimeFixture({
+    retrieveCurrentUser: async () => ({
+      avatar: {
+        kind: 'image',
+        publicUrl: 'https://cdn.sdkwork.test/avatar.png',
+        source: 'external_url',
+        url: 'https://origin.sdkwork.test/avatar.png',
+      },
+      displayName: 'Avatar User',
+      email: 'avatar@example.com',
+      id: 'avatar-user',
+    }),
+    storedSession: {
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+    },
+  });
+  const authService = runtimeAuthModule.createBirdCoderRuntimeAuthService({
+    getRuntime: () => fixture.runtime,
+  });
+  assert.deepEqual(await authService.getCurrentUser(), {
+    avatarUrl: 'https://cdn.sdkwork.test/avatar.png',
+    email: 'avatar@example.com',
+    id: 'avatar-user',
+    name: 'Avatar User',
+  });
+}
+
+{
+  const fixture = createRuntimeFixture({
     retrieveCurrentUser: async () => {
       throw new Error('profile unavailable');
     },

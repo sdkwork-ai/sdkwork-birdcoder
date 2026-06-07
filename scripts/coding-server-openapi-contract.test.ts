@@ -202,12 +202,14 @@ assert.equal(
 );
 assert.equal(document.paths['/app/v3/api/auth/registrations']?.post?.operationId, 'registrations.create');
 assert.equal(
-  document.paths['/app/v3/api/auth/verification_codes']?.post?.operationId,
-  'verificationCodes.create',
+  document.paths['/app/v3/api/auth/verification_codes'],
+  undefined,
+  'BirdCoder OpenAPI must not publish messaging-owned verification-code delivery routes.',
 );
 assert.equal(
-  document.paths['/app/v3/api/auth/verification_codes/verify']?.post?.operationId,
-  'verificationCodes.verify',
+  document.paths['/app/v3/api/auth/verification_codes/verify'],
+  undefined,
+  'BirdCoder OpenAPI must not publish messaging-owned verification-code verify routes.',
 );
 assert.equal(
   document.paths['/app/v3/api/auth/password_reset_requests']?.post?.operationId,
@@ -323,22 +325,46 @@ assert.equal(document.paths['/backend/v3/api/iam/users/{userId}']?.get?.operatio
 assert.equal(document.paths['/backend/v3/api/iam/users/{userId}']?.patch?.operationId, 'users.update');
 assert.equal(document.paths['/backend/v3/api/iam/users/{userId}']?.delete?.operationId, 'users.delete');
 assert.equal(
-  document.paths['/backend/v3/api/iam/users/{userId}/roles']?.get?.operationId,
-  'users.roles.list',
+  document.paths['/app/v3/api/iam/role_bindings']?.get?.operationId,
+  'roleBindings.list',
+);
+assert.equal(document.paths['/app/v3/api/iam/role_bindings']?.get?.['x-sdkwork-domain'], 'iam');
+assert.equal(document.paths['/app/v3/api/iam/role_bindings']?.get?.['x-sdkwork-resource'], 'iam.roleBindings');
+assert.equal(
+  document.paths['/app/v3/api/iam/role_bindings']?.get?.['x-sdkwork-permission'],
+  'iam.roleBindings.read',
 );
 assert.equal(
-  document.paths['/backend/v3/api/iam/users/{userId}/roles']?.get?.responses['200']?.content[
+  document.paths['/app/v3/api/iam/role_bindings']?.get?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderIamUserRoleSummaryListEnvelope',
 );
 assert.equal(
-  document.paths['/backend/v3/api/iam/users/{userId}/roles']?.post?.operationId,
-  'users.roles.create',
+  document.paths['/backend/v3/api/iam/role_bindings']?.post?.operationId,
+  'roleBindings.create',
+);
+assert.equal(document.paths['/backend/v3/api/iam/role_bindings']?.post?.['x-sdkwork-domain'], 'iam');
+assert.equal(document.paths['/backend/v3/api/iam/role_bindings']?.post?.['x-sdkwork-resource'], 'iam.roleBindings');
+assert.equal(
+  document.paths['/backend/v3/api/iam/role_bindings']?.post?.['x-sdkwork-permission'],
+  'iam.roleBindings.create',
 );
 assert.equal(
-  document.paths['/backend/v3/api/iam/users/{userId}/roles/{roleId}']?.delete?.operationId,
-  'users.roles.delete',
+  document.paths['/backend/v3/api/iam/role_bindings/{roleBindingId}']?.delete?.operationId,
+  'roleBindings.delete',
+);
+assert.equal(
+  document.paths['/backend/v3/api/iam/role_bindings/{roleBindingId}']?.delete?.['x-sdkwork-domain'],
+  'iam',
+);
+assert.equal(
+  document.paths['/backend/v3/api/iam/role_bindings/{roleBindingId}']?.delete?.['x-sdkwork-resource'],
+  'iam.roleBindings',
+);
+assert.equal(
+  document.paths['/backend/v3/api/iam/role_bindings/{roleBindingId}']?.delete?.['x-sdkwork-permission'],
+  'iam.roleBindings.delete',
 );
 assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.operationId, 'teams.members.list');
 assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.['x-sdkwork-domain'], 'iam');
@@ -555,8 +581,8 @@ assert.ok(document.components.schemas?.BirdCoderIamCreateSessionRequest);
 assert.ok(document.components.schemas?.BirdCoderIamUpdateCurrentSessionRequest);
 assert.ok(document.components.schemas?.BirdCoderIamRefreshSessionRequest);
 assert.ok(document.components.schemas?.BirdCoderIamRegistrationCreateRequest);
-assert.ok(document.components.schemas?.BirdCoderIamVerificationCodeCreateRequest);
-assert.ok(document.components.schemas?.BirdCoderIamVerificationCodeVerifyRequest);
+assert.equal(document.components.schemas?.BirdCoderIamVerificationCodeCreateRequest, undefined);
+assert.equal(document.components.schemas?.BirdCoderIamVerificationCodeVerifyRequest, undefined);
 assert.ok(document.components.schemas?.BirdCoderIamPasswordResetRequestCreateRequest);
 assert.ok(document.components.schemas?.BirdCoderIamPasswordResetCreateRequest);
 assert.ok(document.components.schemas?.BirdCoderIamOAuthAuthorizationSummary);

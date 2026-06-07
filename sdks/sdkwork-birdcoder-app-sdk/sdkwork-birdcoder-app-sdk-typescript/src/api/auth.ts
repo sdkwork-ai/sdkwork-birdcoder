@@ -34,10 +34,6 @@ export interface AuthApi {
     };
     refresh(body: Types.BirdCoderIamRefreshSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
   };
-  verificationCodes: {
-    create(body: Types.BirdCoderIamVerificationCodeCreateRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
-    verify(body: Types.BirdCoderIamVerificationCodeVerifyRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
-  };
 }
 
 export function createAuthApi(requestOperation: BirdcoderSdkRequestOperation): AuthApi {
@@ -84,14 +80,6 @@ export function createAuthApi(requestOperation: BirdcoderSdkRequestOperation): A
       },
       refresh(body: Types.BirdCoderIamRefreshSessionRequest, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderIamSessionEnvelope>("auth.sessions.refresh", { body }, options);
-      }
-    },
-    verificationCodes: {
-      create(body: Types.BirdCoderIamVerificationCodeCreateRequest, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("auth.verificationCodes.create", { body }, options);
-      },
-      verify(body: Types.BirdCoderIamVerificationCodeVerifyRequest, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("auth.verificationCodes.verify", { body }, options);
       }
     }
   };

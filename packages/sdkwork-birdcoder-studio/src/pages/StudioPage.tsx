@@ -61,6 +61,7 @@ import { useStudioWorkbenchEventBindings } from './useStudioWorkbenchEventBindin
 import {
   EMPTY_STUDIO_CHAT_MESSAGES,
   getLanguageFromPath,
+  restoreStudioSelectionAfterRefresh,
   type StudioPageProps,
 } from './StudioPage.shared';
 
@@ -557,32 +558,18 @@ function StudioPageComponent({
     targetProjectId: string,
     targetCodingSessionId: string | null,
   ) => {
-    const normalizedTargetProjectId = targetProjectId.trim();
-    const normalizedTargetCodingSessionId = targetCodingSessionId?.trim() ?? '';
-    const normalizedSelectedCodingSessionId = sessionId.trim();
-
-    if (
-      normalizedTargetCodingSessionId &&
-      normalizedTargetCodingSessionId === normalizedSelectedCodingSessionId &&
-      normalizedTargetProjectId === currentProjectId
-    ) {
-      return;
-    }
-
-    if (targetCodingSessionId) {
-      selectCodingSession(targetCodingSessionId, {
-        projectId: targetProjectId,
-      });
-      return;
-    }
-    if (targetProjectId) {
-      notifyProjectChange(targetProjectId);
-      setMenuActiveProjectId(targetProjectId);
-      setSessionId('');
-      setSelectedSessionProjectId(targetProjectId);
-      pendingLocalCodingSessionSelectionKeyRef.current =
-        buildCodingSessionProjectScopedKey(targetProjectId, '');
-    }
+    restoreStudioSelectionAfterRefresh({
+      currentProjectId,
+      notifyProjectChange,
+      pendingLocalCodingSessionSelectionKeyRef,
+      selectCodingSession,
+      sessionId,
+      setMenuActiveProjectId,
+      setSelectedSessionProjectId,
+      setSessionId,
+      targetCodingSessionId,
+      targetProjectId,
+    });
   };
 
   const {

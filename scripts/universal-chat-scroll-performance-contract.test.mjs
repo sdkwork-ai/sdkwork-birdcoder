@@ -53,7 +53,7 @@ assert.match(
 );
 
 const transcriptScrollHandlerMatch = universalChatSource.match(
-  /const handleTranscriptScroll = \(\) => \{([\s\S]*?)\n    \};\n    const handleTranscriptKeyDown/,
+  /const handleTranscriptScroll = \(\) => \{([\s\S]*?)\r?\n    \};\r?\n    const handleTranscriptKeyDown/,
 );
 assert.ok(
   transcriptScrollHandlerMatch,

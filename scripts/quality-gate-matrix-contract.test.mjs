@@ -17,7 +17,7 @@ const rootDir = process.cwd();
 const rootPackageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
 const ciWorkflow = fs.readFileSync(path.join(rootDir, '.github/workflows/ci.yml'), 'utf8');
 const releaseWorkflow = fs.readFileSync(
-  path.join(rootDir, '.github/workflows/release-reusable.yml'),
+  path.join(rootDir, '.github/workflows/package.yml'),
   'utf8',
 );
 const qualityFastRunnerModule = await import(
@@ -118,11 +118,11 @@ assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scri
 assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
 assert.equal(
   rootPackageJson.scripts['check:desktop'],
-  'node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-desktop --noEmit && node scripts/release/release-profiles.test.mjs && cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
+  'node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-desktop --noEmit && node scripts/release/release-profiles.test.mjs && node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
 );
 assert.equal(
   rootPackageJson.scripts['check:server'],
-  'node scripts/birdcoder-iam-runtime-standard-contract.test.mjs && node scripts/iam-seed-parity-contract.test.mjs && node scripts/rust-long-id-standard-contract.test.mjs && node scripts/rust-workspace-project-schema-parity-contract.test.mjs && node scripts/codeengine-catalog-tenant-standard-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-server --noEmit && cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
+  'node scripts/birdcoder-iam-runtime-standard-contract.test.mjs && node scripts/iam-seed-parity-contract.test.mjs && node scripts/rust-long-id-standard-contract.test.mjs && node scripts/rust-workspace-project-schema-parity-contract.test.mjs && node scripts/codeengine-catalog-tenant-standard-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-server --noEmit && node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
 );
 assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');
@@ -163,10 +163,11 @@ assert.match(ciWorkflow, /pnpm check:desktop/);
 assert.match(ciWorkflow, /pnpm check:server/);
 assert.match(ciWorkflow, /pnpm build/);
 assert.match(ciWorkflow, /pnpm docs:build/);
-assert.match(releaseWorkflow, /Run release verification/);
-assert.match(releaseWorkflow, /pnpm lint/);
-assert.match(releaseWorkflow, /pnpm check:desktop/);
-assert.match(releaseWorkflow, /pnpm check:server/);
+assert.match(releaseWorkflow, /Sdkwork-Cloud\/sdkwork-github-workflow\/\.github\/workflows\/sdkwork-package\.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33/);
+assert.match(releaseWorkflow, /config_path:\s*sdkwork\.workflow\.json/);
+assert.match(releaseWorkflow, /publish_release:\s*true/);
+assert.match(releaseWorkflow, /upload_artifact:\s*true/);
+assert.doesNotMatch(releaseWorkflow, /Run release verification/);
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-quality-gate-report-'));
 const outputPath = path.join(tempDir, 'quality-gate-matrix-report.json');
@@ -285,7 +286,11 @@ assert.deepEqual(
 );
 assert.equal(
   report.tiers.find((tier) => tier.id === 'release')?.workflow.stepName,
-  'Run release verification',
+  'Use sdkwork-github-workflow package workflow',
+);
+assert.equal(
+  report.tiers.find((tier) => tier.id === 'release')?.workflow.bindingKind,
+  'standard-sdkwork-workflow',
 );
 assert.match(
   report.tiers.find((tier) => tier.id === 'release')?.focus.join(' ') ?? '',
@@ -346,7 +351,7 @@ fs.writeFileSync(
 );
 fs.writeFileSync(path.join(topologyGapRootDir, '.github', 'workflows', 'ci.yml'), ciWorkflow, 'utf8');
 fs.writeFileSync(
-  path.join(topologyGapRootDir, '.github', 'workflows', 'release-reusable.yml'),
+  path.join(topologyGapRootDir, '.github', 'workflows', 'package.yml'),
   releaseWorkflow,
   'utf8',
 );

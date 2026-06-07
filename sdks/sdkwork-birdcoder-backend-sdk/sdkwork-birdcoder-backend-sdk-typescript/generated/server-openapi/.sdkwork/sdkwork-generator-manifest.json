@@ -1,0 +1,388 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "sdk": {
+    "name": "sdkwork-birdcoder-backend-sdk",
+    "version": "0.1.0",
+    "language": "typescript",
+    "sdkType": "backend",
+    "packageName": "@sdkwork/birdcoder-backend-sdk"
+  },
+  "generatedFiles": [
+    {
+      "path": "bin/publish-core.mjs",
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+    },
+    {
+      "path": "bin/publish.ps1",
+      "sha256": "78c6419400b988409d9393c2ecd85aa02dd6760f73edb3cc84cb28fefc51b41e"
+    },
+    {
+      "path": "bin/publish.sh",
+      "sha256": "899087c23e670b6951a12a13490fd557f761c96d78fabfb7e58a37e367db889f"
+    },
+    {
+      "path": "bin/sdk-gen.bat",
+      "sha256": "1fa0948b506e5deecf73be9371db39a042e48555d018292334fa0004a897fcbe"
+    },
+    {
+      "path": "bin/sdk-gen.sh",
+      "sha256": "215c7192b3f5891efebd79d6e2938a520ac6c9c6eb6b64979371c1ee7a58fd3d"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "fb941a0806986a54fc192f98a98f6d9c282b8d350b2b19a3e71dda404e92d545"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7840cc7d2b36ff364ac16c2fc5ec15b861bfe96854eecf81fb59b00edb8b1447"
+    },
+    {
+      "path": "package.json",
+      "sha256": "30d59cb5ab5ba9e90473a5f536796cd257ac267c97cacc70331d40e39251b240"
+    },
+    {
+      "path": "README.md",
+      "sha256": "eccdfcffd8b156407db60d6a7c3592e5c3e5b54dc567ba8f801db4d33c28f3d6"
+    },
+    {
+      "path": "sdkwork-sdk.json",
+      "sha256": "65b2eed9f16a36264ef6397ec87a1e0e011a6a1ae6639b34c9a05e1a309583da"
+    },
+    {
+      "path": "src/api/base.ts",
+      "sha256": "02ad25e6bf331ff241ba387c2947ddf1900dd849038e08c2757416a3aa788a04"
+    },
+    {
+      "path": "src/api/iam.ts",
+      "sha256": "c0562092890ad3f34dc0ccfa6e35ca3dcdcd29cb336bc836706558dc17524f77"
+    },
+    {
+      "path": "src/api/index.ts",
+      "sha256": "d1fee37700df7a27c367ebd761a50b85789fdb075232fa1896090f7c2eaa613e"
+    },
+    {
+      "path": "src/api/paths.ts",
+      "sha256": "fb06a3db13e96bb5b349ddc1831aa6d350c17b09d05ea92a36438131140f666e"
+    },
+    {
+      "path": "src/api/platform.ts",
+      "sha256": "b324a412d8fd802c4a6c859b939215c396be5ae5b46ed73986cf00101c7ba093"
+    },
+    {
+      "path": "src/auth/index.ts",
+      "sha256": "657fc63738bdcd61d83133120732a477dd127448cf2c51229b05d21f5e1f5c04"
+    },
+    {
+      "path": "src/http/client.ts",
+      "sha256": "0d746abe3766ca1aa52d5ec5903911ec9bb2c9e50d05f3c74ebb7803efebb9ec"
+    },
+    {
+      "path": "src/http/index.ts",
+      "sha256": "fc204fbe89750b9d25ecaffe41003e6ac243a1a895b65e65856202ab825d2dbe"
+    },
+    {
+      "path": "src/index.ts",
+      "sha256": "3a4a3f9c5ce1c5bf55baf261e7b648091cbef7ba2c30ea402dd15f3f37820956"
+    },
+    {
+      "path": "src/sdk.ts",
+      "sha256": "8e7fb26f4ec8bc1b87488c1a92295fdb64306ef67da8bffcf010371807731498"
+    },
+    {
+      "path": "src/types/bird-coder-api-list-meta.ts",
+      "sha256": "51f028045ee70eb98d854b6f59ae73e91cfa0ba4e94fd9535c1fd0227e6d4d65"
+    },
+    {
+      "path": "src/types/bird-coder-api-meta.ts",
+      "sha256": "f11059f70bfc9e5ac39fa40f9ca2637fda32bfc25c1cf4abd306cad5b3ca4622"
+    },
+    {
+      "path": "src/types/bird-coder-api-problem-details.ts",
+      "sha256": "ca6dd1916a539310d743a0262c1fe414f1eccb25febd4d57468fbd806f7ac9cb"
+    },
+    {
+      "path": "src/types/bird-coder-boolean-success-envelope.ts",
+      "sha256": "d4c3cc299623ac8b23d9beec69c72215fd01aa5a80e72ee7514278226d6cc021"
+    },
+    {
+      "path": "src/types/bird-coder-boolean-success-result.ts",
+      "sha256": "a1ce89fee2482c245c60850bbee5a7be23a87d6f1c94e006af60a7d412c8dbae"
+    },
+    {
+      "path": "src/types/bird-coder-create-iam-organization-member-request.ts",
+      "sha256": "6952c646690a817371c3c528f24aa8e91540177dad642b0f619d8c736af7aa10"
+    },
+    {
+      "path": "src/types/bird-coder-create-iam-organization-request.ts",
+      "sha256": "0755d0c265528cf3ae567273dc965704571f049f4d4fd0f2f74602600efc19e5"
+    },
+    {
+      "path": "src/types/bird-coder-create-iam-permission-request.ts",
+      "sha256": "f9d0c702ddb4c9f04b6096cf928d185daff6f2c60225c439c5addf0e591de023"
+    },
+    {
+      "path": "src/types/bird-coder-create-iam-policy-request.ts",
+      "sha256": "454a7e3f4d27bbc89935b98d4795f5075ccd112f6a3b7b85978e7be841870336"
+    },
+    {
+      "path": "src/types/bird-coder-create-iam-role-permission-request.ts",
+      "sha256": "e8612c3425076910fd5357f36c85c4050306f8ccecb391d17452bfdfa318d727"
+    },
+    {
+      "path": "src/types/bird-coder-create-iam-role-request.ts",
+      "sha256": "af7bacef38b02e665e869a4bba7a7fad1b5e3021e42b08e5501dea7e57b6bc67"
+    },
+    {
+      "path": "src/types/bird-coder-create-iam-tenant-member-request.ts",
+      "sha256": "79cdb2448157dc48c939b57adc1abd3cd29e32be469b70fddd6a40e2a42d339c"
+    },
+    {
+      "path": "src/types/bird-coder-create-iam-tenant-request.ts",
+      "sha256": "b2c80935f5e20441403a6ea308ef64b0b5e76c6722b48e2c6adde12f61277800"
+    },
+    {
+      "path": "src/types/bird-coder-create-iam-user-request.ts",
+      "sha256": "833c9b2e2bc7bb84edc61d60fc52871ecd21d27505d0d728239a1d75aa45de2f"
+    },
+    {
+      "path": "src/types/bird-coder-create-iam-user-role-request.ts",
+      "sha256": "21671acc650993d28f27bb6aa897cb702bff2856e776c5b098499133743ea150"
+    },
+    {
+      "path": "src/types/bird-coder-deleted-resource-envelope.ts",
+      "sha256": "9463415eadad51697d1883e52c15d61efee5fbafd3a143bc885b1a598e11ac84"
+    },
+    {
+      "path": "src/types/bird-coder-deleted-resource-result.ts",
+      "sha256": "4d97f1d1c6fb97b549c66f25d76bbe2508b601ea3079cb7d420d56bf3b94afca"
+    },
+    {
+      "path": "src/types/bird-coder-deployment-record-summary-list-envelope.ts",
+      "sha256": "ee00e9dbbbf41631f9bc3c1dd54e5b2b1262f930c151fcee46e513d590d6c6b8"
+    },
+    {
+      "path": "src/types/bird-coder-deployment-record-summary.ts",
+      "sha256": "b4c8ea8c185129860da33894a4b2cd9aa49d630bb773cd99777a8b7a48df6b95"
+    },
+    {
+      "path": "src/types/bird-coder-deployment-target-summary-list-envelope.ts",
+      "sha256": "0c8184bdaebba5e84e8b17bb7de8e749f6bcc13fb97ce631cf6957d9820fcc9c"
+    },
+    {
+      "path": "src/types/bird-coder-deployment-target-summary.ts",
+      "sha256": "080f451ccdf9fdeb38fecf315a120bb0901e3aaae0169b1d96599f707c3d91e3"
+    },
+    {
+      "path": "src/types/bird-coder-iam-api-key-summary-list-envelope.ts",
+      "sha256": "1576f61d76e626923b0848ce5e1bf7ad7e280d61c13b4274c60b9ec511598b72"
+    },
+    {
+      "path": "src/types/bird-coder-iam-api-key-summary.ts",
+      "sha256": "26e1be0fb495cc40170af6825080f40affd2511e9ec0dd3fc16f53d5d4ff725a"
+    },
+    {
+      "path": "src/types/bird-coder-iam-audit-event-summary-list-envelope.ts",
+      "sha256": "a7b11467d95b72c8fa47350e8d1c541e5b6b380b5f55da649f42e45b80bcdd5d"
+    },
+    {
+      "path": "src/types/bird-coder-iam-audit-event-summary.ts",
+      "sha256": "6014d22f45788946b23cea771998aae899b3e1ec6e04fd6b5c328ebfe8869f59"
+    },
+    {
+      "path": "src/types/bird-coder-iam-organization-member-summary-envelope.ts",
+      "sha256": "cac7c9167423f2ea4501e3523d6dce975f231ebd16705214490f6fe466eceec4"
+    },
+    {
+      "path": "src/types/bird-coder-iam-organization-member-summary.ts",
+      "sha256": "8a7bbf287ffe979dc075ca2b1ad54d8dd6b7429b118ca3f0b43f31fe52b03f22"
+    },
+    {
+      "path": "src/types/bird-coder-iam-organization-summary-envelope.ts",
+      "sha256": "2c3c35d8b3ece0cb3bed5277f186f87f6ef7bacba65a4ba14d10e6c43cad3a88"
+    },
+    {
+      "path": "src/types/bird-coder-iam-organization-summary.ts",
+      "sha256": "399ae2c4805a96d082b432c12912ac180169ba01f26218cb844f703a0174f3b1"
+    },
+    {
+      "path": "src/types/bird-coder-iam-permission-summary-envelope.ts",
+      "sha256": "23a40c3ef39def03a0accc2649f7f1f3f35a5938ae782908281fecf83e9a0edf"
+    },
+    {
+      "path": "src/types/bird-coder-iam-permission-summary-list-envelope.ts",
+      "sha256": "06511ee42ed98ee77fe924e7b65acd7101fda48485a8bc7e3155937840fa0e1b"
+    },
+    {
+      "path": "src/types/bird-coder-iam-permission-summary.ts",
+      "sha256": "8eb31a0eb29cfc8822ee1eaf156c8661233fea0ef1527ddc3d31886b7f6ef269"
+    },
+    {
+      "path": "src/types/bird-coder-iam-policy-summary-envelope.ts",
+      "sha256": "00ce7694f9d147a42adb4bf4bd95c1ef50304f464b3560277e142e47547455fa"
+    },
+    {
+      "path": "src/types/bird-coder-iam-policy-summary-list-envelope.ts",
+      "sha256": "3c7753f07dfdd8dbc5a377ee3a5f5024ee3b6b3b24f0d119a3ff8450feb07a23"
+    },
+    {
+      "path": "src/types/bird-coder-iam-policy-summary.ts",
+      "sha256": "c488e97aef02dd01cf06231c7c5260c9811765b15dabeac97bda4540ddba753a"
+    },
+    {
+      "path": "src/types/bird-coder-iam-role-permission-summary-envelope.ts",
+      "sha256": "30a1af1328d2f87632977e5cb2b65d7e1f81c71f900e5f39840a5686369762e5"
+    },
+    {
+      "path": "src/types/bird-coder-iam-role-permission-summary-list-envelope.ts",
+      "sha256": "71ff51789592331c6b21737f6ac249d055800cfa44518af0163e6ae3cd283c2d"
+    },
+    {
+      "path": "src/types/bird-coder-iam-role-permission-summary.ts",
+      "sha256": "7724f0cf8a63b27b43ff43fb5600453e183dbfcba374bf14d3cb23ede19ad3cd"
+    },
+    {
+      "path": "src/types/bird-coder-iam-role-summary-envelope.ts",
+      "sha256": "de4b940d5d611244dc4d771136047d5107491bc848909b7428db07414ed5b8a7"
+    },
+    {
+      "path": "src/types/bird-coder-iam-role-summary-list-envelope.ts",
+      "sha256": "a0034f833b774a95b53c29a3e3b9f61c6e208b033d22bde2c34a4807f45cb648"
+    },
+    {
+      "path": "src/types/bird-coder-iam-role-summary.ts",
+      "sha256": "6e1aad5b45d79b0f9ce950b4ddc39687536ce58b3ae6b338d9c2d6e745314632"
+    },
+    {
+      "path": "src/types/bird-coder-iam-security-event-summary-list-envelope.ts",
+      "sha256": "ab1dd629c8838d7c9afd3257fa40c7d89839db4a78db3f4d1249210bb00d99b0"
+    },
+    {
+      "path": "src/types/bird-coder-iam-security-event-summary.ts",
+      "sha256": "bf83f38ee493b88400aa21d57c6e6bb4d6721a45330626ed96f5820446d42917"
+    },
+    {
+      "path": "src/types/bird-coder-iam-tenant-member-summary-envelope.ts",
+      "sha256": "c04eeda2e3315928a8b518131ad4e4bf2447c279e3d0c08d92bc065af092b652"
+    },
+    {
+      "path": "src/types/bird-coder-iam-tenant-member-summary-list-envelope.ts",
+      "sha256": "b66e24aeef16df4af610703f55c681cdb907e6e3f16edd968ddaa5f963686f4d"
+    },
+    {
+      "path": "src/types/bird-coder-iam-tenant-member-summary.ts",
+      "sha256": "e00e7b8adf18918e49c739a7f0ef3eab2cebcbb86e98a4c233bc7f92d86c52ff"
+    },
+    {
+      "path": "src/types/bird-coder-iam-tenant-summary-envelope.ts",
+      "sha256": "6fcca9187cad6ceeb445b9002e88a826ed59fe6e615ab8062d9c8ae411f0e48a"
+    },
+    {
+      "path": "src/types/bird-coder-iam-tenant-summary-list-envelope.ts",
+      "sha256": "7b8393566f4ae8b416f0366383a6a2f948feb28d7206da5ea9fdcbd14002ad21"
+    },
+    {
+      "path": "src/types/bird-coder-iam-tenant-summary.ts",
+      "sha256": "5a84771eb2bb8bd37d54a6c46207228de80c23f697ef47266d0bb1b46432d6f7"
+    },
+    {
+      "path": "src/types/bird-coder-iam-user-role-summary-envelope.ts",
+      "sha256": "4e8475da473059351189d877c53f5a26b475ff7e1dfa08bf3f9cfa1c7c77d1ad"
+    },
+    {
+      "path": "src/types/bird-coder-iam-user-role-summary.ts",
+      "sha256": "c2b49de071de92bb5c2f40601055e1fcd530b921905477a30dc09b91882382f9"
+    },
+    {
+      "path": "src/types/bird-coder-iam-user-summary-envelope.ts",
+      "sha256": "39e90d52beb2798418a3c9570dc2373982d9d71c31f05b6d958fed6e5f45f2fb"
+    },
+    {
+      "path": "src/types/bird-coder-iam-user-summary-list-envelope.ts",
+      "sha256": "3e95fad3af5d75ad03eabd65ab6d28dba6d1e1daa8fb6c90bc28d47e9c5a395c"
+    },
+    {
+      "path": "src/types/bird-coder-iam-user-summary.ts",
+      "sha256": "0bf0fe1507f0875410607a6fbf8b90fecc7d4b24912ddb304dd0cc226120bdbe"
+    },
+    {
+      "path": "src/types/bird-coder-problem-envelope.ts",
+      "sha256": "0ce75becd8bf4126e2111e48e522010c7879ff714bcd9157224217787444a714"
+    },
+    {
+      "path": "src/types/bird-coder-release-summary-list-envelope.ts",
+      "sha256": "c126e3673c7e05db6b2a38b4afb51e09ea9dc5c3cc15b148fb0ce45df2c61067"
+    },
+    {
+      "path": "src/types/bird-coder-release-summary.ts",
+      "sha256": "0e655e30869f8fd16d9d5f1c46f70a49ebc774c38141dd1aa37334b4482b7992"
+    },
+    {
+      "path": "src/types/bird-coder-team-member-summary-list-envelope.ts",
+      "sha256": "99f4e793c329f2b313029f424dceee357eb71b1cec03556b28c16f70bde8f47a"
+    },
+    {
+      "path": "src/types/bird-coder-team-member-summary.ts",
+      "sha256": "a62e356a31785a084f69eaa67880c42aa25f6de9ae920fb1a9252aa3ab16119c"
+    },
+    {
+      "path": "src/types/bird-coder-team-summary-list-envelope.ts",
+      "sha256": "e9022b3a4191983def006b446f81337dfb315c95f4ab0d3511cf01eac951514b"
+    },
+    {
+      "path": "src/types/bird-coder-team-summary.ts",
+      "sha256": "5b42e98899af5cf0e90bdf78ec1d9e66fef227ab64557935bf1696d74c9dc4b3"
+    },
+    {
+      "path": "src/types/bird-coder-update-iam-organization-member-request.ts",
+      "sha256": "38de5be6615f6ba4c38afbf24c0195b032b0065d351aabeb535ef672bbc98713"
+    },
+    {
+      "path": "src/types/bird-coder-update-iam-organization-request.ts",
+      "sha256": "97fc508d5716e6115a56408fbc05137279d310f0a7ff85b8471a313388b868b2"
+    },
+    {
+      "path": "src/types/bird-coder-update-iam-permission-request.ts",
+      "sha256": "eecee5d8824461b010f478c6c0dcabca2a8227f1cf9a22b987d28226830bd4f4"
+    },
+    {
+      "path": "src/types/bird-coder-update-iam-policy-request.ts",
+      "sha256": "f089c008803acb19ff8bbefd8b6d36951b0440ecd7ea4537227f92d2d9aeff3e"
+    },
+    {
+      "path": "src/types/bird-coder-update-iam-role-request.ts",
+      "sha256": "e1e715b31c6eb4ebe59bb7de610f2e85328c748a8c8da20a1a6e43257b491f1f"
+    },
+    {
+      "path": "src/types/bird-coder-update-iam-tenant-member-request.ts",
+      "sha256": "ecd3443472c92eb38a27983661f8f7dd746feed1a000b3e57b405f836de229db"
+    },
+    {
+      "path": "src/types/bird-coder-update-iam-tenant-request.ts",
+      "sha256": "709d755eb5c28aa40d370dfae6ba04e6c327f33c633613c3966c06cf67d0082e"
+    },
+    {
+      "path": "src/types/bird-coder-update-iam-user-request.ts",
+      "sha256": "90d5748614d117c91957a3fdedea4525b48d8c49a8fe1d1ddf0c86a9a2e03d3d"
+    },
+    {
+      "path": "src/types/common.ts",
+      "sha256": "c6adbdca8ccdb1656d1cb904e35cfc765d4a9075923190fba4b8787afd0cc710"
+    },
+    {
+      "path": "src/types/index.ts",
+      "sha256": "07f83abb052c59497084b62d0509e543223f9665044613279eb8b98f58de7a0a"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "7c8a6c2b00fb208ec28e1e6045194487d1b3e563d6c44cef4783fd4fe0e8ffad"
+    }
+  ],
+  "scaffoldFiles": [
+    "custom/build-runtime.mjs",
+    "custom/README.md"
+  ],
+  "customRoots": [
+    "custom/"
+  ]
+}

@@ -14,16 +14,29 @@ export function runLocalTsxContract() {
       cwd: workspaceRootDir,
     });
 
-    assert.equal(
-      plan.args[1],
-      '--tsconfig',
-      'run-local-tsx must use a runtime tsconfig by default so value imports keep resolving through real workspace packages instead of root-only type boundaries.',
-    );
-    assert.equal(
-      path.normalize(plan.args[2]),
-      path.join(workspaceRootDir, 'tsconfig.runtime.json'),
-      'run-local-tsx must point the default tsconfig override at the BirdCoder runtime tsconfig.',
-    );
+    if (plan.runner === 'tsx') {
+      assert.equal(
+        plan.args[1],
+        '--tsconfig',
+        'run-local-tsx must use a runtime tsconfig by default so value imports keep resolving through real workspace packages instead of root-only type boundaries.',
+      );
+      assert.equal(
+        path.normalize(plan.args[2]),
+        path.join(workspaceRootDir, 'tsconfig.runtime.json'),
+        'run-local-tsx must point the default tsconfig override at the BirdCoder runtime tsconfig.',
+      );
+    } else {
+      assert.equal(
+        plan.runner,
+        'node-strip-types',
+        'run-local-tsx must fall back to Node strip-types when tsx is not installed.',
+      );
+      assert.equal(
+        plan.args[0],
+        '--experimental-strip-types',
+        'run-local-tsx fallback must execute TypeScript through Node strip-types.',
+      );
+    }
   }
 
   {
@@ -37,16 +50,29 @@ export function runLocalTsxContract() {
       cwd: workspaceRootDir,
     });
 
-    assert.equal(
-      plan.args.filter((arg) => arg === '--tsconfig').length,
-      1,
-      'run-local-tsx must not inject a second tsconfig override when callers pass one explicitly.',
-    );
-    assert.equal(
-      path.normalize(plan.args[2]),
-      customTsconfig,
-      'run-local-tsx must preserve an explicit caller-provided tsconfig path.',
-    );
+    if (plan.runner === 'tsx') {
+      assert.equal(
+        plan.args.filter((arg) => arg === '--tsconfig').length,
+        1,
+        'run-local-tsx must not inject a second tsconfig override when callers pass one explicitly.',
+      );
+      assert.equal(
+        path.normalize(plan.args[2]),
+        customTsconfig,
+        'run-local-tsx must preserve an explicit caller-provided tsconfig path.',
+      );
+    } else {
+      assert.equal(
+        plan.runner,
+        'node-strip-types',
+        'run-local-tsx must fall back to Node strip-types when tsx is not installed.',
+      );
+      assert.equal(
+        plan.args.includes(customTsconfig),
+        false,
+        'run-local-tsx fallback must not pass tsx-only tsconfig flags to Node.',
+      );
+    }
   }
 
   console.log('run-local-tsx contract passed.');

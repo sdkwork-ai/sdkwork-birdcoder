@@ -17,10 +17,10 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/app/v3/api/system/routes',
-    routeCount: 132,
+    routeCount: 129,
     routesBySurface: {
-      app: 78,
-      backend: 54,
+      app: 80,
+      backend: 49,
     },
     surfaces: [
       {
@@ -28,14 +28,14 @@ assert.deepEqual(descriptor, {
         basePath: '/app/v3/api',
         description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
         name: 'app',
-        routeCount: 78,
+        routeCount: 80,
       },
       {
         authMode: 'admin',
         basePath: '/backend/v3/api',
         description: 'Backend governance, audit, release, deployment, and team-management routes.',
         name: 'backend',
-        routeCount: 54,
+        routeCount: 49,
       },
     ],
   },
@@ -88,10 +88,16 @@ assert.equal(app.authSessionRefresh.method, 'POST');
 assert.equal(app.authSessionRefresh.path, '/app/v3/api/auth/sessions/refresh');
 assert.equal(app.authRegistration.method, 'POST');
 assert.equal(app.authRegistration.path, '/app/v3/api/auth/registrations');
-assert.equal(app.authVerificationCode.method, 'POST');
-assert.equal(app.authVerificationCode.path, '/app/v3/api/auth/verification_codes');
-assert.equal(app.authVerificationCodeVerify.method, 'POST');
-assert.equal(app.authVerificationCodeVerify.path, '/app/v3/api/auth/verification_codes/verify');
+assert.equal(
+  'authVerificationCode' in app,
+  false,
+  'BirdCoder app API must not publish messaging-owned verification-code delivery routes.',
+);
+assert.equal(
+  'authVerificationCodeVerify' in app,
+  false,
+  'BirdCoder app API must not publish messaging-owned verification-code verify routes.',
+);
 assert.equal(app.authPasswordResetRequest.method, 'POST');
 assert.equal(app.authPasswordResetRequest.path, '/app/v3/api/auth/password_reset_requests');
 assert.equal(app.authPasswordReset.method, 'POST');
@@ -168,9 +174,9 @@ assert.equal(admin.iamUser.path, '/backend/v3/api/iam/users/:userId');
 assert.equal(admin.createIamUser.path, '/backend/v3/api/iam/users');
 assert.equal(admin.updateIamUser.path, '/backend/v3/api/iam/users/:userId');
 assert.equal(admin.deleteIamUser.path, '/backend/v3/api/iam/users/:userId');
-assert.equal(admin.iamUserRoles.path, '/backend/v3/api/iam/users/:userId/roles');
-assert.equal(admin.createIamUserRole.path, '/backend/v3/api/iam/users/:userId/roles');
-assert.equal(admin.deleteIamUserRole.path, '/backend/v3/api/iam/users/:userId/roles/:roleId');
+assert.equal(admin.iamUserRoles.path, '/app/v3/api/iam/role_bindings');
+assert.equal(admin.createIamUserRole.path, '/backend/v3/api/iam/role_bindings');
+assert.equal(admin.deleteIamUserRole.path, '/backend/v3/api/iam/role_bindings/:roleBindingId');
 assert.equal(admin.teams.path, '/backend/v3/api/iam/teams');
 assert.equal(admin.teamMembers.path, '/backend/v3/api/iam/teams/:teamId/members');
 assert.equal(admin.deploymentTargets.path, '/backend/v3/api/projects/:projectId/deployment_targets');
@@ -178,7 +184,7 @@ assert.equal(admin.releases.path, '/backend/v3/api/releases');
 assert.equal(admin.deployments.path, '/backend/v3/api/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 132, 'coding-server should expose the full app/backend route matrix');
+assert.equal(routes.length, 129, 'coding-server should expose the full app/backend route matrix');
 assert.equal(
   routes.every((route) => route.path.startsWith('/app/v3/api') || route.path.startsWith('/backend/v3/api')),
   true,
@@ -494,7 +500,11 @@ assert.equal(
   'BirdCoder must not publish retired billing.vip route aliases; membership belongs to SDKWork commerce.',
 );
 assert.deepEqual(
-  routeCatalog.filter((route) => route.openApiPath.startsWith('/backend/v3/api/iam/users')),
+  routeCatalog.filter((route) =>
+    route.openApiPath.startsWith('/backend/v3/api/iam/users')
+    || route.openApiPath.startsWith('/app/v3/api/iam/role_bindings')
+    || route.openApiPath.startsWith('/backend/v3/api/iam/role_bindings'),
+  ),
   [
     {
       authMode: 'admin',
@@ -542,34 +552,34 @@ assert.deepEqual(
       summary: 'Delete SDKWork IAM user',
     },
     {
-      authMode: 'admin',
+      authMode: 'user',
       method: 'GET',
-      openApiPath: '/backend/v3/api/iam/users/{userId}/roles',
-      operationId: 'users.roles.list',
-      path: '/backend/v3/api/iam/users/:userId/roles',
-      surface: 'backend',
-      summary: 'List SDKWork IAM user roles',
+      openApiPath: '/app/v3/api/iam/role_bindings',
+      operationId: 'roleBindings.list',
+      path: '/app/v3/api/iam/role_bindings',
+      surface: 'app',
+      summary: 'List SDKWork IAM user role bindings',
     },
     {
       authMode: 'admin',
       method: 'POST',
-      openApiPath: '/backend/v3/api/iam/users/{userId}/roles',
-      operationId: 'users.roles.create',
-      path: '/backend/v3/api/iam/users/:userId/roles',
+      openApiPath: '/backend/v3/api/iam/role_bindings',
+      operationId: 'roleBindings.create',
+      path: '/backend/v3/api/iam/role_bindings',
       surface: 'backend',
-      summary: 'Create SDKWork IAM user role',
+      summary: 'Create SDKWork IAM user role binding',
     },
     {
       authMode: 'admin',
       method: 'DELETE',
-      openApiPath: '/backend/v3/api/iam/users/{userId}/roles/{roleId}',
-      operationId: 'users.roles.delete',
-      path: '/backend/v3/api/iam/users/:userId/roles/:roleId',
+      openApiPath: '/backend/v3/api/iam/role_bindings/{roleBindingId}',
+      operationId: 'roleBindings.delete',
+      path: '/backend/v3/api/iam/role_bindings/:roleBindingId',
       surface: 'backend',
-      summary: 'Delete SDKWork IAM user role',
+      summary: 'Delete SDKWork IAM user role binding',
     },
   ],
-  'backend route catalog must expose the standard IAM users and user roles resource surface.',
+  'backend route catalog must expose the standard IAM users and role binding resource surface.',
 );
 assert.deepEqual(
   routeCatalog.find((route) => route.operationId === 'workspaces.realtime.subscribe'),

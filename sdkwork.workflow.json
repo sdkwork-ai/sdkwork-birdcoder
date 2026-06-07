@@ -1,0 +1,339 @@
+{
+  "$schema": "../sdkwork-github-workflow/schemas/sdkwork-workflow.schema.json",
+  "schemaVersion": "2026-06-06.sdkwork.workflow.v1",
+  "app": {
+    "id": "sdkwork-birdcoder",
+    "name": "SDKWork BirdCoder",
+    "repository": "Sdkwork-Cloud/sdkwork-birdcoder",
+    "sourcePath": ".",
+    "configPath": "sdkwork.app.config.json"
+  },
+  "release": {
+    "artifactPrefix": "sdkwork-birdcoder",
+    "defaultVersion": "0.1.0",
+    "changelog": {
+      "source": "auto",
+      "maxCommitSubjects": 50
+    }
+  },
+  "toolchains": {
+    "node": "22",
+    "pnpm": "10.30.2",
+    "rust": "1.90.0",
+    "wix": "5.0.2"
+  },
+  "lifecycle": {
+    "preflight": [
+      {
+        "name": "Run BirdCoder package preflight",
+        "shell": "node",
+        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs preflight"
+      }
+    ],
+    "install": [
+      {
+        "name": "Install BirdCoder workspace dependencies",
+        "shell": "node",
+        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs install"
+      }
+    ],
+    "build": [
+      {
+        "name": "Build selected BirdCoder release target",
+        "shell": "node",
+        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs build"
+      }
+    ],
+    "package": [
+      {
+        "name": "Package selected BirdCoder release target",
+        "shell": "node",
+        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs package"
+      }
+    ],
+    "validate": [
+      {
+        "name": "Validate selected BirdCoder release target",
+        "shell": "node",
+        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs validate"
+      }
+    ],
+    "publish": [
+      {
+        "name": "Finalize BirdCoder aggregate release assets",
+        "shell": "node",
+        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs publish"
+      }
+    ]
+  },
+  "targets": [
+    {
+      "id": "windows-x64-desktop-exe",
+      "profile": "desktop",
+      "platform": "windows",
+      "architecture": "x64",
+      "formats": ["exe"],
+      "runner": "windows-2022",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "windows-x64-desktop-msi",
+      "profile": "desktop",
+      "platform": "windows",
+      "architecture": "x64",
+      "formats": ["msi"],
+      "runner": "windows-2022",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "windows-arm64-desktop-exe",
+      "profile": "desktop",
+      "platform": "windows",
+      "architecture": "arm64",
+      "formats": ["exe"],
+      "runner": "windows-11-arm",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "linux-debian-x64-desktop-deb",
+      "profile": "desktop",
+      "platform": "linux",
+      "distribution": "debian",
+      "architecture": "x64",
+      "formats": ["deb"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "linux-rhel-x64-desktop-rpm",
+      "profile": "desktop",
+      "platform": "linux",
+      "distribution": "rhel",
+      "architecture": "x64",
+      "formats": ["rpm"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "linux-x64-desktop-appimage",
+      "profile": "desktop",
+      "platform": "linux",
+      "architecture": "x64",
+      "formats": ["appimage"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "linux-debian-arm64-desktop-deb",
+      "profile": "desktop",
+      "platform": "linux",
+      "distribution": "debian",
+      "architecture": "arm64",
+      "formats": ["deb"],
+      "runner": "ubuntu-24.04-arm",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "linux-arm64-desktop-appimage",
+      "profile": "desktop",
+      "platform": "linux",
+      "architecture": "arm64",
+      "formats": ["appimage"],
+      "runner": "ubuntu-24.04-arm",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "macos-x64-desktop-tar-gz",
+      "profile": "desktop",
+      "platform": "macos",
+      "architecture": "x64",
+      "formats": ["tar.gz"],
+      "runner": "macos-15-intel",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "macos-x64-desktop-dmg",
+      "profile": "desktop",
+      "platform": "macos",
+      "architecture": "x64",
+      "formats": ["dmg"],
+      "runner": "macos-15-intel",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "macos-arm64-desktop-tar-gz",
+      "profile": "desktop",
+      "platform": "macos",
+      "architecture": "arm64",
+      "formats": ["tar.gz"],
+      "runner": "macos-15",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "macos-arm64-desktop-dmg",
+      "profile": "desktop",
+      "platform": "macos",
+      "architecture": "arm64",
+      "formats": ["dmg"],
+      "runner": "macos-15",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "windows-x64-server-tar-gz",
+      "profile": "server",
+      "platform": "windows",
+      "architecture": "x64",
+      "formats": ["tar.gz"],
+      "runner": "windows-2022",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "windows-arm64-server-tar-gz",
+      "profile": "server",
+      "platform": "windows",
+      "architecture": "arm64",
+      "formats": ["tar.gz"],
+      "runner": "windows-11-arm",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "linux-x64-server-tar-gz",
+      "profile": "server",
+      "platform": "linux",
+      "architecture": "x64",
+      "formats": ["tar.gz"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "linux-arm64-server-tar-gz",
+      "profile": "server",
+      "platform": "linux",
+      "architecture": "arm64",
+      "formats": ["tar.gz"],
+      "runner": "ubuntu-24.04-arm",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "macos-x64-server-tar-gz",
+      "profile": "server",
+      "platform": "macos",
+      "architecture": "x64",
+      "formats": ["tar.gz"],
+      "runner": "macos-15-intel",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "macos-arm64-server-tar-gz",
+      "profile": "server",
+      "platform": "macos",
+      "architecture": "arm64",
+      "formats": ["tar.gz"],
+      "runner": "macos-15",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "web-noarch-web-tar-gz",
+      "profile": "web",
+      "platform": "web",
+      "architecture": "noarch",
+      "formats": ["tar.gz"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "container-x64-server-cpu-tar-gz",
+      "profile": "server",
+      "platform": "container",
+      "architecture": "x64",
+      "variant": "cpu",
+      "formats": ["tar.gz"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "container-x64-server-nvidia-cuda-tar-gz",
+      "profile": "server",
+      "platform": "container",
+      "architecture": "x64",
+      "variant": "nvidia-cuda",
+      "formats": ["tar.gz"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "container-x64-server-amd-rocm-tar-gz",
+      "profile": "server",
+      "platform": "container",
+      "architecture": "x64",
+      "variant": "amd-rocm",
+      "formats": ["tar.gz"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "container-arm64-server-cpu-tar-gz",
+      "profile": "server",
+      "platform": "container",
+      "architecture": "arm64",
+      "variant": "cpu",
+      "formats": ["tar.gz"],
+      "runner": "ubuntu-24.04-arm",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "container-x64-server-cpu-helm",
+      "profile": "server",
+      "platform": "container",
+      "architecture": "x64",
+      "variant": "cpu",
+      "formats": ["helm"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "container-x64-server-nvidia-cuda-helm",
+      "profile": "server",
+      "platform": "container",
+      "architecture": "x64",
+      "variant": "nvidia-cuda",
+      "formats": ["helm"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "container-x64-server-amd-rocm-helm",
+      "profile": "server",
+      "platform": "container",
+      "architecture": "x64",
+      "variant": "amd-rocm",
+      "formats": ["helm"],
+      "runner": "ubuntu-24.04",
+      "outputGlobs": ["artifacts/release/**/*"]
+    },
+    {
+      "id": "container-arm64-server-cpu-helm",
+      "profile": "server",
+      "platform": "container",
+      "architecture": "arm64",
+      "variant": "cpu",
+      "formats": ["helm"],
+      "runner": "ubuntu-24.04-arm",
+      "outputGlobs": ["artifacts/release/**/*"]
+    }
+  ],
+  "security": {
+    "oidcRequired": true,
+    "artifactAttestations": true,
+    "sbomRequired": false,
+    "signingRequired": false
+  },
+  "publish": {
+    "workflowArtifact": true,
+    "githubRelease": true,
+    "aggregateRelease": true,
+    "aggregateArtifactPath": "release-assets",
+    "aggregateUploadGlobs": ["release-assets/**/*"],
+    "retentionDays": 30
+  }
+}

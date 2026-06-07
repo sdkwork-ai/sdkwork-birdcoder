@@ -1,8 +1,8 @@
 import { getTerminalProfile, type TerminalProfileId } from './profiles.ts';
-import {
-  createDesktopRuntimeBridgeClient,
-  type DesktopTerminalSessionInventorySnapshot,
-} from '@sdkwork/terminal-infrastructure';
+import type {
+  DesktopRuntimeBridgeClient,
+  DesktopTerminalSessionInventorySnapshot,
+} from './contracts/sdkworkTerminalInfrastructure.d.ts';
 
 export type TerminalSessionStatus = 'idle' | 'running' | 'error' | 'closed';
 
@@ -24,13 +24,14 @@ export interface ListStoredTerminalSessionsOptions {
   limit?: number;
 }
 
-async function resolveDesktopRuntimeClient() {
+async function resolveDesktopRuntimeClient(): Promise<DesktopRuntimeBridgeClient | null> {
   if (typeof window === 'undefined' || !window.__TAURI__) {
     return null;
   }
 
   try {
     const { invoke } = await import('@tauri-apps/api/core');
+    const { createDesktopRuntimeBridgeClient } = await import('@sdkwork/terminal-infrastructure');
     return createDesktopRuntimeBridgeClient(invoke);
   } catch {
     return null;

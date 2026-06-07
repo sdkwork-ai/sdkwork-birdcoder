@@ -66,6 +66,16 @@ const sharedAuthRuntimeSource = readAppbaseText(
   'src',
   'auth-iam-runtime.ts',
 );
+const appbaseAppOpenPlatformSdkSource = readAppbaseText(
+  'sdks',
+  'sdkwork-appbase-app-sdk',
+  'sdkwork-appbase-app-sdk-typescript',
+  'generated',
+  'server-openapi',
+  'src',
+  'api',
+  'open-platform.ts',
+);
 
 assert.match(
   authPageSource,
@@ -118,35 +128,35 @@ assert.match(
   /function resolvePlatformQrContent/u,
   'sdkwork-appbase IAM runtime must normalize generated SDK qrContent payloads before rendering.',
 );
-assert.match(
+assert.doesNotMatch(
   sharedAuthRuntimeSource,
-  /function normalizeOptionalQrImageUrl/u,
-  'sdkwork-appbase IAM runtime must treat qrUrl as an optional image URL, not a status API URL.',
+  /\bqrUrl\b/u,
+  'sdkwork-appbase IAM runtime must not treat qrUrl as a QR status API URL; QR rendering is based on qrContent or qrCode media.',
 );
 assert.match(
   iamRuntimeSource,
-  /createBirdCoderIamAppClientForSdkworkIamRuntime/u,
-  'BirdCoder IAM runtime must adapt the generated app SDK to the sdkwork-appbase IAM service method signatures.',
+  /createAppbaseAppSdkClient/u,
+  'BirdCoder IAM runtime must construct the appbase app SDK for QR auth and login/session flows.',
 );
 assert.doesNotMatch(
   iamRuntimeSource,
-  /app:\s*getBirdCoderGeneratedAppSdkClient\(\)/u,
-  'BirdCoder IAM runtime must not pass the generated app SDK directly because QR path methods require sdkwork-appbase semantic sessionKey arguments.',
+  /createBirdCoderIamAppClientForSdkworkIamRuntime|app:\s*getBirdCoderGeneratedAppSdkClient\(\)/u,
+  'BirdCoder IAM runtime must not use a BirdCoder product SDK QR adapter as the appbase login authority.',
 );
 assert.match(
-  iamRuntimeSource,
-  /openPlatform:[\s\S]*qrAuth:[\s\S]*sessions:[\s\S]*retrieve\(sessionKey:\s*string\)[\s\S]*\.retrieve\(\{\s*sessionKey\s*\}\)/u,
-  'BirdCoder IAM runtime QR status retrieval must map appbase retrieve(sessionKey) to the generated SDK retrieve({ sessionKey }) call.',
+  appbaseAppOpenPlatformSdkSource,
+  /retrieve\(sessionKey:\s*string\)/u,
+  'sdkwork-appbase generated app SDK must expose QR session retrieve(sessionKey) directly.',
 );
 assert.match(
-  iamRuntimeSource,
-  /scans:[\s\S]*create\(sessionKey:\s*string,\s*body[\s\S]*\.create\(\s*\{\s*sessionKey\s*\},\s*body/u,
-  'BirdCoder IAM runtime QR scan creation must map appbase scans.create(sessionKey, body) to the generated SDK scans.create({ sessionKey }, body) call.',
+  appbaseAppOpenPlatformSdkSource,
+  /scans[\s\S]*create\(sessionKey:\s*string,\s*body/u,
+  'sdkwork-appbase generated app SDK must expose QR scan creation with semantic sessionKey arguments.',
 );
 assert.match(
-  iamRuntimeSource,
-  /passwords:[\s\S]*create\(sessionKey:\s*string,\s*body[\s\S]*\.create\(\s*\{\s*sessionKey\s*\},\s*body/u,
-  'BirdCoder IAM runtime QR password completion must map appbase passwords.create(sessionKey, body) to the generated SDK passwords.create({ sessionKey }, body) call.',
+  appbaseAppOpenPlatformSdkSource,
+  /passwords[\s\S]*create\(sessionKey:\s*string,\s*body/u,
+  'sdkwork-appbase generated app SDK must expose QR password completion with semantic sessionKey arguments.',
 );
 
 assert.doesNotMatch(

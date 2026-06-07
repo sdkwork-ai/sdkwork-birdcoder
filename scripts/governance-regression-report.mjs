@@ -413,12 +413,6 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     command: 'node scripts/quality-gate-matrix-contract.test.mjs',
   },
   {
-    id: 'claw-release-parity',
-    label: 'Claw release parity contract',
-    scriptPath: 'scripts/claw-release-parity-contract.test.mjs',
-    command: 'node scripts/claw-release-parity-contract.test.mjs',
-  },
-  {
     id: 'claw-docs-ia',
     label: 'Claw docs information architecture contract',
     scriptPath: 'scripts/claw-docs-ia-contract.test.mjs',

@@ -34,10 +34,10 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCatalogPath, '/app/v3/api/system/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 132);
+  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 129);
   assert.deepEqual(writtenDocument['x-sdkwork-api-gateway']?.routesBySurface, {
-    app: 78,
-    backend: 54,
+    app: 80,
+    backend: 49,
   });
   const publishedOperationIds = Object.values(writtenDocument.paths).flatMap((methods) =>
     Object.values(methods ?? {}).map((operation: { operationId?: string }) => operation.operationId),
@@ -209,12 +209,14 @@ try {
     'passwordResets.create',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/auth/verification_codes']?.post?.operationId,
-    'verificationCodes.create',
+    writtenDocument.paths['/app/v3/api/auth/verification_codes'],
+    undefined,
+    'BirdCoder export must not publish messaging-owned verification-code delivery routes.',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/auth/verification_codes/verify']?.post?.operationId,
-    'verificationCodes.verify',
+    writtenDocument.paths['/app/v3/api/auth/verification_codes/verify'],
+    undefined,
+    'BirdCoder export must not publish messaging-owned verification-code verify routes.',
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions']?.post?.operationId,
@@ -291,19 +293,19 @@ try {
     'users.delete',
   );
   assert.equal(
-    writtenDocument.paths['/backend/v3/api/iam/users/{userId}/roles']?.get?.operationId,
-    'users.roles.list',
+    writtenDocument.paths['/app/v3/api/iam/role_bindings']?.get?.operationId,
+    'roleBindings.list',
   );
   assert.equal(
-    writtenDocument.paths['/backend/v3/api/iam/users/{userId}/roles']?.post?.operationId,
-    'users.roles.create',
+    writtenDocument.paths['/backend/v3/api/iam/role_bindings']?.post?.operationId,
+    'roleBindings.create',
   );
   assert.equal(
-    writtenDocument.paths['/backend/v3/api/iam/users/{userId}/roles/{roleId}']?.delete?.operationId,
-    'users.roles.delete',
+    writtenDocument.paths['/backend/v3/api/iam/role_bindings/{roleBindingId}']?.delete?.operationId,
+    'roleBindings.delete',
   );
   assert.equal(
-    writtenDocument.paths['/backend/v3/api/iam/users/{userId}/roles']?.get?.responses['200']
+    writtenDocument.paths['/app/v3/api/iam/role_bindings']?.get?.responses['200']
       ?.content['application/json']?.schema?.['$ref'],
     '#/components/schemas/BirdCoderIamUserRoleSummaryListEnvelope',
   );

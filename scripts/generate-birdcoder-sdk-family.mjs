@@ -128,6 +128,8 @@ function writeTextFile(filePath, content, { check = false, mismatches = [] } = {
 const GENERATED_OUTPUT_SKIP_DIRS = new Set([
   '.git',
   'node_modules',
+  'generated',
+  'specs',
   'target',
 ]);
 
@@ -1051,7 +1053,7 @@ function renderTypescriptReadmeExamples(surface) {
       'client.iam.auditEvents.list();',
       'client.iam.policies.list();',
       'client.iam.users.list();',
-      'client.iam.users.roles.list({ userId });',
+      'client.iam.roleBindings.create(body);',
       'client.iam.teams.list(params);',
       'client.iam.teams.members.list({ teamId });',
       'client.platform.releases.list(params);',
@@ -1076,7 +1078,7 @@ function renderRustReadmeExamples(surface) {
       'sdkwork_birdcoder_backend_sdk::iam::audit_events::LIST',
       'sdkwork_birdcoder_backend_sdk::iam::policies::LIST',
       'sdkwork_birdcoder_backend_sdk::iam::users::LIST',
-      'sdkwork_birdcoder_backend_sdk::iam::users::roles::LIST',
+      'sdkwork_birdcoder_backend_sdk::iam::role_bindings::CREATE',
       'sdkwork_birdcoder_backend_sdk::iam::teams::LIST',
       'sdkwork_birdcoder_backend_sdk::iam::teams::members::LIST',
       'sdkwork_birdcoder_backend_sdk::platform::releases::LIST',

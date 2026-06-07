@@ -161,7 +161,7 @@ try {
   assert.equal(attestationEvidence.repository, manifest.repository);
   assert.equal(attestationEvidence.releaseTag, manifest.releaseTag);
   assert.equal(attestationEvidence.predicateType, 'https://slsa.dev/provenance/v1');
-  assert.equal(attestationEvidence.signerWorkflow, '.github/workflows/release-reusable.yml');
+  assert.equal(attestationEvidence.signerWorkflow, '.github/workflows/package.yml');
   assert.equal(attestationEvidence.artifacts.length, manifest.artifacts.length);
   assert.deepEqual(
     attestationEvidence.artifacts.map((artifact) => artifact.relativePath).sort(),

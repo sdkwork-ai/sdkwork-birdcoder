@@ -21,6 +21,9 @@
     {
       "id": "birdcoder-app",
       "surface": "app",
+      "sdkOwner": "sdkwork-birdcoder",
+      "apiAuthority": "sdkwork-birdcoder-app-api",
+      "sdkFamily": "sdkwork-birdcoder-app-sdk",
       "apiPrefix": "/app/v3/api",
       "inputSpecPath": "sdks/specs/openapi/birdcoder-app-v3.openapi.json",
       "packageName": "@sdkwork/birdcoder-app-sdk",
@@ -42,11 +45,54 @@
           "crateName": "sdkwork_birdcoder_app_sdk",
           "path": "sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust"
         }
+      ],
+      "sdkDependencies": [
+        {
+          "workspace": "sdkwork-appbase-app-sdk",
+          "role": "appbase-app-capability",
+          "required": true,
+          "dependencyMode": "consumer-sdk",
+          "apiPrefix": "/app/v3/api",
+          "apiAuthority": "sdkwork-appbase-app-api",
+          "generatedTransportImportPolicy": "forbidden",
+          "packageByLanguage": {
+            "typescript": "@sdkwork/appbase-app-sdk",
+            "rust": "sdkwork-appbase-app-sdk"
+          }
+        },
+        {
+          "workspace": "sdkwork-drive-app-sdk",
+          "role": "drive-app-capability",
+          "required": true,
+          "dependencyMode": "consumer-sdk",
+          "apiPrefix": "/app/v3/api",
+          "apiAuthority": "sdkwork-drive.app",
+          "generatedTransportImportPolicy": "forbidden",
+          "packageByLanguage": {
+            "typescript": "@sdkwork/drive-app-sdk",
+            "rust": "sdkwork-drive-app-sdk-generated-rust"
+          }
+        },
+        {
+          "workspace": "sdkwork-messaging-app-sdk",
+          "role": "messaging-app-capability",
+          "required": true,
+          "dependencyMode": "consumer-sdk",
+          "apiPrefix": "/app/v3/api",
+          "apiAuthority": "sdkwork-messaging-app-api",
+          "generatedTransportImportPolicy": "forbidden",
+          "packageByLanguage": {
+            "typescript": "@sdkwork/messaging-app-sdk"
+          }
+        }
       ]
     },
     {
       "id": "birdcoder-backend",
       "surface": "backend",
+      "sdkOwner": "sdkwork-birdcoder",
+      "apiAuthority": "sdkwork-birdcoder-backend-api",
+      "sdkFamily": "sdkwork-birdcoder-backend-sdk",
       "apiPrefix": "/backend/v3/api",
       "inputSpecPath": "sdks/specs/openapi/birdcoder-backend-v3.openapi.json",
       "packageName": "@sdkwork/birdcoder-backend-sdk",
@@ -68,7 +114,75 @@
           "crateName": "sdkwork_birdcoder_backend_sdk",
           "path": "sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust"
         }
+      ],
+      "sdkDependencies": [
+        {
+          "workspace": "sdkwork-appbase-backend-sdk",
+          "role": "appbase-backend-capability",
+          "required": true,
+          "dependencyMode": "consumer-sdk",
+          "apiPrefix": "/backend/v3/api",
+          "apiAuthority": "sdkwork-appbase-backend-api",
+          "generatedTransportImportPolicy": "forbidden",
+          "packageByLanguage": {
+            "typescript": "@sdkwork/appbase-backend-sdk",
+            "rust": "sdkwork-appbase-backend-sdk"
+          }
+        }
       ]
+    }
+  ],
+  "sdkDependencies": [
+    {
+      "workspace": "sdkwork-appbase-app-sdk",
+      "role": "appbase-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "apiAuthority": "sdkwork-appbase-app-api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/appbase-app-sdk",
+        "rust": "sdkwork-appbase-app-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-appbase-backend-sdk",
+      "role": "appbase-backend-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/backend/v3/api",
+      "apiAuthority": "sdkwork-appbase-backend-api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/appbase-backend-sdk",
+        "rust": "sdkwork-appbase-backend-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-drive-app-sdk",
+      "role": "drive-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "apiAuthority": "sdkwork-drive.app",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/drive-app-sdk",
+        "rust": "sdkwork-drive-app-sdk-generated-rust"
+      }
+    },
+    {
+      "workspace": "sdkwork-messaging-app-sdk",
+      "role": "messaging-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "apiAuthority": "sdkwork-messaging-app-api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/messaging-app-sdk"
+      }
     }
   ],
   "verification": {

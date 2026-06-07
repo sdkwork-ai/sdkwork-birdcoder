@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
+import { existsSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-
-import { loadEnv } from 'vite';
 
 import {
   normalizeViteMode,
@@ -13,6 +13,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
 
 export const BIRDCODER_IAM_DEPLOYMENT_MODES = Object.freeze([
   'desktop-local',
@@ -296,12 +297,103 @@ function loadBirdcoderWorkspaceEnv({
   workspaceRootDir = resolveWorkspaceRootDir(),
 } = {}) {
   const resolvedViteMode = normalizeViteMode(viteMode, 'development');
-  const fileEnv = loadEnv(resolvedViteMode, workspaceRootDir, '');
+  const fileEnv = loadWorkspaceEnvFiles(resolvedViteMode, workspaceRootDir, '');
 
   return {
     ...fileEnv,
     ...env,
   };
+}
+
+function loadWorkspaceEnvFiles(mode, workspaceRootDir, prefix) {
+  const viteLoadEnv = resolveViteLoadEnv();
+  if (viteLoadEnv) {
+    return viteLoadEnv(mode, workspaceRootDir, prefix);
+  }
+
+  return loadWorkspaceEnvFilesFallback(mode, workspaceRootDir, prefix);
+}
+
+function resolveViteLoadEnv() {
+  try {
+    const vite = require('vite');
+    return typeof vite?.loadEnv === 'function' ? vite.loadEnv : null;
+  } catch {
+    return null;
+  }
+}
+
+function loadWorkspaceEnvFilesFallback(mode, workspaceRootDir, prefix) {
+  const envFiles = [
+    '.env',
+    '.env.local',
+    `.env.${mode}`,
+    `.env.${mode}.local`,
+  ];
+  const fileEnv = {};
+
+  for (const envFile of envFiles) {
+    const envPath = path.join(workspaceRootDir, envFile);
+    if (!existsSync(envPath)) {
+      continue;
+    }
+    Object.assign(fileEnv, parseEnvFile(readFileSync(envPath, 'utf8'), prefix));
+  }
+
+  return fileEnv;
+}
+
+function parseEnvFile(source, prefix) {
+  const env = {};
+  const prefixes = Array.isArray(prefix) ? prefix : [prefix];
+  for (const line of String(source ?? '').split(/\r?\n/u)) {
+    const parsed = parseEnvLine(line);
+    if (!parsed) {
+      continue;
+    }
+    if (shouldIncludeEnvKey(parsed.key, prefixes)) {
+      env[parsed.key] = parsed.value;
+    }
+  }
+  return env;
+}
+
+function parseEnvLine(line) {
+  const trimmed = String(line ?? '').trim();
+  if (!trimmed || trimmed.startsWith('#')) {
+    return null;
+  }
+
+  const match = /^(?:export\s+)?(?<key>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<value>.*)$/u.exec(trimmed);
+  if (!match?.groups) {
+    return null;
+  }
+
+  return {
+    key: match.groups.key,
+    value: normalizeEnvFileValue(match.groups.value),
+  };
+}
+
+function normalizeEnvFileValue(value) {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const quote = trimmed[0];
+  if ((quote === '"' || quote === "'") && trimmed.endsWith(quote)) {
+    return trimmed.slice(1, -1);
+  }
+
+  return trimmed.replace(/\s+#.*$/u, '').trim();
+}
+
+function shouldIncludeEnvKey(key, prefixes) {
+  if (prefixes.length === 0 || prefixes.some((item) => item === '')) {
+    return true;
+  }
+  return prefixes.some((item) => key.startsWith(item));
 }
 
 function resolveSqliteFilePath({

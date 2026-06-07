@@ -1,20 +1,33 @@
+import type { IamRuntime } from '@sdkwork/iam-runtime';
 import {
   clearStoredAppSessionToken,
   storeAppSessionFromResult,
   type StoredAppSessionToken,
 } from './appSessionToken.ts';
-import { resetBirdCoderIamRuntime } from './iamRuntime.ts';
 import {
-  getBirdCoderGeneratedAppSdkClient,
+  getBirdCoderIamRuntime,
+  resetBirdCoderIamRuntime,
+} from './iamRuntime.ts';
+import {
   resetBirdCoderSdkClients,
-  type BirdCoderGeneratedAppSdkClientOptions,
 } from './sdkClients.ts';
 
+export interface CreateAppSessionOptions {
+  getRuntime?: () => IamRuntime;
+  sessionBridge?: Record<string, unknown>;
+}
+
+export interface RevokeAppSessionOptions {
+  getRuntime?: () => IamRuntime;
+}
+
 export async function createAppSession(
-  options: BirdCoderGeneratedAppSdkClientOptions = {},
+  options: CreateAppSessionOptions = {},
 ): Promise<StoredAppSessionToken> {
-  const result = await getBirdCoderGeneratedAppSdkClient(options).auth.sessions.create({
+  const runtime = options.getRuntime?.() ?? getBirdCoderIamRuntime();
+  const result = await runtime.service.auth.sessions.create({
     grantType: 'session_bridge',
+    ...(options.sessionBridge ?? {}),
   });
   const stored = storeAppSessionFromResult(result);
   resetBirdCoderSdkClients();
@@ -28,9 +41,12 @@ export function clearAppSession(): void {
   resetBirdCoderIamRuntime();
 }
 
-export async function revokeAppSession(): Promise<void> {
+export async function revokeAppSession(
+  options: RevokeAppSessionOptions = {},
+): Promise<void> {
+  const runtime = options.getRuntime?.() ?? getBirdCoderIamRuntime();
   try {
-    await getBirdCoderGeneratedAppSdkClient().auth.sessions.current.delete();
+    await runtime.service.auth.sessions.current.delete();
   } catch {
     // Logout must always clear local state, even when the server session is already gone.
   } finally {

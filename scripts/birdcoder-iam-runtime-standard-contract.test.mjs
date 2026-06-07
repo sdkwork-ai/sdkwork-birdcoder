@@ -30,6 +30,7 @@ const authPageSource = readText('packages/sdkwork-birdcoder-auth/src/pages/AuthP
 const authSurfaceSource = readText('packages/sdkwork-birdcoder-auth/src/auth-surface.ts');
 const infrastructureIndexSource = readText('packages/sdkwork-birdcoder-infrastructure/src/index.ts');
 const sdkClientsSource = readText('packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts');
+const iamRuntimeSource = readText('packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts');
 const defaultServicesSource = readText('packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesShared.ts');
 
 for (const [label, packageJson] of [
@@ -86,6 +87,24 @@ assertMatch(
   /workspace:\*/u,
   'sdkwork-birdcoder-infrastructure must declare @sdkwork/iam-sdk-ports directly for generated client validation.',
 );
+assertMatch(
+  infrastructurePackageJson.dependencies?.['@sdkwork/iam-sdk-adapter'] ?? '',
+  /workspace:\*/u,
+  'sdkwork-birdcoder-infrastructure must declare @sdkwork/iam-sdk-adapter directly for generated appbase IAM client adaptation.',
+);
+for (const dependencyName of [
+  '@sdkwork/appbase-app-sdk',
+  '@sdkwork/appbase-backend-sdk',
+  '@sdkwork/drive-app-sdk',
+  '@sdkwork/messaging-app-sdk',
+  '@sdkwork/sdk-common',
+]) {
+  assertMatch(
+    infrastructurePackageJson.dependencies?.[dependencyName] ?? '',
+    /workspace:\*/u,
+    `sdkwork-birdcoder-infrastructure must declare ${dependencyName} directly for standard multi-SDK runtime composition.`,
+  );
+}
 
 assertMatch(
   authPageSource,
@@ -143,23 +162,83 @@ assertNoMatch(
 );
 assertMatch(
   sdkClientsSource,
-  /getStoredAppSessionAuthToken/u,
-  'BirdCoder SDK client factory must read stored IAM auth tokens.',
-);
-assertMatch(
-  sdkClientsSource,
-  /getStoredAppSessionAccessToken/u,
-  'BirdCoder SDK client factory must read stored IAM access tokens.',
-);
-assertMatch(
-  sdkClientsSource,
   /handleBirdCoderSdkSessionAuthError/u,
   'BirdCoder SDK client factory must clear IAM session state on SDK auth errors.',
 );
 assertNoMatch(
   sdkClientsSource,
+  /getStoredAppSessionAuthToken|getStoredAppSessionAccessToken/u,
+  'BirdCoder generated SDK client factories must not read stored tokens; token hydration belongs to the IAM tokenStore and global TokenManager.',
+);
+assertNoMatch(
+  sdkClientsSource,
+  /accessToken:\s*options\.accessToken\s*\?\?\s*getStoredAppSessionAccessToken\(\)|authToken:\s*options\.authToken\s*\?\?\s*getStoredAppSessionAuthToken\(\)/u,
+  'BirdCoder generated SDK constructors must not inject persisted tokens as constructor defaults.',
+);
+assertMatch(
+  sdkClientsSource,
+  /setTokenManager\(manager/u,
+  'BirdCoder generated SDK compatibility clients must expose setTokenManager for appbase IAM runtime binding.',
+);
+assertNoMatch(
+  sdkClientsSource,
   /import\(['"]\.\/iamRuntime\.ts['"]\)/u,
   'BirdCoder SDK client factory must not dynamically import the IAM runtime; IAM runtime reset is owned by the IAM runtime session-change listener.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /from ['"]@sdkwork\/appbase-app-sdk['"]/u,
+  'BirdCoder IAM runtime must construct the appbase app SDK client, not use the product app SDK as the login authority.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /from ['"]@sdkwork\/appbase-backend-sdk['"]/u,
+  'BirdCoder IAM runtime must construct the appbase backend SDK client for backend IAM resources.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /from ['"]@sdkwork\/iam-sdk-adapter['"]/u,
+  'BirdCoder IAM runtime must adapt generated appbase SDK clients through the standard IAM SDK adapter package.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /createIamSdkAdapters/u,
+  'BirdCoder IAM runtime must use createIamSdkAdapters before passing appbase IAM clients to createIamRuntime.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /from ['"]@sdkwork\/drive-app-sdk['"]/u,
+  'BirdCoder IAM runtime must compose the Drive app SDK as a dependency SDK client.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /from ['"]@sdkwork\/messaging-app-sdk['"]/u,
+  'BirdCoder IAM runtime must compose the Messaging app SDK as the verification-code dependency SDK client.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /createTokenManager/u,
+  'BirdCoder IAM runtime must create one explicit global TokenManager for the authenticated session context.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /clients:\s*\{[\s\S]*appbaseApp[\s\S]*appbaseBackend[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp[\s\S]*messagingApp/u,
+  'BirdCoder IAM runtime must call createIamRuntime with appbase clients and BirdCoder, Drive, and Messaging downstream SDK clients.',
+);
+assertNoMatch(
+  iamRuntimeSource,
+  /createIamRuntime\(\{[\s\S]*clients:\s*\{[\s\S]*(appbaseApp:\s*rawAppbaseApp|appbaseBackend:\s*rawAppbaseBackend)/u,
+  'BirdCoder IAM runtime must not pass raw generated appbase clients directly into createIamRuntime.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /tokenManager,/u,
+  'BirdCoder IAM runtime must pass the same explicit TokenManager to createIamRuntime.',
+);
+assertNoMatch(
+  iamRuntimeSource,
+  /clients:\s*\{[\s\S]*\bapp:\s*createBirdCoderIamAppClientForSdkworkIamRuntime|clients:\s*\{[\s\S]*\bbackend:\s*getBirdCoderGeneratedBackendSdkClient/u,
+  'BirdCoder IAM runtime must not use the retired clients.app/backend shape or product SDK as the appbase login authority.',
 );
 assertNoMatch(
   defaultServicesSource,

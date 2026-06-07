@@ -72,7 +72,7 @@ export default defineConfig(({ mode }) => {
                 .replace(/^-+|-+$/gu, '')
                 .toLowerCase();
             };
-            const appSdkSourceRoot = '/spring-ai-plus-app-api/sdkwork-sdk-app/sdkwork-app-sdk-typescript/src/';
+            const appSdkSourceRoot = '/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/';
             const appSdkApiSourceRoot = `${appSdkSourceRoot}api/`;
             const sdkCommonSourceRoot = '/sdk/sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/';
           if (

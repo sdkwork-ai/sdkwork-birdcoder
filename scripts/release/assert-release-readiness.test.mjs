@@ -22,7 +22,7 @@ const minimalReleaseProfile = Object.freeze({
     manifestChecksumFileName: 'release-manifest.json.sha256.txt',
     attestationEvidenceFileName: 'release-attestations.json',
     attestationPredicateType: 'https://slsa.dev/provenance/v1',
-    attestationSignerWorkflowPath: '.github/workflows/release-reusable.yml',
+    attestationSignerWorkflowPath: '.github/workflows/package.yml',
     globalChecksumsFileName: 'SHA256SUMS.txt',
     enableArtifactAttestations: true,
   }),
@@ -116,7 +116,7 @@ function writeReadyReleaseFixture({
       sourceRef: 'refs/tags/release-2026-04-12-01',
       generatedAt: '2026-04-12T02:03:04.000Z',
       predicateType: 'https://slsa.dev/provenance/v1',
-      signerWorkflow: '.github/workflows/release-reusable.yml',
+      signerWorkflow: '.github/workflows/package.yml',
       artifacts: [
         {
           relativePath: artifactRelativePath,
@@ -125,7 +125,7 @@ function writeReadyReleaseFixture({
       releaseTag: 'release-2026-04-12-01',
       sourceRef: 'refs/tags/release-2026-04-12-01',
       predicateType: 'https://slsa.dev/provenance/v1',
-      signerWorkflow: '.github/workflows/release-reusable.yml',
+      signerWorkflow: '.github/workflows/package.yml',
       verified: true,
       verifiedAt: '2026-04-12T02:03:04.000Z',
       verificationCommand: `gh attestation verify ${artifactRelativePath}`,

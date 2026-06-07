@@ -9,8 +9,11 @@ const source = fs.readFileSync(
 function readCallbackBody(callbackName) {
   const start = source.indexOf(`const ${callbackName} = useCallback`);
   assert.notEqual(start, -1, `${callbackName} must be implemented as a useCallback.`);
-  const nextConst = source.indexOf('\n\n  const ', start + 1);
-  const nextEffect = source.indexOf('\n\n  useEffect', start + 1);
+  const rest = source.slice(start + 1);
+  const nextConstMatch = rest.match(/\r?\n\r?\n  const /u);
+  const nextEffectMatch = rest.match(/\r?\n\r?\n  useEffect/u);
+  const nextConst = nextConstMatch?.index === undefined ? -1 : start + 1 + nextConstMatch.index;
+  const nextEffect = nextEffectMatch?.index === undefined ? -1 : start + 1 + nextEffectMatch.index;
   const endCandidates = [nextConst, nextEffect].filter((index) => index !== -1);
   assert.ok(
     endCandidates.length > 0,
@@ -23,7 +26,10 @@ function readCallbackBody(callbackName) {
 function readFunctionBody(functionName) {
   const start = source.indexOf(`function ${functionName}(`);
   assert.notEqual(start, -1, `${functionName} must exist.`);
-  const nextFunction = source.indexOf('\nfunction ', start + 1);
+  const rest = source.slice(start + 1);
+  const nextFunctionMatch = rest.match(/\r?\nfunction /u);
+  const nextFunction =
+    nextFunctionMatch?.index === undefined ? -1 : start + 1 + nextFunctionMatch.index;
   assert.notEqual(nextFunction, -1, `${functionName} must be followed by another function.`);
   return source.slice(start, nextFunction);
 }

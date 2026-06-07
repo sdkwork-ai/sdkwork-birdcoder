@@ -2,7 +2,7 @@ import type {
   DesktopReplayEntrySnapshot,
   DesktopSessionReplaySnapshot,
   DesktopSessionStreamEvent,
-} from '../../../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/index.ts';
+} from './contracts/sdkworkTerminalInfrastructure.d.ts';
 import { parseBirdCoderApiJson } from '@sdkwork/birdcoder-types';
 
 interface StructuredTerminalWarningPayload {

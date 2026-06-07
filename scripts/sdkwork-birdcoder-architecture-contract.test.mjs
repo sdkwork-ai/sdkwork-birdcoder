@@ -7,8 +7,8 @@ const rootDir = process.cwd();
 
 const requiredPaths = [
   '.github/workflows/ci.yml',
-  '.github/workflows/release.yml',
-  '.github/workflows/release-reusable.yml',
+  '.github/workflows/package.yml',
+  'sdkwork.workflow.json',
   'deploy/docker/Dockerfile',
   'deploy/docker/docker-compose.yml',
   'deploy/kubernetes/Chart.yaml',
@@ -111,6 +111,7 @@ const requiredPaths = [
   'scripts/run-vitepress.mjs',
   'scripts/shared-sdk-mode.mjs',
   'scripts/release-flow-contract.test.mjs',
+  'scripts/release/sdkwork-workflow-lifecycle.mjs',
   'scripts/release/finalize-release-assets.mjs',
   'scripts/release/assert-release-readiness.mjs',
   'scripts/release/assert-release-readiness.test.mjs',

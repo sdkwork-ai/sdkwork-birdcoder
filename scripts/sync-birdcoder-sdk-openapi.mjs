@@ -8,6 +8,9 @@ import process from 'node:process';
 const HTTP_METHODS = new Set(['delete', 'get', 'patch', 'post', 'put']);
 const rootDir = process.cwd();
 const assemblyPath = path.join(rootDir, 'sdks', '.sdkwork-assembly.json');
+const SDK_OWNER = 'sdkwork-birdcoder';
+const AUTH_TOKEN_SCHEME = 'AuthToken';
+const ACCESS_TOKEN_SCHEME = 'AccessToken';
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -36,10 +39,75 @@ function writeJsonFile(filePath, value, { check, mismatches }) {
   fs.writeFileSync(filePath, nextContent, 'utf8');
 }
 
+function normalizeSecurityRequirement(requirement) {
+  if (!requirement || typeof requirement !== 'object' || Array.isArray(requirement)) {
+    return requirement;
+  }
+
+  const normalized = {};
+  for (const [schemeName, scopes] of Object.entries(requirement)) {
+    if (schemeName === 'bearerAuth' || schemeName === AUTH_TOKEN_SCHEME) {
+      normalized[AUTH_TOKEN_SCHEME] = scopes;
+      continue;
+    }
+    if (schemeName === 'sdkworkAccessToken' || schemeName === ACCESS_TOKEN_SCHEME) {
+      normalized[ACCESS_TOKEN_SCHEME] = scopes;
+      continue;
+    }
+    normalized[schemeName] = scopes;
+  }
+  return normalized;
+}
+
+function normalizeSecurityRequirements(security) {
+  if (!Array.isArray(security)) {
+    return security;
+  }
+  return security.map(normalizeSecurityRequirement);
+}
+
+function normalizeOperationSecurity(operation) {
+  if (!operation || typeof operation !== 'object' || !Array.isArray(operation.security)) {
+    return operation;
+  }
+  return {
+    ...operation,
+    security: normalizeSecurityRequirements(operation.security),
+  };
+}
+
+function normalizeSecuritySchemes(securitySchemes = {}) {
+  const normalized = {};
+  for (const [schemeName, scheme] of Object.entries(securitySchemes ?? {})) {
+    if (
+      schemeName === 'bearerAuth'
+      || schemeName === AUTH_TOKEN_SCHEME
+      || schemeName === 'sdkworkAccessToken'
+      || schemeName === ACCESS_TOKEN_SCHEME
+    ) {
+      continue;
+    }
+    normalized[schemeName] = scheme;
+  }
+
+  normalized[AUTH_TOKEN_SCHEME] = securitySchemes[AUTH_TOKEN_SCHEME] ?? securitySchemes.bearerAuth ?? {
+    type: 'http',
+    scheme: 'bearer',
+    bearerFormat: 'Bearer token',
+  };
+  normalized[ACCESS_TOKEN_SCHEME] = securitySchemes[ACCESS_TOKEN_SCHEME] ?? securitySchemes.sdkworkAccessToken ?? {
+    type: 'apiKey',
+    in: 'header',
+    name: 'Access-Token',
+  };
+  return normalized;
+}
+
 function collectSurfacePaths(canonicalDocument, surface) {
   const paths = {};
   const usedTags = new Set();
   const apiPrefix = surface.apiPrefix;
+  const apiAuthority = resolveSurfaceApiAuthority(surface);
 
   for (const [pathKey, methodMap] of Object.entries(canonicalDocument.paths ?? {})) {
     if (!pathKey.startsWith(apiPrefix)) {
@@ -51,7 +119,11 @@ function collectSurfacePaths(canonicalDocument, surface) {
       if (!HTTP_METHODS.has(methodKey)) {
         continue;
       }
-      surfaceMethods[methodKey] = operation;
+      surfaceMethods[methodKey] = normalizeOperationSecurity({
+        ...operation,
+        'x-sdkwork-api-authority': apiAuthority,
+        'x-sdkwork-owner': SDK_OWNER,
+      });
       for (const tag of operation.tags ?? []) {
         usedTags.add(String(tag));
       }
@@ -63,6 +135,43 @@ function collectSurfacePaths(canonicalDocument, surface) {
   }
 
   return { paths, usedTags };
+}
+
+function resolveSurfaceApiAuthority(surface) {
+  const declaredAuthority = String(surface.apiAuthority ?? '').trim();
+  if (declaredAuthority) {
+    return declaredAuthority;
+  }
+  if (surface.surface === 'app') {
+    return 'sdkwork-birdcoder-app-api';
+  }
+  if (surface.surface === 'backend') {
+    return 'sdkwork-birdcoder-backend-api';
+  }
+  throw new Error(`Unsupported BirdCoder SDK surface: ${surface.surface}`);
+}
+
+function resolveSurfaceFamilyRoot(surface) {
+  const declaredRoot = normalizeRelativePath(surface.rootDir ?? '');
+  if (declaredRoot) {
+    return declaredRoot;
+  }
+  const sdkFamily = normalizeRelativePath(surface.sdkFamily ?? '');
+  assert.ok(
+    sdkFamily,
+    `SDK assembly surface ${surface.id ?? surface.surface} must declare sdkFamily for family-root OpenAPI output.`,
+  );
+  return `sdks/${sdkFamily}`;
+}
+
+function resolveSurfaceOpenApiOutputPaths(surface) {
+  const authority = resolveSurfaceApiAuthority(surface);
+  const familyRoot = resolveSurfaceFamilyRoot(surface);
+  return [
+    normalizeRelativePath(surface.inputSpecPath),
+    `${familyRoot}/openapi/${authority}.openapi.json`,
+    `${familyRoot}/openapi/${authority}.sdkgen.json`,
+  ];
 }
 
 function addComponentRef(ref, neededComponents, queue) {
@@ -122,7 +231,7 @@ function pruneComponentsForSurface(canonicalComponents, paths) {
 
   const components = {};
   if (canonicalComponents?.securitySchemes) {
-    components.securitySchemes = canonicalComponents.securitySchemes;
+    components.securitySchemes = normalizeSecuritySchemes(canonicalComponents.securitySchemes);
   }
 
   for (const [componentType, componentNames] of [...neededComponents.entries()].sort(([left], [right]) =>
@@ -156,6 +265,8 @@ function createSurfaceOpenApi(canonicalDocument, surface) {
 
   return {
     openapi: canonicalDocument.openapi,
+    'x-sdkwork-api-authority': resolveSurfaceApiAuthority(surface),
+    'x-sdkwork-owner': SDK_OWNER,
     info: {
       title: `SDKWork BirdCoder ${surface.surface === 'app' ? 'App' : 'Backend'} API`,
       version: String(surface.version ?? canonicalDocument.info?.version ?? '0.1.0'),
@@ -185,10 +296,11 @@ export function syncBirdcoderSdkOpenApi({ check = false } = {}) {
   const mismatches = [];
 
   for (const surface of assembly.surfaces ?? []) {
-    const inputSpecPath = normalizeRelativePath(surface.inputSpecPath);
-    const outputPath = path.join(rootDir, ...inputSpecPath.split('/'));
     const surfaceDocument = createSurfaceOpenApi(canonicalDocument, surface);
-    writeJsonFile(outputPath, surfaceDocument, { check, mismatches });
+    for (const outputSpecPath of resolveSurfaceOpenApiOutputPaths(surface)) {
+      const outputPath = path.join(rootDir, ...outputSpecPath.split('/'));
+      writeJsonFile(outputPath, surfaceDocument, { check, mismatches });
+    }
   }
 
   if (mismatches.length > 0) {

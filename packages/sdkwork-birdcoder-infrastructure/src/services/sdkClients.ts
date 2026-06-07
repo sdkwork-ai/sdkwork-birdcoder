@@ -23,6 +23,7 @@ import {
   type BirdcoderBackendSdkClient,
   type IamTeamsListQuery as BackendIamTeamsListQuery,
 } from '@sdkwork/birdcoder-backend-sdk';
+import type { AuthTokenManager } from '@sdkwork/sdk-common';
 import type {
   BirdCoderApiRouteCatalogEntry,
   BirdCoderApiTransport,
@@ -91,13 +92,8 @@ import type {
   BirdCoderWorkspaceMemberSummary,
   BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-types';
-import {
-  clearStoredAppSessionToken,
-  getStoredAppSessionAccessToken,
-  getStoredAppSessionAuthToken,
-} from './appSessionToken.ts';
+import { clearStoredAppSessionToken } from './appSessionToken.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
-import { resolveRuntimeServerSessionHeaders } from './runtimeServerSession.ts';
 import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
 
 export interface BirdCoderWorkspaceScopedListRequest {
@@ -302,6 +298,7 @@ export interface BirdCoderGeneratedAppSdkClientOptions {
   apiBaseUrl?: string;
   authToken?: string;
   timeoutMs?: number;
+  tokenManager?: AuthTokenManager;
   transport?: BirdCoderApiTransport;
 }
 
@@ -310,8 +307,19 @@ export interface BirdCoderGeneratedBackendSdkClientOptions {
   apiBaseUrl?: string;
   authToken?: string;
   timeoutMs?: number;
+  tokenManager?: AuthTokenManager;
   transport?: BirdCoderApiTransport;
 }
+
+type BirdCoderTokenManagerAwareClient<TClient> = TClient & {
+  setTokenManager(manager: AuthTokenManager): BirdCoderTokenManagerAwareClient<TClient>;
+};
+
+export type BirdCoderTokenManagerAwareAppSdkClient =
+  BirdCoderTokenManagerAwareClient<BirdcoderAppSdkClient>;
+
+export type BirdCoderTokenManagerAwareBackendSdkClient =
+  BirdCoderTokenManagerAwareClient<BirdcoderBackendSdkClient>;
 
 interface DataEnvelope<TData> {
   data: TData;
@@ -473,10 +481,13 @@ function toGeneratedBackendTeamQuery(
   };
 }
 
-let generatedAppClient: BirdcoderAppSdkClient | null = null;
-let generatedAppClientSessionKey: string | undefined;
-let generatedBackendClient: BirdcoderBackendSdkClient | null = null;
-let generatedBackendClientSessionKey: string | undefined;
+interface BirdCoderSdkTokenManagerRef {
+  current?: AuthTokenManager;
+}
+
+let defaultBirdCoderSdkTokenManager: AuthTokenManager | undefined;
+let generatedAppClient: BirdCoderTokenManagerAwareAppSdkClient | null = null;
+let generatedBackendClient: BirdCoderTokenManagerAwareBackendSdkClient | null = null;
 let sessionAuthRedirectTarget: string | null = null;
 
 const SESSION_AUTH_ERROR_CODES = new Set([
@@ -497,71 +508,81 @@ const SESSION_AUTH_ERROR_MESSAGES = [
 
 export function createBirdCoderGeneratedAppSdkClient(
   options: BirdCoderGeneratedAppSdkClientOptions = {},
-): BirdcoderAppSdkClient {
-  return createBirdcoderAppSdkClient({
-    accessToken: options.accessToken ?? getStoredAppSessionAccessToken(),
-    authToken: options.authToken ?? getStoredAppSessionAuthToken(),
+): BirdCoderTokenManagerAwareAppSdkClient {
+  const tokenManagerRef: BirdCoderSdkTokenManagerRef = {
+    current: options.tokenManager ?? defaultBirdCoderSdkTokenManager,
+  };
+  const client = createBirdcoderAppSdkClient({
+    accessToken: options.accessToken,
+    authToken: options.authToken,
     transport: createBirdCoderSessionAwareTransport(
-      resolveBirdCoderGeneratedSdkTransport(options),
+      resolveBirdCoderGeneratedSdkTransport(options, tokenManagerRef),
     ),
   });
+  return attachBirdCoderSdkTokenManager(client, tokenManagerRef);
 }
 
 export function createBirdCoderGeneratedBackendSdkClient(
   options: BirdCoderGeneratedBackendSdkClientOptions = {},
-): BirdcoderBackendSdkClient {
-  return createBirdcoderBackendSdkClient({
-    accessToken: options.accessToken ?? getStoredAppSessionAccessToken(),
-    authToken: options.authToken ?? getStoredAppSessionAuthToken(),
+): BirdCoderTokenManagerAwareBackendSdkClient {
+  const tokenManagerRef: BirdCoderSdkTokenManagerRef = {
+    current: options.tokenManager ?? defaultBirdCoderSdkTokenManager,
+  };
+  const client = createBirdcoderBackendSdkClient({
+    accessToken: options.accessToken,
+    authToken: options.authToken,
     transport: createBirdCoderSessionAwareTransport(
-      resolveBirdCoderGeneratedSdkTransport(options),
+      resolveBirdCoderGeneratedSdkTransport(options, tokenManagerRef),
     ),
   });
+  return attachBirdCoderSdkTokenManager(client, tokenManagerRef);
 }
 
 export function getBirdCoderGeneratedAppSdkClient(
   options: BirdCoderGeneratedAppSdkClientOptions = {},
-): BirdcoderAppSdkClient {
+): BirdCoderTokenManagerAwareAppSdkClient {
+  if (options.tokenManager) {
+    setBirdCoderSdkTokenManager(options.tokenManager);
+  }
   if (hasGeneratedSdkRuntimeOverrides(options)) {
     return createBirdCoderGeneratedAppSdkClient(options);
   }
 
-  const authToken = getStoredAppSessionAuthToken();
-  const accessToken = getStoredAppSessionAccessToken();
-  const sessionKey = createSessionKey(authToken, accessToken);
-  if (!generatedAppClient || generatedAppClientSessionKey !== sessionKey) {
-    generatedAppClient = createBirdCoderGeneratedAppSdkClient(
-      authToken || accessToken ? { accessToken, authToken } : {},
-    );
-    generatedAppClientSessionKey = sessionKey;
+  if (!generatedAppClient) {
+    generatedAppClient = createBirdCoderGeneratedAppSdkClient({
+      tokenManager: defaultBirdCoderSdkTokenManager,
+    });
   }
   return generatedAppClient;
 }
 
 export function getBirdCoderGeneratedBackendSdkClient(
   options: BirdCoderGeneratedBackendSdkClientOptions = {},
-): BirdcoderBackendSdkClient {
+): BirdCoderTokenManagerAwareBackendSdkClient {
+  if (options.tokenManager) {
+    setBirdCoderSdkTokenManager(options.tokenManager);
+  }
   if (hasGeneratedSdkRuntimeOverrides(options)) {
     return createBirdCoderGeneratedBackendSdkClient(options);
   }
 
-  const authToken = getStoredAppSessionAuthToken();
-  const accessToken = getStoredAppSessionAccessToken();
-  const sessionKey = createSessionKey(authToken, accessToken);
-  if (!generatedBackendClient || generatedBackendClientSessionKey !== sessionKey) {
-    generatedBackendClient = createBirdCoderGeneratedBackendSdkClient(
-      authToken || accessToken ? { accessToken, authToken } : {},
-    );
-    generatedBackendClientSessionKey = sessionKey;
+  if (!generatedBackendClient) {
+    generatedBackendClient = createBirdCoderGeneratedBackendSdkClient({
+      tokenManager: defaultBirdCoderSdkTokenManager,
+    });
   }
   return generatedBackendClient;
 }
 
+export function setBirdCoderSdkTokenManager(tokenManager: AuthTokenManager): void {
+  defaultBirdCoderSdkTokenManager = tokenManager;
+  generatedAppClient?.setTokenManager(tokenManager);
+  generatedBackendClient?.setTokenManager(tokenManager);
+}
+
 export function resetBirdCoderSdkClients(): void {
   generatedAppClient = null;
-  generatedAppClientSessionKey = undefined;
   generatedBackendClient = null;
-  generatedBackendClientSessionKey = undefined;
 }
 
 export function resetBirdCoderSdkSessionAuthRedirectState(): void {
@@ -599,6 +620,7 @@ export function handleBirdCoderSdkSessionAuthError(error: unknown): boolean {
 
 function resolveBirdCoderGeneratedSdkTransport(
   options: BirdCoderGeneratedAppSdkClientOptions | BirdCoderGeneratedBackendSdkClientOptions,
+  tokenManagerRef: BirdCoderSdkTokenManagerRef,
 ): BirdCoderApiTransport {
   if (options.transport) {
     return options.transport;
@@ -609,7 +631,7 @@ function resolveBirdCoderGeneratedSdkTransport(
   if (baseUrl) {
     return createBirdCoderHttpApiTransport({
       baseUrl,
-      resolveHeaders: resolveRuntimeServerSessionHeaders,
+      resolveHeaders: () => buildBirdCoderTokenManagerHeaders(tokenManagerRef.current),
       timeoutMs: options.timeoutMs,
     });
   }
@@ -624,6 +646,56 @@ function createUnavailableBirdCoderGeneratedSdkTransport(): BirdCoderApiTranspor
         `BirdCoder generated SDK client is unavailable. Configure a real server API base URL or explicit generated SDK transport before using ${request.method} ${request.path}.`,
       );
     },
+  };
+}
+
+function attachBirdCoderSdkTokenManager<
+  TClient extends {
+    clearSdkworkAuthTokens(): void;
+    setSdkworkAuthTokens(tokens: { accessToken?: string; authToken?: string }): void;
+  },
+>(
+  client: TClient,
+  tokenManagerRef: BirdCoderSdkTokenManagerRef,
+): BirdCoderTokenManagerAwareClient<TClient> {
+  const tokenManagerAwareClient = client as BirdCoderTokenManagerAwareClient<TClient>;
+  tokenManagerAwareClient.setTokenManager = (manager: AuthTokenManager) => {
+    tokenManagerRef.current = manager;
+    syncBirdCoderSdkAuthTokensFromTokenManager(client, manager);
+    return tokenManagerAwareClient;
+  };
+  if (tokenManagerRef.current) {
+    syncBirdCoderSdkAuthTokensFromTokenManager(client, tokenManagerRef.current);
+  }
+  return tokenManagerAwareClient;
+}
+
+function syncBirdCoderSdkAuthTokensFromTokenManager(
+  client: {
+    clearSdkworkAuthTokens(): void;
+    setSdkworkAuthTokens(tokens: { accessToken?: string; authToken?: string }): void;
+  },
+  tokenManager: AuthTokenManager,
+): void {
+  const tokens = tokenManager.getTokens();
+  if (tokens.authToken || tokens.accessToken) {
+    client.setSdkworkAuthTokens({
+      ...(tokens.accessToken ? { accessToken: tokens.accessToken } : {}),
+      ...(tokens.authToken ? { authToken: tokens.authToken } : {}),
+    });
+    return;
+  }
+  client.clearSdkworkAuthTokens();
+}
+
+function buildBirdCoderTokenManagerHeaders(
+  tokenManager: AuthTokenManager | undefined,
+): Record<string, string | undefined> {
+  const tokens = tokenManager?.getTokens();
+  return {
+    Authorization: tokens?.authToken ? `Bearer ${tokens.authToken}` : undefined,
+    'Access-Token': tokens?.accessToken,
+    'Refresh-Token': tokens?.refreshToken,
   };
 }
 
@@ -645,11 +717,7 @@ function createBirdCoderSessionAwareTransport(transport: BirdCoderApiTransport):
 function hasGeneratedSdkRuntimeOverrides(
   options: BirdCoderGeneratedAppSdkClientOptions | BirdCoderGeneratedBackendSdkClientOptions,
 ): boolean {
-  return Object.keys(options).length > 0;
-}
-
-function createSessionKey(authToken: string | undefined, accessToken: string | undefined): string {
-  return `${authToken ?? ''}:${accessToken ?? ''}`;
+  return Object.entries(options).some(([key, value]) => key !== 'tokenManager' && value !== undefined);
 }
 
 type BrowserLocationWithReplace = {

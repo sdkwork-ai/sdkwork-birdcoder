@@ -17,7 +17,6 @@ const FAKE_HEADS = Object.freeze({
   'sdkwork-core': '2222222222222222222222222222222222222222',
   'sdkwork-ui': '3333333333333333333333333333333333333333',
   'sdkwork-terminal': '4444444444444444444444444444444444444444',
-  'sdkwork-sdk-app': '5555555555555555555555555555555555555555',
   'sdkwork-sdk-commons': '6666666666666666666666666666666666666666',
 });
 
@@ -211,7 +210,7 @@ function createGitSshCloneSpawn({
 
         assert.match(
           repoUrl,
-          /^git@github\.com:Sdkwork-Cloud\/(?:sdkwork-(?:appbase|core|ui|terminal)|sdkwork-sdk-(?:app|commons))\.git$/u,
+          /^git@github\.com:Sdkwork-Cloud\/(?:sdkwork-(?:appbase|core|ui|terminal)|sdkwork-sdk-commons)\.git$/u,
           'shared SDK SSH mode must clone governed GitHub sources through the passwordless SSH remote.',
         );
         assert.equal(
@@ -400,7 +399,6 @@ test('release config and source specs cover the governed BirdCoder sibling repos
     [
       'sdkwork-appbase',
       'sdkwork-core',
-      'sdkwork-sdk-app',
       'sdkwork-sdk-commons',
       'sdkwork-terminal',
       'sdkwork-ui',
@@ -413,7 +411,6 @@ test('release config and source specs cover the governed BirdCoder sibling repos
       'sdkwork-core',
       'sdkwork-ui',
       'sdkwork-terminal',
-      'sdkwork-sdk-app',
       'sdkwork-sdk-commons',
     ],
   );
@@ -424,7 +421,6 @@ test('release config and source specs cover the governed BirdCoder sibling repos
       '../sdkwork-core',
       '../sdkwork-ui',
       '../sdkwork-terminal',
-      '../../spring-ai-plus-app-api/sdkwork-sdk-app',
       '../../sdk/sdkwork-sdk-commons',
     ],
   );
@@ -473,7 +469,7 @@ test('git mode accepts clean sibling repositories pinned to the configured refs'
     assert.equal(result.status, 'ready');
     assert.equal(result.changed, false);
     assert.equal(Array.isArray(result.sources), true);
-    assert.equal(result.sources.length, 6);
+    assert.equal(result.sources.length, 5);
     assert.ok(
       result.sources.every((source) => source.status === 'ready'),
       'all governed shared repositories must report ready',
@@ -521,7 +517,7 @@ test('git mode authenticates GitHub HTTPS clones without embedding tokens in clo
 
     assert.equal(result.status, 'ready');
     assert.equal(result.changed, true);
-    assert.equal(cloneCalls.length, 6);
+    assert.equal(cloneCalls.length, 5);
     assert.ok(
       cloneCalls.every((call) => call.repoUrl.startsWith('https://github.com/Sdkwork-Cloud/')),
       'all governed shared SDK repositories should clone from configured GitHub HTTPS URLs',
@@ -563,7 +559,7 @@ test('git mode can materialize GitHub release sources over SSH without rewriting
 
     assert.equal(result.status, 'ready');
     assert.equal(result.changed, true);
-    assert.equal(cloneCalls.length, 6);
+    assert.equal(cloneCalls.length, 5);
     assert.ok(
       cloneCalls.every((call) => call.repoUrl.startsWith('git@github.com:Sdkwork-Cloud/')),
       'all governed shared SDK repositories should clone from GitHub over SSH when SSH transport is requested.',
@@ -641,7 +637,6 @@ test('git mode can read an explicitly configured release config path', () => {
       [
         'sdkwork-appbase',
         'sdkwork-core',
-        'sdkwork-sdk-app',
         'sdkwork-sdk-commons',
         'sdkwork-terminal',
         'sdkwork-ui',
@@ -659,7 +654,7 @@ test('git mode rejects sibling repositories whose remote URL drifts away from th
     const { repoStates, sharedRepos } = createBirdCoderSharedRepos(workspaceRootDir);
     createReleaseConfig(workspaceRootDir, createDefaultSourceEntries(sharedRepos));
     repoStates.get(sharedRepos['sdkwork-core'].root).originUrl =
-      'git@github.com:Sdkwork-Cloud/spring-ai-plus2.git';
+      'git@github.com:Sdkwork-Cloud/sdkwork-core-unexpected.git';
 
     assert.throws(
       () => ensureSharedSdkGitSources({

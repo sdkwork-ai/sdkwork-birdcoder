@@ -111,6 +111,122 @@ function assertSharedCoreBrowserFacadeAlias(aliases, label) {
   );
 }
 
+function assertXtermCssAlias(aliases, label) {
+  const xtermCssAlias = findAliasEntry(
+    aliases,
+    (candidate) => candidate?.find === '@xterm/xterm/css/xterm.css',
+    `${label} must expose an explicit xterm CSS alias.`,
+  );
+
+  assert.equal(
+    xtermCssAlias.replacement,
+    path.resolve(workspaceRootDir, 'node_modules', '@xterm', 'xterm', 'css', 'xterm.css'),
+    `${label} must resolve xterm CSS from the BirdCoder workspace dependency so sdkwork-terminal sibling CSS imports do not resolve from the sibling repository root.`,
+  );
+}
+
+function assertTauriApiAlias(aliases, label) {
+  const tauriApiAlias = findAliasEntry(
+    aliases,
+    (candidate) =>
+      candidate?.find instanceof RegExp
+      && candidate.find.test('@tauri-apps/api/core'),
+    `${label} must expose an explicit Tauri API subpath alias.`,
+  );
+
+  assert.equal(
+    tauriApiAlias.replacement,
+    path.resolve(workspaceRootDir, 'node_modules', '@tauri-apps', 'api', '$1.js'),
+    `${label} must resolve Tauri API subpaths from the BirdCoder workspace dependency so sdkwork-terminal sibling source imports do not resolve from the sibling repository root.`,
+  );
+}
+
+function assertLucideReactAlias(aliases, label) {
+  const lucideReactAlias = findAliasEntry(
+    aliases,
+    (candidate) => candidate?.find === 'lucide-react',
+    `${label} must expose an explicit lucide-react alias.`,
+  );
+
+  assert.equal(
+    lucideReactAlias.replacement,
+    path.resolve(workspaceRootDir, 'node_modules', 'lucide-react', 'dist', 'esm', 'lucide-react.js'),
+    `${label} must resolve lucide-react from the BirdCoder workspace dependency so sdkwork-appbase sibling React source imports do not resolve from the sibling repository root.`,
+  );
+}
+
+function assertReactRouterAliases(aliases, label) {
+  const reactRouterDomAlias = findAliasEntry(
+    aliases,
+    (candidate) => candidate?.find === 'react-router-dom',
+    `${label} must expose the react-router-dom alias.`,
+  );
+  assert.equal(
+    reactRouterDomAlias.replacement,
+    path.resolve(workspaceRootDir, 'node_modules', 'react-router-dom', 'dist', 'index.mjs'),
+    `${label} must resolve react-router-dom from the BirdCoder workspace dependency so sibling appbase sources do not bind to another workspace's router build.`,
+  );
+
+  const reactRouterDomSubpathAlias = findAliasEntry(
+    aliases,
+    (candidate) => candidate?.find === 'react-router/dom',
+    `${label} must expose the react-router/dom alias.`,
+  );
+  assert.equal(
+    reactRouterDomSubpathAlias.replacement,
+    path.resolve(workspaceRootDir, 'node_modules', 'react-router', 'dist', 'development', 'dom-export.mjs'),
+    `${label} must resolve react-router/dom from the BirdCoder workspace dependency so router-dom internals can load the matching router package.`,
+  );
+
+  const reactRouterAlias = findAliasEntry(
+    aliases,
+    (candidate) => candidate?.find === 'react-router',
+    `${label} must expose the react-router alias.`,
+  );
+  assert.equal(
+    reactRouterAlias.replacement,
+    path.resolve(workspaceRootDir, 'node_modules', 'react-router', 'dist', 'development', 'index.mjs'),
+    `${label} must resolve react-router from the BirdCoder workspace dependency so sibling appbase sources do not resolve through stale bridge node_modules.`,
+  );
+}
+
+function assertSearchPcReactAliases(aliases, label) {
+  const searchSubpathAlias = findAliasEntry(
+    aliases,
+    (candidate) =>
+      candidate?.find instanceof RegExp
+      && candidate.find.test('@sdkwork/search-pc-react/search'),
+    `${label} must expose the @sdkwork/search-pc-react subpath alias.`,
+  );
+  assert.equal(
+    searchSubpathAlias.replacement,
+    path.resolve(workspaceRootDir, '../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react/src/$1'),
+    `${label} must resolve @sdkwork/search-pc-react subpaths from the sdkwork-search repository, not the retired sdkwork-appbase copy.`,
+  );
+
+  const searchRootAlias = findAliasEntry(
+    aliases,
+    (candidate) => candidate?.find === '@sdkwork/search-pc-react',
+    `${label} must expose the @sdkwork/search-pc-react root alias.`,
+  );
+  assert.equal(
+    searchRootAlias.replacement,
+    path.resolve(workspaceRootDir, '../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts'),
+    `${label} must resolve @sdkwork/search-pc-react from the sdkwork-search repository, not the retired sdkwork-appbase copy.`,
+  );
+
+  const searchContractsAlias = findAliasEntry(
+    aliases,
+    (candidate) => candidate?.find === '@sdkwork/search-contracts',
+    `${label} must expose the @sdkwork/search-contracts alias required by @sdkwork/search-pc-react.`,
+  );
+  assert.equal(
+    searchContractsAlias.replacement,
+    path.resolve(workspaceRootDir, '../sdkwork-search/packages/common/search/sdkwork-search-contracts/src/index.ts'),
+    `${label} must resolve @sdkwork/search-contracts from the sdkwork-search repository so the search PC package can build from source.`,
+  );
+}
+
 assert.ok(
   existsSync(sharedCoreBrowserFacadePath),
   'BirdCoder must provide a Vite browser facade for @sdkwork/core-pc-react so the app can consume shared core runtime exports without bundling the unused IM SDK barrel.',
@@ -220,6 +336,11 @@ assert.equal(
   'Root Vite config should resolve @sdkwork/auth-pc-react from the canonical sdkwork-appbase source tree.',
 );
 assertSharedCoreBrowserFacadeAlias(rootConfig.resolve?.alias, 'Root Vite config');
+assertXtermCssAlias(rootConfig.resolve?.alias, 'Root Vite config');
+assertTauriApiAlias(rootConfig.resolve?.alias, 'Root Vite config');
+assertLucideReactAlias(rootConfig.resolve?.alias, 'Root Vite config');
+assertReactRouterAliases(rootConfig.resolve?.alias, 'Root Vite config');
+assertSearchPcReactAliases(rootConfig.resolve?.alias, 'Root Vite config');
 const rootBirdcoderBareAlias = findAliasEntry(
   rootConfig.resolve?.alias,
   (candidate) =>
@@ -239,17 +360,24 @@ assert.deepEqual(
     workspaceRootDir,
     path.resolve(workspaceRootDir, '../sdkwork-appbase'),
     path.resolve(workspaceRootDir, '../sdkwork-core'),
+    path.resolve(workspaceRootDir, '../sdkwork-drive'),
+    path.resolve(workspaceRootDir, '../sdkwork-messaging'),
+    path.resolve(workspaceRootDir, '../sdkwork-sdk-commons'),
+    path.resolve(workspaceRootDir, '../sdkwork-search'),
     path.resolve(workspaceRootDir, '../sdkwork-ui'),
     path.resolve(workspaceRootDir, '../sdkwork-terminal'),
-    path.resolve(workspaceRootDir, '../../spring-ai-plus-app-api'),
-    path.resolve(workspaceRootDir, '../../sdk'),
   ],
-  'Root Vite config should preserve the BirdCoder, sdkwork-appbase, sdkwork-core, sdkwork-ui, sdkwork-terminal, spring-ai-plus-app-api, and sdk workspace fs allow-list under ESM-native loading.',
+  'Root Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace fs allow-list under ESM-native loading.',
 );
 
 const webConfig = await loadConfigModule('packages/sdkwork-birdcoder-web/vite.config.ts');
 assert.equal(webConfig.esbuild, false);
 assertSharedCoreBrowserFacadeAlias(webConfig.resolve?.alias, 'Web Vite config');
+assertXtermCssAlias(webConfig.resolve?.alias, 'Web Vite config');
+assertTauriApiAlias(webConfig.resolve?.alias, 'Web Vite config');
+assertLucideReactAlias(webConfig.resolve?.alias, 'Web Vite config');
+assertReactRouterAliases(webConfig.resolve?.alias, 'Web Vite config');
+assertSearchPcReactAliases(webConfig.resolve?.alias, 'Web Vite config');
 const webBirdcoderBareAlias = findAliasEntry(
   webConfig.resolve?.alias,
   (candidate) =>
@@ -612,12 +740,14 @@ assert.deepEqual(
     workspaceRootDir,
     path.resolve(workspaceRootDir, '../sdkwork-appbase'),
     path.resolve(workspaceRootDir, '../sdkwork-core'),
+    path.resolve(workspaceRootDir, '../sdkwork-drive'),
+    path.resolve(workspaceRootDir, '../sdkwork-messaging'),
+    path.resolve(workspaceRootDir, '../sdkwork-sdk-commons'),
+    path.resolve(workspaceRootDir, '../sdkwork-search'),
     path.resolve(workspaceRootDir, '../sdkwork-ui'),
     path.resolve(workspaceRootDir, '../sdkwork-terminal'),
-    path.resolve(workspaceRootDir, '../../spring-ai-plus-app-api'),
-    path.resolve(workspaceRootDir, '../../sdk'),
   ],
-  'Web Vite config should preserve the BirdCoder, sdkwork-appbase, sdkwork-core, sdkwork-ui, sdkwork-terminal, spring-ai-plus-app-api, and sdk workspace fs allow-list under ESM-native loading.',
+  'Web Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace fs allow-list under ESM-native loading.',
 );
 
 const desktopConfig = await loadConfigModule('packages/sdkwork-birdcoder-desktop/vite.config.ts');
@@ -625,6 +755,11 @@ assert.equal(desktopConfig.base, './');
 assert.equal(desktopConfig.esbuild, false);
 assert.equal(desktopConfig.resolve?.preserveSymlinks, undefined);
 assertSharedCoreBrowserFacadeAlias(desktopConfig.resolve?.alias, 'Desktop Vite config');
+assertXtermCssAlias(desktopConfig.resolve?.alias, 'Desktop Vite config');
+assertTauriApiAlias(desktopConfig.resolve?.alias, 'Desktop Vite config');
+assertLucideReactAlias(desktopConfig.resolve?.alias, 'Desktop Vite config');
+assertReactRouterAliases(desktopConfig.resolve?.alias, 'Desktop Vite config');
+assertSearchPcReactAliases(desktopConfig.resolve?.alias, 'Desktop Vite config');
 assert.equal(
   desktopConfig.build?.minify,
   false,
@@ -718,12 +853,14 @@ assert.deepEqual(
     workspaceRootDir,
     path.resolve(workspaceRootDir, '../sdkwork-appbase'),
     path.resolve(workspaceRootDir, '../sdkwork-core'),
+    path.resolve(workspaceRootDir, '../sdkwork-drive'),
+    path.resolve(workspaceRootDir, '../sdkwork-messaging'),
+    path.resolve(workspaceRootDir, '../sdkwork-sdk-commons'),
+    path.resolve(workspaceRootDir, '../sdkwork-search'),
     path.resolve(workspaceRootDir, '../sdkwork-ui'),
     path.resolve(workspaceRootDir, '../sdkwork-terminal'),
-    path.resolve(workspaceRootDir, '../../spring-ai-plus-app-api'),
-    path.resolve(workspaceRootDir, '../../sdk'),
   ],
-  'Desktop Vite config should preserve the BirdCoder, sdkwork-appbase, sdkwork-core, sdkwork-ui, sdkwork-terminal, spring-ai-plus-app-api, and sdk workspace fs allow-list under ESM-native loading.',
+  'Desktop Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace fs allow-list under ESM-native loading.',
 );
 
 console.log('vite config ESM contract passed.');

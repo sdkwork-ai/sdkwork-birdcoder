@@ -5,16 +5,89 @@ import path from 'node:path';
 const rootDir = process.cwd();
 const sdkRootDir = path.join(rootDir, 'sdks');
 const standardProfile = 'sdkwork-v3';
+const expectedSdkOwner = 'sdkwork-birdcoder';
 const canonicalOpenApiPath = 'server/windows/x64/openapi/coding-server-v1.json';
 const domainCatalogPath = 'sdks/specs/domain-catalog.json';
+
+const appbaseAppSdkDependency = {
+  workspace: 'sdkwork-appbase-app-sdk',
+  role: 'appbase-app-capability',
+  required: true,
+  dependencyMode: 'consumer-sdk',
+  apiPrefix: '/app/v3/api',
+  apiAuthority: 'sdkwork-appbase-app-api',
+  generatedTransportImportPolicy: 'forbidden',
+  packageByLanguage: {
+    typescript: '@sdkwork/appbase-app-sdk',
+    rust: 'sdkwork-appbase-app-sdk',
+  },
+};
+
+const appbaseBackendSdkDependency = {
+  workspace: 'sdkwork-appbase-backend-sdk',
+  role: 'appbase-backend-capability',
+  required: true,
+  dependencyMode: 'consumer-sdk',
+  apiPrefix: '/backend/v3/api',
+  apiAuthority: 'sdkwork-appbase-backend-api',
+  generatedTransportImportPolicy: 'forbidden',
+  packageByLanguage: {
+    typescript: '@sdkwork/appbase-backend-sdk',
+    rust: 'sdkwork-appbase-backend-sdk',
+  },
+};
+
+const driveAppSdkDependency = {
+  workspace: 'sdkwork-drive-app-sdk',
+  role: 'drive-app-capability',
+  required: true,
+  dependencyMode: 'consumer-sdk',
+  apiPrefix: '/app/v3/api',
+  apiAuthority: 'sdkwork-drive.app',
+  generatedTransportImportPolicy: 'forbidden',
+  packageByLanguage: {
+    typescript: '@sdkwork/drive-app-sdk',
+    rust: 'sdkwork-drive-app-sdk-generated-rust',
+  },
+};
+
+const messagingAppSdkDependency = {
+  workspace: 'sdkwork-messaging-app-sdk',
+  role: 'messaging-app-capability',
+  required: true,
+  dependencyMode: 'consumer-sdk',
+  apiPrefix: '/app/v3/api',
+  apiAuthority: 'sdkwork-messaging-app-api',
+  generatedTransportImportPolicy: 'forbidden',
+  packageByLanguage: {
+    typescript: '@sdkwork/messaging-app-sdk',
+  },
+};
+
+const expectedRootSdkDependencies = [
+  appbaseAppSdkDependency,
+  appbaseBackendSdkDependency,
+  driveAppSdkDependency,
+  messagingAppSdkDependency,
+];
 
 const expectedSurfaces = [
   {
     apiPrefix: '/app/v3/api',
+    apiAuthority: 'sdkwork-birdcoder-app-api',
+    authoritySpecPath: 'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
     id: 'birdcoder-app',
     inputSpecPath: 'sdks/specs/openapi/birdcoder-app-v3.openapi.json',
+    sdkgenInputPath: 'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.sdkgen.json',
+    sdkgenWrapperPath: 'sdks/sdkwork-birdcoder-app-sdk/bin/generate-sdk.ps1',
     packageName: '@sdkwork/birdcoder-app-sdk',
     rootDir: 'sdks/sdkwork-birdcoder-app-sdk',
+    sdkFamily: 'sdkwork-birdcoder-app-sdk',
+    sdkDependencies: [
+      appbaseAppSdkDependency,
+      driveAppSdkDependency,
+      messagingAppSdkDependency,
+    ],
     surface: 'app',
     typescriptOutputPath: 'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript',
     rustOutputPath: 'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust',
@@ -25,10 +98,18 @@ const expectedSurfaces = [
   },
   {
     apiPrefix: '/backend/v3/api',
+    apiAuthority: 'sdkwork-birdcoder-backend-api',
+    authoritySpecPath: 'sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json',
     id: 'birdcoder-backend',
     inputSpecPath: 'sdks/specs/openapi/birdcoder-backend-v3.openapi.json',
+    sdkgenInputPath: 'sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.sdkgen.json',
+    sdkgenWrapperPath: 'sdks/sdkwork-birdcoder-backend-sdk/bin/generate-sdk.ps1',
     packageName: '@sdkwork/birdcoder-backend-sdk',
     rootDir: 'sdks/sdkwork-birdcoder-backend-sdk',
+    sdkFamily: 'sdkwork-birdcoder-backend-sdk',
+    sdkDependencies: [
+      appbaseBackendSdkDependency,
+    ],
     surface: 'backend',
     typescriptOutputPath: 'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript',
     rustOutputPath: 'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust',
@@ -115,7 +196,7 @@ function assertNoLegacySdkDirectories() {
   }
 }
 
-function assertCanonicalSpecLinks(entries) {
+function assertCanonicalSpecLinks(entries, baseDir = 'sdks/specs') {
   const specFiles = new Set(entries.map((entry) => entry.file));
   for (const file of [
     'README.md',
@@ -130,7 +211,61 @@ function assertCanonicalSpecLinks(entries) {
   }
 
   for (const entry of entries) {
-    assertExists(`sdks/specs/${entry.path}`, `canonical spec link ${entry.file}`);
+    assertExists(`${baseDir}/${entry.path}`, `canonical spec link ${entry.file}`);
+  }
+}
+
+function assertSdkDependencies(actual, expected, context) {
+  assert.ok(Array.isArray(actual), `${context} sdkDependencies must be an explicit array.`);
+  assert.deepEqual(
+    actual,
+    expected,
+    `${context} sdkDependencies must match the declared dependency SDK composition contract.`,
+  );
+
+  const workspaces = new Set();
+  for (const dependency of actual) {
+    assert.match(
+      String(dependency.workspace ?? ''),
+      /^sdkwork-[a-z0-9-]+-sdk$/u,
+      `${context} dependency workspace must name an SDK family.`,
+    );
+    assert.equal(
+      workspaces.has(dependency.workspace),
+      false,
+      `${context} must not duplicate dependency workspace ${dependency.workspace}.`,
+    );
+    workspaces.add(dependency.workspace);
+    assert.match(String(dependency.role ?? ''), /^[a-z0-9-]+$/u, `${context} dependency role must be kebab-case.`);
+    assert.equal(dependency.required, true, `${context} ${dependency.workspace} must be required.`);
+    assert.equal(
+      dependency.dependencyMode,
+      'consumer-sdk',
+      `${context} ${dependency.workspace} must be consumed as a dependency SDK.`,
+    );
+    assert.equal(
+      dependency.generatedTransportImportPolicy,
+      'forbidden',
+      `${context} ${dependency.workspace} must not be imported by generated transport.`,
+    );
+    assert.ok(
+      dependency.packageByLanguage?.typescript,
+      `${context} ${dependency.workspace} must declare a TypeScript package.`,
+    );
+    const expectedDependency = expected.find((entry) => entry.workspace === dependency.workspace);
+    if (expectedDependency?.packageByLanguage?.rust) {
+      assert.equal(
+        dependency.packageByLanguage?.rust,
+        expectedDependency.packageByLanguage.rust,
+        `${context} ${dependency.workspace} must declare the expected Rust package.`,
+      );
+    } else {
+      assert.equal(
+        dependency.packageByLanguage?.rust,
+        undefined,
+        `${context} ${dependency.workspace} must not invent a Rust package for a TypeScript-only dependency SDK.`,
+      );
+    }
   }
 }
 
@@ -301,14 +436,24 @@ function assertOpenApiStandard(surface) {
   assert.equal(document.servers?.[0]?.url, surface.apiPrefix);
   assert.ok(document.components?.schemas, `${surface.inputSpecPath} must define components.schemas.`);
   assert.equal(
-    document.components?.securitySchemes?.bearerAuth?.scheme,
+    document.components?.securitySchemes?.AuthToken?.scheme,
     'bearer',
-    `${surface.inputSpecPath} must support Authorization: Bearer auth.`,
+    `${surface.inputSpecPath} must support Authorization: Bearer auth through AuthToken.`,
   );
   assert.equal(
-    document.components?.securitySchemes?.sdkworkAccessToken?.name,
+    document.components?.securitySchemes?.AccessToken?.name,
     'Access-Token',
-    `${surface.inputSpecPath} must use Access-Token as canonical access token header.`,
+    `${surface.inputSpecPath} must use Access-Token as canonical access token header through AccessToken.`,
+  );
+  assert.equal(
+    document.components?.securitySchemes?.bearerAuth,
+    undefined,
+    `${surface.inputSpecPath} must not keep legacy bearerAuth security scheme names.`,
+  );
+  assert.equal(
+    document.components?.securitySchemes?.sdkworkAccessToken,
+    undefined,
+    `${surface.inputSpecPath} must not keep legacy sdkworkAccessToken security scheme names.`,
   );
 
   const pathKeys = Object.keys(document.paths ?? {}).sort();
@@ -359,6 +504,37 @@ function assertOpenApiStandard(surface) {
         operation,
         `${methodKey.toUpperCase()} ${pathKey}`,
       );
+      if (Array.isArray(operation.security) && operation.security.length > 0) {
+        assert.equal(
+          operation.security.some(
+            (requirement) => 'AuthToken' in requirement && 'AccessToken' in requirement,
+          ),
+          true,
+          `${methodKey.toUpperCase()} ${pathKey} must require AuthToken and AccessToken or explicitly set security: [].`,
+        );
+        for (const requirement of operation.security) {
+          assert.equal(
+            'bearerAuth' in requirement,
+            false,
+            `${methodKey.toUpperCase()} ${pathKey} must not keep legacy bearerAuth requirements.`,
+          );
+          assert.equal(
+            'sdkworkAccessToken' in requirement,
+            false,
+            `${methodKey.toUpperCase()} ${pathKey} must not keep legacy sdkworkAccessToken requirements.`,
+          );
+        }
+      }
+      assert.equal(
+        operation['x-sdkwork-owner'],
+        expectedSdkOwner,
+        `${methodKey.toUpperCase()} ${pathKey} must declare x-sdkwork-owner ${expectedSdkOwner}.`,
+      );
+      assert.equal(
+        operation['x-sdkwork-api-authority'],
+        surface.apiAuthority,
+        `${methodKey.toUpperCase()} ${pathKey} must declare x-sdkwork-api-authority ${surface.apiAuthority}.`,
+      );
       assertProblemJsonErrorResponses(
         operation.responses,
         `${methodKey.toUpperCase()} ${pathKey}`,
@@ -386,6 +562,13 @@ function assertOpenApiStandard(surface) {
       ),
       'app SDK OpenAPI must expose canonical sessions.current.retrieve.',
     );
+    assert.equal(
+      operations.some(
+        (operation) => operation.tag === 'auth' && /^verificationCodes\./u.test(operation.operation.operationId),
+      ),
+      false,
+      'BirdCoder app SDK OpenAPI must not publish messaging-owned verification-code operations.',
+    );
   }
 
   if (surface.surface === 'backend') {
@@ -399,9 +582,8 @@ function assertOpenApiStandard(surface) {
       'users.delete',
       'users.list',
       'users.retrieve',
-      'users.roles.create',
-      'users.roles.delete',
-      'users.roles.list',
+      'roleBindings.create',
+      'roleBindings.delete',
       'users.update',
     ]) {
       assert.equal(
@@ -453,6 +635,14 @@ function assertAssemblyManifest() {
     assert.equal(surface.packageName, expected.packageName);
     assert.equal(surface.version, '0.1.0');
     assert.equal(surface.standardProfile, standardProfile);
+    assert.equal(surface.sdkOwner, expectedSdkOwner);
+    assert.equal(surface.apiAuthority, expected.apiAuthority);
+    assert.equal(surface.sdkFamily, expected.sdkFamily);
+    assertSdkDependencies(
+      surface.sdkDependencies,
+      expected.sdkDependencies,
+      `sdks/.sdkwork-assembly.json surface ${expected.id}`,
+    );
 
     const outputByLanguage = new Map((surface.outputs ?? []).map((output) => [output.language, output]));
     assert.equal(outputByLanguage.get('typescript')?.path, expected.typescriptOutputPath);
@@ -471,6 +661,12 @@ function assertAssemblyManifest() {
 
     assertOpenApiStandard(expected);
   }
+
+  assertSdkDependencies(
+    assembly.sdkDependencies,
+    expectedRootSdkDependencies,
+    'sdks/.sdkwork-assembly.json',
+  );
 }
 
 function assertComponentSpec() {
@@ -492,6 +688,11 @@ function assertComponentSpec() {
     'specs/domain-catalog.json',
     'SDK component spec must declare the local domain catalog required by DOMAIN_SPEC.',
   );
+  assertSdkDependencies(
+    componentSpec.contracts?.sdkDependencies,
+    expectedRootSdkDependencies,
+    'sdks/specs/component.spec.json contracts',
+  );
   assert.deepEqual(
     componentSpec.contracts?.sdkClients,
     [
@@ -506,6 +707,153 @@ function assertComponentSpec() {
     'pnpm generate:sdk:birdcoder',
     'pnpm check:sdk-family-generated',
   ]);
+}
+
+function assertFamilyRootComponentSpec(expected) {
+  const componentSpecPath = `${expected.rootDir}/specs/component.spec.json`;
+  const componentSpec = readJson(componentSpecPath);
+  assert.equal(componentSpec.schemaVersion, 1);
+  assert.equal(componentSpec.kind, 'sdkwork.component.spec');
+  assert.equal(componentSpec.component?.name, expected.sdkFamily);
+  assert.equal(componentSpec.component?.type, 'sdk-family');
+  assert.equal(componentSpec.component?.root, `sdkwork-birdcoder/${expected.rootDir}`);
+  assert.equal(componentSpec.component?.domain, 'platform');
+  assert.equal(componentSpec.component?.capability, `${expected.surface}-sdk`);
+  assert.deepEqual(componentSpec.component?.languages, ['typescript', 'rust']);
+  assert.deepEqual(
+    componentSpec.component?.manifests,
+    ['.sdkwork-assembly.json'],
+    `${componentSpecPath} must declare the family assembly manifest.`,
+  );
+  assertCanonicalSpecLinks(componentSpec.canonicalSpecs ?? [], `${expected.rootDir}/specs`);
+  assert.equal(componentSpec.contracts?.apiAuthority?.name, expected.apiAuthority);
+  assert.equal(componentSpec.contracts?.apiAuthority?.prefix, expected.apiPrefix);
+  assert.equal(componentSpec.contracts?.apiAuthority?.owner, expectedSdkOwner);
+  assert.equal(
+    componentSpec.contracts?.apiAuthority?.authorityOpenApi,
+    `../openapi/${expected.apiAuthority}.openapi.json`,
+  );
+  assert.equal(
+    componentSpec.contracts?.apiAuthority?.derivedOpenApi?.[0],
+    `../openapi/${expected.apiAuthority}.sdkgen.json`,
+  );
+  assertSdkDependencies(
+    componentSpec.contracts?.sdkDependencies,
+    expected.sdkDependencies,
+    `${componentSpecPath} contracts`,
+  );
+}
+
+function assertFamilyRootAssembly(expected) {
+  const familyAssemblyPath = `${expected.rootDir}/.sdkwork-assembly.json`;
+  const familyAssembly = readJson(familyAssemblyPath);
+  assert.equal(familyAssembly.workspace, expected.sdkFamily);
+  assert.equal(familyAssembly.sdkOwner, expectedSdkOwner);
+  assert.equal(familyAssembly.apiAuthority, expected.apiAuthority);
+  assert.equal(familyAssembly.authoritySpec, `openapi/${expected.apiAuthority}.openapi.json`);
+  assert.equal(familyAssembly.generationInputSpec, `openapi/${expected.apiAuthority}.sdkgen.json`);
+  assert.equal(familyAssembly.discoverySurface?.sdkTarget, expected.surface);
+  assert.equal(familyAssembly.discoverySurface?.apiPrefix, expected.apiPrefix);
+  assert.deepEqual(familyAssembly.discoverySurface?.generatedProtocols, ['http-openapi']);
+
+  const languages = new Map((familyAssembly.languages ?? []).map((language) => [language.language, language]));
+  assert.equal(languages.get('typescript')?.workspace, `${expected.sdkFamily}-typescript`);
+  assert.equal(languages.get('typescript')?.name, expected.packageName);
+  assert.equal(
+    languages.get('typescript')?.generatedPath,
+    `${expected.sdkFamily}-typescript/generated/server-openapi`,
+  );
+  assert.equal(
+    languages.get('typescript')?.generationState,
+    'materialized',
+  );
+  assert.equal(languages.get('rust')?.workspace, `${expected.sdkFamily}-rust`);
+  assert.match(languages.get('rust')?.name ?? '', /^sdkwork-birdcoder-(?:app|backend)-sdk$/u);
+  assert.equal(
+    languages.get('rust')?.generatedPath,
+    `${expected.sdkFamily}-rust/generated/server-openapi`,
+  );
+  assert.equal(
+    languages.get('rust')?.generationState,
+    'materialized',
+  );
+  assertSdkDependencies(
+    familyAssembly.sdkDependencies,
+    expected.sdkDependencies,
+    familyAssemblyPath,
+  );
+}
+
+function assertFamilyRootOpenApiInputs(expected) {
+  const compatibilityInput = readJson(expected.inputSpecPath);
+  const authorityInput = readJson(expected.authoritySpecPath);
+  const sdkgenInput = readJson(expected.sdkgenInputPath);
+  assert.deepEqual(
+    authorityInput,
+    compatibilityInput,
+    `${expected.authoritySpecPath} must mirror the compatibility OpenAPI during migration.`,
+  );
+  assert.deepEqual(
+    sdkgenInput,
+    compatibilityInput,
+    `${expected.sdkgenInputPath} must mirror the owner-only sdkgen input during migration.`,
+  );
+}
+
+function assertGeneratedServerOpenApiOutput(expected) {
+  for (const language of ['typescript', 'rust']) {
+    const generatedRoot = `${expected.rootDir}/${expected.sdkFamily}-${language}/generated/server-openapi`;
+    const sdkworkSdk = readJson(`${generatedRoot}/sdkwork-sdk.json`);
+    assert.equal(sdkworkSdk.generator, '@sdkwork/sdk-generator');
+    assert.equal(sdkworkSdk.name, expected.sdkFamily);
+    assert.equal(sdkworkSdk.version, '0.1.0');
+    assert.equal(sdkworkSdk.language, language);
+    assert.equal(sdkworkSdk.sdkType, expected.surface);
+    assert.equal(
+      sdkworkSdk.packageName,
+      language === 'typescript' ? expected.packageName : expected.sdkFamily,
+    );
+    assert.deepEqual(sdkworkSdk.ownership?.scaffoldRoots, ['custom/']);
+    assert.deepEqual(sdkworkSdk.ownership?.stateRoots, ['.sdkwork/']);
+    assert.equal(
+      'sdkOwner' in sdkworkSdk,
+      false,
+      `${generatedRoot}/sdkwork-sdk.json must stay generator-owned without SDK ownership overlays.`,
+    );
+    assert.equal(
+      'sdkDependencies' in sdkworkSdk,
+      false,
+      `${generatedRoot}/sdkwork-sdk.json must not carry dependency SDK metadata.`,
+    );
+    assertExists(`${generatedRoot}/.sdkwork/sdkwork-generator-manifest.json`);
+    assertExists(`${generatedRoot}/.sdkwork/sdkwork-generator-changes.json`);
+    assertExists(`${generatedRoot}/.sdkwork/sdkwork-generator-report.json`);
+    assertExists(`${generatedRoot}/custom/README.md`);
+
+    if (language === 'typescript') {
+      const packageJson = readJson(`${generatedRoot}/package.json`);
+      assert.equal(packageJson.name, expected.packageName);
+      assert.equal(packageJson.version, '0.1.0');
+      assert.equal(
+        packageJson.sdkwork,
+        undefined,
+        `${generatedRoot}/package.json must not carry SDK ownership overlay metadata.`,
+      );
+    } else {
+      const cargoToml = readText(`${generatedRoot}/Cargo.toml`);
+      assert.match(cargoToml, new RegExp(`name = "${expected.sdkFamily}"`, 'u'));
+      assert.match(cargoToml, /version = "0\.1\.0"/u);
+    }
+  }
+}
+
+function assertFamilyRootMetadata() {
+  for (const expected of expectedSurfaces) {
+    assertFamilyRootAssembly(expected);
+    assertFamilyRootComponentSpec(expected);
+    assertFamilyRootOpenApiInputs(expected);
+    assertGeneratedServerOpenApiOutput(expected);
+  }
 }
 
 function assertReadmesAndGeneratedOutputs() {
@@ -651,8 +999,8 @@ function assertReadmesAndGeneratedOutputs() {
       );
       assert.match(
         readme,
-        /client\.iam\.users\.roles\.list\(\{ userId \}\)/u,
-        'backend SDK README must show standard IAM user role listing.',
+        /client\.iam\.roleBindings\.create\(body\)/u,
+        'backend SDK README must show standard IAM role binding governance.',
       );
     }
 
@@ -796,8 +1144,13 @@ function assertReadmesAndGeneratedOutputs() {
       );
       assert.match(
         tsTypesIndexSource,
-        /export interface BirdCoderIamUserRoleSummaryListEnvelope/u,
-        'backend SDK must expose the standard IAM user role list response schema.',
+        /"key": "iam\.roleBindings\.create"[\s\S]*"domain": "iam"[\s\S]*"permission": "iam\.roleBindings\.create"[\s\S]*"resource": "iam\.roleBindings"/u,
+        'backend SDK generated descriptors must preserve standard IAM role binding create metadata.',
+      );
+      assert.match(
+        tsTypesIndexSource,
+        /export interface BirdCoderIamUserRoleSummaryEnvelope/u,
+        'backend SDK must expose the standard IAM role binding create/delete response schema.',
       );
       assert.match(
         tsTypesIndexSource,
@@ -875,11 +1228,51 @@ function assertReadmesAndGeneratedOutputs() {
   }
 }
 
+function assertStandardSdkgenWrappers() {
+  const packageJson = readJson('package.json');
+  assert.match(
+    packageJson.scripts?.['generate:sdk:birdcoder:standard'] ?? '',
+    /scripts\/generate-birdcoder-sdkgen-family\.mjs/u,
+    'package.json must expose a standard sdkgen-based BirdCoder SDK generation command.',
+  );
+
+  const standardWrapperSource = readText('scripts/generate-birdcoder-sdkgen-family.mjs');
+  assert.match(standardWrapperSource, /@sdkwork\/sdk-generator/u);
+  assert.match(standardWrapperSource, /\bsdkgen\b/u);
+  assert.match(standardWrapperSource, /sdkwork-sdk-generator[\\/]bin[\\/]sdkgen\.js/u);
+  assert.match(standardWrapperSource, /--standard-profile/u);
+  assert.match(standardWrapperSource, /--type/u);
+  assert.match(standardWrapperSource, /--api-prefix/u);
+  assert.match(standardWrapperSource, /--fixed-sdk-version/u);
+  assert.match(standardWrapperSource, /sdkwork-v3/u);
+  assert.match(standardWrapperSource, /generated\/server-openapi/u);
+  assert.doesNotMatch(
+    standardWrapperSource,
+    /generate-birdcoder-sdk-family\.mjs/u,
+    'standard sdkgen wrapper must not call the compatibility product-local generator.',
+  );
+
+  for (const expected of expectedSurfaces) {
+    const powershellWrapperSource = readText(expected.sdkgenWrapperPath);
+    assert.match(powershellWrapperSource, /generate-birdcoder-sdkgen-family\.mjs/u);
+    assert.match(powershellWrapperSource, new RegExp(`--surface\\s+${expected.surface}`, 'u'));
+    assert.match(powershellWrapperSource, /sdkgen/u);
+    assert.match(powershellWrapperSource, /sdkwork-v3/u);
+    assert.doesNotMatch(
+      powershellWrapperSource,
+      /generate-birdcoder-sdk-family\.mjs/u,
+      `${expected.sdkgenWrapperPath} must not invoke the compatibility product-local generator.`,
+    );
+  }
+}
+
 assert.ok(fs.existsSync(sdkRootDir), 'sdks directory must exist.');
 assertNoLegacySdkDirectories();
 assertDomainCatalogCoversOpenApiOperations(expectedSurfaces);
 assertAssemblyManifest();
 assertComponentSpec();
+assertFamilyRootMetadata();
 assertReadmesAndGeneratedOutputs();
+assertStandardSdkgenWrappers();
 
 console.log('birdcoder SDK family standard contract passed.');

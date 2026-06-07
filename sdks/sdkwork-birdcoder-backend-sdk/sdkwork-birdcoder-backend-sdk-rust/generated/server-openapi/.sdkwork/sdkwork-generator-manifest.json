@@ -1,0 +1,371 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "sdk": {
+    "name": "sdkwork-birdcoder-backend-sdk",
+    "version": "0.1.0",
+    "language": "rust",
+    "sdkType": "backend",
+    "packageName": "sdkwork-birdcoder-backend-sdk"
+  },
+  "generatedFiles": [
+    {
+      "path": "bin/publish-core.mjs",
+      "sha256": "affb1f1b5400ac492e94e2d01f3104b8dd38b50329e371265d4f0945f2b0763c"
+    },
+    {
+      "path": "bin/publish.ps1",
+      "sha256": "eb779f44a5ba8879a9d79c708d0ba4bd412221f102e4430b953f0449327827bf"
+    },
+    {
+      "path": "bin/publish.sh",
+      "sha256": "ae8a89ddb314afce79fe910de28017951c3c31f24a67d72915c4153711173b23"
+    },
+    {
+      "path": "Cargo.toml",
+      "sha256": "f3f720b8a558ee7e83dc4e8fd09d30088f796348e75e98cf8d2e01290fe73c60"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "fb941a0806986a54fc192f98a98f6d9c282b8d350b2b19a3e71dda404e92d545"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7840cc7d2b36ff364ac16c2fc5ec15b861bfe96854eecf81fb59b00edb8b1447"
+    },
+    {
+      "path": "README.md",
+      "sha256": "2fe7f35a5710ffdf47648b75a4ce994f9932520aa495b7d31bf6b880a210060f"
+    },
+    {
+      "path": "sdkwork-sdk.json",
+      "sha256": "7b242a70ab83667580d004d4a9faf4422ba3eedd4a7cf4fec5fa484a629657eb"
+    },
+    {
+      "path": "src/api/base.rs",
+      "sha256": "a5cf59f8376d2752496d6ebe60792dab403a9645ce45c8352eaf08648907f842"
+    },
+    {
+      "path": "src/api/iam.rs",
+      "sha256": "d777c37d8469a910d369508af8e0ee0285d808e73f053462bc0bfae7a26fdecd"
+    },
+    {
+      "path": "src/api/mod.rs",
+      "sha256": "668accce42d3216698c0fa107c6a4d388aa552b27e0cd6a7925eba66fc9abcef"
+    },
+    {
+      "path": "src/api/paths.rs",
+      "sha256": "571bc21d9e8c1458979a5bb00adb6ba50a7645837196a4b82a2bcfb87f1ef046"
+    },
+    {
+      "path": "src/api/platform.rs",
+      "sha256": "39852a73d6a8c63839aded47e3d458c2b897c1648bbf9bc64223a5c97cbcfae1"
+    },
+    {
+      "path": "src/client.rs",
+      "sha256": "d53ff341f70ec44b35317e5f5d8eea2bc201a8fa427de822af8fc9faee4d178e"
+    },
+    {
+      "path": "src/http/client.rs",
+      "sha256": "71567159850fdd8b855c72439bf9d9104151dcd8a6ed687918b6015ce86b1c94"
+    },
+    {
+      "path": "src/http/mod.rs",
+      "sha256": "fdf16d487ebd9180fb423d5630d4401ff18180721b86636dec085ad83940bb3d"
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "c1dab4a8eab2ddc82292e3f238479a05575b5ce8c22925188d911c94925f21c4"
+    },
+    {
+      "path": "src/models/bird_coder_api_list_meta.rs",
+      "sha256": "d04144fdf30801da82d86b0de19a61394a7c909af8907b895db498195476adea"
+    },
+    {
+      "path": "src/models/bird_coder_api_meta.rs",
+      "sha256": "a40ef097c48fe9182648088dea1f4574c932d651ccfd8f698572b1f2c9165b2a"
+    },
+    {
+      "path": "src/models/bird_coder_api_problem_details.rs",
+      "sha256": "c39535f44e0e0fdfc506df2c84561f04909b2c110e64cb6215e3f691fa2c3b64"
+    },
+    {
+      "path": "src/models/bird_coder_boolean_success_envelope.rs",
+      "sha256": "9e9ba9e14b3317dbd84820cbb869d77d002d4f0257b96cfa15eaf11fff10b79d"
+    },
+    {
+      "path": "src/models/bird_coder_boolean_success_result.rs",
+      "sha256": "3d6ea7bd556eb53242166f0d6a1f6db950621dbabd47e6c85e4a82899aa643b0"
+    },
+    {
+      "path": "src/models/bird_coder_create_iam_organization_member_request.rs",
+      "sha256": "8ce68ce0c1c71408afa3a074a075718673095a4bd8516e88cf10ea5e11ec8fc9"
+    },
+    {
+      "path": "src/models/bird_coder_create_iam_organization_request.rs",
+      "sha256": "5cd041209b6401c1d72f41e4eb90b5c62d647a41299a7fa68c2792089c515dfa"
+    },
+    {
+      "path": "src/models/bird_coder_create_iam_permission_request.rs",
+      "sha256": "8be7e8d50928b8a82942b3a85913b43f469065657e13a236bd90e071bfb27d37"
+    },
+    {
+      "path": "src/models/bird_coder_create_iam_policy_request.rs",
+      "sha256": "e074f6cf932c6be1510e8c4b4bb07252bc3de7c67f35651174ad0756b2716c8d"
+    },
+    {
+      "path": "src/models/bird_coder_create_iam_role_permission_request.rs",
+      "sha256": "08f21e0a869061758e980436d409a2d8f202fd9d3b18ce698fa9177cdd168f22"
+    },
+    {
+      "path": "src/models/bird_coder_create_iam_role_request.rs",
+      "sha256": "fe682232ee44220b5c208fa30c33762d85c2b89f42765edaec0083f5dc6d988d"
+    },
+    {
+      "path": "src/models/bird_coder_create_iam_tenant_member_request.rs",
+      "sha256": "2c8af4c864d4d0ceb2475fcdf9ecd2449653551141ef7810a461fbd343e8cac9"
+    },
+    {
+      "path": "src/models/bird_coder_create_iam_tenant_request.rs",
+      "sha256": "ac2d51efb5aa52c6123e4fe56aec56563dcca16c98061966938f79ce160041fc"
+    },
+    {
+      "path": "src/models/bird_coder_create_iam_user_request.rs",
+      "sha256": "62bb9d57884729bd790102d019d715445bed9cb7fef5ea290501a4fe58195952"
+    },
+    {
+      "path": "src/models/bird_coder_create_iam_user_role_request.rs",
+      "sha256": "3edc68ca32a192350785e3ccc8a966b5e750547d4e7ec6af57b623be440b47d5"
+    },
+    {
+      "path": "src/models/bird_coder_deleted_resource_envelope.rs",
+      "sha256": "d656cb5e6c216dfc98de58ee0dc5c59cfb295a4cf2c5ae1fb6c1feb2c529c785"
+    },
+    {
+      "path": "src/models/bird_coder_deleted_resource_result.rs",
+      "sha256": "c23f647f0f8865862345604f3b53d24502ab0ff8447a5c86c082100ea3e21d02"
+    },
+    {
+      "path": "src/models/bird_coder_deployment_record_summary_list_envelope.rs",
+      "sha256": "ee66acfb7279ed34cb35d71a7225d8b06d8adfb06897e27e6526c895fef87a8b"
+    },
+    {
+      "path": "src/models/bird_coder_deployment_record_summary.rs",
+      "sha256": "7eb7321a9f6016031bc873d017c40b4781fd5f76ede19e4e29860e5f31bafab5"
+    },
+    {
+      "path": "src/models/bird_coder_deployment_target_summary_list_envelope.rs",
+      "sha256": "9dca88271c87073fc6b24de54dbffa1f3488573207a403653127a9b55e47c6ae"
+    },
+    {
+      "path": "src/models/bird_coder_deployment_target_summary.rs",
+      "sha256": "07b1a6ccc34cbb39cef1e358ee8441ae1ed43dfc8d7dd9a164e48a27e768a974"
+    },
+    {
+      "path": "src/models/bird_coder_iam_api_key_summary_list_envelope.rs",
+      "sha256": "47d0e33864ad53e6c1a021ea312bf70ffd570ea6581edaa2ece6e3f82dd78b40"
+    },
+    {
+      "path": "src/models/bird_coder_iam_api_key_summary.rs",
+      "sha256": "88ebbbcbeb1afd35fda9c68a94425a3ca244fb3383424c4efef63f6f1eb4f1c8"
+    },
+    {
+      "path": "src/models/bird_coder_iam_audit_event_summary_list_envelope.rs",
+      "sha256": "f365af72bd2f124cf8d9fae1a0a3618b4e7b9256316a035650a26ddbf5f2a982"
+    },
+    {
+      "path": "src/models/bird_coder_iam_audit_event_summary.rs",
+      "sha256": "235948788c37634ac9d8efcdda9caa13e14ca855f5559c8b99a4799e55766ae9"
+    },
+    {
+      "path": "src/models/bird_coder_iam_organization_member_summary_envelope.rs",
+      "sha256": "a4ead0c797d88a8f4fdd4ab2c5a6e4938475a51a67dcdbd5668e2624e9cd89ed"
+    },
+    {
+      "path": "src/models/bird_coder_iam_organization_member_summary.rs",
+      "sha256": "e05e178749ec8ede83d8333f959f9913f3bc7803ecc90057f6ae6fa81783f838"
+    },
+    {
+      "path": "src/models/bird_coder_iam_organization_summary_envelope.rs",
+      "sha256": "03dbc43bc0e4ff84f36d897e86ea0a0a2d73ba43ad4f2dbb77d21a0cea9b31d4"
+    },
+    {
+      "path": "src/models/bird_coder_iam_organization_summary.rs",
+      "sha256": "b0b5004e6b4c37713142d2ce0c63fbad324aad03be03e81d4e8571f7623e3091"
+    },
+    {
+      "path": "src/models/bird_coder_iam_permission_summary_envelope.rs",
+      "sha256": "ff70372c5b16d9026867dfbb6a437226b30616eb9abbc63bb5487fa6029324e1"
+    },
+    {
+      "path": "src/models/bird_coder_iam_permission_summary_list_envelope.rs",
+      "sha256": "f0bba14095fdfaf3006d69de10293f8b6609503a11131313e2e725cef72c4600"
+    },
+    {
+      "path": "src/models/bird_coder_iam_permission_summary.rs",
+      "sha256": "43015697ba352667b57c7646c5c533504abced8fd92b2f117e06dea7350c548c"
+    },
+    {
+      "path": "src/models/bird_coder_iam_policy_summary_envelope.rs",
+      "sha256": "f9c78688004a7753aa82baf99f2d44427a957622223c257b7964c9c00e9992f3"
+    },
+    {
+      "path": "src/models/bird_coder_iam_policy_summary_list_envelope.rs",
+      "sha256": "09a5bf8273404a02d59f76ff6966c302085ec4c382dae927af634df8a4b37d49"
+    },
+    {
+      "path": "src/models/bird_coder_iam_policy_summary.rs",
+      "sha256": "54b3eb214ee2330f6e3696c71e9bcad515b8010a92167e3beeb31f54fc4ff6d6"
+    },
+    {
+      "path": "src/models/bird_coder_iam_role_permission_summary_envelope.rs",
+      "sha256": "e121c9807bee65025349a20ae424c9346181f0382411396bc7268f4ffdb08af6"
+    },
+    {
+      "path": "src/models/bird_coder_iam_role_permission_summary_list_envelope.rs",
+      "sha256": "5f03e8b958cdc1fc143270611fe8cd0adc6b1e74fa51153dcf26a3a54f8b57db"
+    },
+    {
+      "path": "src/models/bird_coder_iam_role_permission_summary.rs",
+      "sha256": "03a92621d8dab142aef1d1d065856ca1e5d4fba4848325164584b5eb9875d9a8"
+    },
+    {
+      "path": "src/models/bird_coder_iam_role_summary_envelope.rs",
+      "sha256": "3f04aeebb605a2dc86b61a36abc309114162b898f6de22f7a63e192ca70b6644"
+    },
+    {
+      "path": "src/models/bird_coder_iam_role_summary_list_envelope.rs",
+      "sha256": "a18be6bd635c61154ec0a82a5e4ae225c573c0f9c7d2d6c3aece9c32c0136cc9"
+    },
+    {
+      "path": "src/models/bird_coder_iam_role_summary.rs",
+      "sha256": "6e3016ad1493e25bcda61fdf12ceab7c91e58ec3fc630c626300c65f711407f2"
+    },
+    {
+      "path": "src/models/bird_coder_iam_security_event_summary_list_envelope.rs",
+      "sha256": "6dd8c0389f90c8c2f9b0b0d4e40e322275ad05964fdb78087f1906e38d0462b6"
+    },
+    {
+      "path": "src/models/bird_coder_iam_security_event_summary.rs",
+      "sha256": "748b3620e99762ed2003ea18aef909f5127c6a027abcc587749801b8eb021c2e"
+    },
+    {
+      "path": "src/models/bird_coder_iam_tenant_member_summary_envelope.rs",
+      "sha256": "0cde620d62c39eb1a0d4887ba1a6462f02740ceca03a533b1ede0e11c8f582c9"
+    },
+    {
+      "path": "src/models/bird_coder_iam_tenant_member_summary_list_envelope.rs",
+      "sha256": "0f9db33446459ae7513752478a5cec482ebcadcf7c1894b76645396ec0600990"
+    },
+    {
+      "path": "src/models/bird_coder_iam_tenant_member_summary.rs",
+      "sha256": "98055efc38600ad94441c69ae03dbdd52aebb3d99ee3b018322044474ff248cf"
+    },
+    {
+      "path": "src/models/bird_coder_iam_tenant_summary_envelope.rs",
+      "sha256": "87879f64457b73f72683b06912c69e8264911785fc3377abd660eaf5b7f93aed"
+    },
+    {
+      "path": "src/models/bird_coder_iam_tenant_summary_list_envelope.rs",
+      "sha256": "28b3ecf57553d269371c0dcfcd1632a21d914dbeae8f0f8d45db84f9fb4c0cc6"
+    },
+    {
+      "path": "src/models/bird_coder_iam_tenant_summary.rs",
+      "sha256": "e5aaed1d6860920c5c4846a9fdfa0b55ee1e723fde2d314ea6cfd0ba9611d52c"
+    },
+    {
+      "path": "src/models/bird_coder_iam_user_role_summary_envelope.rs",
+      "sha256": "e13a04b9cbb42ef273a453c678265048805c7a5627df7c5257e516b6c69c9f99"
+    },
+    {
+      "path": "src/models/bird_coder_iam_user_role_summary.rs",
+      "sha256": "fdb4c0783339a2f451ba71eaf6e991c971d8584029033d68e79f14316102003d"
+    },
+    {
+      "path": "src/models/bird_coder_iam_user_summary_envelope.rs",
+      "sha256": "85c7fa280a330211917f2a1a4be3b5e61a4b59cef7732926f3b7ee8a13a5b11b"
+    },
+    {
+      "path": "src/models/bird_coder_iam_user_summary_list_envelope.rs",
+      "sha256": "0b7b3eab63d77c1f61e02e14300ebb9e7519186826cdc38fd364142ae3dfee4c"
+    },
+    {
+      "path": "src/models/bird_coder_iam_user_summary.rs",
+      "sha256": "115b71df0d14041500154b594a36cda333376b16b43ec2c21ac87c6c9b1337d0"
+    },
+    {
+      "path": "src/models/bird_coder_problem_envelope.rs",
+      "sha256": "4957a1142646d6fb90a193bbef776df317c4217a3b75144400949ee5e4f008c1"
+    },
+    {
+      "path": "src/models/bird_coder_release_summary_list_envelope.rs",
+      "sha256": "c7cf43b18f74f1bcfdb5ebb3311cfcc1eed3587aa6bb91feecc24eaadaf308fe"
+    },
+    {
+      "path": "src/models/bird_coder_release_summary.rs",
+      "sha256": "16f44cfeea8902fb088f04c576180080984eb9c56d1b31496bfaa0217c95cdda"
+    },
+    {
+      "path": "src/models/bird_coder_team_member_summary_list_envelope.rs",
+      "sha256": "eba992136a6d1835c33384acc6be1571d18775471d81be3ab22830c9c605f6d4"
+    },
+    {
+      "path": "src/models/bird_coder_team_member_summary.rs",
+      "sha256": "0b5ecbf9c46fc8b5a3bd5b4ffae16b777cfa147483308279bf00e095af6f506c"
+    },
+    {
+      "path": "src/models/bird_coder_team_summary_list_envelope.rs",
+      "sha256": "2fd1283ac1839a37bc134a0867a8d799fc0c7699d8a89f9e1599009fb71a176f"
+    },
+    {
+      "path": "src/models/bird_coder_team_summary.rs",
+      "sha256": "62e0512350cb12e788562afd72e8830d785adf166c0f47657a81ddc800cca70d"
+    },
+    {
+      "path": "src/models/bird_coder_update_iam_organization_member_request.rs",
+      "sha256": "506e0c9f14fd212c1f696382ace6c5e103951268813211c70869f03bc72ad142"
+    },
+    {
+      "path": "src/models/bird_coder_update_iam_organization_request.rs",
+      "sha256": "aa442b405aea3170134e5dc4bf23c45ba56344adf1af92b64d5a962818e06c8c"
+    },
+    {
+      "path": "src/models/bird_coder_update_iam_permission_request.rs",
+      "sha256": "9ffd23ab145728cce867205515433081a5ca531f5c2e94376721ff64d4d863c9"
+    },
+    {
+      "path": "src/models/bird_coder_update_iam_policy_request.rs",
+      "sha256": "23c84d102bfee5094b24133c73768ecb38efa8f5e5982a4cfddb2d14738a9b18"
+    },
+    {
+      "path": "src/models/bird_coder_update_iam_role_request.rs",
+      "sha256": "cdb4b4e48bfb77ef96b3d15979e4b95c1f21b89836032f411920545831820a7c"
+    },
+    {
+      "path": "src/models/bird_coder_update_iam_tenant_member_request.rs",
+      "sha256": "4d28f52e11e2d8370dbc18ccf2ceae906815957168260eb933e27daa9c2b1a85"
+    },
+    {
+      "path": "src/models/bird_coder_update_iam_tenant_request.rs",
+      "sha256": "1ed6d853b4f01957ce79bfb775743981afcc90c688a3ef76be16dbb967c3a519"
+    },
+    {
+      "path": "src/models/bird_coder_update_iam_user_request.rs",
+      "sha256": "a1cddac4e4f2872993b4997d8fc34315d1570e43a39c27cad4de68494e0856a0"
+    },
+    {
+      "path": "src/models/common.rs",
+      "sha256": "fce0239d85066b1c42435ab8c96676ea2d5300e5dcb87c52fd3e33d29a603a5e"
+    },
+    {
+      "path": "src/models/mod.rs",
+      "sha256": "89c38a10498dd3ef11eb7116559fa3f83646994f20e6cd1f1039d50c501b9881"
+    }
+  ],
+  "scaffoldFiles": [
+    "custom/README.md"
+  ],
+  "customRoots": [
+    "custom/"
+  ]
+}

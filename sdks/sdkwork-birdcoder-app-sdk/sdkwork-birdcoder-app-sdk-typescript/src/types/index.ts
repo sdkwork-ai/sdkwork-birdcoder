@@ -752,6 +752,44 @@ export interface BirdCoderIamOAuthSessionCreateRequest {
   state?: string;
 }
 
+export interface BirdCoderIamOrganizationMemberSummary {
+  id: string;
+  tenantId: string;
+  organizationId: string;
+  userId: string;
+  roleCode: string;
+  status: string;
+  joinedAt?: string;
+  leftAt?: string;
+  remark?: string;
+}
+
+export interface BirdCoderIamOrganizationMemberSummaryListEnvelope {
+  items: Array<BirdCoderIamOrganizationMemberSummary>;
+  meta: BirdCoderApiListMeta;
+  requestId: string;
+  timestamp: string;
+}
+
+export interface BirdCoderIamOrganizationSummary {
+  id: string;
+  tenantId: string;
+  parentId?: string;
+  code: string;
+  name: string;
+  path: string;
+  status: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BirdCoderIamOrganizationSummaryListEnvelope {
+  items: Array<BirdCoderIamOrganizationSummary>;
+  meta: BirdCoderApiListMeta;
+  requestId: string;
+  timestamp: string;
+}
+
 export interface BirdCoderIamPasswordResetCreateRequest {
   account: string;
   code: string;
@@ -873,17 +911,21 @@ export interface BirdCoderIamUserProfileSummary {
   website: string;
 }
 
-export interface BirdCoderIamVerificationCodeCreateRequest {
-  scene: "LOGIN" | "REGISTER" | "RESET_PASSWORD";
-  target: string;
-  verifyType: "EMAIL" | "PHONE";
+export interface BirdCoderIamUserRoleSummary {
+  id: string;
+  tenantId: string;
+  userId: string;
+  roleId: string;
+  roleCode: string;
+  status: string;
+  createdAt?: string;
 }
 
-export interface BirdCoderIamVerificationCodeVerifyRequest {
-  code: string;
-  scene: "LOGIN" | "REGISTER" | "RESET_PASSWORD";
-  target: string;
-  verifyType: "EMAIL" | "PHONE";
+export interface BirdCoderIamUserRoleSummaryListEnvelope {
+  items: Array<BirdCoderIamUserRoleSummary>;
+  meta: BirdCoderApiListMeta;
+  requestId: string;
+  timestamp: string;
 }
 
 export interface BirdCoderIamVerificationPolicyEnvelope {
@@ -1870,36 +1912,6 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "tenantScope": "platform"
   },
   {
-    "key": "auth.verificationCodes.create",
-    "method": "POST",
-    "operationId": "verificationCodes.create",
-    "path": "/app/v3/api/auth/verification_codes",
-    "pathParamNames": [],
-    "dataScope": "platform",
-    "deployment": "all",
-    "domain": "iam",
-    "public": true,
-    "resource": "iam.verificationCodes",
-    "summary": "Create SDKWork IAM verification code",
-    "tag": "auth",
-    "tenantScope": "platform"
-  },
-  {
-    "key": "auth.verificationCodes.verify",
-    "method": "POST",
-    "operationId": "verificationCodes.verify",
-    "path": "/app/v3/api/auth/verification_codes/verify",
-    "pathParamNames": [],
-    "dataScope": "platform",
-    "deployment": "all",
-    "domain": "iam",
-    "public": true,
-    "resource": "iam.verificationCodes",
-    "summary": "Verify SDKWork IAM verification code",
-    "tag": "auth",
-    "tenantScope": "platform"
-  },
-  {
     "key": "collaboration.workspaceTeams.list",
     "method": "GET",
     "operationId": "workspaceTeams.list",
@@ -1961,6 +1973,70 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "resource": "content.documents",
     "summary": "List project documents",
     "tag": "content",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "iam.organizationMemberships.list",
+    "method": "GET",
+    "operationId": "organizationMemberships.list",
+    "path": "/app/v3/api/iam/organization_memberships",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "iam",
+    "permission": "iam.organizationMemberships.read",
+    "public": false,
+    "resource": "iam.organizationMemberships",
+    "summary": "List SDKWork IAM organization members",
+    "tag": "iam",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "iam.organizations.list",
+    "method": "GET",
+    "operationId": "organizations.list",
+    "path": "/app/v3/api/iam/organizations",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "iam",
+    "permission": "iam.organizations.read",
+    "public": false,
+    "resource": "iam.organizations",
+    "summary": "List SDKWork IAM organizations",
+    "tag": "iam",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "iam.organizations.tree.retrieve",
+    "method": "GET",
+    "operationId": "organizations.tree.retrieve",
+    "path": "/app/v3/api/iam/organizations/tree",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "iam",
+    "permission": "iam.organizations.tree.read",
+    "public": false,
+    "resource": "iam.organizations.tree",
+    "summary": "Get SDKWork IAM organization tree",
+    "tag": "iam",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "iam.roleBindings.list",
+    "method": "GET",
+    "operationId": "roleBindings.list",
+    "path": "/app/v3/api/iam/role_bindings",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "iam",
+    "permission": "iam.roleBindings.read",
+    "public": false,
+    "resource": "iam.roleBindings",
+    "summary": "List SDKWork IAM user role bindings",
+    "tag": "iam",
     "tenantScope": "tenant"
   },
   {

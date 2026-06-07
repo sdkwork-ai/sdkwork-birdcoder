@@ -2500,68 +2500,6 @@
         },
         "additionalProperties": false
       },
-      "BirdCoderIamVerificationCodeCreateRequest": {
-        "type": "object",
-        "properties": {
-          "scene": {
-            "type": "string",
-            "enum": [
-              "LOGIN",
-              "REGISTER",
-              "RESET_PASSWORD"
-            ]
-          },
-          "target": {
-            "type": "string"
-          },
-          "verifyType": {
-            "type": "string",
-            "enum": [
-              "EMAIL",
-              "PHONE"
-            ]
-          }
-        },
-        "required": [
-          "scene",
-          "target",
-          "verifyType"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderIamVerificationCodeVerifyRequest": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "scene": {
-            "type": "string",
-            "enum": [
-              "LOGIN",
-              "REGISTER",
-              "RESET_PASSWORD"
-            ]
-          },
-          "target": {
-            "type": "string"
-          },
-          "verifyType": {
-            "type": "string",
-            "enum": [
-              "EMAIL",
-              "PHONE"
-            ]
-          }
-        },
-        "required": [
-          "code",
-          "scene",
-          "target",
-          "verifyType"
-        ],
-        "additionalProperties": false
-      },
       "BirdCoderIamPasswordResetRequestCreateRequest": {
         "type": "object",
         "properties": {
@@ -10637,138 +10575,6 @@
         "x-sdkwork-tenant-scope": "platform"
       }
     },
-    "/app/v3/api/auth/verification_codes": {
-      "post": {
-        "operationId": "verificationCodes.create",
-        "summary": "Create SDKWork IAM verification code",
-        "description": "Create SDKWork IAM verification code. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderIamVerificationCodeCreateRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Verification code dispatch accepted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Verification code request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.verificationCodes",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
-      }
-    },
-    "/app/v3/api/auth/verification_codes/verify": {
-      "post": {
-        "operationId": "verificationCodes.verify",
-        "summary": "Verify SDKWork IAM verification code",
-        "description": "Verify SDKWork IAM verification code. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "auth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderIamVerificationCodeVerifyRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Verification code checked successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Verification code verify request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Verification code was rejected.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.verificationCodes",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
-      }
-    },
     "/app/v3/api/iam/users/current": {
       "get": {
         "operationId": "users.current.retrieve",
@@ -13547,11 +13353,11 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/backend/v3/api/iam/organizations": {
+    "/app/v3/api/iam/organizations": {
       "get": {
         "operationId": "organizations.list",
         "summary": "List SDKWork IAM organizations",
-        "description": "List SDKWork IAM organizations. Requires an authenticated BirdCoder admin session.",
+        "description": "List SDKWork IAM organizations. Requires an authenticated BirdCoder user session.",
         "tags": [
           "iam"
         ],
@@ -13583,79 +13389,14 @@
             "sdkworkAccessToken": []
           }
         ],
-        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
         "x-sdkwork-permission": "iam.organizations.read",
         "x-sdkwork-public": false,
         "x-sdkwork-resource": "iam.organizations",
-        "x-sdkwork-surface": "backend",
-        "x-sdkwork-tenant-scope": "tenant"
-      },
-      "post": {
-        "operationId": "organizations.create",
-        "summary": "Create SDKWork IAM organization",
-        "description": "Create SDKWork IAM organization. Requires an authenticated BirdCoder admin session.",
-        "tags": [
-          "iam"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderCreateIamOrganizationRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "SDKWork IAM organization created successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderIamOrganizationSummaryEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "SDKWork IAM organization request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "admin",
-        "x-sdkwork-data-scope": "organization",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.create",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations",
-        "x-sdkwork-surface": "backend",
+        "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
@@ -13879,11 +13620,78 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/backend/v3/api/iam/organizations/tree": {
+    "/backend/v3/api/iam/organizations": {
+      "post": {
+        "operationId": "organizations.create",
+        "summary": "Create SDKWork IAM organization",
+        "description": "Create SDKWork IAM organization. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamOrganizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM organization created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamOrganizationSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM organization request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.organizations.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/app/v3/api/iam/organizations/tree": {
       "get": {
         "operationId": "organizations.tree.retrieve",
         "summary": "Get SDKWork IAM organization tree",
-        "description": "Get SDKWork IAM organization tree. Requires an authenticated BirdCoder admin session.",
+        "description": "Get SDKWork IAM organization tree. Requires an authenticated BirdCoder user session.",
         "tags": [
           "iam"
         ],
@@ -13915,35 +13723,24 @@
             "sdkworkAccessToken": []
           }
         ],
-        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
         "x-sdkwork-permission": "iam.organizations.tree.read",
         "x-sdkwork-public": false,
         "x-sdkwork-resource": "iam.organizations.tree",
-        "x-sdkwork-surface": "backend",
+        "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/backend/v3/api/iam/organizations/{organizationId}/members": {
+    "/app/v3/api/iam/organization_memberships": {
       "get": {
-        "operationId": "organizations.members.list",
+        "operationId": "organizationMemberships.list",
         "summary": "List SDKWork IAM organization members",
-        "description": "List SDKWork IAM organization members. Requires an authenticated BirdCoder admin session.",
+        "description": "List SDKWork IAM organization members. Requires an authenticated BirdCoder user session.",
         "tags": [
           "iam"
-        ],
-        "parameters": [
-          {
-            "name": "organizationId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM organization identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "responses": {
           "200": {
@@ -13983,33 +13780,24 @@
             "sdkworkAccessToken": []
           }
         ],
-        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.members.read",
+        "x-sdkwork-permission": "iam.organizationMemberships.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations.members",
-        "x-sdkwork-surface": "backend",
+        "x-sdkwork-resource": "iam.organizationMemberships",
+        "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
-      },
+      }
+    },
+    "/backend/v3/api/iam/organization_memberships": {
       "post": {
-        "operationId": "organizations.members.create",
+        "operationId": "organizationMemberships.create",
         "summary": "Create SDKWork IAM organization member",
         "description": "Create SDKWork IAM organization member. Requires an authenticated BirdCoder admin session.",
         "tags": [
           "iam"
-        ],
-        "parameters": [
-          {
-            "name": "organizationId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM organization identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "requestBody": {
           "required": true,
@@ -14073,16 +13861,16 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.members.create",
+        "x-sdkwork-permission": "iam.organizationMemberships.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations.members",
+        "x-sdkwork-resource": "iam.organizationMemberships",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/backend/v3/api/iam/organizations/{organizationId}/members/{userId}": {
+    "/backend/v3/api/iam/organization_memberships/{membershipId}": {
       "patch": {
-        "operationId": "organizations.members.update",
+        "operationId": "organizationMemberships.update",
         "summary": "Update SDKWork IAM organization member",
         "description": "Update SDKWork IAM organization member. Requires an authenticated BirdCoder admin session.",
         "tags": [
@@ -14090,19 +13878,10 @@
         ],
         "parameters": [
           {
-            "name": "organizationId",
+            "name": "membershipId",
             "in": "path",
             "required": true,
-            "description": "SDKWork IAM organization identifier.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM user identifier.",
+            "description": "SDKWork IAM organization membership identifier.",
             "schema": {
               "type": "string"
             }
@@ -14170,84 +13949,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.members.update",
+        "x-sdkwork-permission": "iam.organizationMemberships.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations.members",
-        "x-sdkwork-surface": "backend",
-        "x-sdkwork-tenant-scope": "tenant"
-      },
-      "delete": {
-        "operationId": "organizations.members.delete",
-        "summary": "Delete SDKWork IAM organization member",
-        "description": "Delete SDKWork IAM organization member. Requires an authenticated BirdCoder admin session.",
-        "tags": [
-          "iam"
-        ],
-        "parameters": [
-          {
-            "name": "organizationId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM organization identifier.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM user identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "SDKWork IAM organization member deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "SDKWork IAM organization member was not found.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "admin",
-        "x-sdkwork-data-scope": "organization",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.members.delete",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations.members",
+        "x-sdkwork-resource": "iam.organizationMemberships",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16516,24 +16220,13 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/backend/v3/api/iam/users/{userId}/roles": {
+    "/app/v3/api/iam/role_bindings": {
       "get": {
-        "operationId": "users.roles.list",
-        "summary": "List SDKWork IAM user roles",
-        "description": "List SDKWork IAM user roles. Requires an authenticated BirdCoder admin session.",
+        "operationId": "roleBindings.list",
+        "summary": "List SDKWork IAM user role bindings",
+        "description": "List SDKWork IAM user role bindings. Requires an authenticated BirdCoder user session.",
         "tags": [
           "iam"
-        ],
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM user identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "responses": {
           "200": {
@@ -16573,33 +16266,24 @@
             "sdkworkAccessToken": []
           }
         ],
-        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.roles.read",
+        "x-sdkwork-permission": "iam.roleBindings.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users.roles",
-        "x-sdkwork-surface": "backend",
+        "x-sdkwork-resource": "iam.roleBindings",
+        "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
-      },
+      }
+    },
+    "/backend/v3/api/iam/role_bindings": {
       "post": {
-        "operationId": "users.roles.create",
-        "summary": "Create SDKWork IAM user role",
-        "description": "Create SDKWork IAM user role. Requires an authenticated BirdCoder admin session.",
+        "operationId": "roleBindings.create",
+        "summary": "Create SDKWork IAM user role binding",
+        "description": "Create SDKWork IAM user role binding. Requires an authenticated BirdCoder admin session.",
         "tags": [
           "iam"
-        ],
-        "parameters": [
-          {
-            "name": "userId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM user identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
         ],
         "requestBody": {
           "required": true,
@@ -16663,36 +16347,27 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.roles.create",
+        "x-sdkwork-permission": "iam.roleBindings.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users.roles",
+        "x-sdkwork-resource": "iam.roleBindings",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/backend/v3/api/iam/users/{userId}/roles/{roleId}": {
+    "/backend/v3/api/iam/role_bindings/{roleBindingId}": {
       "delete": {
-        "operationId": "users.roles.delete",
-        "summary": "Delete SDKWork IAM user role",
-        "description": "Delete SDKWork IAM user role. Requires an authenticated BirdCoder admin session.",
+        "operationId": "roleBindings.delete",
+        "summary": "Delete SDKWork IAM user role binding",
+        "description": "Delete SDKWork IAM user role binding. Requires an authenticated BirdCoder admin session.",
         "tags": [
           "iam"
         ],
         "parameters": [
           {
-            "name": "userId",
+            "name": "roleBindingId",
             "in": "path",
             "required": true,
-            "description": "SDKWork IAM user identifier.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "roleId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM role identifier.",
+            "description": "SDKWork IAM role binding identifier.",
             "schema": {
               "type": "string"
             }
@@ -16740,9 +16415,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.roles.delete",
+        "x-sdkwork-permission": "iam.roleBindings.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users.roles",
+        "x-sdkwork-resource": "iam.roleBindings",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -17050,10 +16725,10 @@
     "docsPath": "/docs",
     "liveOpenApiPath": "/openapi.json",
     "routeCatalogPath": "/app/v3/api/system/routes",
-    "routeCount": 132,
+    "routeCount": 129,
     "routesBySurface": {
-      "app": 78,
-      "backend": 54
+      "app": 80,
+      "backend": 49
     },
     "surfaces": [
       {
@@ -17061,14 +16736,14 @@
         "basePath": "/app/v3/api",
         "description": "Application-facing coding runtime, workspace, project, collaboration, and IAM routes.",
         "name": "app",
-        "routeCount": 78
+        "routeCount": 80
       },
       {
         "authMode": "admin",
         "basePath": "/backend/v3/api",
         "description": "Backend governance, audit, release, deployment, and team-management routes.",
         "name": "backend",
-        "routeCount": 54
+        "routeCount": 49
       }
     ]
   }

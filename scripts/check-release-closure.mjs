@@ -129,7 +129,9 @@ export function validateLatestReleaseRegistryAgainstCanonicalTruth(
 }
 
 function main() {
-  const workflow = read('.github/workflows/release-reusable.yml');
+  const workflow = read('.github/workflows/package.yml');
+  const workflowConfig = read('sdkwork.workflow.json');
+  const lifecycle = read('scripts/release/sdkwork-workflow-lifecycle.mjs');
   const kubernetesValues = read('deploy/kubernetes/values.yaml');
   const kubernetesDeployment = read('deploy/kubernetes/templates/deployment.yaml');
   const kubernetesReadme = read('deploy/kubernetes/README.md');
@@ -181,43 +183,58 @@ function main() {
   );
   assert.match(
     workflow,
-    /docker\/build-push-action@v6/,
-    'release workflow must publish OCI images before kubernetes bundles are finalized',
+    /Sdkwork-Cloud\/sdkwork-github-workflow\/\.github\/workflows\/sdkwork-package\.yml@b1bdb5887f0f9e5683a46a02eaeb818c042b8a33/,
+    'release workflow must use the pinned shared sdkwork-github-workflow package workflow',
   );
   assert.match(
-    workflow,
-    /container-image-metadata-\$\{\{ matrix\.arch \}\}/,
-    'release workflow must persist published image metadata by architecture',
-  );
-  assert.match(
-    workflow,
-    /package-release-assets\.mjs kubernetes[\s\S]*--image-repository \$\{\{ steps\.image_metadata\.outputs\.image_repository \}\}[\s\S]*--image-tag \$\{\{ steps\.image_metadata\.outputs\.image_tag \}\}[\s\S]*--image-digest \$\{\{ steps\.image_metadata\.outputs\.image_digest \}\}/,
-    'release workflow must stamp kubernetes bundles with the published image repository, tag, and digest',
-  );
-  assert.match(
-    workflow,
-    /package-release-assets\.mjs desktop[\s\S]*verify-desktop-installer-trust\.mjs[\s\S]*smoke-desktop-installers\.mjs[\s\S]*smoke-desktop-packaged-launch\.mjs/s,
-    'desktop release workflow must verify installer trust before installer and packaged launch smoke phases',
-  );
-  assert.match(
-    workflow,
-    /run-desktop-release-build\.mjs --profile .* --phase bundle[\s\S]*--bundles \$\{\{ join\(matrix\.bundles, ','\) \}\}/,
-    'desktop release workflow must pass matrix.bundles into the Tauri bundle phase so build intent matches release coverage',
+    workflowConfig,
+    /"aggregateRelease":\s*true/,
+    'release workflow config must use aggregate publication so finalization sees the complete release asset set',
   );
   assert.doesNotMatch(
     workflow,
+    /docker\/build-push-action|azure\/setup-helm|azure\/setup-kubectl|softprops\/action-gh-release/,
+    'local package workflow must not copy framework-owned release actions or deployment setup actions',
+  );
+  assert.match(
+    lifecycle,
+    /docker buildx build/,
+    'BirdCoder lifecycle dispatcher must publish OCI images before kubernetes bundles are finalized',
+  );
+  assert.match(
+    lifecycle,
+    /container-image-metadata/,
+    'BirdCoder lifecycle dispatcher must persist published image metadata by architecture',
+  );
+  assert.match(
+    lifecycle,
+    /package-release-assets\.mjs[\s\S]*kubernetes[\s\S]*--image-repository[\s\S]*--image-tag[\s\S]*--image-digest/,
+    'BirdCoder lifecycle dispatcher must stamp kubernetes bundles with the published image repository, tag, and digest',
+  );
+  assert.match(
+    lifecycle,
+    /package-release-assets\.mjs[\s\S]*desktop[\s\S]*verify-desktop-installer-trust\.mjs[\s\S]*smoke-desktop-installers\.mjs[\s\S]*smoke-desktop-packaged-launch\.mjs/s,
+    'desktop lifecycle must verify installer trust before installer and packaged launch smoke phases',
+  );
+  assert.match(
+    lifecycle,
+    /run-desktop-release-build\.mjs[\s\S]*--phase[\s\S]*bundle[\s\S]*--bundles/,
+    'desktop lifecycle must pass the selected standard bundle into the Tauri bundle phase so build intent matches release coverage',
+  );
+  assert.doesNotMatch(
+    lifecycle,
     /smoke-desktop-startup-evidence\.mjs/,
-    'desktop startup smoke remains a local/manual BirdCoder release check and should not be required in the reusable release workflow',
+    'desktop startup smoke remains a local/manual BirdCoder release check and should not be required in the package lifecycle',
   );
   assert.doesNotMatch(
-    workflow,
+    lifecycle,
     /smoke-release-assets\.mjs web/,
-    'web release smoke should stay aligned with the Claw reusable release workflow and not add an extra web smoke step',
+    'web release smoke should use the dedicated web smoke verifier and not add an extra generic web smoke step',
   );
   assert.match(
-    workflow,
-    /render-release-notes\.mjs --release-tag .* --output release-assets\/release-notes\.md[\s\S]*finalize-release-assets\.mjs[\s\S]*smoke-finalized-release-assets\.mjs --release-assets-dir release-assets[\s\S]*Attest finalized release assets[\s\S]*write-attestation-evidence\.mjs --profile \$\{\{ inputs\.release_profile \}\} --release-assets-dir release-assets --repository \$\{\{ github\.repository \}\} --release-tag \$\{\{ needs\.prepare\.outputs\.release_tag \}\}[\s\S]*assert-release-readiness\.mjs --profile \$\{\{ inputs\.release_profile \}\} --release-assets-dir release-assets/,
-    'release workflow must render notes before finalization, finalize and smoke immutable assets, attest them, write attestation evidence, and assert readiness',
+    lifecycle,
+    /render-release-notes\.mjs[\s\S]*release-notes\.md[\s\S]*finalize-release-assets\.mjs[\s\S]*smoke-finalized-release-assets\.mjs[\s\S]*write-attestation-evidence\.mjs[\s\S]*assert-release-readiness\.mjs/,
+    'aggregate publish lifecycle must render notes before finalization, finalize and smoke immutable assets, write attestation evidence, and assert readiness',
   );
   assert.match(
     kubernetesReadme,

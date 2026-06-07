@@ -11,6 +11,18 @@ type IamWorkspacesMembersListPathParams = Types.IamWorkspacesMembersListPathPara
 type IamWorkspacesMembersUpsertPathParams = Types.IamWorkspacesMembersUpsertPathParams;
 
 export interface IamApi {
+  organizationMemberships: {
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationMemberSummaryListEnvelope>;
+  };
+  organizations: {
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationSummaryListEnvelope>;
+    tree: {
+      retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamOrganizationSummaryListEnvelope>;
+    };
+  };
+  roleBindings: {
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamUserRoleSummaryListEnvelope>;
+  };
   users: {
     current: {
       retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamUserProfileEnvelope>;
@@ -27,6 +39,26 @@ export interface IamApi {
 
 export function createIamApi(requestOperation: BirdcoderSdkRequestOperation): IamApi {
   return {
+    organizationMemberships: {
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamOrganizationMemberSummaryListEnvelope>("iam.organizationMemberships.list", {}, options);
+      }
+    },
+    organizations: {
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamOrganizationSummaryListEnvelope>("iam.organizations.list", {}, options);
+      },
+      tree: {
+        retrieve(options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderIamOrganizationSummaryListEnvelope>("iam.organizations.tree.retrieve", {}, options);
+        }
+      }
+    },
+    roleBindings: {
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderIamUserRoleSummaryListEnvelope>("iam.roleBindings.list", {}, options);
+      }
+    },
     users: {
       current: {
         retrieve(options: BirdcoderSdkRequestOptions = {}) {

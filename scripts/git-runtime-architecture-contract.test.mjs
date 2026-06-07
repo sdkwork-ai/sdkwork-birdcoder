@@ -121,9 +121,21 @@ assert.match(
 );
 
 assert.match(
+  gitPackageSource,
+  /Command::new\("git"\)/,
+  'Git runtime package must use the system git CLI adapter so native checks stay repeatable in restricted offline SDKWork runners.',
+);
+
+assert.doesNotMatch(
   gitPackageCargoSource,
-  /git2 = \{ version = "0\.20\.4", features = \["vendored-libgit2"\] \}/,
-  'Git runtime package must standardize on vendored libgit2-backed git2 for deterministic host builds.',
+  /git2|libgit2-sys/,
+  'Git runtime package must not depend on git2 or libgit2-sys because those vendored registry crates are not available in restricted offline SDKWork runners.',
+);
+
+assert.doesNotMatch(
+  gitPackageSource,
+  /use git2::|git2::|Repository::/,
+  'Git runtime implementation must not import raw git2 APIs after the CLI adapter migration.',
 );
 
 assert.match(

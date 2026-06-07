@@ -1,0 +1,20 @@
+export interface BirdCoderNativeSessionSummary {
+  id: string;
+  workspaceId: string;
+  projectId: string;
+  title: string;
+  status: 'draft' | 'active' | 'paused' | 'completed' | 'archived';
+  hostMode: 'web' | 'desktop' | 'server';
+  engineId: 'codex' | 'claude-code' | 'gemini' | 'opencode';
+  modelId?: string;
+  nativeSessionId?: string;
+  createdAt: string;
+  updatedAt: string;
+  lastTurnAt?: string;
+  /** Normalized activity timestamp in epoch milliseconds used for sorting. */
+  sortTimestamp: string;
+  /** Most recent transcript mutation timestamp, when available. */
+  transcriptUpdatedAt?: string | null;
+  kind: 'coding';
+  nativeCwd?: string | null;
+}

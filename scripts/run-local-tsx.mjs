@@ -110,6 +110,23 @@ export function createLocalTsxPlan({
 } = {}) {
   const workspaceRootDir = resolveWorkspaceRootDir();
   const args = Array.isArray(argv) ? [...argv] : [];
+  const tsxPackageRoot = resolveInstalledTsxPackageRoot({
+    cwd,
+    workspaceRootDir,
+  });
+  if (!tsxPackageRoot) {
+    return {
+      command: process.execPath,
+      args: [
+        '--experimental-strip-types',
+        ...stripTsxOnlyArgs(args),
+      ],
+      cwd,
+      env: process.env,
+      runner: 'node-strip-types',
+    };
+  }
+
   const hasExplicitTsconfig = args.some((arg) => arg === '--tsconfig');
   const runtimeTsconfigArgs = hasExplicitTsconfig
     ? []
@@ -124,7 +141,21 @@ export function createLocalTsxPlan({
     ],
     cwd,
     env: process.env,
+    runner: 'tsx',
   };
+}
+
+function stripTsxOnlyArgs(argv) {
+  const args = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const token = argv[index];
+    if (token === '--tsconfig') {
+      index += 1;
+      continue;
+    }
+    args.push(token);
+  }
+  return args;
 }
 
 export async function runLocalTsxCli({
