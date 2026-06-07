@@ -258,18 +258,28 @@ assert.match(
 );
 assert.match(
   infrastructureIamRuntimeSource,
-  /createIamRuntime/u,
-  'birdcoder infrastructure must create the standard SDKWork IAM runtime.',
+  /createSdkworkAppbasePcAuthRuntime/u,
+  'birdcoder infrastructure must use the high-level appbase PC auth runtime factory.',
+);
+assert.doesNotMatch(
+  infrastructureIamRuntimeSource,
+  /@sdkwork\/iam-sdk-adapter|createIamSdkAdapters|createIamRuntime\(/u,
+  'birdcoder infrastructure must not wire low-level IAM SDK adapters directly in product code.',
 );
 assert.match(
   infrastructureSessionServiceSource,
   /getBirdCoderIamRuntime/u,
   'birdcoder infrastructure session service must use the standard appbase IAM runtime boundary.',
 );
-assert.match(
+assert.doesNotMatch(
   infrastructureSessionServiceSource,
   /runtime\.service\.auth\.sessions\.create/u,
-  'birdcoder infrastructure must create app sessions through the appbase IAM runtime service.',
+  'birdcoder infrastructure must not create session_bridge sessions in product code; appbase owns login/session creation.',
+);
+assert.match(
+  infrastructureSessionServiceSource,
+  /runtime\.service\.auth\.sessions\.current\.retrieve/u,
+  'birdcoder infrastructure must restore app sessions through the appbase current-session resource.',
 );
 assert.match(
   infrastructureSessionServiceSource,

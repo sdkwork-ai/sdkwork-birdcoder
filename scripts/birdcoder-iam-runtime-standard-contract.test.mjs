@@ -88,9 +88,14 @@ assertMatch(
   'sdkwork-birdcoder-infrastructure must declare @sdkwork/iam-sdk-ports directly for generated client validation.',
 );
 assertMatch(
-  infrastructurePackageJson.dependencies?.['@sdkwork/iam-sdk-adapter'] ?? '',
+  infrastructurePackageJson.dependencies?.['@sdkwork/auth-runtime-pc-react'] ?? '',
   /workspace:\*/u,
-  'sdkwork-birdcoder-infrastructure must declare @sdkwork/iam-sdk-adapter directly for generated appbase IAM client adaptation.',
+  'sdkwork-birdcoder-infrastructure must consume the high-level appbase PC auth runtime factory.',
+);
+assert.equal(
+  infrastructurePackageJson.dependencies?.['@sdkwork/iam-sdk-adapter'],
+  undefined,
+  'sdkwork-birdcoder-infrastructure must not depend on the low-level IAM SDK adapter directly.',
 );
 for (const dependencyName of [
   '@sdkwork/appbase-app-sdk',
@@ -197,13 +202,13 @@ assertMatch(
 );
 assertMatch(
   iamRuntimeSource,
-  /from ['"]@sdkwork\/iam-sdk-adapter['"]/u,
-  'BirdCoder IAM runtime must adapt generated appbase SDK clients through the standard IAM SDK adapter package.',
+  /from ['"]@sdkwork\/auth-runtime-pc-react['"]/u,
+  'BirdCoder IAM runtime must consume the high-level appbase PC auth runtime factory.',
 );
 assertMatch(
   iamRuntimeSource,
-  /createIamSdkAdapters/u,
-  'BirdCoder IAM runtime must use createIamSdkAdapters before passing appbase IAM clients to createIamRuntime.',
+  /createSdkworkAppbasePcAuthRuntime/u,
+  'BirdCoder IAM runtime must use createSdkworkAppbasePcAuthRuntime instead of product-local low-level IAM wiring.',
 );
 assertMatch(
   iamRuntimeSource,
@@ -217,23 +222,23 @@ assertMatch(
 );
 assertMatch(
   iamRuntimeSource,
-  /createTokenManager/u,
-  'BirdCoder IAM runtime must create one explicit global TokenManager for the authenticated session context.',
+  /getBirdCoderGlobalTokenManager/u,
+  'BirdCoder IAM runtime must use one explicit global TokenManager for the authenticated session context.',
 );
 assertMatch(
   iamRuntimeSource,
-  /clients:\s*\{[\s\S]*appbaseApp[\s\S]*appbaseBackend[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp[\s\S]*messagingApp/u,
-  'BirdCoder IAM runtime must call createIamRuntime with appbase clients and BirdCoder, Drive, and Messaging downstream SDK clients.',
+  /createSdkworkAppbasePcAuthRuntime\(\{[\s\S]*createAppbaseAppClient[\s\S]*createAppbaseBackendClient[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp[\s\S]*messagingApp[\s\S]*tokenManager/u,
+  'BirdCoder IAM runtime must pass appbase factories and BirdCoder, Drive, and Messaging downstream SDK clients to the high-level appbase runtime.',
 );
 assertNoMatch(
   iamRuntimeSource,
-  /createIamRuntime\(\{[\s\S]*clients:\s*\{[\s\S]*(appbaseApp:\s*rawAppbaseApp|appbaseBackend:\s*rawAppbaseBackend)/u,
-  'BirdCoder IAM runtime must not pass raw generated appbase clients directly into createIamRuntime.',
+  /@sdkwork\/iam-sdk-adapter|createIamSdkAdapters|createIamAppSdkAdapter|createIamBackendSdkAdapter|createIamRuntime\(/u,
+  'BirdCoder IAM runtime must not import IAM SDK adapters or call createIamRuntime directly in product code.',
 );
 assertMatch(
   iamRuntimeSource,
   /tokenManager,/u,
-  'BirdCoder IAM runtime must pass the same explicit TokenManager to createIamRuntime.',
+  'BirdCoder IAM runtime must pass the same explicit TokenManager to the appbase auth runtime factory.',
 );
 assertNoMatch(
   iamRuntimeSource,

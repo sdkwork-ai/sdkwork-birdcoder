@@ -62,13 +62,18 @@ assert.match(
 
 assert.match(
   iamRuntimeSource,
-  /createAppbaseAppSdkClient\(\{[\s\S]*baseUrl:\s*sdkBaseUrls\.appbaseAppApiBaseUrl[\s\S]*tokenManager/u,
-  'BirdCoder IAM runtime must construct the appbase app SDK client as the login/session authority.',
+  /createAppbaseAppClient:\s*\(\)\s*=>\s*createAppbaseAppSdkClient\(\{[\s\S]*baseUrl:\s*sdkBaseUrls\.appbaseAppApiBaseUrl[\s\S]*tokenManager/u,
+  'BirdCoder IAM runtime must provide the appbase app SDK factory to the high-level appbase auth runtime.',
 );
 assert.match(
   iamRuntimeSource,
-  /createIamRuntime\(\{[\s\S]*clients:\s*\{[\s\S]*appbaseApp[\s\S]*appbaseBackend[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp/u,
-  'BirdCoder IAM runtime must compose appbase, BirdCoder product, and Drive SDK clients through the standard runtime clients shape.',
+  /createSdkworkAppbasePcAuthRuntime\(\{[\s\S]*createAppbaseAppClient[\s\S]*createAppbaseBackendClient[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp/u,
+  'BirdCoder IAM runtime must compose appbase, BirdCoder product, and Drive SDK clients through the high-level appbase auth runtime.',
+);
+assert.doesNotMatch(
+  iamRuntimeSource,
+  /@sdkwork\/iam-sdk-adapter|createIamSdkAdapters|createIamRuntime\(/u,
+  'BirdCoder IAM runtime must not wire low-level IAM adapters in product code.',
 );
 
 console.log('auth surface successful login adoption contract passed.');
