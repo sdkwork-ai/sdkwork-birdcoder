@@ -1,0 +1,35 @@
+[workspace]
+members = [
+    "packages/sdkwork-birdcoder-server/src-host",
+    "packages/sdkwork-birdcoder-desktop/src-tauri",
+    "packages/sdkwork-birdcoder-codeengine/src-host",
+    "packages/sdkwork-birdcoder-git/src-host",
+    "packages/sdkwork-birdcoder-host-studio/src-host",
+]
+exclude = [
+    "sdks",
+    "external",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Commercial"
+authors = ["sdkwork"]
+
+[workspace.dependencies]
+# Intra-birdcoder workspace members (declared once at the root)
+sdkwork-birdcoder-codeengine = { path = "packages/sdkwork-birdcoder-codeengine/src-host" }
+sdkwork-birdcoder-git = { path = "packages/sdkwork-birdcoder-git/src-host" }
+sdkwork-birdcoder-server = { path = "packages/sdkwork-birdcoder-server/src-host" }
+# Cross-repo SDKWork sources (declared once at the root)
+sdkwork_iam_core = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-core-rust" }
+sdkwork_iam_http = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-http-rust" }
+sdkwork_iam_storage_sqlx = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust" }
+sdkwork_iam_tauri = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-tauri-rust" }
+sdkwork-terminal-control-plane = { path = "../sdkwork-terminal/crates/sdkwork-terminal-control-plane" }
+sdkwork-terminal-pty-runtime = { path = "../sdkwork-terminal/crates/sdkwork-terminal-pty-runtime" }
+sdkwork-terminal-protocol = { path = "../sdkwork-terminal/crates/sdkwork-terminal-protocol" }
+sdkwork-terminal-replay-store = { path = "../sdkwork-terminal/crates/sdkwork-terminal-replay-store" }
+sdkwork-terminal-session-runtime = { path = "../sdkwork-terminal/crates/sdkwork-terminal-session-runtime" }

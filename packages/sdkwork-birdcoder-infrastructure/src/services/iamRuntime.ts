@@ -1,16 +1,14 @@
 import {
-  createIamRuntime,
-  type IamRuntime,
-  type IamTokenStore,
-} from '@sdkwork/iam-runtime';
-import type { IamStoredSession } from '@sdkwork/iam-service';
+  createSdkworkAppbasePcAuthRuntime,
+  type SdkworkAppbasePcAuthRuntimeComposition,
+  type SdkworkAppbasePcAuthRuntimeSdkClient,
+} from '@sdkwork/auth-runtime-pc-react';
+import type { IamRuntime } from '@sdkwork/iam-runtime';
 import { createClient as createAppbaseAppSdkClient } from '@sdkwork/appbase-app-sdk';
 import { createClient as createAppbaseBackendSdkClient } from '@sdkwork/appbase-backend-sdk';
 import { BIRDCODER_DEFAULT_LOCAL_API_BASE_URL } from '@sdkwork/birdcoder-host-core';
 import { createDriveAppClient } from '@sdkwork/drive-app-sdk';
-import { createIamSdkAdapters } from '@sdkwork/iam-sdk-adapter';
 import { createClient as createMessagingAppSdkClient } from '@sdkwork/messaging-app-sdk';
-import { createTokenManager } from '@sdkwork/sdk-common';
 import {
   APP_SESSION_CHANGE_EVENT_NAME,
   clearStoredAppSessionToken,
@@ -21,32 +19,25 @@ import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeService
 import {
   getBirdCoderGeneratedAppSdkClient,
   getBirdCoderGeneratedBackendSdkClient,
+  getBirdCoderGlobalTokenManager,
   resetBirdCoderSdkClients,
   setBirdCoderSdkTokenManager,
 } from './sdkClients.ts';
 
-let runtime: IamRuntime | null = null;
+let runtimeComposition: SdkworkAppbasePcAuthRuntimeComposition | null = null;
 let sessionChangeListenerRegistered = false;
 
 export function createBirdCoderIamRuntime(): IamRuntime {
+  return createBirdCoderIamRuntimeComposition().runtime;
+}
+
+export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRuntimeComposition {
   registerBirdCoderIamRuntimeSessionChangeListener();
-  const tokenManager = createTokenManager();
-  const tokenStore = createBirdCoderIamTokenStore();
+
+  const tokenManager = getBirdCoderGlobalTokenManager();
   const sdkBaseUrls = resolveBirdCoderRuntimeSdkBaseUrls();
   setBirdCoderSdkTokenManager(tokenManager);
 
-  const rawAppbaseApp = createAppbaseAppSdkClient({
-    baseUrl: sdkBaseUrls.appbaseAppApiBaseUrl,
-    tokenManager,
-  });
-  const rawAppbaseBackend = createAppbaseBackendSdkClient({
-    baseUrl: sdkBaseUrls.appbaseBackendApiBaseUrl,
-    tokenManager,
-  });
-  const { appbaseApp, appbaseBackend } = createIamSdkAdapters({
-    appbaseApp: rawAppbaseApp,
-    appbaseBackend: rawAppbaseBackend,
-  });
   const birdcoderApp = getBirdCoderGeneratedAppSdkClient({
     apiBaseUrl: sdkBaseUrls.birdcoderAppApiBaseUrl,
     tokenManager,
@@ -56,34 +47,58 @@ export function createBirdCoderIamRuntime(): IamRuntime {
     tokenManager,
   });
   const driveApp = createDriveAppClient({
+    authMode: 'dual-token',
     baseUrl: sdkBaseUrls.driveAppApiBaseUrl,
+    platform: 'pc',
     tokenManager,
   });
   const messagingApp = createMessagingAppSdkClient({
+    authMode: 'dual-token',
     baseUrl: sdkBaseUrls.messagingAppApiBaseUrl,
+    platform: 'pc',
     tokenManager,
   });
 
-  return createIamRuntime({
-    clients: {
-      appbaseApp,
-      appbaseBackend,
-      sdkClients: [
-        birdcoderApp,
-        birdcoderBackend,
-        driveApp,
-        messagingApp,
-      ],
-    },
-    config: {
+  return createSdkworkAppbasePcAuthRuntime({
+    app: {
       appId: readBirdCoderRuntimeEnv('VITE_SDKWORK_APP_ID') ?? 'sdkwork-birdcoder',
-      appApiBaseUrl: sdkBaseUrls.appbaseAppApiBaseUrl,
-      backendApiBaseUrl: sdkBaseUrls.appbaseBackendApiBaseUrl,
       deploymentMode: readIamDeploymentMode() ?? 'private',
       environment: readIamEnvironment() ?? 'dev',
+      platform: 'pc',
+    },
+    baseUrls: {
+      appbaseAppApiBaseUrl: sdkBaseUrls.appbaseAppApiBaseUrl,
+      appbaseBackendApiBaseUrl: sdkBaseUrls.appbaseBackendApiBaseUrl,
+    },
+    createAppbaseAppClient: () => createAppbaseAppSdkClient({
+      authMode: 'dual-token',
+      baseUrl: sdkBaseUrls.appbaseAppApiBaseUrl,
+      platform: 'pc',
+      tokenManager,
+    }),
+    createAppbaseBackendClient: () => createAppbaseBackendSdkClient({
+      authMode: 'dual-token',
+      baseUrl: sdkBaseUrls.appbaseBackendApiBaseUrl,
+      platform: 'pc',
+      tokenManager,
+    }),
+    hooks: {
+      onSessionChanged: () => {
+        resetBirdCoderSdkClients();
+      },
+    },
+    sdkClients: [
+      birdcoderApp,
+      birdcoderBackend,
+      driveApp,
+      messagingApp,
+    ] as SdkworkAppbasePcAuthRuntimeSdkClient[],
+    sessionBridge: {
+      clearSession: clearBirdCoderIamRuntimeSession,
+      commitSession: (session) => commitBirdCoderIamRuntimeSession(session),
+      readSession: loadStoredAppSessionToken,
     },
     tokenManager,
-    tokenStore,
   });
 }
 
@@ -143,14 +158,25 @@ function resolveBirdCoderRuntimeSdkBaseUrl(envNames: readonly string[]): string 
 
 export function getBirdCoderIamRuntime(): IamRuntime {
   registerBirdCoderIamRuntimeSessionChangeListener();
-  if (!runtime) {
-    runtime = createBirdCoderIamRuntime();
+  if (!runtimeComposition) {
+    runtimeComposition = createBirdCoderIamRuntimeComposition();
   }
-  return runtime;
+  return runtimeComposition.runtime;
 }
 
 export function resetBirdCoderIamRuntime(): void {
-  runtime = null;
+  runtimeComposition = null;
+}
+
+function clearBirdCoderIamRuntimeSession(): void {
+  clearStoredAppSessionToken();
+  resetBirdCoderSdkClients();
+}
+
+function commitBirdCoderIamRuntimeSession(session: unknown): ReturnType<typeof storeAppSessionFromResult> {
+  const stored = storeAppSessionFromResult(session);
+  resetBirdCoderSdkClients();
+  return stored;
 }
 
 function registerBirdCoderIamRuntimeSessionChangeListener(): void {
@@ -165,35 +191,12 @@ function registerBirdCoderIamRuntimeSessionChangeListener(): void {
       handleBirdCoderIamRuntimeSessionChange,
     );
   } catch {
-    // Non-browser runtimes still use the token store directly; there is no global event target to bind.
+    // Non-browser runtimes still use the session bridge directly; there is no global event target to bind.
   }
 }
 
 function handleBirdCoderIamRuntimeSessionChange(): void {
   resetBirdCoderIamRuntime();
-}
-
-export function createBirdCoderIamTokenStore(): IamTokenStore {
-  return {
-    clear: () => {
-      clearStoredAppSessionToken();
-      resetBirdCoderSdkClients();
-    },
-    get: (): IamStoredSession => {
-      const stored = loadStoredAppSessionToken();
-      return stored
-        ? {
-            accessToken: stored.accessToken,
-            authToken: stored.authToken,
-            refreshToken: stored.refreshToken,
-          }
-        : {};
-    },
-    set: (session: IamStoredSession) => {
-      storeAppSessionFromResult(session);
-      resetBirdCoderSdkClients();
-    },
-  };
 }
 
 export function readBirdCoderRuntimeEnv(name: string): string | undefined {

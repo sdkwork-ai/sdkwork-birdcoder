@@ -23,7 +23,7 @@ import {
   type BirdcoderBackendSdkClient,
   type IamTeamsListQuery as BackendIamTeamsListQuery,
 } from '@sdkwork/birdcoder-backend-sdk';
-import type { AuthTokenManager } from '@sdkwork/sdk-common';
+import { createTokenManager, type AuthTokenManager } from '@sdkwork/sdk-common';
 import type {
   BirdCoderApiRouteCatalogEntry,
   BirdCoderApiTransport,
@@ -572,6 +572,13 @@ export function getBirdCoderGeneratedBackendSdkClient(
     });
   }
   return generatedBackendClient;
+}
+
+export function getBirdCoderGlobalTokenManager(): AuthTokenManager {
+  if (!defaultBirdCoderSdkTokenManager) {
+    defaultBirdCoderSdkTokenManager = createTokenManager();
+  }
+  return defaultBirdCoderSdkTokenManager;
 }
 
 export function setBirdCoderSdkTokenManager(tokenManager: AuthTokenManager): void {

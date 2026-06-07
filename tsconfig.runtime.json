@@ -27,6 +27,9 @@
       "@sdkwork/appbase-backend-sdk": [
         "../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
+      "@sdkwork/auth-runtime-pc-react": [
+        "../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts"
+      ],
       "@sdkwork/drive-app-sdk": [
         "../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
       ],

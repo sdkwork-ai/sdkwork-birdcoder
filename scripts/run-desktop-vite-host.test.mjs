@@ -35,6 +35,8 @@ assert.deepEqual(parseArgs(['serve', '--host', '127.0.0.1', '--port', '1520', '-
 const rootDir = process.cwd();
 const desktopRootDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
 const rootNodeModulesDir = path.join(rootDir, 'node_modules');
+const dependencyPath = (dependencyId, ...relativePathParts) =>
+  path.resolve(rootDir, '..', dependencyId, ...relativePathParts);
 const config = createDesktopViteServerConfig({
   argv: ['--host', '127.0.0.1', '--port', '1520', '--strictPort', '--mode', 'test'],
   env: {
@@ -244,7 +246,7 @@ const terminalDesktopAlias = findAlias(
 );
 assert.equal(
   terminalDesktopAlias.replacement,
-  path.resolve(desktopRootDir, '../../../sdkwork-terminal/apps/desktop/src/index.ts'),
+  dependencyPath('sdkwork-terminal', 'apps/desktop/src/index.ts'),
 );
 
 const terminalPackageSubpathAlias = findAlias(
@@ -254,7 +256,7 @@ const terminalPackageSubpathAlias = findAlias(
 );
 assert.equal(
   terminalPackageSubpathAlias.replacement,
-  path.resolve(desktopRootDir, '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src/$2'),
+  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src/$2'),
 );
 
 const terminalPackageRootAlias = findAlias(
@@ -263,7 +265,7 @@ const terminalPackageRootAlias = findAlias(
 );
 assert.equal(
   terminalPackageRootAlias.replacement,
-  path.resolve(desktopRootDir, '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src'),
+  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src'),
 );
 assert.notEqual(
   birdcoderPackageSubpathAlias.replacement,
@@ -276,14 +278,14 @@ assert.equal(config.server.strictPort, true);
 assert.equal(config.server.hmr, false);
 assert.deepEqual(config.server.fs.allow, [
   path.resolve(desktopRootDir, '../..'),
-  path.resolve(rootDir, '..', 'sdkwork-appbase'),
-  path.resolve(rootDir, '..', 'sdkwork-core'),
-  path.resolve(rootDir, '..', 'sdkwork-drive'),
-  path.resolve(rootDir, '..', 'sdkwork-messaging'),
-  path.resolve(rootDir, '..', 'sdkwork-sdk-commons'),
-  path.resolve(rootDir, '..', 'sdkwork-search'),
-  path.resolve(rootDir, '..', 'sdkwork-ui'),
-  path.resolve(rootDir, '..', 'sdkwork-terminal'),
+  dependencyPath('sdkwork-appbase'),
+  dependencyPath('sdkwork-core'),
+  dependencyPath('sdkwork-drive'),
+  dependencyPath('sdkwork-messaging'),
+  dependencyPath('sdkwork-sdk-commons'),
+  dependencyPath('sdkwork-search'),
+  dependencyPath('sdkwork-ui'),
+  dependencyPath('sdkwork-terminal'),
 ]);
 
 const uiRequire = createRequire(path.join(rootDir, 'packages', 'sdkwork-birdcoder-ui', 'package.json'));
@@ -294,7 +296,7 @@ const defaultLucideProbePath = `http://127.0.0.1:1520/@fs/${path
   .join(lucidePackageDir, 'esm', 'Icon.js')
   .replace(/\\/g, '/')}`;
 const defaultTerminalInfrastructureProbePath = `http://127.0.0.1:1520/@fs/${path
-  .resolve(rootDir, '..', 'sdkwork-terminal', 'packages', 'sdkwork-terminal-infrastructure', 'src', 'index.ts')
+  .resolve(dependencyPath('sdkwork-terminal', 'packages', 'sdkwork-terminal-infrastructure', 'src', 'index.ts'))
   .replace(/\\/g, '/')}`;
 const defaultBirdcoderTerminalRuntimeProbePath = `http://127.0.0.1:1520/@fs/${path
   .resolve(resolveBirdcoderTerminalInfrastructureRuntimePath(desktopRootDir))
@@ -317,11 +319,8 @@ assert.equal(
 );
 assert.equal(
   resolveSdkworkTerminalInfrastructureEntryPath(desktopRootDir),
-  path.resolve(
-    desktopRootDir,
-    '../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/index.ts',
-  ),
-  'Shared terminal path resolver must return the canonical sdkwork-terminal infrastructure entry path.',
+  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-infrastructure/src/index.ts'),
+  'Shared terminal path resolver must return the sdkwork-terminal workspace infrastructure entry path.',
 );
 assert.match(
   desktopViteHostSource,

@@ -164,6 +164,7 @@ assert.equal(
 for (const dependencyName of [
   '@sdkwork/appbase-app-sdk',
   '@sdkwork/appbase-backend-sdk',
+  '@sdkwork/auth-runtime-pc-react',
   '@sdkwork/drive-app-sdk',
   '@sdkwork/messaging-app-sdk',
   '@sdkwork/sdk-common',
@@ -191,27 +192,32 @@ for (const [label, config] of [
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/appbase-app-sdk'],
-    ['../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts'],
+    ['../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts'],
     `${label} must resolve @sdkwork/appbase-app-sdk to the dependency generated app SDK package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/appbase-backend-sdk'],
-    ['../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts'],
+    ['../../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts'],
     `${label} must resolve @sdkwork/appbase-backend-sdk to the dependency generated backend SDK package entry.`,
   );
   assert.deepEqual(
+    config.compilerOptions?.paths?.['@sdkwork/auth-runtime-pc-react'],
+    ['../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts'],
+    `${label} must resolve @sdkwork/auth-runtime-pc-react to the high-level appbase auth runtime package entry.`,
+  );
+  assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/drive-app-sdk'],
-    ['../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts'],
+    ['../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts'],
     `${label} must resolve @sdkwork/drive-app-sdk to the dependency app SDK package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/messaging-app-sdk'],
-    ['../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts'],
+    ['../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts'],
     `${label} must resolve @sdkwork/messaging-app-sdk to the dependency app SDK package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/sdk-common'],
-    ['../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts'],
+    ['../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts'],
     `${label} must resolve @sdkwork/sdk-common to the shared SDK common package entry.`,
   );
 }
@@ -242,27 +248,32 @@ assert.match(
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-appbase\/sdks\/sdkwork-appbase-app-sdk\/sdkwork-appbase-app-sdk-typescript\/generated\/server-openapi/u,
+  /\.sdkwork\/dependencies\/sdkwork-appbase\/sdks\/sdkwork-appbase-app-sdk\/sdkwork-appbase-app-sdk-typescript\/generated\/server-openapi/u,
   'pnpm workspace must include the appbase app SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-appbase\/sdks\/sdkwork-appbase-backend-sdk\/sdkwork-appbase-backend-sdk-typescript\/generated\/server-openapi/u,
+  /\.sdkwork\/dependencies\/sdkwork-appbase\/sdks\/sdkwork-appbase-backend-sdk\/sdkwork-appbase-backend-sdk-typescript\/generated\/server-openapi/u,
   'pnpm workspace must include the appbase backend SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-drive\/sdks\/sdkwork-drive-app-sdk\/sdkwork-drive-app-sdk-typescript/u,
+  /\.sdkwork\/dependencies\/sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-auth-runtime-pc-react/u,
+  'pnpm workspace must include the appbase high-level auth runtime dependency package.',
+);
+assert.match(
+  workspace,
+  /\.sdkwork\/dependencies\/sdkwork-drive\/sdks\/sdkwork-drive-app-sdk\/sdkwork-drive-app-sdk-typescript/u,
   'pnpm workspace must include the Drive app SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-messaging\/sdks\/sdkwork-messaging-app-sdk\/sdkwork-messaging-app-sdk-typescript\/generated\/server-openapi/u,
+  /\.sdkwork\/dependencies\/sdkwork-messaging\/sdks\/sdkwork-messaging-app-sdk\/sdkwork-messaging-app-sdk-typescript\/generated\/server-openapi/u,
   'pnpm workspace must include the Messaging app SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-sdk-commons\/sdkwork-sdk-common-typescript/u,
+  /\.sdkwork\/dependencies\/sdkwork-sdk-commons\/sdkwork-sdk-common-typescript/u,
   'pnpm workspace must include the shared SDK common dependency package.',
 );
 
@@ -270,6 +281,7 @@ const vitePluginSource = read('scripts/create-birdcoder-vite-plugins.mjs');
 for (const dependencySpecifier of [
   '@sdkwork/appbase-app-sdk',
   '@sdkwork/appbase-backend-sdk',
+  '@sdkwork/auth-runtime-pc-react',
   '@sdkwork/drive-app-sdk',
   '@sdkwork/messaging-app-sdk',
   '@sdkwork/sdk-common',

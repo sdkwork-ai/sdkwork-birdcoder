@@ -68,6 +68,42 @@ on:
           - dmg
           - tar.gz
           - helm
+      sdkwork_appbase_ref:
+        description: sdkwork-appbase commit/ref.
+        required: false
+        default: b74a1413d387c803b524df96dc150fb02ce8c25f
+      sdkwork_core_ref:
+        description: sdkwork-core commit/ref.
+        required: false
+        default: 864d0264d9e170ea0d1820402f46195be62fecf6
+      sdkwork_ui_ref:
+        description: sdkwork-ui commit/ref.
+        required: false
+        default: e2dea9c788f93c3a59d25c1791c7bb8c0ad0bb38
+      sdkwork_drive_ref:
+        description: sdkwork-drive commit/ref.
+        required: false
+        default: 20966a79da72984a67495c329416a10715b4857e
+      sdkwork_messaging_ref:
+        description: sdkwork-messaging commit/ref.
+        required: false
+        default: 3d403ddf424dcdfb441d34d4ee71e942bb041498
+      sdkwork_sdk_commons_ref:
+        description: sdkwork-sdk-commons commit/ref.
+        required: false
+        default: c9adc5a02fed0d9ce70ab719e5d2155ed40676da
+      sdkwork_search_ref:
+        description: sdkwork-search commit/ref.
+        required: false
+        default: b209e9477549a2e8984e3390253457584cf8a8ba
+      sdkwork_terminal_ref:
+        description: sdkwork-terminal commit/ref.
+        required: false
+        default: c1ede947442bf65ac0b3f7b370891d3664cff8e7
+      sdkwork_sdk_generator_ref:
+        description: sdkwork-sdk-generator commit/ref.
+        required: false
+        default: 0b0e984ffbdec49a28c2da3edebcdddab4087e62
 
 permissions:
   contents: write
@@ -93,5 +129,16 @@ jobs:
       deploy: false
       retention_days: 30
       framework_ref: b1bdb5887f0f9e5683a46a02eaeb818c042b8a33
-      dependency_refs_json: '{}'
+      dependency_refs_json: >-
+        {
+          "SDKWORK_APPBASE_REF": "${{ github.event.inputs.sdkwork_appbase_ref || vars.SDKWORK_APPBASE_REF }}",
+          "SDKWORK_CORE_REF": "${{ github.event.inputs.sdkwork_core_ref || vars.SDKWORK_CORE_REF }}",
+          "SDKWORK_UI_REF": "${{ github.event.inputs.sdkwork_ui_ref || vars.SDKWORK_UI_REF }}",
+          "SDKWORK_DRIVE_REF": "${{ github.event.inputs.sdkwork_drive_ref || vars.SDKWORK_DRIVE_REF }}",
+          "SDKWORK_MESSAGING_REF": "${{ github.event.inputs.sdkwork_messaging_ref || vars.SDKWORK_MESSAGING_REF }}",
+          "SDKWORK_SDK_COMMONS_REF": "${{ github.event.inputs.sdkwork_sdk_commons_ref || vars.SDKWORK_SDK_COMMONS_REF }}",
+          "SDKWORK_SEARCH_REF": "${{ github.event.inputs.sdkwork_search_ref || vars.SDKWORK_SEARCH_REF }}",
+          "SDKWORK_TERMINAL_REF": "${{ github.event.inputs.sdkwork_terminal_ref || vars.SDKWORK_TERMINAL_REF }}",
+          "SDKWORK_SDK_GENERATOR_REF": "${{ github.event.inputs.sdkwork_sdk_generator_ref || vars.SDKWORK_SDK_GENERATOR_REF }}"
+        }
     secrets: inherit

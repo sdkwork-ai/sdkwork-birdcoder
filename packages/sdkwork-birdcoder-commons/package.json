@@ -60,8 +60,8 @@
     "@sdkwork/birdcoder-i18n": "workspace:*",
     "@sdkwork/birdcoder-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
-    "@sdkwork/terminal-infrastructure": "link:../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure",
-    "@sdkwork/terminal-shell": "link:../../../sdkwork-terminal/packages/sdkwork-terminal-shell",
+    "@sdkwork/terminal-infrastructure": "workspace:*",
+    "@sdkwork/terminal-shell": "workspace:*",
     "lucide-react": "catalog:"
   },
   "devDependencies": {

@@ -16,6 +16,71 @@
       "maxCommitSubjects": 50
     }
   },
+  "dependencies": [
+    {
+      "id": "sdkwork-appbase",
+      "repository": "Sdkwork-Cloud/sdkwork-appbase",
+      "ref": "b74a1413d387c803b524df96dc150fb02ce8c25f",
+      "refInput": "SDKWORK_APPBASE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-core",
+      "repository": "Sdkwork-Cloud/sdkwork-core",
+      "ref": "864d0264d9e170ea0d1820402f46195be62fecf6",
+      "refInput": "SDKWORK_CORE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-ui",
+      "repository": "Sdkwork-Cloud/sdkwork-ui",
+      "ref": "e2dea9c788f93c3a59d25c1791c7bb8c0ad0bb38",
+      "refInput": "SDKWORK_UI_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-drive",
+      "repository": "Sdkwork-Cloud/sdkwork-drive",
+      "ref": "20966a79da72984a67495c329416a10715b4857e",
+      "refInput": "SDKWORK_DRIVE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-messaging",
+      "repository": "Sdkwork-Cloud/sdkwork-messaging",
+      "ref": "3d403ddf424dcdfb441d34d4ee71e942bb041498",
+      "refInput": "SDKWORK_MESSAGING_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-sdk-commons",
+      "repository": "Sdkwork-Cloud/sdkwork-sdk-commons",
+      "ref": "c9adc5a02fed0d9ce70ab719e5d2155ed40676da",
+      "refInput": "SDKWORK_SDK_COMMONS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-search",
+      "repository": "Sdkwork-Cloud/sdkwork-search",
+      "ref": "b209e9477549a2e8984e3390253457584cf8a8ba",
+      "refInput": "SDKWORK_SEARCH_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-terminal",
+      "repository": "Sdkwork-Cloud/sdkwork-terminal",
+      "ref": "c1ede947442bf65ac0b3f7b370891d3664cff8e7",
+      "refInput": "SDKWORK_TERMINAL_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-sdk-generator",
+      "repository": "Sdkwork-Cloud/sdkwork-sdk-generator",
+      "ref": "0b0e984ffbdec49a28c2da3edebcdddab4087e62",
+      "refInput": "SDKWORK_SDK_GENERATOR_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    }
+  ],
   "toolchains": {
     "node": "22",
     "pnpm": "10.30.2",

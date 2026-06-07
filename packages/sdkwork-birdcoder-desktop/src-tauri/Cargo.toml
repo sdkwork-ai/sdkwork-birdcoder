@@ -13,12 +13,12 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rfd = "0.16"
-sdkwork-birdcoder-server = { path = "../../sdkwork-birdcoder-server/src-host" }
-sdkwork-terminal-control-plane = { path = "../../../../sdkwork-terminal/crates/sdkwork-terminal-control-plane" }
-sdkwork-terminal-pty-runtime = { path = "../../../../sdkwork-terminal/crates/sdkwork-terminal-pty-runtime" }
-sdkwork-terminal-protocol = { path = "../../../../sdkwork-terminal/crates/sdkwork-terminal-protocol" }
-sdkwork-terminal-replay-store = { path = "../../../../sdkwork-terminal/crates/sdkwork-terminal-replay-store" }
-sdkwork-terminal-session-runtime = { path = "../../../../sdkwork-terminal/crates/sdkwork-terminal-session-runtime" }
+sdkwork-birdcoder-server = { workspace = true }
+sdkwork-terminal-control-plane = { workspace = true }
+sdkwork-terminal-pty-runtime = { workspace = true }
+sdkwork-terminal-protocol = { workspace = true }
+sdkwork-terminal-replay-store = { workspace = true }
+sdkwork-terminal-session-runtime = { workspace = true }
 tauri = { version = "~2.11.0", features = [] }
 tauri-plugin-shell = "2"
 tokio = { version = "1", features = ["net", "rt-multi-thread", "sync"] }

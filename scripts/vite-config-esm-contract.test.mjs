@@ -9,6 +9,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRootDir = path.resolve(__dirname, '..');
 const rootTsconfigPath = path.resolve(workspaceRootDir, 'tsconfig.json');
+const dependencyPath = (dependencyId, ...relativePathParts) =>
+  path.resolve(workspaceRootDir, '..', dependencyId, ...relativePathParts);
+const expectedDependencyFsAllowList = [
+  workspaceRootDir,
+  dependencyPath('sdkwork-appbase'),
+  dependencyPath('sdkwork-core'),
+  dependencyPath('sdkwork-drive'),
+  dependencyPath('sdkwork-messaging'),
+  dependencyPath('sdkwork-sdk-commons'),
+  dependencyPath('sdkwork-search'),
+  dependencyPath('sdkwork-ui'),
+  dependencyPath('sdkwork-terminal'),
+];
 const sharedCoreBrowserFacadePath = path.resolve(
   workspaceRootDir,
   'scripts',
@@ -200,8 +213,8 @@ function assertSearchPcReactAliases(aliases, label) {
   );
   assert.equal(
     searchSubpathAlias.replacement,
-    path.resolve(workspaceRootDir, '../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react/src/$1'),
-    `${label} must resolve @sdkwork/search-pc-react subpaths from the sdkwork-search repository, not the retired sdkwork-appbase copy.`,
+    dependencyPath('sdkwork-search', 'packages/pc-react/foundation/sdkwork-search-pc-react/src/$1'),
+    `${label} must resolve @sdkwork/search-pc-react subpaths from the sdkwork-search workspace dependency root, not the retired sdkwork-appbase copy.`,
   );
 
   const searchRootAlias = findAliasEntry(
@@ -211,8 +224,8 @@ function assertSearchPcReactAliases(aliases, label) {
   );
   assert.equal(
     searchRootAlias.replacement,
-    path.resolve(workspaceRootDir, '../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts'),
-    `${label} must resolve @sdkwork/search-pc-react from the sdkwork-search repository, not the retired sdkwork-appbase copy.`,
+    dependencyPath('sdkwork-search', 'packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts'),
+    `${label} must resolve @sdkwork/search-pc-react from the sdkwork-search workspace dependency root, not the retired sdkwork-appbase copy.`,
   );
 
   const searchContractsAlias = findAliasEntry(
@@ -222,8 +235,8 @@ function assertSearchPcReactAliases(aliases, label) {
   );
   assert.equal(
     searchContractsAlias.replacement,
-    path.resolve(workspaceRootDir, '../sdkwork-search/packages/common/search/sdkwork-search-contracts/src/index.ts'),
-    `${label} must resolve @sdkwork/search-contracts from the sdkwork-search repository so the search PC package can build from source.`,
+    dependencyPath('sdkwork-search', 'packages/common/search/sdkwork-search-contracts/src/index.ts'),
+    `${label} must resolve @sdkwork/search-contracts from the sdkwork-search workspace dependency root so the search PC package can build from source.`,
   );
 }
 
@@ -240,12 +253,12 @@ assert.ok(
 assert.deepEqual(
   rootTsconfig.compilerOptions?.paths?.['@sdkwork/terminal-resources/model'],
   ['../sdkwork-terminal/packages/sdkwork-terminal-resources/src/model.ts'],
-  'The root TypeScript project must resolve sdkwork-terminal resources model subpaths from the sibling source tree, matching the Vite alias contract.',
+  'The root TypeScript project must resolve sdkwork-terminal resources model subpaths from the workspace dependency root, matching the Vite alias contract.',
 );
 assert.deepEqual(
   rootTsconfig.compilerOptions?.paths?.['@sdkwork/terminal-sessions/model'],
   ['../sdkwork-terminal/packages/sdkwork-terminal-sessions/src/model.ts'],
-  'The root TypeScript project must resolve sdkwork-terminal sessions model subpaths from the sibling source tree, matching the Vite alias contract.',
+  'The root TypeScript project must resolve sdkwork-terminal sessions model subpaths from the workspace dependency root, matching the Vite alias contract.',
 );
 assert.match(
   sharedCoreBrowserFacadeSource,
@@ -329,11 +342,8 @@ const rootAuthSurfaceAlias = findAliasEntry(
 );
 assert.equal(
   rootAuthSurfaceAlias.replacement,
-  path.resolve(
-    workspaceRootDir,
-    '../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
-  ),
-  'Root Vite config should resolve @sdkwork/auth-pc-react from the canonical sdkwork-appbase source tree.',
+  dependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts'),
+  'Root Vite config should resolve @sdkwork/auth-pc-react from the sdkwork-appbase workspace dependency root.',
 );
 assertSharedCoreBrowserFacadeAlias(rootConfig.resolve?.alias, 'Root Vite config');
 assertXtermCssAlias(rootConfig.resolve?.alias, 'Root Vite config');
@@ -356,18 +366,8 @@ assert.equal(
 );
 assert.deepEqual(
   rootConfig.server?.fs?.allow,
-  [
-    workspaceRootDir,
-    path.resolve(workspaceRootDir, '../sdkwork-appbase'),
-    path.resolve(workspaceRootDir, '../sdkwork-core'),
-    path.resolve(workspaceRootDir, '../sdkwork-drive'),
-    path.resolve(workspaceRootDir, '../sdkwork-messaging'),
-    path.resolve(workspaceRootDir, '../sdkwork-sdk-commons'),
-    path.resolve(workspaceRootDir, '../sdkwork-search'),
-    path.resolve(workspaceRootDir, '../sdkwork-ui'),
-    path.resolve(workspaceRootDir, '../sdkwork-terminal'),
-  ],
-  'Root Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace fs allow-list under ESM-native loading.',
+  expectedDependencyFsAllowList,
+  'Root Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace dependency fs allow-list under ESM-native loading.',
 );
 
 const webConfig = await loadConfigModule('packages/sdkwork-birdcoder-web/vite.config.ts');
@@ -414,8 +414,8 @@ const webTerminalBareAlias = findAliasEntry(
 );
 assert.equal(
   webTerminalBareAlias.replacement,
-  path.resolve(workspaceRootDir, '../sdkwork-terminal/packages/sdkwork-terminal-$1/src'),
-  'Web Vite config should resolve bare sdkwork-terminal aliases from the sibling workspace.',
+  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src'),
+  'Web Vite config should resolve bare sdkwork-terminal aliases from the workspace dependency root.',
 );
 const webTerminalSubpathAlias = findAliasEntry(
   webConfig.resolve?.alias,
@@ -427,8 +427,8 @@ const webTerminalSubpathAlias = findAliasEntry(
 );
 assert.equal(
   webTerminalSubpathAlias.replacement,
-  path.resolve(workspaceRootDir, '../sdkwork-terminal/packages/sdkwork-terminal-$1/src', '$2'),
-  'Web Vite config should resolve sdkwork-terminal subpath aliases from the sibling workspace.',
+  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src', '$2'),
+  'Web Vite config should resolve sdkwork-terminal subpath aliases from the workspace dependency root.',
 );
 assert.equal(
   (webConfig.resolve?.alias ?? []).some((candidate) =>
@@ -736,18 +736,8 @@ for (const identitySurfaceModuleId of [
 }
 assert.deepEqual(
   webConfig.server?.fs?.allow,
-  [
-    workspaceRootDir,
-    path.resolve(workspaceRootDir, '../sdkwork-appbase'),
-    path.resolve(workspaceRootDir, '../sdkwork-core'),
-    path.resolve(workspaceRootDir, '../sdkwork-drive'),
-    path.resolve(workspaceRootDir, '../sdkwork-messaging'),
-    path.resolve(workspaceRootDir, '../sdkwork-sdk-commons'),
-    path.resolve(workspaceRootDir, '../sdkwork-search'),
-    path.resolve(workspaceRootDir, '../sdkwork-ui'),
-    path.resolve(workspaceRootDir, '../sdkwork-terminal'),
-  ],
-  'Web Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace fs allow-list under ESM-native loading.',
+  expectedDependencyFsAllowList,
+  'Web Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace dependency fs allow-list under ESM-native loading.',
 );
 
 const desktopConfig = await loadConfigModule('packages/sdkwork-birdcoder-desktop/vite.config.ts');
@@ -823,8 +813,8 @@ const desktopTerminalBareAlias = findAliasEntry(
 );
 assert.equal(
   desktopTerminalBareAlias.replacement,
-  path.resolve(workspaceRootDir, '../sdkwork-terminal/packages/sdkwork-terminal-$1/src'),
-  'Desktop Vite config should resolve bare sdkwork-terminal aliases from the sibling workspace.',
+  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src'),
+  'Desktop Vite config should resolve bare sdkwork-terminal aliases from the workspace dependency root.',
 );
 const desktopTerminalSubpathAlias = findAliasEntry(
   desktopConfig.resolve?.alias,
@@ -836,8 +826,8 @@ const desktopTerminalSubpathAlias = findAliasEntry(
 );
 assert.equal(
   desktopTerminalSubpathAlias.replacement,
-  path.resolve(workspaceRootDir, '../sdkwork-terminal/packages/sdkwork-terminal-$1/src', '$2'),
-  'Desktop Vite config should resolve sdkwork-terminal subpath aliases from the sibling workspace.',
+  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src', '$2'),
+  'Desktop Vite config should resolve sdkwork-terminal subpath aliases from the workspace dependency root.',
 );
 assert.equal(
   (desktopConfig.resolve?.alias ?? []).some((candidate) =>
@@ -849,18 +839,8 @@ assert.equal(
 );
 assert.deepEqual(
   desktopConfig.server?.fs?.allow,
-  [
-    workspaceRootDir,
-    path.resolve(workspaceRootDir, '../sdkwork-appbase'),
-    path.resolve(workspaceRootDir, '../sdkwork-core'),
-    path.resolve(workspaceRootDir, '../sdkwork-drive'),
-    path.resolve(workspaceRootDir, '../sdkwork-messaging'),
-    path.resolve(workspaceRootDir, '../sdkwork-sdk-commons'),
-    path.resolve(workspaceRootDir, '../sdkwork-search'),
-    path.resolve(workspaceRootDir, '../sdkwork-ui'),
-    path.resolve(workspaceRootDir, '../sdkwork-terminal'),
-  ],
-  'Desktop Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace fs allow-list under ESM-native loading.',
+  expectedDependencyFsAllowList,
+  'Desktop Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace dependency fs allow-list under ESM-native loading.',
 );
 
 console.log('vite config ESM contract passed.');

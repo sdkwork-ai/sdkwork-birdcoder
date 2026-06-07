@@ -197,8 +197,13 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   vitePluginSource,
-  /find: ['"]@sdkwork\/(?:user-center|auth-runtime)-pc-react['"]/u,
-  'BirdCoder Vite aliases must not keep retired user-center/auth-runtime appbase entrypoints.',
+  /find: ['"]@sdkwork\/user-center-pc-react['"]/u,
+  'BirdCoder Vite aliases must not keep retired user-center appbase entrypoints.',
+);
+assert.match(
+  vitePluginSource,
+  /find: ['"]@sdkwork\/auth-runtime-pc-react['"]/u,
+  'BirdCoder Vite aliases must resolve the high-level appbase auth runtime package.',
 );
 
 assert.match(

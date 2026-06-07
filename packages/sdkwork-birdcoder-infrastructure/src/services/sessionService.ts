@@ -1,6 +1,7 @@
 import type { IamRuntime } from '@sdkwork/iam-runtime';
 import {
   clearStoredAppSessionToken,
+  loadStoredAppSessionToken,
   storeAppSessionFromResult,
   type StoredAppSessionToken,
 } from './appSessionToken.ts';
@@ -23,16 +24,17 @@ export interface RevokeAppSessionOptions {
 
 export async function createAppSession(
   options: CreateAppSessionOptions = {},
-): Promise<StoredAppSessionToken> {
+): Promise<StoredAppSessionToken | null> {
   const runtime = options.getRuntime?.() ?? getBirdCoderIamRuntime();
-  const result = await runtime.service.auth.sessions.create({
-    grantType: 'session_bridge',
-    ...(options.sessionBridge ?? {}),
-  });
+  const result = await runtime.service.auth.sessions.current.retrieve();
   const stored = storeAppSessionFromResult(result);
   resetBirdCoderSdkClients();
   resetBirdCoderIamRuntime();
   return stored;
+}
+
+export function getCurrentAppSession(): StoredAppSessionToken | null {
+  return loadStoredAppSessionToken();
 }
 
 export function clearAppSession(): void {

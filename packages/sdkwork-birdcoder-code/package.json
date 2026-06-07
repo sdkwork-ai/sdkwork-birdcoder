@@ -66,7 +66,7 @@
     "@sdkwork/birdcoder-types": "workspace:*",
     "@sdkwork/birdcoder-ui-shell": "workspace:*",
     "@sdkwork/birdcoder-ui": "workspace:*",
-    "@sdkwork/terminal-desktop": "link:../../../sdkwork-terminal/apps/desktop",
+    "@sdkwork/terminal-desktop": "workspace:*",
     "space-separated-tokens": "catalog:",
     "stringify-entities": "catalog:",
     "style-to-js": "catalog:",

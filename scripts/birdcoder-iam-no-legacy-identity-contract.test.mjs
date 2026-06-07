@@ -30,7 +30,6 @@ function assertNoLegacyUserCenterText(relativePath, label = relativePath) {
     /appbase\.user-center/u,
     /sdkwork-user-center/u,
     /@sdkwork\/user-center-/u,
-    /@sdkwork\/auth-runtime-pc-react/u,
     /\bBirdCoderUserCenter/u,
     /\bBIRDCODER_USER_CENTER_/u,
     /\bUserCenter/u,

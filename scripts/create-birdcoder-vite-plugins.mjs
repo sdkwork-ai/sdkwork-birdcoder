@@ -55,17 +55,22 @@ function resolveBirdcoderTerminalInfrastructureRuntimePath(
   );
 }
 
+function resolveDependencyRootDir(dependencyId) {
+  return path.resolve(workspaceRootDir, '..', dependencyId);
+}
+
+function resolveDependencyPath(dependencyId, ...relativePathParts) {
+  return path.resolve(resolveDependencyRootDir(dependencyId), ...relativePathParts);
+}
+
 function resolveSdkworkTerminalDesktopEntryPath(appRootDir = defaultBirdcoderAppRootDir) {
-  return path.resolve(appRootDir, '../../../sdkwork-terminal/apps/desktop/src/index.ts');
+  return resolveDependencyPath('sdkwork-terminal', 'apps/desktop/src/index.ts');
 }
 
 function resolveSdkworkTerminalInfrastructureEntryPath(
   appRootDir = defaultBirdcoderAppRootDir,
 ) {
-  return path.resolve(
-    appRootDir,
-    '../../../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/index.ts',
-  );
+  return resolveDependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-infrastructure/src/index.ts');
 }
 
 function resolveSdkworkCorePcReactBrowserFacadePath() {
@@ -188,10 +193,7 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: /^@sdkwork\/core-pc-react\/(.+)$/u,
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-core/sdkwork-core-pc-react/src/$1',
-      ),
+      replacement: resolveDependencyPath('sdkwork-core', 'sdkwork-core-pc-react/src/$1'),
     },
     {
       find: '@sdkwork/core-pc-react',
@@ -199,122 +201,79 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: /^@sdkwork\/sdk-common\/(.+)$/u,
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/$1',
-      ),
+      replacement: resolveDependencyPath('sdkwork-sdk-commons', 'sdkwork-sdk-common-typescript/src/$1'),
     },
     {
       find: '@sdkwork/sdk-common',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-sdk-commons', 'sdkwork-sdk-common-typescript/src/index.ts'),
     },
     {
       find: '@sdkwork/appbase-app-sdk',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-appbase', 'sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts'),
     },
     {
       find: '@sdkwork/appbase-backend-sdk',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-appbase', 'sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts'),
+    },
+    {
+      find: /^@sdkwork\/auth-runtime-pc-react\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/$1'),
+    },
+    {
+      find: '@sdkwork/auth-runtime-pc-react',
+      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts'),
     },
     {
       find: '@sdkwork/appbase-pc-react',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/foundation/sdkwork-appbase-pc-react/src/index.ts'),
     },
     {
       find: /^@sdkwork\/auth-pc-react\/(.+)$/u,
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/$1',
-      ),
+      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-auth-pc-react/src/$1'),
     },
     {
       find: '@sdkwork/auth-pc-react',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts'),
     },
     {
       find: /^@sdkwork\/user-pc-react\/(.+)$/u,
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/$1',
-      ),
+      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-user-pc-react/src/$1'),
     },
     {
       find: '@sdkwork/user-pc-react',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-user-pc-react/src/index.ts'),
     },
     {
       find: /^@sdkwork\/wallet-pc-react\/(.+)$/u,
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/commerce/sdkwork-wallet-pc-react/src/$1',
-      ),
+      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/commerce/sdkwork-wallet-pc-react/src/$1'),
     },
     {
       find: '@sdkwork/wallet-pc-react',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-appbase/packages/pc-react/commerce/sdkwork-wallet-pc-react/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/commerce/sdkwork-wallet-pc-react/src/index.ts'),
     },
     {
       find: /^@sdkwork\/search-pc-react\/(.+)$/u,
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react/src/$1',
-      ),
+      replacement: resolveDependencyPath('sdkwork-search', 'packages/pc-react/foundation/sdkwork-search-pc-react/src/$1'),
     },
     {
       find: '@sdkwork/search-pc-react',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-search', 'packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts'),
     },
     {
       find: /^@sdkwork\/search-contracts\/(.+)$/u,
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-search/packages/common/search/sdkwork-search-contracts/src/$1',
-      ),
+      replacement: resolveDependencyPath('sdkwork-search', 'packages/common/search/sdkwork-search-contracts/src/$1'),
     },
     {
       find: '@sdkwork/search-contracts',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-search/packages/common/search/sdkwork-search-contracts/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-search', 'packages/common/search/sdkwork-search-contracts/src/index.ts'),
     },
     {
       find: /^@sdkwork\/ui-pc-react\/(.+)$/u,
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-ui/sdkwork-ui-pc-react/src/$1',
-      ),
+      replacement: resolveDependencyPath('sdkwork-ui', 'sdkwork-ui-pc-react/src/$1'),
     },
     {
       find: '@sdkwork/ui-pc-react',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-ui', 'sdkwork-ui-pc-react/src/index.ts'),
     },
     {
       find: '@sdkwork/birdcoder-app-sdk',
@@ -332,17 +291,11 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: '@sdkwork/drive-app-sdk',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-drive', 'sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts'),
     },
     {
       find: '@sdkwork/messaging-app-sdk',
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts',
-      ),
+      replacement: resolveDependencyPath('sdkwork-messaging', 'sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts'),
     },
     {
       find: /^@sdkwork\/birdcoder-([^/]+)\/(.+)$/u,
@@ -362,14 +315,11 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: /^@sdkwork\/terminal-([^/]+)\/(.+)$/u,
-      replacement: path.resolve(
-        appRootDir,
-        '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src/$2',
-      ),
+      replacement: resolveDependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src/$2'),
     },
     {
       find: /^@sdkwork\/terminal-([^/]+)$/u,
-      replacement: path.resolve(appRootDir, '../../../sdkwork-terminal/packages/sdkwork-terminal-$1/src'),
+      replacement: resolveDependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src'),
     },
   ];
 }
@@ -377,14 +327,14 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
 function createBirdcoderWorkspaceFsAllowList(appRootDir = defaultBirdcoderAppRootDir) {
   return [
     path.resolve(appRootDir, '../..'),
-    path.resolve(appRootDir, '../../../sdkwork-appbase'),
-    path.resolve(appRootDir, '../../../sdkwork-core'),
-    path.resolve(appRootDir, '../../../sdkwork-drive'),
-    path.resolve(appRootDir, '../../../sdkwork-messaging'),
-    path.resolve(appRootDir, '../../../sdkwork-sdk-commons'),
-    path.resolve(appRootDir, '../../../sdkwork-search'),
-    path.resolve(appRootDir, '../../../sdkwork-ui'),
-    path.resolve(appRootDir, '../../../sdkwork-terminal'),
+    resolveDependencyRootDir('sdkwork-appbase'),
+    resolveDependencyRootDir('sdkwork-core'),
+    resolveDependencyRootDir('sdkwork-drive'),
+    resolveDependencyRootDir('sdkwork-messaging'),
+    resolveDependencyRootDir('sdkwork-sdk-commons'),
+    resolveDependencyRootDir('sdkwork-search'),
+    resolveDependencyRootDir('sdkwork-ui'),
+    resolveDependencyRootDir('sdkwork-terminal'),
   ];
 }
 
@@ -749,7 +699,7 @@ function resolvePackageJsonPathFromWorkspaceRoot(workspaceRootDir, specifier) {
 }
 
 function resolveAppbaseWorkspacePackageEntryPath(appRootDir, specifier, relativeEntryPath) {
-  const appbaseWorkspaceRootDir = path.resolve(appRootDir, '../../../sdkwork-appbase');
+  const appbaseWorkspaceRootDir = resolveDependencyRootDir('sdkwork-appbase');
   const packageJsonPath = resolvePackageJsonPathFromWorkspaceRoot(appbaseWorkspaceRootDir, specifier)
     ?? resolveAppbaseManagedBridgePackageJsonPath(appbaseWorkspaceRootDir, specifier);
 

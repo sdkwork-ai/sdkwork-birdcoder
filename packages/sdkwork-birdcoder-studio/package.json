@@ -43,7 +43,7 @@
     "@sdkwork/birdcoder-commons": "workspace:*",
     "@sdkwork/birdcoder-ui-shell": "workspace:*",
     "@sdkwork/birdcoder-ui": "workspace:*",
-    "@sdkwork/terminal-desktop": "link:../../../sdkwork-terminal/apps/desktop",
+    "@sdkwork/terminal-desktop": "workspace:*",
     "mdast-util-from-markdown": "catalog:",
     "mdast-util-mdx-expression": "catalog:",
     "mdast-util-mdx-jsx": "catalog:",

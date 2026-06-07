@@ -5,13 +5,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { spawnSync } from 'node:child_process';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const GENERATOR_PACKAGE_NAME = '@sdkwork/sdk-generator';
 const GENERATOR_CLI_NAME = 'sdkgen';
 const STANDARD_PROFILE = 'sdkwork-v3';
-const DEFAULT_WORKSPACE_GENERATOR_ENTRYPOINT = '../sdkwork-sdk-generator/bin/sdkgen.js';
-const CANONICAL_GENERATOR_ENTRYPOINT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'sdkwork-sdk-generator', 'bin', 'sdkgen.js');
+const DEFAULT_WORKSPACE_GENERATOR_ENTRYPOINT = '../../sdkwork-sdk-generator/bin/sdkgen.js';
+const CANONICAL_GENERATOR_ENTRYPOINT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '.sdkwork',
+  'dependencies',
+  'sdkwork-sdk-generator',
+  'bin',
+  'sdkgen.js',
+);
 const SUPPORTED_LANGUAGES = new Set(['typescript', 'rust']);
 
 function normalizeRelativePath(value) {

@@ -70,7 +70,7 @@
     "@sdkwork/birdcoder-host-core": "workspace:*",
     "@sdkwork/birdcoder-types": "workspace:*",
     "@sdkwork/drive-app-sdk": "workspace:*",
-    "@sdkwork/iam-sdk-adapter": "workspace:*",
+    "@sdkwork/auth-runtime-pc-react": "workspace:*",
     "@sdkwork/iam-runtime": "workspace:*",
     "@sdkwork/iam-service": "workspace:*",
     "@sdkwork/iam-sdk-ports": "workspace:*",

@@ -8,4 +8,6 @@
 Notes:
 - Copies exclude `.git`, `node_modules`, `target`, `dist`, `build`, and `.cache`.
 - `opencode/` is the locally available `@openclaw/opencode-provider` extension source. No standalone local `opencode` git repository was found in the inspected upstream cache.
-- Claude/OpenAI-compatible SDK reference path: `../sdkwork-claw-router/sdks/clawrouter-open-sdk/clawrouter-open-sdk-typescript`
+- Claude/OpenAI-compatible SDK reference path: `<workspace-root>/sdkwork-claw-router/sdks/clawrouter-open-sdk/clawrouter-open-sdk-typescript`.
+  This is a reference-only snapshot note, not a BirdCoder source/build dependency. Add it to
+  `sdkwork.workflow.json` before consuming it as a release dependency.
