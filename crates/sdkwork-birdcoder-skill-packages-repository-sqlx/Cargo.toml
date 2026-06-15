@@ -1,5 +1,5 @@
 [package]
-name = "sdkwork-birdcoder-skill-packages-repository-sqlite"
+name = "sdkwork-birdcoder-skill-packages-repository-sqlx"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -14,5 +14,6 @@ uuid = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 sdkwork-birdcoder-skill-packages-service = { workspace = true }
+
 
 

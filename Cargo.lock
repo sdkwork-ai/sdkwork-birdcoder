@@ -2764,20 +2764,20 @@ dependencies = [
  "http",
  "rusqlite",
  "sdkwork-birdcoder-app-templates-service",
- "sdkwork-birdcoder-coding-sessions-repository-sqlite",
+ "sdkwork-birdcoder-coding-sessions-repository-sqlx",
  "sdkwork-birdcoder-coding-sessions-service",
  "sdkwork-birdcoder-deployment-service",
  "sdkwork-birdcoder-document-service",
  "sdkwork-birdcoder-engine-catalog-service",
- "sdkwork-birdcoder-membership-repository-sqlite",
+ "sdkwork-birdcoder-membership-repository-sqlx",
  "sdkwork-birdcoder-membership-service",
- "sdkwork-birdcoder-model-config-repository-sqlite",
+ "sdkwork-birdcoder-model-config-repository-sqlx",
  "sdkwork-birdcoder-native-sessions-service",
  "sdkwork-birdcoder-project-service",
- "sdkwork-birdcoder-skill-packages-repository-sqlite",
+ "sdkwork-birdcoder-skill-packages-repository-sqlx",
  "sdkwork-birdcoder-skill-packages-service",
  "sdkwork-birdcoder-system-descriptor-service",
- "sdkwork-birdcoder-workspace-repository-sqlite",
+ "sdkwork-birdcoder-workspace-repository-sqlx",
  "sdkwork-birdcoder-workspace-service",
  "sdkwork-router-coding-sessions-app-api",
  "sdkwork-router-deployment-backend-api",
@@ -2818,7 +2818,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-birdcoder-coding-sessions-repository-sqlite"
+name = "sdkwork-birdcoder-coding-sessions-repository-sqlx"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -2882,7 +2882,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-birdcoder-membership-repository-sqlite"
+name = "sdkwork-birdcoder-membership-repository-sqlx"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -2904,7 +2904,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-birdcoder-model-config-repository-sqlite"
+name = "sdkwork-birdcoder-model-config-repository-sqlx"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -2939,7 +2939,7 @@ name = "sdkwork-birdcoder-service-host"
 version = "0.1.0"
 
 [[package]]
-name = "sdkwork-birdcoder-skill-packages-repository-sqlite"
+name = "sdkwork-birdcoder-skill-packages-repository-sqlx"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -2980,7 +2980,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-birdcoder-workspace-repository-sqlite"
+name = "sdkwork-birdcoder-workspace-repository-sqlx"
 version = "0.1.0"
 dependencies = [
  "async-trait",

@@ -1,11 +1,11 @@
 use rusqlite::{params, Connection};
 
-use sdkwork_birdcoder_coding_sessions_repository_sqlite::db::schema::PROVIDER_AUTHORITY_SCHEMA;
-use sdkwork_birdcoder_coding_sessions_repository_sqlite::repository::provider::constants::*;
-use sdkwork_birdcoder_coding_sessions_repository_sqlite::repository::provider::loader::{
+use sdkwork_birdcoder_coding_sessions_repository_sqlx::db::schema::PROVIDER_AUTHORITY_SCHEMA;
+use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::provider::constants::*;
+use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::provider::loader::{
     load_provider_project_payloads, load_provider_workspace_payloads,
 };
-use sdkwork_birdcoder_coding_sessions_repository_sqlite::repository::provider::string_helpers::{
+use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::provider::string_helpers::{
     build_project_config_data, project_status_storage_value, project_type_storage_value,
 };
 
@@ -145,4 +145,5 @@ fn sqlite_provider_payload_loaders_normalize_integer_java_long_columns() {
     assert_eq!(projects[0].leader_id.as_deref(), Some("1002"));
     assert_eq!(projects[0].created_by_user_id.as_deref(), Some("1004"));
 }
+
 

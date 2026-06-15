@@ -1,5 +1,5 @@
 [package]
-name = "sdkwork-birdcoder-membership-repository-sqlite"
+name = "sdkwork-birdcoder-model-config-repository-sqlx"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -13,6 +13,5 @@ serde_json = { workspace = true }
 uuid = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
-sdkwork-birdcoder-membership-service = { workspace = true }
 
 

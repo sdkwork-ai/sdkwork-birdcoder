@@ -3,11 +3,11 @@ use std::sync::{Arc, Mutex};
 
 use rusqlite::Connection;
 
-use sdkwork_birdcoder_coding_sessions_repository_sqlite::repository::coding_session_repository::SqliteCodingSessionRepository;
-use sdkwork_birdcoder_workspace_repository_sqlite::repository::workspace::SqliteWorkspaceRepository;
-use sdkwork_birdcoder_workspace_repository_sqlite::repository::project::SqliteProjectRepository;
-use sdkwork_birdcoder_workspace_repository_sqlite::repository::deployment::SqliteDeploymentRepository;
-use sdkwork_birdcoder_workspace_repository_sqlite::repository::team::SqliteTeamRepository;
+use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::coding_session_repository::SqliteCodingSessionRepository;
+use sdkwork_birdcoder_workspace_repository_sqlx::repository::workspace::SqliteWorkspaceRepository;
+use sdkwork_birdcoder_workspace_repository_sqlx::repository::project::SqliteProjectRepository;
+use sdkwork_birdcoder_workspace_repository_sqlx::repository::deployment::SqliteDeploymentRepository;
+use sdkwork_birdcoder_workspace_repository_sqlx::repository::team::SqliteTeamRepository;
 
 pub struct Repositories {
     pub coding_session: Arc<SqliteCodingSessionRepository>,
@@ -39,4 +39,5 @@ pub fn wire_repositories(db_path: &Path) -> Repositories {
         membership_conn: Arc::new(Mutex::new(open_rw(db_path))),
     }
 }
+
 

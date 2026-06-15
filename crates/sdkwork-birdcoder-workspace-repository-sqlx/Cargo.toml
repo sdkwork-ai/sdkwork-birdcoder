@@ -1,5 +1,5 @@
 [package]
-name = "sdkwork-birdcoder-workspace-repository-sqlite"
+name = "sdkwork-birdcoder-workspace-repository-sqlx"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -16,5 +16,6 @@ tokio = { workspace = true }
 sdkwork-birdcoder-workspace-service = { path = "../sdkwork-birdcoder-workspace-service" }
 sdkwork-birdcoder-project-service = { path = "../sdkwork-birdcoder-project-service" }
 sdkwork-birdcoder-deployment-service = { path = "../sdkwork-birdcoder-deployment-service" }
+
 
 

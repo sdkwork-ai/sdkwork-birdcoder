@@ -47,14 +47,15 @@ sdkwork-birdcoder-membership-service = { workspace = true }
 sdkwork-birdcoder-system-descriptor-service = { workspace = true }
 
 # Repository crates
-sdkwork-birdcoder-coding-sessions-repository-sqlite = { workspace = true }
-sdkwork-birdcoder-workspace-repository-sqlite = { workspace = true }
-sdkwork-birdcoder-skill-packages-repository-sqlite = { workspace = true }
-sdkwork-birdcoder-model-config-repository-sqlite = { workspace = true }
-sdkwork-birdcoder-membership-repository-sqlite = { workspace = true }
+sdkwork-birdcoder-coding-sessions-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-workspace-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-skill-packages-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-model-config-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-membership-repository-sqlx = { workspace = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 tokio = { workspace = true }
+
 
 
