@@ -1,14 +1,14 @@
 import type {
   BirdCoderAppRuntimeWriteSdkApiClient,
   BirdCoderAppSdkApiClient,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderCodingSession,
   BirdCoderProject,
-} from '@sdkwork/birdcoder-types';
-import { ApiBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts';
-import type { IProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IProjectService.ts';
+} from '@sdkwork/birdcoder-pc-types';
+import { ApiBackedProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts';
+import type { IProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IProjectService.ts';
 
 const codingSession: BirdCoderCodingSession = {
   id: 'codex-native:session-1',

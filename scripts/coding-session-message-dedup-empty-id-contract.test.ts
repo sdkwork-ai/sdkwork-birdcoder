@@ -3,7 +3,7 @@ import {
   areBirdCoderChatMessagesLogicallyMatched,
   deduplicateBirdCoderComparableChatMessages,
   type BirdCoderChatMessage,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const emptyIdUserMessage: BirdCoderChatMessage = {
   id: '',

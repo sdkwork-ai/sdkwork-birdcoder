@@ -6,8 +6,11 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const studioPagePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-studio',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioPage.tsx',

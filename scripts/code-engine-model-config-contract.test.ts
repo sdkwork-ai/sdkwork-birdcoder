@@ -10,7 +10,7 @@ import {
   normalizeBirdCoderCodeEngineModelConfig,
   resolveWorkbenchCodeEngineSelectedModelId,
   workbenchCodeEngineSettingsMapToModelConfig,
-} from '../packages/sdkwork-birdcoder-codeengine/src/modelConfig.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/modelConfig.ts';
 
 assert.equal(BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_DIRECTORY, '.sdkwork/birdcoder');
 assert.equal(BIRDCODER_CODE_ENGINE_MODEL_CONFIG_FILE_NAME, 'code-engine-models.json');

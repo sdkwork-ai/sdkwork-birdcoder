@@ -44,7 +44,7 @@ for (const id of knownReactRouterUseClientNoiseIds) {
 assert.equal(
   shouldIgnoreBirdcoderRollupWarning(
     createUseClientWarning(
-      '../../../sdkwork-birdcoder/packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx',
+      '../../../sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx',
     ),
   ),
   false,
@@ -109,7 +109,7 @@ assert.throws(
       {
         code: 'PLUGIN_WARNING',
         message:
-          'D:/repo/packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx is dynamically imported by D:/repo/packages/sdkwork-birdcoder-auth/src/pageLoaders.ts but also statically imported by D:/repo/packages/sdkwork-birdcoder-auth/src/index.ts, dynamic import will not move module into another chunk.',
+          'D:/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx is dynamically imported by D:/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pageLoaders.ts but also statically imported by D:/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/index.ts, dynamic import will not move module into another chunk.',
       },
       () => {
         throw new Error('unexpected forwarded warning');

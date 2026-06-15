@@ -10,8 +10,13 @@ function readSource(...segments) {
 }
 
 const birdcoderAppSource = readSource(
-  'packages',
-  'sdkwork-birdcoder-shell',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  
+  
+  'sdkwork-birdcoder-pc-shell',
   'src',
   'application',
   'app',

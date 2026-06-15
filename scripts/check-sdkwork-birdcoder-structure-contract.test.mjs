@@ -97,7 +97,7 @@ async function importStructureCheckForWorkspace(fixtureRootDir) {
 
 const fixtureRootDir = createStructureFixtureWorkspace({
   scripts: {
-    build: 'pnpm --dir packages/sdkwork-birdcoder-web exec node ../../scripts/existing-topology-check.mjs build --mode production',
+    build: 'pnpm --dir apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web exec node ../../scripts/existing-topology-check.mjs build --mode production',
     'check:tauri-dev-binary-unlock': 'powershell -NoProfile -ExecutionPolicy Bypass -File scripts/existing-topology-check.ps1',
     'check:missing-topology': 'node scripts/missing-topology-check.mjs',
   },

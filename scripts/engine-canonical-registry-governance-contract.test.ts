@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-import { ClaudeChatEngine } from '../packages/sdkwork-birdcoder-chat-claude/src/index.ts';
-import { GeminiChatEngine } from '../packages/sdkwork-birdcoder-chat-gemini/src/index.ts';
-import { OpenCodeChatEngine } from '../packages/sdkwork-birdcoder-chat-opencode/src/index.ts';
-import type { ChatEngineOfficialSdkBridgeLoader } from '../packages/sdkwork-birdcoder-chat/src/index.ts';
-import type { ChatMessage, IChatEngine } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
-import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
-import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
-import { createWorkbenchCanonicalChatEngine } from '../packages/sdkwork-birdcoder-codeengine/src/runtime.ts';
+import { ClaudeChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts';
+import { GeminiChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts';
+import { OpenCodeChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts';
+import type { ChatEngineOfficialSdkBridgeLoader } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
+import type { ChatMessage, IChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/types.ts';
+import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
+import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
+import { createWorkbenchCanonicalChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/runtime.ts';
 import {
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
   BIRDCODER_CODING_SESSION_EVENT_KINDS,
-} from '../packages/sdkwork-birdcoder-types/src/coding-session.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts';
 import { withMockCodexCliJsonl } from './test-support/mockCodexCli.ts';
 
 function escapeRegExp(value: string): string {

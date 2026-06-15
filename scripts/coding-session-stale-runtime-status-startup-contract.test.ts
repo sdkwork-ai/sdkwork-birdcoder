@@ -1,21 +1,21 @@
 import type {
   BirdCoderAppRuntimeReadSdkApiClient,
   BirdCoderAppSdkApiClient,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderCodingSession,
   BirdCoderCodingSessionSummary,
   BirdCoderProject,
   BirdCoderProjectSummary,
-} from '@sdkwork/birdcoder-types';
-import { isBirdCoderCodingSessionExecuting } from '@sdkwork/birdcoder-types';
-import { refreshCodingSessionMessages } from '../packages/sdkwork-birdcoder-commons/src/workbench/sessionRefresh.ts';
-import { ApiBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts';
+} from '@sdkwork/birdcoder-pc-types';
+import { isBirdCoderCodingSessionExecuting } from '@sdkwork/birdcoder-pc-types';
+import { refreshCodingSessionMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionRefresh.ts';
+import { ApiBackedProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts';
 import type {
   BirdCoderProjectMirrorSnapshot,
   IProjectService,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IProjectService.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IProjectService.ts';
 
 const workspaceId = 'workspace-stale-runtime-status-startup';
 const projectId = 'project-stale-runtime-status-startup';

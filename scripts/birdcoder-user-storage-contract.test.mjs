@@ -2,29 +2,29 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const userIndexPath = new URL(
-  '../packages/sdkwork-birdcoder-user/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/index.ts',
   import.meta.url,
 );
 const userPagePath = new URL(
-  '../packages/sdkwork-birdcoder-user/src/pages/UserPage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/UserPage.tsx',
   import.meta.url,
 );
 const vipPagePath = new URL(
-  '../packages/sdkwork-birdcoder-user/src/pages/VipPage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/VipPage.tsx',
   import.meta.url,
 );
 const vipSurfacePath = new URL(
-  '../packages/sdkwork-birdcoder-user/src/vip-surface.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip-surface.ts',
   import.meta.url,
 );
 const retiredPaths = [
-  '../packages/sdkwork-birdcoder-user/src/storage.ts',
-  '../packages/sdkwork-birdcoder-user/src/profileStorage.ts',
-  '../packages/sdkwork-birdcoder-user/src/user-center.ts',
-  '../packages/sdkwork-birdcoder-user/src/user-center-runtime.ts',
-  '../packages/sdkwork-birdcoder-user/src/validation.ts',
-  '../packages/sdkwork-birdcoder-user/src/pages/UserCenterPage.tsx',
-  '../packages/sdkwork-birdcoder-workbench-state/src/userProfileState.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/storage.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/profileStorage.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/user-center.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/user-center-runtime.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/validation.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/UserCenterPage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-state/src/userProfileState.ts',
 ];
 
 for (const retiredPath of retiredPaths) {

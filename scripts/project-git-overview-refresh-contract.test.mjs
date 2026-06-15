@@ -11,37 +11,58 @@ function readSource(...segments) {
 
 const eventPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-commons',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'events',
   'projectGitOverview.ts',
 );
 const workbenchEventPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-commons',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'workbench',
   'projectGitOverview.ts',
 );
 const hookSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-commons',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'hooks',
   'useProjectGitOverview.ts',
 );
 const fileSystemHookSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-commons',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'hooks',
   'useFileSystem.ts',
 );
 const importSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-commons',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'workbench',
   'localFolderProjectImport.ts',

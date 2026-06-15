@@ -6,8 +6,13 @@ import ts from 'typescript';
 
 const runtimePath = path.join(
   process.cwd(),
-  'packages',
-  'sdkwork-birdcoder-infrastructure',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  
+  
+  'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'platform',
   'tauriFileSystemRuntime.ts',

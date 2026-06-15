@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   resolveComposerInputAfterSendFailure,
   restoreQueuedMessagesAfterSendFailure,
-} from '../packages/sdkwork-birdcoder-ui/src/components/chatComposerRecovery.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatComposerRecovery.ts';
 
 assert.equal(
   resolveComposerInputAfterSendFailure('draft message', ''),

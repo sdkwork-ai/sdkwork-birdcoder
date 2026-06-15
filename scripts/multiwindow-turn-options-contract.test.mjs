@@ -2,31 +2,31 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const typesSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-types/src/server-api.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts', import.meta.url),
   'utf8',
 );
 const sdkClientsSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts', import.meta.url),
   'utf8',
 );
 const apiBackedProjectServiceSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts', import.meta.url),
   'utf8',
 );
 const serverOpenApiSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-server/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url),
   'utf8',
 );
 const rustServerSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
   'utf8',
 );
 const nativeSessionsSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-server/src-host/src/native_sessions.rs', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/native_sessions.rs', import.meta.url),
   'utf8',
 );
 const codeEngineTurnsSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-codeengine/src-host/src/turns.rs', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/turns.rs', import.meta.url),
   'utf8',
 );
 

@@ -1,6 +1,6 @@
 import type {
   BirdCoderAppRuntimeReadSdkApiClient,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderApiRouteCatalogEntry,
@@ -16,9 +16,9 @@ import type {
   BirdCoderNativeSessionProviderSummary,
   BirdCoderModelCatalogEntry,
   BirdCoderOperationDescriptor,
-} from '@sdkwork/birdcoder-types';
-import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
-import { ApiBackedAppRuntimeReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts';
+} from '@sdkwork/birdcoder-pc-types';
+import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
+import { ApiBackedAppRuntimeReadService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts';
 import { TEST_CODE_ENGINE_MODEL_CONFIG } from './test-code-engine-model-config-fixture.ts';
 
 const routeFixture: BirdCoderApiRouteCatalogEntry = {

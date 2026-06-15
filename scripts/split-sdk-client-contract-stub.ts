@@ -70,7 +70,7 @@ import type {
   BirdCoderBackendSdkApiClient,
   BirdCoderProjectListRequest,
   BirdCoderWorkspaceScopedListRequest,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 
 function createUnexpectedMethodError(methodName: string): Error {
   return new Error(`Unexpected split SDK client method call: ${methodName}`);

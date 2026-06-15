@@ -20,7 +20,20 @@ Do not copy root standard text into this repository. If these relative paths do 
 
 ## Application Identity
 
-Read `sdkwork.app.config.json` before changing application behavior, runtime config, SDK wiring, release metadata, or app-owned capabilities.
+This is a multi-surface SDKWork application repository. Read `sdkwork.app.config.json` before changing application behavior, runtime config, SDK wiring, release metadata, or app-owned capabilities.
+
+### Application Surfaces
+
+| Surface | Root | Architecture Spec |
+|---------|------|-------------------|
+| PC (Desktop/Web) | `apps/sdkwork-birdcoder-pc/` | `APP_PC_ARCHITECTURE_SPEC.md` |
+| H5 (Mobile Web/Capacitor) | `apps/sdkwork-birdcoder-h5/` | `APP_H5_ARCHITECTURE_SPEC.md` |
+| Flutter Mobile | `apps/sdkwork-birdcoder-flutter-mobile/` | `FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md` |
+
+### Shared Packages
+
+- `packages/sdkwork-birdcoder-*` — Cross-surface shared packages (13 packages)
+- Each app root has its own surface-specific packages in `packages/`
 
 ## Local Dictionary Structure
 
@@ -31,9 +44,10 @@ Read `sdkwork.app.config.json` before changing application behavior, runtime con
 - `sdkwork.app.config.json`: application identity and owned capability metadata.
 - `.sdkwork/`: reserved local dictionary folder; create only for local skills, plugins, manifests, or AI workspace metadata.
 - `specs/`: local application/component contracts and narrowing rules.
-- `sdks/`: SDK families, OpenAPI authorities, route manifests, and generated SDK artifacts.
 - `package.json`, `pnpm-workspace.yaml`: language/build manifests.
-- Local directories to inspect first when relevant: `.github/`, `.vscode/`, `config/`, `deploy/`, `docs/`, `external/`, `packages/`, `scripts/`, `sdks/`, `server/`, `specs/`, `src/`.
+- `Cargo.toml`: Rust workspace configuration.
+- `tsconfig.json`, `tsconfig.base.json`: TypeScript configuration.
+- Local directories to inspect first when relevant: `apis/`, `apps/`, `configs/`, `crates/`, `deployments/`, `docs/`, `examples/`, `external/`, `jobs/`, `packages/`, `plugins/`, `scripts/`, `specs/`, `tests/`, `tools/`.
 
 ## Spec Resolution Order
 
@@ -102,7 +116,7 @@ Request human review before breaking SDKWORK standards, changing public naming, 
 The repository-specific guidance below was preserved from the previous `AGENTS.md`. If it conflicts with the SDKWORK sections above or with `../sdkwork-specs/`, the SDKWORK standards win.
 
 ### Project Structure & Module Organization
-This workspace keeps the `packages/sdkwork-birdcoder-*` directory layout, but package manifest names now follow the scoped `@sdkwork/birdcoder-*` standard. Foundational layers live in `@sdkwork/birdcoder-core`, `-types`, `-i18n`, `-infrastructure`, `-commons`, and `-shell`. Delivery targets live in `@sdkwork/birdcoder-web`, `-desktop`, and `-server`. Product modules such as `@sdkwork/birdcoder-code`, `-studio`, `-terminal`, `-skills`, `-templates`, and `-appbase` keep BirdCoder business behavior isolated from the architecture shell. Deployment assets are in `deploy/docker` and `deploy/kubernetes`; release automation is in `scripts/release`; docs are in `docs/`.
+This workspace follows the SDKWork PC architecture standard. All PC-specific packages live in `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*` with package manifest names `@sdkwork/birdcoder-pc-*`. Foundational layers include `@sdkwork/birdcoder-pc-core`, `-pc-types`, `-pc-i18n`, `-pc-infrastructure`, `-pc-commons`, and `-pc-shell`. PC delivery targets include `@sdkwork/birdcoder-pc-web`, `-pc-desktop`, and `-pc-server`. PC product modules such as `@sdkwork/birdcoder-pc-code`, `-pc-studio`, `-pc-chat`, `-pc-skills`, `-pc-templates` keep BirdCoder PC business behavior isolated from the architecture shell. Deployment assets are in `deployments/`; release automation is in `scripts/release`; docs are in `docs/`.
 
 ### Build, Test, and Development Commands
 - `pnpm install --frozen-lockfile` installs the workspace exactly as CI expects.

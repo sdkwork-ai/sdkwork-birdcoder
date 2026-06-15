@@ -2,21 +2,21 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { hydrateImportedProjectFromAuthority } from '../packages/sdkwork-birdcoder-commons/src/workbench/importedProjectHydration.ts';
-import type { BirdCoderProject } from '../packages/sdkwork-birdcoder-types/src/index.ts';
-import type { IProjectService } from '../packages/sdkwork-birdcoder-commons/src/services/interfaces/IProjectService.ts';
+import { hydrateImportedProjectFromAuthority } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/importedProjectHydration.ts';
+import type { BirdCoderProject } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+import type { IProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/interfaces/IProjectService.ts';
 
 const rootDir = process.cwd();
 const useWorkspacesSource = fs.readFileSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-commons/src/hooks/useWorkspaces.ts'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useWorkspaces.ts'),
   'utf8',
 );
 const useProjectsSource = fs.readFileSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-commons/src/hooks/useProjects.ts'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjects.ts'),
   'utf8',
 );
 const importedProjectHydrationSource = fs.readFileSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-commons/src/workbench/importedProjectHydration.ts'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/importedProjectHydration.ts'),
   'utf8',
 );
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, 'package.json'), 'utf8'));

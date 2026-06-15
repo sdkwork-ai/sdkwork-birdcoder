@@ -8,8 +8,10 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const serverManifestPath = path.join(
   rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
   'packages',
-  'sdkwork-birdcoder-server',
+  'sdkwork-birdcoder-pc-server',
   'src-host',
   'Cargo.toml',
 );

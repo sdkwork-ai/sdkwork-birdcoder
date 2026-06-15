@@ -9,16 +9,19 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const serverSupportSource = read('packages/sdkwork-birdcoder-codeengine/src/serverSupport.ts');
-const topBarSource = read('packages/sdkwork-birdcoder-code/src/components/TopBar.tsx');
-const studioChatSidebarSource = read('packages/sdkwork-birdcoder-studio/src/pages/StudioChatSidebar.tsx');
-const sidebarSource = read('packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx');
-const projectExplorerHeaderSource = read('packages/sdkwork-birdcoder-code/src/components/ProjectExplorerHeader.tsx');
-const birdcoderAppSource = read('packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx');
+const serverSupportSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/serverSupport.ts');
+const topBarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx');
+const studioChatSidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx');
+const sidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
+const projectExplorerHeaderSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerHeader.tsx');
+const birdcoderAppSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx');
 const workbenchNewSessionButtonPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-ui',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'WorkbenchNewSessionButton.tsx',

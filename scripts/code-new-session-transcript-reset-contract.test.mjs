@@ -5,22 +5,22 @@ import process from 'node:process';
 
 const rootDir = process.cwd();
 const codePageSource = fs.readFileSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx'),
   'utf8',
 );
 const requestStateHookSource = fs.readFileSync(
   path.join(
     rootDir,
-    'packages/sdkwork-birdcoder-code/src/pages/useCodeNewCodingSessionRequestState.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeNewCodingSessionRequestState.ts',
   ),
   'utf8',
 );
 const surfacePropsSource = fs.readFileSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts'),
   'utf8',
 );
 const sessionSelectionHookSource = fs.readFileSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-code/src/pages/useCodePageSessionSelection.ts'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSessionSelection.ts'),
   'utf8',
 );
 const engineSelectionCallStart = codePageSource.indexOf('useCodingSessionEngineModelSelection({');

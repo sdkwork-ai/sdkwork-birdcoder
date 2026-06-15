@@ -8,9 +8,9 @@ import type {
   BirdCoderEngineDescriptor,
   BirdCoderModelCatalogEntry,
   BirdCoderOperationDescriptor,
-} from '@sdkwork/birdcoder-types';
-import type { IAppRuntimeReadService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeReadService.ts';
-import { loadCodingServerOverview } from '../packages/sdkwork-birdcoder-commons/src/hooks/useCodingServerOverview.ts';
+} from '@sdkwork/birdcoder-pc-types';
+import type { IAppRuntimeReadService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IAppRuntimeReadService.ts';
+import { loadCodingServerOverview } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingServerOverview.ts';
 import { TEST_CODE_ENGINE_MODEL_CONFIG } from './test-code-engine-model-config-fixture.ts';
 
 const descriptorFixture: BirdCoderCodingServerDescriptor = {

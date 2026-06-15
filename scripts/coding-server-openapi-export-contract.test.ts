@@ -209,6 +209,49 @@ try {
     'passwordResets.create',
   );
   assert.equal(
+    writtenDocument.paths['/app/v3/api/oauth/device_authorizations']?.post?.operationId,
+    'oauth.deviceAuthorizations.create',
+  );
+  assert.ok(
+    writtenDocument.paths['/app/v3/api/oauth/device_authorizations']?.post?.requestBody,
+    'exported coding-server OpenAPI must keep appbase POST body contract for OAuth device authorization creation.',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}']?.get
+      ?.operationId,
+    'oauth.deviceAuthorizations.retrieve',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/scans']?.post
+      ?.operationId,
+    'oauth.deviceAuthorizations.scans.create',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions']?.post
+      ?.operationId,
+    'oauth.deviceAuthorizations.passwordCompletions.create',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions'],
+    undefined,
+    'exported coding-server OpenAPI must not keep retired appbase openPlatform QR auth session routes.',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}'],
+    undefined,
+    'exported coding-server OpenAPI must not keep retired appbase openPlatform QR auth status routes.',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans'],
+    undefined,
+    'exported coding-server OpenAPI must not keep retired appbase openPlatform QR auth scan routes.',
+  );
+  assert.equal(
+    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords'],
+    undefined,
+    'exported coding-server OpenAPI must not keep retired appbase openPlatform QR auth password routes.',
+  );
+  assert.equal(
     writtenDocument.paths['/app/v3/api/auth/verification_codes'],
     undefined,
     'BirdCoder export must not publish messaging-owned verification-code delivery routes.',
@@ -219,42 +262,26 @@ try {
     'BirdCoder export must not publish messaging-owned verification-code verify routes.',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions']?.post?.operationId,
-    'qrAuth.sessions.create',
+    writtenDocument.paths['/app/v3/api/oauth/authorization_urls']?.post?.operationId,
+    'oauth.authorizationUrls.create',
+  );
+  assert.ok(
+    writtenDocument.paths['/app/v3/api/oauth/authorization_urls']?.post?.requestBody,
+    'exported coding-server OpenAPI must keep appbase POST body contract for OAuth authorization URL creation.',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}']?.get?.operationId,
-    'qrAuth.sessions.retrieve',
+    writtenDocument.paths['/app/v3/api/auth/oauth_authorization_urls'],
+    undefined,
+    'exported coding-server OpenAPI must not keep the retired appbase auth/oauth_authorization_urls route.',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans']?.post
-      ?.operationId,
-    'qrAuth.sessions.scans.create',
+    writtenDocument.paths['/app/v3/api/oauth/sessions']?.post?.operationId,
+    'oauth.sessions.create',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords']?.post
-      ?.operationId,
-    'qrAuth.sessions.passwords.create',
-  );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/auth/oauth_authorization_urls']?.get?.operationId,
-    'oauthAuthorizationUrls.retrieve',
-  );
-  assert.deepEqual(
-    writtenDocument.paths['/app/v3/api/auth/oauth_authorization_urls']?.get?.parameters?.map(
-      (parameter) => [parameter.name, parameter.in, Boolean(parameter.required)],
-    ),
-    [
-      ['provider', 'query', true],
-      ['redirectUri', 'query', true],
-      ['scope', 'query', false],
-      ['state', 'query', false],
-    ],
-    'exported coding-server OpenAPI must keep appbase GET query-parameter contract for OAuth authorization URL retrieval.',
-  );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/auth/oauth_sessions']?.post?.operationId,
-    'oauthSessions.create',
+    writtenDocument.paths['/app/v3/api/auth/oauth_sessions'],
+    undefined,
+    'exported coding-server OpenAPI must not keep the retired appbase auth/oauth_sessions route.',
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/iam/users/current']?.get?.operationId,

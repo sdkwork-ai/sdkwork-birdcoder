@@ -868,7 +868,7 @@ assert.match(
 );
 
 const staleArchitecture09NextTargetPatterns = [
-  /`packages\/sdkwork-birdcoder-server\/src-host\/src\/main\.rs` 仍是最小 Rust host，仅暴露 `\/health`；完整 `core \/ app \/ admin` 服务面仍属于后续实现项。/,
+  /`packages\/sdkwork-birdcoder-pc-server\/src-host\/src\/main\.rs` 仍是最小 Rust host，仅暴露 `\/health`；完整 `core \/ app \/ admin` 服务面仍属于后续实现项。/,
   /`coding-server` 的协议标准已冻结，但 Rust host 尚未完成 OpenAPI、SSE、鉴权中间件与资源路由全量落地。/,
 ];
 

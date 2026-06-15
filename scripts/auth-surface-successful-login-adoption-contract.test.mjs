@@ -2,19 +2,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const authPageSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx', import.meta.url),
   'utf8',
 );
 const iamIntegrationSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-iam/src/iamIntegration.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/src/iamIntegration.ts', import.meta.url),
   'utf8',
 );
 const runtimeAuthServiceSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeAuthService.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeAuthService.ts', import.meta.url),
   'utf8',
 );
 const iamRuntimeSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts', import.meta.url),
   'utf8',
 );
 
@@ -67,8 +67,13 @@ assert.match(
 );
 assert.match(
   iamRuntimeSource,
-  /createSdkworkAppbasePcAuthRuntime\(\{[\s\S]*createAppbaseAppClient[\s\S]*createAppbaseBackendClient[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp/u,
+  /createSdkworkAppbasePcAuthRuntime\(\{[\s\S]*createAppbaseAppClient[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp/u,
   'BirdCoder IAM runtime must compose appbase, BirdCoder product, and Drive SDK clients through the high-level appbase auth runtime.',
+);
+assert.doesNotMatch(
+  iamRuntimeSource,
+  /createAppbaseBackendClient|appbaseBackendApiBaseUrl|from ['"]@sdkwork\/appbase-backend-sdk['"]/u,
+  'BirdCoder app auth runtime must not construct appbase backend SDK clients.',
 );
 assert.doesNotMatch(
   iamRuntimeSource,

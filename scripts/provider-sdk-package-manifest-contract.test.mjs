@@ -8,19 +8,19 @@ const workspaceConfigPath = path.join(rootDir, 'pnpm-workspace.yaml');
 
 const providerPackageEntries = [
   {
-    packageJsonPath: 'packages/sdkwork-birdcoder-chat-codex/package.json',
+    packageJsonPath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/package.json',
     officialSdkPackageName: '@openai/codex-sdk',
   },
   {
-    packageJsonPath: 'packages/sdkwork-birdcoder-chat-claude/package.json',
+    packageJsonPath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/package.json',
     officialSdkPackageName: '@anthropic-ai/claude-agent-sdk',
   },
   {
-    packageJsonPath: 'packages/sdkwork-birdcoder-chat-gemini/package.json',
+    packageJsonPath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/package.json',
     officialSdkPackageName: '@google/gemini-cli-sdk',
   },
   {
-    packageJsonPath: 'packages/sdkwork-birdcoder-chat-opencode/package.json',
+    packageJsonPath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/package.json',
     officialSdkPackageName: '@opencode-ai/sdk',
   },
 ];

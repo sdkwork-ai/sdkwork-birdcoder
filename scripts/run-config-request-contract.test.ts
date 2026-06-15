@@ -5,7 +5,7 @@ import {
   buildRunConfigurationTerminalRequest,
   resolveRunConfigurationTerminalLaunch,
   type RunConfigurationRecord,
-} from '../packages/sdkwork-birdcoder-commons/src/terminal/runConfigs.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigs.ts';
 
 const configuration: RunConfigurationRecord = {
   id: 'lint',
@@ -103,11 +103,11 @@ assert.deepEqual(powershellLaunch.blockedAction, {
 });
 
 const codePageSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx', import.meta.url),
   'utf8',
 );
 const codeRunEntryHookSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/useCodeRunEntryActions.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeRunEntryActions.ts', import.meta.url),
   'utf8',
 );
 assert.equal(
@@ -118,18 +118,18 @@ assert.equal(
 );
 
 const studioPageSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
 const studioWorkbenchEventBindingsSource = await readFile(
   new URL(
-    '../packages/sdkwork-birdcoder-studio/src/pages/useStudioWorkbenchEventBindings.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioWorkbenchEventBindings.ts',
     import.meta.url,
   ),
   'utf8',
 );
 const studioExecutionActionsSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
   'utf8',
 );
 assert.equal(

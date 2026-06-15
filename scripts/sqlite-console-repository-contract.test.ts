@@ -3,12 +3,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createBirdCoderStorageProvider } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
-import { getBirdCoderSchemaMigrationDefinition } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts';
-import { createBirdCoderSqliteFileSqlExecutor } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlBackendExecutors.ts';
+import { createBirdCoderStorageProvider } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts';
+import { getBirdCoderSchemaMigrationDefinition } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts';
+import { createBirdCoderSqliteFileSqlExecutor } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlBackendExecutors.ts';
 import {
   createBirdCoderConsoleRepositories,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts';
 
 const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), `birdcoder-console-${process.pid}-`));
 const databaseFile = path.join(tempDirectory, 'authority.sqlite3');

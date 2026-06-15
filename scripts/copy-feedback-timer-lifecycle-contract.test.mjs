@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const codeEditorSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/CodeEditor.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/CodeEditor.tsx', import.meta.url),
   'utf8',
 );
 const chatCodeBlockSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/UniversalChatCodeBlock.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatCodeBlock.tsx', import.meta.url),
   'utf8',
 );
 const skillsPageSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-skills/src/SkillsPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills/src/SkillsPage.tsx', import.meta.url),
   'utf8',
 );
 const packageJson = JSON.parse(

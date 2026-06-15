@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const GENERATOR_PACKAGE_NAME = '@sdkwork/sdk-generator';
 const GENERATOR_CLI_NAME = 'sdkgen';
 const STANDARD_PROFILE = 'sdkwork-v3';
-const DEFAULT_WORKSPACE_GENERATOR_ENTRYPOINT = '../../sdkwork-sdk-generator/bin/sdkgen.js';
+const DEFAULT_WORKSPACE_GENERATOR_ENTRYPOINT = '../sdkwork-sdk-generator/bin/sdkgen.js';
 const CANONICAL_GENERATOR_ENTRYPOINT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',

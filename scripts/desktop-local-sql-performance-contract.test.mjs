@@ -5,8 +5,11 @@ import path from 'node:path';
 const rootDir = process.cwd();
 const desktopLibRsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'src',
   'lib.rs',

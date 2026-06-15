@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 3,
+  "kind": "sdkwork.app",
+  "app": {
+    "key": "sdkwork-birdcoder-pc",
+    "name": "SDKWork BirdCoder PC",
+    "displayName": "SDKWork BirdCoder PC",
+    "description": "SDKWork BirdCoder PC desktop and browser application.",
+    "vendor": "SDKWork",
+    "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-birdcoder",
+    "supportUrl": "https://sdkwork.com/support",
+    "privacyPolicyUrl": "https://sdkwork.com/privacy",
+    "termsOfServiceUrl": "https://sdkwork.com/terms",
+    "appType": "APP_REACT",
+    "versionSource": "package.json",
+    "identifiers": {
+      "packageName": "com.sdkwork.birdcoder.pc",
+      "bundleId": "com.sdkwork.birdcoder.pc",
+      "desktopAppId": "com.sdkwork.birdcoder.desktop",
+      "containerImage": "registry.sdkwork.com/apps/sdkwork-birdcoder"
+    }
+  },
+  "runtime": {
+    "family": "desktop",
+    "framework": "react-tauri",
+    "runtimes": ["WEB", "TAURI"],
+    "deliveryModes": ["WEB_URL", "DIRECT_DOWNLOAD"],
+    "defaultPlatform": "WEB",
+    "defaultArchitecture": "x64"
+  }
+}

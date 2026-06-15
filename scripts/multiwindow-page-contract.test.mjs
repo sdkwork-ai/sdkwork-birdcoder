@@ -2,55 +2,55 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const universalChatSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx', import.meta.url),
   'utf8',
 );
 const uiIndexSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/index.ts', import.meta.url),
   'utf8',
 );
 const useProjectsSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-commons/src/hooks/useProjects.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjects.ts', import.meta.url),
   'utf8',
 );
 const pagePath = new URL(
-  '../packages/sdkwork-birdcoder-multiwindow/src/pages/MultiWindowProgrammingPage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/pages/MultiWindowProgrammingPage.tsx',
   import.meta.url,
 );
 const headerPath = new URL(
-  '../packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowHeader.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/components/MultiWindowHeader.tsx',
   import.meta.url,
 );
 const gridPath = new URL(
-  '../packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowGrid.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/components/MultiWindowGrid.tsx',
   import.meta.url,
 );
 const panePath = new URL(
-  '../packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowPane.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/components/MultiWindowPane.tsx',
   import.meta.url,
 );
 const sessionPickerPath = new URL(
-  '../packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowSessionPicker.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/components/MultiWindowSessionPicker.tsx',
   import.meta.url,
 );
 const configurationFormPath = new URL(
-  '../packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowPaneConfigurationForm.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/components/MultiWindowPaneConfigurationForm.tsx',
   import.meta.url,
 );
 const addFlowRuntimePath = new URL(
-  '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowAddFlow.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowAddFlow.ts',
   import.meta.url,
 );
 const dispatchabilityRuntimePath = new URL(
-  '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowDispatchability.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowDispatchability.ts',
   import.meta.url,
 );
 const settingsPath = new URL(
-  '../packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowPaneSettings.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/components/MultiWindowPaneSettings.tsx',
   import.meta.url,
 );
 const composerPath = new URL(
-  '../packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowComposer.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/components/MultiWindowComposer.tsx',
   import.meta.url,
 );
 

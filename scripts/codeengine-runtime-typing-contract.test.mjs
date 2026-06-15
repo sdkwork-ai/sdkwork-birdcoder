@@ -9,10 +9,10 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const runtimeSource = read('packages/sdkwork-birdcoder-codeengine/src/runtime.ts');
-const codexSource = read('packages/sdkwork-birdcoder-chat-codex/src/index.ts');
+const runtimeSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/runtime.ts');
+const codexSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts');
 const appSdkClientSource = read(
-  'packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSdkTransport.ts',
 );
 
 assert.match(

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
-import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
-import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
+import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
+import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
 
 for (const engine of listWorkbenchCliEngines()) {
   const runtime = createChatEngineById(engine.id);

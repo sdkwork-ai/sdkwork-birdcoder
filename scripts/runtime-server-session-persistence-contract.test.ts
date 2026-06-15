@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 const runtimeServerSessionModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeServerSession.ts',
   import.meta.url,
 );
 

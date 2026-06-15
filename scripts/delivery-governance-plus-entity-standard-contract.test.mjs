@@ -2,22 +2,22 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const serverTypesPath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/server-api.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
   import.meta.url,
 );
-const openApiPath = new URL('../packages/sdkwork-birdcoder-server/src/index.ts', import.meta.url);
+const openApiPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url);
 const infrastructurePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts',
   import.meta.url,
 );
 const rustSources = [
   {
     label: 'desktop',
-    path: new URL('../packages/sdkwork-birdcoder-desktop/src-tauri/src/lib.rs', import.meta.url),
+    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs', import.meta.url),
   },
   {
     label: 'server',
-    path: new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
+    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
   },
 ];
 

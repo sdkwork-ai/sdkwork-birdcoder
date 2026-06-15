@@ -7,14 +7,19 @@ import {
   formatStructuredTerminalWarningPayload,
   sanitizeDesktopSessionReplay,
   sanitizeDesktopSessionStreamEvent,
-} from '../packages/sdkwork-birdcoder-commons/src/terminal/terminalRuntimeSanitization.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/terminalRuntimeSanitization.ts';
 
 const rootDir = process.cwd();
 const terminalRuntimeSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-commons',
+    
+    'sdkwork-birdcoder-pc-commons',
     'src',
     'terminal',
     'birdcoderTerminalInfrastructureRuntime.ts',
@@ -22,11 +27,11 @@ const terminalRuntimeSource = fs.readFileSync(
   'utf8',
 );
 const webViteConfigSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'vite.config.ts'),
+  path.join(rootDir, 'apps',  'sdkwork-birdcoder-pc',  'packages',  'sdkwork-birdcoder-pc-web', 'vite.config.ts'),
   'utf8',
 );
 const desktopViteConfigSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'vite.config.ts'),
+  path.join(rootDir, 'apps',  'sdkwork-birdcoder-pc',  'packages',  'sdkwork-birdcoder-pc-desktop', 'vite.config.ts'),
   'utf8',
 );
 const sharedVitePluginSource = fs.readFileSync(

@@ -20,15 +20,15 @@ interface SqlPlan {
 }
 
 const bootstrapModulePath = new URL(
-  '../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapShellUserState.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapShellUserState.ts',
   import.meta.url,
 );
 const preferencesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts',
   import.meta.url,
 );
 const runConfigsModulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/terminal/runConfigs.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigs.ts',
   import.meta.url,
 );
 

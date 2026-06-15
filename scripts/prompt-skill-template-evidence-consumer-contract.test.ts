@@ -1,61 +1,61 @@
 import type {
   BirdCoderAppRuntimeSdkApiClient,
   BirdCoderAppSdkApiClient,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { buildTestCodeEngineModelConfigSyncResult } from './test-code-engine-model-config-fixture.ts';
 
 const dataKernelModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
   import.meta.url,
 );
 const sqlExecutorModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlExecutor.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlExecutor.ts',
   import.meta.url,
 );
 const providersModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
   import.meta.url,
 );
 const consoleRepositoryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts',
   import.meta.url,
 );
 const codingSessionRepositoryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionRepository.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts',
   import.meta.url,
 );
 const evidenceRepositoryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts',
   import.meta.url,
 );
 const consoleQueriesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts',
   import.meta.url,
 );
 const appSdkTransportModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSdkTransport.ts',
   import.meta.url,
 );
 const sdkClientsModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
   import.meta.url,
 );
 const typesEntryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
   import.meta.url,
 );
 const defaultServicesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
   import.meta.url,
 );
 const apiBackedProjectServiceModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts',
   import.meta.url,
 );
 const providerBackedProjectServiceModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
   import.meta.url,
 );
 

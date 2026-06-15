@@ -4,15 +4,15 @@ import {
   BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_RELATIVE_PATH,
   buildDefaultBirdCoderCodeEngineModelConfig,
   createBirdCoderCodeEngineModelConfigSyncPlan,
-} from '../packages/sdkwork-birdcoder-codeengine/src/modelConfig.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/modelConfig.ts';
 import {
   deserializeStoredValue,
   readUserHomeTextFile,
   writeUserHomeTextFile,
-} from '../packages/sdkwork-birdcoder-commons/src/storage/dataKernel.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/storage/dataKernel.ts';
 import type {
   BirdCoderCodeEngineModelConfig,
-} from '../packages/sdkwork-birdcoder-types/src/engine.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/engine.ts';
 
 function withCodexModel(
   config: BirdCoderCodeEngineModelConfig,
@@ -32,7 +32,7 @@ function withCodexModel(
 }
 
 const bootstrapModule = await import(
-  `../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapShellUserState.ts?modelConfigBootstrap=${Date.now()}`
+  `../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapShellUserState.ts?modelConfigBootstrap=${Date.now()}`
 );
 const serverConfig = withCodexModel(
   buildDefaultBirdCoderCodeEngineModelConfig({

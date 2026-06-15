@@ -57,16 +57,16 @@ for (const relativePath of sourceFiles) {
   );
 }
 
-const uiRootSource = readText('packages/sdkwork-birdcoder-ui/src/index.ts');
+const uiRootSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/index.ts');
 assert.ok(
-  pathExists('packages/sdkwork-birdcoder-ui-shell/package.json'),
-  '@sdkwork/birdcoder-ui-shell package must exist so lightweight shell UI can stay isolated from the heavy workbench runtime.',
+  pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/package.json'),
+  '@sdkwork/birdcoder-pc-ui-shell package must exist so lightweight shell UI can stay isolated from the heavy workbench runtime.',
 );
 assert.ok(
-  pathExists('packages/sdkwork-birdcoder-ui-shell/src/index.ts'),
-  '@sdkwork/birdcoder-ui-shell must publish a root entry.',
+  pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/index.ts'),
+  '@sdkwork/birdcoder-pc-ui-shell must publish a root entry.',
 );
-const uiShellRootSource = readText('packages/sdkwork-birdcoder-ui-shell/src/index.ts');
+const uiShellRootSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/index.ts');
 for (const requiredShellExport of [
   'Button',
   'TopMenu',
@@ -80,7 +80,7 @@ for (const requiredShellExport of [
   assert.match(
     uiShellRootSource,
     new RegExp(`\\b${requiredShellExport}\\b`, 'u'),
-    `@sdkwork/birdcoder-ui-shell root entry must publish ${requiredShellExport} so shell-first consumers stay off the heavy workbench package.`,
+    `@sdkwork/birdcoder-pc-ui-shell root entry must publish ${requiredShellExport} so shell-first consumers stay off the heavy workbench package.`,
   );
 }
 
@@ -96,7 +96,7 @@ for (const requiredRootExport of [
   assert.match(
     uiRootSource,
     new RegExp(`\\b${requiredRootExport}\\b`, 'u'),
-    `@sdkwork/birdcoder-ui root entry must publish ${requiredRootExport} so product surfaces stay on root imports.`,
+    `@sdkwork/birdcoder-pc-ui root entry must publish ${requiredRootExport} so product surfaces stay on root imports.`,
   );
 }
 
@@ -109,7 +109,7 @@ for (const forbiddenStarExport of [
 ]) {
   assert.ok(
     !uiRootSource.includes(forbiddenStarExport),
-    `@sdkwork/birdcoder-ui root entry must not use ${forbiddenStarExport} because eager wildcard barrels re-link heavy runtime surfaces into the root facade.`,
+    `@sdkwork/birdcoder-pc-ui root entry must not use ${forbiddenStarExport} because eager wildcard barrels re-link heavy runtime surfaces into the root facade.`,
   );
 }
 
@@ -125,35 +125,35 @@ for (const forbiddenUiRootExport of [
   assert.doesNotMatch(
     uiRootSource,
     new RegExp(`\\b${forbiddenUiRootExport}\\b`, 'u'),
-    `@sdkwork/birdcoder-ui root entry must not publish ${forbiddenUiRootExport}; lightweight surfaces belong in @sdkwork/birdcoder-ui-shell.`,
+    `@sdkwork/birdcoder-pc-ui root entry must not publish ${forbiddenUiRootExport}; lightweight surfaces belong in @sdkwork/birdcoder-pc-ui-shell.`,
   );
 }
 
-const uiPackageManifest = JSON.parse(readText('packages/sdkwork-birdcoder-ui/package.json'));
+const uiPackageManifest = JSON.parse(readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/package.json'));
 assert.deepEqual(
   Object.keys(uiPackageManifest.exports ?? {}),
   ['.'],
-  '@sdkwork/birdcoder-ui package exports must expose only the root entry so dependency consumers stay on the root-import standard.',
+  '@sdkwork/birdcoder-pc-ui package exports must expose only the root entry so dependency consumers stay on the root-import standard.',
 );
-const uiShellPackageManifest = JSON.parse(readText('packages/sdkwork-birdcoder-ui-shell/package.json'));
+const uiShellPackageManifest = JSON.parse(readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/package.json'));
 assert.deepEqual(
   Object.keys(uiShellPackageManifest.exports ?? {}),
   ['.'],
-  '@sdkwork/birdcoder-ui-shell package exports must expose only the root entry so dependency consumers stay on the root-import standard.',
+  '@sdkwork/birdcoder-pc-ui-shell package exports must expose only the root entry so dependency consumers stay on the root-import standard.',
 );
 
 assert.ok(
-  !pathExists('packages/sdkwork-birdcoder-commons/src/workbench.ts'),
-  '@sdkwork/birdcoder-commons must not keep the legacy src/workbench.ts barrel.',
+  !pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench.ts'),
+  '@sdkwork/birdcoder-pc-commons must not keep the legacy src/workbench.ts barrel.',
 );
 assert.ok(
-  !pathExists('packages/sdkwork-birdcoder-commons/src/shell.ts'),
-  '@sdkwork/birdcoder-commons must not keep the legacy src/shell.ts barrel.',
+  !pathExists('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/shell.ts'),
+  '@sdkwork/birdcoder-pc-commons must not keep the legacy src/shell.ts barrel.',
 );
 
-const universalChatSource = readText('packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx');
-const universalChatMarkdownSource = readText('packages/sdkwork-birdcoder-ui/src/components/UniversalChatMarkdown.tsx');
-const universalChatCodeBlockSource = readText('packages/sdkwork-birdcoder-ui/src/components/UniversalChatCodeBlock.tsx');
+const universalChatSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx');
+const universalChatMarkdownSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMarkdown.tsx');
+const universalChatCodeBlockSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatCodeBlock.tsx');
 
 assert.doesNotMatch(
   universalChatSource,
@@ -181,7 +181,7 @@ assert.match(
   'UniversalChatCodeBlock must own syntax-highlighting dependencies.',
 );
 
-const webViteConfigSource = readText('packages/sdkwork-birdcoder-web/vite.config.ts');
+const webViteConfigSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts');
 for (const staleChunkName of [
   'birdcoder-platform-services',
   'birdcoder-auth-root',

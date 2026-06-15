@@ -1,10 +1,42 @@
 [workspace]
 members = [
-    "packages/sdkwork-birdcoder-server/src-host",
-    "packages/sdkwork-birdcoder-desktop/src-tauri",
-    "packages/sdkwork-birdcoder-codeengine/src-host",
-    "packages/sdkwork-birdcoder-git/src-host",
-    "packages/sdkwork-birdcoder-host-studio/src-host",
+    # Route crates
+    "crates/sdkwork-router-system-app-api",
+    "crates/sdkwork-router-engine-catalog-app-api",
+    "crates/sdkwork-router-coding-sessions-app-api",
+    "crates/sdkwork-router-workspace-app-api",
+    "crates/sdkwork-router-document-app-api",
+    "crates/sdkwork-router-skill-packages-app-api",
+    "crates/sdkwork-router-membership-app-api",
+    "crates/sdkwork-router-iam-birdcoder-backend-api",
+    "crates/sdkwork-router-deployment-backend-api",
+    # Service crates
+    "crates/sdkwork-birdcoder-coding-sessions-service",
+    "crates/sdkwork-birdcoder-engine-catalog-service",
+    "crates/sdkwork-birdcoder-native-sessions-service",
+    "crates/sdkwork-birdcoder-workspace-service",
+    "crates/sdkwork-birdcoder-project-service",
+    "crates/sdkwork-birdcoder-deployment-service",
+    "crates/sdkwork-birdcoder-skill-packages-service",
+    "crates/sdkwork-birdcoder-app-templates-service",
+    "crates/sdkwork-birdcoder-document-service",
+    "crates/sdkwork-birdcoder-membership-service",
+    "crates/sdkwork-birdcoder-system-descriptor-service",
+    # Repository crates
+    "crates/sdkwork-birdcoder-coding-sessions-repository-sqlite",
+    "crates/sdkwork-birdcoder-workspace-repository-sqlite",
+    "crates/sdkwork-birdcoder-skill-packages-repository-sqlite",
+    "crates/sdkwork-birdcoder-model-config-repository-sqlite",
+    "crates/sdkwork-birdcoder-membership-repository-sqlite",
+    # Host/server crates
+    "crates/sdkwork-birdcoder-api-server",
+    "crates/sdkwork-birdcoder-service-host",
+    "crates/sdkwork-birdcoder-tauri-host",
+    # Shared crates
+    "crates/sdkwork-birdcoder-errors",
+    # Relocated crates
+    "crates/sdkwork-birdcoder-codeengine",
+    "crates/sdkwork-birdcoder-git",
 ]
 exclude = [
     "sdks",
@@ -19,17 +51,67 @@ license = "Commercial"
 authors = ["sdkwork"]
 
 [workspace.dependencies]
-# Intra-birdcoder workspace members (declared once at the root)
-sdkwork-birdcoder-codeengine = { path = "packages/sdkwork-birdcoder-codeengine/src-host" }
-sdkwork-birdcoder-git = { path = "packages/sdkwork-birdcoder-git/src-host" }
-sdkwork-birdcoder-server = { path = "packages/sdkwork-birdcoder-server/src-host" }
+# Common third-party dependencies
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
+async-trait = "0.1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+
+# Relocated crates
+sdkwork-birdcoder-codeengine = { package = "sdkwork-birdcoder-codeengine", path = "crates/sdkwork-birdcoder-codeengine" }
+sdkwork-birdcoder-git = { package = "sdkwork-birdcoder-git", path = "crates/sdkwork-birdcoder-git" }
+
+# Route crates
+sdkwork-router-system-app-api = { path = "crates/sdkwork-router-system-app-api" }
+sdkwork-router-engine-catalog-app-api = { path = "crates/sdkwork-router-engine-catalog-app-api" }
+sdkwork-router-coding-sessions-app-api = { path = "crates/sdkwork-router-coding-sessions-app-api" }
+sdkwork-router-workspace-app-api = { path = "crates/sdkwork-router-workspace-app-api" }
+sdkwork-router-document-app-api = { path = "crates/sdkwork-router-document-app-api" }
+sdkwork-router-skill-packages-app-api = { path = "crates/sdkwork-router-skill-packages-app-api" }
+sdkwork-router-membership-app-api = { path = "crates/sdkwork-router-membership-app-api" }
+sdkwork-router-iam-birdcoder-backend-api = { path = "crates/sdkwork-router-iam-birdcoder-backend-api" }
+sdkwork-router-deployment-backend-api = { path = "crates/sdkwork-router-deployment-backend-api" }
+
+# Service crates
+sdkwork-birdcoder-coding-sessions-service = { path = "crates/sdkwork-birdcoder-coding-sessions-service" }
+sdkwork-birdcoder-engine-catalog-service = { path = "crates/sdkwork-birdcoder-engine-catalog-service" }
+sdkwork-birdcoder-native-sessions-service = { path = "crates/sdkwork-birdcoder-native-sessions-service" }
+sdkwork-birdcoder-workspace-service = { path = "crates/sdkwork-birdcoder-workspace-service" }
+sdkwork-birdcoder-project-service = { path = "crates/sdkwork-birdcoder-project-service" }
+sdkwork-birdcoder-deployment-service = { path = "crates/sdkwork-birdcoder-deployment-service" }
+sdkwork-birdcoder-skill-packages-service = { path = "crates/sdkwork-birdcoder-skill-packages-service" }
+sdkwork-birdcoder-app-templates-service = { path = "crates/sdkwork-birdcoder-app-templates-service" }
+sdkwork-birdcoder-document-service = { path = "crates/sdkwork-birdcoder-document-service" }
+sdkwork-birdcoder-membership-service = { path = "crates/sdkwork-birdcoder-membership-service" }
+sdkwork-birdcoder-system-descriptor-service = { path = "crates/sdkwork-birdcoder-system-descriptor-service" }
+
+# Repository crates
+sdkwork-birdcoder-coding-sessions-repository-sqlite = { path = "crates/sdkwork-birdcoder-coding-sessions-repository-sqlite" }
+sdkwork-birdcoder-workspace-repository-sqlite = { path = "crates/sdkwork-birdcoder-workspace-repository-sqlite" }
+sdkwork-birdcoder-skill-packages-repository-sqlite = { path = "crates/sdkwork-birdcoder-skill-packages-repository-sqlite" }
+sdkwork-birdcoder-model-config-repository-sqlite = { path = "crates/sdkwork-birdcoder-model-config-repository-sqlite" }
+sdkwork-birdcoder-membership-repository-sqlite = { path = "crates/sdkwork-birdcoder-membership-repository-sqlite" }
+
+# Host/server crates
+sdkwork-birdcoder-api-server = { path = "crates/sdkwork-birdcoder-api-server" }
+sdkwork-birdcoder-service-host = { path = "crates/sdkwork-birdcoder-service-host" }
+sdkwork-birdcoder-tauri-host = { path = "crates/sdkwork-birdcoder-tauri-host" }
+
+# Shared crates
+sdkwork-birdcoder-errors = { path = "crates/sdkwork-birdcoder-errors" }
+
 # Cross-repo SDKWork sources (declared once at the root)
-sdkwork_iam_core = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-core-rust" }
-sdkwork_iam_http = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-http-rust" }
-sdkwork_iam_storage_sqlx = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust" }
-sdkwork_iam_tauri = { path = "../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-tauri-rust" }
-sdkwork-terminal-control-plane = { path = "../sdkwork-terminal/crates/sdkwork-terminal-control-plane" }
-sdkwork-terminal-pty-runtime = { path = "../sdkwork-terminal/crates/sdkwork-terminal-pty-runtime" }
-sdkwork-terminal-protocol = { path = "../sdkwork-terminal/crates/sdkwork-terminal-protocol" }
-sdkwork-terminal-replay-store = { path = "../sdkwork-terminal/crates/sdkwork-terminal-replay-store" }
-sdkwork-terminal-session-runtime = { path = "../sdkwork-terminal/crates/sdkwork-terminal-session-runtime" }
+sdkwork_iam_context_service = { package = "sdkwork-iam-context-service", path = "../sdkwork-appbase/crates/sdkwork-iam-context-service" }
+sdkwork_router_iam_app_api = { package = "sdkwork-router-iam-app-api", path = "../sdkwork-appbase/crates/sdkwork-router-iam-app-api" }
+sdkwork_router_iam_backend_api = { package = "sdkwork-router-iam-backend-api", path = "../sdkwork-appbase/crates/sdkwork-router-iam-backend-api" }
+sdkwork_iam_directory_repository_sqlx = { package = "sdkwork-iam-directory-repository-sqlx", path = "../sdkwork-appbase/crates/sdkwork-iam-directory-repository-sqlx" }
+sdkwork_appbase_tauri_host = { package = "sdkwork-appbase-tauri-host", path = "../sdkwork-appbase/crates/sdkwork-appbase-tauri-host" }
+sdkwork-terminal-control-plane = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-control-plane" }
+sdkwork-terminal-pty-runtime = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-pty-runtime" }
+sdkwork-terminal-protocol = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-protocol" }
+sdkwork-terminal-replay-store = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-replay-store" }
+sdkwork-terminal-session-runtime = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-session-runtime" }

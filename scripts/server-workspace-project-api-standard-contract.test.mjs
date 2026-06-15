@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const rustPath = new URL(
-  '../packages/sdkwork-birdcoder-server/src-host/src/lib.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs',
   import.meta.url,
 );
-const openApiPath = new URL('../packages/sdkwork-birdcoder-server/src/index.ts', import.meta.url);
+const openApiPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url);
 
 const rustSource = await readFile(rustPath, 'utf8');
 const openApiSource = await readFile(openApiPath, 'utf8');

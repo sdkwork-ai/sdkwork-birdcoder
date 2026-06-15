@@ -251,13 +251,13 @@ assert.ok(
   'The root TypeScript project must exclude the Vite-only shared core facade so tsc does not recurse into sibling sdkwork-core source and its external SDK workspace dependencies.',
 );
 assert.deepEqual(
-  rootTsconfig.compilerOptions?.paths?.['@sdkwork/terminal-resources/model'],
-  ['../sdkwork-terminal/packages/sdkwork-terminal-resources/src/model.ts'],
+  rootTsconfig.compilerOptions?.paths?.['@sdkwork/terminal-pc-resources/model'],
+  ['../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-resources/src/model.ts'],
   'The root TypeScript project must resolve sdkwork-terminal resources model subpaths from the workspace dependency root, matching the Vite alias contract.',
 );
 assert.deepEqual(
-  rootTsconfig.compilerOptions?.paths?.['@sdkwork/terminal-sessions/model'],
-  ['../sdkwork-terminal/packages/sdkwork-terminal-sessions/src/model.ts'],
+  rootTsconfig.compilerOptions?.paths?.['@sdkwork/terminal-pc-sessions/model'],
+  ['../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-sessions/src/model.ts'],
   'The root TypeScript project must resolve sdkwork-terminal sessions model subpaths from the workspace dependency root, matching the Vite alias contract.',
 );
 assert.match(
@@ -328,11 +328,11 @@ async function loadConfigModule(relativePath) {
   }
 }
 
-const rootConfig = await loadConfigModule('vite.config.ts');
+const rootConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/vite.config.ts');
 assert.equal(rootConfig.resolve?.alias?.[0]?.find, '@');
 assert.equal(
   rootConfig.resolve?.alias?.[0]?.replacement,
-  path.resolve(workspaceRootDir, 'src'),
+  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'src'),
   'Root Vite config should resolve @ to the workspace src directory.',
 );
 const rootAuthSurfaceAlias = findAliasEntry(
@@ -355,13 +355,13 @@ const rootBirdcoderBareAlias = findAliasEntry(
   rootConfig.resolve?.alias,
   (candidate) =>
     candidate?.find instanceof RegExp
-    && candidate.find.test('@sdkwork/birdcoder-infrastructure')
-    && !candidate.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
+    && !candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
   'Root Vite config should expose a bare scoped BirdCoder workspace alias.',
 );
 assert.equal(
   rootBirdcoderBareAlias.replacement,
-  path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-$1', 'src'),
+  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-$1', 'src'),
   'Root Vite config should resolve bare scoped BirdCoder workspace aliases without relying on local node_modules package builds.',
 );
 assert.deepEqual(
@@ -370,7 +370,7 @@ assert.deepEqual(
   'Root Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace dependency fs allow-list under ESM-native loading.',
 );
 
-const webConfig = await loadConfigModule('packages/sdkwork-birdcoder-web/vite.config.ts');
+const webConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts');
 assert.equal(webConfig.esbuild, false);
 assertSharedCoreBrowserFacadeAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertXtermCssAlias(webConfig.resolve?.alias, 'Web Vite config');
@@ -382,26 +382,26 @@ const webBirdcoderBareAlias = findAliasEntry(
   webConfig.resolve?.alias,
   (candidate) =>
     candidate?.find instanceof RegExp
-    && candidate.find.test('@sdkwork/birdcoder-infrastructure')
-    && !candidate.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
+    && !candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
   'Web Vite config should expose a bare workspace package alias.',
 );
 assert.equal(
   webBirdcoderBareAlias.replacement,
-  path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-$1', 'src'),
+  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-$1', 'src'),
   'Web Vite config should resolve bare workspace aliases under ESM-native loading.',
 );
 const webBirdcoderSubpathAlias = findAliasEntry(
   webConfig.resolve?.alias,
   (candidate) =>
     candidate?.find instanceof RegExp
-    && !candidate.find.test('@sdkwork/birdcoder-infrastructure')
-    && candidate.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+    && !candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
+    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
   'Web Vite config should expose a workspace package subpath alias.',
 );
 assert.equal(
   webBirdcoderSubpathAlias.replacement,
-  path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-$1', 'src', '$2'),
+  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-$1', 'src', '$2'),
   'Web Vite config should resolve workspace package subpath aliases under ESM-native loading.',
 );
 const webTerminalBareAlias = findAliasEntry(
@@ -414,7 +414,7 @@ const webTerminalBareAlias = findAliasEntry(
 );
 assert.equal(
   webTerminalBareAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
   'Web Vite config should resolve bare sdkwork-terminal aliases from the workspace dependency root.',
 );
 const webTerminalSubpathAlias = findAliasEntry(
@@ -427,7 +427,7 @@ const webTerminalSubpathAlias = findAliasEntry(
 );
 assert.equal(
   webTerminalSubpathAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src', '$2'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src', '$2'),
   'Web Vite config should resolve sdkwork-terminal subpath aliases from the workspace dependency root.',
 );
 assert.equal(
@@ -455,9 +455,9 @@ assertLucideRollupWarningFilter(
 const webManualChunks = webConfig.build?.rollupOptions?.output?.manualChunks;
 assert.equal(typeof webManualChunks, 'function', 'Web Vite config must expose manual chunk governance.');
 for (const platformRuntimeModuleId of [
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
-  '/repo/packages/sdkwork-birdcoder-workbench-state/src/index.ts',
-  '/repo/packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-state/src/index.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts',
 ]) {
   assert.equal(
     webManualChunks(platformRuntimeModuleId),
@@ -466,12 +466,12 @@ for (const platformRuntimeModuleId of [
   );
 }
 for (const platformApiClientModuleId of [
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/appSessionToken.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/sessionService.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionToken.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSdkTransport.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeServerSession.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sessionService.ts',
 ]) {
   assert.equal(
     webManualChunks(platformApiClientModuleId),
@@ -485,9 +485,9 @@ assert.equal(
   'Web Vite config must isolate the Vite preload helper so lazy runtime chunks cannot form artificial circular chunk edges through helper placement.',
 );
 for (const platformFileSystemModuleId of [
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/platform/tauriRuntime.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/platform/tauriFileSystemRuntime.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/tauriRuntime.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/tauriFileSystemRuntime.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
 ]) {
   assert.equal(
     webManualChunks(platformFileSystemModuleId),
@@ -496,8 +496,8 @@ for (const platformFileSystemModuleId of [
   );
 }
 for (const providerRuntimeModuleId of [
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedWorkspaceService.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedWorkspaceService.ts',
 ]) {
   assert.equal(
     webManualChunks(providerRuntimeModuleId),
@@ -506,10 +506,10 @@ for (const providerRuntimeModuleId of [
   );
 }
 for (const serviceCoreModuleId of [
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/runtimeApiRetry.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/codingSessionSelection.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/codingSessionMessageProjection.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/projectContentConfigData.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeApiRetry.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionSelection.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionMessageProjection.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/projectContentConfigData.ts',
 ]) {
   assert.equal(
     webManualChunks(serviceCoreModuleId),
@@ -518,15 +518,15 @@ for (const serviceCoreModuleId of [
   );
 }
 assert.equal(
-  webManualChunks('/repo/packages/sdkwork-birdcoder-infrastructure/src/storage/bootstrapConsoleCatalog.ts'),
+  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/bootstrapConsoleCatalog.ts'),
   'birdcoder-platform-storage',
   'Web Vite config must keep bootstrap storage catalog helpers in the storage chunk so provider-backed services do not depend back on platform orchestration.',
 );
 for (const terminalDesktopModuleId of [
   '/repo/sdkwork-terminal/apps/desktop/src/index.ts',
   '/repo/sdkwork-terminal/apps/desktop/src/App.tsx',
-  '/repo/sdkwork-terminal/packages/sdkwork-terminal-shell/src/index.tsx',
-  '/repo/sdkwork-terminal/packages/sdkwork-terminal-workbench/src/index.tsx',
+  '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/index.tsx',
+  '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-workbench/src/index.tsx',
 ]) {
   assert.equal(
     webManualChunks(terminalDesktopModuleId),
@@ -535,11 +535,11 @@ for (const terminalDesktopModuleId of [
   );
 }
 for (const terminalInfrastructureModuleId of [
-  '/repo/packages/sdkwork-birdcoder-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
-  '/repo/packages/sdkwork-birdcoder-commons/src/terminal/terminalRuntimeSanitization.ts',
-  '/repo/sdkwork-terminal/packages/sdkwork-terminal-core/src/index.ts',
-  '/repo/sdkwork-terminal/packages/sdkwork-terminal-types/src/index.ts',
-  '/repo/sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/index.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/terminalRuntimeSanitization.ts',
+  '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-core/src/index.ts',
+  '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-types/src/index.ts',
+  '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/index.ts',
 ]) {
   assert.equal(
     webManualChunks(terminalInfrastructureModuleId),
@@ -552,36 +552,36 @@ for (const terminalVendorModule of [
     chunkName: 'vendor-terminal-xterm',
     moduleIds: [
       '/repo/node_modules/@xterm/xterm/lib/xterm.js',
-      '\0sdkwork-birdcoder-web-xterm-xterm',
-      '\0sdkwork-birdcoder-web-xterm-xterm-compiled',
+      '\0sdkwork-birdcoder-pc-web-xterm-xterm',
+      '\0sdkwork-birdcoder-pc-web-xterm-xterm-compiled',
     ],
   },
   {
     chunkName: 'vendor-terminal-xterm-addon-canvas',
     moduleIds: [
       '/repo/node_modules/@xterm/addon-canvas/lib/addon-canvas.js',
-      '\0sdkwork-birdcoder-web-xterm-addon-canvas',
+      '\0sdkwork-birdcoder-pc-web-xterm-addon-canvas',
     ],
   },
   {
     chunkName: 'vendor-terminal-xterm-addon-fit',
     moduleIds: [
       '/repo/node_modules/@xterm/addon-fit/lib/addon-fit.js',
-      '\0sdkwork-birdcoder-web-xterm-addon-fit',
+      '\0sdkwork-birdcoder-pc-web-xterm-addon-fit',
     ],
   },
   {
     chunkName: 'vendor-terminal-xterm-addon-search',
     moduleIds: [
       '/repo/node_modules/@xterm/addon-search/lib/addon-search.js',
-      '\0sdkwork-birdcoder-web-xterm-addon-search',
+      '\0sdkwork-birdcoder-pc-web-xterm-addon-search',
     ],
   },
   {
     chunkName: 'vendor-terminal-xterm-addon-unicode11',
     moduleIds: [
       '/repo/node_modules/@xterm/addon-unicode11/lib/addon-unicode11.js',
-      '\0sdkwork-birdcoder-web-xterm-addon-unicode11',
+      '\0sdkwork-birdcoder-pc-web-xterm-addon-unicode11',
     ],
   },
 ]) {
@@ -629,47 +629,47 @@ for (const productSurfaceModule of [
   {
     chunkName: 'birdcoder-code-surface',
     moduleIds: [
-      '/repo/packages/sdkwork-birdcoder-code/src/index.ts',
-      '/repo/packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
-      '/repo/packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/index.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx',
     ],
   },
   {
     chunkName: 'birdcoder-studio-surface',
     moduleIds: [
-      '/repo/packages/sdkwork-birdcoder-studio/src/index.ts',
-      '/repo/packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx',
-      '/repo/packages/sdkwork-birdcoder-studio/src/pages/StudioChatSidebar.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/index.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx',
     ],
   },
   {
     chunkName: 'birdcoder-multiwindow-surface',
     moduleIds: [
-      '/repo/packages/sdkwork-birdcoder-multiwindow/src/index.ts',
-      '/repo/packages/sdkwork-birdcoder-multiwindow/src/pages/MultiWindowProgrammingPage.tsx',
-      '/repo/packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowPane.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/index.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/pages/MultiWindowProgrammingPage.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/components/MultiWindowPane.tsx',
     ],
   },
   {
     chunkName: 'birdcoder-settings-surface',
     moduleIds: [
-      '/repo/packages/sdkwork-birdcoder-settings/src/index.ts',
-      '/repo/packages/sdkwork-birdcoder-settings/src/pages/SettingsPage.tsx',
-      '/repo/packages/sdkwork-birdcoder-settings/src/components/CodeEngineSettings.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/index.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/pages/SettingsPage.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/CodeEngineSettings.tsx',
     ],
   },
   {
     chunkName: 'birdcoder-skills-surface',
     moduleIds: [
-      '/repo/packages/sdkwork-birdcoder-skills/src/index.ts',
-      '/repo/packages/sdkwork-birdcoder-skills/src/SkillsPage.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills/src/index.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills/src/SkillsPage.tsx',
     ],
   },
   {
     chunkName: 'birdcoder-templates-surface',
     moduleIds: [
-      '/repo/packages/sdkwork-birdcoder-templates/src/index.ts',
-      '/repo/packages/sdkwork-birdcoder-templates/src/TemplatesPage.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-templates/src/index.ts',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-templates/src/TemplatesPage.tsx',
     ],
   },
 ]) {
@@ -682,7 +682,7 @@ for (const productSurfaceModule of [
   }
 }
 for (const typeDataModuleId of [
-  '/repo/packages/sdkwork-birdcoder-types/src/data.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
 ]) {
   assert.equal(
     webManualChunks(typeDataModuleId),
@@ -691,9 +691,9 @@ for (const typeDataModuleId of [
   );
 }
 for (const typeApiModuleId of [
-  '/repo/packages/sdkwork-birdcoder-types/src/server-api.ts',
-  '/repo/packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts',
-  '/repo/packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/generated/coding-server-client.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/generated/coding-server-openapi.ts',
 ]) {
   assert.equal(
     webManualChunks(typeApiModuleId),
@@ -702,18 +702,18 @@ for (const typeApiModuleId of [
   );
 }
 assert.equal(
-  webManualChunks('/repo/packages/sdkwork-birdcoder-types/src/storageBindings.ts'),
+  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/storageBindings.ts'),
   'birdcoder-types-storage',
   'Web Vite config must keep storage binding contracts in the dedicated storage types chunk.',
 );
 assert.equal(
-  webManualChunks('/repo/packages/sdkwork-birdcoder-types/src/coding-session.ts'),
+  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts'),
   'birdcoder-types',
   'Web Vite config must keep general runtime type helpers in the shared types fallback chunk.',
 );
 for (const apiRuntimeModuleId of [
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts',
-  '/repo/packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts',
 ]) {
   assert.equal(
     webManualChunks(apiRuntimeModuleId),
@@ -725,8 +725,8 @@ for (const identitySurfaceModuleId of [
   '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
   '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/AuthPage.tsx',
   '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/index.ts',
-  '/repo/packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx',
-  '/repo/packages/sdkwork-birdcoder-user/src/pages/UserPage.tsx',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/UserPage.tsx',
 ]) {
   assert.equal(
     webManualChunks(identitySurfaceModuleId),
@@ -740,7 +740,7 @@ assert.deepEqual(
   'Web Vite config should preserve the BirdCoder, dependency SDK, search, shared UI, and terminal workspace dependency fs allow-list under ESM-native loading.',
 );
 
-const desktopConfig = await loadConfigModule('packages/sdkwork-birdcoder-desktop/vite.config.ts');
+const desktopConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/vite.config.ts');
 assert.equal(desktopConfig.base, './');
 assert.equal(desktopConfig.esbuild, false);
 assert.equal(desktopConfig.resolve?.preserveSymlinks, undefined);
@@ -781,26 +781,26 @@ const desktopBirdcoderBareAlias = findAliasEntry(
   desktopConfig.resolve?.alias,
   (candidate) =>
     candidate?.find instanceof RegExp
-    && candidate.find.test('@sdkwork/birdcoder-infrastructure')
-    && !candidate.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
+    && !candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
   'Desktop Vite config should expose a bare workspace package alias.',
 );
 assert.equal(
   desktopBirdcoderBareAlias.replacement,
-  path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-$1', 'src'),
+  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-$1', 'src'),
   'Desktop Vite config should resolve bare workspace aliases under ESM-native loading.',
 );
 const desktopBirdcoderSubpathAlias = findAliasEntry(
   desktopConfig.resolve?.alias,
   (candidate) =>
     candidate?.find instanceof RegExp
-    && !candidate.find.test('@sdkwork/birdcoder-infrastructure')
-    && candidate.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+    && !candidate.find.test('@sdkwork/birdcoder-pc-infrastructure')
+    && candidate.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
   'Desktop Vite config should expose a workspace package subpath alias.',
 );
 assert.equal(
   desktopBirdcoderSubpathAlias.replacement,
-  path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-$1', 'src', '$2'),
+  path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-$1', 'src', '$2'),
   'Desktop Vite config should resolve workspace package subpath aliases under ESM-native loading.',
 );
 const desktopTerminalBareAlias = findAliasEntry(
@@ -813,7 +813,7 @@ const desktopTerminalBareAlias = findAliasEntry(
 );
 assert.equal(
   desktopTerminalBareAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
   'Desktop Vite config should resolve bare sdkwork-terminal aliases from the workspace dependency root.',
 );
 const desktopTerminalSubpathAlias = findAliasEntry(
@@ -826,7 +826,7 @@ const desktopTerminalSubpathAlias = findAliasEntry(
 );
 assert.equal(
   desktopTerminalSubpathAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src', '$2'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src', '$2'),
   'Desktop Vite config should resolve sdkwork-terminal subpath aliases from the workspace dependency root.',
 );
 assert.equal(

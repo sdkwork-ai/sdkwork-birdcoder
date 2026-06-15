@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 const runtimeAuthModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeAuthService.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeAuthService.ts',
   import.meta.url,
 );
 

@@ -15,7 +15,7 @@ import {
   buildUnifiedStudioEvidenceReplayRequest,
   filterUnifiedStudioEvidenceEntries,
   summarizeUnifiedStudioEvidenceEntries,
-} from '../packages/sdkwork-birdcoder-studio/src/evidence/viewer.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/evidence/viewer.ts';
 
 const entries = buildUnifiedStudioEvidenceEntries({
   previewEvidence: [

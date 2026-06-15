@@ -154,7 +154,7 @@ test('resolveWorkspaceRootDir finds the BirdCoder workspace root from a nested c
   const { tempRoot, workspaceRootDir } = createTempWorkspace();
 
   try {
-    const nestedDir = path.join(workspaceRootDir, 'packages', 'sdkwork-birdcoder-web');
+    const nestedDir = path.join(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-web');
     fs.mkdirSync(nestedDir, { recursive: true });
 
     assert.equal(resolveWorkspaceRootDir(nestedDir), workspaceRootDir);

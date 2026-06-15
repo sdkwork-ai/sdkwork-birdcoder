@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import {
   mergeProjectsForStore,
   upsertCodingSessionIntoCollection,
-} from '../packages/sdkwork-birdcoder-commons/src/stores/projectsStore.ts';
-import { refreshCodingSessionMessages } from '../packages/sdkwork-birdcoder-commons/src/workbench/sessionRefresh.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/projectsStore.ts';
+import { refreshCodingSessionMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionRefresh.ts';
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
   BirdCoderProject,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const projectId = 'project-stale-local-mirror';
 const workspaceId = 'workspace-local';

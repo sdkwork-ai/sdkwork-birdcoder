@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 const bootstrapServerBaseUrlModulePath = new URL(
-  '../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapServerBaseUrl.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapServerBaseUrl.ts',
   import.meta.url,
 );
 

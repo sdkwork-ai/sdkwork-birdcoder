@@ -21,23 +21,25 @@ function assertMatch(source, pattern, message) {
   assert.match(source, pattern, message);
 }
 
-const authPackageJson = readJson('packages/sdkwork-birdcoder-auth/package.json');
-const iamPackageJson = readJson('packages/sdkwork-birdcoder-iam/package.json');
-const infrastructurePackageJson = readJson('packages/sdkwork-birdcoder-infrastructure/package.json');
-const serverPackageJson = readJson('packages/sdkwork-birdcoder-server/package.json');
-const iamIntegrationSource = readText('packages/sdkwork-birdcoder-iam/src/iamIntegration.ts');
-const authPageSource = readText('packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx');
-const authSurfaceSource = readText('packages/sdkwork-birdcoder-auth/src/auth-surface.ts');
-const infrastructureIndexSource = readText('packages/sdkwork-birdcoder-infrastructure/src/index.ts');
-const sdkClientsSource = readText('packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts');
-const iamRuntimeSource = readText('packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts');
-const defaultServicesSource = readText('packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesShared.ts');
+const authPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/package.json');
+const iamPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/package.json');
+const infrastructurePackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/package.json');
+const serverPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/package.json');
+const tsconfig = readJson('tsconfig.json');
+const runtimeTsconfig = readJson('tsconfig.runtime.json');
+const iamIntegrationSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/src/iamIntegration.ts');
+const authPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx');
+const authSurfaceSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/auth-surface.ts');
+const infrastructureIndexSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/index.ts');
+const sdkClientsSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts');
+const iamRuntimeSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts');
+const defaultServicesSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts');
 
 for (const [label, packageJson] of [
   ['sdkwork-birdcoder-auth', authPackageJson],
   ['sdkwork-birdcoder-iam', iamPackageJson],
   ['sdkwork-birdcoder-infrastructure', infrastructurePackageJson],
-  ['sdkwork-birdcoder-server', serverPackageJson],
+  ['sdkwork-birdcoder-pc-server', serverPackageJson],
 ]) {
   const dependencies = {
     ...(packageJson.dependencies ?? {}),
@@ -58,17 +60,17 @@ assertMatch(
   'sdkwork-birdcoder-auth must consume the canonical auth UI package.',
 );
 assert.equal(
-  authPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure-runtime'],
+  authPackageJson.dependencies?.['@sdkwork/birdcoder-pc-infrastructure-runtime'],
   undefined,
   'sdkwork-birdcoder-auth must not depend on infrastructure runtime; IAM runtime binding belongs to sdkwork-birdcoder-iam.',
 );
 assertMatch(
-  iamPackageJson.dependencies?.['@sdkwork/birdcoder-auth'] ?? '',
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-pc-auth'] ?? '',
   /workspace:\*/u,
   'sdkwork-birdcoder-iam must compose the BirdCoder auth package.',
 );
 assertMatch(
-  iamPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure'] ?? '',
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-pc-infrastructure'] ?? '',
   /workspace:\*/u,
   'sdkwork-birdcoder-iam must bind auth to the infrastructure IAM runtime through the public entry.',
 );
@@ -97,6 +99,24 @@ assert.equal(
   undefined,
   'sdkwork-birdcoder-infrastructure must not depend on the low-level IAM SDK adapter directly.',
 );
+for (const [label, config] of [
+  ['tsconfig.json', tsconfig],
+  ['tsconfig.runtime.json', runtimeTsconfig],
+]) {
+  for (const [specifier, target] of [
+    ['@sdkwork/iam-contracts', '../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts/src/index.ts'],
+    ['@sdkwork/iam-runtime', '../sdkwork-appbase/packages/common/iam/sdkwork-iam-runtime/src/index.ts'],
+    ['@sdkwork/iam-service', '../sdkwork-appbase/packages/common/iam/sdkwork-iam-service/src/index.ts'],
+    ['@sdkwork/iam-sdk-ports', '../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts'],
+    ['@sdkwork/runtime-bootstrap', '../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap/src/index.ts'],
+  ]) {
+    assert.deepEqual(
+      config.compilerOptions?.paths?.[specifier],
+      [target],
+      `${label} must resolve ${specifier} to the sdkwork-appbase dependency package source.`,
+    );
+  }
+}
 for (const dependencyName of [
   '@sdkwork/appbase-app-sdk',
   '@sdkwork/appbase-backend-sdk',
@@ -143,9 +163,9 @@ assertNoMatch(
 );
 
 for (const requiredPath of [
-  'packages/sdkwork-birdcoder-infrastructure/src/services/appSessionToken.ts',
-  'packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts',
-  'packages/sdkwork-birdcoder-infrastructure/src/services/sessionService.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionToken.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sessionService.ts',
 ]) {
   assert.equal(fs.existsSync(path.join(rootDir, requiredPath)), true, `${requiredPath} is required.`);
 }
@@ -195,10 +215,10 @@ assertMatch(
   /from ['"]@sdkwork\/appbase-app-sdk['"]/u,
   'BirdCoder IAM runtime must construct the appbase app SDK client, not use the product app SDK as the login authority.',
 );
-assertMatch(
+assertNoMatch(
   iamRuntimeSource,
-  /from ['"]@sdkwork\/appbase-backend-sdk['"]/u,
-  'BirdCoder IAM runtime must construct the appbase backend SDK client for backend IAM resources.',
+  /from ['"]@sdkwork\/appbase-backend-sdk['"]|createAppbaseBackendClient|appbaseBackendApiBaseUrl/u,
+  'BirdCoder app auth runtime must not construct appbase backend SDK clients; backend IAM belongs to explicit backend-admin boundaries.',
 );
 assertMatch(
   iamRuntimeSource,
@@ -227,8 +247,8 @@ assertMatch(
 );
 assertMatch(
   iamRuntimeSource,
-  /createSdkworkAppbasePcAuthRuntime\(\{[\s\S]*createAppbaseAppClient[\s\S]*createAppbaseBackendClient[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp[\s\S]*messagingApp[\s\S]*tokenManager/u,
-  'BirdCoder IAM runtime must pass appbase factories and BirdCoder, Drive, and Messaging downstream SDK clients to the high-level appbase runtime.',
+  /createSdkworkAppbasePcAuthRuntime\(\{[\s\S]*createAppbaseAppClient[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp[\s\S]*messagingApp[\s\S]*tokenManager/u,
+  'BirdCoder IAM runtime must pass the appbase app factory and BirdCoder, Drive, and Messaging downstream SDK clients to the high-level appbase runtime.',
 );
 assertNoMatch(
   iamRuntimeSource,
@@ -252,8 +272,8 @@ assertNoMatch(
 );
 
 const forbiddenRuntimeFiles = [
-  'packages/sdkwork-birdcoder-infrastructure/src/services/userCenterRuntimeBridge.ts',
-  'packages/sdkwork-birdcoder-core/src/userCenterSession.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/userCenterRuntimeBridge.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/userCenterSession.ts',
 ];
 for (const relativePath of forbiddenRuntimeFiles) {
   assert.equal(

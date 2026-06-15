@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
 const studioPageSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
 
@@ -102,8 +102,8 @@ assert.equal(
   'StudioPage should not keep page-level evidence comparison summary flows once the panel is removed.',
 );
 
-const evidencePanelPath = new URL('../packages/sdkwork-birdcoder-studio/src/evidence/StudioEvidencePanel.tsx', import.meta.url);
-const evidenceViewerPath = new URL('../packages/sdkwork-birdcoder-studio/src/evidence/viewer.ts', import.meta.url);
+const evidencePanelPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/evidence/StudioEvidencePanel.tsx', import.meta.url);
+const evidenceViewerPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/evidence/viewer.ts', import.meta.url);
 
 if (!existsSync(evidencePanelPath)) {
   console.log('StudioEvidencePanel module removed; StudioPage integration removal contract passed.');

@@ -77,7 +77,7 @@ export const QUALITY_FAST_CHECK_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . test:prompt-skill-template-evidence-consumer-contract',
   'node scripts/run-workspace-package-script.mjs . test:coding-server-prompt-skill-template-evidence-consumer-contract',
   'node scripts/run-workspace-package-script.mjs . test:postgresql-live-smoke-contract',
-  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-web lint',
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web lint',
   'node scripts/run-workspace-package-script.mjs . check:arch',
   'node scripts/run-workspace-package-script.mjs . check:sdkwork-birdcoder-structure',
   'node scripts/run-workspace-package-script.mjs . check:release-flow',

@@ -4,14 +4,14 @@ import fs from 'node:fs';
 import {
   CHAT_RICH_MARKDOWN_MAX_CHARACTERS,
   shouldUseRichChatMarkdown,
-} from '../packages/sdkwork-birdcoder-ui/src/components/chatMarkdownHeuristics.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatMarkdownHeuristics.ts';
 
 const heuristicSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/chatMarkdownHeuristics.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatMarkdownHeuristics.ts', import.meta.url),
   'utf8',
 );
 const universalChatSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx', import.meta.url),
   'utf8',
 );
 

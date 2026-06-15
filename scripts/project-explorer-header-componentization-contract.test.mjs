@@ -9,13 +9,13 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const sidebarSource = read('packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx');
+const sidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
 
 assert.ok(
   fs.existsSync(
     path.join(
       rootDir,
-      'packages/sdkwork-birdcoder-code/src/components/ProjectExplorerHeader.tsx',
+      'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerHeader.tsx',
     ),
   ),
   'ProjectExplorer must define a dedicated header component for the header, search, and inventory action controls.',

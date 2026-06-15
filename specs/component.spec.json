@@ -10,6 +10,7 @@
     "domain": "platform",
     "declaredDomain": null,
     "capability": "component",
+    "surface": "app",
     "status": "ACTIVE",
     "languages": [
       "typescript",
@@ -32,6 +33,16 @@
       "file": "APPLICATION_SPEC.md",
       "path": "../sdkwork-specs/APPLICATION_SPEC.md",
       "purpose": "Application shell and module composition."
+    },
+    {
+      "file": "APP_PC_ARCHITECTURE_SPEC.md",
+      "path": "../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md",
+      "purpose": "PC browser/desktop/tablet application root architecture."
+    },
+    {
+      "file": "APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
+      "path": "../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md",
+      "purpose": "Cross-client package taxonomy, route identity, component boundaries."
     },
     {
       "file": "COMPONENT_SPEC.md",
@@ -132,6 +143,26 @@
       "file": "APP_PC_REACT_UI_SPEC.md",
       "path": "../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
       "purpose": "PC React package rules."
+    },
+    {
+      "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md",
+      "path": "../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md",
+      "purpose": "Desktop/tablet native app shell, Tauri host boundary."
+    },
+    {
+      "file": "APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "purpose": "Cross-architecture app SDK integration, dependency composition, TokenManager wiring."
+    },
+    {
+      "file": "IAM_LOGIN_INTEGRATION_SPEC.md",
+      "path": "../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md",
+      "purpose": "Fast IAM login/session integration, appbase auth UI/runtime, route guards."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Token model, tenant-bound signing, authn/authz, secrets, rate limits, CORS."
     }
   ],
   "contracts": {
@@ -143,6 +174,9 @@
       "package.json#scripts.typecheck"
     ],
     "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [
       "sdkwork.app.config.json"

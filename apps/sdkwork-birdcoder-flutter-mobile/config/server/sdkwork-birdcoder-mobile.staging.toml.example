@@ -1,0 +1,12 @@
+# BirdCoder Flutter Server Staging Config
+
+[server]
+bind = "0.0.0.0:3000"
+environment = "staging"
+
+[database]
+type = "postgresql"
+url = "${DATABASE_URL}"
+
+[logging]
+level = "info"

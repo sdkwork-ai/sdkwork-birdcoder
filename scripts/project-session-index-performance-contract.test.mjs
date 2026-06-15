@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const codingSessionSelectionPath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/codingSessionSelection.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/codingSessionSelection.ts',
   import.meta.url,
 );
 const codePagePath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
   import.meta.url,
 );
 const studioPagePath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx',
   import.meta.url,
 );
 

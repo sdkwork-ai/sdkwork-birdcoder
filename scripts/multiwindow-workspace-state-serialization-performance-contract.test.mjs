@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 
 const runtimeModule = await import(
   new URL(
-    '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowWorkspaceState.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowWorkspaceState.ts',
     import.meta.url,
   ).href
 );

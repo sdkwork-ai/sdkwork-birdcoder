@@ -1,6 +1,6 @@
 import type {
   BirdCoderAppRuntimeWriteSdkApiClient,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 
 import type {
@@ -15,22 +15,22 @@ import type {
   BirdCoderEngineDescriptor,
   BirdCoderModelCatalogEntry,
   BirdCoderOperationDescriptor,
-} from '@sdkwork/birdcoder-types';
+} from '@sdkwork/birdcoder-pc-types';
 import type {
   IAppRuntimeReadService,
   IAppRuntimeWriteService,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/index.ts';
 import {
   TEST_CODE_ENGINE_MODEL_CONFIG,
   buildTestCodeEngineModelConfigSyncResult,
 } from './test-code-engine-model-config-fixture.ts';
 
 const defaultServicesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
   import.meta.url,
 );
 const projectionModulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/hooks/useCodingSessionProjection.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingSessionProjection.ts',
   import.meta.url,
 );
 

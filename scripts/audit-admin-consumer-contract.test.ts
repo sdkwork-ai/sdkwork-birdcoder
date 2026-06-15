@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import type { BirdCoderIamAuditEventSummary } from '@sdkwork/birdcoder-types';
-import type { IAuditService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAuditService.ts';
-import { loadAuditEvents } from '../packages/sdkwork-birdcoder-commons/src/hooks/useAuditEvents.ts';
+import type { BirdCoderIamAuditEventSummary } from '@sdkwork/birdcoder-pc-types';
+import type { IAuditService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IAuditService.ts';
+import { loadAuditEvents } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useAuditEvents.ts';
 
 const auditFixtures: BirdCoderIamAuditEventSummary[] = [
   {

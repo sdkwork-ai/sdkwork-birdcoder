@@ -7,10 +7,10 @@ import {
   listBirdCoderCodeEngineDescriptors,
   listBirdCoderCodeEngineNativeSessionProviders,
   listBirdCoderCodeEngineModels,
-} from '../packages/sdkwork-birdcoder-codeengine/src/catalog.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/catalog.ts';
 
 const outputUrl = new URL(
-  '../packages/sdkwork-birdcoder-codeengine/src-host/generated/engine-catalog.json',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/generated/engine-catalog.json',
   import.meta.url,
 );
 

@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const codeEditorSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/CodeEditor.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/CodeEditor.tsx', import.meta.url),
   'utf8',
 );
 const diffEditorSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/DiffEditor.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/DiffEditor.tsx', import.meta.url),
   'utf8',
 );
 const monacoRuntimeSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/monacoRuntime.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/monacoRuntime.ts', import.meta.url),
   'utf8',
 );
 

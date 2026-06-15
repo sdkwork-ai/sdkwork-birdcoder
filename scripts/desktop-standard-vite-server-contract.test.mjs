@@ -29,7 +29,7 @@ try {
   const aliasFinders = server.config.resolve.alias.map((entry) => entry.find.toString());
   const birdcoderPackageSubpathAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/birdcoder-([^/]+)\\/(.+)$/u');
   const birdcoderPackageRootAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/birdcoder-([^/]+)$/u');
-  const terminalDesktopAliasIndex = aliasFinders.indexOf('@sdkwork/terminal-desktop');
+  const terminalDesktopAliasIndex = aliasFinders.indexOf('@sdkwork/terminal-pc-desktop');
   const terminalPackageSubpathAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/terminal-([^/]+)\\/(.+)$/u');
   const terminalPackageRootAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/terminal-([^/]+)$/u');
 

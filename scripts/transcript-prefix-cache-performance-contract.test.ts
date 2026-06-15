@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-types';
+import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-types';
 
 const modulePath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/transcriptVirtualization.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptVirtualization.ts',
   import.meta.url,
 );
 
@@ -14,7 +14,7 @@ const {
 
 const virtualizationSource = readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-ui/src/components/useVirtualizedTranscriptWindow.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/useVirtualizedTranscriptWindow.ts',
     import.meta.url,
   ),
   'utf8',

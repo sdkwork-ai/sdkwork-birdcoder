@@ -142,7 +142,7 @@
     "storeUrl": "https://sdkwork.com/apps/sdkwork-birdcoder",
     "stores": [],
     "config": {
-      "workspaceRoot": "apps/sdkwork-birdcoder",
+      "workspaceRoot": "apps/sdkwork-birdcoder-pc",
       "framework": "react-tauri",
       "managedBy": "apps/scripts/initialize-sdkwork-app-standard-v3.mjs"
     }
@@ -157,6 +157,11 @@
       "accessUrl": "https://api-test.sdkwork.com/apps/sdkwork-birdcoder",
       "deployUrl": "https://api-test.sdkwork.com/apps/sdkwork-birdcoder",
       "deployEnv": "test"
+    },
+    "staging": {
+      "accessUrl": "https://api-staging.sdkwork.com/apps/sdkwork-birdcoder",
+      "deployUrl": "https://api-staging.sdkwork.com/apps/sdkwork-birdcoder",
+      "deployEnv": "staging"
     },
     "production": {
       "accessUrl": "https://api.sdkwork.com/apps/sdkwork-birdcoder",
@@ -228,7 +233,7 @@
         }
       ],
       "metadata": {
-        "workspaceRoot": "apps/sdkwork-birdcoder",
+      "workspaceRoot": "apps/sdkwork-birdcoder-pc",
         "framework": "react-tauri",
         "packageManager": "pnpm@10.30.2",
         "migratedFromLegacyConfig": true
@@ -268,15 +273,15 @@
     ]
   },
   "security": {
-    "checksumRequired": false,
-    "signatureRequired": false,
-    "sbomRequired": false
+    "checksumRequired": true,
+    "signatureRequired": true,
+    "sbomRequired": true
   },
   "devApp": {
     "build": {
       "targets": []
     },
-    "sourceRoot": "apps/sdkwork-birdcoder"
+    "sourceRoot": "apps/sdkwork-birdcoder-pc"
   },
   "metadata": {
     "standardOwner": "sdkwork-platform",

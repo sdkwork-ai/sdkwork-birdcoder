@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const topBarPath = path.join(
   process.cwd(),
-  'packages/sdkwork-birdcoder-code/src/components/TopBar.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx',
 );
 const source = fs.readFileSync(topBarPath, 'utf8');
 

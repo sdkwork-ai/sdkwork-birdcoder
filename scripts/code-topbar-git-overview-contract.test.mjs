@@ -10,83 +10,122 @@ function readSource(...segments) {
 }
 
 const topBarSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'components',
   'TopBar.tsx',
 );
 const panelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitOverviewPanel.tsx',
 );
 const sharedControlsSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitHeaderControls.tsx',
 );
 const hookSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
   'packages',
-  'sdkwork-birdcoder-commons',
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'hooks',
   'useProjectGitOverview.ts',
 );
 const eventSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
   'packages',
-  'sdkwork-birdcoder-commons',
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'events',
   'projectGitOverview.ts',
 );
 const workbenchEventSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-commons',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'workbench',
   'projectGitOverview.ts',
 );
 const legacyHookPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'components',
   'useProjectGitOverview.ts',
 );
 const legacyEventPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-commons',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'workbench',
   'projectGitOverviewEvents.ts',
 );
 const legacyCommonsEventPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-commons',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'workbench',
   'projectGitOverview.ts',
 );
 const legacyGitRuntimePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'components',
   'gitRuntime.ts',
 );
 const legacyPanelPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'components',
   'ProjectGitOverviewPanel.tsx',
@@ -142,19 +181,19 @@ assert.equal(
 
 assert.match(
   topBarSource,
-  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-commons';/,
+  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons';/,
   'Code TopBar must import the shared project Git overview hook from commons.',
 );
 
 assert.match(
   topBarSource,
-  /import[\s\S]*useProjectGitMutationActions[\s\S]*from '@sdkwork\/birdcoder-commons';/,
+  /import[\s\S]*useProjectGitMutationActions[\s\S]*from '@sdkwork\/birdcoder-pc-commons';/,
   'Code TopBar must import shared Git mutation actions from commons instead of duplicating mutation logic locally.',
 );
 
 assert.match(
   topBarSource,
-  /import[\s\S]*ProjectGitHeaderControls[\s\S]*from '@sdkwork\/birdcoder-ui';/s,
+  /import[\s\S]*ProjectGitHeaderControls[\s\S]*from '@sdkwork\/birdcoder-pc-ui';/s,
   'Code TopBar must import the shared ProjectGitHeaderControls component from the shared UI package.',
 );
 
@@ -178,7 +217,7 @@ assert.match(
 
 assert.match(
   panelSource,
-  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-commons';/,
+  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons';/,
   'Shared Project Git overview panel must import the shared project Git overview hook from commons.',
 );
 

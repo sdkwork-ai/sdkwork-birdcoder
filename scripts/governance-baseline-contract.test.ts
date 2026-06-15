@@ -9,7 +9,7 @@ import {
   BIRDCODER_APPROVAL_POLICIES,
   BIRDCODER_PERFORMANCE_BUDGETS,
   BIRDCODER_RISK_LEVELS,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 assert.deepEqual(
   BIRDCODER_PERFORMANCE_BUDGETS,

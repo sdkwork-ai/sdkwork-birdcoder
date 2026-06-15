@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const universalChatSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
   'utf8',
 );
 

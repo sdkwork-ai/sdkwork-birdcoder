@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { ProviderBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts';
-import { createBirdCoderConsoleRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
+import { ProviderBackedProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedProjectService.ts';
+import { createBirdCoderConsoleRepositories } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts';
 import {
   createBirdCoderCodingSessionRepositories,
   type BirdCoderPersistedCodingSessionRecord,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionRepository.ts';
-import { createBirdCoderStorageProvider } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
-import { createBirdCoderInMemorySqlExecutor } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlExecutor.ts';
-import type { BirdCoderChatMessage } from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts';
+import { createBirdCoderStorageProvider } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts';
+import { createBirdCoderInMemorySqlExecutor } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlExecutor.ts';
+import type { BirdCoderChatMessage } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const workspaceId = 'workspace-selected-local-transcript';
 const projectId = 'project-selected-local-transcript';
@@ -162,7 +162,7 @@ assert.deepEqual(
 );
 
 const hookSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-commons/src/hooks/useSelectedCodingSessionMessages.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useSelectedCodingSessionMessages.ts', import.meta.url),
   'utf8',
 );
 
@@ -173,7 +173,7 @@ assert.match(
 );
 assert.doesNotMatch(
   fs.readFileSync(
-    new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts', import.meta.url),
+    new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedProjectService.ts', import.meta.url),
     'utf8',
   ),
   /getCodingSessionTranscript\([\s\S]*?listSessionsByProjectIds\(\s*\[\s*normalizedProjectId\s*,?\s*\]\s*\)/,

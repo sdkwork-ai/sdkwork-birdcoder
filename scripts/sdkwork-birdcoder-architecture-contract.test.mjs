@@ -9,9 +9,9 @@ const requiredPaths = [
   '.github/workflows/ci.yml',
   '.github/workflows/package.yml',
   'sdkwork.workflow.json',
-  'deploy/docker/Dockerfile',
-  'deploy/docker/docker-compose.yml',
-  'deploy/kubernetes/Chart.yaml',
+  'deployments/docker/Dockerfile',
+  'deployments/docker/docker-compose.yml',
+  'deployments/kubernetes/Chart.yaml',
   'docs/index.md',
   'docs/architecture.md',
   'docs/release.md',
@@ -28,24 +28,24 @@ const requiredPaths = [
   'docs/reference/commands.md',
   'docs/reference/environment.md',
   'docs/架构/README.md',
-  'docs/架构/01-产品设计与需求范围.md',
+  'docs/架构/01-产品设计与需求范�?md',
   'docs/架构/02-架构标准与总体设计.md',
-  'docs/架构/03-模块规划与边界.md',
+  'docs/架构/03-模块规划与边�?md',
   'docs/架构/04-技术选型与可插拔策略.md',
   'docs/架构/05-统一Kernel与Code Engine标准.md',
-  'docs/架构/06-编译环境-预览-模拟器-测试体系.md',
-  'docs/架构/07-数据模型-状态模型-接口契约.md',
-  'docs/架构/08-性能-安全-可观测性标准.md',
+  'docs/架构/06-编译环境-预览-模拟�?测试体系.md',
+  'docs/架构/07-数据模型-状态模�?接口契约.md',
+  'docs/架构/08-性能-安全-可观测性标�?md',
   'docs/架构/09-安装-部署-发布标准.md',
-  'docs/架构/10-开发流程-质量门禁-评估标准.md',
-  'docs/架构/11-行业对标与能力矩阵.md',
+  'docs/架构/10-开发流�?质量门禁-评估标准.md',
+  'docs/架构/11-行业对标与能力矩�?md',
   'docs/架构/12-统一工具协议-权限沙箱-审计标准.md',
-  'docs/架构/13-规则-技能-MCP-知识系统标准.md',
+  'docs/架构/13-规则-技�?MCP-知识系统标准.md',
   'docs/架构/14-现状基线-差距-演进路线.md',
   'docs/release/releases.json',
   'docs/.vitepress/config.mts',
   'docs/.vitepress/searchIndexPolicy.ts',
-  'config/shared-sdk-release-sources.json',
+  'configs/shared-sdk-release-sources.json',
   'scripts/claw-docs-ia-contract.test.mjs',
   'scripts/ci-flow-contract.test.mjs',
   'scripts/check-release-closure.mjs',
@@ -168,21 +168,21 @@ const requiredPaths = [
   'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts',
   'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust/Cargo.toml',
   'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-rust/src/lib.rs',
-  'packages/sdkwork-birdcoder-shell/package.json',
-  'packages/sdkwork-birdcoder-shell-runtime/package.json',
-  'packages/sdkwork-birdcoder-iam/package.json',
-  'packages/sdkwork-birdcoder-auth/package.json',
-  'packages/sdkwork-birdcoder-user/package.json',
-  'packages/sdkwork-birdcoder-web/package.json',
-  'packages/sdkwork-birdcoder-desktop/package.json',
-  'packages/sdkwork-birdcoder-server/package.json',
-  'packages/sdkwork-birdcoder-host-core/package.json',
-  'packages/sdkwork-birdcoder-host-studio/package.json',
-  'packages/sdkwork-birdcoder-studio/src/evidence/viewer.ts',
-  'packages/sdkwork-birdcoder-studio/src/evidence/StudioEvidencePanel.tsx',
-  'packages/sdkwork-birdcoder-i18n/package.json',
-  'packages/sdkwork-birdcoder-infrastructure/package.json',
-  'packages/sdkwork-birdcoder-distribution/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-core/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/evidence/viewer.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/evidence/StudioEvidencePanel.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-distribution/package.json',
 ];
 
 for (const relativePath of requiredPaths) {
@@ -382,19 +382,19 @@ const shellPackageJson = JSON.parse(
 );
 
 assert.equal(
-  shellPackageJson.dependencies?.['@sdkwork/birdcoder-auth'],
+  shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-auth'],
   undefined,
-  '@sdkwork/birdcoder-shell must not bind directly to the auth UI package; runtime-backed auth loading is owned by @sdkwork/birdcoder-iam.',
+  '@sdkwork/birdcoder-pc-shell must not bind directly to the auth UI package; runtime-backed auth loading is owned by @sdkwork/birdcoder-pc-iam.',
 );
 assert.equal(
-  shellPackageJson.dependencies?.['@sdkwork/birdcoder-iam'],
+  shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-iam'],
   'workspace:*',
-  '@sdkwork/birdcoder-shell must depend on the standard @sdkwork/birdcoder-iam integration package.',
+  '@sdkwork/birdcoder-pc-shell must depend on the standard @sdkwork/birdcoder-pc-iam integration package.',
 );
 assert.equal(
-  shellPackageJson.dependencies?.['@sdkwork/birdcoder-user'],
+  shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-user'],
   'workspace:*',
-  '@sdkwork/birdcoder-shell must depend on the unified @sdkwork/birdcoder-user integration package.',
+  '@sdkwork/birdcoder-pc-shell must depend on the unified @sdkwork/birdcoder-pc-user integration package.',
 );
 
 const iamPackageJson = JSON.parse(
@@ -409,33 +409,33 @@ const userPackageJson = JSON.parse(
 
 assert.equal(
   iamPackageJson.name,
-  '@sdkwork/birdcoder-iam',
-  'The IAM integration package must be named @sdkwork/birdcoder-iam.',
+  '@sdkwork/birdcoder-pc-iam',
+  'The IAM integration package must be named @sdkwork/birdcoder-pc-iam.',
 );
 assert.equal(
-  iamPackageJson.dependencies?.['@sdkwork/birdcoder-auth'],
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-pc-auth'],
   'workspace:*',
   'The IAM integration package must compose the auth UI package.',
 );
 assert.equal(
-  iamPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure'],
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-pc-infrastructure'],
   'workspace:*',
   'The IAM integration package must bind auth UI to the generated-SDK backed infrastructure runtime.',
 );
 assert.equal(
   authPackageJson.name,
-  '@sdkwork/birdcoder-auth',
-  'The auth UI bridge package must be named @sdkwork/birdcoder-auth.',
+  '@sdkwork/birdcoder-pc-auth',
+  'The auth UI bridge package must be named @sdkwork/birdcoder-pc-auth.',
 );
 assert.equal(
-  authPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure-runtime'],
+  authPackageJson.dependencies?.['@sdkwork/birdcoder-pc-infrastructure-runtime'],
   undefined,
-  'The auth UI bridge package must not depend on infrastructure runtime; runtime injection belongs to @sdkwork/birdcoder-iam.',
+  'The auth UI bridge package must not depend on infrastructure runtime; runtime injection belongs to @sdkwork/birdcoder-pc-iam.',
 );
 assert.equal(
   userPackageJson.name,
-  '@sdkwork/birdcoder-user',
-  'The unified user bridge package must be named @sdkwork/birdcoder-user.',
+  '@sdkwork/birdcoder-pc-user',
+  'The unified user bridge package must be named @sdkwork/birdcoder-pc-user.',
 );
 
 const authIndexSource = fs.readFileSync(

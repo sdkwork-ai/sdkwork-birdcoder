@@ -1,0 +1,5 @@
+{
+  "iosBundleId": "com.sdkwork.birdcoder.mobile",
+  "androidPackageName": "com.sdkwork.birdcoder.mobile",
+  "environment": "development"
+}

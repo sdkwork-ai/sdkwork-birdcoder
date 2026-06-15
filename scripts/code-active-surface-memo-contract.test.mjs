@@ -2,26 +2,26 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const codePageSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx', import.meta.url),
   'utf8',
 );
 const codePageSurfaceSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/CodePageSurface.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageSurface.tsx', import.meta.url),
   'utf8',
 );
 const codePageSurfacePropsHookSource = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts',
     import.meta.url,
   ),
   'utf8',
 );
 const workspacePanelSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/CodeEditorWorkspacePanel.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx', import.meta.url),
   'utf8',
 );
 const workspacePanelEqualitySource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/codeEditorWorkspacePanelEquality.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeEditorWorkspacePanelEquality.ts', import.meta.url),
   'utf8',
 );
 

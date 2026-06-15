@@ -1,0 +1,36 @@
+{
+  "name": "@sdkwork/birdcoder-pc-user",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
+  },
+  "dependencies": {
+    "@babel/runtime": "catalog:",
+    "@sdkwork/birdcoder-pc-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
+    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/user-pc-react": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:"
+  }
+}
+
+
+

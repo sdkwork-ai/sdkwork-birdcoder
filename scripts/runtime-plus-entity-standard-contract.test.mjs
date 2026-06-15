@@ -2,23 +2,23 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const dataDefinitionsPath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/data.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
   import.meta.url,
 );
 const storageBindingsPath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/storageBindings.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/storageBindings.ts',
   import.meta.url,
 );
 const runConfigStoragePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/terminal/runConfigStorage.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigStorage.ts',
   import.meta.url,
 );
 const workbenchPreferencesPath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts',
   import.meta.url,
 );
 const desktopRustPath = new URL(
-  '../packages/sdkwork-birdcoder-desktop/src-tauri/src/lib.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
   import.meta.url,
 );
 

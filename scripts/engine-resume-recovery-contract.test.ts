@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 
-import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
+import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
 import {
   BIRDCODER_CODING_SESSION_EVENT_KINDS,
   BIRDCODER_CODING_SESSION_RUNTIME_STATUSES,
   type BirdCoderCodingSessionCheckpoint,
-} from '../packages/sdkwork-birdcoder-types/src/coding-session.ts';
-import { getBirdCoderEntityDefinition } from '../packages/sdkwork-birdcoder-types/src/data.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts';
+import { getBirdCoderEntityDefinition } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts';
 
 assert.equal(BIRDCODER_CODING_SESSION_RUNTIME_STATUSES.includes('awaiting_approval'), true);
 assert.equal(BIRDCODER_CODING_SESSION_RUNTIME_STATUSES.includes('failed'), true);

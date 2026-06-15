@@ -32,8 +32,8 @@ const excludedDirectoryNames = new Set([
 ]);
 
 const excludedPathPatterns = [
-  /^packages\/sdkwork-birdcoder-server\//u,
-  /^packages\/sdkwork-birdcoder-codeengine\/src-host\//u,
+  /^packages\/sdkwork-birdcoder-pc-server\//u,
+  /^packages\/sdkwork-birdcoder-pc-codeengine\/src-host\//u,
   /^sdks\/sdkwork-birdcoder-(?:app|backend)-sdk\/sdkwork-birdcoder-(?:app|backend)-sdk-typescript\/src\/types\//u,
 ];
 
@@ -61,7 +61,7 @@ const forbiddenFrontendRequestIdentityPatterns = [
 ];
 
 const allowedLocalServerRequestIdFiles = new Set([
-  'packages/sdkwork-birdcoder-infrastructure/src/services/localServerRequestId.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/localServerRequestId.ts',
 ]);
 
 function normalizeRelativePath(filePath) {

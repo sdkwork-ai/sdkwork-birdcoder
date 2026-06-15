@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 
-import { GeminiChatEngine } from '../packages/sdkwork-birdcoder-chat-gemini/src/index.ts';
-import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
+import { GeminiChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts';
+import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
 import {
   WORKBENCH_CODE_ENGINES,
   normalizeWorkbenchCodeEngineId,
-} from '../packages/sdkwork-birdcoder-codeengine/src/preferences.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/preferences.ts';
 
 assert.deepEqual(
   WORKBENCH_CODE_ENGINES.map((engine) => engine.id),

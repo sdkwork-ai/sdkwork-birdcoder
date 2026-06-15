@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { ClaudeChatEngine } from '../packages/sdkwork-birdcoder-chat-claude/src/index.ts';
-import { CodexChatEngine } from '../packages/sdkwork-birdcoder-chat-codex/src/index.ts';
-import { GeminiChatEngine } from '../packages/sdkwork-birdcoder-chat-gemini/src/index.ts';
-import { OpenCodeChatEngine } from '../packages/sdkwork-birdcoder-chat-opencode/src/index.ts';
+import { ClaudeChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts';
+import { CodexChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts';
+import { GeminiChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts';
+import { OpenCodeChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts';
 import type {
   ChatMessage,
   ChatResponse,
   ChatStreamChunk,
-} from '../packages/sdkwork-birdcoder-chat/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
 
 const messages: ChatMessage[] = [
   {
@@ -22,10 +22,10 @@ const messages: ChatMessage[] = [
 ];
 
 const adapterSourcePaths = [
-  '../packages/sdkwork-birdcoder-chat-codex/src/index.ts',
-  '../packages/sdkwork-birdcoder-chat-claude/src/index.ts',
-  '../packages/sdkwork-birdcoder-chat-gemini/src/index.ts',
-  '../packages/sdkwork-birdcoder-chat-opencode/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts',
 ] as const;
 
 for (const adapterSourcePath of adapterSourcePaths) {

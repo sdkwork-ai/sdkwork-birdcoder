@@ -20,8 +20,11 @@ const { Scanner } = require(
 );
 const entryCssPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-shell',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-shell',
   'src',
   'styles',
   'index.css',
@@ -78,7 +81,7 @@ assert.ok(
 const scanner = new Scanner({ sources: compiled.sources });
 const candidates = new Set(scanner.scan());
 
-for (const candidate of ['max-h-[60vh]', 'min-h-screen', 'w-1/3', 'grid-cols-2']) {
+for (const candidate of ['max-h-[60vh]', 'min-h-full', 'w-1/3', 'grid-cols-2']) {
   assert.ok(
     candidates.has(candidate),
     `Tailwind source scan missed layout candidate "${candidate}".`,

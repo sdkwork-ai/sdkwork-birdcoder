@@ -10,18 +10,18 @@ function read(relativePath) {
 }
 
 const sharedInterfaceSource = read(
-  'packages/sdkwork-birdcoder-commons/src/services/interfaces/IFileSystemService.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/interfaces/IFileSystemService.ts',
 );
 const infrastructureInterfaceSource = read(
-  'packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IFileSystemService.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IFileSystemService.ts',
 );
-const sharedHookSource = read('packages/sdkwork-birdcoder-commons/src/hooks/useFileSystem.ts');
-const appSource = read('packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx');
-const codePageSource = read('packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx');
+const sharedHookSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useFileSystem.ts');
+const appSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx');
+const codePageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
 const codeLocalFolderImportSource = read(
-  'packages/sdkwork-birdcoder-code/src/pages/useCodeLocalFolderProjectImport.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
 );
-const studioPageSource = read('packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx');
+const studioPageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx');
 
 assert.match(
   sharedInterfaceSource,
@@ -412,8 +412,8 @@ assert.doesNotMatch(
 );
 
 for (const [label, source] of [
-  ['CodeWorkspaceOverlays', read('packages/sdkwork-birdcoder-code/src/pages/CodeWorkspaceOverlays.tsx')],
-  ['StudioWorkspaceOverlays', read('packages/sdkwork-birdcoder-studio/src/pages/StudioWorkspaceOverlays.tsx')],
+  ['CodeWorkspaceOverlays', read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeWorkspaceOverlays.tsx')],
+  ['StudioWorkspaceOverlays', read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioWorkspaceOverlays.tsx')],
 ]) {
   assert.match(
     source,

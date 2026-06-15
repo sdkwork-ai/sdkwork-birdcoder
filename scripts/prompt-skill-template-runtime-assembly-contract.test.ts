@@ -4,12 +4,12 @@ import {
   BIRDCODER_APP_TEMPLATE_TARGET_PROFILE_IDS,
   BIRDCODER_PROMPT_COMPOSITION_LAYER_IDS,
   BIRDCODER_SKILL_BINDING_SCOPE_TYPES,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 import {
   assembleBirdCoderPromptRuntime,
   assembleBirdCoderSkillRuntime,
   instantiateBirdCoderAppTemplateRuntime,
-} from '../packages/sdkwork-birdcoder-core/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/index.ts';
 
 assert.throws(
   () =>

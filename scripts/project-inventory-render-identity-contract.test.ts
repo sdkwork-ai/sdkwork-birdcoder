@@ -3,23 +3,23 @@ import { readFileSync } from 'node:fs';
 import {
   deduplicateBirdCoderCodingSessionsForRender,
   deduplicateBirdCoderProjectsForRender,
-} from '../packages/sdkwork-birdcoder-commons/src/workbench/projectInventoryRender.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/projectInventoryRender.ts';
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderProject,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const codeSidebarSource = readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx',
     import.meta.url,
   ),
   'utf8',
 );
 const studioSidebarSource = readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-studio/src/pages/StudioChatSidebar.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx',
     import.meta.url,
   ),
   'utf8',

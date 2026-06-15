@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const source = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/ContentWorkbench.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/ContentWorkbench.tsx', import.meta.url),
   'utf8',
 );
 

@@ -12,16 +12,16 @@ import {
   listWorkbenchCliEngines,
   listWorkbenchCodeEngineDescriptors,
   listWorkbenchModelCatalogEntries,
-} from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
-import { normalizeBirdCoderCodeEngineNativeSessionId } from '../packages/sdkwork-birdcoder-codeengine/src/catalog.ts';
-import { listBirdCoderCodeEngineManifests } from '../packages/sdkwork-birdcoder-codeengine/src/manifest.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
+import { normalizeBirdCoderCodeEngineNativeSessionId } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/catalog.ts';
+import { listBirdCoderCodeEngineManifests } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/manifest.ts';
 import {
   getWorkbenchCodeEngineSessionSummary,
   getWorkbenchCodeEngineSummary,
   getWorkbenchCodeModelLabel,
-} from '../packages/sdkwork-birdcoder-codeengine/src/preferences.ts';
-import { resolveWorkbenchPreferredNewSessionSelection } from '../packages/sdkwork-birdcoder-codeengine/src/serverSupport.ts';
-import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/preferences.ts';
+import { resolveWorkbenchPreferredNewSessionSelection } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/serverSupport.ts';
+import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
 
 assert.deepEqual(
   WORKBENCH_ENGINE_KERNELS.map((engine) => engine.id),
@@ -327,15 +327,15 @@ for (const engine of listWorkbenchCliEngines()) {
 }
 
 const terminalLaunchAdapterSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-commons/src/terminal/sdkworkTerminalLaunch.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/sdkworkTerminalLaunch.ts', import.meta.url),
   'utf8',
 );
 const manifestSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-codeengine/src/manifest.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/manifest.ts', import.meta.url),
   'utf8',
 );
 const codeengineHostSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-codeengine/src-host/src/lib.rs', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/lib.rs', import.meta.url),
   'utf8',
 );
 assert.equal(
@@ -349,7 +349,7 @@ assert.doesNotMatch(
   'Rust codeengine must not build stored nativeSessionId values by prefixing raw provider ids; engineId is the engine discriminator.',
 );
 assert.equal(
-  fs.existsSync(path.join(process.cwd(), 'packages', 'sdkwork-birdcoder-terminal')),
+  fs.existsSync(path.join(process.cwd(), 'apps',  'sdkwork-birdcoder-pc',  'packages',  'sdkwork-birdcoder-pc-terminal')),
   false,
   'BirdCoder workspace must not keep a local terminal package after direct sdkwork-terminal integration.',
 );
@@ -365,7 +365,7 @@ assert.equal(
 );
 
 const sidebarSource = await readFile(
-  new URL('../packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx', import.meta.url),
   'utf8',
 );
 assert.equal(

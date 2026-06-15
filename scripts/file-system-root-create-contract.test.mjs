@@ -9,8 +9,8 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const fileExplorerSource = read('packages/sdkwork-birdcoder-ui/src/components/FileExplorer.tsx');
-const useFileSystemSource = read('packages/sdkwork-birdcoder-commons/src/hooks/useFileSystem.ts');
+const fileExplorerSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx');
+const useFileSystemSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useFileSystem.ts');
 
 assert.match(
   fileExplorerSource,

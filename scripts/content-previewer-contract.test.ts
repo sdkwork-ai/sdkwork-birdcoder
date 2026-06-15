@@ -14,7 +14,7 @@ import {
   resolveContentPreviewKind,
   resolveContentPreviewSandbox,
   shouldDefaultToSplitContentWorkbench,
-} from '../packages/sdkwork-birdcoder-ui/src/components/contentPreview.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/contentPreview.ts';
 
 assert.equal(
   resolveContentPreviewKind({
@@ -668,23 +668,23 @@ assert.match(
 );
 
 const codeEditorSurfaceSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/CodeEditorSurface.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorSurface.tsx', import.meta.url),
   'utf8',
 );
 const contentPreviewerSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/ContentPreviewer.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/ContentPreviewer.tsx', import.meta.url),
   'utf8',
 );
 const universalChatCodeBlockSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/UniversalChatCodeBlock.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatCodeBlock.tsx', import.meta.url),
   'utf8',
 );
 const multiWindowPaneSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowPane.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/components/MultiWindowPane.tsx', import.meta.url),
   'utf8',
 );
 const devicePreviewSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui-shell/src/components/DevicePreview.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/DevicePreview.tsx', import.meta.url),
   'utf8',
 );
 

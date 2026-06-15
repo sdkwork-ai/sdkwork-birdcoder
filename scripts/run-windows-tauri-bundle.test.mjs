@@ -3,7 +3,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
-const desktopPackageDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
+const desktopPackageDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop');
 const bundleModulePath = path.join(rootDir, 'scripts', 'run-windows-tauri-bundle.mjs');
 const bundleModule = await import(pathToFileURL(bundleModulePath).href);
 
@@ -26,7 +26,7 @@ assert.equal(
 const defaults = bundleModule.parseArgs([]);
 assert.equal(
   defaults.configPath,
-  path.join('packages', 'sdkwork-birdcoder-desktop', 'src-tauri', 'tauri.conf.json'),
+  path.join('apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop', 'src-tauri', 'tauri.conf.json'),
 );
 assert.equal(defaults.targetTriple, '');
 assert.equal(defaults.viteMode, 'production');
@@ -53,7 +53,7 @@ assert.throws(
 );
 
 const bundlePlan = bundleModule.createWindowsTauriBundlePlan({
-  configPath: path.join('packages', 'sdkwork-birdcoder-desktop', 'src-tauri', 'tauri.test.conf.json'),
+  configPath: path.join('apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop', 'src-tauri', 'tauri.test.conf.json'),
   targetTriple: 'x86_64-pc-windows-msvc',
   viteMode: 'test',
 });

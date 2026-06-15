@@ -1,24 +1,24 @@
 import assert from 'node:assert/strict';
 
-import type { ChatMessage } from '../packages/sdkwork-birdcoder-chat/src/types.ts';
+import type { ChatMessage } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/types.ts';
 import {
   buildProviderScopedStorageKey,
   createBirdCoderStorageProvider,
   createBirdCoderTableRecordRepository,
   serializeStoredValue,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
-import { getBirdCoderSchemaMigrationDefinition } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts';
+import { getBirdCoderSchemaMigrationDefinition } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts';
 import {
   BIRDCODER_CODING_SESSION_RUNTIME_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 import {
   executeBirdCoderCoreSessionRun,
   persistBirdCoderCoreSessionRunProjection,
-} from '../packages/sdkwork-birdcoder-server/src/index.ts';
-import { createProviderBackedBirdCoderCoreSessionProjectionStore } from '../packages/sdkwork-birdcoder-server/src/projectionRepository.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
+import { createProviderBackedBirdCoderCoreSessionProjectionStore } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts';
 import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
-import type { BirdCoderCodingSessionRuntime } from '../packages/sdkwork-birdcoder-types/src/index.ts';
+import type { BirdCoderCodingSessionRuntime } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const messages: ChatMessage[] = [
   {

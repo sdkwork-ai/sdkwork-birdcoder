@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 
 const hostStudioModulePath = new URL(
-  '../packages/sdkwork-birdcoder-host-studio/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/src/index.ts',
   import.meta.url,
 );
 
@@ -15,7 +15,7 @@ assert.equal(
 const {
   HOST_STUDIO_SIMULATOR_ADAPTER_ID,
   resolveHostStudioSimulatorSession,
-} = await import('../packages/sdkwork-birdcoder-host-studio/src/index.ts');
+} = await import('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/src/index.ts');
 
 const defaultWebSimulator = resolveHostStudioSimulatorSession({
   platform: 'web',

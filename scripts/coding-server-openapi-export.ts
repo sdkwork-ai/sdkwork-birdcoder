@@ -8,7 +8,7 @@ import {
   BIRDCODER_CODING_SERVER_OPENAPI_PATH,
   buildBirdCoderCodingServerOpenApiDocument,
   type BirdServerDistributionId,
-} from '../packages/sdkwork-birdcoder-server/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
 
 export interface ResolveBirdCoderCodingServerOpenApiSnapshotPathOptions {
   outputPath?: string;

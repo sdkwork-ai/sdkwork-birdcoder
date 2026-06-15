@@ -4,11 +4,11 @@ import { readFile } from 'node:fs/promises';
 const sources = [
   {
     label: 'desktop',
-    path: new URL('../packages/sdkwork-birdcoder-desktop/src-tauri/src/lib.rs', import.meta.url),
+    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs', import.meta.url),
   },
   {
     label: 'server',
-    path: new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
+    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
   },
 ];
 

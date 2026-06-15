@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 
 const modulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/index.ts',
   import.meta.url,
 );
 const runtimeServerSessionModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/runtimeServerSession.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeServerSession.ts',
   import.meta.url,
 );
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   HOST_STUDIO_PREVIEW_ADAPTER_ID,
   resolveHostStudioPreviewSession,
-} from '../packages/sdkwork-birdcoder-host-studio/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/src/index.ts';
 
 const defaultWebPreview = resolveHostStudioPreviewSession({
   url: 'http://127.0.0.1:4173',

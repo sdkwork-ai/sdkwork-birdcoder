@@ -78,21 +78,21 @@ const VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE_ENV =
 const DEFAULT_SQLITE_RELATIVE_PATHS = Object.freeze({
   'cloud-saas': path.join(
     'packages',
-    'sdkwork-birdcoder-server',
+    'sdkwork-birdcoder-pc-server',
     '.local',
     'sdkwork-birdcoder-cloud-saas.sqlite3',
   ),
   'desktop-local': path.join(
     'packages',
-    'sdkwork-birdcoder-desktop',
+    'sdkwork-birdcoder-pc-desktop',
     '.local',
-    'sdkwork-birdcoder-desktop-local.sqlite3',
+    'sdkwork-birdcoder-pc-desktop-local.sqlite3',
   ),
   'server-private': path.join(
     'packages',
-    'sdkwork-birdcoder-server',
+    'sdkwork-birdcoder-pc-server',
     '.local',
-    'sdkwork-birdcoder-server-private.sqlite3',
+    'sdkwork-birdcoder-pc-server-private.sqlite3',
   ),
 });
 

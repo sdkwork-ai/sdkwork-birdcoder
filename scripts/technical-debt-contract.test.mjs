@@ -71,17 +71,17 @@ const allowedDebtTokenLines = [
     reason: 'database migration guidance requires a deprecation timestamp field',
   },
   {
-    relativePath: 'packages/sdkwork-birdcoder-server/src/index.ts',
+    relativePath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts',
     pattern: /BIRDCODER_MODEL_STATUSES = \['active', 'preview', 'deprecated', 'disabled'\]/u,
     reason: 'model catalog exposes deprecated as a business lifecycle status',
   },
   {
-    relativePath: 'packages/sdkwork-birdcoder-types/src/data.ts',
+    relativePath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
     pattern: /name: 'deprecated_at'.*description: 'Deprecation time\.'/u,
     reason: 'data schema exposes the canonical lifecycle timestamp column',
   },
   {
-    relativePath: 'packages/sdkwork-birdcoder-types/src/engine.ts',
+    relativePath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/engine.ts',
     pattern: /\| 'deprecated'/u,
     reason: 'engine availability status includes deprecated as lifecycle state',
   },

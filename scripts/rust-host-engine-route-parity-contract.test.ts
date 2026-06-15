@@ -5,7 +5,7 @@ import {
   listBirdCoderCodeEngineDescriptors,
   listBirdCoderCodeEngineNativeSessionProviders,
   listBirdCoderCodeEngineModels,
-} from '../packages/sdkwork-birdcoder-codeengine/src/catalog.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/catalog.ts';
 
 function read(relativePath: string): string {
   return readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8');
@@ -15,9 +15,9 @@ function toJsonComparable<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-const serverHostSource = read('packages/sdkwork-birdcoder-server/src-host/src/lib.rs');
+const serverHostSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs');
 const generatedCatalog = JSON.parse(
-  read('packages/sdkwork-birdcoder-codeengine/src-host/generated/engine-catalog.json'),
+  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/generated/engine-catalog.json'),
 ) as {
   engines: unknown[];
   models: unknown[];

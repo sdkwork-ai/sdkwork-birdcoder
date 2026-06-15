@@ -9,10 +9,10 @@ import {
   type BirdCoderChatMessage,
   type BirdCoderCodingSession,
   type BirdCoderProject,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
-import { createBirdCoderInProcessAppRuntimeTransport } from '../packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts';
-import { createBirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
-import { readAuthorityBackedNativeSessionRecord } from '../packages/sdkwork-birdcoder-commons/src/workbench/nativeSessionAuthority.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+import { createBirdCoderInProcessAppRuntimeTransport } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts';
+import { createBirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
+import { readAuthorityBackedNativeSessionRecord } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/nativeSessionAuthority.ts';
 
 const baseMessage: BirdCoderChatMessage = {
   id: 'message-1',
@@ -2003,19 +2003,19 @@ assert.equal(
 );
 
 const useProjectsSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-commons/src/hooks/useProjects.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjects.ts'),
   'utf8',
 );
 const sessionRefreshSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-commons/src/workbench/sessionRefresh.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionRefresh.ts'),
   'utf8',
 );
 const apiBackedProjectServiceSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts'),
   'utf8',
 );
 const projectionSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-infrastructure/src/services/codingSessionMessageProjection.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionMessageProjection.ts'),
   'utf8',
 );
 

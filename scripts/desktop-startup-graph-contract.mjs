@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { createDesktopConfiguredViteServer } from './desktop-standard-vite-server.mjs';
 
 const rootDir = process.cwd();
-const desktopRootDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
+const desktopRootDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop');
 const desktopRequire = createRequire(path.join(desktopRootDir, 'package.json'));
 const { createLogger } = await import(pathToFileURL(desktopRequire.resolve('vite')).href);
 

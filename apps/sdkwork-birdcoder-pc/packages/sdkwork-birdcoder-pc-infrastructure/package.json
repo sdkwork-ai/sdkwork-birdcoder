@@ -1,0 +1,109 @@
+{
+  "name": "@sdkwork/birdcoder-pc-infrastructure",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./runtime/defaultIdeServices": {
+      "import": "./src/runtime/defaultIdeServices.ts",
+      "types": "./src/runtime/defaultIdeServices.ts"
+    },
+    "./services/defaultIdeServices": {
+      "import": "./src/services/defaultIdeServices.ts",
+      "types": "./src/services/defaultIdeServices.ts"
+    },
+    "./services/defaultIdeServicesRuntime": {
+      "import": "./src/services/defaultIdeServicesRuntime.ts",
+      "types": "./src/services/defaultIdeServicesRuntime.ts"
+    },
+    "./services/workspaceRealtimeClient": {
+      "import": "./src/services/workspaceRealtimeClient.ts",
+      "types": "./src/services/workspaceRealtimeClient.ts"
+    },
+    "./platform/openLocalFolder": {
+      "import": "./src/platform/openLocalFolder.ts",
+      "types": "./src/platform/openLocalFolder.ts"
+    },
+    "./storage/runtime": {
+      "import": "./src/storage/runtime.ts",
+      "types": "./src/storage/runtime.ts"
+    },
+    "./storage/dataKernel": {
+      "import": "./src/storage/dataKernel.ts",
+      "types": "./src/storage/dataKernel.ts"
+    },
+    "./storage/appConsoleRepository": {
+      "import": "./src/storage/appConsoleRepository.ts",
+      "types": "./src/storage/appConsoleRepository.ts"
+    },
+    "./storage/codingSessionPromptEntryRepository": {
+      "import": "./src/storage/codingSessionPromptEntryRepository.ts",
+      "types": "./src/storage/codingSessionPromptEntryRepository.ts"
+    },
+    "./storage/promptSkillTemplateEvidenceRepository": {
+      "import": "./src/storage/promptSkillTemplateEvidenceRepository.ts",
+      "types": "./src/storage/promptSkillTemplateEvidenceRepository.ts"
+    },
+    "./storage/providers": {
+      "import": "./src/storage/providers.ts",
+      "types": "./src/storage/providers.ts"
+    },
+    "./storage/sqlRowCodec": {
+      "import": "./src/storage/sqlRowCodec.ts",
+      "types": "./src/storage/sqlRowCodec.ts"
+    },
+    "./services/interfaces/IPromptService": {
+      "import": "./src/services/interfaces/IPromptService.ts",
+      "types": "./src/services/interfaces/IPromptService.ts"
+    },
+    "./services/interfaces/IDeploymentService": {
+      "import": "./src/services/interfaces/IDeploymentService.ts",
+      "types": "./src/services/interfaces/IDeploymentService.ts"
+    },
+    "./services/interfaces/IDocumentService": {
+      "import": "./src/services/interfaces/IDocumentService.ts",
+      "types": "./src/services/interfaces/IDocumentService.ts"
+    },
+    "./services/interfaces/IAppRuntimeReadService": {
+      "import": "./src/services/interfaces/IAppRuntimeReadService.ts",
+      "types": "./src/services/interfaces/IAppRuntimeReadService.ts"
+    },
+    "./services/interfaces/IAppRuntimeWriteService": {
+      "import": "./src/services/interfaces/IAppRuntimeWriteService.ts",
+      "types": "./src/services/interfaces/IAppRuntimeWriteService.ts"
+    },
+    "./services/sdkClients": {
+      "import": "./src/services/sdkClients.ts",
+      "types": "./src/services/sdkClients.ts"
+    }
+  },
+  "dependencies": {
+    "@sdkwork/appbase-app-sdk": "workspace:*",
+    "@sdkwork/appbase-backend-sdk": "workspace:*",
+    "@sdkwork/birdcoder-app-sdk": "workspace:*",
+    "@sdkwork/birdcoder-backend-sdk": "workspace:*",
+    "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
+    "@sdkwork/birdcoder-pc-core": "workspace:*",
+    "@sdkwork/birdcoder-pc-host-core": "workspace:*",
+    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/drive-app-sdk": "workspace:*",
+    "@sdkwork/auth-runtime-pc-react": "workspace:*",
+    "@sdkwork/iam-runtime": "workspace:*",
+    "@sdkwork/iam-service": "workspace:*",
+    "@sdkwork/iam-sdk-ports": "workspace:*",
+    "@sdkwork/messaging-app-sdk": "workspace:*",
+    "@sdkwork/sdk-common": "workspace:*",
+    "@tauri-apps/api": "catalog:"
+  }
+}
+
+
+
+

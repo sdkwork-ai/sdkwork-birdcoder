@@ -3,27 +3,27 @@ import { readFileSync } from 'node:fs';
 
 import {
   createClaudeOfficialSdkBridge,
-} from '../packages/sdkwork-birdcoder-chat-claude/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts';
 import {
   createCodexOfficialSdkBridge,
-} from '../packages/sdkwork-birdcoder-chat-codex/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts';
 import {
   createGeminiOfficialSdkBridge,
-} from '../packages/sdkwork-birdcoder-chat-gemini/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts';
 import {
   createOpenCodeOfficialSdkBridge,
-} from '../packages/sdkwork-birdcoder-chat-opencode/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts';
 import {
   buildMessageTranscriptPrompt,
   normalizeProviderToolArgumentRecord,
   resolveCumulativeTextDelta,
   streamResponseAsChunks,
-} from '../packages/sdkwork-birdcoder-chat/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
 
 import type {
   ChatMessage,
   ChatStreamChunk,
-} from '../packages/sdkwork-birdcoder-chat/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
 
 const messages: ChatMessage[] = [
   {
@@ -131,9 +131,9 @@ assert.deepEqual(
 );
 
 const cumulativeTextDeltaAdapterFiles = [
-  'packages/sdkwork-birdcoder-chat-claude/src/index.ts',
-  'packages/sdkwork-birdcoder-chat-codex/src/index.ts',
-  'packages/sdkwork-birdcoder-chat-opencode/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts',
 ];
 const forbiddenLocalCumulativeTextDeltaPatterns = [
   /function getClaudeQueryResultDelta/u,
@@ -152,9 +152,9 @@ for (const filePath of cumulativeTextDeltaAdapterFiles) {
 }
 
 const genericToolArgumentAdapterFiles = [
-  'packages/sdkwork-birdcoder-chat-codex/src/index.ts',
-  'packages/sdkwork-birdcoder-chat-gemini/src/index.ts',
-  'packages/sdkwork-birdcoder-chat-opencode/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts',
 ];
 const forbiddenLocalToolArgumentPatterns = [
   /function normalizeCodexToolArgumentRecord/u,

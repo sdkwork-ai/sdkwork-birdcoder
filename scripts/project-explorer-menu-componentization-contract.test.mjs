@@ -9,7 +9,7 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const sidebarSource = read('packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx');
+const sidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
 
 for (const fileName of [
   'ProjectExplorerRootContextMenu.tsx',
@@ -20,7 +20,7 @@ for (const fileName of [
     fs.existsSync(
       path.join(
         rootDir,
-        'packages/sdkwork-birdcoder-code/src/components',
+        'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components',
         fileName,
       ),
     ),

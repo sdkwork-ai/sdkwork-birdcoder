@@ -1,0 +1,16 @@
+# BirdCoder Desktop Development Config
+# Copy to sdkwork-birdcoder.development.toml and customize
+
+[app]
+name = "SDKWork BirdCoder"
+environment = "development"
+
+[server]
+# Local embedded server
+embedded = true
+port = 10240
+
+[storage]
+# User-private SQLite database
+type = "sqlite"
+path = "~/.sdkwork/sdkwork-birdcoder/data/development.sqlite3"

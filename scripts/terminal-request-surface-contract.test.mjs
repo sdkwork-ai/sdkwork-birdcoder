@@ -2,59 +2,59 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const runtimeSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-commons/src/terminal/runtime.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runtime.ts', import.meta.url),
   'utf8',
 );
 const runConfigsSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-commons/src/terminal/runConfigs.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/runConfigs.ts', import.meta.url),
   'utf8',
 );
 const appSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx', import.meta.url),
   'utf8',
 );
 const codeWorkbenchCommandsSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/useCodeWorkbenchCommands.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeWorkbenchCommands.ts', import.meta.url),
   'utf8',
 );
 const codePageSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx', import.meta.url),
   'utf8',
 );
 const codingSessionTerminalSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/codingSessionTerminal.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codingSessionTerminal.ts', import.meta.url),
   'utf8',
 );
 const codePageTerminalActionsSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/useCodePageTerminalActions.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageTerminalActions.ts', import.meta.url),
   'utf8',
 );
 const projectExplorerTypesSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorer.types.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorer.types.ts', import.meta.url),
   'utf8',
 );
 const sidebarSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx', import.meta.url),
   'utf8',
 );
 const sessionContextMenuSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorerSessionContextMenu.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerSessionContextMenu.tsx', import.meta.url),
   'utf8',
 );
 const sessionInventorySource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-commons/src/workbench/sessionInventory.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionInventory.ts', import.meta.url),
   'utf8',
 );
 const nativeSessionAuthoritySource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-commons/src/workbench/nativeSessionAuthority.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/nativeSessionAuthority.ts', import.meta.url),
   'utf8',
 );
 const studioWorkbenchBindingsSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioWorkbenchEventBindings.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioWorkbenchEventBindings.ts', import.meta.url),
   'utf8',
 );
 const fileExplorerSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/FileExplorer.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx', import.meta.url),
   'utf8',
 );
 

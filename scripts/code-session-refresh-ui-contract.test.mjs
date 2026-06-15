@@ -2,27 +2,27 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sidebarSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx', import.meta.url),
   'utf8',
 );
 const projectContextMenuSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorerProjectContextMenu.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerProjectContextMenu.tsx', import.meta.url),
   'utf8',
 );
 const sessionContextMenuSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorerSessionContextMenu.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerSessionContextMenu.tsx', import.meta.url),
   'utf8',
 );
 const projectExplorerTypesSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorer.types.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorer.types.ts', import.meta.url),
   'utf8',
 );
 const enLocaleSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-i18n/src/locales/en/code/sidebar.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/code/sidebar.ts', import.meta.url),
   'utf8',
 );
 const zhLocaleSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-i18n/src/locales/zh/code/sidebar.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/code/sidebar.ts', import.meta.url),
   'utf8',
 );
 

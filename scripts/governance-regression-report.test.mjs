@@ -496,7 +496,7 @@ const blockedReport = await runGovernanceRegressionReport({
     stdout: check.id === 'web-bundle-budget'
       ? [
           '> @sdkwork/birdcoder-workspace@0.1.0 build D:\\repo',
-          '> node scripts/prepare-shared-sdk-packages.mjs && node scripts/run-vite-host.mjs --cwd packages/sdkwork-birdcoder-web build --mode production && node scripts/web-bundle-budget.test.mjs',
+          '> node scripts/prepare-shared-sdk-packages.mjs && node scripts/run-vite-host.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web build --mode production && node scripts/web-bundle-budget.test.mjs',
         ].join('\n')
       : '',
     stderr: check.id === 'web-bundle-budget'

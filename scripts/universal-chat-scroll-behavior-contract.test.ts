@@ -5,7 +5,7 @@ import {
   computeTranscriptRepairScrollTop,
   isTranscriptNearBottom,
   measureTranscriptDistanceFromBottom,
-} from '../packages/sdkwork-birdcoder-ui/src/components/chatScrollBehavior.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatScrollBehavior.ts';
 
 assert.equal(
   CHAT_TRANSCRIPT_STICKY_SCROLL_THRESHOLD_PX > 0,

@@ -6,16 +6,22 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const desktopLibRsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'src',
   'lib.rs',
 );
 const desktopAppPermissionsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'permissions',
   'default.toml',

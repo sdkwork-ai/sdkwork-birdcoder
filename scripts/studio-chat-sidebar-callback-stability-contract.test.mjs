@@ -7,8 +7,13 @@ const rootDir = process.cwd();
 const studioPageSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-studio',
+    
+    'sdkwork-birdcoder-pc-studio',
     'src',
     'pages',
     'StudioPage.tsx',

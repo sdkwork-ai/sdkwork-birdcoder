@@ -252,6 +252,14 @@ function assertOperationId(operationId, context) {
   }
 }
 
+function buildOperationKey(tag, operationId) {
+  const normalizedTag = String(tag);
+  const normalizedOperationId = String(operationId);
+  return normalizedOperationId.startsWith(`${normalizedTag}.`)
+    ? normalizedOperationId
+    : `${normalizedTag}.${normalizedOperationId}`;
+}
+
 function readRequiredSdkworkString(operation, key, context) {
   const value = String(operation?.[key] ?? '').trim();
   if (!value) {
@@ -361,15 +369,15 @@ function collectOperations(document, plan) {
         throw new Error(`${method.toUpperCase()} ${pathKey} tag must be lowerCamel.`);
       }
       assertOperationId(operation.operationId, `${method.toUpperCase()} ${pathKey}`);
-      if (String(operation.operationId).startsWith(`${tag}.`)) {
-        throw new Error(`${method.toUpperCase()} ${pathKey} operationId must not repeat tag ${tag}.`);
-      }
 
       const normalizedOperation = {
         ...operation,
         parameters: resolveOperationParameters(document, operation, `${method.toUpperCase()} ${pathKey}`),
       };
-      const key = `${tag}.${operation.operationId}`;
+      const key = buildOperationKey(tag, operation.operationId);
+      if (new RegExp(`^${tag}\\.${tag}\\.`, 'u').test(key)) {
+        throw new Error(`${method.toUpperCase()} ${pathKey} generated SDK operation key must not repeat tag ${tag}.`);
+      }
       if (seenKeys.has(key)) {
         throw new Error(`Duplicate SDK operation key: ${key}.`);
       }
@@ -546,7 +554,7 @@ function renderTsSchemas(schemas) {
 }
 
 function buildOperationTypeNames(operation) {
-  const baseName = pascalCase(`${operation.tag}.${operation.operationId}`);
+  const baseName = pascalCase(operation.key);
   return {
     pathParams: `${baseName}PathParams`,
     query: `${baseName}Query`,
@@ -589,9 +597,10 @@ function createTreeNode() {
 function buildOperationTree(operations, { includeTag = true } = {}) {
   const root = createTreeNode();
   for (const operation of operations) {
-    const segments = includeTag
-      ? [operation.tag, ...operation.operationId.split('.')]
-      : operation.operationId.split('.');
+    const operationSegments = operation.operationId.split('.');
+    const segments = includeTag && operationSegments[0] !== operation.tag
+      ? [operation.tag, ...operationSegments]
+      : operationSegments;
     let cursor = root;
     for (let index = 0; index < segments.length; index += 1) {
       const segment = segments[index];

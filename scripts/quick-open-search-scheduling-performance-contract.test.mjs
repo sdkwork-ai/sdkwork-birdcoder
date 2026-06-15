@@ -2,19 +2,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const codeSearchSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/codeFileSearch.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeFileSearch.ts', import.meta.url),
   'utf8',
 );
 const codeOverlaySource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/CodeWorkspaceOverlays.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeWorkspaceOverlays.tsx', import.meta.url),
   'utf8',
 );
 const studioSearchSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/studioFileSearch.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/studioFileSearch.ts', import.meta.url),
   'utf8',
 );
 const studioOverlaySource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioWorkspaceOverlays.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioWorkspaceOverlays.tsx', import.meta.url),
   'utf8',
 );
 

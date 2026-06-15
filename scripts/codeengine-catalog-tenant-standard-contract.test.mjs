@@ -10,10 +10,10 @@ function readText(relativePath) {
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
-const rustCatalogSource = readText('packages/sdkwork-birdcoder-codeengine/src-host/src/catalog.rs');
-const tsManifestSource = readText('packages/sdkwork-birdcoder-codeengine/src/manifest.ts');
+const rustCatalogSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/catalog.rs');
+const tsManifestSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/manifest.ts');
 const generatedCatalogSource = readText(
-  'packages/sdkwork-birdcoder-codeengine/src-host/generated/engine-catalog.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/generated/engine-catalog.json',
 );
 
 assert.match(

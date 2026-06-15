@@ -6,8 +6,11 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const appPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-shell',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-shell',
   'src',
   'application',
   'app',
@@ -15,8 +18,11 @@ const appPath = path.join(
 );
 const bridgePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-shell',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-shell',
   'src',
   'application',
   'app',
@@ -24,31 +30,43 @@ const bridgePath = path.join(
 );
 const desktopLibRsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'src',
   'lib.rs',
 );
 const desktopBridgePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'src',
   'window_controls_bridge.rs',
 );
 const desktopCargoTomlPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'Cargo.toml',
 );
 const desktopPermissionsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'permissions',
   'default.toml',

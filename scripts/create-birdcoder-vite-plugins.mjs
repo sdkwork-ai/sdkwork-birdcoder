@@ -16,9 +16,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRootDir = path.resolve(__dirname, '..');
-const defaultBirdcoderToolingRootDir = path.join(workspaceRootDir, 'packages', 'sdkwork-birdcoder-desktop');
+const defaultBirdcoderToolingRootDir = path.join(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop');
 const defaultBirdcoderAppRootDir = defaultBirdcoderToolingRootDir;
-const defaultBirdcoderNamespace = 'sdkwork-birdcoder-desktop';
+const defaultBirdcoderNamespace = 'sdkwork-birdcoder-pc-desktop';
 
 const BIRDCODER_VITE_DEDUPE_PACKAGES = [
   'react',
@@ -35,6 +35,7 @@ const BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE = [
   '@xterm/addon-fit',
   '@xterm/addon-search',
   '@xterm/addon-unicode11',
+  '@xterm/addon-web-links',
   'qrcode',
   'qrcode/lib/browser.js',
 ];
@@ -51,7 +52,7 @@ function resolveBirdcoderTerminalInfrastructureRuntimePath(
 ) {
   return path.resolve(
     appRootDir,
-    '../sdkwork-birdcoder-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
+    '../sdkwork-birdcoder-pc-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
   );
 }
 
@@ -64,13 +65,13 @@ function resolveDependencyPath(dependencyId, ...relativePathParts) {
 }
 
 function resolveSdkworkTerminalDesktopEntryPath(appRootDir = defaultBirdcoderAppRootDir) {
-  return resolveDependencyPath('sdkwork-terminal', 'apps/desktop/src/index.ts');
+  return resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/apps/desktop/src/index.ts');
 }
 
 function resolveSdkworkTerminalInfrastructureEntryPath(
   appRootDir = defaultBirdcoderAppRootDir,
 ) {
-  return resolveDependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-infrastructure/src/index.ts');
+  return resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/index.ts');
 }
 
 function resolveSdkworkCorePcReactBrowserFacadePath() {
@@ -149,8 +150,8 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     {
       find: /^qrcode$/u,
       replacement: path.resolve(
-        appRootDir,
-        '../../scripts/vite-shims/qrcode-compat.mjs',
+        workspaceRootDir,
+        'scripts/vite-shims/qrcode-compat.mjs',
       ),
     },
     {
@@ -180,15 +181,15 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     {
       find: 'cookie',
       replacement: path.resolve(
-        appRootDir,
-        '../../scripts/vite-shims/cookie-compat.mjs',
+        workspaceRootDir,
+        'scripts/vite-shims/cookie-compat.mjs',
       ),
     },
     {
       find: 'set-cookie-parser',
       replacement: path.resolve(
-        appRootDir,
-        '../../scripts/vite-shims/set-cookie-parser-compat.mjs',
+        workspaceRootDir,
+        'scripts/vite-shims/set-cookie-parser-compat.mjs',
       ),
     },
     {
@@ -306,27 +307,27 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: path.resolve(appRootDir, '../sdkwork-birdcoder-$1/src'),
     },
     {
-      find: '@sdkwork/terminal-infrastructure',
-      replacement: resolveBirdcoderTerminalInfrastructureRuntimePath(appRootDir),
+      find: '@sdkwork/terminal-pc-infrastructure',
+      replacement: resolveSdkworkTerminalInfrastructureEntryPath(appRootDir),
     },
     {
-      find: '@sdkwork/terminal-desktop',
+      find: '@sdkwork/terminal-pc-desktop',
       replacement: resolveSdkworkTerminalDesktopEntryPath(appRootDir),
     },
     {
       find: /^@sdkwork\/terminal-([^/]+)\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src/$2'),
+      replacement: resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src/$2'),
     },
     {
       find: /^@sdkwork\/terminal-([^/]+)$/u,
-      replacement: resolveDependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src'),
+      replacement: resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
     },
   ];
 }
 
 function createBirdcoderWorkspaceFsAllowList(appRootDir = defaultBirdcoderAppRootDir) {
   return [
-    path.resolve(appRootDir, '../..'),
+    resolveWorkspaceRootDir(appRootDir),
     resolveDependencyRootDir('sdkwork-appbase'),
     resolveDependencyRootDir('sdkwork-core'),
     resolveDependencyRootDir('sdkwork-drive'),
@@ -344,6 +345,7 @@ const commonJsCompatSpecifiers = [
   '@xterm/addon-fit',
   '@xterm/addon-search',
   '@xterm/addon-unicode11',
+  '@xterm/addon-web-links',
   'qrcode/lib/browser.js',
   'void-elements',
   'style-to-js',
@@ -567,14 +569,18 @@ function shouldIgnoreBirdcoderRollupWarning(warning) {
     warningCode === 'MODULE_LEVEL_DIRECTIVE'
       && warningMessage.includes('"use client"')
       && isSharedReactRouterModule(warningModuleReference);
-  const isKnownSmolTomlSelfCycle = isKnownSmolTomlSelfCycleWarning(
+  const isSmolTomlSelfCycle = isKnownSmolTomlSelfCycleWarning(
     warningCode,
     warningMessage,
   );
+  const isUnresolvedExternalImport =
+    warningCode === 'UNRESOLVED_IMPORT'
+    && warningMessage.includes('treating it as an external dependency');
   return isLucideUseClientNoise
     || isKnownSharedUiUseClientNoise
     || isSharedReactRouterUseClientNoise
-    || isKnownSmolTomlSelfCycle;
+    || isSmolTomlSelfCycle
+    || isUnresolvedExternalImport;
 }
 
 function onBirdcoderRollupWarning(warning, warn) {
@@ -656,6 +662,21 @@ function collectEsmExportNames(source) {
 }
 
 function resolveWorkspaceRootDir(appRootDir = defaultBirdcoderAppRootDir) {
+  let dir = appRootDir;
+  for (let i = 0; i < 10; i++) {
+    const pkgPath = path.join(dir, 'package.json');
+    if (existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+        if (pkg.name === '@sdkwork/birdcoder-workspace') {
+          return dir;
+        }
+      } catch {}
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
   return path.resolve(appRootDir, '../..');
 }
 

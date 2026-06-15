@@ -9,7 +9,7 @@ import {
   runBirdCoderPostgresqlLiveSmoke,
   type BirdCoderPostgresqlOpenConnectionFactory,
 } from './postgresql-live-smoke.ts';
-import { parseBirdCoderApiJson } from '../packages/sdkwork-birdcoder-types/src/index.ts';
+import { parseBirdCoderApiJson } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const rootDir = process.cwd();
 const postgresqlLiveSmokeRunnerSource = fs.readFileSync(

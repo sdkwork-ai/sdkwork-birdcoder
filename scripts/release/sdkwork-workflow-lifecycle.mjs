@@ -445,7 +445,7 @@ function containerPackageCommands(target, env = process.env) {
         dockerPlatform(target),
         '--push',
         '--file',
-        'deploy/docker/Dockerfile',
+        'deployments/docker/Dockerfile',
         '--tag',
         `${repository}:${tag}`,
         '--label',

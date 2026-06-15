@@ -24,9 +24,9 @@ assert.deepEqual(stripModeArg(['serve', '--mode', 'production', '--host', '0.0.0
   args: ['serve', '--host', '0.0.0.0'],
   explicitMode: 'production',
 });
-assert.deepEqual(stripCwdArg(['--cwd', 'packages/sdkwork-birdcoder-web', 'build', '--mode', 'production']), {
+assert.deepEqual(stripCwdArg(['--cwd', 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web', 'build', '--mode', 'production']), {
   args: ['build', '--mode', 'production'],
-  explicitCwd: 'packages/sdkwork-birdcoder-web',
+  explicitCwd: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
 });
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-vite-host-'));
@@ -36,7 +36,7 @@ fs.mkdirSync(path.dirname(viteCliPath), { recursive: true });
 fs.writeFileSync(
   path.join(tempRoot, 'package.json'),
   JSON.stringify({
-    name: '@sdkwork/birdcoder-web',
+    name: '@sdkwork/birdcoder-pc-web',
     private: true,
   }),
   'utf8',
@@ -110,12 +110,12 @@ assert.equal(buildPlan.env.SDKWORK_VITE_MODE, 'test');
 assert.equal(buildPlan.env.CUSTOM_ENV, 'retained');
 
 const explicitCwdPlan = createViteHostPlan({
-  argv: ['--cwd', 'packages/sdkwork-birdcoder-web', 'build', '--mode', 'production'],
+  argv: ['--cwd', 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web', 'build', '--mode', 'production'],
   env: {},
 });
 assert.equal(
   explicitCwdPlan.cwd,
-  path.join(resolveWorkspaceRootDir(), 'packages', 'sdkwork-birdcoder-web'),
+  path.join(resolveWorkspaceRootDir(), 'packages', 'sdkwork-birdcoder-pc-web'),
 );
 
 const workspaceRootPackageJsonPath = path.resolve('package.json');

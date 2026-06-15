@@ -5,18 +5,18 @@ import {
   listBirdCoderCodeEngineDescriptors,
   listBirdCoderCodeEngineNativeSessionProviders,
   listBirdCoderCodeEngineModels,
-} from '../packages/sdkwork-birdcoder-codeengine/src/catalog.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/catalog.ts';
 
 function toJsonComparable<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
 const sharedCatalogPath = new URL(
-  '../packages/sdkwork-birdcoder-codeengine/src-host/generated/engine-catalog.json',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/generated/engine-catalog.json',
   import.meta.url,
 );
 const rustSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-codeengine/src-host/src/catalog.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/catalog.rs',
   import.meta.url,
 );
 

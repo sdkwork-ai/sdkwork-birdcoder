@@ -3,11 +3,11 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CodexChatEngine } from '../packages/sdkwork-birdcoder-chat-codex/src/index.ts';
+import { CodexChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts';
 import type {
   ChatEngineOfficialSdkBridgeLoader,
   ChatMessage,
-} from '../packages/sdkwork-birdcoder-chat/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
 
 const NULL_OFFICIAL_SDK_BRIDGE_LOADER: ChatEngineOfficialSdkBridgeLoader = {
   load: async () => null,

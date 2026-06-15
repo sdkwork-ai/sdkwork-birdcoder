@@ -7,7 +7,7 @@ import {
   normalizeWorkbenchPreferences,
   normalizeWorkbenchTerminalProfileId,
   setWorkbenchActiveChatSelection,
-} from '../packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts';
 import {
   WORKBENCH_CODE_ENGINES,
   findWorkbenchCodeEngineDefinition,
@@ -15,8 +15,8 @@ import {
   normalizeWorkbenchCodeEngineId,
   normalizeWorkbenchCodeModelId,
   resolveWorkbenchChatSelection,
-} from '../packages/sdkwork-birdcoder-codeengine/src/preferences.ts';
-import { listWorkbenchServerImplementedCodeEngines } from '../packages/sdkwork-birdcoder-codeengine/src/serverSupport.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/preferences.ts';
+import { listWorkbenchServerImplementedCodeEngines } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/serverSupport.ts';
 
 assert.deepEqual(
   WORKBENCH_CODE_ENGINES.map((engine) => engine.id),
@@ -120,8 +120,8 @@ assert.deepEqual(
 );
 
 const settingsEngineLocalePaths = [
-  '../packages/sdkwork-birdcoder-i18n/src/locales/en/settings-engine.ts',
-  '../packages/sdkwork-birdcoder-i18n/src/locales/zh/settings-engine.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/settings-engine.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/settings-engine.ts',
 ] as const;
 
 for (const localePath of settingsEngineLocalePaths) {

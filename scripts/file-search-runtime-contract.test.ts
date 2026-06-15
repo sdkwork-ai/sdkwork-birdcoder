@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import type { IFileNode } from '@sdkwork/birdcoder-types';
+import type { IFileNode } from '@sdkwork/birdcoder-pc-types';
 
 const modulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/fileSearch.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/fileSearch.ts',
   import.meta.url,
 );
 const implementationPath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/fileSearch.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/fileSearch.ts',
   import.meta.url,
 );
 const implementationSource = fs.readFileSync(implementationPath, 'utf8');

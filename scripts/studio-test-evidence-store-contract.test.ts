@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
 const evidenceStoreModulePath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/test/evidenceStore.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/test/evidenceStore.ts',
   import.meta.url,
 );
 
@@ -14,12 +14,12 @@ assert.equal(
 
 const {
   buildStudioTestExecutionEvidence,
-} = await import('../packages/sdkwork-birdcoder-studio/src/test/runtime.ts');
+} = await import('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/test/runtime.ts');
 const {
   buildStudioTestEvidenceStorageKey,
   listStoredStudioTestExecutionEvidence,
   saveStoredStudioTestExecutionEvidence,
-} = await import('../packages/sdkwork-birdcoder-studio/src/test/evidenceStore.ts');
+} = await import('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/test/evidenceStore.ts');
 
 assert.equal(
   buildStudioTestEvidenceStorageKey('project-1'),
@@ -97,7 +97,7 @@ assert.deepEqual(
 );
 
 const studioIndexSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/index.ts', import.meta.url),
   'utf8',
 );
 assert.equal(
@@ -112,11 +112,11 @@ assert.equal(
 );
 
 const studioPageSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
 const studioExecutionHookSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
   'utf8',
 );
 assert.equal(

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const fileExplorerPath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/FileExplorer.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx',
   import.meta.url,
 );
 

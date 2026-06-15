@@ -1,0 +1,22 @@
+{
+  "name": "@sdkwork/birdcoder-pc-templates",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "lucide-react": "catalog:",
+    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/birdcoder-pc-ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "catalog:"
+  }
+}
+
+
+

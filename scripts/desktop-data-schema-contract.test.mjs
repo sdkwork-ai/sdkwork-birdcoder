@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const rustLibPath = new URL(
-  '../packages/sdkwork-birdcoder-desktop/src-tauri/src/lib.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
   import.meta.url,
 );
 
@@ -52,7 +52,7 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   rustSource,
   /app_dir\.push\("sdkwork-birdcoder\.sqlite3"\)|with_file_name\(LEGACY_DESKTOP_SQLITE_FILE_NAME\)/u,
-  'Desktop runtime must use sdkwork-birdcoder-desktop-local.sqlite3 as the canonical local sqlite file name.',
+  'Desktop runtime must use sdkwork-birdcoder-pc-desktop-local.sqlite3 as the canonical local sqlite file name.',
 );
 
 assert.match(

@@ -1,0 +1,51 @@
+{
+  "name": "@sdkwork/birdcoder-pc-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev:base": "node ../../../../scripts/run-vite-host.mjs serve --host 0.0.0.0 --port 3000 --mode development",
+    "dev:test:base": "node ../../../../scripts/run-vite-host.mjs serve --host 0.0.0.0 --port 3000 --mode test",
+    "build:base": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode production",
+    "build:dev:base": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode development",
+    "build:test:base": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode test",
+    "build:prod:base": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode production",
+    "dev": "node ../../../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private",
+    "dev:private": "node ../../../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private",
+    "dev:cloud": "node ../../../../scripts/run-birdcoder-web-command.mjs dev --iam-mode cloud-saas",
+    "dev:test": "node ../../../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private --vite-mode test",
+    "build": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode production",
+    "build:private": "node ../../../../scripts/run-birdcoder-web-command.mjs build --iam-mode server-private",
+    "build:cloud": "node ../../../../scripts/run-birdcoder-web-command.mjs build --iam-mode cloud-saas",
+    "build:dev": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode development",
+    "build:test": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode test",
+    "build:prod": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode production",
+    "preview": "node ../../../../scripts/run-vite-host.mjs preview",
+    "lint": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-pc-distribution": "workspace:*",
+    "@sdkwork/birdcoder-pc-host-core": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
+    "qrcode": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-router": "catalog:",
+    "react-router-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
+
+
+

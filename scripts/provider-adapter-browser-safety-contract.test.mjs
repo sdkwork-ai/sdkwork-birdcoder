@@ -6,16 +6,19 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const providerAdapterPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-chat',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-chat',
   'src',
   'providerAdapter.ts',
 );
 const source = fs.readFileSync(providerAdapterPath, 'utf8');
 const browserFacingAdapterPaths = [
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-chat-codex', 'src', 'index.ts'),
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-chat-gemini', 'src', 'index.ts'),
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-chat-opencode', 'src', 'index.ts'),
+  path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-chat-codex', 'src', 'index.ts'),
+  path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-chat-gemini', 'src', 'index.ts'),
+  path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-chat-opencode', 'src', 'index.ts'),
 ];
 
 assert.doesNotMatch(

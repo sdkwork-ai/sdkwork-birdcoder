@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const codeEditorPath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/CodeEditor.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/CodeEditor.tsx',
   import.meta.url,
 );
 const diffEditorPath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/DiffEditor.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/DiffEditor.tsx',
   import.meta.url,
 );
 const overflowWidgetsPath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/monacoOverflowWidgets.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/monacoOverflowWidgets.ts',
   import.meta.url,
 );
 

@@ -2,30 +2,30 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const entryPaths = [
-  new URL('../src/main.tsx', import.meta.url),
-  new URL('../packages/sdkwork-birdcoder-web/src/main.tsx', import.meta.url),
-  new URL('../packages/sdkwork-birdcoder-desktop/src/main.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/src/main.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx', import.meta.url),
 ];
 const bootstrapGateSource = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/BootstrapGate.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/BootstrapGate.tsx',
     import.meta.url,
   ),
   'utf8',
 );
 const retiredBootstrapRuntimeIdentityPath = new URL(
-  '../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapRuntimeUserCenter.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapRuntimeUserCenter.ts',
   import.meta.url,
 );
 
 const startupEntrySources = [
   [
     'web',
-    fs.readFileSync(new URL('../packages/sdkwork-birdcoder-web/src/main.tsx', import.meta.url), 'utf8'),
+    fs.readFileSync(new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx', import.meta.url), 'utf8'),
   ],
   [
     'desktop',
-    fs.readFileSync(new URL('../packages/sdkwork-birdcoder-desktop/src/main.tsx', import.meta.url), 'utf8'),
+    fs.readFileSync(new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx', import.meta.url), 'utf8'),
   ],
 ];
 
@@ -55,7 +55,7 @@ for (const [label, source] of startupEntrySources) {
   assert.doesNotMatch(
     source,
     /@sdkwork\/birdcoder-core/u,
-    `${label} startup must not import @sdkwork/birdcoder-core directly because delivery packages should keep the core barrel out of the pre-paint module graph.`,
+    `${label} startup must not import @sdkwork/birdcoder-pc-core directly because delivery packages should keep the core barrel out of the pre-paint module graph.`,
   );
 
   assert.match(

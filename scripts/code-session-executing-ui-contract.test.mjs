@@ -2,19 +2,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const projectExplorerSessionRowSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/components/ProjectExplorerSessionRow.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerSessionRow.tsx', import.meta.url),
   'utf8',
 );
 const topBarSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/components/TopBar.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx', import.meta.url),
   'utf8',
 );
 const enLocaleSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-i18n/src/locales/en/code/sidebar.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/code/sidebar.ts', import.meta.url),
   'utf8',
 );
 const zhLocaleSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-i18n/src/locales/zh/code/sidebar.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/code/sidebar.ts', import.meta.url),
   'utf8',
 );
 const legacyExecutionSelectionPattern = new RegExp(

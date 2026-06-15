@@ -1,0 +1,351 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@source "../../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src";
+@source "../../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src";
+@source "../../../../sdkwork-ui/sdkwork-ui-pc-react/src";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    margin: 0;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* BirdCoder Auth Shell - Desktop Window Controls Only */
+.sdkwork-birdcoder-auth-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sdkwork-birdcoder-auth-header {
+  align-items: center;
+  background: var(--sdkwork-birdcoder-auth-header-bg);
+  border-bottom: 1px solid var(--sdkwork-birdcoder-auth-header-border);
+  color: var(--sdkwork-birdcoder-auth-header-text);
+  display: grid;
+  flex: 0 0 44px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  height: 40px;
+  padding: 0 8px;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 50;
+}
+
+.sdkwork-birdcoder-auth-header-brand {
+  align-items: center;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 600;
+  gap: 9px;
+  height: 32px;
+  letter-spacing: 0.16em;
+  min-width: 148px;
+  padding: 0 10px;
+  text-transform: uppercase;
+}
+
+.sdkwork-birdcoder-auth-header-mark {
+  align-items: center;
+  background: linear-gradient(135deg, #2563eb, #10b981);
+  border-radius: 6px;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+  color: #ffffff;
+  display: inline-flex;
+  height: 20px;
+  justify-content: center;
+  width: 20px;
+}
+
+.sdkwork-birdcoder-auth-header-center {
+  height: 100%;
+  min-width: 0;
+}
+
+.sdkwork-birdcoder-auth-header-actions {
+  align-items: center;
+  display: inline-flex;
+  height: 100%;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.sdkwork-birdcoder-auth-theme-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--sdkwork-birdcoder-auth-header-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  margin-right: 4px;
+  padding: 0;
+  width: 34px;
+}
+
+.sdkwork-birdcoder-auth-theme-button:hover {
+  background: var(--sdkwork-birdcoder-auth-header-hover);
+  color: var(--sdkwork-birdcoder-auth-header-text);
+}
+
+.sdkwork-birdcoder-auth-window-controls {
+  align-items: center;
+  display: inline-flex;
+  height: 100%;
+}
+
+.sdkwork-birdcoder-auth-window-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--sdkwork-birdcoder-auth-header-muted);
+  cursor: pointer;
+  display: inline-flex;
+  height: 100%;
+  justify-content: center;
+  padding: 0;
+  transition: background-color 120ms ease, color 120ms ease;
+  width: 38px;
+}
+
+.sdkwork-birdcoder-auth-window-button:hover {
+  background: var(--sdkwork-birdcoder-auth-header-hover);
+  color: var(--sdkwork-birdcoder-auth-header-text);
+}
+
+.sdkwork-birdcoder-auth-window-button-danger:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.sdkwork-birdcoder-auth-main {
+  align-items: stretch;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.sdkwork-birdcoder-auth-main > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.sdkwork-birdcoder-auth-main .sdkwork-iam-auth-routes {
+  height: 100%;
+  min-height: 0;
+}
+
+/* BirdCoder Auth Theme Variables */
+.sdkwork-birdcoder-auth-shell {
+  --sdkwork-birdcoder-auth-bg: #0c0d11;
+  --sdkwork-birdcoder-auth-header-bg: #0e0e11;
+  --sdkwork-birdcoder-auth-header-border: rgba(255, 255, 255, 0.08);
+  --sdkwork-birdcoder-auth-header-text: #f4f4f5;
+  --sdkwork-birdcoder-auth-header-muted: #a1a1aa;
+  --sdkwork-birdcoder-auth-header-hover: rgba(255, 255, 255, 0.1);
+  --sdkwork-birdcoder-auth-content-bg: rgba(17, 18, 24, 0.96);
+  --sdkwork-birdcoder-auth-content-border: rgba(255, 255, 255, 0.1);
+  --sdkwork-birdcoder-auth-content-text: #f8fafc;
+  --sdkwork-birdcoder-auth-muted-text: #a1a1aa;
+  --sdkwork-birdcoder-auth-field-bg: rgba(255, 255, 255, 0.06);
+  --sdkwork-birdcoder-auth-field-border: rgba(255, 255, 255, 0.14);
+  --sdkwork-birdcoder-auth-divider: rgba(255, 255, 255, 0.12);
+  --sdkwork-birdcoder-auth-tab-bg: rgba(255, 255, 255, 0.06);
+  --sdkwork-birdcoder-auth-tab-active-bg: rgba(255, 255, 255, 0.12);
+  --sdkwork-birdcoder-auth-aside-bg: #101114;
+  --sdkwork-birdcoder-auth-aside-border: rgba(255, 255, 255, 0.08);
+  --sdkwork-birdcoder-auth-aside-text: #f5f5f5;
+  --sdkwork-birdcoder-auth-aside-card-bg: rgba(255, 255, 255, 0.08);
+  --sdkwork-birdcoder-auth-aside-card-border: rgba(255, 255, 255, 0.1);
+  --sdkwork-birdcoder-auth-aside-badge-bg: rgba(96, 165, 250, 0.12);
+  --sdkwork-birdcoder-auth-aside-badge-text: #93c5fd;
+  --sdkwork-birdcoder-auth-qr-bg: rgba(8, 11, 18, 0.94);
+  --sdkwork-birdcoder-auth-qr-border: rgba(255, 255, 255, 0.12);
+  background:
+    radial-gradient(circle at 18% 24%, rgba(37, 99, 235, 0.16), transparent 30%),
+    radial-gradient(circle at 82% 72%, rgba(16, 185, 129, 0.12), transparent 32%),
+    linear-gradient(180deg, #111217 0%, #0c0d11 100%);
+  color: var(--sdkwork-birdcoder-auth-content-text);
+}
+
+/* Hide SDK default background decorations */
+.sdkwork-birdcoder-auth-background {
+  background: transparent;
+}
+
+.sdkwork-birdcoder-auth-background > * {
+  display: none;
+}
+
+.sdkwork-birdcoder-auth-loading {
+  align-items: center;
+  background: var(--sdkwork-birdcoder-auth-bg, #0c0d11);
+  color: var(--sdkwork-birdcoder-auth-content-text, #f8fafc);
+  display: flex;
+  height: 100dvh;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 24px;
+  width: 100%;
+}
+
+/* Light mode styles */
+html.light-mode .sdkwork-birdcoder-auth-shell {
+  --sdkwork-birdcoder-auth-bg: #eef5fb;
+  --sdkwork-birdcoder-auth-header-bg: rgba(255, 255, 255, 0.94);
+  --sdkwork-birdcoder-auth-header-border: rgba(71, 85, 105, 0.16);
+  --sdkwork-birdcoder-auth-header-text: #0f172a;
+  --sdkwork-birdcoder-auth-header-muted: #475569;
+  --sdkwork-birdcoder-auth-header-hover: rgba(37, 99, 235, 0.08);
+  --sdkwork-birdcoder-auth-content-bg: rgba(255, 255, 255, 0.97);
+  --sdkwork-birdcoder-auth-content-border: rgba(100, 116, 139, 0.2);
+  --sdkwork-birdcoder-auth-content-text: #0f172a;
+  --sdkwork-birdcoder-auth-muted-text: #64748b;
+  --sdkwork-birdcoder-auth-field-bg: #ffffff;
+  --sdkwork-birdcoder-auth-field-border: rgba(71, 85, 105, 0.18);
+  --sdkwork-birdcoder-auth-divider: rgba(100, 116, 139, 0.18);
+  --sdkwork-birdcoder-auth-tab-bg: #eef4fb;
+  --sdkwork-birdcoder-auth-tab-active-bg: #ffffff;
+  --sdkwork-birdcoder-auth-aside-bg: #f8fbff;
+  --sdkwork-birdcoder-auth-aside-border: rgba(37, 99, 235, 0.12);
+  --sdkwork-birdcoder-auth-aside-text: #0f172a;
+  --sdkwork-birdcoder-auth-aside-card-bg: #ffffff;
+  --sdkwork-birdcoder-auth-aside-card-border: rgba(37, 99, 235, 0.12);
+  --sdkwork-birdcoder-auth-aside-badge-bg: rgba(37, 99, 235, 0.1);
+  --sdkwork-birdcoder-auth-aside-badge-text: #1d4ed8;
+  --sdkwork-birdcoder-auth-qr-bg: #ffffff;
+  --sdkwork-birdcoder-auth-qr-border: rgba(37, 99, 235, 0.18);
+  background:
+    radial-gradient(circle at 18% 22%, rgba(37, 99, 235, 0.12), transparent 28%),
+    radial-gradient(circle at 82% 78%, rgba(14, 165, 233, 0.1), transparent 32%),
+    linear-gradient(180deg, #f8fbff 0%, #eef5fb 54%, #e8f0f7 100%);
+}
+
+html.light-mode .sdkwork-birdcoder-auth-card-shell {
+  box-shadow: 0 24px 70px rgba(30, 41, 59, 0.16);
+}
+
+html.light-mode .sdkwork-birdcoder-auth-aside-panel .text-white {
+  color: var(--sdkwork-birdcoder-auth-aside-text) !important;
+}
+
+html.light-mode .sdkwork-birdcoder-auth-aside-panel .text-primary-200 {
+  color: var(--sdkwork-birdcoder-auth-aside-text) !important;
+}
+
+html.light-mode .sdkwork-birdcoder-auth-aside-panel .text-zinc-300 {
+  color: var(--sdkwork-birdcoder-auth-muted-text) !important;
+}
+
+html.light-mode .sdkwork-birdcoder-auth-aside-panel .text-zinc-400 {
+  color: var(--sdkwork-birdcoder-auth-muted-text) !important;
+}
+
+html.light-mode .sdkwork-birdcoder-auth-aside-panel .bg-white\/\[0\.08\] {
+  background-color: rgba(37, 99, 235, 0.08) !important;
+}
+
+html.light-mode .sdkwork-birdcoder-auth-aside-panel .bg-\[linear-gradient\(180deg\,_rgba\(255\,255\,255\,0\.05\)\,_transparent_30\%\)\] {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent 42%) !important;
+}
+
+html.light-mode .sdkwork-birdcoder-auth-qr-frame {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86), 0 18px 38px rgba(37, 99, 235, 0.1);
+}
+
+html.light-mode .sdkwork-birdcoder-auth-theme-button:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+html.light-mode .sdkwork-birdcoder-auth-window-button:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+html.light-mode .sdkwork-birdcoder-auth-window-button-danger:hover {
+  background: rgba(239, 68, 68, 0.9);
+  color: #ffffff;
+}
+
+/* Pink to blue color theme override */
+@theme {
+  --color-pink-50: var(--color-blue-50);
+  --color-pink-100: var(--color-blue-100);
+  --color-pink-200: var(--color-blue-200);
+  --color-pink-300: var(--color-blue-300);
+  --color-pink-400: var(--color-blue-500);
+  --color-pink-500: var(--color-blue-600);
+  --color-pink-600: var(--color-blue-700);
+  --color-pink-700: var(--color-blue-800);
+  --color-pink-800: var(--color-blue-900);
+  --color-pink-900: var(--color-blue-950);
+
+  --color-indigo-50: var(--color-blue-50);
+  --color-indigo-100: var(--color-blue-100);
+  --color-indigo-200: var(--color-blue-200);
+  --color-indigo-300: var(--color-blue-300);
+  --color-indigo-400: var(--color-blue-500);
+  --color-indigo-500: var(--color-blue-600);
+  --color-indigo-600: var(--color-blue-700);
+  --color-indigo-700: var(--color-blue-800);
+  --color-indigo-800: var(--color-blue-900);
+  --color-indigo-900: var(--color-blue-950);
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

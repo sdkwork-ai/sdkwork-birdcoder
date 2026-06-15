@@ -5,15 +5,15 @@ const readSource = (relativePath) =>
   readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8');
 
 const newSessionButtonSource = readSource(
-  'packages/sdkwork-birdcoder-ui/src/components/WorkbenchNewSessionButton.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/WorkbenchNewSessionButton.tsx',
 );
-const topBarSource = readSource('packages/sdkwork-birdcoder-code/src/components/TopBar.tsx');
-const sidebarSource = readSource('packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx');
+const topBarSource = readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx');
+const sidebarSource = readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
 const projectContextMenuSource = readSource(
-  'packages/sdkwork-birdcoder-code/src/components/ProjectExplorerProjectContextMenu.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerProjectContextMenu.tsx',
 );
 const universalChatSource = readSource(
-  'packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx',
 );
 
 assert.match(

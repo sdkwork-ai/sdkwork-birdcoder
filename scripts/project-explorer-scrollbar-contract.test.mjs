@@ -7,14 +7,14 @@ const rootDir = process.cwd();
 const source = fs.readFileSync(
   path.join(
     rootDir,
-    'packages/sdkwork-birdcoder-code/src/components/ProjectExplorerHeader.tsx',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerHeader.tsx',
   ),
   'utf8',
 );
 const sessionRowSource = fs.readFileSync(
   path.join(
     rootDir,
-    'packages/sdkwork-birdcoder-code/src/components/ProjectExplorerSessionRow.tsx',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerSessionRow.tsx',
   ),
   'utf8',
 );

@@ -6,33 +6,33 @@ import {
   MULTI_WINDOW_LAYOUT_COUNTS,
   normalizeMultiWindowActiveWindowCount,
   normalizeMultiWindowLayoutCount,
-} from '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowLayout.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowLayout.ts';
 import {
   buildMultiWindowPendingAddProgress,
   resolveNextMultiWindowAddWindowCount,
-} from '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowAddFlow.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowAddFlow.ts';
 import {
   collectFailedMultiWindowDispatchPaneIds,
   dispatchMultiWindowPrompt,
-} from '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowDispatch.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowDispatch.ts';
 import {
   countMultiWindowDispatchablePanes,
   resolveMultiWindowComposerDisabledReason,
   resolveMultiWindowPaneDispatchability,
-} from '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowDispatchability.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowDispatchability.ts';
 import {
   buildMultiWindowMessageMetadata,
-} from '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowMessageMetadata.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowMessageMetadata.ts';
 import {
   buildMultiWindowPaneDispatchPrompt,
-} from '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowPromptProfile.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowPromptProfile.ts';
 import {
   resolveMultiWindowPaneAutoPreviewUrl,
-} from '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowPreviewUrl.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowPreviewUrl.ts';
 import {
   buildMultiWindowProvisionedSessionTitle,
   resolveMultiWindowPaneSessionProvisioningStatus,
-} from '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowSessionProvisioning.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowSessionProvisioning.ts';
 import {
   buildMultiWindowWorkspaceState,
   createMultiWindowWorkspaceStateStorageKey,
@@ -40,7 +40,7 @@ import {
   MAX_MULTI_WINDOW_DURABLE_WORKSPACE_STATE_BYTES,
   readMultiWindowWorkspaceState,
   writeMultiWindowWorkspaceState,
-} from '../packages/sdkwork-birdcoder-multiwindow/src/runtime/multiWindowWorkspaceState.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/runtime/multiWindowWorkspaceState.ts';
 
 assert.deepEqual(
   [...MULTI_WINDOW_LAYOUT_COUNTS],

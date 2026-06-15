@@ -3,15 +3,15 @@ import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderProject,
-} from '@sdkwork/birdcoder-types';
-import type { CreateCodingSessionMessageInput } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IProjectService.ts';
+} from '@sdkwork/birdcoder-pc-types';
+import type { CreateCodingSessionMessageInput } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IProjectService.ts';
 
 const appRuntimeTransportModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts',
   import.meta.url,
 );
 const sdkClientsModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
   import.meta.url,
 );
 

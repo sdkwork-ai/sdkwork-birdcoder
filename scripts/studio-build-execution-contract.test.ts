@@ -4,11 +4,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const profilesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/build/profiles.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/build/profiles.ts',
   import.meta.url,
 );
 const runtimeModulePath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/build/runtime.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/build/runtime.ts',
   import.meta.url,
 );
 
@@ -44,12 +44,12 @@ for (const modulePath of [profilesModulePath, runtimeModulePath]) {
 const {
   STUDIO_BUILD_PROFILE_REGISTRY_ADAPTER_ID,
   resolveStudioBuildProfile,
-} = await import('../packages/sdkwork-birdcoder-studio/src/build/profiles.ts');
+} = await import('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/build/profiles.ts');
 const {
   STUDIO_BUILD_EXECUTION_ADAPTER_ID,
   buildStudioBuildExecutionEvidence,
   resolveStudioBuildExecutionLaunch,
-} = await import('../packages/sdkwork-birdcoder-studio/src/build/runtime.ts');
+} = await import('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/build/runtime.ts');
 
 const buildProfile = resolveStudioBuildProfile({
   platform: 'app',
@@ -185,11 +185,11 @@ assert.deepEqual(blockedLaunch.blockedAction, {
 });
 
 const studioPageSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
 const studioExecutionHookSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
   'utf8',
 );
 assert.equal(

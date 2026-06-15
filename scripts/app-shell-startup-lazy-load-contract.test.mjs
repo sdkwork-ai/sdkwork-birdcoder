@@ -2,22 +2,22 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const webAppSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-web/src/App.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/App.tsx', import.meta.url),
   'utf8',
 );
 
 const webAppRootLoaderSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-web/src/loadAppRoot.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/loadAppRoot.ts', import.meta.url),
   'utf8',
 );
 
 const appRootSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-shell/src/application/app/AppRoot.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/AppRoot.tsx', import.meta.url),
   'utf8',
 );
 
 const birdcoderAppLoaderSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-shell/src/application/app/loadBirdcoderApp.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/loadBirdcoderApp.ts', import.meta.url),
   'utf8',
 );
 
@@ -35,7 +35,7 @@ assert.match(
 
 assert.match(
   webAppRootLoaderSource,
-  /await\s+import\('@sdkwork\/birdcoder-shell'\)[\s\S]*module\.AppRoot/s,
+  /await\s+import\('@sdkwork\/birdcoder-pc-shell'\)[\s\S]*module\.AppRoot/s,
   'The web App root loader should resolve AppRoot from the shell root package so BirdCoder keeps the root-import dependency standard intact.',
 );
 

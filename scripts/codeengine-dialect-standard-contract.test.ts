@@ -28,7 +28,7 @@ import {
   resolveBirdCoderCodeEngineToolKind,
   resolveBirdCoderCodeEngineUserQuestionId,
   resolveBirdCoderCodeEngineUserQuestionRuntimeStatus,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const userQuestionAliases = [
   'question',
@@ -801,12 +801,12 @@ assert.equal(
 );
 
 const adapterFiles = [
-  'packages/sdkwork-birdcoder-chat-claude/src/index.ts',
-  'packages/sdkwork-birdcoder-types/src/index.ts',
-  'packages/sdkwork-birdcoder-chat-gemini/src/index.ts',
-  'packages/sdkwork-birdcoder-chat-opencode/src/index.ts',
-  'packages/sdkwork-birdcoder-codeengine/src/runtime.ts',
-  'packages/sdkwork-birdcoder-commons/src/hooks/useCodingSessionProjection.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/runtime.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingSessionProjection.ts',
   'scripts/codeengine-official-sdk-bridge.ts',
 ];
 
@@ -840,9 +840,9 @@ for (const filePath of adapterFiles) {
 }
 
 const interactionSemanticFiles = [
-  'packages/sdkwork-birdcoder-types/src/index.ts',
-  'packages/sdkwork-birdcoder-codeengine/src/runtime.ts',
-  'packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/runtime.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx',
   'scripts/codeengine-official-sdk-bridge.ts',
 ];
 
@@ -870,12 +870,12 @@ for (const filePath of interactionSemanticFiles) {
 }
 
 const toolCallDeltaConsumerFiles = [
-  'packages/sdkwork-birdcoder-codeengine/src/runtime.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/runtime.ts',
   'scripts/codeengine-official-sdk-bridge.ts',
 ];
 
 const chatPackageDialectExportSource = readFileSync(
-  'packages/sdkwork-birdcoder-chat/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts',
   'utf8',
 );
 for (const exportName of [
@@ -887,7 +887,7 @@ for (const exportName of [
   assert.equal(
     chatPackageDialectExportSource.includes(exportName),
     true,
-    `@sdkwork/birdcoder-chat must re-export ${exportName} with the rest of the shared code-engine dialect surface.`,
+    `@sdkwork/birdcoder-pc-chat must re-export ${exportName} with the rest of the shared code-engine dialect surface.`,
   );
 }
 
@@ -910,7 +910,7 @@ for (const filePath of toolCallDeltaConsumerFiles) {
 }
 
 const openCodeAdapterSource = readFileSync(
-  'packages/sdkwork-birdcoder-chat-opencode/src/index.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts',
   'utf8',
 );
 assert.equal(
@@ -920,3 +920,4 @@ assert.equal(
 );
 
 console.log('Code engine dialect standard contract passed.');
+

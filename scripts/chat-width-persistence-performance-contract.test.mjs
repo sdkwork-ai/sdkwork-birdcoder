@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const layoutPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/useCodeEditorChatLayout.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeEditorChatLayout.ts',
   import.meta.url,
 );
 

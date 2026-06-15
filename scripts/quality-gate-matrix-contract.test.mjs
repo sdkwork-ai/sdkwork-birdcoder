@@ -118,11 +118,11 @@ assert.equal(rootPackageJson.scripts['check:quality:fast'], rootPackageJson.scri
 assert.equal(rootPackageJson.scripts.lint, 'node scripts/run-quality-fast-check.mjs');
 assert.equal(
   rootPackageJson.scripts['check:desktop'],
-  'node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-desktop --noEmit && node scripts/release/release-profiles.test.mjs && node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
+  'node scripts/run-local-typescript.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop --noEmit && node scripts/release/release-profiles.test.mjs && node scripts/run-cargo.mjs test --manifest-path apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml',
 );
 assert.equal(
   rootPackageJson.scripts['check:server'],
-  'node scripts/birdcoder-iam-runtime-standard-contract.test.mjs && node scripts/iam-seed-parity-contract.test.mjs && node scripts/rust-long-id-standard-contract.test.mjs && node scripts/rust-workspace-project-schema-parity-contract.test.mjs && node scripts/codeengine-catalog-tenant-standard-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-server --noEmit && node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
+  'node scripts/birdcoder-iam-runtime-standard-contract.test.mjs && node scripts/iam-seed-parity-contract.test.mjs && node scripts/rust-long-id-standard-contract.test.mjs && node scripts/rust-workspace-project-schema-parity-contract.test.mjs && node scripts/codeengine-catalog-tenant-standard-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server --noEmit && node scripts/run-cargo.mjs test --manifest-path apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/Cargo.toml',
 );
 assert.equal(rootPackageJson.scripts['check:quality:standard'], 'node scripts/run-quality-standard-check.mjs');
 assert.equal(rootPackageJson.scripts['check:quality:release'], 'node scripts/run-quality-release-check.mjs');

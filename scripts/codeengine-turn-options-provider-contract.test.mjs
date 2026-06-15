@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const rustSdkBridgeSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-codeengine/src-host/src/sdk_bridge.rs', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/sdk_bridge.rs', import.meta.url),
   'utf8',
 );
 const claudeProviderSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-codeengine/src-host/src/claude_code_provider.rs', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/claude_code_provider.rs', import.meta.url),
   'utf8',
 );
 const geminiProviderSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-codeengine/src-host/src/gemini_provider.rs', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/gemini_provider.rs', import.meta.url),
   'utf8',
 );
 const sdkBridgeScriptSource = fs.readFileSync(
@@ -18,15 +18,15 @@ const sdkBridgeScriptSource = fs.readFileSync(
   'utf8',
 );
 const claudeChatSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-chat-claude/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts', import.meta.url),
   'utf8',
 );
 const codexChatSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-chat-codex/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts', import.meta.url),
   'utf8',
 );
 const geminiChatSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-chat-gemini/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts', import.meta.url),
   'utf8',
 );
 

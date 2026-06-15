@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const fileExplorerSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/FileExplorer.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx', import.meta.url),
   'utf8',
 );
 const workspacePanelSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/CodeEditorWorkspacePanel.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx', import.meta.url),
   'utf8',
 );
 

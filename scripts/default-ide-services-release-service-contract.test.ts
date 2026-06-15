@@ -1,7 +1,7 @@
-import type { BirdCoderBackendSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import type { BirdCoderBackendSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
-import type { BirdCoderReleaseSummary } from '@sdkwork/birdcoder-types';
-import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
+import type { BirdCoderReleaseSummary } from '@sdkwork/birdcoder-pc-types';
+import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
 import { createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
 
 const releaseFixtures: BirdCoderReleaseSummary[] = [

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const packageDir = new URL('../packages/sdkwork-birdcoder-multiwindow/', import.meta.url);
+const packageDir = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/', import.meta.url);
 const packageJsonPath = new URL('package.json', packageDir);
 const tsconfigPath = new URL('tsconfig.json', packageDir);
 const indexPath = new URL('src/index.ts', packageDir);
@@ -24,7 +24,7 @@ const indexSource = fs.readFileSync(indexPath, 'utf8');
 
 assert.equal(
   packageJson.name,
-  '@sdkwork/birdcoder-multiwindow',
+  '@sdkwork/birdcoder-pc-multiwindow',
   'Multi-window package must use the scoped @sdkwork/birdcoder-* manifest name.',
 );
 
@@ -41,11 +41,11 @@ assert.equal(
 );
 
 const requiredDependencies = [
-  '@sdkwork/birdcoder-codeengine',
-  '@sdkwork/birdcoder-commons',
-  '@sdkwork/birdcoder-types',
-  '@sdkwork/birdcoder-ui',
-  '@sdkwork/birdcoder-ui-shell',
+  '@sdkwork/birdcoder-pc-codeengine',
+  '@sdkwork/birdcoder-pc-commons',
+  '@sdkwork/birdcoder-pc-types',
+  '@sdkwork/birdcoder-pc-ui',
+  '@sdkwork/birdcoder-pc-ui-shell',
   'lucide-react',
   'react',
   'react-dom',

@@ -1,9 +1,9 @@
-import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import type { BirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderDeploymentRecordSummary,
-} from '@sdkwork/birdcoder-types';
-import { createDefaultBirdCoderIdeServices } from '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts';
+} from '@sdkwork/birdcoder-pc-types';
+import { createDefaultBirdCoderIdeServices } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts';
 import { createAppSdkClientContractStub, createBackendSdkClientContractStub } from './split-sdk-client-contract-stub.ts';
 
 const deploymentFixtures: BirdCoderDeploymentRecordSummary[] = [

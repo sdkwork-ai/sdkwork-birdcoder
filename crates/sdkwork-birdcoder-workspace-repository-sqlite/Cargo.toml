@@ -1,0 +1,20 @@
+[package]
+name = "sdkwork-birdcoder-workspace-repository-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+sdkwork-birdcoder-workspace-service = { path = "../sdkwork-birdcoder-workspace-service" }
+sdkwork-birdcoder-project-service = { path = "../sdkwork-birdcoder-project-service" }
+sdkwork-birdcoder-deployment-service = { path = "../sdkwork-birdcoder-deployment-service" }
+
+

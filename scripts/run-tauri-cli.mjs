@@ -94,7 +94,7 @@ function resolveDesktopDevSqlitePath({
 } = {}) {
   const pathModule = platform === 'win32' ? path.win32 : path.posix;
 
-  if (pathModule.basename(cwd) !== 'sdkwork-birdcoder-desktop') {
+  if (pathModule.basename(cwd) !== 'sdkwork-birdcoder-pc-desktop') {
     return undefined;
   }
 
@@ -102,7 +102,7 @@ function resolveDesktopDevSqlitePath({
     return undefined;
   }
 
-  return pathModule.join(cwd, '.local', 'sdkwork-birdcoder-desktop-local.sqlite3');
+  return pathModule.join(cwd, '.local', 'sdkwork-birdcoder-pc-desktop-local.sqlite3');
 }
 
 export function createTauriCliPlan({

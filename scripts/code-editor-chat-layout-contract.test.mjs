@@ -10,66 +10,106 @@ function readSource(...segments) {
 }
 
 const preferencesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts',
   import.meta.url,
 );
 const layoutModulePath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/codeEditorChatLayout.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeEditorChatLayout.ts',
   import.meta.url,
 );
 
 const preferencesSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-commons',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'workbench',
   'preferences.ts',
 );
 const preferencesHookSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-commons',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'hooks',
   'useWorkbenchPreferences.ts',
 );
 const codePageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePage.tsx',
 );
 const codePageSurfaceSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePageSurface.tsx',
 );
 const codeEditorChatLayoutSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'codeEditorChatLayout.ts',
 );
 const codeEditorChatHookSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'useCodeEditorChatLayout.ts',
 );
 const editorWorkspacePanelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodeEditorWorkspacePanel.tsx',
 );
 const universalChatSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'UniversalChat.tsx',

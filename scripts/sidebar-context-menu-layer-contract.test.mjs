@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const sidebarPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx',
   import.meta.url,
 );
 

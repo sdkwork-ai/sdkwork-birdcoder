@@ -2,19 +2,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const resizeHandlePath = new URL(
-  '../packages/sdkwork-birdcoder-ui-shell/src/components/ResizeHandle.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/ResizeHandle.tsx',
   import.meta.url,
 );
 const codePagePath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
   import.meta.url,
 );
 const codePageSurfacePath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/CodePageSurface.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageSurface.tsx',
   import.meta.url,
 );
 const codePageSurfacePropsPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts',
   import.meta.url,
 );
 

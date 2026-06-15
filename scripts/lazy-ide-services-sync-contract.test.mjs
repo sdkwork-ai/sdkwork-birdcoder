@@ -6,16 +6,26 @@ import ts from 'typescript';
 
 const modulePath = path.join(
   process.cwd(),
-  'packages',
-  'sdkwork-birdcoder-commons',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'context',
   'lazyDefaultIdeServices.ts',
 );
 const infrastructureLazyServicesPath = path.join(
   process.cwd(),
-  'packages',
-  'sdkwork-birdcoder-infrastructure',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  
+  
+  'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
   'lazyDefaultIdeServices.ts',
@@ -27,7 +37,7 @@ const infrastructureLazyServicesSource = fs.readFileSync(infrastructureLazyServi
 assert.doesNotMatch(
   infrastructureLazyServicesSource,
   /await\s+import\(['"]\.\/impl\//,
-  '@sdkwork/birdcoder-infrastructure lazyDefaultIdeServices must not dynamically import platform service implementations after platform runtime chunk consolidation.',
+  '@sdkwork/birdcoder-pc-infrastructure lazyDefaultIdeServices must not dynamically import platform service implementations after platform runtime chunk consolidation.',
 );
 
 for (const serviceImport of [
@@ -50,7 +60,7 @@ for (const serviceImport of [
   assert.match(
     infrastructureLazyServicesSource,
     new RegExp(`from ['"]${serviceImport.replaceAll('.', '\\.')}['"];`),
-    `@sdkwork/birdcoder-infrastructure lazyDefaultIdeServices must statically import ${serviceImport}.`,
+    `@sdkwork/birdcoder-pc-infrastructure lazyDefaultIdeServices must statically import ${serviceImport}.`,
   );
 }
 
@@ -77,7 +87,7 @@ const context = vm.createContext({
   module,
   exports: module.exports,
   require(specifier) {
-    if (specifier === '@sdkwork/birdcoder-infrastructure') {
+    if (specifier === '@sdkwork/birdcoder-pc-infrastructure') {
       return {};
     }
 

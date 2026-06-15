@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import {
   createEnvelope as createTransportEnvelope,
   createListEnvelope as createTransportListEnvelope,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkTransportShared.ts';
-import { createBirdCoderInProcessAppRuntimeTransport } from '../packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkTransportShared.ts';
+import { createBirdCoderInProcessAppRuntimeTransport } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts';
 
 const requestIdPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
@@ -53,7 +53,7 @@ try {
   }
 
   const serverEntrypointSource = fs.readFileSync(
-    new URL('../packages/sdkwork-birdcoder-server/src/index.ts', import.meta.url),
+    new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url),
     'utf8',
   );
   assert.doesNotMatch(

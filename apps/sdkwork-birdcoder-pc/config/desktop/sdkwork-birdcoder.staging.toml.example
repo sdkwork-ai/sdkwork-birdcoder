@@ -1,0 +1,13 @@
+# BirdCoder Desktop Staging Config
+
+[app]
+name = "SDKWork BirdCoder"
+environment = "staging"
+
+[server]
+embedded = false
+url = "https://api-staging.sdkwork.com/apps/sdkwork-birdcoder"
+
+[storage]
+type = "sqlite"
+path = "~/.sdkwork/sdkwork-birdcoder/data/staging.sqlite3"

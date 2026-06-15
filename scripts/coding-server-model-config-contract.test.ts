@@ -1,20 +1,20 @@
 import assert from 'node:assert/strict';
 
-import { createBirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import { createBirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import type {
   BirdCoderApiEnvelope,
   BirdCoderApiTransport,
   BirdCoderCodeEngineModelConfig,
   BirdCoderCodeEngineModelConfigSyncResult,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 import {
   buildBirdCoderCodingServerOpenApiDocument,
   getBirdCoderAppRuntimeApiContract,
   listBirdCoderCodingServerRouteCatalogEntries,
-} from '../packages/sdkwork-birdcoder-server/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
 import {
   createBirdCoderInProcessAppRuntimeTransport,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts';
 
 const appRuntime = getBirdCoderAppRuntimeApiContract();
 assert.equal(appRuntime.modelConfig.method, 'GET');

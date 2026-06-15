@@ -11,105 +11,178 @@ function readSource(...segments) {
 
 const drawerPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-ui',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitOverviewDrawer.tsx',
 );
 const drawerSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitOverviewDrawer.tsx',
 );
 const panelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitOverviewPanel.tsx',
 );
 const surfaceSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitOverviewSurface.tsx',
 );
 const codeWorkspacePanelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodeEditorWorkspacePanel.tsx',
 );
 const codePageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePage.tsx',
 );
 const codePageSurfaceSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePageSurface.tsx',
 );
 const codeTopBarSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'components',
   'TopBar.tsx',
 );
 const sharedControlsSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitHeaderControls.tsx',
 );
 const studioCodeWorkspacePanelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioCodeWorkspacePanel.tsx',
 );
 const studioPageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioPage.tsx',
 );
 const studioMainContentSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioMainContent.tsx',
 );
 const studioStageHeaderSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'preview',
   'StudioStageHeader.tsx',
 );
 const uiIndexSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'index.ts',
 );
 const englishSidebarLocaleSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-i18n',
+  
+  'sdkwork-birdcoder-pc-i18n',
   'src',
   'locales',
   'en',
@@ -117,8 +190,13 @@ const englishSidebarLocaleSource = readSource(
   'sidebar.ts',
 );
 const chineseSidebarLocaleSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-i18n',
+  
+  'sdkwork-birdcoder-pc-i18n',
   'src',
   'locales',
   'zh',
@@ -170,7 +248,7 @@ assert.match(
 
 assert.match(
   codePageSurfaceSource,
-  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
+  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-pc-ui';/s,
   'Code page surface must render the shared ProjectGitOverviewDrawer instead of an inline Git overview strip.',
 );
 
@@ -206,7 +284,7 @@ assert.match(
 
 assert.match(
   studioMainContentSource,
-  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
+  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-pc-ui';/s,
   'Studio main content must render the shared ProjectGitOverviewDrawer so Code and Studio follow the same Git overview presentation standard.',
 );
 

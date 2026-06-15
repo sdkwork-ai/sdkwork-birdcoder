@@ -1,22 +1,22 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import { shouldUseRichChatMarkdown } from '../packages/sdkwork-birdcoder-ui/src/components/chatMarkdownHeuristics.ts';
+import { shouldUseRichChatMarkdown } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chatMarkdownHeuristics.ts';
 
 const universalChatMarkdownSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/UniversalChatMarkdown.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMarkdown.tsx', import.meta.url),
   'utf8',
 );
 const universalChatSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx', import.meta.url),
   'utf8',
 );
 const englishChatSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-i18n/src/locales/en/chat.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/chat.ts', import.meta.url),
   'utf8',
 );
 const chineseChatSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-i18n/src/locales/zh/chat.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/chat.ts', import.meta.url),
   'utf8',
 );
 

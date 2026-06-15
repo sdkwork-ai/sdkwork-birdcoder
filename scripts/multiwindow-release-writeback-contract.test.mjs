@@ -52,7 +52,7 @@ for (const requiredSection of [
 }
 
 for (const requiredTruth of [
-  '@sdkwork/birdcoder-multiwindow',
+  '@sdkwork/birdcoder-pc-multiwindow',
   'check:multiwindow-standard',
   'multiwindow-release-writeback-contract.test.mjs',
   'codeengine-turn-options-provider',

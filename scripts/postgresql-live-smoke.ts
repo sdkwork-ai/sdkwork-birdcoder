@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 
-import { getBirdCoderSchemaMigrationDefinition } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts';
-import { createBirdCoderConsoleRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
-import { createBirdCoderStorageProvider } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
+import { getBirdCoderSchemaMigrationDefinition } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts';
+import { createBirdCoderConsoleRepositories } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts';
+import { createBirdCoderStorageProvider } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts';
 import {
   createBirdCoderPostgresqlClientSqlExecutor,
   type BirdCoderPostgresqlSqlConnection,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlBackendExecutors.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlBackendExecutors.ts';
 
 export type BirdCoderPostgresqlLiveSmokeStatus = 'blocked' | 'failed' | 'passed';
 export type BirdCoderPostgresqlDsnEnvState = 'missing' | 'empty' | 'configured';

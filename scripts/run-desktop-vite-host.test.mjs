@@ -33,7 +33,7 @@ assert.deepEqual(parseArgs(['serve', '--host', '127.0.0.1', '--port', '1520', '-
 });
 
 const rootDir = process.cwd();
-const desktopRootDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
+const desktopRootDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop');
 const rootNodeModulesDir = path.join(rootDir, 'node_modules');
 const dependencyPath = (dependencyId, ...relativePathParts) =>
   path.resolve(rootDir, '..', dependencyId, ...relativePathParts);
@@ -78,7 +78,7 @@ const findAlias = (predicate, message) => {
 
 const birdcoderPackageSubpathAlias = findAlias(
   (entry) => entry.find instanceof RegExp
-    && entry.find.test('@sdkwork/birdcoder-infrastructure/storage/dataKernel'),
+    && entry.find.test('@sdkwork/birdcoder-pc-infrastructure/storage/dataKernel'),
   'Desktop host config must define a dedicated BirdCoder package-subpath alias.',
 );
 assert.equal(
@@ -87,7 +87,7 @@ assert.equal(
 );
 
 const birdcoderPackageRootAlias = findAlias(
-  (entry) => entry.find instanceof RegExp && entry.find.test('@sdkwork/birdcoder-chat'),
+  (entry) => entry.find instanceof RegExp && entry.find.test('@sdkwork/birdcoder-pc-chat'),
   'Desktop host config must define a BirdCoder package-root alias.',
 );
 assert.equal(
@@ -143,7 +143,7 @@ try {
     tempWorkspaceRoot,
     'sdkwork-birdcoder',
     'packages',
-    'sdkwork-birdcoder-desktop',
+    'sdkwork-birdcoder-pc-desktop',
   );
   const fixtureRootNodeModulesDir = path.join(
     fixtureDesktopRootDir,
@@ -232,21 +232,21 @@ try {
 }
 
 const terminalInfrastructureAlias = findAlias(
-  (entry) => entry.find === '@sdkwork/terminal-infrastructure',
+  (entry) => entry.find === '@sdkwork/terminal-pc-infrastructure',
   'Desktop host config must keep the terminal infrastructure alias.',
 );
 assert.equal(
   terminalInfrastructureAlias.replacement,
-  path.resolve(desktopRootDir, '../sdkwork-birdcoder-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/index.ts'),
 );
 
 const terminalDesktopAlias = findAlias(
-  (entry) => entry.find === '@sdkwork/terminal-desktop',
+  (entry) => entry.find === '@sdkwork/terminal-pc-desktop',
   'Desktop host config must keep the terminal desktop alias.',
 );
 assert.equal(
   terminalDesktopAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'apps/desktop/src/index.ts'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/apps/desktop/src/index.ts'),
 );
 
 const terminalPackageSubpathAlias = findAlias(
@@ -256,7 +256,7 @@ const terminalPackageSubpathAlias = findAlias(
 );
 assert.equal(
   terminalPackageSubpathAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src/$2'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src/$2'),
 );
 
 const terminalPackageRootAlias = findAlias(
@@ -265,7 +265,7 @@ const terminalPackageRootAlias = findAlias(
 );
 assert.equal(
   terminalPackageRootAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-$1/src'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
 );
 assert.notEqual(
   birdcoderPackageSubpathAlias.replacement,
@@ -277,7 +277,7 @@ assert.equal(config.server.port, 1520);
 assert.equal(config.server.strictPort, true);
 assert.equal(config.server.hmr, false);
 assert.deepEqual(config.server.fs.allow, [
-  path.resolve(desktopRootDir, '../..'),
+  path.resolve(desktopRootDir, '../../../..'),
   dependencyPath('sdkwork-appbase'),
   dependencyPath('sdkwork-core'),
   dependencyPath('sdkwork-drive'),
@@ -288,7 +288,7 @@ assert.deepEqual(config.server.fs.allow, [
   dependencyPath('sdkwork-terminal'),
 ]);
 
-const uiRequire = createRequire(path.join(rootDir, 'packages', 'sdkwork-birdcoder-ui', 'package.json'));
+const uiRequire = createRequire(path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-ui', 'package.json'));
 const rootRequire = createRequire(path.join(rootDir, 'package.json'));
 const lucideEntryPath = rootRequire.resolve('lucide-react');
 const lucidePackageDir = path.resolve(path.dirname(lucideEntryPath), '..');
@@ -296,7 +296,7 @@ const defaultLucideProbePath = `http://127.0.0.1:1520/@fs/${path
   .join(lucidePackageDir, 'esm', 'Icon.js')
   .replace(/\\/g, '/')}`;
 const defaultTerminalInfrastructureProbePath = `http://127.0.0.1:1520/@fs/${path
-  .resolve(dependencyPath('sdkwork-terminal', 'packages', 'sdkwork-terminal-infrastructure', 'src', 'index.ts'))
+  .resolve(dependencyPath('sdkwork-terminal', 'apps', 'sdkwork-terminal-pc', 'packages', 'sdkwork-terminal-pc-infrastructure', 'src', 'index.ts'))
   .replace(/\\/g, '/')}`;
 const defaultBirdcoderTerminalRuntimeProbePath = `http://127.0.0.1:1520/@fs/${path
   .resolve(resolveBirdcoderTerminalInfrastructureRuntimePath(desktopRootDir))
@@ -313,13 +313,13 @@ assert.equal(
   resolveBirdcoderTerminalInfrastructureRuntimePath(desktopRootDir),
   path.resolve(
     desktopRootDir,
-    '../sdkwork-birdcoder-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
+    '../sdkwork-birdcoder-pc-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts',
   ),
   'Shared terminal path resolver must return the canonical BirdCoder terminal runtime entry path.',
 );
 assert.equal(
   resolveSdkworkTerminalInfrastructureEntryPath(desktopRootDir),
-  dependencyPath('sdkwork-terminal', 'packages/sdkwork-terminal-infrastructure/src/index.ts'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/index.ts'),
   'Shared terminal path resolver must return the sdkwork-terminal workspace infrastructure entry path.',
 );
 assert.match(
@@ -355,7 +355,7 @@ const compatibilityProbes = [
     incompatiblePatterns: ['/@fs/mock/debug/src/browser.js'],
   },
   {
-    path: '/@fs/mock/sdkwork-terminal-infrastructure/src/index.ts',
+    path: '/@fs/mock/sdkwork-terminal-pc-infrastructure/src/index.ts',
     incompatiblePatterns: [
       '/@fs/mock/@xterm/xterm/lib/xterm.js',
       '/@fs/mock/@xterm/addon-fit/lib/addon-fit.js',
@@ -438,7 +438,7 @@ assert.deepEqual(
     'http://127.0.0.1:1520/@fs/mock/hast-util-to-jsx-runtime/lib/index.js',
     'http://127.0.0.1:1520/@fs/mock/react-syntax-highlighter/dist/esm/languages/hljs/vue.js',
     'http://127.0.0.1:1520/@fs/mock/micromark/lib/create-tokenizer.js',
-    'http://127.0.0.1:1520/@fs/mock/sdkwork-terminal-infrastructure/src/index.ts',
+    'http://127.0.0.1:1520/@fs/mock/sdkwork-terminal-pc-infrastructure/src/index.ts',
   ],
   'Desktop host reuse check should probe the startup entry and each dependency compatibility path before reusing an existing host.',
 );
@@ -616,7 +616,7 @@ assert.equal(
           return 'export const main = true;';
         }
 
-        if (url.endsWith('/@fs/mock/sdkwork-terminal-infrastructure/src/index.ts')) {
+        if (url.endsWith('/@fs/mock/sdkwork-terminal-pc-infrastructure/src/index.ts')) {
           return 'const Terminal = () => import("/@fs/mock/@xterm/xterm/lib/xterm.js"); export { Terminal };';
         }
 

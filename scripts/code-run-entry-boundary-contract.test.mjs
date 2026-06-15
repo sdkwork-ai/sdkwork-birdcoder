@@ -9,11 +9,14 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const codePageSource = read('packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx');
+const codePageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
 const hookPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'useCodeRunEntryActions.ts',
@@ -24,7 +27,7 @@ assert.ok(
   'Code run-entry orchestration must live in a dedicated useCodeRunEntryActions hook.',
 );
 
-const hookSource = read('packages/sdkwork-birdcoder-code/src/pages/useCodeRunEntryActions.ts');
+const hookSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeRunEntryActions.ts');
 
 assert.match(
   codePageSource,

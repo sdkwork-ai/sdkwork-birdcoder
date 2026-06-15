@@ -10,22 +10,37 @@ function readSource(...segments) {
 }
 
 const workbenchSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-commons',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'workbench',
   'codingSessionCreation.ts',
 );
 const studioPageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioPage.tsx',
 );
 const codeDeleteConfirmationSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'useCodeDeleteConfirmation.ts',

@@ -4,10 +4,10 @@ import type {
   BirdCoderCodingSessionCheckpoint,
   BirdCoderCodingSessionEvent,
   BirdCoderCodingSessionSummary,
-} from '@sdkwork/birdcoder-types';
+} from '@sdkwork/birdcoder-pc-types';
 import {
   loadCodingSessionPendingInteractionState,
-} from '../packages/sdkwork-birdcoder-commons/src/hooks/useCodingSessionProjection.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingSessionProjection.ts';
 
 const sessionId = 'coding-session-pending-interactions-stability';
 const session: BirdCoderCodingSessionSummary = {

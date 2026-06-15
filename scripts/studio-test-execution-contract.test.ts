@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
 const runtimeModulePath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/test/runtime.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/test/runtime.ts',
   import.meta.url,
 );
 
@@ -16,7 +16,7 @@ const {
   STUDIO_TEST_EXECUTION_ADAPTER_ID,
   buildStudioTestExecutionEvidence,
   resolveStudioTestExecutionLaunch,
-} = await import('../packages/sdkwork-birdcoder-studio/src/test/runtime.ts');
+} = await import('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/test/runtime.ts');
 
 const launch = await resolveStudioTestExecutionLaunch(
   {
@@ -127,11 +127,11 @@ assert.deepEqual(blockedLaunch.blockedAction, {
 });
 
 const studioPageSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
 const studioExecutionHookSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
   'utf8',
 );
 assert.equal(

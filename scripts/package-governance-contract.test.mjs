@@ -74,7 +74,7 @@ function globSegmentToRegex(segment) {
 }
 
 function collectWorkspacePackageGlobs(workspaceConfigSource) {
-  const packagesMatch = workspaceConfigSource.match(/^packages:\s*\r?\n(?<body>(?:  - .*(?:\r?\n|$))+)/m);
+  const packagesMatch = workspaceConfigSource.match(/^packages:\s*\r?\n(?<body>(?:  (?:-|#) .*(?:\r?\n|$))+)/m);
   assert.ok(packagesMatch?.groups?.body, 'pnpm-workspace.yaml must define a packages section.');
 
   const packageGlobs = [];
@@ -216,7 +216,7 @@ assert.ok(
 );
 assert.match(
   workspaceConfigSource,
-  /^packages:\s*\r?\n  - 'packages\/sdkwork-birdcoder-\*'/m,
+  /^packages:\s*\r?\n(?:  #.*\r?\n)*  - 'packages\/sdkwork-birdcoder-\*'/m,
   'pnpm-workspace.yaml must target packages/sdkwork-birdcoder-*.',
 );
 assert.doesNotMatch(

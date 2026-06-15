@@ -26,7 +26,7 @@ const multiWindowStandardCommand = [
   'node scripts/multiwindow-shell-navigation-contract.test.mjs',
   'node scripts/multiwindow-turn-options-contract.test.mjs',
   'node scripts/multiwindow-release-writeback-contract.test.mjs',
-  'node scripts/run-local-typescript.mjs --cwd packages/sdkwork-birdcoder-multiwindow --noEmit',
+  'node scripts/run-local-typescript.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow --noEmit',
 ].join(' && ');
 
 assert.equal(

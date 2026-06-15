@@ -5,11 +5,11 @@ import process from 'node:process';
 
 const rootDir = process.cwd();
 const codeSurfacePropsSource = fs.readFileSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts'),
   'utf8',
 );
 const codePageSource = fs.readFileSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx'),
   'utf8',
 );
 

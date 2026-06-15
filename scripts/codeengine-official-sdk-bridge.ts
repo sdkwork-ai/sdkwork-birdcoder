@@ -1,7 +1,7 @@
 import { stdin, stderr, stdout } from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
+import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
 import type {
   ChatContext,
   ChatMessage,
@@ -9,11 +9,11 @@ import type {
   ChatResponse,
   ChatStreamChunk,
   ToolCall,
-} from '../packages/sdkwork-birdcoder-chat/src/types.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/types.ts';
 import type {
   BirdCoderCodeEnginePendingToolCallDelta,
   BirdCoderCodeEngineToolKind,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 import {
   canonicalizeBirdCoderCodeEngineToolName,
   flushBirdCoderCodeEngineToolCallDeltas,
@@ -31,7 +31,7 @@ import {
   resolveBirdCoderCodeEngineToolKind,
   resolveBirdCoderCodeEngineUserQuestionRuntimeStatus,
   stringifyBirdCoderApiJson,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 interface CodeEngineSdkBridgeRequest {
   engineId?: string;

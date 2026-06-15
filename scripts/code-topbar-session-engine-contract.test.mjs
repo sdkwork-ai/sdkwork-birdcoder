@@ -10,22 +10,37 @@ function readSource(...segments) {
 }
 
 const topBarSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'components',
   'TopBar.tsx',
 );
 const codePageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePage.tsx',
 );
 const codePageSurfacePropsSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'useCodePageSurfaceProps.ts',

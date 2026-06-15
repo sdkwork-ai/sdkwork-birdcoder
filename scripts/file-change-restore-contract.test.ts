@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict';
 
 const restoreModulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/fileChangeRestore.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/fileChangeRestore.ts',
   import.meta.url,
 );
 const codePagePath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
   import.meta.url,
 );
 const studioPagePath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx',
   import.meta.url,
 );
 const universalChatPath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx',
   import.meta.url,
 );
 

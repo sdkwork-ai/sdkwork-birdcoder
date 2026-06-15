@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import type {
   BirdCoderEntityName,
   BirdCoderEntityStorageBinding,
-} from '@sdkwork/birdcoder-types';
+} from '@sdkwork/birdcoder-pc-types';
 import {
   BIRDCODER_WORKSPACE_STORAGE_BINDING,
   BIRDCODER_PROJECT_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
-} from '@sdkwork/birdcoder-types';
-import { createBirdCoderConsoleQueries } from '../packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts';
+} from '@sdkwork/birdcoder-pc-types';
+import { createBirdCoderConsoleQueries } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts';
 import type {
   BirdCoderConsoleRepositories,
   BirdCoderRepresentativeAuditRecord,
@@ -22,10 +22,10 @@ import type {
   BirdCoderRepresentativeTeamMemberRecord,
   BirdCoderRepresentativeTeamRecord,
   BirdCoderWorkspaceRecord,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
-import { createBirdCoderConsoleRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
-import { buildProviderScopedStorageKey } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
-import type { BirdCoderTableRecordRepository } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts';
+import { createBirdCoderConsoleRepositories } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts';
+import { buildProviderScopedStorageKey } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts';
+import type { BirdCoderTableRecordRepository } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts';
 
 type RecordWithId = { id: string };
 

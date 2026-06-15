@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 
-import { createChatEngineById } from '../packages/sdkwork-birdcoder-codeengine/src/engines.ts';
+import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
 import {
   resolveFallbackRuntimeMode,
   resolvePackagePresence,
-} from '../packages/sdkwork-birdcoder-chat/src/index.ts';
-import { listWorkbenchCliEngines } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
+import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
 
 const EXPECTED_OFFICIAL_PACKAGES = {
   codex: '@openai/codex-sdk',

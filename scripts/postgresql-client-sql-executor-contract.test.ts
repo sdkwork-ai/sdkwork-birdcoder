@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 
-import { getBirdCoderEntityDefinition } from '../packages/sdkwork-birdcoder-types/src/index.ts';
-import { createBirdCoderTableSqlPlanner } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlPlans.ts';
-import { createBirdCoderPostgresqlClientSqlExecutor } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlBackendExecutors.ts';
+import { getBirdCoderEntityDefinition } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
+import { createBirdCoderTableSqlPlanner } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlPlans.ts';
+import { createBirdCoderPostgresqlClientSqlExecutor } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlBackendExecutors.ts';
 
 const queryHistory: Array<{
   connectionId: string;

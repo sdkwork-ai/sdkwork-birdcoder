@@ -6,37 +6,37 @@ function readSource(relativePath) {
 }
 
 const hookSource = readSource(
-  'packages/sdkwork-birdcoder-commons/src/hooks/useProjectGitOverview.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjectGitOverview.ts',
 );
 const codePageSource = readSource(
-  'packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
 );
 const codeSurfacePropsSource = readSource(
-  'packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts',
 );
 const topBarSource = readSource(
-  'packages/sdkwork-birdcoder-code/src/components/TopBar.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx',
 );
 const codeWorkspacePanelSource = readSource(
-  'packages/sdkwork-birdcoder-code/src/pages/CodeEditorWorkspacePanel.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx',
 );
 const studioPageSource = readSource(
-  'packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx',
 );
 const studioMainContentSource = readSource(
-  'packages/sdkwork-birdcoder-studio/src/pages/StudioMainContent.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioMainContent.tsx',
 );
 const studioHeaderSource = readSource(
-  'packages/sdkwork-birdcoder-studio/src/preview/StudioStageHeader.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/StudioStageHeader.tsx',
 );
 const studioWorkspacePanelSource = readSource(
-  'packages/sdkwork-birdcoder-studio/src/pages/StudioCodeWorkspacePanel.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioCodeWorkspacePanel.tsx',
 );
 const panelSource = readSource(
-  'packages/sdkwork-birdcoder-ui/src/components/ProjectGitOverviewPanel.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/ProjectGitOverviewPanel.tsx',
 );
 const controlsSource = readSource(
-  'packages/sdkwork-birdcoder-ui/src/components/ProjectGitHeaderControls.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/ProjectGitHeaderControls.tsx',
 );
 
 assert.match(

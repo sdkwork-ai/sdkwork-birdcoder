@@ -18,9 +18,9 @@ const expectedDependencyIds = [
 const sourceDependencyFiles = [
   'package.json',
   'Cargo.toml',
-  'packages/sdkwork-birdcoder-commons/package.json',
-  'packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
-  'packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/package.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/Cargo.toml',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml',
   'pnpm-workspace.yaml',
   'tsconfig.json',
   'tsconfig.runtime.json',

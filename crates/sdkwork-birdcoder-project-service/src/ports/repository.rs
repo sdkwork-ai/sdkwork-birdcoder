@@ -1,0 +1,19 @@
+use crate::context::SessionContext;
+use crate::domain::commands::{
+    CreateProjectGitBranchRequest, CreateProjectRequest, SwitchProjectGitBranchRequest,
+    UpdateProjectRequest, UpsertProjectCollaboratorRequest,
+};
+use crate::domain::results::{ProjectCollaboratorPayload, ProjectPayload};
+use crate::error::ProjectError;
+
+#[async_trait::async_trait]
+pub trait ProjectRepository: Send + Sync {
+    async fn find_project_by_id(&self, ctx: &SessionContext, id: &str) -> Result<Option<ProjectPayload>, ProjectError>;
+    async fn list_projects_by_workspace(&self, ctx: &SessionContext, workspace_id: &str) -> Result<Vec<ProjectPayload>, ProjectError>;
+    async fn create_project(&self, ctx: &SessionContext, req: &CreateProjectRequest) -> Result<ProjectPayload, ProjectError>;
+    async fn update_project(&self, ctx: &SessionContext, id: &str, req: &UpdateProjectRequest) -> Result<ProjectPayload, ProjectError>;
+    async fn delete_project(&self, ctx: &SessionContext, id: &str) -> Result<(), ProjectError>;
+    async fn list_project_collaborators(&self, ctx: &SessionContext, project_id: &str) -> Result<Vec<ProjectCollaboratorPayload>, ProjectError>;
+    async fn upsert_project_collaborator(&self, ctx: &SessionContext, project_id: &str, req: &UpsertProjectCollaboratorRequest) -> Result<ProjectCollaboratorPayload, ProjectError>;
+    async fn remove_project_collaborator(&self, ctx: &SessionContext, project_id: &str, user_id: &str) -> Result<(), ProjectError>;
+}

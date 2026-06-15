@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createBirdCoderInProcessAppRuntimeTransport } from '../packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts';
-import { createBirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import { createBirdCoderInProcessAppRuntimeTransport } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts';
+import { createBirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import {
   type BirdCoderChatMessage,
   type BirdCoderCodingSession,
   type BirdCoderProject,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const workspaceId = 'workspace-app-runtime-selected-transcript';
 const projectId = 'project-app-runtime-selected-transcript';
@@ -115,7 +115,7 @@ assert.equal(
 );
 
 const appRuntimeTransportSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts', import.meta.url),
   'utf8',
 );
 

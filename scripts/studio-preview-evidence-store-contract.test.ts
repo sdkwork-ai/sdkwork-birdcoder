@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
-import { resolveHostStudioPreviewSession } from '../packages/sdkwork-birdcoder-host-studio/src/index.ts';
-import { buildStudioPreviewExecutionEvidence } from '../packages/sdkwork-birdcoder-studio/src/preview/runtime.ts';
+import { resolveHostStudioPreviewSession } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/src/index.ts';
+import { buildStudioPreviewExecutionEvidence } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/runtime.ts';
 
 const evidenceStoreModulePath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/preview/evidenceStore.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/evidenceStore.ts',
   import.meta.url,
 );
 
@@ -19,7 +19,7 @@ const {
   buildStudioPreviewEvidenceStorageKey,
   listStoredStudioPreviewExecutionEvidence,
   saveStoredStudioPreviewExecutionEvidence,
-} = await import('../packages/sdkwork-birdcoder-studio/src/preview/evidenceStore.ts');
+} = await import('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/evidenceStore.ts');
 
 assert.equal(
   buildStudioPreviewEvidenceStorageKey('project-1'),
@@ -103,11 +103,11 @@ assert.deepEqual(
 );
 
 const studioPageSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
 const studioExecutionHookSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
   'utf8',
 );
 assert.equal(

@@ -6,16 +6,22 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const codePagePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePage.tsx',
 );
 const codePageDialogsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePageDialogs.tsx',

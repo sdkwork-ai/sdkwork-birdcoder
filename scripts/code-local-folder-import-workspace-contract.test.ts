@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 
 const modulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/localFolderProjectWorkspace.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/localFolderProjectWorkspace.ts',
   import.meta.url,
 );
 const codeLocalFolderImportHookPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/useCodeLocalFolderProjectImport.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
   import.meta.url,
 );
 const appShellPath = new URL(
-  '../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx',
   import.meta.url,
 );
 
@@ -154,7 +154,7 @@ await assert.rejects(
 
 assert.match(
   codeLocalFolderImportHookSource,
-  /from '@sdkwork\/birdcoder-commons';[\s\S]*resolveLocalFolderImportWorkspaceId/s,
+  /from '@sdkwork\/birdcoder-pc-commons';[\s\S]*resolveLocalFolderImportWorkspaceId/s,
   'CodePage local folder imports must use the shared workspace resolver from commons.',
 );
 
@@ -196,7 +196,7 @@ assert.doesNotMatch(
 
 assert.match(
   readFileSync(new URL(
-    '../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
     import.meta.url,
   ), 'utf8'),
   /syncImportedProjectInBackground\(importedProject\.projectId,\s*importedProject\.workspaceId\)/,
@@ -205,7 +205,7 @@ assert.match(
 
 assert.doesNotMatch(
   readFileSync(new URL(
-    '../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
     import.meta.url,
   ), 'utf8'),
   /syncImportedProjectInBackground\([^,\n]+\);/,

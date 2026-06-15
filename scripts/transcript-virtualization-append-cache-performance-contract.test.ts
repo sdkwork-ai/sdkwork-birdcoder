@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import {
   reconcileTranscriptPrefixHeightsCache,
   type TranscriptPrefixHeightsCache,
-} from '../packages/sdkwork-birdcoder-ui/src/components/transcriptVirtualization.ts';
-import type { BirdCoderChatMessage } from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptVirtualization.ts';
+import type { BirdCoderChatMessage } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 function buildMessage(index: number): BirdCoderChatMessage {
   return {
@@ -52,7 +52,7 @@ assert.equal(
 );
 
 const virtualizationSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/transcriptVirtualization.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptVirtualization.ts', import.meta.url),
   'utf8',
 );
 

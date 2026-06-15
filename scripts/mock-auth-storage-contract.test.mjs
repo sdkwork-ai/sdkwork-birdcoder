@@ -5,16 +5,26 @@ import path from 'node:path';
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
 const authContextPath = path.join(
   workspaceRoot,
-  'packages',
-  'sdkwork-birdcoder-commons',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'context',
   'AuthContext.ts',
 );
 const runtimeAuthServicePath = path.join(
   workspaceRoot,
-  'packages',
-  'sdkwork-birdcoder-infrastructure',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  
+  
+  'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
   'impl',
@@ -22,8 +32,13 @@ const runtimeAuthServicePath = path.join(
 );
 const runtimeServerSessionPath = path.join(
   workspaceRoot,
-  'packages',
-  'sdkwork-birdcoder-infrastructure',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  
+  
+  'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
   'runtimeServerSession.ts',

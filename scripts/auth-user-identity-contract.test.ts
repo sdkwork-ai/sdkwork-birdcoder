@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {
   hasSameBirdCoderAuthUserIdentity,
   resolveFallbackAwareCurrentUser,
-} from '../packages/sdkwork-birdcoder-commons/src/context/authUserIdentity.ts';
-import type { User } from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/authUserIdentity.ts';
+import type { User } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 function buildUser(id: string, email: string, name = email): User {
   return {

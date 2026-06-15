@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const dataModulePath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/data.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
   import.meta.url,
 );
 const serverHostSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-server/src-host/src/lib.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs',
   import.meta.url,
 );
 const desktopHostSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-desktop/src-tauri/src/lib.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
   import.meta.url,
 );
 

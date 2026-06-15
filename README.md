@@ -16,6 +16,67 @@ SDKWork BirdCoder is a package-first AI IDE workspace. It keeps BirdCoder produc
 
 ## Workspace Shape
 
+### Multi-Surface Architecture
+
+This repository contains three application surfaces:
+
+| Surface | Root | Architecture Spec |
+|---------|------|-------------------|
+| PC (Desktop/Web) | `apps/sdkwork-birdcoder-pc/` | `APP_PC_ARCHITECTURE_SPEC.md` |
+| H5 (Mobile Web/Capacitor) | `apps/sdkwork-birdcoder-h5/` | `APP_H5_ARCHITECTURE_SPEC.md` |
+| Flutter Mobile | `apps/sdkwork-birdcoder-flutter-mobile/` | `FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md` |
+
+### PC Application Root
+
+All PC-specific packages are under `apps/sdkwork-birdcoder-pc/packages/` with the `pc` segment:
+
+**Core & Infrastructure:**
+- `@sdkwork/birdcoder-pc-core` — PC core runtime
+- `@sdkwork/birdcoder-pc-commons` — PC commons
+- `@sdkwork/birdcoder-pc-shell` — PC shell
+- `@sdkwork/birdcoder-pc-types` — PC types
+- `@sdkwork/birdcoder-pc-i18n` — PC internationalization
+- `@sdkwork/birdcoder-pc-infrastructure` — PC infrastructure
+- `@sdkwork/birdcoder-pc-iam` — PC IAM integration
+- `@sdkwork/birdcoder-pc-auth` — PC auth utilities
+- `@sdkwork/birdcoder-pc-user` — PC user model
+- `@sdkwork/birdcoder-pc-settings` — PC settings
+
+**Delivery Hosts:**
+- `@sdkwork/birdcoder-pc-web` — Web host
+- `@sdkwork/birdcoder-pc-desktop` — Tauri desktop host
+- `@sdkwork/birdcoder-pc-server` — Server host
+
+**Product Modules:**
+- `@sdkwork/birdcoder-pc-code` — Code editor
+- `@sdkwork/birdcoder-pc-studio` — Studio
+- `@sdkwork/birdcoder-pc-chat` — Chat module
+- `@sdkwork/birdcoder-pc-skills` — Skills
+- `@sdkwork/birdcoder-pc-templates` — Templates
+- ... (38 total PC packages)
+
+### H5-Specific Packages
+
+H5-specific packages are under `apps/sdkwork-birdcoder-h5/packages/` with the `h5` segment:
+
+- `@sdkwork/birdcoder-h5-core` — H5 core runtime
+- `@sdkwork/birdcoder-h5-commons` — H5 commons
+- `@sdkwork/birdcoder-h5-shell` — H5 shell
+- `@sdkwork/birdcoder-h5-chat` — H5 chat
+- `@sdkwork/birdcoder-h5-capacitor` — Capacitor host
+- ... (9 total H5 packages)
+
+### Flutter-Specific Packages
+
+Flutter-specific packages are under `apps/sdkwork-birdcoder-flutter-mobile/packages/` with the `flutter_mobile` segment:
+
+- `sdkwork_birdcoder_flutter_mobile_core` — Flutter core runtime
+- `sdkwork_birdcoder_flutter_mobile_commons` — Flutter commons
+- `sdkwork_birdcoder_flutter_mobile_shell` — Flutter shell
+- `sdkwork_birdcoder_flutter_mobile_chat` — Flutter chat
+- `sdkwork_birdcoder_flutter_mobile_host` — Flutter host
+- ... (9 total Flutter packages)
+
 ### Foundation
 
 - `@sdkwork/birdcoder-core`
@@ -27,27 +88,27 @@ SDKWork BirdCoder is a package-first AI IDE workspace. It keeps BirdCoder produc
 
 ### Shell And Host Boundaries
 
-- `@sdkwork/birdcoder-shell`
-- `@sdkwork/birdcoder-host-core`
-- `@sdkwork/birdcoder-host-studio`
+- `@sdkwork/birdcoder-pc-shell` — PC shell
+- `@sdkwork/birdcoder-pc-host-core` — PC host core
+- `@sdkwork/birdcoder-pc-host-studio` — PC host studio
 
 ### Delivery Hosts
 
-- `@sdkwork/birdcoder-web`
-- `@sdkwork/birdcoder-desktop`
-- `@sdkwork/birdcoder-server`
-- `@sdkwork/birdcoder-distribution`
+- `@sdkwork/birdcoder-pc-web` — Web host
+- `@sdkwork/birdcoder-pc-desktop` — Tauri desktop host
+- `@sdkwork/birdcoder-pc-server` — Server host
+- `@sdkwork/birdcoder-distribution` — Distribution utilities
 
 ### Product Modules
 
-- `@sdkwork/birdcoder-code`
-- `@sdkwork/birdcoder-studio`
-- `@sdkwork/birdcoder-terminal`
-- `@sdkwork/birdcoder-settings`
-- `@sdkwork/birdcoder-skills`
-- `@sdkwork/birdcoder-templates`
-- `@sdkwork/birdcoder-auth`
-- `@sdkwork/birdcoder-user`
+- `@sdkwork/birdcoder-pc-code` — Code editor
+- `@sdkwork/birdcoder-pc-studio` — Studio
+- `@sdkwork/birdcoder-pc-chat` — Chat module
+- `@sdkwork/birdcoder-settings` — Settings
+- `@sdkwork/birdcoder-skills` — Skills
+- `@sdkwork/birdcoder-templates` — Templates
+- `@sdkwork/birdcoder-auth` — Auth
+- `@sdkwork/birdcoder-user` — User
 - `@sdkwork/birdcoder-iam`
 - `@sdkwork/birdcoder-chat`
 - `@sdkwork/birdcoder-chat-claude`

@@ -10,15 +10,25 @@ function readSource(...segments) {
 }
 
 const studioChatSidebarSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioChatSidebar.tsx',
 );
 const studioPageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioPage.tsx',

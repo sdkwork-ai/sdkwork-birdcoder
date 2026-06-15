@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
-import { resolveHostStudioSimulatorSession } from '../packages/sdkwork-birdcoder-host-studio/src/index.ts';
+import { resolveHostStudioSimulatorSession } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/src/index.ts';
 
 const runtimeModulePath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/simulator/runtime.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/simulator/runtime.ts',
   import.meta.url,
 );
 
@@ -18,7 +18,7 @@ const {
   STUDIO_SIMULATOR_EXECUTION_ADAPTER_ID,
   buildStudioSimulatorExecutionEvidence,
   resolveStudioSimulatorExecutionLaunch,
-} = await import('../packages/sdkwork-birdcoder-studio/src/simulator/runtime.ts');
+} = await import('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/simulator/runtime.ts');
 
 const simulatorSession = resolveHostStudioSimulatorSession(
   {
@@ -153,7 +153,7 @@ assert.deepEqual(blockedLaunch.blockedAction, {
 });
 
 const studioIndexSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/index.ts', import.meta.url),
   'utf8',
 );
 assert.equal(

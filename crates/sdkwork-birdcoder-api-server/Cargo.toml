@@ -1,0 +1,60 @@
+[package]
+name = "sdkwork-birdcoder-api-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "sdkwork-birdcoder-api-server"
+path = "src/main.rs"
+
+[dependencies]
+axum = { workspace = true }
+tokio = { workspace = true }
+tower-http = { version = "0.6", features = ["cors"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+time = { workspace = true }
+async-trait = { workspace = true }
+http = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Route crates
+sdkwork-router-system-app-api = { workspace = true }
+sdkwork-router-engine-catalog-app-api = { workspace = true }
+sdkwork-router-coding-sessions-app-api = { workspace = true }
+sdkwork-router-workspace-app-api = { workspace = true }
+sdkwork-router-document-app-api = { workspace = true }
+sdkwork-router-skill-packages-app-api = { workspace = true }
+sdkwork-router-membership-app-api = { workspace = true }
+sdkwork-router-deployment-backend-api = { workspace = true }
+
+# Service crates
+sdkwork-birdcoder-coding-sessions-service = { workspace = true }
+sdkwork-birdcoder-workspace-service = { workspace = true }
+sdkwork-birdcoder-project-service = { workspace = true }
+sdkwork-birdcoder-deployment-service = { workspace = true }
+sdkwork-birdcoder-engine-catalog-service = { workspace = true }
+sdkwork-birdcoder-native-sessions-service = { workspace = true }
+sdkwork-birdcoder-skill-packages-service = { workspace = true }
+sdkwork-birdcoder-app-templates-service = { workspace = true }
+sdkwork-birdcoder-document-service = { workspace = true }
+sdkwork-birdcoder-membership-service = { workspace = true }
+sdkwork-birdcoder-system-descriptor-service = { workspace = true }
+
+# Repository crates
+sdkwork-birdcoder-coding-sessions-repository-sqlite = { workspace = true }
+sdkwork-birdcoder-workspace-repository-sqlite = { workspace = true }
+sdkwork-birdcoder-skill-packages-repository-sqlite = { workspace = true }
+sdkwork-birdcoder-model-config-repository-sqlite = { workspace = true }
+sdkwork-birdcoder-membership-repository-sqlite = { workspace = true }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+tokio = { workspace = true }
+
+

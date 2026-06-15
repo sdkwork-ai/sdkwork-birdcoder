@@ -5,8 +5,13 @@ import process from 'node:process';
 
 const runtimeFileSystemServicePath = path.join(
   process.cwd(),
-  'packages',
-  'sdkwork-birdcoder-infrastructure',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  
+  
+  'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
   'impl',

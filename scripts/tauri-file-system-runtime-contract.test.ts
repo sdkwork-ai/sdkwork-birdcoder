@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 const tauriFileSystemRuntimeModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/platform/tauriFileSystemRuntime.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/tauriFileSystemRuntime.ts',
   import.meta.url,
 );
 

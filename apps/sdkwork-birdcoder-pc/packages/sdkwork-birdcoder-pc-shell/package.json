@@ -1,0 +1,43 @@
+{
+  "name": "@sdkwork/birdcoder-pc-shell",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@babel/runtime": "catalog:",
+    "html-parse-stringify": "catalog:",
+    "@sdkwork/birdcoder-pc-auth": "workspace:*",
+    "@sdkwork/birdcoder-pc-i18n": "workspace:*",
+    "@sdkwork/birdcoder-pc-iam": "workspace:*",
+    "@sdkwork/birdcoder-pc-user": "workspace:*",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-i18next": "catalog:",
+    "@sdkwork/birdcoder-pc-code": "workspace:*",
+    "@sdkwork/birdcoder-pc-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-settings": "workspace:*",
+    "@sdkwork/birdcoder-pc-skills": "workspace:*",
+    "@sdkwork/birdcoder-pc-studio": "workspace:*",
+    "@sdkwork/birdcoder-pc-multiwindow": "workspace:*",
+    "@sdkwork/birdcoder-pc-templates": "workspace:*",
+    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
+    "@sdkwork/terminal-pc-desktop": "workspace:*",
+    "use-sync-external-store": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:"
+  },
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  }
+}
+
+
+

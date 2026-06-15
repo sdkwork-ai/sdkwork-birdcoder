@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const rootDir = process.cwd();
-const webViteConfigPath = path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'vite.config.ts');
+const webViteConfigPath = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-web', 'vite.config.ts');
 const webViteConfigSource = fs.readFileSync(webViteConfigPath, 'utf8');
 
 assert.match(

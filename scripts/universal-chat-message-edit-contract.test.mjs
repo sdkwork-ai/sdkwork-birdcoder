@@ -3,35 +3,35 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const universalChatSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
   'utf8',
 );
 const codePageSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx'),
   'utf8',
 );
 const workbenchMessageEditActionHookSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-commons/src/hooks/useWorkbenchCodingSessionMessageEditAction.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useWorkbenchCodingSessionMessageEditAction.ts'),
   'utf8',
 );
 const commonsIndexSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-commons/src/index.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/index.ts'),
   'utf8',
 );
 const codePageSurfacePropsSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts'),
   'utf8',
 );
 const codeEditorWorkspacePanelTypesSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-code/src/pages/codeEditorWorkspacePanel.types.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeEditorWorkspacePanel.types.ts'),
   'utf8',
 );
 const studioPageSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx'),
   'utf8',
 );
 const studioChatSidebarSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-studio/src/pages/StudioChatSidebar.tsx'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx'),
   'utf8',
 );
 

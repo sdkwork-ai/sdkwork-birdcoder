@@ -67,7 +67,7 @@ function runBirdcoderServerCommand() {
 
   const plan = createWorkspacePackageScriptPlan({
     env: resolvedIam.env,
-    packageDir: 'packages/sdkwork-birdcoder-server',
+    packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server',
     scriptName: actionConfig.scriptName,
   });
   const result = spawnSync(plan.command, plan.args, {

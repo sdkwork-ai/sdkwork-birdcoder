@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const studioPageSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
 const studioMainContentSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioMainContent.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioMainContent.tsx', import.meta.url),
   'utf8',
 );
 const studioCodeWorkspacePanelSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioCodeWorkspacePanel.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioCodeWorkspacePanel.tsx', import.meta.url),
   'utf8',
 );
 

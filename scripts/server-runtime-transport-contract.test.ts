@@ -1,10 +1,10 @@
-import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import type { BirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
   createBirdHostDescriptorFromDistribution,
-} from '../packages/sdkwork-birdcoder-host-core/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-core/src/index.ts';
 
 interface CapturedRequest {
   method: string;
@@ -36,19 +36,19 @@ function readRequestUrl(input: URL | RequestInfo): string {
 }
 
 const serverEntrySourcePath = new URL(
-  '../packages/sdkwork-birdcoder-server/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts',
   import.meta.url,
 );
 const serverRuntimeDefaultIdeServicesRuntimeModulePath = new URL(
-  '../packages/sdkwork-birdcoder-server/node_modules/@sdkwork/birdcoder-infrastructure/src/services/defaultIdeServicesRuntime.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/node_modules/@sdkwork/birdcoder-pc-infrastructure/src/services/defaultIdeServicesRuntime.ts',
   import.meta.url,
 );
 const sdkTransportSharedModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkTransportShared.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkTransportShared.ts',
   import.meta.url,
 );
 const sdkClientsModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
   import.meta.url,
 );
 const requests: CapturedRequest[] = [];

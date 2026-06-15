@@ -10,8 +10,13 @@ function readText(...segments) {
 }
 
 const workspacePanelSource = readText(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodeEditorWorkspacePanel.tsx',
@@ -19,8 +24,11 @@ const workspacePanelSource = readText(
 
 const surfacePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodeEditorSurface.tsx',
@@ -55,8 +63,13 @@ assert.ok(
 );
 
 const surfaceSource = readText(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodeEditorSurface.tsx',
@@ -64,7 +77,7 @@ const surfaceSource = readText(
 
 assert.match(
   surfaceSource,
-  /from '@sdkwork\/birdcoder-ui';/,
+  /from '@sdkwork\/birdcoder-pc-ui';/,
   'CodeEditorSurface must stay on the root UI package import surface.',
 );
 

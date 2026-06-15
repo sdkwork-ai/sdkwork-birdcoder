@@ -7,8 +7,13 @@ const rootDir = process.cwd();
 const codePageSurfaceSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-code',
+    
+    'sdkwork-birdcoder-pc-code',
     'src',
     'pages',
     'CodePageSurface.tsx',
@@ -18,8 +23,13 @@ const codePageSurfaceSource = fs.readFileSync(
 const workspacePanelSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-code',
+    
+    'sdkwork-birdcoder-pc-code',
     'src',
     'pages',
     'CodeEditorWorkspacePanel.tsx',
@@ -29,8 +39,13 @@ const workspacePanelSource = fs.readFileSync(
 const workspacePanelTypesSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-code',
+    
+    'sdkwork-birdcoder-pc-code',
     'src',
     'pages',
     'codeEditorWorkspacePanel.types.ts',

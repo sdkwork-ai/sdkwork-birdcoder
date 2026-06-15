@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 
-import { CodexChatEngine } from '../packages/sdkwork-birdcoder-chat-codex/src/index.ts';
+import { CodexChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts';
 import type {
   ChatEngineOfficialSdkBridgeLoader,
   ChatMessage,
   ChatStreamChunk,
-} from '../packages/sdkwork-birdcoder-chat/src/index.ts';
-import { getWorkbenchCodeEngineKernel } from '../packages/sdkwork-birdcoder-codeengine/src/kernel.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
+import { getWorkbenchCodeEngineKernel } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
 
 const NULL_OFFICIAL_SDK_BRIDGE_LOADER: ChatEngineOfficialSdkBridgeLoader = {
   load: async () => null,

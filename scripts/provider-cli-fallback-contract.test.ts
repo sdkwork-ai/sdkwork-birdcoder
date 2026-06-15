@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 
-import { GeminiChatEngine } from '../packages/sdkwork-birdcoder-chat-gemini/src/index.ts';
-import { OpenCodeChatEngine } from '../packages/sdkwork-birdcoder-chat-opencode/src/index.ts';
+import { GeminiChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts';
+import { OpenCodeChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts';
 import type {
   ChatMessage,
   ChatStreamChunk,
-} from '../packages/sdkwork-birdcoder-chat/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
 
 const NULL_OFFICIAL_SDK_BRIDGE_LOADER = {
   load: async () => null,

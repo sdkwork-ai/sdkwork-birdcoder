@@ -5,13 +5,13 @@ function read(relativePath) {
   return fs.readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8');
 }
 
-const appSource = read('packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx');
-const sidebarSource = read('packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx');
-const topBarSource = read('packages/sdkwork-birdcoder-code/src/components/TopBar.tsx');
-const universalChatSource = read('packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx');
-const skillsPageSource = read('packages/sdkwork-birdcoder-skills/src/SkillsPage.tsx');
-const fileExplorerSource = read('packages/sdkwork-birdcoder-ui/src/components/FileExplorer.tsx');
-const studioChatSidebarSource = read('packages/sdkwork-birdcoder-studio/src/pages/StudioChatSidebar.tsx');
+const appSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx');
+const sidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
+const topBarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx');
+const universalChatSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx');
+const skillsPageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills/src/SkillsPage.tsx');
+const fileExplorerSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx');
+const studioChatSidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx');
 
 assert.match(
   appSource,

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {
   isBirdCoderCodingSessionEngineBusy,
   resolveBirdCoderCodingSessionRuntimeStatus,
-} from '../packages/sdkwork-birdcoder-types/src/coding-session.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts';
 
 const lateStreamingProgressAfterAssistantCompletion =
   resolveBirdCoderCodingSessionRuntimeStatus([

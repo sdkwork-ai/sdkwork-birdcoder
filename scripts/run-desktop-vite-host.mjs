@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { createDesktopVitePlugins } from '../packages/sdkwork-birdcoder-desktop/vite/createDesktopVitePlugins.mjs';
+import { createDesktopVitePlugins } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/vite/createDesktopVitePlugins.mjs';
 import {
   BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE,
   BIRDCODER_VITE_DEDUPE_PACKAGES,
@@ -20,10 +20,10 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRootDir = path.resolve(__dirname, '..');
-const desktopRootDir = path.join(workspaceRootDir, 'packages', 'sdkwork-birdcoder-desktop');
+const desktopRootDir = path.join(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop');
 const desktopRequire = createRequire(path.join(desktopRootDir, 'package.json'));
 const rootRequire = createRequire(path.join(workspaceRootDir, 'package.json'));
-const uiRequire = createRequire(path.join(workspaceRootDir, 'packages', 'sdkwork-birdcoder-ui', 'package.json'));
+const uiRequire = createRequire(path.join(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-ui', 'package.json'));
 const lucideEntryPath = rootRequire.resolve('lucide-react');
 const lucidePackageDir = path.resolve(path.dirname(lucideEntryPath), '..');
 const lucideIconRequestPath = `/@fs/${path.join(lucidePackageDir, 'esm', 'Icon.js').replace(/\\/g, '/')}`;

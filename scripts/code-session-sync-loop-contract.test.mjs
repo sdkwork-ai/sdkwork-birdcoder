@@ -7,16 +7,22 @@ const rootDir = process.cwd();
 
 const codePageSessionSelectionPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'useCodePageSessionSelection.ts',
 );
 const studioSyncPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-studio',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'useStudioCodingSessionSync.ts',

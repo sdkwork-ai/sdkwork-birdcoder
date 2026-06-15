@@ -58,7 +58,7 @@ assert.deepEqual(
   [
     'scripts/run-windows-tauri-bundle.mjs',
     '--config',
-    'packages/sdkwork-birdcoder-desktop/src-tauri/tauri.conf.json',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/tauri.conf.json',
     '--vite-mode',
   ],
 );
@@ -79,7 +79,7 @@ assert.deepEqual(
   [
     'scripts/run-windows-tauri-bundle.mjs',
     '--config',
-    'packages/sdkwork-birdcoder-desktop/src-tauri/tauri.test.conf.json',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/tauri.test.conf.json',
     '--vite-mode',
   ],
 );
@@ -105,7 +105,7 @@ assert.deepEqual(
 );
 assert.equal(
   unixBundlePlan.cwd,
-  path.join(path.resolve(import.meta.dirname, '..'), 'packages', 'sdkwork-birdcoder-desktop'),
+  path.join(path.resolve(import.meta.dirname, '..'), 'packages', 'sdkwork-birdcoder-pc-desktop'),
 );
 assert.equal(unixBundlePlan.shell, false);
 

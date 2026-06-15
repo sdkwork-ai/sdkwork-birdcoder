@@ -10,57 +10,97 @@ function readSource(...segments) {
 }
 
 const universalChatSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'UniversalChat.tsx',
 );
 const codePageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePage.tsx',
 );
 const codePageSurfacePropsSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'useCodePageSurfaceProps.ts',
 );
 const codeEditorWorkspacePanelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodeEditorWorkspacePanel.tsx',
 );
 const codeEditorWorkspacePanelTypesSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'codeEditorWorkspacePanel.types.ts',
 );
 const codeEditorWorkspacePanelEqualitySource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'codeEditorWorkspacePanelEquality.ts',
 );
 const studioPageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioPage.tsx',
 );
 const studioChatSidebarSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioChatSidebar.tsx',

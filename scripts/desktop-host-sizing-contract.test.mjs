@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const appPath = new URL(
-  '../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx',
   import.meta.url,
 );
 const indexCssPath = new URL(

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const useProjectsPath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/hooks/useProjects.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjects.ts',
   import.meta.url,
 );
 

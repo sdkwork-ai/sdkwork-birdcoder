@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-import { createCodexOfficialSdkBridge } from '../packages/sdkwork-birdcoder-chat-codex/src/index.ts';
+import { createCodexOfficialSdkBridge } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts';
 
 const bridge = createCodexOfficialSdkBridge({
   Codex: class BrokenCodex {

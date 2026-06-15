@@ -74,27 +74,27 @@ const userUpstreamSource = readText(
   'packages/pc-react/iam/sdkwork-user-pc-react/src/user.ts',
 );
 const rootPackageJson = readJson(rootDir, 'package.json');
-const authPackageJson = readJson(rootDir, 'packages/sdkwork-birdcoder-auth/package.json');
-const userPackageJson = readJson(rootDir, 'packages/sdkwork-birdcoder-user/package.json');
-const iamPackageJson = readJson(rootDir, 'packages/sdkwork-birdcoder-iam/package.json');
-const shellPackageJson = readJson(rootDir, 'packages/sdkwork-birdcoder-shell/package.json');
-const infrastructurePackageJson = readJson(rootDir, 'packages/sdkwork-birdcoder-infrastructure/package.json');
+const authPackageJson = readJson(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/package.json');
+const userPackageJson = readJson(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/package.json');
+const iamPackageJson = readJson(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/package.json');
+const shellPackageJson = readJson(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/package.json');
+const infrastructurePackageJson = readJson(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/package.json');
 
-const authLocalSource = readText(rootDir, 'packages/sdkwork-birdcoder-auth/src/auth.ts');
-const authSurfaceLocalSource = readText(rootDir, 'packages/sdkwork-birdcoder-auth/src/auth-surface.ts');
-const authPageLocalSource = readText(rootDir, 'packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx');
-const userLocalSource = readText(rootDir, 'packages/sdkwork-birdcoder-user/src/user.ts');
-const userSurfaceLocalSource = readText(rootDir, 'packages/sdkwork-birdcoder-user/src/user-surface.ts');
-const vipLocalSource = readText(rootDir, 'packages/sdkwork-birdcoder-user/src/vip.ts');
-const vipSurfaceLocalSource = readText(rootDir, 'packages/sdkwork-birdcoder-user/src/vip-surface.ts');
-const iamIntegrationLocalSource = readText(rootDir, 'packages/sdkwork-birdcoder-iam/src/iamIntegration.ts');
+const authLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/auth.ts');
+const authSurfaceLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/auth-surface.ts');
+const authPageLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx');
+const userLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/user.ts');
+const userSurfaceLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/user-surface.ts');
+const vipLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip.ts');
+const vipSurfaceLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip-surface.ts');
+const iamIntegrationLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/src/iamIntegration.ts');
 const infrastructureIamRuntimeSource = readText(
   rootDir,
-  'packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts',
 );
 const infrastructureSessionServiceSource = readText(
   rootDir,
-  'packages/sdkwork-birdcoder-infrastructure/src/services/sessionService.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sessionService.ts',
 );
 
 const iamStandardLane = rootPackageJson.scripts?.['check:iam-standard'];
@@ -117,17 +117,17 @@ assert.doesNotMatch(
   'BirdCoder IAM standard lane must not run retired user-center contracts.',
 );
 
-assert.equal(authPackageJson.name, '@sdkwork/birdcoder-auth');
-assert.equal(userPackageJson.name, '@sdkwork/birdcoder-user');
-assert.equal(iamPackageJson.name, '@sdkwork/birdcoder-iam');
-assert.equal(shellPackageJson.dependencies?.['@sdkwork/birdcoder-auth'], undefined);
-assert.equal(shellPackageJson.dependencies?.['@sdkwork/birdcoder-iam'], 'workspace:*');
-assert.equal(shellPackageJson.dependencies?.['@sdkwork/birdcoder-user'], 'workspace:*');
-assert.equal(shellPackageJson.dependencies?.['@sdkwork/birdcoder-appbase'], undefined);
+assert.equal(authPackageJson.name, '@sdkwork/birdcoder-pc-auth');
+assert.equal(userPackageJson.name, '@sdkwork/birdcoder-pc-user');
+assert.equal(iamPackageJson.name, '@sdkwork/birdcoder-pc-iam');
+assert.equal(shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-auth'], undefined);
+assert.equal(shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-iam'], 'workspace:*');
+assert.equal(shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-user'], 'workspace:*');
+assert.equal(shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-appbase'], undefined);
 assert.equal(
-  authPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure-runtime'],
+  authPackageJson.dependencies?.['@sdkwork/birdcoder-pc-infrastructure-runtime'],
   undefined,
-  'BirdCoder auth package must stay UI-only; IAM runtime binding belongs to @sdkwork/birdcoder-iam.',
+  'BirdCoder auth package must stay UI-only; IAM runtime binding belongs to @sdkwork/birdcoder-pc-iam.',
 );
 
 for (const [label, packageJson] of [
@@ -161,7 +161,7 @@ assertExports(
   'birdcoder auth adapter',
 );
 assert.match(authLocalSource, /@sdkwork\/auth-pc-react/u);
-assert.match(authLocalSource, /bridgePackageName:\s*'@sdkwork\/birdcoder-auth'/u);
+assert.match(authLocalSource, /bridgePackageName:\s*'@sdkwork\/birdcoder-pc-auth'/u);
 assert.match(authLocalSource, /domain:\s*'iam'/u);
 
 assert.match(
@@ -208,7 +208,7 @@ assertExports(
   'birdcoder user adapter',
 );
 assert.match(userLocalSource, /@sdkwork\/user-pc-react/u);
-assert.match(userLocalSource, /bridgePackageName:\s*'@sdkwork\/birdcoder-user'/u);
+assert.match(userLocalSource, /bridgePackageName:\s*'@sdkwork\/birdcoder-pc-user'/u);
 assert.match(userLocalSource, /domain:\s*'iam'/u);
 assert.match(
   userSurfaceLocalSource,
@@ -226,7 +226,7 @@ assertExports(
   ],
   'birdcoder vip adapter',
 );
-assert.match(vipLocalSource, /BIRDCODER_VIP_PACKAGE_NAME\s*=\s*'@sdkwork\/birdcoder-user'/u);
+assert.match(vipLocalSource, /BIRDCODER_VIP_PACKAGE_NAME\s*=\s*'@sdkwork\/birdcoder-pc-user'/u);
 assert.match(vipLocalSource, /bridgePackage:\s*BIRDCODER_VIP_PACKAGE_NAME/u);
 assert.match(vipLocalSource, /bridgePackageName:\s*BIRDCODER_VIP_PACKAGE_NAME/u);
 assert.match(vipLocalSource, /domain:\s*'commerce'/u);
@@ -293,12 +293,12 @@ assert.doesNotMatch(
 );
 
 for (const retiredPath of [
-  'packages/sdkwork-birdcoder-user/src/user-center.ts',
-  'packages/sdkwork-birdcoder-user/src/user-center-runtime.ts',
-  'packages/sdkwork-birdcoder-user/src/storage.ts',
-  'packages/sdkwork-birdcoder-user/src/validation.ts',
-  'packages/sdkwork-birdcoder-infrastructure/src/services/userCenterRuntimeBridge.ts',
-  'packages/sdkwork-birdcoder-core/src/userCenterSession.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/user-center.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/user-center-runtime.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/storage.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/validation.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/userCenterRuntimeBridge.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/userCenterSession.ts',
 ]) {
   assert.equal(
     fs.existsSync(path.join(rootDir, retiredPath)),

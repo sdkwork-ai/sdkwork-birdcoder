@@ -10,9 +10,9 @@ function read(relativePath) {
 }
 
 const projectExplorerSource = read(
-  'packages/sdkwork-birdcoder-code/src/components/ProjectExplorer.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorer.tsx',
 );
-const codePageSource = read('packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx');
+const codePageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
 
 assert.doesNotMatch(
   projectExplorerSource,

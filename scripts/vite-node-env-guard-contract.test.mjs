@@ -4,16 +4,16 @@ import path from 'node:path';
 import { createBirdcoderVitePlugins } from './create-birdcoder-vite-plugins.mjs';
 
 const workspaceRootDir = path.resolve(import.meta.dirname, '..');
-const webAppRootDir = path.resolve(workspaceRootDir, 'packages', 'sdkwork-birdcoder-web');
+const webAppRootDir = path.resolve(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-web');
 
 const plugins = createBirdcoderVitePlugins({
   appRootDir: webAppRootDir,
   mode: 'production',
-  namespace: 'sdkwork-birdcoder-web',
+  namespace: 'sdkwork-birdcoder-pc-web',
 });
 
 const nodeEnvGuardPlugin = plugins.find(
-  (candidate) => candidate?.name === 'sdkwork-birdcoder-web-node-env-guard',
+  (candidate) => candidate?.name === 'sdkwork-birdcoder-pc-web-node-env-guard',
 );
 
 assert.ok(

@@ -1,0 +1,18 @@
+[package]
+name = "sdkwork-birdcoder-skill-packages-repository-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+sdkwork-birdcoder-skill-packages-service = { workspace = true }
+
+

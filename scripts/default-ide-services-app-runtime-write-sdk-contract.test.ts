@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const sourcePath = path.resolve(
   import.meta.dirname,
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
 );
 const source = fs.readFileSync(sourcePath, 'utf8');
 

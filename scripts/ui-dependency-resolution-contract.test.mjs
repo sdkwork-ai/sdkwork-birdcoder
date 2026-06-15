@@ -5,12 +5,15 @@ import process from 'node:process';
 
 const rootDir = process.cwd();
 const npmrcPath = path.join(rootDir, '.npmrc');
-const uiPackageJsonPath = path.join(rootDir, 'packages', 'sdkwork-birdcoder-ui', 'package.json');
-const uiShellPackageJsonPath = path.join(rootDir, 'packages', 'sdkwork-birdcoder-ui-shell', 'package.json');
+const uiPackageJsonPath = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-ui', 'package.json');
+const uiShellPackageJsonPath = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-ui-shell', 'package.json');
 const desktopViteConfigPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'vite.config.ts',
 );
 
@@ -48,7 +51,7 @@ const expectedUiShellDependencies = {
 
 for (const [dependencyName, expectedVersion] of Object.entries(expectedUiDependencies)) {
   assertDependencyVersion(
-    '@sdkwork/birdcoder-ui',
+    '@sdkwork/birdcoder-pc-ui',
     dependencyName,
     uiPackageJson.dependencies?.[dependencyName],
     expectedVersion,
@@ -57,7 +60,7 @@ for (const [dependencyName, expectedVersion] of Object.entries(expectedUiDepende
 
 for (const [dependencyName, expectedVersion] of Object.entries(expectedUiShellDependencies)) {
   assertDependencyVersion(
-    '@sdkwork/birdcoder-ui-shell',
+    '@sdkwork/birdcoder-pc-ui-shell',
     dependencyName,
     uiShellPackageJson.dependencies?.[dependencyName],
     expectedVersion,
@@ -67,19 +70,19 @@ for (const [dependencyName, expectedVersion] of Object.entries(expectedUiShellDe
 assert.equal(
   uiPackageJson.devDependencies?.['@vitejs/plugin-react'],
   '^5.2.0',
-  'sdkwork-birdcoder-ui must keep @vitejs/plugin-react on the latest Vite 6-compatible release.',
+  'sdkwork-birdcoder-pc-ui must keep @vitejs/plugin-react on the latest Vite 6-compatible release.',
 );
 
 assert.equal(
   uiPackageJson.dependencies?.['@radix-ui/react-slot'],
   undefined,
-  'sdkwork-birdcoder-ui must not retain @radix-ui/react-slot after the shared button primitives moved into sdkwork-birdcoder-ui-shell.',
+  'sdkwork-birdcoder-pc-ui must not retain @radix-ui/react-slot after the shared button primitives moved into sdkwork-birdcoder-pc-ui-shell.',
 );
 
 assert.equal(
   uiPackageJson.dependencies?.['@radix-ui/react-compose-refs'],
   undefined,
-  'sdkwork-birdcoder-ui must not retain @radix-ui/react-compose-refs after the Radix button primitive ownership moved into sdkwork-birdcoder-ui-shell.',
+  'sdkwork-birdcoder-pc-ui must not retain @radix-ui/react-compose-refs after the Radix button primitive ownership moved into sdkwork-birdcoder-pc-ui-shell.',
 );
 
 assert.match(

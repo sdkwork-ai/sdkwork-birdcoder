@@ -7,8 +7,13 @@ const rootDir = process.cwd();
 const hookSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-commons',
+    
+    'sdkwork-birdcoder-pc-commons',
     'src',
     'hooks',
     'useSelectedCodingSessionMessages.ts',
@@ -18,8 +23,13 @@ const hookSource = fs.readFileSync(
 const codePageSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-code',
+    
+    'sdkwork-birdcoder-pc-code',
     'src',
     'pages',
     'CodePage.tsx',
@@ -29,8 +39,13 @@ const codePageSource = fs.readFileSync(
 const studioPageSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-studio',
+    
+    'sdkwork-birdcoder-pc-studio',
     'src',
     'pages',
     'StudioPage.tsx',

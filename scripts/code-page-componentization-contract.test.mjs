@@ -6,8 +6,11 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const codePagePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePage.tsx',
@@ -16,8 +19,11 @@ const codePagePath = path.join(
 const codePageSource = fs.readFileSync(codePagePath, 'utf8');
 const codePageSurfacePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePageSurface.tsx',
@@ -25,8 +31,11 @@ const codePageSurfacePath = path.join(
 const codePageSurfaceSource = fs.readFileSync(codePageSurfacePath, 'utf8');
 const codeEditorWorkspacePanelPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodeEditorWorkspacePanel.tsx',
@@ -34,8 +43,11 @@ const codeEditorWorkspacePanelPath = path.join(
 const codeEditorWorkspacePanelSource = fs.readFileSync(codeEditorWorkspacePanelPath, 'utf8');
 const universalChatPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-ui',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'UniversalChat.tsx',
@@ -43,8 +55,11 @@ const universalChatPath = path.join(
 const universalChatSource = fs.readFileSync(universalChatPath, 'utf8');
 const engineSelectionHookPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-commons',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'hooks',
   'useCodingSessionEngineModelSelection.ts',

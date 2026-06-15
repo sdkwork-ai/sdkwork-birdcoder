@@ -83,7 +83,7 @@ withTempDir((tempDir) => {
 });
 
 withTempDir((tempDir) => {
-  const desktopPackageDir = path.join(tempDir, 'sdkwork-birdcoder-desktop');
+  const desktopPackageDir = path.join(tempDir, 'sdkwork-birdcoder-pc-desktop');
   const srcTauriDir = path.join(desktopPackageDir, 'src-tauri');
   const packageTargetDir = path.join(desktopPackageDir, '.tauri-target');
   const missingPermissionFile = path.join(

@@ -1,0 +1,13 @@
+# BirdCoder Desktop Production Config
+
+[app]
+name = "SDKWork BirdCoder"
+environment = "production"
+
+[server]
+embedded = false
+url = "https://api.sdkwork.com/apps/sdkwork-birdcoder"
+
+[storage]
+type = "sqlite"
+path = "~/.sdkwork/sdkwork-birdcoder/data/production.sqlite3"

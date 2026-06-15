@@ -2,14 +2,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { upsertCodingSessionIntoCollection } from '../packages/sdkwork-birdcoder-commons/src/stores/projectsStore.ts';
+import { upsertCodingSessionIntoCollection } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/projectsStore.ts';
 
 const rootDir = process.cwd();
 const projectsStoreSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
-    'sdkwork-birdcoder-commons',
+    
+    
+    
+    'sdkwork-birdcoder-pc-commons',
     'src',
     'stores',
     'projectsStore.ts',

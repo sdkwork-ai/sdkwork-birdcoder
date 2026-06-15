@@ -8,13 +8,13 @@ import {
   listBirdCoderCodeEngineModels,
   listWorkbenchCodeEngineDescriptors,
   listWorkbenchModelCatalogEntries,
-} from '../packages/sdkwork-birdcoder-codeengine/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/index.ts';
 import {
   getBirdCoderCodingServerEngineCapabilities,
   getBirdCoderCodingServerEngineDescriptor,
   listBirdCoderCodingServerEngines,
   listBirdCoderCodingServerModels,
-} from '../packages/sdkwork-birdcoder-server/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
 
 const sharedDescriptors = listWorkbenchCodeEngineDescriptors();
 const sharedModels = listWorkbenchModelCatalogEntries();

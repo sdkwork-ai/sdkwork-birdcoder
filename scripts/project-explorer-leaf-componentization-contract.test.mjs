@@ -9,13 +9,13 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const sidebarSource = read('packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx');
+const sidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
 
 assert.ok(
   fs.existsSync(
     path.join(
       rootDir,
-      'packages/sdkwork-birdcoder-code/src/components/ProjectExplorerSessionRow.tsx',
+      'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerSessionRow.tsx',
     ),
   ),
   'ProjectExplorer must define a dedicated session-row component instead of keeping session row rendering embedded in Sidebar.',
@@ -25,7 +25,7 @@ assert.ok(
   fs.existsSync(
     path.join(
       rootDir,
-      'packages/sdkwork-birdcoder-code/src/components/ProjectExplorerProjectSection.tsx',
+      'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerProjectSection.tsx',
     ),
   ),
   'ProjectExplorer must define a dedicated project-section component instead of keeping project section rendering embedded in Sidebar.',

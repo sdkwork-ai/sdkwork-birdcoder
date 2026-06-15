@@ -10,105 +10,180 @@ function readSource(...segments) {
 }
 
 const gitPackageCargoSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-git',
+  
+  'sdkwork-birdcoder-pc-git',
   'src-host',
   'Cargo.toml',
 );
 const gitPackageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-git',
+  
+  'sdkwork-birdcoder-pc-git',
   'src-host',
   'src',
   'lib.rs',
 );
 const serverCargoSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-server',
+  
+  'sdkwork-birdcoder-pc-server',
   'src-host',
   'Cargo.toml',
 );
 const serverSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-server',
+  
+  'sdkwork-birdcoder-pc-server',
   'src-host',
   'src',
   'lib.rs',
 );
 const defaultIdeServicesSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-infrastructure',
+  
+  'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
   'defaultIdeServices.ts',
 );
 const gitServiceInterfaceSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-infrastructure',
+  
+  'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
   'interfaces',
   'IGitService.ts',
 );
 const apiBackedGitServiceSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-infrastructure',
+  
+  'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
   'impl',
   'ApiBackedGitService.ts',
 );
 const serverApiSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-types',
+  
+  'sdkwork-birdcoder-pc-types',
   'src',
   'server-api.ts',
 );
 const codeWorkspacePanelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodeEditorWorkspacePanel.tsx',
 );
 const codePageSurfaceSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePageSurface.tsx',
 );
 const studioWorkspacePanelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioCodeWorkspacePanel.tsx',
 );
 const studioPageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioPage.tsx',
 );
 const studioMainContentSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioMainContent.tsx',
 );
 const gitOverviewPanelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitOverviewPanel.tsx',
 );
 const gitOverviewSurfaceSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitOverviewSurface.tsx',
@@ -116,7 +191,7 @@ const gitOverviewSurfaceSource = readSource(
 
 assert.match(
   gitPackageCargoSource,
-  /name = "sdkwork-birdcoder-git"/,
+  /name = "sdkwork-birdcoder-pc-git"/,
   'Git runtime must live in a dedicated Rust package instead of being embedded directly in the server host.',
 );
 
@@ -188,8 +263,8 @@ assert.match(
 
 assert.match(
   serverCargoSource,
-  /sdkwork-birdcoder-git = \{ path = "\.\.\/\.\.\/sdkwork-birdcoder-git\/src-host" \}/,
-  'Server host must depend on the dedicated sdkwork-birdcoder-git Rust package.',
+  /sdkwork-birdcoder-pc-git = \{ path = "\.\.\/\.\.\/sdkwork-birdcoder-pc-git\/src-host" \}/,
+  'Server host must depend on the dedicated sdkwork-birdcoder-pc-git Rust package.',
 );
 
 assert.match(
@@ -296,7 +371,7 @@ assert.match(
 
 assert.match(
   gitOverviewPanelSource,
-  /import \{ useProjectGitOverview \} from '@sdkwork\/birdcoder-commons';/,
+  /import \{ useProjectGitOverview \} from '@sdkwork\/birdcoder-pc-commons';/,
   'Shared Git overview panel must source state from the shared Git overview hook.',
 );
 
@@ -308,7 +383,7 @@ assert.match(
 
 assert.match(
   codePageSurfaceSource,
-  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
+  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-pc-ui';/s,
   'Code page surface must import the shared Git overview drawer from the shared UI package.',
 );
 
@@ -332,7 +407,7 @@ assert.match(
 
 assert.match(
   studioMainContentSource,
-  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
+  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-pc-ui';/s,
   'Studio main content must import the shared Git overview drawer from the shared UI package.',
 );
 

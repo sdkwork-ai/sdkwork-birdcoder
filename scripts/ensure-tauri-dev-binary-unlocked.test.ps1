@@ -10,7 +10,7 @@ if ($env:OS -ne 'Windows_NT') {
 $rootDir = Split-Path -Parent $PSScriptRoot
 $scriptPath = Join-Path $PSScriptRoot 'ensure-tauri-dev-binary-unlocked.ps1'
 $powerShellExecutable = Join-Path $PSHOME 'powershell.exe'
-$desktopPackageJsonPath = Join-Path $rootDir 'packages\sdkwork-birdcoder-desktop\package.json'
+$desktopPackageJsonPath = Join-Path $rootDir 'apps\sdkwork-birdcoder-pc\packages\sdkwork-birdcoder-pc-desktop\package.json'
 $desktopPackageJson = Get-Content -LiteralPath $desktopPackageJsonPath -Raw | ConvertFrom-Json
 $scriptSource = Get-Content -LiteralPath $scriptPath -Raw
 

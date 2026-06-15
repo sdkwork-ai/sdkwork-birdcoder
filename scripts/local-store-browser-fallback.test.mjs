@@ -6,16 +6,20 @@ import { pathToFileURL } from 'node:url';
 const rootDir = process.cwd();
 const localStorePath = path.join(
   rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
   'packages',
-  'sdkwork-birdcoder-commons',
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'storage',
   'localStore.ts',
 );
 const dataKernelPath = path.join(
   rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
   'packages',
-  'sdkwork-birdcoder-commons',
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'storage',
   'dataKernel.ts',

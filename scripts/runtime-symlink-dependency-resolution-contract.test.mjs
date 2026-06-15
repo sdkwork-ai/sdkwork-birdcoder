@@ -6,8 +6,8 @@ import { createRequire } from 'node:module';
 
 const rootDir = process.cwd();
 const npmrcPath = path.join(rootDir, '.npmrc');
-const reactJsxGlobalCompatPath = path.join(rootDir, 'src', 'react-jsx-global-compat.d.ts');
-const desktopViteConfigPath = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'vite.config.ts');
+const reactJsxGlobalCompatPath = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'src', 'react-jsx-global-compat.d.ts');
+const desktopViteConfigPath = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop', 'vite.config.ts');
 const desktopViteHostPath = path.join(rootDir, 'scripts', 'run-desktop-vite-host.mjs');
 
 const npmrcSource = fs.readFileSync(npmrcPath, 'utf8');
@@ -178,51 +178,51 @@ const packageDependencyExpectations = [
     dependencies: rootReactI18nextRuntimeDependencies,
   },
   {
-    packageName: '@sdkwork/birdcoder-i18n',
+    packageName: '@sdkwork/birdcoder-pc-i18n',
     dependencies: sharedI18nextWorkspaceDependencies,
   },
   {
-    packageName: '@sdkwork/birdcoder-auth',
+    packageName: '@sdkwork/birdcoder-pc-auth',
     dependencies: {
       '@babel/runtime': '^7.29.2',
       'react-i18next': '^17.0.2',
     },
   },
   {
-    packageName: '@sdkwork/birdcoder-user',
+    packageName: '@sdkwork/birdcoder-pc-user',
     dependencies: {
       '@babel/runtime': '^7.29.2',
     },
   },
   {
-    packageName: '@sdkwork/birdcoder-shell',
+    packageName: '@sdkwork/birdcoder-pc-shell',
     dependencies: {
       ...sharedI18nextWorkspaceDependencies,
       'lucide-react': '^0.546.0',
     },
   },
   {
-    packageName: '@sdkwork/birdcoder-code',
+    packageName: '@sdkwork/birdcoder-pc-code',
     dependencies: legacyReactMarkdownRuntimeDependencies,
   },
   {
-    packageName: '@sdkwork/birdcoder-skills',
+    packageName: '@sdkwork/birdcoder-pc-skills',
     dependencies: legacyReactMarkdownRuntimeDependencies,
   },
   {
-    packageName: '@sdkwork/birdcoder-studio',
+    packageName: '@sdkwork/birdcoder-pc-studio',
     dependencies: legacyReactMarkdownRuntimeDependencies,
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     dependencies: uiRuntimeDependencies,
   },
   {
-    packageName: '@sdkwork/birdcoder-ui-shell',
+    packageName: '@sdkwork/birdcoder-pc-ui-shell',
     dependencies: uiShellRuntimeDependencies,
   },
   {
-    packageName: '@sdkwork/birdcoder-desktop',
+    packageName: '@sdkwork/birdcoder-pc-desktop',
     dependencies: {
       scheduler: '^0.27.0',
     },
@@ -246,32 +246,32 @@ const runtimeResolutionChecks = [
     dependencies: ['void-elements'],
   },
   {
-    packageName: '@sdkwork/birdcoder-i18n',
+    packageName: '@sdkwork/birdcoder-pc-i18n',
     entryPath: ['node_modules', 'react-i18next', 'dist', 'es', 'useTranslation.js'],
     dependencies: ['use-sync-external-store/shim'],
   },
   {
-    packageName: '@sdkwork/birdcoder-i18n',
+    packageName: '@sdkwork/birdcoder-pc-i18n',
     entryPath: ['node_modules', 'html-parse-stringify', 'dist', 'html-parse-stringify.module.js'],
     dependencies: ['void-elements'],
   },
   {
-    packageName: '@sdkwork/birdcoder-auth',
+    packageName: '@sdkwork/birdcoder-pc-auth',
     entryPath: ['src', 'pages', 'AuthPage.tsx'],
     dependencies: ['react-i18next'],
   },
   {
-    packageName: '@sdkwork/birdcoder-shell',
+    packageName: '@sdkwork/birdcoder-pc-shell',
     entryPath: ['node_modules', 'html-parse-stringify', 'dist', 'html-parse-stringify.module.js'],
     dependencies: ['void-elements'],
   },
   {
-    packageName: '@sdkwork/birdcoder-code',
+    packageName: '@sdkwork/birdcoder-pc-code',
     entryPath: ['node_modules', 'react-markdown', 'lib', 'index.js'],
     dependencies: ['devlop', 'hast-util-to-jsx-runtime', 'html-url-attributes', 'mdast-util-to-hast', 'remark-parse', 'remark-rehype', 'unified', 'unist-util-visit', 'vfile'],
   },
   {
-    packageName: '@sdkwork/birdcoder-code',
+    packageName: '@sdkwork/birdcoder-pc-code',
     entryPath: ['node_modules', 'mdast-util-from-markdown', 'dev', 'lib', 'index.js'],
     dependencies: [
       'mdast-util-to-string',
@@ -282,17 +282,17 @@ const runtimeResolutionChecks = [
     ],
   },
   {
-    packageName: '@sdkwork/birdcoder-code',
+    packageName: '@sdkwork/birdcoder-pc-code',
     entryPath: ['node_modules', 'unist-util-visit-parents', 'lib', 'index.js'],
     dependencies: ['unist-util-is'],
   },
   {
-    packageName: '@sdkwork/birdcoder-skills',
+    packageName: '@sdkwork/birdcoder-pc-skills',
     entryPath: ['node_modules', 'react-markdown', 'lib', 'index.js'],
     dependencies: ['devlop', 'hast-util-to-jsx-runtime', 'html-url-attributes', 'mdast-util-to-hast', 'remark-parse', 'remark-rehype', 'unified', 'unist-util-visit', 'vfile'],
   },
   {
-    packageName: '@sdkwork/birdcoder-skills',
+    packageName: '@sdkwork/birdcoder-pc-skills',
     entryPath: ['node_modules', 'mdast-util-from-markdown', 'dev', 'lib', 'index.js'],
     dependencies: [
       'mdast-util-to-string',
@@ -303,17 +303,17 @@ const runtimeResolutionChecks = [
     ],
   },
   {
-    packageName: '@sdkwork/birdcoder-skills',
+    packageName: '@sdkwork/birdcoder-pc-skills',
     entryPath: ['node_modules', 'unist-util-visit-parents', 'lib', 'index.js'],
     dependencies: ['unist-util-is'],
   },
   {
-    packageName: '@sdkwork/birdcoder-studio',
+    packageName: '@sdkwork/birdcoder-pc-studio',
     entryPath: ['node_modules', 'react-markdown', 'lib', 'index.js'],
     dependencies: ['devlop', 'hast-util-to-jsx-runtime', 'html-url-attributes', 'mdast-util-to-hast', 'remark-parse', 'remark-rehype', 'unified', 'unist-util-visit', 'vfile'],
   },
   {
-    packageName: '@sdkwork/birdcoder-studio',
+    packageName: '@sdkwork/birdcoder-pc-studio',
     entryPath: ['node_modules', 'mdast-util-from-markdown', 'dev', 'lib', 'index.js'],
     dependencies: [
       'mdast-util-to-string',
@@ -324,17 +324,17 @@ const runtimeResolutionChecks = [
     ],
   },
   {
-    packageName: '@sdkwork/birdcoder-studio',
+    packageName: '@sdkwork/birdcoder-pc-studio',
     entryPath: ['node_modules', 'unist-util-visit-parents', 'lib', 'index.js'],
     dependencies: ['unist-util-is'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'devlop', 'lib', 'development.js'],
     dependencies: ['dequal'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'mdast-util-from-markdown', 'dev', 'lib', 'index.js'],
     dependencies: [
       'mdast-util-to-string',
@@ -345,27 +345,27 @@ const runtimeResolutionChecks = [
     ],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'parse-entities', 'lib', 'index.js'],
     dependencies: ['character-entities-legacy', 'character-reference-invalid', 'is-decimal', 'is-hexadecimal'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'hastscript', 'lib', 'index.js'],
     dependencies: ['property-information'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'hastscript', 'lib', 'create-h.js'],
     dependencies: ['comma-separated-tokens', 'hast-util-parse-selector', 'property-information', 'space-separated-tokens'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'remark-parse', 'lib', 'index.js'],
     dependencies: ['mdast-util-from-markdown'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'hast-util-to-jsx-runtime', 'lib', 'index.js'],
     dependencies: [
       'comma-separated-tokens',
@@ -377,69 +377,79 @@ const runtimeResolutionChecks = [
     ],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'unified', 'lib', 'index.js'],
     dependencies: ['bail', 'extend', 'is-plain-obj', 'trough'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'vfile', 'lib', 'index.js'],
     dependencies: ['vfile-message'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'unist-util-visit', 'lib', 'index.js'],
     dependencies: ['unist-util-visit-parents'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'unist-util-visit-parents', 'lib', 'index.js'],
     dependencies: ['unist-util-is'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'mdast-util-to-hast', 'lib', 'footer.js'],
     dependencies: ['@ungap/structured-clone', 'micromark-util-sanitize-uri'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'mdast-util-to-hast', 'lib', 'handlers', 'text.js'],
     dependencies: ['trim-lines'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'mdast-util-to-hast', 'lib', 'handlers', 'table.js'],
     dependencies: ['unist-util-position'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'react-syntax-highlighter', 'dist', 'esm', 'prism-light.js'],
     dependencies: ['refractor', 'refractor/core'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', 'refractor', 'lib', 'core.js'],
     dependencies: ['hastscript', 'parse-entities', 'prismjs'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui',
+    packageName: '@sdkwork/birdcoder-pc-ui',
     entryPath: ['node_modules', '@monaco-editor', 'loader', 'lib', 'es', 'loader', 'index.js'],
     dependencies: ['state-local'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui-shell',
+    packageName: '@sdkwork/birdcoder-pc-ui-shell',
     entryPath: ['src', 'components', 'ui', 'button.tsx'],
     dependencies: ['@radix-ui/react-slot', 'class-variance-authority'],
   },
   {
-    packageName: '@sdkwork/birdcoder-ui-shell',
+    packageName: '@sdkwork/birdcoder-pc-ui-shell',
     entryPath: ['src', 'lib', 'utils.ts'],
     dependencies: ['clsx', 'tailwind-merge'],
   },
 ];
 
 function resolvePackageDirName(packageName) {
-  return String(packageName).replace(/^@sdkwork\/birdcoder-/u, 'sdkwork-birdcoder-');
+  const stripped = String(packageName).replace(/^@sdkwork\/birdcoder-/u, '');
+  return stripped.startsWith('pc-') ? `sdkwork-birdcoder-${stripped}` : `sdkwork-birdcoder-pc-${stripped}`;
+}
+
+function resolvePackageRoot(packageName) {
+  const dirName = resolvePackageDirName(packageName);
+  const pcPackagePath = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', dirName);
+  if (fs.existsSync(pcPackagePath)) {
+    return pcPackagePath;
+  }
+  return path.join(rootDir, 'packages', dirName);
 }
 
 function assertDependencyVersion(packageName, dependencyName, actualVersion, expectedVersion) {
@@ -455,7 +465,7 @@ for (const { packageName, dependencies } of packageDependencyExpectations) {
   const packageJsonPath =
     packageName === '.'
       ? path.join(rootDir, 'package.json')
-      : path.join(rootDir, 'packages', resolvePackageDirName(packageName), 'package.json');
+      : path.join(resolvePackageRoot(packageName), 'package.json');
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 
   for (const [dependencyName, expectedVersion] of Object.entries(dependencies)) {
@@ -472,7 +482,7 @@ for (const { packageName, entryPath, dependencies } of runtimeResolutionChecks) 
   const absoluteEntryPath =
     packageName === '.'
       ? path.join(rootDir, ...entryPath)
-      : path.join(rootDir, 'packages', resolvePackageDirName(packageName), ...entryPath);
+      : path.join(resolvePackageRoot(packageName), ...entryPath);
   assert.ok(
     fs.existsSync(absoluteEntryPath),
     `Expected runtime entry to exist for ${packageName}: ${path.relative(rootDir, absoluteEntryPath)}`,

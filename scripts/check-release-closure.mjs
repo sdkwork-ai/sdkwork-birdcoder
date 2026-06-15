@@ -132,9 +132,9 @@ function main() {
   const workflow = read('.github/workflows/package.yml');
   const workflowConfig = read('sdkwork.workflow.json');
   const lifecycle = read('scripts/release/sdkwork-workflow-lifecycle.mjs');
-  const kubernetesValues = read('deploy/kubernetes/values.yaml');
-  const kubernetesDeployment = read('deploy/kubernetes/templates/deployment.yaml');
-  const kubernetesReadme = read('deploy/kubernetes/README.md');
+  const kubernetesValues = read('deployments/kubernetes/values.yaml');
+  const kubernetesDeployment = read('deployments/kubernetes/templates/deployment.yaml');
+  const kubernetesReadme = read('deployments/kubernetes/README.md');
   const releaseDoc = read('docs/core/release-and-deployment.md');
   const releaseRegistry = JSON.parse(read('docs/release/releases.json'));
   const latestReleaseEntry = releaseRegistry.releases.at(-1);

@@ -4,20 +4,20 @@ import path from 'node:path';
 
 const rootDir = process.cwd();
 const desktopLibSource = fs.readFileSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-desktop/src-tauri/src/lib.rs'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs'),
   'utf8',
 );
 const tauriRuntimeSource = fs.readFileSync(
   path.join(
     rootDir,
-    'packages/sdkwork-birdcoder-infrastructure/src/platform/tauriFileSystemRuntime.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/tauriFileSystemRuntime.ts',
   ),
   'utf8',
 );
 const runtimeFileSystemServiceSource = fs.readFileSync(
   path.join(
     rootDir,
-    'packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
   ),
   'utf8',
 );

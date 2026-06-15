@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 
-import { buildBirdCoderCodingServerOpenApiDocument } from '../packages/sdkwork-birdcoder-server/src/index.ts';
+import { buildBirdCoderCodingServerOpenApiDocument } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
 
 const document = buildBirdCoderCodingServerOpenApiDocument();
 const rustServerSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
   'utf8',
 );
 
@@ -25,7 +25,7 @@ assert.deepEqual(document.tags.map((tag) => tag.name), [
   'content',
   'iam',
   'intelligence',
-  'openPlatform',
+  'oauth',
   'platform',
   'runtime',
   'skills',
@@ -165,40 +165,68 @@ assert.equal(
   'sessions.refresh',
 );
 assert.equal(
-  document.paths['/app/v3/api/open_platform/qr_auth/sessions']?.post?.operationId,
-  'qrAuth.sessions.create',
+  document.paths['/app/v3/api/oauth/authorization_urls']?.post?.operationId,
+  'oauth.authorizationUrls.create',
+);
+assert.ok(
+  document.paths['/app/v3/api/oauth/authorization_urls']?.post?.requestBody,
+  'OAuth authorization URL creation must use the appbase POST body contract.',
 );
 assert.equal(
-  document.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}']?.get?.operationId,
-  'qrAuth.sessions.retrieve',
+  document.paths['/app/v3/api/oauth/device_authorizations']?.post?.operationId,
+  'oauth.deviceAuthorizations.create',
+);
+assert.ok(
+  document.paths['/app/v3/api/oauth/device_authorizations']?.post?.requestBody,
+  'OAuth device authorization creation must use the appbase POST body contract.',
 );
 assert.equal(
-  document.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans']?.post?.operationId,
-  'qrAuth.sessions.scans.create',
+  document.paths['/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}']?.get?.operationId,
+  'oauth.deviceAuthorizations.retrieve',
 );
 assert.equal(
-  document.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords']?.post?.operationId,
-  'qrAuth.sessions.passwords.create',
+  document.paths['/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/scans']?.post
+    ?.operationId,
+  'oauth.deviceAuthorizations.scans.create',
 );
 assert.equal(
-  document.paths['/app/v3/api/auth/oauth_authorization_urls']?.get?.operationId,
-  'oauthAuthorizationUrls.retrieve',
-);
-assert.deepEqual(
-  document.paths['/app/v3/api/auth/oauth_authorization_urls']?.get?.parameters?.map(
-    (parameter) => [parameter.name, parameter.in, Boolean(parameter.required)],
-  ),
-  [
-    ['provider', 'query', true],
-    ['redirectUri', 'query', true],
-    ['scope', 'query', false],
-    ['state', 'query', false],
-  ],
-  'OAuth authorization URL retrieval must use the appbase GET query-parameter contract.',
+  document.paths['/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions']?.post
+    ?.operationId,
+  'oauth.deviceAuthorizations.passwordCompletions.create',
 );
 assert.equal(
-  document.paths['/app/v3/api/auth/oauth_sessions']?.post?.operationId,
-  'oauthSessions.create',
+  document.paths['/app/v3/api/open_platform/qr_auth/sessions'],
+  undefined,
+  'BirdCoder OpenAPI must not publish retired appbase openPlatform QR auth session routes.',
+);
+assert.equal(
+  document.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}'],
+  undefined,
+  'BirdCoder OpenAPI must not publish retired appbase openPlatform QR auth status routes.',
+);
+assert.equal(
+  document.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/scans'],
+  undefined,
+  'BirdCoder OpenAPI must not publish retired appbase openPlatform QR auth scan routes.',
+);
+assert.equal(
+  document.paths['/app/v3/api/open_platform/qr_auth/sessions/{sessionKey}/passwords'],
+  undefined,
+  'BirdCoder OpenAPI must not publish retired appbase openPlatform QR auth password routes.',
+);
+assert.equal(
+  document.paths['/app/v3/api/auth/oauth_authorization_urls'],
+  undefined,
+  'BirdCoder OpenAPI must not publish the retired appbase auth/oauth_authorization_urls route.',
+);
+assert.equal(
+  document.paths['/app/v3/api/oauth/sessions']?.post?.operationId,
+  'oauth.sessions.create',
+);
+assert.equal(
+  document.paths['/app/v3/api/auth/oauth_sessions'],
+  undefined,
+  'BirdCoder OpenAPI must not publish the retired appbase auth/oauth_sessions route.',
 );
 assert.equal(document.paths['/app/v3/api/auth/registrations']?.post?.operationId, 'registrations.create');
 assert.equal(
@@ -587,10 +615,14 @@ assert.ok(document.components.schemas?.BirdCoderIamPasswordResetRequestCreateReq
 assert.ok(document.components.schemas?.BirdCoderIamPasswordResetCreateRequest);
 assert.ok(document.components.schemas?.BirdCoderIamOAuthAuthorizationSummary);
 assert.ok(document.components.schemas?.BirdCoderIamOAuthSessionCreateRequest);
-assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionSummary);
-assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionCreateRequest);
-assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionScanRequest);
-assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionPasswordRequest);
+assert.ok(document.components.schemas?.BirdCoderIamDeviceAuthorizationSummary);
+assert.ok(document.components.schemas?.BirdCoderIamDeviceAuthorizationCreateRequest);
+assert.ok(document.components.schemas?.BirdCoderIamDeviceAuthorizationScanRequest);
+assert.ok(document.components.schemas?.BirdCoderIamDeviceAuthorizationPasswordCompletionRequest);
+assert.equal(document.components.schemas?.BirdCoderIamQrAuthSessionSummary, undefined);
+assert.equal(document.components.schemas?.BirdCoderIamQrAuthSessionCreateRequest, undefined);
+assert.equal(document.components.schemas?.BirdCoderIamQrAuthSessionScanRequest, undefined);
+assert.equal(document.components.schemas?.BirdCoderIamQrAuthSessionPasswordRequest, undefined);
 assert.ok(document.components.schemas?.BirdCoderIamUserProfileSummary);
 assert.deepEqual(
   document.components.schemas.BirdCoderIamRuntimeSettingsSummary.required,

@@ -12,14 +12,14 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const workspaceRootDir = path.resolve(__dirname, '..');
-const webRootDir = path.join(workspaceRootDir, 'packages', 'sdkwork-birdcoder-web');
+const webRootDir = path.join(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-web');
 
 const mobilePanelSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/src/pages/CodeMobileProgrammingPanel.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeMobileProgrammingPanel.tsx', import.meta.url),
   'utf8',
 );
 const shimPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/shims/qrcode.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/shims/qrcode.ts',
   import.meta.url,
 );
 const vitePluginSource = fs.readFileSync(
@@ -31,11 +31,11 @@ const viteCompatShimPath = new URL(
   import.meta.url,
 );
 const packageJsonSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-code/package.json', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/package.json', import.meta.url),
   'utf8',
 );
 const webPackageJsonSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-web/package.json', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/package.json', import.meta.url),
   'utf8',
 );
 const workspaceSource = fs.readFileSync(

@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { BIRDCODER_PERFORMANCE_BUDGETS } from '../packages/sdkwork-birdcoder-types/src/governance.ts';
+import { BIRDCODER_PERFORMANCE_BUDGETS } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/governance.ts';
 
 const rootDir = process.cwd();
-const webDistDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist');
+const webDistDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-web', 'dist');
 const assetsDir = path.join(webDistDir, 'assets');
 const indexHtmlPath = path.join(webDistDir, 'index.html');
 
@@ -144,7 +144,6 @@ for (const forbiddenPreloadPrefix of [
   'vendor-terminal-xterm-addon-canvas-',
   'vendor-terminal-xterm-addon-fit-',
   'vendor-terminal-xterm-addon-search-',
-  'vendor-terminal-xterm-addon-unicode11-',
   'vendor-tauri-core-',
   'vendor-tauri-event-',
   'vendor-tauri-window-',
@@ -183,7 +182,6 @@ for (const requiredChunkPrefix of [
   'vendor-terminal-xterm-addon-canvas-',
   'vendor-terminal-xterm-addon-fit-',
   'vendor-terminal-xterm-addon-search-',
-  'vendor-terminal-xterm-addon-unicode11-',
   'vendor-tauri-core-',
   'vendor-tauri-event-',
   'vendor-tauri-window-',
@@ -204,7 +202,7 @@ assertNoOversizedAnonymousIndexChunks(
 );
 assertNoAssetPrefix(
   jsAssets,
-  '_sdkwork-birdcoder-web-xterm-',
+  '_sdkwork-birdcoder-pc-web-xterm-',
   'Terminal vendor chunks must use stable vendor-terminal-* names instead of leaking internal CommonJS compat virtual module ids into release assets.',
 );
 assertNoAssetPrefix(

@@ -9,13 +9,13 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const fileExplorerSource = read('packages/sdkwork-birdcoder-ui/src/components/FileExplorer.tsx');
-const codeEditorWorkspacePanelSource = read('packages/sdkwork-birdcoder-code/src/pages/CodeEditorWorkspacePanel.tsx');
-const codeEditorWorkspacePanelTypesSource = read('packages/sdkwork-birdcoder-code/src/pages/codeEditorWorkspacePanel.types.ts');
-const codePageSource = read('packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx');
-const codePageSurfacePropsSource = read('packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts');
-const studioCodeWorkspacePanelSource = read('packages/sdkwork-birdcoder-studio/src/pages/StudioCodeWorkspacePanel.tsx');
-const studioPageSource = read('packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx');
+const fileExplorerSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx');
+const codeEditorWorkspacePanelSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx');
+const codeEditorWorkspacePanelTypesSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeEditorWorkspacePanel.types.ts');
+const codePageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
+const codePageSurfacePropsSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts');
+const studioCodeWorkspacePanelSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioCodeWorkspacePanel.tsx');
+const studioPageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx');
 
 assert.match(
   fileExplorerSource,

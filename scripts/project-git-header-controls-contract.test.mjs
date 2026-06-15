@@ -11,22 +11,35 @@ function readSource(...segments) {
 
 const sharedControlsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-ui',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitHeaderControls.tsx',
 );
 const topBarSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'components',
   'TopBar.tsx',
 );
 const studioStageHeaderSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'preview',
   'StudioStageHeader.tsx',
@@ -39,15 +52,25 @@ assert.equal(
 );
 
 const sharedControlsSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitHeaderControls.tsx',
 );
 const createBranchDialogSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitCreateBranchDialog.tsx',
@@ -97,7 +120,7 @@ assert.match(
 
 assert.match(
   topBarSource,
-  /import[\s\S]*ProjectGitHeaderControls[\s\S]*from '@sdkwork\/birdcoder-ui';/s,
+  /import[\s\S]*ProjectGitHeaderControls[\s\S]*from '@sdkwork\/birdcoder-pc-ui';/s,
   'Code top bar must import the shared ProjectGitHeaderControls component.',
 );
 
@@ -109,7 +132,7 @@ assert.match(
 
 assert.match(
   studioStageHeaderSource,
-  /import[\s\S]*ProjectGitHeaderControls[\s\S]*from '@sdkwork\/birdcoder-ui';/s,
+  /import[\s\S]*ProjectGitHeaderControls[\s\S]*from '@sdkwork\/birdcoder-pc-ui';/s,
   'Studio stage header must import the shared ProjectGitHeaderControls component.',
 );
 

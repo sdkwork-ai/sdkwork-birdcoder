@@ -146,7 +146,7 @@ export function createBirdcoderIamCanonicalScriptCatalog() {
 
 export function createBirdcoderIamAliasScriptCatalog() {
   return {
-    build: `${renderNodeScriptCommand('prepare-shared-sdk-packages.mjs')} && ${renderNodeScriptCommand('run-vite-host.mjs', ['--cwd', 'packages/sdkwork-birdcoder-web', 'build', '--mode', 'production'])} && ${renderNodeScriptCommand('web-bundle-budget.test.mjs')}`,
+    build: `${renderNodeScriptCommand('prepare-shared-sdk-packages.mjs')} && ${renderNodeScriptCommand('run-vite-host.mjs', ['--cwd', 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web', 'build', '--mode', 'production'])} && ${renderNodeScriptCommand('web-bundle-budget.test.mjs')}`,
     'build:cloud': renderWorkspaceScriptPassthrough('web:build:cloud'),
     'build:local': renderWorkspaceScriptPassthrough('desktop:build:local'),
     'build:private': renderWorkspaceScriptPassthrough('web:build:private'),

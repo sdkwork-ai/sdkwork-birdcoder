@@ -9,13 +9,13 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const codePageSurfaceSource = read('packages/sdkwork-birdcoder-code/src/pages/CodePageSurface.tsx');
+const codePageSurfaceSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageSurface.tsx');
 
 assert.ok(
   fs.existsSync(
     path.join(
       rootDir,
-      'packages/sdkwork-birdcoder-code/src/components/ProjectExplorer.tsx',
+      'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorer.tsx',
     ),
   ),
   'Code surface must define a dedicated ProjectExplorer component for the left project/session inventory shell.',

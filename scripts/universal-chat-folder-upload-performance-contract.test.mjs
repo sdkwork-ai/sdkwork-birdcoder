@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const source = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx', import.meta.url),
   'utf8',
 );
 const zhLocale = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-i18n/src/locales/zh/chat.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/chat.ts', import.meta.url),
   'utf8',
 );
 const enLocale = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-i18n/src/locales/en/chat.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/chat.ts', import.meta.url),
   'utf8',
 );
 

@@ -6,8 +6,11 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const codeWorkspaceOverlaysPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodeWorkspaceOverlays.tsx',

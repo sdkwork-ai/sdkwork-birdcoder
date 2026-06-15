@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 
-const typesModulePath = new URL('../packages/sdkwork-birdcoder-types/src/index.ts', import.meta.url);
+const typesModulePath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts', import.meta.url);
 const providersModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
   import.meta.url,
 );
 const sqlPlansModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlPlans.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlPlans.ts',
   import.meta.url,
 );
 const sqlRowCodecModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlRowCodec.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlRowCodec.ts',
   import.meta.url,
 );
 

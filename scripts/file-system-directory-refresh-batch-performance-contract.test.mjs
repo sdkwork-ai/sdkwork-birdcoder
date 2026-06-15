@@ -8,8 +8,13 @@ const rootDir = process.cwd();
 const hookSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
-    'sdkwork-birdcoder-commons',
+    
+    
+    
+    'sdkwork-birdcoder-pc-commons',
     'src',
     'hooks',
     'useFileSystem.ts',
@@ -20,8 +25,13 @@ const hookSource = fs.readFileSync(
 const commonsInterfaceSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
-    'sdkwork-birdcoder-commons',
+    
+    
+    
+    'sdkwork-birdcoder-pc-commons',
     'src',
     'services',
     'interfaces',
@@ -33,8 +43,13 @@ const commonsInterfaceSource = fs.readFileSync(
 const infrastructureInterfaceSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
-    'sdkwork-birdcoder-infrastructure',
+    
+    
+    
+    'sdkwork-birdcoder-pc-infrastructure',
     'src',
     'services',
     'interfaces',
@@ -46,8 +61,13 @@ const infrastructureInterfaceSource = fs.readFileSync(
 const runtimeSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
-    'sdkwork-birdcoder-infrastructure',
+    
+    
+    
+    'sdkwork-birdcoder-pc-infrastructure',
     'src',
     'services',
     'impl',

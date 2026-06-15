@@ -6,8 +6,11 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const studioPagePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-studio',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioPage.tsx',
@@ -17,8 +20,13 @@ const studioPageSource = fs.readFileSync(studioPagePath, 'utf8');
 const studioMainContentSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-studio',
+    
+    'sdkwork-birdcoder-pc-studio',
     'src',
     'pages',
     'StudioMainContent.tsx',

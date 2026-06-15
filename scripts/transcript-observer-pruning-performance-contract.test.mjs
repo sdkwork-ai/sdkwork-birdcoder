@@ -7,8 +7,13 @@ const rootDir = process.cwd();
 const source = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-ui',
+    
+    'sdkwork-birdcoder-pc-ui',
     'src',
     'components',
     'useVirtualizedTranscriptWindow.ts',

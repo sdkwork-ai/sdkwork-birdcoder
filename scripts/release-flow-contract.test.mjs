@@ -70,7 +70,7 @@ const packageWorkflow = read(packageWorkflowPath);
 const workflowConfig = readJson(workflowConfigPath);
 const lifecycleSource = read(lifecyclePath);
 const rootPackageJson = readJson('package.json');
-const dockerfileSource = read('deploy/docker/Dockerfile');
+const dockerfileSource = read('deployments/docker/Dockerfile');
 const releaseFlowRunnerModule = await import(
   pathToFileURL(path.join(rootDir, 'scripts/run-release-flow-check.mjs')).href
 );
@@ -282,7 +282,7 @@ assert.match(cpuContainerPackagePlan, /tar -xzf/u);
 assert.match(cpuContainerPackagePlan, /--strip-components 1/u);
 assert.match(cpuContainerPackagePlan, /--metadata-file/u);
 assert.match(cpuContainerPackagePlan, /\.sdkwork\/release\/container-image-context\/x64/u);
-assert.match(cpuContainerPackagePlan, /ghcr\.io\/sdkwork-cloud\/sdkwork-birdcoder-server:release-0\.1\.0-linux-x64/u);
+assert.match(cpuContainerPackagePlan, /ghcr\.io\/sdkwork-cloud\/sdkwork-birdcoder-pc-server:release-0\.1\.0-linux-x64/u);
 assert.match(cpuContainerPackagePlan, /container-image-metadata[\\/]x64[\\/]published-image\.json/u);
 
 const kubernetesPackagePlan = commandPlanText(lifecycleModule.buildLifecycleCommands('package', {
@@ -290,7 +290,7 @@ const kubernetesPackagePlan = commandPlanText(lifecycleModule.buildLifecycleComm
   SDKWORK_RELEASE_TAG: 'release-0.1.0',
 }));
 assert.match(kubernetesPackagePlan, /package-release-assets\.mjs kubernetes/u);
-assert.match(kubernetesPackagePlan, /--image-repository ghcr\.io\/sdkwork-cloud\/sdkwork-birdcoder-server/u);
+assert.match(kubernetesPackagePlan, /--image-repository ghcr\.io\/sdkwork-cloud\/sdkwork-birdcoder-pc-server/u);
 assert.match(kubernetesPackagePlan, /--image-tag release-0\.1\.0-linux-x64/u);
 
 const containerValidatePlan = commandPlanText(lifecycleModule.buildLifecycleCommands('validate', {
@@ -309,16 +309,16 @@ const aggregateFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-ag
 try {
   const aggregateReleaseAssetsDir = path.join(aggregateFixtureRoot, 'release-assets');
   writeJsonFixture(path.join(aggregateReleaseAssetsDir, 'container-image-metadata', 'x64', 'published-image.json'), {
-    imageRepository: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server',
+    imageRepository: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-pc-server',
     imageTag: 'release-0.1.0-linux-x64',
     imageDigest: 'sha256:x64digest',
-    imageReference: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server@sha256:x64digest',
+    imageReference: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-pc-server@sha256:x64digest',
   });
   writeJsonFixture(path.join(aggregateReleaseAssetsDir, 'container-image-metadata', 'arm64', 'published-image.json'), {
-    imageRepository: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server',
+    imageRepository: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-pc-server',
     imageTag: 'release-0.1.0-linux-arm64',
     imageDigest: 'sha256:arm64digest',
-    imageReference: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server@sha256:arm64digest',
+    imageReference: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-pc-server@sha256:arm64digest',
   });
 
   const aggregatePublishPlan = commandPlanText(lifecycleModule.buildLifecycleCommands('publish', {

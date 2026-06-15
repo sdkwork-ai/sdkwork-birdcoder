@@ -1,0 +1,36 @@
+{
+  "name": "@sdkwork/birdcoder-pc-ui-shell",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "typecheck": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "lucide-react": "catalog:",
+    "tailwind-merge": "catalog:",
+    "@sdkwork/birdcoder-pc-codeengine": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  }
+}
+
+

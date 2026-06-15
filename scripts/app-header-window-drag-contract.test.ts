@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 const appHeaderWindowDragModulePath = new URL(
-  '../packages/sdkwork-birdcoder-shell/src/application/app/appHeaderWindowDrag.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/appHeaderWindowDrag.ts',
   import.meta.url,
 );
 

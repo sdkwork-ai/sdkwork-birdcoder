@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 const runtimeSource = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-infrastructure/src/platform/tauriFileSystemRuntime.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/tauriFileSystemRuntime.ts',
     import.meta.url,
   ),
   'utf8',
@@ -29,7 +29,7 @@ assert.match(
 
 const serviceSource = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
     import.meta.url,
   ),
   'utf8',

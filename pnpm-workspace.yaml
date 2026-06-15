@@ -1,7 +1,13 @@
 packages:
+  # Shared cross-surface packages at repository root
   - 'packages/sdkwork-birdcoder-*'
-  - 'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript'
-  - 'sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript'
+  # PC app root packages
+  - 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*'
+  # H5 app root packages
+  - 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*'
+  # PC app root SDKs
+  - 'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript'
+  - 'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript'
   - '../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts'
   - '../sdkwork-appbase/packages/common/iam/sdkwork-iam-runtime'
   - '../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-adapter'
@@ -20,11 +26,11 @@ packages:
   - '../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react'
   - '../sdkwork-core/sdkwork-core-pc-react'
   - '../sdkwork-ui/sdkwork-ui-pc-react'
-  - '../sdkwork-terminal/apps/desktop'
-  - '../sdkwork-terminal/packages/sdkwork-terminal-infrastructure'
-  - '../sdkwork-terminal/packages/sdkwork-terminal-shell'
+  - '../sdkwork-terminal/apps/sdkwork-terminal-pc'
+  - '../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-*'
   - '../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript'
   - '../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi'
+  - '../sdkwork-models/sdkwork-models-typescript'
 
 catalog:
   '@anthropic-ai/claude-agent-sdk': ^0.2.87
@@ -123,3 +129,4 @@ catalog:
   vite: ^6.2.0
   vite-plugin-dts: ^4.5.4
   yaml: ^2.4.2
+

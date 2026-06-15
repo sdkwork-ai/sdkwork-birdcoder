@@ -1,16 +1,16 @@
 import type {
   BirdCoderAppRuntimeReadSdkApiClient,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderCodingSessionSummary,
   BirdCoderNativeSessionSummary,
-} from '@sdkwork/birdcoder-types';
+} from '@sdkwork/birdcoder-pc-types';
 import {
   listStoredSessionInventory,
   type StoredCodingSessionInventoryRecord,
   type WorkbenchSessionInventoryRecord,
-} from '../packages/sdkwork-birdcoder-commons/src/workbench/sessionInventory.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionInventory.ts';
 
 const workspaceId = 'workspace-session-inventory-native-id';
 const projectId = 'project-session-inventory-native-id';

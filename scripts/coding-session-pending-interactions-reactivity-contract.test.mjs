@@ -10,16 +10,16 @@ function readText(relativePath) {
 }
 
 const projectionHookSource = readText(
-  'packages/sdkwork-birdcoder-commons/src/hooks/useCodingSessionProjection.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingSessionProjection.ts',
 );
 const codePendingInteractionsSource = readText(
-  'packages/sdkwork-birdcoder-code/src/pages/useCodePendingInteractions.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePendingInteractions.ts',
 );
 const codeSurfacePropsSource = readText(
-  'packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts',
 );
-const codePageSource = readText('packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx');
-const studioPageSource = readText('packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx');
+const codePageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
+const studioPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx');
 
 assert.match(
   projectionHookSource,

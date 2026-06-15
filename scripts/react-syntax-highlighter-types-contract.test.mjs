@@ -5,15 +5,18 @@ import path from 'node:path';
 const rootDir = process.cwd();
 const declarationsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-ui',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'react-syntax-highlighter.d.ts',
 );
 
 assert.ok(
   fs.existsSync(declarationsPath),
-  'sdkwork-birdcoder-ui must provide local ESM subpath declarations for react-syntax-highlighter.',
+  'sdkwork-birdcoder-pc-ui must provide local ESM subpath declarations for react-syntax-highlighter.',
 );
 
 const declarationsSource = fs.readFileSync(declarationsPath, 'utf8');

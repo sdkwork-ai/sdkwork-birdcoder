@@ -2,40 +2,40 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
 const sdkClientsModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
   import.meta.url,
 );
 const typesServerApiPath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/server-api.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
   import.meta.url,
 );
 const appRuntimeWriteServiceInterfacePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeWriteService.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IAppRuntimeWriteService.ts',
   import.meta.url,
 );
 const apiBackedAppRuntimeWriteServicePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeWriteService.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeWriteService.ts',
   import.meta.url,
 );
 const defaultIdeServicesSharedPath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesShared.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts',
   import.meta.url,
 );
 const retiredCoreRuntimeServicePaths = [
   new URL(
-    '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/ICoreReadService.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/ICoreReadService.ts',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/ICoreWriteService.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/ICoreWriteService.ts',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreReadService.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedCoreReadService.ts',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedCoreWriteService.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedCoreWriteService.ts',
     import.meta.url,
   ),
 ];
@@ -47,52 +47,52 @@ const retiredCoreRuntimeServicePatterns = [
 ];
 const appRuntimeServiceSourcePaths = [
   new URL(
-    '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesShared.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-infrastructure/src/services/lazyDefaultIdeServices.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/lazyDefaultIdeServices.ts',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-commons/src/context/ideServices.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ideServices.ts',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-commons/src/context/IDEContext.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/IDEContext.ts',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-commons/src/context/IDEContext.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/IDEContext.tsx',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-commons/src/context/ServiceContext.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ServiceContext.tsx',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapShellRuntimeImpl.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapShellRuntimeImpl.ts',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapShellUserState.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapShellUserState.ts',
     import.meta.url,
   ),
   new URL(
-    '../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
     import.meta.url,
   ),
 ];
 const appRuntimeReadServiceInterfacePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeReadService.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IAppRuntimeReadService.ts',
   import.meta.url,
 );
 const apiBackedAppRuntimeReadServicePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts',
   import.meta.url,
 );
 

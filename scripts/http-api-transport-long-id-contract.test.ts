@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { createBirdCoderHttpApiTransport } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkTransportShared.ts';
-import { parseBirdCoderApiJson } from '../packages/sdkwork-birdcoder-infrastructure/src/services/apiJson.ts';
-import { createBirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import { createBirdCoderHttpApiTransport } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkTransportShared.ts';
+import { parseBirdCoderApiJson } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/apiJson.ts';
+import { createBirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import {
   BIRDCODER_DATA_ENTITY_DEFINITIONS,
   BIRDCODER_LONG_INTEGER_JSON_SCALAR_KEYS,
@@ -9,7 +9,7 @@ import {
   normalizeBirdCoderCodeEngineExitCode,
   resolveBirdCoderCodeEngineToolCallId,
   resolveBirdCoderLongIntegerNumber,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const unsafeSessionId = '101777208078558001';
 const unsafeWorkspaceId = '101777208078558003';

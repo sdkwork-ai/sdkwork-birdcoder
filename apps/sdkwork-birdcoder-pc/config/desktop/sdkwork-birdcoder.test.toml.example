@@ -1,0 +1,13 @@
+# BirdCoder Desktop Test Config
+
+[app]
+name = "SDKWork BirdCoder"
+environment = "test"
+
+[server]
+embedded = true
+port = 10241
+
+[storage]
+type = "sqlite"
+path = "~/.sdkwork/sdkwork-birdcoder/data/test.sqlite3"

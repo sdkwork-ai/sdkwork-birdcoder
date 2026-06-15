@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const persistencePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/chat/persistence.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/chat/persistence.ts',
   import.meta.url,
 );
 const persistenceSource = fs.readFileSync(persistencePath, 'utf8');
@@ -26,23 +26,23 @@ assert.doesNotMatch(
 );
 
 const dataKernelModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
   import.meta.url,
 );
 const defaultIdeServicesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
   import.meta.url,
 );
 const savedPromptRepositoryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/savedPromptEntryRepository.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/savedPromptEntryRepository.ts',
   import.meta.url,
 );
 const sessionPromptRepositoryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionPromptEntryRepository.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionPromptEntryRepository.ts',
   import.meta.url,
 );
 const promptServiceModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedPromptService.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedPromptService.ts',
   import.meta.url,
 );
 

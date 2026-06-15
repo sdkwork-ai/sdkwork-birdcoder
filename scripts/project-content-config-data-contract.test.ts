@@ -4,7 +4,7 @@ import {
   buildBirdCoderProjectContentConfigData,
   parseBirdCoderProjectContentConfigData,
   readBirdCoderProjectRootPathFromConfigData,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/services/projectContentConfigData.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/projectContentConfigData.ts';
 
 assert.deepEqual(parseBirdCoderProjectContentConfigData(undefined), {});
 assert.deepEqual(parseBirdCoderProjectContentConfigData('not-json'), {});

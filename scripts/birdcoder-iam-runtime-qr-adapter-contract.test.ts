@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const iamRuntimeSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-infrastructure/src/services/iamRuntime.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts', import.meta.url),
   'utf8',
 );
-const appbaseOpenPlatformSdkSource = fs.readFileSync(
+const appbaseOauthSdkSource = fs.readFileSync(
   new URL(
-    '../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/api/open-platform.ts',
+    '../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/api/oauth.ts',
     import.meta.url,
   ),
   'utf8',
@@ -24,19 +24,19 @@ assert.doesNotMatch(
   'BirdCoder IAM runtime must not keep a product-local QR path-parameter adapter.',
 );
 assert.match(
-  appbaseOpenPlatformSdkSource,
-  /retrieve\(sessionKey:\s*string\)/u,
-  'sdkwork-appbase generated app SDK must expose QR session retrieve(sessionKey).',
+  appbaseOauthSdkSource,
+  /retrieve\(deviceAuthorizationId:\s*string\)/u,
+  'sdkwork-appbase generated app SDK must expose OAuth device authorization retrieve(deviceAuthorizationId).',
 );
 assert.match(
-  appbaseOpenPlatformSdkSource,
-  /scans[\s\S]*create\(sessionKey:\s*string,\s*body/u,
-  'sdkwork-appbase generated app SDK must expose QR scan create(sessionKey, body).',
+  appbaseOauthSdkSource,
+  /scans[\s\S]*create\(deviceAuthorizationId:\s*string,\s*body/u,
+  'sdkwork-appbase generated app SDK must expose OAuth device authorization scan create(deviceAuthorizationId, body).',
 );
 assert.match(
-  appbaseOpenPlatformSdkSource,
-  /passwords[\s\S]*create\(sessionKey:\s*string,\s*body/u,
-  'sdkwork-appbase generated app SDK must expose QR password create(sessionKey, body).',
+  appbaseOauthSdkSource,
+  /OauthDeviceAuthorizationsPasswordCompletionsApi[\s\S]*create\(deviceAuthorizationId:\s*string,\s*body/u,
+  'sdkwork-appbase generated app SDK must expose OAuth device authorization password completion create(deviceAuthorizationId, body).',
 );
 
 console.log('birdcoder IAM runtime QR adapter contract passed.');

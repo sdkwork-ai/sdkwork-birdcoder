@@ -13,30 +13,31 @@ function readText(rootDir, relativePath) {
 
 const birdCoderIamAuthoritySource = readText(
   workspaceRoot,
-  'packages/sdkwork-birdcoder-server/src-host/src/iam_authority.rs',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/iam_authority.rs',
 );
 const birdCoderServerCargoSource = readText(
   workspaceRoot,
-  'packages/sdkwork-birdcoder-server/src-host/Cargo.toml',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/Cargo.toml',
 );
-const appbaseIamCoreSource = readText(
+const appbaseIamContextSource = readText(
   appbaseRoot,
-  'packages/native-rust/iam/sdkwork-iam-core-rust/src/lib.rs',
+  'crates/sdkwork-iam-context-service/src/lib.rs',
 );
-const appbaseIamStorageSource = readText(
+const appbaseIamDirectoryRepositorySource = readText(
   appbaseRoot,
-  'packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust/src/lib.rs',
+  'crates/sdkwork-iam-directory-repository-sqlx/src/lib.rs',
 );
 
 for (const requiredDependencyName of [
-  'sdkwork_iam_core',
-  'sdkwork_iam_http',
-  'sdkwork_iam_storage_sqlx',
-  'sdkwork_iam_tauri',
+  'sdkwork_iam_context_service',
+  'sdkwork_router_iam_app_api',
+  'sdkwork_router_iam_backend_api',
+  'sdkwork_iam_directory_repository_sqlx',
+  'sdkwork_appbase_tauri_host',
 ]) {
   assert.match(
     birdCoderServerCargoSource,
-    new RegExp(`^${requiredDependencyName} = \\{ path = `, 'mu'),
+    new RegExp(`^${requiredDependencyName} = \\{ workspace = true \\}`, 'mu'),
     `BirdCoder server host must depend on the standard ${requiredDependencyName} crate.`,
   );
 }
@@ -48,24 +49,37 @@ for (const requiredIamCorePattern of [
   /pub enum DeploymentMode/u,
 ]) {
   assert.match(
-    appbaseIamCoreSource,
+    appbaseIamContextSource,
     requiredIamCorePattern,
-    'sdkwork-appbase IAM core must publish the standard dual-token context contract.',
+    'sdkwork-appbase IAM context service must publish the standard dual-token context contract.',
   );
 }
 
 for (const requiredIamStoragePattern of [
   /pub struct IamTables/u,
-  /pub const DEFAULT_IAM_TENANT_ID: &str/u,
-  /pub const DEFAULT_IAM_ORGANIZATION_ID: &str/u,
-  /pub const DEFAULT_BOOTSTRAP_ADMIN_EMAIL: &str/u,
+  /pub const TENANT: &'static str = "iam_tenant"/u,
+  /pub const TENANT_MEMBER: &'static str = "iam_tenant_member"/u,
+  /pub const TENANT_SIGNING_KEY: &'static str = "iam_tenant_signing_key"/u,
+  /pub const ORGANIZATION_MEMBERSHIP: &'static str = "iam_organization_membership"/u,
   /pub fn iam_database_tables\(\) -> Vec<&'static str>/u,
   /pub fn iam_initial_migration_sql\(\) -> &'static str/u,
 ]) {
   assert.match(
-    appbaseIamStorageSource,
+    appbaseIamDirectoryRepositorySource,
     requiredIamStoragePattern,
-    'sdkwork-appbase IAM storage crate must publish standard IAM bootstrap and table contracts.',
+    'sdkwork-appbase IAM directory repository crate must publish standard IAM bootstrap and table contracts.',
+  );
+}
+
+for (const forbiddenIamStoragePattern of [
+  /DEFAULT_IAM_TENANT/u,
+  /DEFAULT_IAM_ORGANIZATION/u,
+  /DEFAULT_BOOTSTRAP_ADMIN/u,
+]) {
+  assert.doesNotMatch(
+    appbaseIamDirectoryRepositorySource,
+    forbiddenIamStoragePattern,
+    'sdkwork-appbase IAM directory repository crate must not publish default bootstrap seed data.',
   );
 }
 

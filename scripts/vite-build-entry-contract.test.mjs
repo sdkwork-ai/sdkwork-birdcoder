@@ -12,15 +12,15 @@ function read(relativePath) {
 for (const [label, htmlPath, launcherPath, bootstrapPath] of [
   [
     'web',
-    'packages/sdkwork-birdcoder-web/index.html',
-    'packages/sdkwork-birdcoder-web/src/main.js',
-    'packages/sdkwork-birdcoder-web/src/main.tsx',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/index.html',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.js',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx',
   ],
   [
     'desktop',
-    'packages/sdkwork-birdcoder-desktop/index.html',
-    'packages/sdkwork-birdcoder-desktop/src/main.js',
-    'packages/sdkwork-birdcoder-desktop/src/main.tsx',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/index.html',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.js',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx',
   ],
 ]) {
   const htmlSource = read(htmlPath);
@@ -60,7 +60,7 @@ for (const [label, htmlPath, launcherPath, bootstrapPath] of [
 }
 
 assert.doesNotMatch(
-  read('packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx'),
+  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx'),
   /import\.meta\.env/u,
   'AuthPage must avoid import.meta.env so shared app shell transforms stay compatible with the Windows Vite build pipeline.',
 );

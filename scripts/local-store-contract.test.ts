@@ -4,8 +4,8 @@ import {
   buildLocalStoreKey,
   deserializeStoredValue,
   serializeStoredValue,
-} from '../packages/sdkwork-birdcoder-commons/src/storage/localStore.ts';
-import { createJsonRecordRepository } from '../packages/sdkwork-birdcoder-commons/src/storage/dataKernel.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/storage/localStore.ts';
+import { createJsonRecordRepository } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/storage/dataKernel.ts';
 
 assert.equal(buildLocalStoreKey('settings', 'app'), 'sdkwork-birdcoder:settings:app');
 

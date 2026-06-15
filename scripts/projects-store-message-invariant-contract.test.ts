@@ -3,12 +3,12 @@ import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderProject,
-} from '@sdkwork/birdcoder-types';
+} from '@sdkwork/birdcoder-pc-types';
 import {
   mergeProjectsForStore,
   updateCodingSessionInCollection,
   upsertCodingSessionIntoCollection,
-} from '../packages/sdkwork-birdcoder-commons/src/stores/projectsStore.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/projectsStore.ts';
 
 function buildMessage(
   overrides: Partial<BirdCoderChatMessage> = {},

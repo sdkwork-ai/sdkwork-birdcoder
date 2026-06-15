@@ -2,20 +2,20 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const appTabSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-types/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts', import.meta.url),
   'utf8',
 );
 const shellSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx', import.meta.url),
   'utf8',
 );
 const pageLoadersSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-shell/src/application/app/pageLoaders.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/pageLoaders.ts', import.meta.url),
   'utf8',
 );
 const shellPackageJson = JSON.parse(
   fs.readFileSync(
-    new URL('../packages/sdkwork-birdcoder-shell/package.json', import.meta.url),
+    new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/package.json', import.meta.url),
     'utf8',
   ),
 );
@@ -56,7 +56,7 @@ const terminalButtonIndex = shellSource.indexOf("onActiveTabChange('terminal')")
 
 assert.ok(
   studioButtonIndex >= 0 && multiwindowButtonIndex > studioButtonIndex,
-  'Sidebar must place 多窗口编程 directly after the Studio entry.',
+  'Sidebar must place 多窗口编�?directly after the Studio entry.',
 );
 assert.ok(
   terminalButtonIndex > multiwindowButtonIndex,
@@ -71,14 +71,14 @@ assert.match(
 
 assert.match(
   pageLoadersSource,
-  /export async function loadMultiWindowProgrammingPage\(\)[\s\S]*import\('@sdkwork\/birdcoder-multiwindow'\)/,
-  'Shell page loader must import @sdkwork/birdcoder-multiwindow lazily.',
+  /export async function loadMultiWindowProgrammingPage\(\)[\s\S]*import\('@sdkwork\/birdcoder-pc-multiwindow'\)/,
+  'Shell page loader must import @sdkwork/birdcoder-pc-multiwindow lazily.',
 );
 
 assert.equal(
-  shellPackageJson.dependencies?.['@sdkwork/birdcoder-multiwindow'],
+  shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-multiwindow'],
   'workspace:*',
-  'Shell package must declare a workspace dependency on @sdkwork/birdcoder-multiwindow.',
+  'Shell package must declare a workspace dependency on @sdkwork/birdcoder-pc-multiwindow.',
 );
 
 console.log('multi-window shell navigation contract passed.');

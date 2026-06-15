@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const modulePath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/fileExplorerVirtualization.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/fileExplorerVirtualization.ts',
   import.meta.url,
 );
 
@@ -12,7 +12,7 @@ const {
 } = await import(`${modulePath.href}?t=${Date.now()}`);
 
 const fileExplorerSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/FileExplorer.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx', import.meta.url),
   'utf8',
 );
 

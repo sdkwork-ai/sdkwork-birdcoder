@@ -11,10 +11,12 @@ import { normalizeViteMode } from './run-vite-host.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
-const desktopPackageDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
+const desktopPackageDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop');
 const defaultConfigPath = path.join(
+  'apps',
+  'sdkwork-birdcoder-pc',
   'packages',
-  'sdkwork-birdcoder-desktop',
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'tauri.conf.json',
 );

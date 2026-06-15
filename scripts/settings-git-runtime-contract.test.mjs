@@ -10,58 +10,96 @@ function readSource(...segments) {
 }
 
 const appSettingsSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-settings',
+  
+  'sdkwork-birdcoder-pc-settings',
   'src',
   'components',
   'appSettings.ts',
 );
 const settingsPageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-settings',
+  
+  'sdkwork-birdcoder-pc-settings',
   'src',
   'pages',
   'SettingsPage.tsx',
 );
 const gitSettingsSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-settings',
+  
+  'sdkwork-birdcoder-pc-settings',
   'src',
   'components',
   'GitSettings.tsx',
 );
 const worktreeSettingsSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-settings',
+  
+  'sdkwork-birdcoder-pc-settings',
   'src',
   'components',
   'WorktreeSettings.tsx',
 );
 const projectGitSettingsPanelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-settings',
+  
+  'sdkwork-birdcoder-pc-settings',
   'src',
   'components',
   'ProjectGitSettingsPanel.tsx',
 );
 const worktreeManagementPanelSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-ui',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitWorktreeManagementPanel.tsx',
 );
 const legacySettingsWorktreeManagementPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-settings',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-settings',
   'src',
   'components',
   'ProjectGitWorktreeManagementPanel.tsx',
 );
 const shellAppSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-shell',
+  
+  'sdkwork-birdcoder-pc-shell',
   'src',
   'application',
   'app',
@@ -76,7 +114,7 @@ assert.doesNotMatch(
 
 assert.match(
   projectGitSettingsPanelSource,
-  /import \{[\s\S]*ProjectGitOverviewPanel,[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
+  /import \{[\s\S]*ProjectGitOverviewPanel,[\s\S]*\} from '@sdkwork\/birdcoder-pc-ui';/s,
   'Settings Git runtime panel must reuse the shared ProjectGitOverviewPanel instead of manually wiring another Git overview state container.',
 );
 
@@ -118,13 +156,13 @@ assert.match(
 
 assert.match(
   worktreeManagementPanelSource,
-  /import \{[\s\S]*useProjectGitMutationActions,[\s\S]*useProjectGitOverview,[\s\S]*\} from '@sdkwork\/birdcoder-commons';/s,
+  /import \{[\s\S]*useProjectGitMutationActions,[\s\S]*useProjectGitOverview,[\s\S]*\} from '@sdkwork\/birdcoder-pc-commons';/s,
   'Worktree management panel must consume shared Git overview and mutation hooks from the commons package root.',
 );
 
 assert.match(
   worktreeManagementPanelSource,
-  /import \{[\s\S]*useToast[\s\S]*\} from '@sdkwork\/birdcoder-commons';/s,
+  /import \{[\s\S]*useToast[\s\S]*\} from '@sdkwork\/birdcoder-pc-commons';/s,
   'Worktree management panel must source toast behavior from the commons package root instead of a child entry.',
 );
 

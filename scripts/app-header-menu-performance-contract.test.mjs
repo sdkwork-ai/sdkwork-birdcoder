@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const appPath = new URL('../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx', import.meta.url);
+const appPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx', import.meta.url);
 const topMenuPath = new URL(
-  '../packages/sdkwork-birdcoder-ui-shell/src/components/TopMenu.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/TopMenu.tsx',
   import.meta.url,
 );
 const appWorkspaceMenuPath = new URL(
-  '../packages/sdkwork-birdcoder-shell/src/application/app/AppWorkspaceMenu.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/AppWorkspaceMenu.tsx',
   import.meta.url,
 );
 const headerLoadingPath = new URL(
-  '../packages/sdkwork-birdcoder-shell/src/application/app/HeaderLoadingStatus.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/HeaderLoadingStatus.tsx',
   import.meta.url,
 );
 

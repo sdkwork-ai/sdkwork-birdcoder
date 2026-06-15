@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import {
   buildBirdCoderCodingServerOpenApiDocument,
-} from '../packages/sdkwork-birdcoder-server/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
 
 function readJson(filePath: string) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

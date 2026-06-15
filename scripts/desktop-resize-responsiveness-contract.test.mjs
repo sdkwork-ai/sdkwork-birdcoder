@@ -1,61 +1,61 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const appPath = new URL('../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx', import.meta.url);
+const appPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx', import.meta.url);
 const codeEditorPath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/CodeEditor.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/CodeEditor.tsx',
   import.meta.url,
 );
 const diffEditorPath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/DiffEditor.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/DiffEditor.tsx',
   import.meta.url,
 );
 const codeEditorSurfacePath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/CodeEditorSurface.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorSurface.tsx',
   import.meta.url,
 );
 const codeEditorWorkspacePanelPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/CodeEditorWorkspacePanel.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx',
   import.meta.url,
 );
 const codeTerminalPanelPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/CodeTerminalIntegrationPanel.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeTerminalIntegrationPanel.tsx',
   import.meta.url,
 );
 const studioPagePath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx',
   import.meta.url,
 );
 const studioCodeWorkspacePanelPath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/pages/StudioCodeWorkspacePanel.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioCodeWorkspacePanel.tsx',
   import.meta.url,
 );
 const studioPreviewPanelPath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/preview/StudioPreviewPanel.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/StudioPreviewPanel.tsx',
   import.meta.url,
 );
 const studioSimulatorPanelPath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/simulator/StudioSimulatorPanel.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/simulator/StudioSimulatorPanel.tsx',
   import.meta.url,
 );
 const studioTerminalPanelPath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/pages/StudioTerminalIntegrationPanel.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioTerminalIntegrationPanel.tsx',
   import.meta.url,
 );
 const studioWorkspaceOverlaysPath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/pages/StudioWorkspaceOverlays.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioWorkspaceOverlays.tsx',
   import.meta.url,
 );
 const studioStageHeaderPath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/preview/StudioStageHeader.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/StudioStageHeader.tsx',
   import.meta.url,
 );
 const monacoRuntimePath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/monacoRuntime.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/monacoRuntime.ts',
   import.meta.url,
 );
 const resizeHandlePath = new URL(
-  '../packages/sdkwork-birdcoder-ui-shell/src/components/ResizeHandle.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/ResizeHandle.tsx',
   import.meta.url,
 );
 
@@ -154,7 +154,7 @@ assert.match(
 );
 assert.match(
   codeTerminalPanelSource,
-  /from ['"]@sdkwork\/birdcoder-ui-shell['"][\s\S]*ResizeHandle/u,
+  /from ['"]@sdkwork\/birdcoder-pc-ui-shell['"][\s\S]*ResizeHandle/u,
   'Code terminal integration panel must import the shared resize handle directly after removing the extra terminal frame wrapper.',
 );
 
@@ -201,7 +201,7 @@ assert.match(
 );
 assert.match(
   studioTerminalPanelSource,
-  /from ['"]@sdkwork\/birdcoder-ui-shell['"][\s\S]*ResizeHandle/u,
+  /from ['"]@sdkwork\/birdcoder-pc-ui-shell['"][\s\S]*ResizeHandle/u,
   'Studio terminal integration panel must import the shared resize handle directly after removing the extra terminal frame wrapper.',
 );
 

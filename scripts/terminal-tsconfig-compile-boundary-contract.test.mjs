@@ -10,18 +10,33 @@ function readSource(...segments) {
 }
 
 const codeTsconfigSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'tsconfig.json',
 );
 const studioTsconfigSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'tsconfig.json',
 );
 const terminalDesktopContractSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-commons',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'terminal',
   'contracts',

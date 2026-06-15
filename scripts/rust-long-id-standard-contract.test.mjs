@@ -10,11 +10,11 @@ function readText(relativePath) {
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
-const serverSource = readText('packages/sdkwork-birdcoder-server/src-host/src/lib.rs');
-const desktopSource = readText('packages/sdkwork-birdcoder-desktop/src-tauri/src/lib.rs');
-const iamAuthoritySource = readText('packages/sdkwork-birdcoder-server/src-host/src/iam_authority.rs');
+const serverSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs');
+const desktopSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs');
+const iamAuthoritySource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/iam_authority.rs');
 const bootstrapCatalogSource = readText(
-  'packages/sdkwork-birdcoder-infrastructure/src/storage/bootstrapConsoleCatalog.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/bootstrapConsoleCatalog.ts',
 );
 
 for (const [label, source, expectedPattern] of [

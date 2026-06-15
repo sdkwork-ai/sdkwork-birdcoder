@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { resolveSafePreviewUrl } from '../packages/sdkwork-birdcoder-ui-shell/src/components/previewUrlSecurity.ts';
+import { resolveSafePreviewUrl } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/previewUrlSecurity.ts';
 
 assert.equal(resolveSafePreviewUrl(''), 'about:blank');
 assert.equal(resolveSafePreviewUrl('   '), 'about:blank');
@@ -17,19 +17,19 @@ assert.equal(resolveSafePreviewUrl('/relative-preview'), 'about:blank');
 assert.equal(resolveSafePreviewUrl('//example.com/preview'), 'about:blank');
 
 const devicePreviewSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui-shell/src/components/DevicePreview.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/DevicePreview.tsx', import.meta.url),
   'utf8',
 );
 const multiWindowPaneSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-multiwindow/src/components/MultiWindowPane.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-multiwindow/src/components/MultiWindowPane.tsx', import.meta.url),
   'utf8',
 );
 const studioExecutionActionsSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
   'utf8',
 );
 const uiShellRootSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui-shell/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/index.ts', import.meta.url),
   'utf8',
 );
 
@@ -60,7 +60,7 @@ assert.match(
 );
 assert.match(
   studioExecutionActionsSource,
-  /import \{ resolveSafePreviewUrl \} from '@sdkwork\/birdcoder-ui-shell';/,
+  /import \{ resolveSafePreviewUrl \} from '@sdkwork\/birdcoder-pc-ui-shell';/,
   'Studio execution actions must use the shared preview URL sanitizer for launched preview targets.',
 );
 assert.match(

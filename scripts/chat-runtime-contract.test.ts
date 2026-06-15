@@ -4,12 +4,12 @@ import {
   mergePromptEntryRecord,
   normalizePromptEntryRecords,
   normalizeSessionChatInputHistory,
-} from '../packages/sdkwork-birdcoder-commons/src/chat/persistence.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/chat/persistence.ts';
 import {
   getWorkbenchCodeEngineDefinition,
   normalizeWorkbenchCodeModelId,
   resolveWorkbenchChatSelection,
-} from '../packages/sdkwork-birdcoder-codeengine/src/preferences.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/preferences.ts';
 
 assert.deepEqual(getWorkbenchCodeEngineDefinition('gemini').modelIds, [
   'auto-gemini-3',

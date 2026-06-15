@@ -2,27 +2,27 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const codePagePath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
   import.meta.url,
 );
 const sidebarPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/components/Sidebar.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx',
   import.meta.url,
 );
 const workspacePanelPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/CodeEditorWorkspacePanel.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx',
   import.meta.url,
 );
 const workspacePanelTypesPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/codeEditorWorkspacePanel.types.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeEditorWorkspacePanel.types.ts',
   import.meta.url,
 );
 const codeLocalFolderImportHookPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/useCodeLocalFolderProjectImport.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
   import.meta.url,
 );
 const fileExplorerPath = new URL(
-  '../packages/sdkwork-birdcoder-ui/src/components/FileExplorer.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx',
   import.meta.url,
 );
 

@@ -41,7 +41,7 @@ function resolveWindowsPowerShellExecutablePath({
 function parseArgs(argv = []) {
   const tokens = Array.isArray(argv) ? [...argv] : [];
   let srcTauriDir = 'src-tauri';
-  let binaryName = 'sdkwork-birdcoder-desktop';
+  let binaryName = 'sdkwork-birdcoder-pc-desktop';
 
   while (tokens.length > 0) {
     const token = String(tokens.shift() ?? '').trim();

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
-import { resolveHostStudioPreviewSession } from '../packages/sdkwork-birdcoder-host-studio/src/index.ts';
+import { resolveHostStudioPreviewSession } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/src/index.ts';
 
 const runtimeModulePath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/preview/runtime.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/runtime.ts',
   import.meta.url,
 );
 
@@ -18,7 +18,7 @@ const {
   STUDIO_PREVIEW_EXECUTION_ADAPTER_ID,
   buildStudioPreviewExecutionEvidence,
   resolveStudioPreviewExecutionLaunch,
-} = await import('../packages/sdkwork-birdcoder-studio/src/preview/runtime.ts');
+} = await import('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/runtime.ts');
 
 const previewSession = resolveHostStudioPreviewSession(
   {
@@ -165,7 +165,7 @@ assert.deepEqual(blockedLaunch.blockedAction, {
 });
 
 const previewRuntimeSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/preview/runtime.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/runtime.ts', import.meta.url),
   'utf8',
 );
 assert.match(
@@ -174,11 +174,11 @@ assert.match(
 );
 
 const studioPageSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
 const studioExecutionHookSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioExecutionActions.ts', import.meta.url),
   'utf8',
 );
 assert.equal(

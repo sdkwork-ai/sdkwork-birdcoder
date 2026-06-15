@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 const source = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-ui/src/components/useVirtualizedTranscriptWindow.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/useVirtualizedTranscriptWindow.ts',
     import.meta.url,
   ),
   'utf8',

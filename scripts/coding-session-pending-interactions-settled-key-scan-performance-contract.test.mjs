@@ -5,8 +5,13 @@ import process from 'node:process';
 
 const projectionHookPath = path.join(
   process.cwd(),
-  'packages',
-  'sdkwork-birdcoder-commons',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'hooks',
   'useCodingSessionProjection.ts',

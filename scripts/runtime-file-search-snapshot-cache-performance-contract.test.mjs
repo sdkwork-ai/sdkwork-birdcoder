@@ -6,7 +6,7 @@ const rootDir = process.cwd();
 const runtimeFileSystemServiceSource = fs.readFileSync(
   path.join(
     rootDir,
-    'packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
   ),
   'utf8',
 );

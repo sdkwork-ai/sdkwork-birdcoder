@@ -6,7 +6,7 @@ import {
   resolveEarlierTranscriptStartIndex,
   resolveInitialVisibleTranscriptStartIndex,
   shouldLoadEarlierTranscriptPage,
-} from '../packages/sdkwork-birdcoder-ui/src/components/transcriptPagination.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptPagination.ts';
 
 assert.equal(
   resolveInitialVisibleTranscriptStartIndex(INITIAL_TRANSCRIPT_RENDER_COUNT - 1),

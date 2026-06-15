@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 
-import type { LocalFolderMountSource } from '../packages/sdkwork-birdcoder-types/src/index.ts';
+import type { LocalFolderMountSource } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const modulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/localFolderProjectImport.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/localFolderProjectImport.ts',
   import.meta.url,
 );
 

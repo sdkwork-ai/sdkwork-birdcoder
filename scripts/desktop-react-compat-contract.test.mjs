@@ -6,14 +6,17 @@ import { createDesktopConfiguredViteServer } from './desktop-standard-vite-serve
 import { fetchDesktopCompatibilityProbe } from './run-desktop-vite-host.mjs';
 
 const rootDir = process.cwd();
-const desktopRootDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
+const desktopRootDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop');
 const appEntryPath = path.join(rootDir, 'src', 'App.tsx');
 const desktopRequire = createRequire(path.join(desktopRootDir, 'package.json'));
 const rootRequire = createRequire(path.join(rootDir, 'package.json'));
 const shellBootstrapEntryPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-shell-runtime',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-shell-runtime',
   'src',
   'application',
   'bootstrap',
@@ -21,8 +24,11 @@ const shellBootstrapEntryPath = path.join(
 );
 const pageLoadersEntryPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-shell',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-shell',
   'src',
   'application',
   'app',
@@ -33,6 +39,8 @@ const terminalDesktopEntryPath = path.join(
   '..',
   'sdkwork-terminal',
   'apps',
+  'sdkwork-terminal-pc',
+  'apps',
   'desktop',
   'src',
   'index.ts',
@@ -41,12 +49,14 @@ const terminalInfrastructureEntryPath = path.join(
   rootDir,
   '..',
   'sdkwork-terminal',
+  'apps',
+  'sdkwork-terminal-pc',
   'packages',
-  'sdkwork-terminal-infrastructure',
+  'sdkwork-terminal-pc-infrastructure',
   'src',
   'index.ts',
 );
-const uiRequire = createRequire(path.join(rootDir, 'packages', 'sdkwork-birdcoder-ui', 'package.json'));
+const uiRequire = createRequire(path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-ui', 'package.json'));
 
 function toFsUrl(filePath) {
   return `/@fs/${filePath.replace(/\\/g, '/')}`;

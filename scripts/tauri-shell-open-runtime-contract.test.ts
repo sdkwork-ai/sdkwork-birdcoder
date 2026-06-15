@@ -4,17 +4,17 @@ import fs from 'node:fs';
 const rootPackageJsonPath = new URL('../package.json', import.meta.url);
 const workspaceLockPath = new URL('../pnpm-lock.yaml', import.meta.url);
 const commonsIndexPath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/index.ts',
   import.meta.url,
 );
 const tauriShellModulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/platform/tauriShell.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/platform/tauriShell.ts',
   import.meta.url,
 );
 const sourcePaths = [
-  '../packages/sdkwork-birdcoder-code/src/pages/useCodeWorkbenchCommands.ts',
-  '../packages/sdkwork-birdcoder-studio/src/pages/useStudioWorkbenchEventBindings.ts',
-  '../packages/sdkwork-birdcoder-shell/src/application/app/BirdcoderApp.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeWorkbenchCommands.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioWorkbenchEventBindings.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx',
 ];
 
 const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf8'));

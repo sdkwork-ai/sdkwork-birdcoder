@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict';
 
 const dataKernelModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
   import.meta.url,
 );
 const sqlExecutorModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlExecutor.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlExecutor.ts',
   import.meta.url,
 );
 const providersModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
   import.meta.url,
 );
 const evidenceRepositoryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/promptSkillTemplateEvidenceRepository.ts',
   import.meta.url,
 );
 

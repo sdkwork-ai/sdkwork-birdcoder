@@ -1,0 +1,12 @@
+# BirdCoder Container Production Config
+
+[server]
+bind = "0.0.0.0:10240"
+environment = "production"
+
+[database]
+type = "postgresql"
+url = "${DATABASE_URL}"
+
+[logging]
+level = "warn"

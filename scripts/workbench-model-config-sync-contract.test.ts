@@ -4,20 +4,20 @@ import {
   BIRDCODER_CODE_ENGINE_MODEL_CONFIG_HOME_RELATIVE_PATH,
   buildDefaultBirdCoderCodeEngineModelConfig,
   createBirdCoderCodeEngineModelConfigSyncPlan,
-} from '../packages/sdkwork-birdcoder-codeengine/src/modelConfig.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/modelConfig.ts';
 import {
   syncWorkbenchCodeEngineModelConfig,
-} from '../packages/sdkwork-birdcoder-commons/src/workbench/preferences.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts';
 import {
   deserializeStoredValue,
   readUserHomeTextFile,
   serializeStoredValue,
   writeUserHomeTextFile,
-} from '../packages/sdkwork-birdcoder-commons/src/storage/dataKernel.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/storage/dataKernel.ts';
 import type {
   BirdCoderCodeEngineModelConfig,
   BirdCoderSyncCodeEngineModelConfigRequest,
-} from '../packages/sdkwork-birdcoder-types/src/engine.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/engine.ts';
 
 function withCodexModel(
   config: BirdCoderCodeEngineModelConfig,

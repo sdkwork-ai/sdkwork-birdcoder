@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { mergeProjectsForStore } from '../packages/sdkwork-birdcoder-commons/src/stores/projectsStore.ts';
+import { mergeProjectsForStore } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/projectsStore.ts';
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderProject,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 function buildMessage(
   overrides: Partial<BirdCoderChatMessage> = {},

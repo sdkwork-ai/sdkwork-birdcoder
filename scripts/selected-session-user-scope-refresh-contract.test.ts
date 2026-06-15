@@ -2,19 +2,24 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { refreshCodingSessionMessages } from '../packages/sdkwork-birdcoder-commons/src/workbench/sessionRefresh.ts';
+import { refreshCodingSessionMessages } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionRefresh.ts';
 import type {
   BirdCoderCodingSession,
   BirdCoderCodingSessionSummary,
   BirdCoderProject,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 const rootDir = process.cwd();
 const selectedMessagesHookSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-commons',
+    
+    'sdkwork-birdcoder-pc-commons',
     'src',
     'hooks',
     'useSelectedCodingSessionMessages.ts',
@@ -24,8 +29,13 @@ const selectedMessagesHookSource = fs.readFileSync(
 const sessionRefreshSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-commons',
+    
+    'sdkwork-birdcoder-pc-commons',
     'src',
     'workbench',
     'sessionRefresh.ts',
@@ -35,8 +45,13 @@ const sessionRefreshSource = fs.readFileSync(
 const sessionRefreshActionsSource = fs.readFileSync(
   path.join(
     rootDir,
+    'apps',
+    
+    'sdkwork-birdcoder-pc',
+    
     'packages',
-    'sdkwork-birdcoder-commons',
+    
+    'sdkwork-birdcoder-pc-commons',
     'src',
     'hooks',
     'useSessionRefreshActions.ts',

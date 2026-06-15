@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 const headerLoadingStatusSource = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-shell/src/application/app/HeaderLoadingStatus.tsx',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/HeaderLoadingStatus.tsx',
     import.meta.url,
   ),
   'utf8',

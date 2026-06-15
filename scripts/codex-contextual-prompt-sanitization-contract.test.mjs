@@ -3,14 +3,14 @@ import fs from 'node:fs';
 
 const turnsSource = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-codeengine/src-host/src/turns.rs',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/turns.rs',
     import.meta.url,
   ),
   'utf8',
 );
 const codexSessionsSource = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-codeengine/src-host/src/codex_sessions.rs',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/codex_sessions.rs',
     import.meta.url,
   ),
   'utf8',

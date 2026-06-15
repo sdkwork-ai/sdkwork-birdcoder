@@ -2,22 +2,22 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import type {
   BirdCoderChatMessage,
-} from '@sdkwork/birdcoder-types';
-import { ProviderBackedProjectService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts';
-import { createBirdCoderConsoleRepositories } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts';
+} from '@sdkwork/birdcoder-pc-types';
+import { ProviderBackedProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedProjectService.ts';
+import { createBirdCoderConsoleRepositories } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts';
 import {
   createBirdCoderCodingSessionRepositories,
   type BirdCoderPersistedCodingSessionRecord,
   type BirdCoderCodingSessionRepositories,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionRepository.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts';
 import {
   createBirdCoderInMemorySqlExecutor,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlExecutor.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlExecutor.ts';
 import {
   createBirdCoderStorageProvider,
   type BirdCoderSqlPlanStorageAccess,
   type BirdCoderStorageAccess,
-} from '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts';
 
 const workspaceId = 'workspace-batch-loading';
 const projectId = 'project-batch-loading';
@@ -176,7 +176,7 @@ assert.deepEqual(
 );
 
 const codingSessionRepositorySource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-infrastructure/src/storage/codingSessionRepository.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts', import.meta.url),
   'utf8',
 );
 const listMessagesMethodStart = codingSessionRepositorySource.indexOf(

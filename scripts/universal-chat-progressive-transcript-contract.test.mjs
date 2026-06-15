@@ -6,16 +6,22 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const universalChatPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-ui',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'UniversalChat.tsx',
 );
 const progressiveTranscriptHookPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-ui',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'useProgressiveTranscriptWindow.ts',

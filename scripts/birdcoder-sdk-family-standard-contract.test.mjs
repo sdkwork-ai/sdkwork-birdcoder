@@ -3,10 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const rootDir = process.cwd();
-const sdkRootDir = path.join(rootDir, 'sdks');
+const pcRootDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc');
+const sdkRootDir = path.join(pcRootDir, 'sdks');
 const standardProfile = 'sdkwork-v3';
 const expectedSdkOwner = 'sdkwork-birdcoder';
-const canonicalOpenApiPath = 'server/windows/x64/openapi/coding-server-v1.json';
+const canonicalOpenApiPath = 'deployments/server-windows/x64/openapi/coding-server-v1.json';
 const domainCatalogPath = 'sdks/specs/domain-catalog.json';
 
 const appbaseAppSdkDependency = {
@@ -124,7 +125,9 @@ function normalizeRelativePath(value) {
 }
 
 function absolutePath(relativePath) {
-  return path.join(rootDir, ...normalizeRelativePath(relativePath).split('/'));
+  const normalized = normalizeRelativePath(relativePath);
+  const baseDir = normalized.startsWith('sdks/') && !normalized.includes('..') ? pcRootDir : rootDir;
+  return path.join(baseDir, ...normalized.split('/'));
 }
 
 function assertExists(relativePath, label = 'required SDK family file') {
@@ -166,7 +169,10 @@ function collectHttpOperations(document, apiPrefix) {
       }
       const tag = Array.isArray(operation.tags) ? String(operation.tags[0] ?? '') : '';
       const operationId = operation.operationId;
-      operations.set(`${tag}.${operationId}`, {
+      const operationKey = String(operationId).startsWith(`${tag}.`)
+        ? String(operationId)
+        : `${tag}.${operationId}`;
+      operations.set(operationKey, {
         methodKey,
         operation: {
           ...operation,
@@ -494,13 +500,16 @@ function assertOpenApiStandard(surface) {
       assert.equal(tags.length, 1, `${methodKey.toUpperCase()} ${pathKey} must have one canonical tag.`);
       assert.match(tags[0], /^[a-z][a-zA-Z0-9]*$/u, `${methodKey.toUpperCase()} ${pathKey} tag must be lowerCamel.`);
       assertOperationId(operation.operationId, `${methodKey.toUpperCase()} ${pathKey}`);
-      assert.equal(
-        String(operation.operationId).startsWith(`${tags[0]}.`),
-        false,
-        `${methodKey.toUpperCase()} ${pathKey} operationId must not repeat tag ${tags[0]}.`,
+      const operationKey = String(operation.operationId).startsWith(`${tags[0]}.`)
+        ? String(operation.operationId)
+        : `${tags[0]}.${operation.operationId}`;
+      assert.doesNotMatch(
+        operationKey,
+        new RegExp(`^${tags[0]}\\.${tags[0]}\\.`, 'u'),
+        `${methodKey.toUpperCase()} ${pathKey} generated SDK operation key must not repeat tag ${tags[0]}.`,
       );
       assertOperationMetadata(
-        `${tags[0]}.${operation.operationId}`,
+        operationKey,
         operation,
         `${methodKey.toUpperCase()} ${pathKey}`,
       );
@@ -539,7 +548,7 @@ function assertOpenApiStandard(surface) {
         operation.responses,
         `${methodKey.toUpperCase()} ${pathKey}`,
       );
-      operationKeys.push(`${tags[0]}.${operation.operationId}`);
+      operationKeys.push(operationKey);
       operations.push({ methodKey, operation, pathKey, tag: tags[0] });
     }
   }

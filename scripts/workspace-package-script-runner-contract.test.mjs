@@ -20,7 +20,7 @@ function createTempWorkspacePackage({ script }) {
     path.join(packageDir, 'package.json'),
     JSON.stringify(
       {
-        name: '@sdkwork/birdcoder-runner-fixture',
+        name: '@sdkwork/birdcoder-pc-runner-fixture',
         private: true,
         scripts: {
           dev: script,
@@ -75,7 +75,7 @@ export function runWorkspacePackageScriptRunnerContract() {
 
   {
     const plan = createWorkspacePackageScriptPlan({
-      packageDir: 'packages/sdkwork-birdcoder-web',
+      packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
       scriptName: 'dev',
       workspaceRootDir: rootDir,
       platform: 'win32',
@@ -88,14 +88,14 @@ export function runWorkspacePackageScriptRunnerContract() {
     );
     assert.deepEqual(
       plan.args,
-      ['../../scripts/run-birdcoder-dev-stack.mjs', 'web', '--iam-mode', 'server-private'],
+      ['../../../../scripts/run-birdcoder-dev-stack.mjs', 'web', '--iam-mode', 'server-private'],
       'Workspace package-script runner must preserve the BirdCoder web dev command arguments when the package script routes private development through the server+client stack.',
     );
   }
 
   {
     const plan = createWorkspacePackageScriptPlan({
-      packageDir: 'packages/sdkwork-birdcoder-server',
+      packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server',
       scriptName: 'dev:base',
       workspaceRootDir: rootDir,
       platform: 'win32',

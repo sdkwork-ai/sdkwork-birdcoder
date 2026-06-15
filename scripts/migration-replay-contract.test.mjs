@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 
-const dataModulePath = new URL('../packages/sdkwork-birdcoder-types/src/data.ts', import.meta.url);
+const dataModulePath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts', import.meta.url);
 const providersModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
   import.meta.url,
 );
 

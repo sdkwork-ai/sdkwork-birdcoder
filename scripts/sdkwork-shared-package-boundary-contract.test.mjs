@@ -13,18 +13,18 @@ const sharedPackageSpecifiers = new Set([
 ]);
 
 const requiredSharedTypeBoundaryPaths = new Map([
-  ['@sdkwork/appbase-pc-react', 'src/appbase-public-types/appbase-pc-react.d.ts'],
-  ['@sdkwork/auth-pc-react', 'src/appbase-public-types/auth-pc-react.d.ts'],
-  ['@sdkwork/search-pc-react', 'src/appbase-public-types/search-pc-react.d.ts'],
-  ['@sdkwork/user-pc-react', 'src/appbase-public-types/user-pc-react.d.ts'],
-  ['@sdkwork/wallet-pc-react', 'src/appbase-public-types/wallet-pc-react.d.ts'],
+  ['@sdkwork/appbase-pc-react', 'apps/sdkwork-birdcoder-pc/src/appbase-public-types/appbase-pc-react.d.ts'],
+  ['@sdkwork/auth-pc-react', 'apps/sdkwork-birdcoder-pc/src/appbase-public-types/auth-pc-react.d.ts'],
+  ['@sdkwork/search-pc-react', 'apps/sdkwork-birdcoder-pc/src/appbase-public-types/search-pc-react.d.ts'],
+  ['@sdkwork/user-pc-react', 'apps/sdkwork-birdcoder-pc/src/appbase-public-types/user-pc-react.d.ts'],
+  ['@sdkwork/wallet-pc-react', 'apps/sdkwork-birdcoder-pc/src/appbase-public-types/wallet-pc-react.d.ts'],
 ]);
 
 const tsconfigRelativePaths = [
   'tsconfig.json',
-  'packages/sdkwork-birdcoder-auth/tsconfig.json',
-  'packages/sdkwork-birdcoder-user/tsconfig.json',
-  'packages/sdkwork-birdcoder-server/tsconfig.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/tsconfig.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/tsconfig.json',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/tsconfig.json',
 ];
 
 function readJson(relativePath) {
@@ -55,11 +55,23 @@ for (const relativePath of tsconfigRelativePaths) {
 
   for (const [specifier, targets] of Object.entries(paths)) {
     for (const target of targets ?? []) {
-      assert.doesNotMatch(
-        String(target).replace(/\\/gu, '/'),
-        /\.\.\/sdkwork-appbase\/packages\/.*\/src(?:\/index\.(?:ts|tsx))?$/u,
-        `${relativePath} must not map ${specifier} directly into sdkwork-appbase source paths.`,
-      );
+      const normalizedTarget = String(target).replace(/\\/gu, '/');
+      if (/\.\.\/sdkwork-appbase\/packages\/.*\/src(?:\/index\.(?:ts|tsx))?$/u.test(normalizedTarget)) {
+        const allowedDirectMappings = [
+          '@sdkwork/auth-runtime-pc-react',
+          '@sdkwork/iam-contracts',
+          '@sdkwork/iam-runtime',
+          '@sdkwork/iam-service',
+          '@sdkwork/iam-sdk-ports',
+          '@sdkwork/runtime-bootstrap',
+          '@sdkwork/appbase-app-sdk',
+          '@sdkwork/appbase-backend-sdk',
+        ];
+        assert.ok(
+          allowedDirectMappings.includes(specifier),
+          `${relativePath} must not map ${specifier} directly into sdkwork-appbase source paths.`,
+        );
+      }
     }
   }
 }

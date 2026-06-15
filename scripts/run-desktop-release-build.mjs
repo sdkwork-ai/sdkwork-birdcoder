@@ -11,15 +11,15 @@ import { normalizeViteMode } from './run-vite-host.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
-const desktopPackageDir = path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop');
+const desktopPackageDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop');
 
 function resolveDesktopTauriConfigPath(viteMode = 'production') {
   const normalizedMode = normalizeViteMode(viteMode, 'production');
   if (normalizedMode === 'test') {
-    return path.join('packages', 'sdkwork-birdcoder-desktop', 'src-tauri', 'tauri.test.conf.json');
+    return path.join('apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop', 'src-tauri', 'tauri.test.conf.json');
   }
 
-  return path.join('packages', 'sdkwork-birdcoder-desktop', 'src-tauri', 'tauri.conf.json');
+  return path.join('apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop', 'src-tauri', 'tauri.conf.json');
 }
 
 function normalizeBundleTargets(value) {

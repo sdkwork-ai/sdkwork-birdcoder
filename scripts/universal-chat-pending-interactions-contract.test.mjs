@@ -9,21 +9,21 @@ function readText(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const universalChatSource = readText('packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx');
+const universalChatSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx');
 const pendingInteractionsSource = fs.existsSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-ui/src/components/UniversalChatPendingInteractions.tsx'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatPendingInteractions.tsx'),
 )
-  ? readText('packages/sdkwork-birdcoder-ui/src/components/UniversalChatPendingInteractions.tsx')
+  ? readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatPendingInteractions.tsx')
   : '';
-const codePageSource = readText('packages/sdkwork-birdcoder-code/src/pages/CodePage.tsx');
+const codePageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx');
 const codePendingInteractionsSource = readText(
-  'packages/sdkwork-birdcoder-code/src/pages/useCodePendingInteractions.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePendingInteractions.ts',
 );
-const codeSurfacePropsSource = readText('packages/sdkwork-birdcoder-code/src/pages/useCodePageSurfaceProps.ts');
-const editorPanelTypesSource = readText('packages/sdkwork-birdcoder-code/src/pages/codeEditorWorkspacePanel.types.ts');
-const editorPanelSource = readText('packages/sdkwork-birdcoder-code/src/pages/CodeEditorWorkspacePanel.tsx');
-const studioPageSource = readText('packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx');
-const studioSidebarSource = readText('packages/sdkwork-birdcoder-studio/src/pages/StudioChatSidebar.tsx');
+const codeSurfacePropsSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts');
+const editorPanelTypesSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeEditorWorkspacePanel.types.ts');
+const editorPanelSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx');
+const studioPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx');
+const studioSidebarSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx');
 
 assert.match(
   universalChatSource,

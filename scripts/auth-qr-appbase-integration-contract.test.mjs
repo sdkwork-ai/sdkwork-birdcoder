@@ -15,36 +15,61 @@ function readAppbaseText(...segments) {
 }
 
 const authPageSource = readText(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-auth',
+  
+  'sdkwork-birdcoder-pc-auth',
   'src',
   'pages',
   'AuthPage.tsx',
 );
 const authSurfaceSource = readText(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-auth',
+  
+  'sdkwork-birdcoder-pc-auth',
   'src',
   'auth-surface.ts',
 );
 const iamRuntimeSource = readText(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-infrastructure',
+  
+  'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
   'iamRuntime.ts',
 );
 const vitePluginSource = readText('scripts', 'create-birdcoder-vite-plugins.mjs');
 const iamAuthoritySource = readText(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-server',
+  
+  'sdkwork-birdcoder-pc-server',
   'src-host',
   'src',
   'iam_authority.rs',
 );
 const serverLibSource = readText(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-server',
+  
+  'sdkwork-birdcoder-pc-server',
   'src-host',
   'src',
   'lib.rs',
@@ -66,7 +91,7 @@ const sharedAuthRuntimeSource = readAppbaseText(
   'src',
   'auth-iam-runtime.ts',
 );
-const appbaseAppOpenPlatformSdkSource = readAppbaseText(
+const appbaseAppOauthSdkSource = readAppbaseText(
   'sdks',
   'sdkwork-appbase-app-sdk',
   'sdkwork-appbase-app-sdk-typescript',
@@ -74,7 +99,7 @@ const appbaseAppOpenPlatformSdkSource = readAppbaseText(
   'server-openapi',
   'src',
   'api',
-  'open-platform.ts',
+  'oauth.ts',
 );
 
 assert.match(
@@ -144,19 +169,19 @@ assert.doesNotMatch(
   'BirdCoder IAM runtime must not use a BirdCoder product SDK QR adapter as the appbase login authority.',
 );
 assert.match(
-  appbaseAppOpenPlatformSdkSource,
-  /retrieve\(sessionKey:\s*string\)/u,
-  'sdkwork-appbase generated app SDK must expose QR session retrieve(sessionKey) directly.',
+  appbaseAppOauthSdkSource,
+  /retrieve\(deviceAuthorizationId:\s*string\)/u,
+  'sdkwork-appbase generated app SDK must expose OAuth device authorization retrieve(deviceAuthorizationId) directly.',
 );
 assert.match(
-  appbaseAppOpenPlatformSdkSource,
-  /scans[\s\S]*create\(sessionKey:\s*string,\s*body/u,
-  'sdkwork-appbase generated app SDK must expose QR scan creation with semantic sessionKey arguments.',
+  appbaseAppOauthSdkSource,
+  /scans[\s\S]*create\(deviceAuthorizationId:\s*string,\s*body/u,
+  'sdkwork-appbase generated app SDK must expose OAuth device authorization scan creation with semantic deviceAuthorizationId arguments.',
 );
 assert.match(
-  appbaseAppOpenPlatformSdkSource,
-  /passwords[\s\S]*create\(sessionKey:\s*string,\s*body/u,
-  'sdkwork-appbase generated app SDK must expose QR password completion with semantic sessionKey arguments.',
+  appbaseAppOauthSdkSource,
+  /OauthDeviceAuthorizationsPasswordCompletionsApi[\s\S]*create\(deviceAuthorizationId:\s*string,\s*body/u,
+  'sdkwork-appbase generated app SDK must expose OAuth device authorization password completion with semantic deviceAuthorizationId arguments.',
 );
 
 assert.doesNotMatch(

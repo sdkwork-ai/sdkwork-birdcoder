@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
-import { createBirdCoderInProcessAppRuntimeTransport } from '../packages/sdkwork-birdcoder-infrastructure/src/services/appRuntimeTransport.ts';
-import { createBirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import { createBirdCoderInProcessAppRuntimeTransport } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts';
+import { createBirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 
 const transport = createBirdCoderInProcessAppRuntimeTransport({
   projectService: {} as never,

@@ -8,73 +8,97 @@ const rootPackageJsonPath = path.join(rootDir, 'package.json');
 const npmrcPath = path.join(rootDir, '.npmrc');
 const desktopPackageJsonPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'package.json',
 );
 const tauriConfigPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'tauri.conf.json',
 );
 const desktopCargoTomlPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'Cargo.toml',
 );
 const desktopCargoLockPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
-  'src-tauri',
   'Cargo.lock',
 );
 const desktopBuildRsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'build.rs',
 );
 const desktopLibRsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'src',
   'lib.rs',
 );
 const desktopCapabilityPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'capabilities',
   'default.json',
 );
 const desktopAppPermissionsPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'permissions',
   'default.toml',
 );
 const tauriTestConfigPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'tauri.test.conf.json',
 );
 const desktopViteConfigPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'vite.config.ts',
 );
 const desktopViteHostPath = path.join(rootDir, 'scripts', 'run-desktop-vite-host.mjs');
@@ -86,8 +110,11 @@ const tauriTargetCleanScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri-t
 const workspacePackageScriptRunnerPath = path.join(rootDir, 'scripts', 'run-workspace-package-script.mjs');
 const appSourcePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-shell',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-shell',
   'src',
   'application',
   'app',
@@ -95,8 +122,11 @@ const appSourcePath = path.join(
 );
 const appWorkspaceMenuSourcePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-shell',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-shell',
   'src',
   'application',
   'app',
@@ -104,22 +134,31 @@ const appWorkspaceMenuSourcePath = path.join(
 );
 const codeTopBarPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-code',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'components',
   'TopBar.tsx',
 );
 const desktopIndexHtmlPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'index.html',
 );
 const desktopFaviconPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-desktop',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-desktop',
   'public',
   'favicon.ico',
 );
@@ -223,32 +262,32 @@ assert.match(
 
 assert.equal(
   rootPackageJson.scripts['tauri:dev'],
-  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:dev',
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:dev',
   'Root tauri:dev must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.equal(
   rootPackageJson.scripts['tauri:dev:test'],
-  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:dev:test',
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:dev:test',
   'Root tauri:dev:test must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.equal(
   rootPackageJson.scripts['tauri:build'],
-  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:build',
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:build',
   'Root tauri:build must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.equal(
   rootPackageJson.scripts['tauri:build:test'],
-  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:build:test',
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:build:test',
   'Root tauri:build:test must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.equal(
   rootPackageJson.scripts['tauri:build:prod'],
-  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:build:prod',
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:build:prod',
   'Root tauri:build:prod must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.equal(
   rootPackageJson.scripts['tauri:info'],
-  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-desktop tauri:info',
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:info',
   'Root tauri:info must enter the desktop package through the bounded workspace package-script runner instead of reopening pnpm --dir on Windows.',
 );
 assert.ok(
@@ -542,7 +581,7 @@ assert.deepEqual(
 );
 for (const relativeIconPath of desktopTauriIconPaths) {
   assert.ok(
-    fs.existsSync(path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'src-tauri', relativeIconPath)),
+    fs.existsSync(path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop', 'src-tauri', relativeIconPath)),
     `Desktop Tauri bundle icon asset is missing: ${relativeIconPath}.`,
   );
 }
@@ -605,7 +644,7 @@ assert.match(
 );
 assert.match(
   desktopCargoTomlSource,
-  /^sdkwork-birdcoder-server\s*=\s*\{\s*path\s*=\s*"\.\.\/\.\.\/sdkwork-birdcoder-server\/src-host"\s*\}$/m,
+  /^sdkwork-birdcoder-server\s*=\s*\{\s*workspace\s*=\s*true\s*\}$/m,
   'Desktop Cargo manifest must depend on the local sdkwork-birdcoder-server crate so the desktop shell can bootstrap the embedded localhost API without requiring a separately managed sidecar process.',
 );
 assert.doesNotMatch(

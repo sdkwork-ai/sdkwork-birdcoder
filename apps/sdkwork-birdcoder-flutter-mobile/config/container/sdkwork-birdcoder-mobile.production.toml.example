@@ -1,0 +1,12 @@
+# BirdCoder Flutter Container Production Config
+
+[server]
+bind = "0.0.0.0:3000"
+environment = "production"
+
+[database]
+type = "postgresql"
+url = "${DATABASE_URL}"
+
+[logging]
+level = "warn"

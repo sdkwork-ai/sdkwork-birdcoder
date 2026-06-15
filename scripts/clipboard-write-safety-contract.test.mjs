@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const rootDir = process.cwd();
 const packagesDir = path.join(rootDir, 'packages');
-const clipboardUtilityRelativePath = 'packages/sdkwork-birdcoder-ui/src/components/clipboard.ts';
+const clipboardUtilityRelativePath = 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/clipboard.ts';
 const clipboardUtilityPath = path.join(rootDir, clipboardUtilityRelativePath);
 
 function listSourceFiles(directory) {
@@ -64,7 +64,7 @@ assert.deepEqual(
 );
 
 const uiRootSource = fs.readFileSync(
-  path.join(rootDir, 'packages/sdkwork-birdcoder-ui/src/index.ts'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/index.ts'),
   'utf8',
 );
 assert.match(

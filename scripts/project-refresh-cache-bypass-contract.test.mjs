@@ -10,22 +10,22 @@ function read(relativePath) {
 }
 
 const commonsProjectServiceSource = read(
-  'packages/sdkwork-birdcoder-commons/src/services/interfaces/IProjectService.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/interfaces/IProjectService.ts',
 );
 const infrastructureProjectServiceSource = read(
-  'packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IProjectService.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IProjectService.ts',
 );
 const useProjectsSource = read(
-  'packages/sdkwork-birdcoder-commons/src/hooks/useProjects.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useProjects.ts',
 );
 const sessionRefreshSource = read(
-  'packages/sdkwork-birdcoder-commons/src/workbench/sessionRefresh.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionRefresh.ts',
 );
 const importedProjectHydrationSource = read(
-  'packages/sdkwork-birdcoder-commons/src/workbench/importedProjectHydration.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/importedProjectHydration.ts',
 );
 const apiBackedProjectServiceSource = read(
-  'packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts',
 );
 
 assert.match(

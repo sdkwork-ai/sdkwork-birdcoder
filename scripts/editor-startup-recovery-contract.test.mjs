@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const editorRecoveryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/editorRecovery.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/editorRecovery.ts',
   import.meta.url,
 );
 const fileSystemHookPath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/hooks/useFileSystem.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useFileSystem.ts',
   import.meta.url,
 );
 

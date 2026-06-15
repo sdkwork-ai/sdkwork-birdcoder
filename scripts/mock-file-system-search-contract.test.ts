@@ -5,16 +5,26 @@ import path from 'node:path';
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
 const fileSearchFacadePath = path.join(
   workspaceRoot,
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-commons',
+  
+  'sdkwork-birdcoder-pc-commons',
   'src',
   'workbench',
   'fileSearch.ts',
 );
 const runtimeFileSystemServicePath = path.join(
   workspaceRoot,
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-infrastructure',
+  
+  'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
   'impl',
@@ -26,7 +36,7 @@ const runtimeFileSystemServiceSource = fs.readFileSync(runtimeFileSystemServiceP
 
 assert.match(
   fileSearchFacadeSource,
-  /export\s+\{\s*searchProjectFiles\s*\}\s+from\s+'@sdkwork\/birdcoder-types';/u,
+  /export\s+\{\s*searchProjectFiles\s*\}\s+from\s+'@sdkwork\/birdcoder-pc-types';/u,
   'file search facade must re-export the canonical types-layer implementation instead of hosting a page-local mock search path.',
 );
 
@@ -44,7 +54,7 @@ assert.match(
 
 assert.match(
   runtimeFileSystemServiceSource,
-  /from\s+'@sdkwork\/birdcoder-types';/u,
+  /from\s+'@sdkwork\/birdcoder-pc-types';/u,
   'runtime file system service must source file search behavior from the shared canonical package.',
 );
 

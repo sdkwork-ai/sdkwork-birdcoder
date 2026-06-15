@@ -41,21 +41,21 @@ function assertNoUserCenterSource(source, label) {
   );
 }
 
-const authPackageJson = readJson('packages/sdkwork-birdcoder-auth/package.json');
-const iamPackageJson = readJson('packages/sdkwork-birdcoder-iam/package.json');
-const userPackageJson = readJson('packages/sdkwork-birdcoder-user/package.json');
+const authPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/package.json');
+const iamPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/package.json');
+const userPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/package.json');
 const workspacePackageJson = readJson('package.json');
-const authTsconfig = readJson('packages/sdkwork-birdcoder-auth/tsconfig.json');
-const userTsconfig = readJson('packages/sdkwork-birdcoder-user/tsconfig.json');
-const authPageSource = readText('packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx');
-const authSurfaceSource = readText('packages/sdkwork-birdcoder-auth/src/auth-surface.ts');
-const iamIntegrationSource = readText('packages/sdkwork-birdcoder-iam/src/iamIntegration.ts');
-const userPageSource = readText('packages/sdkwork-birdcoder-user/src/pages/UserPage.tsx');
-const vipPageSource = readText('packages/sdkwork-birdcoder-user/src/pages/VipPage.tsx');
-const userSurfaceSource = readText('packages/sdkwork-birdcoder-user/src/user-surface.ts');
-const vipSurfaceSource = readText('packages/sdkwork-birdcoder-user/src/vip-surface.ts');
+const authTsconfig = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/tsconfig.json');
+const userTsconfig = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/tsconfig.json');
+const authPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx');
+const authSurfaceSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/auth-surface.ts');
+const iamIntegrationSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/src/iamIntegration.ts');
+const userPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/UserPage.tsx');
+const vipPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/VipPage.tsx');
+const userSurfaceSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/user-surface.ts');
+const vipSurfaceSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip-surface.ts');
 const vitePluginSource = readText('scripts/create-birdcoder-vite-plugins.mjs');
-const shellStylesheetSource = readText('packages/sdkwork-birdcoder-shell/src/styles/index.css');
+const shellStylesheetSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/styles/index.css');
 const sharedAuthRoutesSource = readAppbaseText('packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/IamAuthRoutes.tsx');
 const sharedAuthRuntimeSource = readAppbaseText('packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-iam-runtime.ts');
 const sharedUserPackageJson = JSON.parse(
@@ -67,17 +67,17 @@ assert.equal(
   'sdkwork-birdcoder-auth must consume the canonical @sdkwork/auth-pc-react package directly.',
 );
 assert.equal(
-  authPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure-runtime'],
+  authPackageJson.dependencies?.['@sdkwork/birdcoder-pc-infrastructure-runtime'],
   undefined,
   'sdkwork-birdcoder-auth must stay UI-only; runtime binding is owned by sdkwork-birdcoder-iam.',
 );
 assert.equal(
-  iamPackageJson.dependencies?.['@sdkwork/birdcoder-auth'],
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-pc-auth'],
   'workspace:*',
   'sdkwork-birdcoder-iam must compose the BirdCoder auth UI package.',
 );
 assert.equal(
-  iamPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure'],
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-pc-infrastructure'],
   'workspace:*',
   'sdkwork-birdcoder-iam must bind auth UI to the infrastructure IAM runtime through the public package entry.',
 );

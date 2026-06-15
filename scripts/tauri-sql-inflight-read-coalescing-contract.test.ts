@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { executeStoredSqlPlan } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/runtime.ts';
-import type { BirdCoderSqlPlan } from '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlPlans.ts';
+import { executeStoredSqlPlan } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/runtime.ts';
+import type { BirdCoderSqlPlan } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlPlans.ts';
 
 const originalWindow = Reflect.get(globalThis, 'window');
 const releaseInvokeTasks: Array<() => void> = [];

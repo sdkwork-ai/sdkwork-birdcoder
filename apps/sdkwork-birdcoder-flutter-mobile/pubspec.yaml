@@ -1,0 +1,37 @@
+name: sdkwork_birdcoder_flutter_mobile
+description: SDKWork Birdcoder Flutter Mobile App
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sdkwork_birdcoder_flutter_mobile_core:
+    path: packages/sdkwork_birdcoder_flutter_mobile_core
+  sdkwork_birdcoder_flutter_mobile_commons:
+    path: packages/sdkwork_birdcoder_flutter_mobile_commons
+  sdkwork_birdcoder_flutter_mobile_shell:
+    path: packages/sdkwork_birdcoder_flutter_mobile_shell
+  sdkwork_birdcoder_flutter_mobile_chat:
+    path: packages/sdkwork_birdcoder_flutter_mobile_chat
+  sdkwork_birdcoder_flutter_mobile_host:
+    path: packages/sdkwork_birdcoder_flutter_mobile_host
+  sdkwork_birdcoder_flutter_mobile_console_core:
+    path: packages/sdkwork_birdcoder_flutter_mobile_console_core
+  sdkwork_birdcoder_flutter_mobile_console_shell:
+    path: packages/sdkwork_birdcoder_flutter_mobile_console_shell
+  sdkwork_birdcoder_flutter_mobile_admin_core:
+    path: packages/sdkwork_birdcoder_flutter_mobile_admin_core
+  sdkwork_birdcoder_flutter_mobile_admin_shell:
+    path: packages/sdkwork_birdcoder_flutter_mobile_admin_shell
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

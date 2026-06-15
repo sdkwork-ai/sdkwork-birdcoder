@@ -1,0 +1,12 @@
+# BirdCoder Flutter Server Development Config
+
+[server]
+bind = "0.0.0.0:3000"
+environment = "development"
+
+[database]
+type = "sqlite"
+path = "~/.sdkwork/sdkwork-birdcoder-mobile/server/development.sqlite3"
+
+[logging]
+level = "debug"

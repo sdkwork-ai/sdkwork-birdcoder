@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 
 const dataKernelModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
   import.meta.url,
 );
 const sqlExecutorModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/sqlExecutor.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/sqlExecutor.ts',
   import.meta.url,
 );
 const providersModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
   import.meta.url,
 );
-const typesModulePath = new URL('../packages/sdkwork-birdcoder-types/src/index.ts', import.meta.url);
+const typesModulePath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts', import.meta.url);
 
 const dataKernelModule = await import(`${dataKernelModulePath.href}?t=${Date.now()}`);
 const sqlExecutorModule = await import(`${sqlExecutorModulePath.href}?t=${Date.now()}`);

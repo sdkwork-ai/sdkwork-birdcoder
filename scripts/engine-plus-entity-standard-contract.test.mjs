@@ -2,24 +2,24 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const dataDefinitionsPath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/data.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
   import.meta.url,
 );
 const storageBindingsPath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/storageBindings.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/storageBindings.ts',
   import.meta.url,
 );
 const engineTypesPath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/engine.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/engine.ts',
   import.meta.url,
 );
-const openApiPath = new URL('../packages/sdkwork-birdcoder-server/src/index.ts', import.meta.url);
+const openApiPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url);
 const rustCatalogPath = new URL(
-  '../packages/sdkwork-birdcoder-codeengine/src-host/src/catalog.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/catalog.rs',
   import.meta.url,
 );
 const desktopRustPath = new URL(
-  '../packages/sdkwork-birdcoder-desktop/src-tauri/src/lib.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
   import.meta.url,
 );
 

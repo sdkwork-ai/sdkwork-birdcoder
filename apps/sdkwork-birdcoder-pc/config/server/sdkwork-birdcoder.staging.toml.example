@@ -1,0 +1,12 @@
+# BirdCoder Server Staging Config
+
+[server]
+bind = "0.0.0.0:10240"
+environment = "staging"
+
+[database]
+type = "postgresql"
+url = "${DATABASE_URL}"
+
+[logging]
+level = "info"

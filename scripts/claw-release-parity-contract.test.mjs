@@ -20,10 +20,10 @@ function readAppFile(appRootDir, relativePath) {
 
 function normalizeBirdCoderWorkflowSource(source) {
   return source
-    .replaceAll('packages/sdkwork-birdcoder-desktop', 'packages/sdkwork-claw-desktop')
-    .replaceAll('packages\\sdkwork-birdcoder-desktop', 'packages\\sdkwork-claw-desktop')
-    .replaceAll('@sdkwork/birdcoder-server', 'claw-studio-server')
-    .replaceAll('@sdkwork/birdcoder-desktop', 'sdkwork-claw-desktop')
+    .replaceAll('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop', 'packages/sdkwork-claw-desktop')
+    .replaceAll('packages\\sdkwork-birdcoder-pc-desktop', 'packages\\sdkwork-claw-desktop')
+    .replaceAll('@sdkwork/birdcoder-pc-server', 'claw-studio-server')
+    .replaceAll('@sdkwork/birdcoder-pc-desktop', 'sdkwork-claw-desktop')
     .replaceAll('birdcoder-container-image', 'claw-container-image')
     .replaceAll('sdkwork-birdcoder', 'claw-studio')
     .replace(/\n      SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY:\n        description: SSH private key with read access to private shared SDK GitHub repositories\n        required: true/g, '')

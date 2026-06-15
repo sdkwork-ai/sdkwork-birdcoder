@@ -10,13 +10,13 @@ const workspacePackageJson = JSON.parse(
 );
 const desktopPackageJson = JSON.parse(
   fs.readFileSync(
-    path.join(workspaceRoot, 'packages', 'sdkwork-birdcoder-desktop', 'package.json'),
+    path.join(workspaceRoot, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop', 'package.json'),
     'utf8',
   ),
 );
 const webPackageJson = JSON.parse(
   fs.readFileSync(
-    path.join(workspaceRoot, 'packages', 'sdkwork-birdcoder-web', 'package.json'),
+    path.join(workspaceRoot, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-web', 'package.json'),
     'utf8',
   ),
 );
@@ -163,17 +163,17 @@ test('birdcoder IAM command matrix governs standard local, private, and cloud sc
   );
   assert.equal(
     desktopPackageJson.scripts?.['tauri:dev:private'],
-    'node ../../scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode server-private',
+    'node ../../../../scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode server-private',
     'Desktop package private dev must use the same stack entrypoint when launched from the package directory.',
   );
   assert.equal(
     webPackageJson.scripts?.dev,
-    'node ../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
+    'node ../../../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
     'Web package default dev is server-private and must start the standardized server+client stack when launched from the package directory.',
   );
   assert.equal(
     webPackageJson.scripts?.['dev:private'],
-    'node ../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
+    'node ../../../../scripts/run-birdcoder-dev-stack.mjs web --iam-mode server-private',
     'Web package private dev must use the same stack entrypoint when launched from the package directory.',
   );
 });

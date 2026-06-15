@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const hookSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-commons/src/hooks/useSelectedCodingSessionMessages.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useSelectedCodingSessionMessages.ts', import.meta.url),
   'utf8',
 );
 
@@ -34,7 +34,7 @@ assert.ok(
 
 assert.match(
   hookSource,
-  /import \{ canSubscribeBirdCoderWorkspaceRealtime \} from '@sdkwork\/birdcoder-infrastructure-runtime';/,
+  /import \{ canSubscribeBirdCoderWorkspaceRealtime \} from '@sdkwork\/birdcoder-pc-infrastructure-runtime';/,
   'Selected-session hydration must use workspace realtime availability before scheduling authority fallback refreshes.',
 );
 

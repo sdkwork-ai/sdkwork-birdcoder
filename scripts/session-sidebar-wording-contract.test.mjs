@@ -19,44 +19,74 @@ const legacyThreadWordPattern = new RegExp(
 );
 
 const codeSidebarSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'components',
   'Sidebar.tsx',
 );
 const codeProjectExplorerSessionRowSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'components',
   'ProjectExplorerSessionRow.tsx',
 );
 const codePageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-code',
+  
+  'sdkwork-birdcoder-pc-code',
   'src',
   'pages',
   'CodePage.tsx',
 );
 const studioChatSidebarSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioChatSidebar.tsx',
 );
 const studioPageSource = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-studio',
+  
+  'sdkwork-birdcoder-pc-studio',
   'src',
   'pages',
   'StudioPage.tsx',
 );
 
 const enAppSidebarLocale = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-i18n',
+  
+  'sdkwork-birdcoder-pc-i18n',
   'src',
   'locales',
   'en',
@@ -64,8 +94,13 @@ const enAppSidebarLocale = readSource(
   'sidebar.ts',
 );
 const zhAppSidebarLocale = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-i18n',
+  
+  'sdkwork-birdcoder-pc-i18n',
   'src',
   'locales',
   'zh',
@@ -73,8 +108,13 @@ const zhAppSidebarLocale = readSource(
   'sidebar.ts',
 );
 const enStudioWorkspaceLocale = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-i18n',
+  
+  'sdkwork-birdcoder-pc-i18n',
   'src',
   'locales',
   'en',
@@ -82,8 +122,13 @@ const enStudioWorkspaceLocale = readSource(
   'workspace.ts',
 );
 const zhStudioWorkspaceLocale = readSource(
+  'apps',
+  
+  'sdkwork-birdcoder-pc',
+  
   'packages',
-  'sdkwork-birdcoder-i18n',
+  
+  'sdkwork-birdcoder-pc-i18n',
   'src',
   'locales',
   'zh',

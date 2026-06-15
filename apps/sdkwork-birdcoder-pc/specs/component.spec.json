@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-pc",
+    "displayName": "SDKWork BirdCoder PC",
+    "version": "0.1.0",
+    "type": "react-tauri-app",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc",
+    "domain": "platform",
+    "capability": "ide",
+    "surface": "app",
+    "status": "ACTIVE",
+    "languages": [
+      "typescript",
+      "react",
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "package.json",
+      "Cargo.toml",
+      "vite.config.ts"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "APP_PC_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md",
+      "purpose": "PC browser/desktop/tablet application root architecture."
+    },
+    {
+      "file": "APP_PC_REACT_UI_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md",
+      "purpose": "PC React package rules."
+    },
+    {
+      "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md",
+      "purpose": "Desktop/tablet native app shell, Tauri host boundary."
+    },
+    {
+      "file": "APPLICATION_SPEC.md",
+      "path": "../../../sdkwork-specs/APPLICATION_SPEC.md",
+      "purpose": "Application modularization, app shell boundaries, module composition."
+    },
+    {
+      "file": "APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "purpose": "Cross-architecture app SDK integration, dependency composition."
+    },
+    {
+      "file": "IAM_LOGIN_INTEGRATION_SPEC.md",
+      "path": "../../../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md",
+      "purpose": "Fast IAM login/session integration, appbase auth UI/runtime."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Runtime configuration, environment, SDK bootstrap."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Token model, authn/authz, secrets, rate limits."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Contract, frontend, SDK, security verification rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Cross-language code organization, focused file boundaries, public exports."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical domain, capability, package, component, SDK family naming."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate/module layout, lib.rs limits, route crate structure."
+    },
+    {
+      "file": "TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "purpose": "TypeScript package structure, public exports, typed SDK ports."
+    },
+    {
+      "file": "FRONTEND_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
+      "purpose": "Frontend UI-service-SDK flow, React UI package organization."
+    }
+  ],
+  "contracts": {
+    "publicExports": [],
+    "runtimeEntrypoints": [
+      "package.json#scripts.dev",
+      "package.json#scripts.build",
+      "package.json#scripts.tauri:dev"
+    ],
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": [],
+    "routeManifest": null
+  },
+  "verification": {
+    "commands": [
+      "pnpm typecheck"
+    ]
+  }
+}

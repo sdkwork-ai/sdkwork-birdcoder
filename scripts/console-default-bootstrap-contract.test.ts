@@ -1,23 +1,23 @@
 import assert from 'node:assert/strict';
 
 const dataKernelModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts',
   import.meta.url,
 );
 const consoleRepositoryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts',
   import.meta.url,
 );
 const consoleQueriesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts',
   import.meta.url,
 );
 const bootstrapConsoleCatalogModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/storage/bootstrapConsoleCatalog.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/bootstrapConsoleCatalog.ts',
   import.meta.url,
 );
 const defaultServicesModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
   import.meta.url,
 );
 

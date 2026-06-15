@@ -29,7 +29,7 @@ function collectSourceFiles(entryPath, files) {
 
 const i18nModule = await import(
   pathToFileURL(
-    path.join(rootDir, 'packages', 'sdkwork-birdcoder-i18n', 'src', 'index.ts'),
+    path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-i18n', 'src', 'index.ts'),
   ).href
 );
 

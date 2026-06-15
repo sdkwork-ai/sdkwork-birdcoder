@@ -7,7 +7,7 @@ import {
   getBirdCoderCodingServerDescriptor,
   listBirdCoderCodingServerRouteCatalogEntries,
   listBirdCoderCodingServerRoutes,
-} from '../packages/sdkwork-birdcoder-server/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
 
 const descriptor = getBirdCoderCodingServerDescriptor();
 assert.deepEqual(descriptor, {
@@ -102,18 +102,47 @@ assert.equal(app.authPasswordResetRequest.method, 'POST');
 assert.equal(app.authPasswordResetRequest.path, '/app/v3/api/auth/password_reset_requests');
 assert.equal(app.authPasswordReset.method, 'POST');
 assert.equal(app.authPasswordReset.path, '/app/v3/api/auth/password_resets');
-assert.equal(app.authOAuthAuthorizationUrl.method, 'GET');
-assert.equal(app.authOAuthAuthorizationUrl.path, '/app/v3/api/auth/oauth_authorization_urls');
+assert.equal(app.authOAuthAuthorizationUrl.method, 'POST');
+assert.equal(app.authOAuthAuthorizationUrl.path, '/app/v3/api/oauth/authorization_urls');
 assert.equal(app.authOAuthSession.method, 'POST');
-assert.equal(app.authOAuthSession.path, '/app/v3/api/auth/oauth_sessions');
-assert.equal(app.qrAuthSession.method, 'POST');
-assert.equal(app.qrAuthSession.path, '/app/v3/api/open_platform/qr_auth/sessions');
-assert.equal(app.qrAuthSessionStatus.method, 'GET');
-assert.equal(app.qrAuthSessionStatus.path, '/app/v3/api/open_platform/qr_auth/sessions/:sessionKey');
-assert.equal(app.qrAuthSessionScan.method, 'POST');
-assert.equal(app.qrAuthSessionScan.path, '/app/v3/api/open_platform/qr_auth/sessions/:sessionKey/scans');
-assert.equal(app.qrAuthSessionPassword.method, 'POST');
-assert.equal(app.qrAuthSessionPassword.path, '/app/v3/api/open_platform/qr_auth/sessions/:sessionKey/passwords');
+assert.equal(app.authOAuthSession.path, '/app/v3/api/oauth/sessions');
+assert.equal(
+  'qrAuthSession' in app,
+  false,
+  'BirdCoder app API must not publish retired appbase openPlatform QR auth routes.',
+);
+assert.equal(
+  'qrAuthSessionStatus' in app,
+  false,
+  'BirdCoder app API must not publish retired appbase openPlatform QR auth status routes.',
+);
+assert.equal(
+  'qrAuthSessionScan' in app,
+  false,
+  'BirdCoder app API must not publish retired appbase openPlatform QR auth scan routes.',
+);
+assert.equal(
+  'qrAuthSessionPassword' in app,
+  false,
+  'BirdCoder app API must not publish retired appbase openPlatform QR auth password routes.',
+);
+assert.equal(app.oauthDeviceAuthorization.method, 'POST');
+assert.equal(app.oauthDeviceAuthorization.path, '/app/v3/api/oauth/device_authorizations');
+assert.equal(app.oauthDeviceAuthorizationStatus.method, 'GET');
+assert.equal(
+  app.oauthDeviceAuthorizationStatus.path,
+  '/app/v3/api/oauth/device_authorizations/:deviceAuthorizationId',
+);
+assert.equal(app.oauthDeviceAuthorizationScan.method, 'POST');
+assert.equal(
+  app.oauthDeviceAuthorizationScan.path,
+  '/app/v3/api/oauth/device_authorizations/:deviceAuthorizationId/scans',
+);
+assert.equal(app.oauthDeviceAuthorizationPasswordCompletion.method, 'POST');
+assert.equal(
+  app.oauthDeviceAuthorizationPasswordCompletion.path,
+  '/app/v3/api/oauth/device_authorizations/:deviceAuthorizationId/password_completions',
+);
 assert.equal(app.currentIamUser.method, 'GET');
 assert.equal(app.currentIamUser.path, '/app/v3/api/iam/users/current');
 assert.equal(app.updateCurrentUserProfile.method, 'PATCH');
@@ -435,28 +464,33 @@ assert.deepEqual(
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'oauthAuthorizationUrls.retrieve'),
+  routeCatalog.find((route) => route.operationId === 'oauth.authorizationUrls.create'),
   {
     authMode: 'user',
-    method: 'GET',
-    openApiPath: '/app/v3/api/auth/oauth_authorization_urls',
-    operationId: 'oauthAuthorizationUrls.retrieve',
-    path: '/app/v3/api/auth/oauth_authorization_urls',
+    method: 'POST',
+    openApiPath: '/app/v3/api/oauth/authorization_urls',
+    operationId: 'oauth.authorizationUrls.create',
+    path: '/app/v3/api/oauth/authorization_urls',
     surface: 'app',
     summary: 'Resolve OAuth authorization URL for SDKWork IAM sign-in',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'qrAuth.sessions.create'),
+  routeCatalog.find((route) => route.operationId === 'oauth.deviceAuthorizations.create'),
   {
     authMode: 'user',
     method: 'POST',
-    openApiPath: '/app/v3/api/open_platform/qr_auth/sessions',
-    operationId: 'qrAuth.sessions.create',
-    path: '/app/v3/api/open_platform/qr_auth/sessions',
+    openApiPath: '/app/v3/api/oauth/device_authorizations',
+    operationId: 'oauth.deviceAuthorizations.create',
+    path: '/app/v3/api/oauth/device_authorizations',
     surface: 'app',
-    summary: 'Create SDKWork IAM QR auth session',
+    summary: 'Create SDKWork IAM OAuth device authorization',
   },
+);
+assert.equal(
+  routeCatalog.some((route) => route.operationId.startsWith('qrAuth.sessions.')),
+  false,
+  'BirdCoder route catalog must not publish retired appbase QR auth operation ids.',
 );
 assert.deepEqual(
   routeCatalog.find((route) => route.operationId === 'users.current.retrieve'),

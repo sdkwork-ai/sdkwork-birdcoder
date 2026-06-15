@@ -7,14 +7,14 @@ const rootDir = process.cwd();
 const providerBackedProjectServiceSource = fs.readFileSync(
   path.join(
     rootDir,
-    'packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedProjectService.ts',
   ),
   'utf8',
 );
 const consoleQueriesSource = fs.readFileSync(
   path.join(
     rootDir,
-    'packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts',
   ),
   'utf8',
 );

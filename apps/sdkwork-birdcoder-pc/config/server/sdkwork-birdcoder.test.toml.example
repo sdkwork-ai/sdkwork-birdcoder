@@ -1,0 +1,12 @@
+# BirdCoder Server Test Config
+
+[server]
+bind = "0.0.0.0:10241"
+environment = "test"
+
+[database]
+type = "sqlite"
+path = "~/.sdkwork/sdkwork-birdcoder/server/test.sqlite3"
+
+[logging]
+level = "debug"

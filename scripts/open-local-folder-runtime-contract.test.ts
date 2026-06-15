@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const openLocalFolderModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/platform/openLocalFolder.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/openLocalFolder.ts',
   import.meta.url,
 );
 const rootPackageJsonPath = new URL('../package.json', import.meta.url);
 const infrastructurePackageJsonPath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/package.json',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/package.json',
   import.meta.url,
 );
 const workspaceCatalogPath = new URL('../pnpm-workspace.yaml', import.meta.url);

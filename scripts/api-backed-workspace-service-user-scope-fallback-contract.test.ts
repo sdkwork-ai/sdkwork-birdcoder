@@ -1,10 +1,10 @@
-import type { BirdCoderAppSdkApiClient } from '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts';
+import type { BirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   IWorkspace,
-} from '@sdkwork/birdcoder-types';
-import { ApiBackedWorkspaceService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedWorkspaceService.ts';
-import type { IWorkspaceService } from '../packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IWorkspaceService.ts';
+} from '@sdkwork/birdcoder-pc-types';
+import { ApiBackedWorkspaceService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedWorkspaceService.ts';
+import type { IWorkspaceService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IWorkspaceService.ts';
 
 function createLocalWorkspace(
   id: string,

@@ -103,7 +103,7 @@ export function runBirdcoderWebCommand({
 
   const plan = createWorkspacePackageScriptPlan({
     env: resolvedIam.env,
-    packageDir: 'packages/sdkwork-birdcoder-web',
+    packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
     scriptName: actionConfig.scriptName,
   });
   const result = spawnSyncImpl(plan.command, plan.args, {

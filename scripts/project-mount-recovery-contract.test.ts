@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 
 const modulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/projectMountRecovery.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/projectMountRecovery.ts',
   import.meta.url,
 );
 

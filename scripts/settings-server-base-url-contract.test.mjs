@@ -2,19 +2,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const configSettingsPath = new URL(
-  '../packages/sdkwork-birdcoder-settings/src/components/ConfigSettings.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/ConfigSettings.tsx',
   import.meta.url,
 );
 const settingsPagePath = new URL(
-  '../packages/sdkwork-birdcoder-settings/src/pages/SettingsPage.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/pages/SettingsPage.tsx',
   import.meta.url,
 );
 const desktopMainPath = new URL(
-  '../packages/sdkwork-birdcoder-desktop/src/main.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx',
   import.meta.url,
 );
 const webMainPath = new URL(
-  '../packages/sdkwork-birdcoder-web/src/main.tsx',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx',
   import.meta.url,
 );
 const rootMainPath = new URL('../src/main.tsx', import.meta.url);

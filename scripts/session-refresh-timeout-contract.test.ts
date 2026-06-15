@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import {
   refreshCodingSessionMessages,
   refreshProjectSessions,
-} from '../packages/sdkwork-birdcoder-commons/src/workbench/sessionRefresh.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionRefresh.ts';
 import type {
   BirdCoderCodingSession,
   BirdCoderCodingSessionSummary,
   BirdCoderProject,
-} from '../packages/sdkwork-birdcoder-types/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 
 type RefreshCodingSessionMessagesOptions = Parameters<typeof refreshCodingSessionMessages>[0];
 type RefreshAppRuntimeReadService = NonNullable<RefreshCodingSessionMessagesOptions['appRuntimeReadService']>;

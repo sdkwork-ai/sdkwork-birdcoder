@@ -6,43 +6,43 @@ import {
   BIRDCODER_STANDARD_ENGINE_IDS,
   listBirdCoderCodeEngineManifests,
   listBirdCoderCodeEngineNativeSessionProviders,
-} from '../packages/sdkwork-birdcoder-codeengine/src/manifest.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/manifest.ts';
 
 const codeengineHostSourceDirectory = fileURLToPath(
-  new URL('../packages/sdkwork-birdcoder-codeengine/src-host/src/', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/', import.meta.url),
 );
 const providerSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-codeengine/src-host/src/provider.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/provider.rs',
   import.meta.url,
 );
 const turnsSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-codeengine/src-host/src/turns.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/turns.rs',
   import.meta.url,
 );
 const libSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-codeengine/src-host/src/lib.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/lib.rs',
   import.meta.url,
 );
 const sdkBridgeSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-codeengine/src-host/src/sdk_bridge.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/sdk_bridge.rs',
   import.meta.url,
 );
 const codeengineDialectSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-codeengine/src-host/src/codeengine_dialect.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/codeengine_dialect.rs',
   import.meta.url,
 );
 const serverHostSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-server/src-host/src/lib.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs',
   import.meta.url,
 );
 const serverNativeSessionsSourcePath = new URL(
-  '../packages/sdkwork-birdcoder-server/src-host/src/native_sessions.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/native_sessions.rs',
   import.meta.url,
 );
 const productionAdapterSourcePaths = [
-  new URL('../packages/sdkwork-birdcoder-chat-claude/src/index.ts', import.meta.url),
-  new URL('../packages/sdkwork-birdcoder-chat-gemini/src/index.ts', import.meta.url),
-  new URL('../packages/sdkwork-birdcoder-chat-opencode/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts', import.meta.url),
 ];
 
 const authorityBackedStandardEngineIds = listBirdCoderCodeEngineManifests()

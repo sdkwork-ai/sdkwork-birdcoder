@@ -38,30 +38,30 @@ function assertNotExists(relativePath, message) {
 }
 
 const infrastructurePackageJson = JSON.parse(
-  read('packages/sdkwork-birdcoder-infrastructure/package.json'),
+  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/package.json'),
 );
 const tsconfig = JSON.parse(read('tsconfig.json'));
 const runtimeTsconfig = JSON.parse(read('tsconfig.runtime.json'));
 
 assertNotExists(
-  'packages/sdkwork-birdcoder-infrastructure/src/services/appAdminApiClient.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appAdminApiClient.ts',
   'BirdCoder infrastructure must not keep the retired mixed app-admin API client.',
 );
 
 assertExists(
-  'packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
   'BirdCoder infrastructure must expose one sdkClients.ts boundary for generated app/backend SDK construction.',
 );
 assertExists(
-  'packages/sdkwork-birdcoder-infrastructure/src/services/appSdkTransport.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSdkTransport.ts',
   'BirdCoder infrastructure must expose app SDK transport separately from backend SDK transport.',
 );
 assertExists(
-  'packages/sdkwork-birdcoder-infrastructure/src/services/backendSdkTransport.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/backendSdkTransport.ts',
   'BirdCoder infrastructure must expose backend SDK transport separately from app SDK transport.',
 );
 
-const sdkClientsSource = read('packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts');
+const sdkClientsSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts');
 assert.match(
   sdkClientsSource,
   /from ['"]@sdkwork\/birdcoder-app-sdk['"]/u,
@@ -93,7 +93,7 @@ assert.doesNotMatch(
   'sdkClients.ts must not publish a mixed split-SDK wrapper; consumers must compose app and backend SDK clients explicitly.',
 );
 
-const infrastructureIndexSource = read('packages/sdkwork-birdcoder-infrastructure/src/index.ts');
+const infrastructureIndexSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/index.ts');
 assert.doesNotMatch(
   infrastructureIndexSource,
   /appAdminApiClient/u,
@@ -106,9 +106,9 @@ assert.match(
 );
 
 const defaultServicesSource = [
-  read('packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts'),
-  read('packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesShared.ts'),
-  read('packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServicesRuntime.ts'),
+  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts'),
+  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts'),
+  read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesRuntime.ts'),
 ].join('\n');
 assert.doesNotMatch(
   defaultServicesSource,
@@ -128,14 +128,14 @@ assert.match(
 
 const serviceImplDir = path.join(
   rootDir,
-  'packages/sdkwork-birdcoder-infrastructure/src/services/impl',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl',
 );
 for (const entry of fs.readdirSync(serviceImplDir, { withFileTypes: true })) {
   if (!entry.isFile() || !entry.name.endsWith('.ts')) {
     continue;
   }
 
-  const relativePath = `packages/sdkwork-birdcoder-infrastructure/src/services/impl/${entry.name}`;
+  const relativePath = `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/${entry.name}`;
   const source = read(relativePath);
   assert.doesNotMatch(
     source,
@@ -144,7 +144,7 @@ for (const entry of fs.readdirSync(serviceImplDir, { withFileTypes: true })) {
   );
 }
 
-const serverApiSource = read('packages/sdkwork-birdcoder-types/src/server-api.ts');
+const serverApiSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts');
 assert.doesNotMatch(
   serverApiSource,
   /BirdCoderAppAdminApiClient|createBirdCoderGeneratedAppAdminApiClient|CreateBirdCoderGeneratedAppAdminApiClientOptions/u,
@@ -152,12 +152,12 @@ assert.doesNotMatch(
 );
 
 assert.equal(
-  infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-app-sdk'],
+  infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-pc-app-sdk'],
   'workspace:*',
   'infrastructure package must depend on the generated app SDK workspace package.',
 );
 assert.equal(
-  infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-backend-sdk'],
+  infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-pc-backend-sdk'],
   'workspace:*',
   'infrastructure package must depend on the generated backend SDK workspace package.',
 );
@@ -181,43 +181,43 @@ for (const [label, config] of [
   ['tsconfig.runtime.json', runtimeTsconfig],
 ]) {
   assert.deepEqual(
-    config.compilerOptions?.paths?.['@sdkwork/birdcoder-app-sdk'],
+    config.compilerOptions?.paths?.['@sdkwork/birdcoder-pc-app-sdk'],
     ['sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts'],
-    `${label} must resolve @sdkwork/birdcoder-app-sdk to generated source.`,
+    `${label} must resolve @sdkwork/birdcoder-pc-app-sdk to generated source.`,
   );
   assert.deepEqual(
-    config.compilerOptions?.paths?.['@sdkwork/birdcoder-backend-sdk'],
+    config.compilerOptions?.paths?.['@sdkwork/birdcoder-pc-backend-sdk'],
     ['sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts'],
-    `${label} must resolve @sdkwork/birdcoder-backend-sdk to generated source.`,
+    `${label} must resolve @sdkwork/birdcoder-pc-backend-sdk to generated source.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/appbase-app-sdk'],
-    ['../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts'],
+    ['../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts'],
     `${label} must resolve @sdkwork/appbase-app-sdk to the dependency generated app SDK package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/appbase-backend-sdk'],
-    ['../../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts'],
+    ['../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts'],
     `${label} must resolve @sdkwork/appbase-backend-sdk to the dependency generated backend SDK package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/auth-runtime-pc-react'],
-    ['../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts'],
+    ['../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts'],
     `${label} must resolve @sdkwork/auth-runtime-pc-react to the high-level appbase auth runtime package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/drive-app-sdk'],
-    ['../../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts'],
+    ['../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts'],
     `${label} must resolve @sdkwork/drive-app-sdk to the dependency app SDK package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/messaging-app-sdk'],
-    ['../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts'],
+    ['../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts'],
     `${label} must resolve @sdkwork/messaging-app-sdk to the dependency app SDK package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/sdk-common'],
-    ['../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts'],
+    ['../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts'],
     `${label} must resolve @sdkwork/sdk-common to the shared SDK common package entry.`,
   );
 }
@@ -225,7 +225,7 @@ for (const [label, config] of [
 for (const relativePath of [
   'tsconfig.json',
   'tsconfig.runtime.json',
-  'packages/sdkwork-birdcoder-web/vite.config.ts',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts',
   'scripts/create-birdcoder-vite-plugins.mjs',
   'scripts/prepare-shared-sdk-git-sources.mjs',
   'scripts/prepare-shared-sdk-git-sources.test.mjs',
@@ -248,32 +248,32 @@ assert.match(
 );
 assert.match(
   workspace,
-  /\.sdkwork\/dependencies\/sdkwork-appbase\/sdks\/sdkwork-appbase-app-sdk\/sdkwork-appbase-app-sdk-typescript\/generated\/server-openapi/u,
+  /\.\.\/sdkwork-appbase\/sdks\/sdkwork-appbase-app-sdk\/sdkwork-appbase-app-sdk-typescript\/generated\/server-openapi/u,
   'pnpm workspace must include the appbase app SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.sdkwork\/dependencies\/sdkwork-appbase\/sdks\/sdkwork-appbase-backend-sdk\/sdkwork-appbase-backend-sdk-typescript\/generated\/server-openapi/u,
+  /\.\.\/sdkwork-appbase\/sdks\/sdkwork-appbase-backend-sdk\/sdkwork-appbase-backend-sdk-typescript\/generated\/server-openapi/u,
   'pnpm workspace must include the appbase backend SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.sdkwork\/dependencies\/sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-auth-runtime-pc-react/u,
+  /\.\.\/sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-auth-runtime-pc-react/u,
   'pnpm workspace must include the appbase high-level auth runtime dependency package.',
 );
 assert.match(
   workspace,
-  /\.sdkwork\/dependencies\/sdkwork-drive\/sdks\/sdkwork-drive-app-sdk\/sdkwork-drive-app-sdk-typescript/u,
+  /\.\.\/sdkwork-drive\/sdks\/sdkwork-drive-app-sdk\/sdkwork-drive-app-sdk-typescript/u,
   'pnpm workspace must include the Drive app SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.sdkwork\/dependencies\/sdkwork-messaging\/sdks\/sdkwork-messaging-app-sdk\/sdkwork-messaging-app-sdk-typescript\/generated\/server-openapi/u,
+  /\.\.\/sdkwork-messaging\/sdks\/sdkwork-messaging-app-sdk\/sdkwork-messaging-app-sdk-typescript\/generated\/server-openapi/u,
   'pnpm workspace must include the Messaging app SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.sdkwork\/dependencies\/sdkwork-sdk-commons\/sdkwork-sdk-common-typescript/u,
+  /\.\.\/sdkwork-sdk-commons\/sdkwork-sdk-common-typescript/u,
   'pnpm workspace must include the shared SDK common dependency package.',
 );
 

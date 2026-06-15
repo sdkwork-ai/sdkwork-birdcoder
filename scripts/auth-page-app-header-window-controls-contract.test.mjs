@@ -6,16 +6,22 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const authPagePath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-auth',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-auth',
   'src',
   'pages',
   'AuthPage.tsx',
 );
 const shellAppPath = path.join(
   rootDir,
-  'packages',
-  'sdkwork-birdcoder-shell',
+  'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+  
+  'sdkwork-birdcoder-pc-shell',
   'src',
   'application',
   'app',

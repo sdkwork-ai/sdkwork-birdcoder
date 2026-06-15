@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const settingsPageSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-settings/src/pages/SettingsPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/pages/SettingsPage.tsx', import.meta.url),
   'utf8',
 );
 

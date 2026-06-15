@@ -112,7 +112,7 @@ assert.match(ciWorkflow, /pnpm check:desktop/);
 assert.match(ciWorkflow, /pnpm check:server/);
 assert.match(
   ciWorkflow,
-  /node scripts\/run-cargo\.mjs test --manifest-path packages\/sdkwork-birdcoder-desktop\/src-tauri\/Cargo\.toml/,
+  /node scripts\/run-cargo\.mjs test --manifest-path packages\/sdkwork-birdcoder-pc-desktop\/src-tauri\/Cargo\.toml/,
 );
 assert.match(ciWorkflow, /pnpm server:build/);
 assert.match(ciWorkflow, /pnpm docs:build/);
@@ -367,7 +367,7 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . test:prompt-skill-template-evidence-consumer-contract',
   'node scripts/run-workspace-package-script.mjs . test:coding-server-prompt-skill-template-evidence-consumer-contract',
   'node scripts/run-workspace-package-script.mjs . test:postgresql-live-smoke-contract',
-  'node scripts/run-workspace-package-script.mjs packages/sdkwork-birdcoder-web lint',
+  'node scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web lint',
   'node scripts/run-workspace-package-script.mjs . check:arch',
   'node scripts/run-workspace-package-script.mjs . check:sdkwork-birdcoder-structure',
   'node scripts/run-workspace-package-script.mjs . check:release-flow',

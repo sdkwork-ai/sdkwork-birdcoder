@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 const runtimeSource = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
     import.meta.url,
   ),
   'utf8',

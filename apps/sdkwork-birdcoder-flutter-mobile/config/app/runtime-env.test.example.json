@@ -1,0 +1,5 @@
+{
+  "apiBaseUrl": "https://api-test.sdkwork.com/apps/sdkwork-birdcoder",
+  "appVersion": "0.1.0",
+  "environment": "test"
+}

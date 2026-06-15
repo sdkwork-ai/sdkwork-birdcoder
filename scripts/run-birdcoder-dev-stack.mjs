@@ -31,7 +31,7 @@ const STACK_VITE_MODES = new Set(['development', 'test']);
 
 const STACK_SURFACE_CONFIGS = Object.freeze({
   desktop: {
-    clientPackageDir: 'packages/sdkwork-birdcoder-desktop',
+    clientPackageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop',
     clientScriptNamesByViteMode: {
       development: 'tauri:dev:base',
       test: 'tauri:dev:test:base',
@@ -39,7 +39,7 @@ const STACK_SURFACE_CONFIGS = Object.freeze({
     target: 'desktop-dev',
   },
   web: {
-    clientPackageDir: 'packages/sdkwork-birdcoder-web',
+    clientPackageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web',
     clientScriptNamesByViteMode: {
       development: 'dev:base',
       test: 'dev:test:base',
@@ -49,7 +49,7 @@ const STACK_SURFACE_CONFIGS = Object.freeze({
 });
 
 const SERVER_DEV_CONFIG = Object.freeze({
-  packageDir: 'packages/sdkwork-birdcoder-server',
+    packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server',
   scriptName: 'dev:base',
   target: 'server-dev',
 });

@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { resolveSafeMarkdownHref } from '../packages/sdkwork-birdcoder-ui/src/components/markdownLinkSecurity.ts';
+import { resolveSafeMarkdownHref } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/markdownLinkSecurity.ts';
 
 const contentMarkdownPreviewSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/ContentMarkdownPreview.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/ContentMarkdownPreview.tsx', import.meta.url),
   'utf8',
 );
 const universalChatMarkdownSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/UniversalChatMarkdown.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMarkdown.tsx', import.meta.url),
   'utf8',
 );
 const skillsPageSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-skills/src/SkillsPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills/src/SkillsPage.tsx', import.meta.url),
   'utf8',
 );
 

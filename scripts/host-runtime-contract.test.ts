@@ -1,20 +1,20 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import { resolveDesktopRuntime } from '../packages/sdkwork-birdcoder-desktop/src/desktop/resolveDesktopRuntime.ts';
-import { createHostStudioDescriptor } from '../packages/sdkwork-birdcoder-host-studio/src/index.ts';
-import { resolveWebRuntime } from '../packages/sdkwork-birdcoder-web/src/web/resolveWebRuntime.ts';
+import { resolveDesktopRuntime } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/desktop/resolveDesktopRuntime.ts';
+import { createHostStudioDescriptor } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/src/index.ts';
+import { resolveWebRuntime } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/web/resolveWebRuntime.ts';
 import {
   BIRDCODER_DEFAULT_LOCAL_API_HOST,
   BIRDCODER_DEFAULT_LOCAL_API_PORT,
   createBirdHostDescriptorFromDistribution,
-} from '../packages/sdkwork-birdcoder-host-core/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-core/src/index.ts';
 
 const BIRD_SERVER_DEFAULT_HOST = BIRDCODER_DEFAULT_LOCAL_API_HOST;
 const BIRD_SERVER_DEFAULT_PORT = BIRDCODER_DEFAULT_LOCAL_API_PORT;
 const BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME = 'bird-server.config.json';
 const serverIndexSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-server/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url),
   'utf8',
 );
 

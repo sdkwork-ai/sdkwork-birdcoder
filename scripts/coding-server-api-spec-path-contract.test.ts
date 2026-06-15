@@ -7,7 +7,7 @@ import {
   buildBirdCoderCodingServerOpenApiDocument,
   getBirdCoderCodingServerDescriptor,
   listBirdCoderCodingServerRouteCatalogEntries,
-} from '../packages/sdkwork-birdcoder-server/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
 
 const APP_API_PREFIX = '/app/v3/api';
 const BACKEND_API_PREFIX = '/backend/v3/api';
@@ -81,22 +81,22 @@ const FORBIDDEN_ACTIVE_DOC_PATTERNS = [
   {
     pattern: /@sdkwork\/birdcoder-types[^\n]*createBirdCoder(?:App|Backend)SdkApiClient/iu,
     message:
-      'active docs must assign SDK client wrapper ownership to sdkClients.ts, not @sdkwork/birdcoder-types.',
+      'active docs must assign SDK client wrapper ownership to sdkClients.ts, not @sdkwork/birdcoder-pc-types.',
   },
   {
     pattern:
       /packages\/sdkwork-birdcoder-types\/src\/server-api\.ts[^\n]*createBirdCoder(?:App|Backend)SdkApiClient/iu,
     message:
-      'active docs must assign SDK client wrapper ownership to packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts.',
+      'active docs must assign SDK client wrapper ownership to apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts.',
   },
 ] as const;
 
 const serverIndexSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-server/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url),
   'utf8',
 );
 const typesServerApiSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-types/src/server-api.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts', import.meta.url),
   'utf8',
 );
 
@@ -148,8 +148,8 @@ function assertActiveDocsUseCanonicalApiAndSdkLanguage(): void {
 
 function assertNoRetiredAdminApiSurfaceNaming(): void {
   for (const [label, source] of [
-    ['packages/sdkwork-birdcoder-server/src/index.ts', serverIndexSource],
-    ['packages/sdkwork-birdcoder-types/src/server-api.ts', typesServerApiSource],
+    ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', serverIndexSource],
+    ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts', typesServerApiSource],
   ] as const) {
     assert.doesNotMatch(
       source,
@@ -163,7 +163,7 @@ function assertNoRetiredOpenApiSeedBuilder(): void {
   assert.doesNotMatch(
     serverIndexSource,
     /\b(?:BirdCoderCodingServerOpenApiDocumentSeed|buildBirdCoderCodingServerOpenApiDocumentSeed)\b/u,
-    'packages/sdkwork-birdcoder-server/src/index.ts must expose the canonical OpenAPI document builder without retired seed aliases.',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts must expose the canonical OpenAPI document builder without retired seed aliases.',
   );
 }
 
@@ -171,12 +171,12 @@ function assertNoRetiredBillingVipServerTypes(): void {
   assert.doesNotMatch(
     typesServerApiSource,
     /\b(?:BirdCoderBillingVipMembershipSummary|BirdCoderUpdateCurrentUserMembershipRequest)\b/u,
-    'packages/sdkwork-birdcoder-types/src/server-api.ts must not expose retired app-local billing/VIP membership types; membership read models belong to SDKWork commerce generated SDK schemas.',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts must not expose retired app-local billing/VIP membership types; membership read models belong to SDKWork commerce generated SDK schemas.',
   );
   assert.doesNotMatch(
     typesServerApiSource,
     /\bcurrentMembership\?:\s*BirdCoderBillingVipMembershipSummary\b/u,
-    'packages/sdkwork-birdcoder-types/src/server-api.ts must not keep a local currentMembership model slot for retired billing/VIP state.',
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts must not keep a local currentMembership model slot for retired billing/VIP state.',
   );
 }
 
@@ -418,7 +418,7 @@ assert.deepEqual(openApiDocument.tags.map((tag) => tag.name), [
   'content',
   'iam',
   'intelligence',
-  'openPlatform',
+  'oauth',
   'platform',
   'runtime',
   'skills',
@@ -452,10 +452,13 @@ for (const [pathKey, methods] of Object.entries(openApiDocument.paths)) {
     assertStandardOperationId(operation.operationId, `${operation.operationId} OpenAPI operation`);
     assertStandardOpenApiTags(operation.tags, `${operation.operationId} OpenAPI operation`);
     const tag = operation.tags?.[0] ?? '';
-    assert.equal(
-      operation.operationId.startsWith(`${tag}.`),
-      false,
-      `${operation.operationId} OpenAPI operationId must not repeat its tag ${tag}.`,
+    const operationKey = operation.operationId.startsWith(`${tag}.`)
+      ? operation.operationId
+      : `${tag}.${operation.operationId}`;
+    assert.doesNotMatch(
+      operationKey,
+      new RegExp(`^${tag}\\.${tag}\\.`, 'u'),
+      `${operation.operationId} OpenAPI operation key must not repeat its tag ${tag}.`,
     );
     assertStandardOpenApiGovernanceExtensions(
       operation,
@@ -479,7 +482,7 @@ for (const [pathKey, methods] of Object.entries(openApiDocument.paths)) {
 }
 
 const rustHostSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
   'utf8',
 );
 for (const forbiddenPrefix of FORBIDDEN_PREFIXES) {

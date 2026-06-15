@@ -60,31 +60,31 @@ function assertNoUserCenterDependency(packageJson, label) {
 }
 
 const workspacePackageJson = readJson('package.json');
-const iamPackageJson = readJson('packages/sdkwork-birdcoder-iam/package.json');
-const iamComponentSpec = readJson('packages/sdkwork-birdcoder-iam/specs/component.spec.json');
-const authPackageJson = readJson('packages/sdkwork-birdcoder-auth/package.json');
-const userPackageJson = readJson('packages/sdkwork-birdcoder-user/package.json');
-const infrastructurePackageJson = readJson('packages/sdkwork-birdcoder-infrastructure/package.json');
-const serverPackageJson = readJson('packages/sdkwork-birdcoder-server/package.json');
-const shellPackageJson = readJson('packages/sdkwork-birdcoder-shell/package.json');
-const iamIndexSource = readText('packages/sdkwork-birdcoder-iam/src/index.ts');
-const iamIntegrationSource = readText('packages/sdkwork-birdcoder-iam/src/iamIntegration.ts');
-const authDefinitionSource = readText('packages/sdkwork-birdcoder-auth/src/auth.ts');
-const authSurfaceSource = readText('packages/sdkwork-birdcoder-auth/src/auth-surface.ts');
-const userDefinitionSource = readText('packages/sdkwork-birdcoder-user/src/user.ts');
-const vipDefinitionSource = readText('packages/sdkwork-birdcoder-user/src/vip.ts');
-const authPageSource = readText('packages/sdkwork-birdcoder-auth/src/pages/AuthPage.tsx');
-const userPageSource = readText('packages/sdkwork-birdcoder-user/src/pages/UserPage.tsx');
-const vipPageSource = readText('packages/sdkwork-birdcoder-user/src/pages/VipPage.tsx');
-const commonsAuthContextSource = readText('packages/sdkwork-birdcoder-commons/src/context/AuthContext.ts');
-const infrastructureIndexSource = readText('packages/sdkwork-birdcoder-infrastructure/src/index.ts');
+const iamPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/package.json');
+const iamComponentSpec = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/specs/component.spec.json');
+const authPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/package.json');
+const userPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/package.json');
+const infrastructurePackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/package.json');
+const serverPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/package.json');
+const shellPackageJson = readJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/package.json');
+const iamIndexSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/src/index.ts');
+const iamIntegrationSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/src/iamIntegration.ts');
+const authDefinitionSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/auth.ts');
+const authSurfaceSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/auth-surface.ts');
+const userDefinitionSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/user.ts');
+const vipDefinitionSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip.ts');
+const authPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx');
+const userPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/UserPage.tsx');
+const vipPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/VipPage.tsx');
+const commonsAuthContextSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/AuthContext.ts');
+const infrastructureIndexSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/index.ts');
 const commandOptionsSource = readText('scripts/birdcoder-command-options.mjs');
 const commandMatrixSource = readText('scripts/birdcoder-iam-command-matrix.mjs');
 const { createBirdcoderIamEnvReport, pickManagedEnv } = await import(
   pathToFileURL(path.join(rootDir, 'scripts/show-birdcoder-iam-env.mjs')).href
 );
 
-assert.equal(iamPackageJson.name, '@sdkwork/birdcoder-iam');
+assert.equal(iamPackageJson.name, '@sdkwork/birdcoder-pc-iam');
 assert.equal(iamComponentSpec.component.domain, 'iam');
 assert.equal(iamComponentSpec.component.declaredDomain, 'iam');
 assert.equal(
@@ -127,27 +127,27 @@ assert.doesNotMatch(
 );
 
 assert.equal(
-  authPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure-runtime'],
+  authPackageJson.dependencies?.['@sdkwork/birdcoder-pc-infrastructure-runtime'],
   undefined,
-  'BirdCoder auth package must stay UI-only; IAM runtime binding belongs to @sdkwork/birdcoder-iam.',
+  'BirdCoder auth package must stay UI-only; IAM runtime binding belongs to @sdkwork/birdcoder-pc-iam.',
 );
 assert.equal(
-  iamPackageJson.dependencies?.['@sdkwork/birdcoder-auth'],
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-pc-auth'],
   'workspace:*',
   'BirdCoder IAM package must compose the BirdCoder auth package.',
 );
 assert.equal(
-  iamPackageJson.dependencies?.['@sdkwork/birdcoder-infrastructure'],
+  iamPackageJson.dependencies?.['@sdkwork/birdcoder-pc-infrastructure'],
   'workspace:*',
   'BirdCoder IAM package must bind auth to the infrastructure IAM runtime through the public package entry.',
 );
 assert.equal(
-  shellPackageJson.dependencies?.['@sdkwork/birdcoder-auth'],
+  shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-auth'],
   undefined,
-  'BirdCoder shell must load auth through @sdkwork/birdcoder-iam instead of binding auth directly.',
+  'BirdCoder shell must load auth through @sdkwork/birdcoder-pc-iam instead of binding auth directly.',
 );
 assert.equal(
-  shellPackageJson.dependencies?.['@sdkwork/birdcoder-iam'],
+  shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-iam'],
   'workspace:*',
   'BirdCoder shell must consume the standard IAM integration package.',
 );
@@ -174,12 +174,12 @@ for (const [source, label] of [
 
 assert.match(
   iamIntegrationSource,
-  /from ["']@sdkwork\/birdcoder-auth["']/u,
+  /from ["']@sdkwork\/birdcoder-pc-auth["']/u,
   'BirdCoder IAM facade must consume the BirdCoder auth package.',
 );
 assert.match(
   iamIntegrationSource,
-  /from ["']@sdkwork\/birdcoder-infrastructure["']/u,
+  /from ["']@sdkwork\/birdcoder-pc-infrastructure["']/u,
   'BirdCoder IAM facade must consume infrastructure runtime and session boundaries through the workspace public entry.',
 );
 assert.match(
@@ -199,7 +199,7 @@ assert.match(
 );
 assert.doesNotMatch(
   iamIntegrationSource,
-  /\.\.\/\.\.\/sdkwork-birdcoder-infrastructure\/src\//u,
+  /\.\.\/\.\.\/apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-infrastructure\/src\//u,
   'BirdCoder IAM facade must not pierce the infrastructure package source tree.',
 );
 

@@ -1,0 +1,12 @@
+# BirdCoder Flutter Container Test Config
+
+[server]
+bind = "0.0.0.0:3000"
+environment = "test"
+
+[database]
+type = "sqlite"
+path = "/var/lib/sdkwork-birdcoder-mobile/data/test.sqlite3"
+
+[logging]
+level = "debug"

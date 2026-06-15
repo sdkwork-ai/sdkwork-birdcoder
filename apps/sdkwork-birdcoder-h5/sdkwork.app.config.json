@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 3,
+  "kind": "sdkwork.app",
+  "app": {
+    "key": "sdkwork-birdcoder-h5",
+    "name": "SDKWork Birdcoder H5",
+    "displayName": "SDKWork Birdcoder H5",
+    "description": "SDKWork Birdcoder H5 mobile web application with Capacitor native support.",
+    "vendor": "SDKWork",
+    "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-birdcoder",
+    "supportUrl": "https://sdkwork.com/support",
+    "privacyPolicyUrl": "https://sdkwork.com/privacy",
+    "termsOfServiceUrl": "https://sdkwork.com/terms",
+    "iconUrl": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/assets/icon-h5-1024.png",
+    "appType": "APP_REACT",
+    "versionSource": "package.json",
+    "identifiers": {
+      "packageName": "com.sdkwork.birdcoder.h5",
+      "bundleId": "com.sdkwork.birdcoder.h5"
+    }
+  },
+  "backend": {
+    "profileKey": "backend-root-admin",
+    "ownerMode": "tenant",
+    "grantMode": "current",
+    "platform": "WEB",
+    "appId": null,
+    "tenantId": "20001",
+    "organizationId": null
+  },
+  "runtime": {
+    "family": "mobile",
+    "framework": "react-capacitor",
+    "runtimes": ["WEB", "CAPACITOR_IOS", "CAPACITOR_ANDROID"],
+    "deliveryModes": ["WEB_URL", "APP_STORE", "PLAY_STORE"],
+    "defaultPlatform": "WEB",
+    "defaultArchitecture": "universal"
+  },
+  "media": {
+    "icons": {
+      "primary": {
+        "id": "sdkwork-birdcoder-h5-primary-icon",
+        "type": "ICON",
+        "purpose": "PRIMARY",
+        "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/assets/icon-h5-1024.png",
+        "platform": "APP",
+        "locale": "en-US",
+        "width": 1024,
+        "height": 1024,
+        "format": "PNG",
+        "fileSizeBytes": 524288,
+        "alphaChannel": false,
+        "sortOrder": 0,
+        "enabled": true,
+        "metadata": {
+          "generatedPlaceholder": true
+        }
+      },
+      "platform": [],
+      "metadata": {
+        "generatedBy": "sdkwork-app-standard-v3"
+      }
+    },
+    "screenshots": [],
+    "previews": [],
+    "metadata": {
+      "assetVersion": "0.1.0",
+      "defaultLocale": "en-US"
+    }
+  },
+  "publish": {
+    "status": "ACTIVE",
+    "installSkill": {
+      "name": "sdkwork-skills-app"
+    },
+    "platforms": ["WEB", "CAPACITOR_IOS", "CAPACITOR_ANDROID"],
+    "installPlatforms": ["WEB", "CAPACITOR_IOS", "CAPACITOR_ANDROID"],
+    "defaultPackageId": "h5-web-production",
+    "storeUrl": "https://sdkwork.com/apps/sdkwork-birdcoder-h5",
+    "stores": [],
+    "config": {
+      "workspaceRoot": "apps/sdkwork-birdcoder-h5",
+      "framework": "react-capacitor",
+      "managedBy": "sdkwork-app-standard-v3"
+    }
+  },
+  "environments": {
+    "development": {
+      "accessUrl": "https://api-dev.sdkwork.com/apps/sdkwork-birdcoder",
+      "deployUrl": "https://api-dev.sdkwork.com/apps/sdkwork-birdcoder",
+      "deployEnv": "dev"
+    },
+    "test": {
+      "accessUrl": "https://api-test.sdkwork.com/apps/sdkwork-birdcoder",
+      "deployUrl": "https://api-test.sdkwork.com/apps/sdkwork-birdcoder",
+      "deployEnv": "test"
+    },
+    "staging": {
+      "accessUrl": "https://api-staging.sdkwork.com/apps/sdkwork-birdcoder",
+      "deployUrl": "https://api-staging.sdkwork.com/apps/sdkwork-birdcoder",
+      "deployEnv": "staging"
+    },
+    "production": {
+      "accessUrl": "https://api.sdkwork.com/apps/sdkwork-birdcoder",
+      "deployUrl": "https://api.sdkwork.com/apps/sdkwork-birdcoder",
+      "deployEnv": "production"
+    }
+  },
+  "artifacts": {
+    "installConfig": {
+      "defaultPackageId": "h5-web-production",
+      "installCommand": "sdkwork install sdkwork-birdcoder-h5",
+      "launchCommand": "sdkwork open sdkwork-birdcoder-h5",
+      "uninstallCommand": "sdkwork uninstall sdkwork-birdcoder-h5",
+      "packages": [
+        {
+          "id": "h5-web-production",
+          "name": "SDKWork Birdcoder H5 Web Bundle",
+          "sourceType": "WEB_URL",
+          "packageFormat": "ZIP",
+          "platform": "WEB",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-h5/STABLE/0.1.0/web.zip",
+          "enabled": true,
+          "metadata": {},
+          "checksumAlgorithm": "SHA-256",
+          "checksum": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "id": "capacitor-ios",
+          "name": "SDKWork Birdcoder H5 iOS Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "IPA",
+          "platform": "CAPACITOR_IOS",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-h5/STABLE/0.1.0/ios/app.ipa",
+          "enabled": true,
+          "metadata": {},
+          "architecture": "universal",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "id": "capacitor-android",
+          "name": "SDKWork Birdcoder H5 Android Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "AAB",
+          "platform": "CAPACITOR_ANDROID",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-h5/STABLE/0.1.0/android/app.aab",
+          "enabled": true,
+          "metadata": {},
+          "architecture": "universal",
+          "checksumAlgorithm": "SHA-256",
+          "checksum": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "metadata": {
+        "workspaceRoot": "apps/sdkwork-birdcoder-h5",
+        "framework": "react-capacitor",
+        "packageManager": "pnpm@10.30.2"
+      }
+    }
+  },
+  "release": {
+    "currentVersion": "0.1.0",
+    "defaultChannel": "STABLE",
+    "latest": {
+      "STABLE": "0.1.0"
+    },
+    "notes": [
+      {
+        "version": "0.1.0",
+        "releaseChannel": "STABLE",
+        "title": "SDKWork Birdcoder H5 0.1.0",
+        "summary": "SDKWork Birdcoder H5 initial release.",
+        "content": "Initial SDKWork App Standard v3 manifest for SDKWork Birdcoder H5.",
+        "highlights": [
+          "H5 mobile web application",
+          "Capacitor iOS/Android support",
+          "SDKWork App Standard v3 configuration"
+        ],
+        "packageIds": [
+          "h5-web-production",
+          "capacitor-ios",
+          "capacitor-android"
+        ],
+        "publishedAt": "2026-06-13T00:00:00Z",
+        "current": true,
+        "forceUpdate": false,
+        "minSupportedVersion": "0.1.0",
+        "metadata": {}
+      }
+    ]
+  },
+  "security": {
+    "checksumRequired": false,
+    "signatureRequired": false,
+    "sbomRequired": false
+  },
+  "devApp": {
+    "build": {
+      "targets": []
+    },
+    "sourceRoot": "apps/sdkwork-birdcoder-h5"
+  },
+  "metadata": {
+    "standardOwner": "sdkwork-platform",
+    "initializedAt": "2026-06-13T00:00:00Z"
+  }
+}

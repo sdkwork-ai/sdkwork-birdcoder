@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import type { BirdCoderProject } from '@sdkwork/birdcoder-types';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 
 const selectionModulePath = new URL(
-  '../packages/sdkwork-birdcoder-commons/src/workbench/codingSessionSelection.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/codingSessionSelection.ts',
   import.meta.url,
 );
 const codeCommandsPath = new URL(
-  '../packages/sdkwork-birdcoder-code/src/pages/useCodeWorkbenchCommands.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeWorkbenchCommands.ts',
   import.meta.url,
 );
 const studioBindingsPath = new URL(
-  '../packages/sdkwork-birdcoder-studio/src/pages/useStudioWorkbenchEventBindings.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioWorkbenchEventBindings.ts',
   import.meta.url,
 );
 

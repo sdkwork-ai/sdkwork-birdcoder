@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const sdkTransportSharedModulePath = new URL(
-  '../packages/sdkwork-birdcoder-infrastructure/src/services/sdkTransportShared.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkTransportShared.ts',
   import.meta.url,
 );
 const rustHostLibSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-server/src-host/src/lib.rs', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
   'utf8',
 ).replace(/\r\n?/g, '\n');
 

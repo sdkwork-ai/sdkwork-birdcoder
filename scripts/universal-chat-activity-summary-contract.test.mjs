@@ -3,17 +3,17 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const universalChatSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-ui/src/components/UniversalChat.tsx'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
   'utf8',
 );
 
 const englishChatSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-i18n/src/locales/en/chat.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/chat.ts'),
   'utf8',
 );
 
 const chineseChatSource = await readFile(
-  resolve('packages/sdkwork-birdcoder-i18n/src/locales/zh/chat.ts'),
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/zh/chat.ts'),
   'utf8',
 );
 

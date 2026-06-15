@@ -4,22 +4,22 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "src/*"
+        "apps/sdkwork-birdcoder-pc/src/*"
       ],
       "@sdkwork/birdcoder-codeengine/*": [
-        "packages/sdkwork-birdcoder-codeengine/src/*"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/*"
       ],
       "@sdkwork/birdcoder-host-core": [
-        "packages/sdkwork-birdcoder-host-core/src/index.ts"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-core/src/index.ts"
       ],
       "@sdkwork/birdcoder-host-studio": [
-        "packages/sdkwork-birdcoder-host-studio/src/index.ts"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/src/index.ts"
       ],
       "@sdkwork/birdcoder-app-sdk": [
-        "sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
+        "apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/birdcoder-backend-sdk": [
-        "sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts"
+        "apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/appbase-app-sdk": [
         "../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts"
@@ -29,6 +29,21 @@
       ],
       "@sdkwork/auth-runtime-pc-react": [
         "../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts"
+      ],
+      "@sdkwork/iam-contracts": [
+        "../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts/src/index.ts"
+      ],
+      "@sdkwork/iam-runtime": [
+        "../sdkwork-appbase/packages/common/iam/sdkwork-iam-runtime/src/index.ts"
+      ],
+      "@sdkwork/iam-service": [
+        "../sdkwork-appbase/packages/common/iam/sdkwork-iam-service/src/index.ts"
+      ],
+      "@sdkwork/iam-sdk-ports": [
+        "../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts"
+      ],
+      "@sdkwork/runtime-bootstrap": [
+        "../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap/src/index.ts"
       ],
       "@sdkwork/drive-app-sdk": [
         "../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts"
@@ -43,40 +58,40 @@
         "../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/*"
       ],
       "@sdkwork/birdcoder-commons/*": [
-        "packages/sdkwork-birdcoder-commons/src/*"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/*"
       ],
       "@sdkwork/birdcoder-infrastructure/*": [
-        "packages/sdkwork-birdcoder-infrastructure/src/*"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/*"
       ],
       "@sdkwork/birdcoder-shell/*": [
-        "packages/sdkwork-birdcoder-shell/src/*"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/*"
       ],
       "@sdkwork/birdcoder-types/*": [
-        "packages/sdkwork-birdcoder-types/src/*"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/*"
       ],
       "@sdkwork/birdcoder-commons/shell": [
-        "packages/sdkwork-birdcoder-commons/src/shell.ts"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/shell.ts"
       ],
       "@sdkwork/appbase-pc-react": [
-        "src/appbase-public-types/appbase-pc-react.d.ts"
+        "apps/sdkwork-birdcoder-pc/src/appbase-public-types/appbase-pc-react.d.ts"
       ],
       "@sdkwork/auth-pc-react": [
-        "src/appbase-public-types/auth-pc-react.d.ts"
+        "apps/sdkwork-birdcoder-pc/src/appbase-public-types/auth-pc-react.d.ts"
       ],
       "@sdkwork/search-pc-react": [
-        "src/appbase-public-types/search-pc-react.d.ts"
+        "apps/sdkwork-birdcoder-pc/src/appbase-public-types/search-pc-react.d.ts"
       ],
       "@sdkwork/user-pc-react": [
-        "src/appbase-public-types/user-pc-react.d.ts"
+        "apps/sdkwork-birdcoder-pc/src/appbase-public-types/user-pc-react.d.ts"
       ],
       "@sdkwork/wallet-pc-react": [
-        "src/appbase-public-types/wallet-pc-react.d.ts"
+        "apps/sdkwork-birdcoder-pc/src/appbase-public-types/wallet-pc-react.d.ts"
       ],
       "@sdkwork/core-pc-react": [
         "../sdkwork-core/sdkwork-core-pc-react/dist/index.d.ts"
       ],
       "@sdkwork/birdcoder-shell/runtime": [
-        "packages/sdkwork-birdcoder-shell/src/runtime.ts"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/runtime.ts"
       ],
       "@sdkwork/ui-pc-react": [
         "../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts"
@@ -85,64 +100,67 @@
         "../sdkwork-ui/sdkwork-ui-pc-react/src/theme/index.ts"
       ],
       "@sdkwork/birdcoder-*": [
-        "packages/sdkwork-birdcoder-*/src"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*/src"
       ],
-      "@sdkwork/terminal-desktop": [
-        "packages/sdkwork-birdcoder-commons/src/terminal/contracts/sdkworkTerminalDesktop.d.ts"
+      "@sdkwork/birdcoder-pc-*": [
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*/src"
+      ],
+      "@sdkwork/birdcoder-pc-infrastructure-runtime": [
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure-runtime/src"
+      ],
+      "@sdkwork/birdcoder-pc-infrastructure-runtime/*": [
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure-runtime/src/*"
+      ],
+      "@sdkwork/birdcoder-pc-host-core": [
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-core/src/index.ts"
+      ],
+      "@sdkwork/terminal-pc-desktop": [
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalDesktop.d.ts"
       ],
       "lucide-react": [
         "node_modules/lucide-react"
       ],
       "@sdkwork/terminal-*": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-*/src"
+        "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-*/src"
       ],
-      "@sdkwork/terminal-shell": [
-        "packages/sdkwork-birdcoder-commons/src/terminal/contracts/sdkworkTerminalShell.d.ts"
+      "@sdkwork/terminal-pc-shell": [
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalShell.d.ts"
       ],
-      "@sdkwork/terminal-shell/*": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-shell/src/*"
+      "@sdkwork/terminal-pc-shell/*": [
+        "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/*"
       ],
-      "@sdkwork/terminal-resources/model": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-resources/src/model.ts"
+      "@sdkwork/terminal-pc-infrastructure": [
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalInfrastructure.d.ts"
       ],
-      "@sdkwork/terminal-sessions/model": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-sessions/src/model.ts"
+      "@sdkwork/terminal-pc-infrastructure/*": [
+        "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/*"
       ],
-      "@sdkwork/terminal-infrastructure": [
-        "packages/sdkwork-birdcoder-commons/src/terminal/contracts/sdkworkTerminalInfrastructure.d.ts"
+      "@sdkwork/terminal-pc-resources/model": [
+        "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-resources/src/model.ts"
       ],
-      "@sdkwork/terminal-infrastructure/*": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/*"
-      ],
-      "@sdkwork/terminal-core": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-core/src"
-      ],
-      "@sdkwork/terminal-core/*": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-core/src/*"
-      ],
-      "@sdkwork/terminal-contracts": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-contracts/src"
-      ],
-      "@sdkwork/terminal-contracts/*": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-contracts/src/*"
-      ],
-      "@sdkwork/terminal-types": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-types/src"
-      ],
-      "@sdkwork/terminal-types/*": [
-        "../sdkwork-terminal/packages/sdkwork-terminal-types/src/*"
+      "@sdkwork/terminal-pc-sessions/model": [
+        "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-sessions/src/model.ts"
       ],
       "sdkwork-birdcoder-commons/shell": [
-        "packages/sdkwork-birdcoder-commons/src/shell.ts"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/shell.ts"
       ],
       "sdkwork-birdcoder-*": [
-        "packages/sdkwork-birdcoder-*/src"
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*/src"
+      ],
+      "sdkwork-birdcoder-pc-*": [
+        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*/src"
+      ],
+      "@sdkwork/birdcoder-h5-*": [
+        "apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*/src"
       ]
     }
   },
   "include": [
-    "src",
-    "packages"
+    "packages",
+    "apps/sdkwork-birdcoder-pc/packages",
+    "apps/sdkwork-birdcoder-pc/src",
+    "apps/sdkwork-birdcoder-h5/src",
+    "apps/sdkwork-birdcoder-h5/packages"
   ],
   "exclude": [
     "**/node_modules/**",
@@ -150,7 +168,8 @@
     "**/target/**",
     "**/src-tauri/target/**",
     "scripts/vite-shims/sdkwork-core-pc-react-browser-facade.mjs",
-    "packages/sdkwork-birdcoder-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts",
+    "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts",
     "artifacts/**"
   ]
 }
+

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const virtualizationSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-ui/src/components/transcriptVirtualization.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptVirtualization.ts', import.meta.url),
   'utf8',
 );
 

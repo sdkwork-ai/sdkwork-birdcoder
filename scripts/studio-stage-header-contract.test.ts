@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const studioStageHeaderSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/preview/StudioStageHeader.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/StudioStageHeader.tsx', import.meta.url),
   'utf8',
 );
 const studioPageSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx', import.meta.url),
   'utf8',
 );
 const studioMainContentSource = readFileSync(
-  new URL('../packages/sdkwork-birdcoder-studio/src/pages/StudioMainContent.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioMainContent.tsx', import.meta.url),
   'utf8',
 );
 
@@ -88,7 +88,7 @@ assert.equal(
 
 assert.match(
   studioStageHeaderSource,
-  /import \{[\s\S]*ProjectGitHeaderControls,[\s\S]*\} from '@sdkwork\/birdcoder-ui';/s,
+  /import \{[\s\S]*ProjectGitHeaderControls,[\s\S]*\} from '@sdkwork\/birdcoder-pc-ui';/s,
   'StudioStageHeader must reuse the shared ProjectGitHeaderControls component instead of duplicating studio-local Git runtime logic.',
 );
 

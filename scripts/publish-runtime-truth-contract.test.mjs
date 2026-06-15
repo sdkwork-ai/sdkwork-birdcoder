@@ -9,14 +9,14 @@ function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const topBarSource = read('packages/sdkwork-birdcoder-code/src/components/TopBar.tsx');
-const studioPageSource = read('packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx');
-const studioDialogsSource = read('packages/sdkwork-birdcoder-studio/src/pages/StudioPageDialogs.tsx');
-const appCollaborationLocaleSource = read('packages/sdkwork-birdcoder-i18n/src/locales/en/app/collaboration.ts');
-const studioDialogsLocaleSource = read('packages/sdkwork-birdcoder-i18n/src/locales/en/studio/dialogs.ts');
-const codeTopBarLocaleSource = read('packages/sdkwork-birdcoder-i18n/src/locales/en/code/topbar.ts');
-const codeActionsLocaleSource = read('packages/sdkwork-birdcoder-i18n/src/locales/en/code/actions.ts');
-const appToolsLocaleSource = read('packages/sdkwork-birdcoder-i18n/src/locales/en/app/tools.ts');
+const topBarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx');
+const studioPageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx');
+const studioDialogsSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPageDialogs.tsx');
+const appCollaborationLocaleSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/app/collaboration.ts');
+const studioDialogsLocaleSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/studio/dialogs.ts');
+const codeTopBarLocaleSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/code/topbar.ts');
+const codeActionsLocaleSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/code/actions.ts');
+const appToolsLocaleSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/app/tools.ts');
 
 assert.doesNotMatch(
   topBarSource,

@@ -6,10 +6,10 @@ import process from 'node:process';
 const rootDir = process.cwd();
 const packagesDir = path.join(rootDir, 'packages');
 const allowedAdapterDirs = new Set([
-  'sdkwork-birdcoder-chat-claude',
-  'sdkwork-birdcoder-chat-codex',
-  'sdkwork-birdcoder-chat-gemini',
-  'sdkwork-birdcoder-chat-opencode',
+  'sdkwork-birdcoder-pc-chat-claude',
+  'sdkwork-birdcoder-pc-chat-codex',
+  'sdkwork-birdcoder-pc-chat-gemini',
+  'sdkwork-birdcoder-pc-chat-opencode',
 ]);
 const officialSdkPackages = [
   '@anthropic-ai/claude-agent-sdk',

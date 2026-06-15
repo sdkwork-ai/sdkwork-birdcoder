@@ -3,7 +3,7 @@ import fs from 'node:fs';
 
 const bootstrapRuntimeSource = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/bootstrapShellRuntime.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapShellRuntime.ts',
     import.meta.url,
   ),
   'utf8',
@@ -11,19 +11,19 @@ const bootstrapRuntimeSource = fs.readFileSync(
 
 const bootstrapRuntimeLoaderSource = fs.readFileSync(
   new URL(
-    '../packages/sdkwork-birdcoder-shell-runtime/src/application/bootstrap/loadBootstrapShellRuntimeImpl.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/loadBootstrapShellRuntimeImpl.ts',
     import.meta.url,
   ),
   'utf8',
 );
 
 const webMainSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-web/src/main.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx', import.meta.url),
   'utf8',
 );
 
 const desktopMainSource = fs.readFileSync(
-  new URL('../packages/sdkwork-birdcoder-desktop/src/main.tsx', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx', import.meta.url),
   'utf8',
 );
 
@@ -45,13 +45,13 @@ function runtimeImportPattern(specifier) {
 
 assert.doesNotMatch(
   bootstrapRuntimeSource,
-  runtimeImportPattern('@sdkwork/birdcoder-core'),
+  runtimeImportPattern('@sdkwork/birdcoder-pc-core'),
   'bootstrapShellRuntime must not statically import birdcoder-core because that re-links heavyweight bootstrap logic into the startup runtime chunk.',
 );
 
 assert.doesNotMatch(
   bootstrapRuntimeSource,
-  runtimeImportPattern('@sdkwork/birdcoder-infrastructure'),
+  runtimeImportPattern('@sdkwork/birdcoder-pc-infrastructure'),
   'bootstrapShellRuntime must not statically import birdcoder-infrastructure because the default IDE runtime binding should be loaded on demand during bootstrap execution.',
 );
 

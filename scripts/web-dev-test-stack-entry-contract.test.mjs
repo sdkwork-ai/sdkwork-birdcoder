@@ -11,7 +11,7 @@ function readPackageJson(relativePath) {
 }
 
 const rootPackageJson = readPackageJson('.');
-const webPackageJson = readPackageJson('packages/sdkwork-birdcoder-web');
+const webPackageJson = readPackageJson('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web');
 
 assert.equal(
   rootPackageJson.scripts?.['dev:test'],

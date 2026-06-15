@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 
 import {
   createOpenCodeOfficialSdkBridge,
-} from '../packages/sdkwork-birdcoder-chat-opencode/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts';
 
 import type {
   ChatMessage,
   ChatStreamChunk,
-} from '../packages/sdkwork-birdcoder-chat/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
 
 async function collectStream(
   iterableOrPromise: AsyncIterable<ChatStreamChunk> | Promise<AsyncIterable<ChatStreamChunk>>,

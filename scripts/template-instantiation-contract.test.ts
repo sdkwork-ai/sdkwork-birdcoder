@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const rootDir = process.cwd();
 const typesEntryModulePath = new URL(
-  '../packages/sdkwork-birdcoder-types/src/index.ts',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
   import.meta.url,
 );
 
