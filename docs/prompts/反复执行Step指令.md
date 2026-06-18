@@ -293,18 +293,18 @@
   - `scripts/engine-kernel-contract.test.ts` and `scripts/engine-source-mirror-contract.test.ts` make source drift executable
   - already-mirrored engines must not regress to `sdk-only`, `extension`, or fragment-only source truth
 - The second Step 18 coding-server-engine-truth slice is now closed:
-  - `packages/sdkwork-birdcoder-server/src/index.ts` exports shared engine descriptor, capability, and model-catalog truth
+  - `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts` exports shared engine descriptor, capability, and model-catalog truth
   - `listBirdCoderCodingServerEngines()` and `listBirdCoderCodingServerModels()` must derive from `workbench/kernel.ts`
   - unknown engine descriptor/capability lookups must stay explicit `null` instead of falling back to the default engine
   - `scripts/coding-server-engine-truth-contract.test.ts` makes that server-side truth promotion executable
 - The third Step 18 Rust-host-engine-truth slice is now closed:
-  - `scripts/generate-rust-host-engine-catalog.ts` materializes `packages/sdkwork-birdcoder-server/src-host/generated/engine-catalog.json`
+  - `scripts/generate-rust-host-engine-catalog.ts` materializes `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
   - Rust host loads that shared artifact via `include_str!("../generated/engine-catalog.json")` plus `OnceLock`
   - Rust host engine/model routes must no longer depend on local manual engine fixture helpers
   - `scripts/rust-host-engine-truth-contract.test.ts` makes shared-artifact adoption executable
 - The fourth Step 18 Rust-host-engine-route-parity slice is now closed:
   - Rust host route parity is executable for `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/capabilities`, and `/app/v3/api/models`
-  - `core_engine_catalog_routes_match_generated_shared_engine_catalog` compares live Rust HTTP payloads against `packages/sdkwork-birdcoder-server/src-host/generated/engine-catalog.json`
+  - `core_engine_catalog_routes_match_generated_shared_engine_catalog` compares live Rust HTTP payloads against `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
   - Rust route payload optionals must omit absent fields so shared artifact JSON shape and live route JSON shape stay identical
   - `pnpm.cmd run test:rust-host-engine-route-parity-contract` is part of `check:release-flow`
 - The fifth Step 18 engine-governance-promotion slice is now closed:
@@ -376,7 +376,7 @@
   - `pnpm.cmd run test:prompt-skill-template-evidence-repository-contract`
   - `pnpm.cmd run test:prompt-skill-template-evidence-consumer-contract`
   - `pnpm.cmd run test:coding-server-prompt-skill-template-evidence-consumer-contract`
-  - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
   - `pnpm.cmd run typecheck`
   - `pnpm.cmd run docs:build`
 - Current next serial closure:
@@ -471,7 +471,7 @@
     - `scripts/prompt-skill-template-evidence-consumer-contract.test.ts` proves the default IDE project flow writes evidence on that shared path
     - `pnpm.cmd run test:prompt-skill-template-evidence-consumer-contract` is part of lint, release-flow, and governance regression
   40. the third Step 16 evidence-consumer slice is now closed:
-    - `packages/sdkwork-birdcoder-server/src/projectionRepository.ts` now persists `prompt_run` and `prompt_evaluation` inside the same provider/UoW transaction used by coding-session projection persistence.
+    - `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts` now persists `prompt_run` and `prompt_evaluation` inside the same provider/UoW transaction used by coding-session projection persistence.
     - `scripts/coding-server-prompt-skill-template-evidence-consumer-contract.test.ts` proves coding-server projection consumers no longer bypass shared evidence repositories.
     - `pnpm.cmd run test:coding-server-prompt-skill-template-evidence-consumer-contract` is part of lint, release-flow, and governance regression.
     - Step 16 `CP16-3` is now fully closed; if PostgreSQL live smoke remains blocked, move to the next lowest-score non-environmental slice on the `09 -> 17` mainline.
@@ -563,7 +563,7 @@
   - the next autonomous loop must select a new lowest-score Step from fresh evidence instead of continuing Step `20`
 58. The remaining release-tier contract-tail drift is now also closed:
   - `scripts/ci-flow-contract.test.mjs` and `scripts/quality-gate-matrix-contract.test.mjs` now freeze the same direct web-host `check:quality:standard` chain already used by `build`, `build:prod`, `check:quality:standard`, and governance regression
-  - the current direct-runner evidence returns `110/110` passed checks with `failedCheckIds: []`
+  - the current direct-runner evidence returns `109/109` passed checks with `failedCheckIds: []`
   - the 2026-04-13 direct-runner quality execution evidence returned `status: passed`, `passedCount: 3`, `failedCount: 0`, `blockedCount: 0`, and `lastExecutedTierId: release`
   - the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology remains unchanged; only the last stale contract expectations were realigned to the already-governed command truth
 59. The Step 17 live-docs truth-drift closure is now also closed:

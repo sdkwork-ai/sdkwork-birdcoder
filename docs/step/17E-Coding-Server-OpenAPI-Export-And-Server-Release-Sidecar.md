@@ -6,7 +6,7 @@ Close the canonical `coding-server` OpenAPI export as a real artifact and force 
 
 ## Closed Scope
 
-- `packages/sdkwork-birdcoder-server/src/index.ts`
+- `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts`
 - `scripts/coding-server-openapi-export.ts`
 - `scripts/coding-server-openapi-export-contract.test.ts`
 - `scripts/release/local-release-command.mjs`

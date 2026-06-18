@@ -10,7 +10,7 @@ Turn `GET /app/v3/api/documents` from a `not_implemented` placeholder into a rea
 
 ## Scope
 
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
+- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
 - representative document authority slice on shared provider/UoW truth
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - default IDE app/backend service wiring for document reads

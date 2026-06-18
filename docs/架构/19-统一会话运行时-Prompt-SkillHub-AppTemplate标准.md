@@ -148,6 +148,6 @@
   - default IDE service composition and provider-backed project flows now consume the same shared evidence repositories for `app_template_instantiation`, `prompt_run`, and `prompt_evaluation`.
   - `pnpm.cmd run test:prompt-skill-template-evidence-consumer-contract` is the executable gate for this service-consumer adoption.
 - Step 16 `CP16-3` third coding-server consumer slice is now closed:
-  - `packages/sdkwork-birdcoder-server/src/projectionRepository.ts` now persists `prompt_run` and `prompt_evaluation` through the same provider/UoW transaction used by coding-server projection persistence.
+  - `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts` now persists `prompt_run` and `prompt_evaluation` through the same provider/UoW transaction used by coding-server projection persistence.
   - `pnpm.cmd run test:coding-server-prompt-skill-template-evidence-consumer-contract` is the executable gate for coding-server-side evidence adoption.
   - Step 16 `CP16-3` is now fully closed.

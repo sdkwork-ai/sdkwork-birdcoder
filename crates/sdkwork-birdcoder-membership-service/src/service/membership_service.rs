@@ -2,13 +2,14 @@ use crate::domain::models::{
     CommerceMembershipBenefitPayload, CommerceMembershipCurrentPayload,
     CommerceMembershipPackageGroupPayload,
 };
-use crate::error::CommerceMembershipError;
+use crate::error::MembershipError;
 
 // ── Repository trait ─────────────────────────────────────────────────
 
 pub trait MembershipRepository: Send + Sync {
     fn find_current_membership(
         &self,
+        tenant_id: Option<&str>,
         owner_user_id: &str,
     ) -> Result<Option<CommerceMembershipCurrentPayload>, String>;
 
@@ -17,6 +18,7 @@ pub trait MembershipRepository: Send + Sync {
 
 // ── Service ──────────────────────────────────────────────────────────
 
+#[derive(Clone)]
 pub struct MembershipService<R: MembershipRepository> {
     repository: R,
 }
@@ -31,17 +33,20 @@ impl<R: MembershipRepository> MembershipService<R> {
         tenant_id: Option<String>,
         organization_id: Option<String>,
         owner_user_id: &str,
-    ) -> Result<CommerceMembershipCurrentPayload, CommerceMembershipError> {
+    ) -> Result<CommerceMembershipCurrentPayload, MembershipError> {
         if owner_user_id.trim().is_empty() {
-            return Err(CommerceMembershipError::InvalidInput(
+            return Err(MembershipError::InvalidInput(
                 "ownerUserId is required.".to_string(),
             ));
         }
 
         if let Some(existing) = self
             .repository
-            .find_current_membership(owner_user_id)
-            .map_err(CommerceMembershipError::Repository)?
+            .find_current_membership(
+                tenant_id.as_deref(),
+                owner_user_id,
+            )
+            .map_err(MembershipError::Repository)?
         {
             return Ok(existing);
         }
@@ -55,10 +60,10 @@ impl<R: MembershipRepository> MembershipService<R> {
 
     pub fn list_package_groups(
         &self,
-    ) -> Result<Vec<CommerceMembershipPackageGroupPayload>, CommerceMembershipError> {
+    ) -> Result<Vec<CommerceMembershipPackageGroupPayload>, MembershipError> {
         self.repository
             .list_package_groups()
-            .map_err(CommerceMembershipError::Repository)
+            .map_err(MembershipError::Repository)
     }
 }
 

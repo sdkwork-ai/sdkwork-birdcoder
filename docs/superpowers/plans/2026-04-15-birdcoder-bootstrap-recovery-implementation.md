@@ -13,7 +13,7 @@
 ### Task 1: Rust Authority Bootstrap
 
 **Files:**
-- Modify: `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
+- Modify: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
 
 - [ ] **Step 1: Write the failing Rust tests**
 
@@ -23,12 +23,12 @@ Add tests for:
 
 - [ ] **Step 2: Run the Rust tests to verify failure**
 
-Run: `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_from_sqlite_file_bootstraps_`
+Run: `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_from_sqlite_file_bootstraps_`
 Expected: FAIL because the current authority loader does not create bootstrap workspace/project rows
 
 - [ ] **Step 3: Implement minimum bootstrap logic**
 
-Add an idempotent helper in `packages/sdkwork-birdcoder-server/src-host/src/lib.rs` that:
+Add an idempotent helper in `crates/sdkwork-birdcoder-api-server/src/lib.rs` that:
 - runs after provider authority schema/materialization is available
 - inserts a deterministic default workspace when none exists
 - inserts a deterministic starter project when none exists
@@ -36,7 +36,7 @@ Add an idempotent helper in `packages/sdkwork-birdcoder-server/src-host/src/lib.
 
 - [ ] **Step 4: Run the Rust tests to verify pass**
 
-Run: `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_from_sqlite_file_bootstraps_`
+Run: `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_from_sqlite_file_bootstraps_`
 Expected: PASS
 
 ### Task 2: Shared Workbench Recovery Resolver
@@ -112,7 +112,7 @@ Expected: PASS
 
 - [ ] **Step 1: Run focused Rust verification**
 
-Run: `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_from_sqlite_file_bootstraps_`
+Run: `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_from_sqlite_file_bootstraps_`
 Expected: PASS
 
 - [ ] **Step 2: Run focused TypeScript verification**

@@ -11,7 +11,6 @@ function readText(relativePath) {
 }
 
 const serverSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs');
-const desktopSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs');
 const iamAuthoritySource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/iam_authority.rs');
 const bootstrapCatalogSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/bootstrapConsoleCatalog.ts',
@@ -74,14 +73,14 @@ for (const [label, source, expectedPattern] of [
     /const BOOTSTRAP_PROJECT_COLLABORATOR_ID: &str = "100000000000000304";/u,
   ],
   [
-    'Desktop bootstrap workspace id',
-    desktopSource,
-    /const DEFAULT_BOOTSTRAP_WORKSPACE_ID: &str = "100000000000000101";/u,
+    'Desktop embedded server bootstrap workspace id',
+    serverSource,
+    /const BOOTSTRAP_WORKSPACE_ID: &str = "100000000000000101";/u,
   ],
   [
-    'Desktop bootstrap owner id',
-    desktopSource,
-    /const DEFAULT_BOOTSTRAP_WORKSPACE_OWNER_USER_ID: &str = "100000000000000001";/u,
+    'Desktop embedded server bootstrap owner id',
+    serverSource,
+    /const BOOTSTRAP_WORKSPACE_OWNER_USER_ID: &str = "100000000000000001";|pub\(crate\) const BOOTSTRAP_WORKSPACE_OWNER_USER_ID: &str = "100000000000000001";/u,
   ],
   [
     'BirdCoder IAM authority bootstrap tenant id',

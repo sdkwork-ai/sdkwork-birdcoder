@@ -9,8 +9,8 @@ Close the server-side runtime transport binding so TypeScript-side default IDE r
 - packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts
 - packages/sdkwork-birdcoder-infrastructure/package.json
 - packages/sdkwork-birdcoder-shell/src/application/bootstrap/bootstrapShellRuntime.ts
-- packages/sdkwork-birdcoder-server/src/index.ts
-- packages/sdkwork-birdcoder-server/package.json
+- apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts
+- apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/package.json
 - scripts/server-runtime-transport-contract.test.ts
 - package.json
 

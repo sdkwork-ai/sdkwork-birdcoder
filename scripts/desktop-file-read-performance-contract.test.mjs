@@ -3,8 +3,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const rootDir = process.cwd();
+const hostFilesystemSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'crates/sdkwork-birdcoder-tauri-host/src/commands/filesystem_commands.rs',
+  ),
+  'utf8',
+);
 const desktopLibSource = fs.readFileSync(
-  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs'),
+  path.join(
+    rootDir,
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
+  ),
   'utf8',
 );
 const tauriRuntimeSource = fs.readFileSync(
@@ -23,27 +33,33 @@ const runtimeFileSystemServiceSource = fs.readFileSync(
 );
 
 assert.match(
-  desktopLibSource,
+  hostFilesystemSource,
   /async\s+fn\s+fs_read_file\(\s*root_path:\s*String,\s*relative_path:\s*String,\s*max_bytes:\s*Option<usize>,?\s*\)\s*->\s*Result<String,\s*String>/s,
   'Desktop fs_read_file must be an async Tauri command that accepts an optional max_bytes budget so search can avoid full-file reads.',
 );
 
 assert.match(
-  desktopLibSource,
+  hostFilesystemSource,
   /fn\s+read_mounted_file_to_string\(\s*file_path:\s*&Path,\s*max_bytes:\s*Option<usize>,?\s*\)\s*->\s*Result<String,\s*String>/s,
   'Desktop file reads must centralize full and bounded mounted-file reads behind a helper.',
 );
 
 assert.match(
-  desktopLibSource,
+  hostFilesystemSource,
   /tauri::async_runtime::spawn_blocking\(move \|\| \{\s*let file_path = resolve_scoped_path\(&root_path,\s*&relative_path\)\?;[\s\S]*read_mounted_file_to_string\(&file_path,\s*max_bytes\)/s,
   'Desktop fs_read_file must offload filesystem reads through spawn_blocking instead of reading on the IPC command thread.',
 );
 
 assert.match(
-  desktopLibSource,
+  hostFilesystemSource,
   /\.take\(max_bytes as u64\)[\s\S]*read_to_end\(&mut buffer\)/s,
   'Desktop bounded file reads must use a max-byte reader instead of reading the whole file before truncating.',
+);
+
+assert.match(
+  desktopLibSource,
+  /fs_read_file,/,
+  'Desktop shell must register the shared tauri-host fs_read_file command.',
 );
 
 assert.match(

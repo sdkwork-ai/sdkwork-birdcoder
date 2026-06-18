@@ -108,7 +108,6 @@ export const MultiWindowPane = memo(function MultiWindowPane({
   const engineSummary = getWorkbenchCodeEngineSessionSummary(
     effectiveEngineId,
     effectiveModelId,
-    preferences,
   );
   const manualPreviewUrl = resolveSafePreviewUrl(pane.previewUrl);
   const detectedPreviewUrl = resolveMultiWindowPaneAutoPreviewUrl(messages);

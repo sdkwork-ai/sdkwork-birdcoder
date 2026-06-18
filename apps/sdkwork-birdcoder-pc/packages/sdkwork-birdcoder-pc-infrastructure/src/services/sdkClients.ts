@@ -92,7 +92,7 @@ import type {
   BirdCoderWorkspaceMemberSummary,
   BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-pc-types';
-import { clearStoredAppSessionToken } from './appSessionToken.ts';
+import { clearStoredAppSessionToken, loadStoredAppSessionToken } from './appSessionToken.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
 
@@ -577,11 +577,29 @@ export function getBirdCoderGeneratedBackendSdkClient(
 export function getBirdCoderGlobalTokenManager(): AuthTokenManager {
   if (!defaultBirdCoderSdkTokenManager) {
     defaultBirdCoderSdkTokenManager = createTokenManager();
+    hydrateBirdCoderTokenManagerFromStoredSession(defaultBirdCoderSdkTokenManager);
   }
   return defaultBirdCoderSdkTokenManager;
 }
 
+function hydrateBirdCoderTokenManagerFromStoredSession(tokenManager: AuthTokenManager): void {
+  const stored = loadStoredAppSessionToken();
+  if (!stored?.authToken || !stored.accessToken) {
+    return;
+  }
+
+  tokenManager.setTokens({
+    authToken: stored.authToken,
+    accessToken: stored.accessToken,
+    ...(stored.refreshToken ? { refreshToken: stored.refreshToken } : {}),
+    ...(typeof stored.expiresAt === 'number'
+      ? { expiresAt: stored.expiresAt * 1000 }
+      : {}),
+  });
+}
+
 export function setBirdCoderSdkTokenManager(tokenManager: AuthTokenManager): void {
+  hydrateBirdCoderTokenManagerFromStoredSession(tokenManager);
   defaultBirdCoderSdkTokenManager = tokenManager;
   generatedAppClient?.setTokenManager(tokenManager);
   generatedBackendClient?.setTokenManager(tokenManager);

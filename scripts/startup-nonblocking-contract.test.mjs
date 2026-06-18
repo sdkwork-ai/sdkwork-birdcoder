@@ -60,7 +60,7 @@ for (const [label, source] of startupEntrySources) {
 
   assert.match(
     source,
-    /waitForBirdCoderApiReady\(resolvedApiBaseUrl\)/u,
+    /waitForBirdCoderApiReady\(\w+\)/u,
     `${label} startup should wait for the SDKWork IAM-ready server facade after the bootstrap gate has yielded.`,
   );
 

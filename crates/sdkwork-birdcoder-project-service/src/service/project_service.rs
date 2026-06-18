@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::context::SessionContext;
+use crate::context::ProjectContext;
 use crate::domain::commands::{
     CommitProjectGitChangesRequest, CreateProjectGitBranchRequest, CreateProjectGitWorktreeRequest,
     CreateProjectRequest, PushProjectGitBranchRequest, RemoveProjectGitWorktreeRequest,
@@ -34,7 +34,7 @@ impl ProjectService {
 
     pub async fn list_projects(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         workspace_id: &str,
     ) -> Result<Vec<ProjectPayload>, ProjectError> {
         self.repository
@@ -44,7 +44,7 @@ impl ProjectService {
 
     pub async fn get_project(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         id: &str,
     ) -> Result<ProjectPayload, ProjectError> {
         if id.trim().is_empty() {
@@ -60,7 +60,7 @@ impl ProjectService {
 
     pub async fn create_project(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         request: &CreateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError> {
         if request.workspace_id.trim().is_empty() {
@@ -85,7 +85,7 @@ impl ProjectService {
 
     pub async fn update_project(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         id: &str,
         request: &UpdateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError> {
@@ -113,7 +113,7 @@ impl ProjectService {
 
     pub async fn delete_project(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         id: &str,
     ) -> Result<DeleteEntityPayload, ProjectError> {
         if id.trim().is_empty() {
@@ -131,7 +131,7 @@ impl ProjectService {
 
     pub async fn list_project_collaborators(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
     ) -> Result<Vec<ProjectCollaboratorPayload>, ProjectError> {
         if project_id.trim().is_empty() {
@@ -146,7 +146,7 @@ impl ProjectService {
 
     pub async fn upsert_project_collaborator(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
         request: &UpsertProjectCollaboratorRequest,
     ) -> Result<ProjectCollaboratorPayload, ProjectError> {
@@ -177,7 +177,7 @@ impl ProjectService {
 
     pub async fn remove_project_collaborator(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
         user_id: &str,
     ) -> Result<(), ProjectError> {
@@ -205,7 +205,7 @@ impl ProjectService {
 
     pub async fn get_project_git_overview(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
     ) -> Result<GitProjectOverview, ProjectError> {
         let root_path = self.resolve_project_root_path(ctx, project_id).await?;
@@ -217,7 +217,7 @@ impl ProjectService {
 
     pub async fn create_project_git_branch(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
         request: &CreateProjectGitBranchRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
@@ -230,7 +230,7 @@ impl ProjectService {
 
     pub async fn switch_project_git_branch(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
         request: &SwitchProjectGitBranchRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
@@ -243,7 +243,7 @@ impl ProjectService {
 
     pub async fn commit_project_git_changes(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
         request: &CommitProjectGitChangesRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
@@ -256,7 +256,7 @@ impl ProjectService {
 
     pub async fn push_project_git_branch(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
         request: &PushProjectGitBranchRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
@@ -273,7 +273,7 @@ impl ProjectService {
 
     pub async fn create_project_git_worktree(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
         request: &CreateProjectGitWorktreeRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
@@ -286,7 +286,7 @@ impl ProjectService {
 
     pub async fn remove_project_git_worktree(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
         request: &RemoveProjectGitWorktreeRequest,
     ) -> Result<GitProjectOverview, ProjectError> {
@@ -299,7 +299,7 @@ impl ProjectService {
 
     pub async fn prune_project_git_worktrees(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
     ) -> Result<GitProjectOverview, ProjectError> {
         let root_path = self.resolve_project_root_path(ctx, project_id).await?;
@@ -311,7 +311,7 @@ impl ProjectService {
 
     async fn resolve_project_root_path(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
     ) -> Result<String, ProjectError> {
         if project_id.trim().is_empty() {

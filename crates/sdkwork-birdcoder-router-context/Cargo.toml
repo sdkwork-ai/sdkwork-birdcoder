@@ -1,0 +1,15 @@
+[package]
+name = "sdkwork-birdcoder-router-context"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+http = "1"
+sdkwork_iam_context_service = { workspace = true }
+sdkwork-birdcoder-coding-sessions-service = { workspace = true }
+sdkwork-birdcoder-workspace-service = { workspace = true }
+sdkwork-birdcoder-project-service = { workspace = true }
+sdkwork-birdcoder-deployment-service = { workspace = true }

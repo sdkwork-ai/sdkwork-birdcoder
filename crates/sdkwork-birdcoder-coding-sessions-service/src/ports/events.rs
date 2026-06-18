@@ -1,4 +1,4 @@
-use crate::context::SessionContext;
+use crate::context::CodingSessionContext;
 use crate::error::CodingSessionError;
 
 #[derive(Clone, Debug)]
@@ -23,7 +23,7 @@ pub struct CodingSessionRealtimeEventInput {
 pub trait RealtimeEventPublisher: Send + Sync {
     async fn publish_workspace_event(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         workspace_id: &str,
         event_kind: &str,
         payload_json: &str,
@@ -31,7 +31,7 @@ pub trait RealtimeEventPublisher: Send + Sync {
 
     async fn publish_coding_session_event(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         event: &CodingSessionRealtimeEventInput,
     ) -> Result<(), CodingSessionError>;
 }

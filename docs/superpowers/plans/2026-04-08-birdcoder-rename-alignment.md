@@ -14,7 +14,7 @@
 
 **Files:**
 - Modify: `package.json`
-- Modify: `packages/sdkwork-birdcoder-server/package.json`
+- Modify: `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/package.json`
 - Test: `scripts/sdkwork-birdcoder-architecture-contract.test.mjs`
 
 - [ ] Fix root and server build script paths after file renames.

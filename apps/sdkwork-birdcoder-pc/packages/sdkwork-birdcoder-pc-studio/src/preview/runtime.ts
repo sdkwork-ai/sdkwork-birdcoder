@@ -4,8 +4,8 @@ import {
   type RunConfigurationRecord,
   type RunConfigurationTerminalLaunchResult,
   type RunConfigurationTerminalRequest,
-} from '@sdkwork/birdcoder-pc-commons';
-import type { HostStudioPreviewSession } from '../../../sdkwork-birdcoder-pc-host-studio/src/index.ts';
+} from '@sdkwork/birdcoder-pc-commons/terminal/runConfigs';
+import type { HostStudioPreviewSession } from '@sdkwork/birdcoder-pc-host-studio';
 
 export const STUDIO_PREVIEW_EXECUTION_ADAPTER_ID = 'studio.preview.execution';
 export const DEFAULT_STUDIO_PREVIEW_URL = 'http://127.0.0.1:4173';

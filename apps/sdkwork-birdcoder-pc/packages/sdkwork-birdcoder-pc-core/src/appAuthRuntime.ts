@@ -72,14 +72,33 @@ function resolveIamEnvironment(): IamEnvironment {
       : 'dev';
 }
 
+function normalizeIamDeploymentMode(value: string | undefined): IamDeploymentMode {
+  const normalized = (value ?? '').trim().toLowerCase();
+  if (
+    normalized === 'saas' ||
+    normalized === 'cloud-saas' ||
+    normalized === 'cloud'
+  ) {
+    return 'saas';
+  }
+  if (normalized === 'private' || normalized === 'server-private') {
+    return 'private';
+  }
+  if (normalized === 'local' || normalized === 'desktop-local') {
+    return 'local';
+  }
+  return 'local';
+}
+
 function resolveIamDeploymentMode(): IamDeploymentMode {
-  const value = readEnvValue(
-    'VITE_SDKWORK_BIRDCODER_IAM_DEPLOYMENT_MODE',
-    'VITE_SDKWORK_IAM_DEPLOYMENT_MODE',
+  return normalizeIamDeploymentMode(
+    readEnvValue(
+      'VITE_SDKWORK_DEPLOYMENT_MODE',
+      'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE',
+      'VITE_SDKWORK_BIRDCODER_IAM_DEPLOYMENT_MODE',
+      'VITE_SDKWORK_IAM_DEPLOYMENT_MODE',
+    ),
   );
-  return value === 'saas' || value === 'private' || value === 'local'
-    ? value
-    : 'local';
 }
 
 export function resetBirdcoderAuthenticatedSdkClients(): void {
@@ -98,6 +117,7 @@ function getAuthenticatedSdkClients(): SdkworkAppbasePcAuthRuntimeSdkClient[] {
 
 function resolveAppbaseAppApiBaseUrl(): string {
   return readEnvValue(
+    'VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL',
     'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
     'VITE_SDKWORK_IAM_APP_API_BASE_URL',
     'VITE_SDKWORK_APP_API_BASE_URL',

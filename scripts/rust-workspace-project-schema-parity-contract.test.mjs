@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises';
 
 const sources = [
   {
-    label: 'desktop',
-    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs', import.meta.url),
+    label: 'desktop embedded server',
+    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
   },
   {
     label: 'server',

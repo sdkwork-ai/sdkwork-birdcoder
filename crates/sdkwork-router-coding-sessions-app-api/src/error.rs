@@ -7,10 +7,9 @@ use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProblemDetailsPayload {
-    pub r#type: String,
-    pub title: String,
-    pub status: u16,
-    pub detail: String,
+    pub code: String,
+    pub message: String,
+    pub retryable: bool,
 }
 
 #[derive(Debug)]
@@ -20,62 +19,57 @@ pub struct AppError {
 }
 
 impl AppError {
-    pub fn not_found(detail: impl Into<String>) -> Self {
+    pub fn not_found(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::NOT_FOUND,
             body: ProblemDetailsPayload {
-                r#type: "not_found".into(),
-                title: "Not Found".into(),
-                status: 404,
-                detail: detail.into(),
+                code: "not_found".into(),
+                message: message.into(),
+                retryable: false,
             },
         }
     }
 
-    pub fn bad_request(detail: impl Into<String>) -> Self {
+    pub fn bad_request(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
             body: ProblemDetailsPayload {
-                r#type: "argument_invalid".into(),
-                title: "Bad Request".into(),
-                status: 400,
-                detail: detail.into(),
+                code: "invalid_input".into(),
+                message: message.into(),
+                retryable: false,
             },
         }
     }
 
-    pub fn internal(detail: impl Into<String>) -> Self {
+    pub fn internal(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
             body: ProblemDetailsPayload {
-                r#type: "system_error".into(),
-                title: "Internal Server Error".into(),
-                status: 500,
-                detail: detail.into(),
+                code: "internal".into(),
+                message: message.into(),
+                retryable: true,
             },
         }
     }
 
-    pub fn conflict(detail: impl Into<String>) -> Self {
+    pub fn conflict(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::CONFLICT,
             body: ProblemDetailsPayload {
-                r#type: "conflict".into(),
-                title: "Conflict".into(),
-                status: 409,
-                detail: detail.into(),
+                code: "conflict".into(),
+                message: message.into(),
+                retryable: false,
             },
         }
     }
 
-    pub fn bad_gateway(detail: impl Into<String>) -> Self {
+    pub fn bad_gateway(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_GATEWAY,
             body: ProblemDetailsPayload {
-                r#type: "provider_error".into(),
-                title: "Bad Gateway".into(),
-                status: 502,
-                detail: detail.into(),
+                code: "provider_error".into(),
+                message: message.into(),
+                retryable: true,
             },
         }
     }
@@ -102,4 +96,3 @@ impl IntoResponse for AppError {
         (self.status, Json(self.body)).into_response()
     }
 }
-

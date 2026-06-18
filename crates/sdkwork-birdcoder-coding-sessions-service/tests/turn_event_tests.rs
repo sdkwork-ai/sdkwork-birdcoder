@@ -1,4 +1,4 @@
-use sdkwork_birdcoder_coding_sessions_service::event_payload::*;
+﻿use sdkwork_birdcoder_coding_sessions_service::event_payload::*;
 use sdkwork_birdcoder_coding_sessions_service::native_session_types::*;
 
 #[test]

@@ -1,11 +1,11 @@
 use axum::routing::{delete, get, post, patch};
 use axum::Router;
 
-use crate::handlers::IntelligenceAppState;
+use crate::handlers::CodingSessionsAppState;
 use crate::paths;
 use crate::handlers;
 
-pub fn build_intelligence_app_api_router() -> Router<IntelligenceAppState> {
+pub fn build_coding_sessions_app_api_router() -> Router<CodingSessionsAppState> {
     Router::new()
         .route(paths::SESSIONS, get(handlers::list_sessions))
         .route(paths::SESSIONS, post(handlers::create_session))

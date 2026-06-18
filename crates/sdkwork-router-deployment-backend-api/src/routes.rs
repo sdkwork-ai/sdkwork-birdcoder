@@ -1,9 +1,10 @@
 use axum::{routing::get, Router};
 
 use crate::handlers;
+use crate::handlers::DeploymentBackendAppState;
 use crate::paths;
 
-pub fn build_platform_backend_router() -> Router {
+pub fn build_deployment_backend_router() -> Router<DeploymentBackendAppState> {
     Router::new()
         .route(
             paths::ADMIN_DEPLOYMENT_TARGETS_PATH,

@@ -11,6 +11,7 @@ import { createDesktopVitePlugins } from '../apps/sdkwork-birdcoder-pc/packages/
 import {
   BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE,
   BIRDCODER_VITE_DEDUPE_PACKAGES,
+  BIRDCODER_VITE_DEV_WATCH_IGNORED,
   createBirdcoderWorkspaceAliasEntries,
   createBirdcoderWorkspaceFsAllowList,
   resolveBirdcoderTerminalInfrastructureRuntimePath,
@@ -264,6 +265,9 @@ function createDesktopViteServerConfig({
       port,
       strictPort,
       hmr: env.DISABLE_HMR !== 'true',
+      watch: {
+        ignored: [...BIRDCODER_VITE_DEV_WATCH_IGNORED],
+      },
       fs: {
         allow: createBirdcoderWorkspaceFsAllowList(resolvedDesktopRootDir),
       },

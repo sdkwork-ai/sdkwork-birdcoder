@@ -10,7 +10,7 @@ Promote shared engine descriptor, capability, and model-catalog truth from `work
 
 ## Scope
 
-- `packages/sdkwork-birdcoder-server/src/index.ts`
+- `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts`
 - `scripts/coding-server-engine-truth-contract.test.ts`
 - `package.json`
 - `docs/prompts/反复执行Step指令.md`
@@ -28,7 +28,7 @@ Promote shared engine descriptor, capability, and model-catalog truth from `work
 
 ## Closure Facts
 
-- `packages/sdkwork-birdcoder-server/src/index.ts` now exports:
+- `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts` now exports:
   - `listBirdCoderCodingServerEngines()`
   - `listBirdCoderCodingServerModels()`
   - `getBirdCoderCodingServerEngineDescriptor(engineKey)`

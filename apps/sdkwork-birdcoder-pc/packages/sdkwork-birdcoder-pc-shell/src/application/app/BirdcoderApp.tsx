@@ -48,7 +48,7 @@ import {
   useWorkspaces,
   type WorkbenchRecoverySnapshot,
 } from '@sdkwork/birdcoder-pc-commons';
-import { AuthShell } from '@sdkwork/birdcoder-pc-auth';
+import { AuthShell } from '@sdkwork/birdcoder-pc-iam';
 import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { AppTab, BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 import {
@@ -2973,7 +2973,7 @@ function AppContent() {
       <div
         className="flex flex-col h-full w-full bg-[#0e0e11] text-gray-100 overflow-hidden font-sans selection:bg-blue-500/30"
       >
-      {activeTab !== 'auth' && <BirdcoderAppHeader
+      <BirdcoderAppHeader
         centerContent={shouldShowWorkbenchHeaderChrome ? (
           <AppWorkspaceMenu
             workspaceMenuRef={workspaceMenuRef}
@@ -3056,7 +3056,7 @@ function AppContent() {
         onPointerDown={handleTitleBarPointerDown}
         t={t}
         titleBarDragSurfaceClass={titleBarDragSurfaceClass}
-      />}
+      />
 
       <AppMainBody
         activeTab={activeTab}

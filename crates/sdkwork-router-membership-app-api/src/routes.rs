@@ -1,9 +1,10 @@
 use axum::{routing::get, Router};
 
 use crate::handlers;
+use crate::handlers::MembershipAppState;
 use crate::paths;
 
-pub fn build_commerce_app_router() -> Router {
+pub fn build_membership_app_router() -> Router<MembershipAppState> {
     Router::new()
         .route(
             paths::MEMBERSHIP_CURRENT_PATH,

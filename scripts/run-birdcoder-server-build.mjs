@@ -6,15 +6,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
-const serverManifestPath = path.join(
-  rootDir,
-  'apps',
-  'sdkwork-birdcoder-pc',
-  'packages',
-  'sdkwork-birdcoder-pc-server',
-  'src-host',
-  'Cargo.toml',
-);
+const serverManifestPath = path.join(rootDir, 'Cargo.toml');
+const serverPackageName = 'sdkwork-birdcoder-api-server';
 
 export function parseArgs(argv = process.argv.slice(2)) {
   const options = {
@@ -40,7 +33,14 @@ export function parseArgs(argv = process.argv.slice(2)) {
 }
 
 export function buildServerBuildPlan({ targetTriple = '' } = {}) {
-  const args = ['build', '--manifest-path', serverManifestPath, '--release'];
+  const args = [
+    'build',
+    '--manifest-path',
+    serverManifestPath,
+    '-p',
+    serverPackageName,
+    '--release',
+  ];
   if (String(targetTriple).trim()) {
     args.push('--target', String(targetTriple).trim());
   }

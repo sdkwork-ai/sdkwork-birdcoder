@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::context::SessionContext;
+use crate::context::CodingSessionContext;
 use crate::domain::commands::{
     CreateCodingSessionInput, CreateCodingSessionRequest, CreateCodingSessionTurnInput,
     CreateCodingSessionTurnRequest, ForkCodingSessionInput, ForkCodingSessionRequest,
@@ -14,7 +14,7 @@ use crate::domain::models::{
 use crate::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
     CodingSessionEventPayload, CodingSessionPayload, DeleteEntityPayload, OperationPayload,
-    PendingTurnResult, UserQuestionAnswerPayload,
+    PendingProjectionTurnExecution, PendingTurnResult, UserQuestionAnswerPayload,
 };
 use crate::error::CodingSessionError;
 use crate::ports::engine_validator::EngineValidator;
@@ -28,6 +28,7 @@ pub struct CodingSessionService {
     provider: Arc<dyn CodeEngineProvider>,
     event_publisher: Arc<dyn RealtimeEventPublisher>,
     engine_validator: Arc<dyn EngineValidator>,
+    default_working_directory: Option<String>,
 }
 
 impl CodingSessionService {
@@ -42,14 +43,20 @@ impl CodingSessionService {
             provider,
             event_publisher,
             engine_validator,
+            default_working_directory: None,
         }
+    }
+
+    pub fn with_default_working_directory(mut self, working_directory: Option<String>) -> Self {
+        self.default_working_directory = working_directory;
+        self
     }
 
     // ── List sessions ────────────────────────────────────────────────────
 
     pub async fn list_sessions(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         query: &CodingSessionListQuery,
     ) -> Result<Vec<CodingSessionPayload>, CodingSessionError> {
         let sessions = self.repository.list_sessions(ctx, query).await?;
@@ -60,7 +67,7 @@ impl CodingSessionService {
 
     pub async fn get_session(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
         let session_id = normalize_required_string(session_id)
@@ -72,7 +79,7 @@ impl CodingSessionService {
 
     pub async fn create_session(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         request: CreateCodingSessionRequest,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
         let input = Self::validate_create_session_request(request, self.engine_validator.as_ref())?;
@@ -98,7 +105,7 @@ impl CodingSessionService {
 
     pub async fn update_session(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         request: UpdateCodingSessionRequest,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
@@ -131,7 +138,7 @@ impl CodingSessionService {
 
     pub async fn delete_session(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<DeleteEntityPayload, CodingSessionError> {
         let session_id = normalize_required_string(session_id)
@@ -160,7 +167,7 @@ impl CodingSessionService {
 
     pub async fn fork_session(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         request: ForkCodingSessionRequest,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
@@ -207,7 +214,7 @@ impl CodingSessionService {
 
     pub async fn create_turn(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         request: CreateCodingSessionTurnRequest,
     ) -> Result<PendingTurnResult, CodingSessionError> {
@@ -242,11 +249,74 @@ impl CodingSessionService {
             )
             .await?;
 
+        let turn_model_id = input
+            .model_id
+            .clone()
+            .unwrap_or_else(|| session.model_id.clone());
+        let operation_id = format!("{}:operation", turn.id);
+        let pending_execution = PendingProjectionTurnExecution {
+            session: session.clone(),
+            turn: turn.clone(),
+            operation: OperationPayload {
+                operation_id: operation_id.clone(),
+                status: "running".to_string(),
+                artifact_refs: Vec::new(),
+                stream_url: String::new(),
+                stream_kind: "none".to_string(),
+            },
+            native_session_id: session.native_session_id.clone(),
+            turn_model_id: turn_model_id.clone(),
+            ide_context: input.ide_context.clone(),
+            options: input.options.clone(),
+            working_directory: self
+                .default_working_directory
+                .as_deref()
+                .map(std::path::PathBuf::from),
+        };
+
+        let finalized = match self.provider.execute_turn(ctx, &pending_execution).await {
+            Ok(finalized) => finalized,
+            Err(error) => {
+                let _ = self
+                    .repository
+                    .mark_turn_failed(ctx, &session_id, &turn.id)
+                    .await;
+                return Err(error);
+            }
+        };
+
+        let turn = self
+            .repository
+            .finalize_turn_execution(ctx, &session_id, &finalized)
+            .await?;
+
+        self.event_publisher
+            .publish_coding_session_event(
+                ctx,
+                &CodingSessionRealtimeEventInput {
+                    event_kind: "coding-session.turn.completed".into(),
+                    source_surface: "core".into(),
+                    workspace_id: session.workspace_id.clone(),
+                    project_id: session.project_id.clone(),
+                    coding_session_id: session.id.clone(),
+                    coding_session_title: session.title.clone(),
+                    coding_session_status: session.status.clone(),
+                    coding_session_host_mode: session.host_mode.clone(),
+                    coding_session_engine_id: session.engine_id.clone(),
+                    coding_session_model_id: session.model_id.clone(),
+                    coding_session_runtime_status: Some("completed".into()),
+                    native_session_id: session.native_session_id.clone(),
+                    coding_session_updated_at: turn.completed_at.clone(),
+                    turn_id: Some(turn.id.clone()),
+                },
+            )
+            .await?;
+
         Ok(PendingTurnResult {
             session,
             turn,
             native_session_id: None,
-            turn_model_id: input.model_id.unwrap_or_else(|| String::new()),
+            turn_model_id,
         })
     }
 
@@ -254,7 +324,7 @@ impl CodingSessionService {
 
     pub async fn list_events(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionEventPayload>, CodingSessionError> {
         let session_id = normalize_required_string(session_id)
@@ -268,7 +338,7 @@ impl CodingSessionService {
 
     pub async fn list_artifacts(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionArtifactPayload>, CodingSessionError> {
         let session_id = normalize_required_string(session_id)
@@ -282,7 +352,7 @@ impl CodingSessionService {
 
     pub async fn list_checkpoints(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionCheckpointPayload>, CodingSessionError> {
         let session_id = normalize_required_string(session_id)
@@ -296,7 +366,7 @@ impl CodingSessionService {
 
     pub async fn submit_approval_decision(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         checkpoint_id: &str,
         request: SubmitApprovalDecisionRequest,
@@ -346,7 +416,7 @@ impl CodingSessionService {
 
     pub async fn submit_user_question_answer(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         question_id: &str,
         request: SubmitUserQuestionAnswerRequest,
@@ -396,7 +466,7 @@ impl CodingSessionService {
 
     pub async fn get_operation(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         operation_id: &str,
     ) -> Result<OperationPayload, CodingSessionError> {

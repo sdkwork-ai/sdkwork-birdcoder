@@ -150,17 +150,15 @@ export function createBirdcoderIamAliasScriptCatalog() {
     'build:cloud': renderWorkspaceScriptPassthrough('web:build:cloud'),
     'build:local': renderWorkspaceScriptPassthrough('desktop:build:local'),
     'build:private': renderWorkspaceScriptPassthrough('web:build:private'),
-    dev: renderNodeScriptCommand('run-birdcoder-dev-stack.mjs', [
-      'web',
-      '--iam-mode',
-      'server-private',
-    ]),
-    'dev:cloud': renderWorkspaceScriptPassthrough('web:dev:cloud'),
+    dev: renderNodeScriptCommand('birdcoder-dev.mjs', ['web']),
+    'dev:cloud': renderNodeScriptCommand('birdcoder-dev.mjs', ['web', '--hosting', 'cloud-hosted']),
     'dev:local': renderWorkspaceScriptPassthrough('desktop:dev:local'),
-    'dev:private': renderNodeScriptCommand('run-birdcoder-dev-stack.mjs', [
+    'dev:private': renderNodeScriptCommand('birdcoder-dev.mjs', [
       'web',
-      '--iam-mode',
-      'server-private',
+      '--hosting',
+      'self-hosted',
+      '--service-layout',
+      'split-services',
     ]),
     'dev:test': renderNodeScriptCommand('run-birdcoder-dev-stack.mjs', [
       'web',

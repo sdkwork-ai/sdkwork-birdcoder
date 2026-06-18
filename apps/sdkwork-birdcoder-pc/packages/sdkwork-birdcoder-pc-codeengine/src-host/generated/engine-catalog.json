@@ -1,0 +1,734 @@
+{
+  "engines": [
+    {
+      "id": "1000000000000000001",
+      "uuid": "00000000-0000-4000-8000-100000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "codex",
+      "displayName": "Codex",
+      "vendor": "OpenAI",
+      "installationKind": "embedded-sdk",
+      "defaultModelId": "gpt-5.4",
+      "homepage": "https://openai.com/codex",
+      "supportedHostModes": [
+        "web",
+        "desktop",
+        "server"
+      ],
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {
+        "chat": true,
+        "streaming": true,
+        "structuredOutput": true,
+        "toolCalls": true,
+        "planning": true,
+        "patchArtifacts": true,
+        "commandArtifacts": true,
+        "todoArtifacts": true,
+        "ptyArtifacts": true,
+        "previewArtifacts": true,
+        "testArtifacts": true,
+        "approvalCheckpoints": true,
+        "sessionResume": true,
+        "remoteBridge": false,
+        "mcp": true
+      },
+      "status": "active",
+      "accessPlan": {
+        "primaryLaneId": "codex-sdk-stream",
+        "fallbackLaneIds": [
+          "codex-cli-jsonl"
+        ],
+        "lanes": [
+          {
+            "laneId": "codex-sdk-stream",
+            "label": "Codex official SDK",
+            "strategyKind": "rust-native",
+            "runtimeOwner": "rust-server",
+            "bridgeProtocol": "direct",
+            "transportKind": "sdk-stream",
+            "status": "ready",
+            "enabledByDefault": true,
+            "hostModes": [
+              "desktop",
+              "server"
+            ],
+            "description": "OpenAI Codex official SDK streaming lane."
+          },
+          {
+            "laneId": "codex-cli-jsonl",
+            "label": "Codex CLI JSONL",
+            "strategyKind": "cli-spawn",
+            "runtimeOwner": "rust-server",
+            "bridgeProtocol": "stdio",
+            "transportKind": "cli-jsonl",
+            "status": "ready",
+            "enabledByDefault": false,
+            "hostModes": [
+              "desktop",
+              "server"
+            ],
+            "description": "OpenAI Codex CLI JSONL fallback lane."
+          }
+        ]
+      },
+      "officialIntegration": {
+        "integrationClass": "official-sdk",
+        "runtimeMode": "sdk",
+        "officialEntry": {
+          "packageName": "@openai/codex-sdk",
+          "sdkPath": "external/codex/sdk/typescript",
+          "cliPackageName": "@openai/codex",
+          "sourceMirrorPath": "external/codex"
+        }
+      }
+    },
+    {
+      "id": "1000000000000000002",
+      "uuid": "00000000-0000-4000-8000-100000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "displayName": "Claude Code",
+      "vendor": "Anthropic",
+      "installationKind": "external-cli",
+      "defaultModelId": "claude-sonnet-4-6",
+      "homepage": "https://www.anthropic.com/claude-code",
+      "supportedHostModes": [
+        "web",
+        "desktop",
+        "server"
+      ],
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {
+        "chat": true,
+        "streaming": true,
+        "structuredOutput": true,
+        "toolCalls": true,
+        "planning": true,
+        "patchArtifacts": true,
+        "commandArtifacts": true,
+        "todoArtifacts": true,
+        "ptyArtifacts": true,
+        "previewArtifacts": true,
+        "testArtifacts": true,
+        "approvalCheckpoints": true,
+        "sessionResume": true,
+        "remoteBridge": true,
+        "mcp": true
+      },
+      "status": "active",
+      "accessPlan": {
+        "primaryLaneId": "claude-code-sdk-stream",
+        "fallbackLaneIds": [
+          "claude-code-cli-print",
+          "claude-code-remote-control"
+        ],
+        "lanes": [
+          {
+            "laneId": "claude-code-sdk-stream",
+            "label": "Claude Agent SDK",
+            "strategyKind": "grpc-bridge",
+            "runtimeOwner": "typescript-bridge",
+            "bridgeProtocol": "grpc",
+            "transportKind": "sdk-stream",
+            "status": "ready",
+            "enabledByDefault": true,
+            "hostModes": [
+              "desktop",
+              "server"
+            ],
+            "description": "Anthropic Claude Agent SDK streaming lane."
+          },
+          {
+            "laneId": "claude-code-cli-print",
+            "label": "Claude Code CLI print",
+            "strategyKind": "cli-spawn",
+            "runtimeOwner": "typescript-bridge",
+            "bridgeProtocol": "stdio",
+            "transportKind": "cli-jsonl",
+            "status": "ready",
+            "enabledByDefault": false,
+            "hostModes": [
+              "desktop",
+              "server"
+            ],
+            "description": "Claude Code CLI fallback lane."
+          },
+          {
+            "laneId": "claude-code-remote-control",
+            "label": "Claude Code remote control",
+            "strategyKind": "remote-control",
+            "runtimeOwner": "typescript-bridge",
+            "bridgeProtocol": "http",
+            "transportKind": "remote-control-http",
+            "status": "ready",
+            "enabledByDefault": false,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "Claude Code remote-control lane."
+          }
+        ]
+      },
+      "officialIntegration": {
+        "integrationClass": "official-sdk",
+        "runtimeMode": "sdk",
+        "officialEntry": {
+          "packageName": "@anthropic-ai/claude-agent-sdk",
+          "sdkPath": null,
+          "cliPackageName": "claude-code",
+          "sourceMirrorPath": "external/claude-code",
+          "supplementalLanes": [
+            "claude-code-cli-print",
+            "claude-code-remote-control"
+          ]
+        }
+      }
+    },
+    {
+      "id": "1000000000000000003",
+      "uuid": "00000000-0000-4000-8000-100000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "displayName": "Gemini",
+      "vendor": "Google",
+      "installationKind": "external-cli",
+      "defaultModelId": "gemini",
+      "homepage": "https://github.com/google-gemini/gemini-cli",
+      "supportedHostModes": [
+        "web",
+        "desktop",
+        "server"
+      ],
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {
+        "chat": true,
+        "streaming": true,
+        "structuredOutput": true,
+        "toolCalls": true,
+        "planning": true,
+        "patchArtifacts": true,
+        "commandArtifacts": true,
+        "todoArtifacts": true,
+        "ptyArtifacts": false,
+        "previewArtifacts": true,
+        "testArtifacts": true,
+        "approvalCheckpoints": true,
+        "sessionResume": true,
+        "remoteBridge": true,
+        "mcp": true
+      },
+      "status": "active",
+      "accessPlan": {
+        "primaryLaneId": "gemini-sdk-stream",
+        "fallbackLaneIds": [
+          "gemini-cli-jsonl"
+        ],
+        "lanes": [
+          {
+            "laneId": "gemini-sdk-stream",
+            "label": "Gemini CLI SDK",
+            "strategyKind": "grpc-bridge",
+            "runtimeOwner": "typescript-bridge",
+            "bridgeProtocol": "grpc",
+            "transportKind": "sdk-stream",
+            "status": "ready",
+            "enabledByDefault": true,
+            "hostModes": [
+              "desktop",
+              "server"
+            ],
+            "description": "Google Gemini CLI SDK streaming lane."
+          },
+          {
+            "laneId": "gemini-cli-jsonl",
+            "label": "Gemini CLI JSONL",
+            "strategyKind": "cli-spawn",
+            "runtimeOwner": "typescript-bridge",
+            "bridgeProtocol": "stdio",
+            "transportKind": "cli-jsonl",
+            "status": "ready",
+            "enabledByDefault": false,
+            "hostModes": [
+              "desktop",
+              "server"
+            ],
+            "description": "Gemini CLI fallback lane."
+          }
+        ]
+      },
+      "officialIntegration": {
+        "integrationClass": "official-sdk",
+        "runtimeMode": "sdk",
+        "officialEntry": {
+          "packageName": "@google/gemini-cli-sdk",
+          "sdkPath": "external/gemini/packages/sdk",
+          "cliPackageName": "@google/gemini-cli",
+          "sourceMirrorPath": "external/gemini"
+        }
+      }
+    },
+    {
+      "id": "1000000000000000004",
+      "uuid": "00000000-0000-4000-8000-100000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "opencode",
+      "displayName": "OpenCode",
+      "vendor": "OpenCode",
+      "installationKind": "external-cli",
+      "defaultModelId": "opencode/big-pickle",
+      "homepage": "https://opencode.ai",
+      "supportedHostModes": [
+        "web",
+        "desktop",
+        "server"
+      ],
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {
+        "chat": true,
+        "streaming": true,
+        "structuredOutput": false,
+        "toolCalls": true,
+        "planning": true,
+        "patchArtifacts": true,
+        "commandArtifacts": true,
+        "todoArtifacts": true,
+        "ptyArtifacts": true,
+        "previewArtifacts": true,
+        "testArtifacts": true,
+        "approvalCheckpoints": true,
+        "sessionResume": true,
+        "remoteBridge": true,
+        "mcp": true
+      },
+      "status": "active",
+      "accessPlan": {
+        "primaryLaneId": "opencode-sdk-stream",
+        "fallbackLaneIds": [
+          "opencode-openapi-http",
+          "opencode-cli-jsonl"
+        ],
+        "lanes": [
+          {
+            "laneId": "opencode-sdk-stream",
+            "label": "OpenCode SDK",
+            "strategyKind": "grpc-bridge",
+            "runtimeOwner": "rust-server",
+            "bridgeProtocol": "grpc",
+            "transportKind": "sdk-stream",
+            "status": "ready",
+            "enabledByDefault": true,
+            "hostModes": [
+              "desktop",
+              "server"
+            ],
+            "description": "OpenCode SDK streaming lane."
+          },
+          {
+            "laneId": "opencode-openapi-http",
+            "label": "OpenCode OpenAPI HTTP",
+            "strategyKind": "openapi-proxy",
+            "runtimeOwner": "rust-server",
+            "bridgeProtocol": "http",
+            "transportKind": "openapi-http",
+            "status": "ready",
+            "enabledByDefault": false,
+            "hostModes": [
+              "web",
+              "desktop",
+              "server"
+            ],
+            "description": "OpenCode OpenAPI fallback lane."
+          },
+          {
+            "laneId": "opencode-cli-jsonl",
+            "label": "OpenCode CLI JSONL",
+            "strategyKind": "cli-spawn",
+            "runtimeOwner": "rust-server",
+            "bridgeProtocol": "stdio",
+            "transportKind": "cli-jsonl",
+            "status": "ready",
+            "enabledByDefault": false,
+            "hostModes": [
+              "desktop",
+              "server"
+            ],
+            "description": "OpenCode CLI fallback lane."
+          }
+        ]
+      },
+      "officialIntegration": {
+        "integrationClass": "official-sdk",
+        "runtimeMode": "sdk",
+        "officialEntry": {
+          "packageName": "@opencode-ai/sdk",
+          "sdkPath": "external/opencode/packages/sdk/js",
+          "cliPackageName": "opencode-ai",
+          "sourceMirrorPath": "external/opencode"
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "2000000000000000001",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5.4",
+      "displayName": "GPT-5.4",
+      "providerId": "openai",
+      "status": "active",
+      "defaultForEngine": true,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000002",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5.3-codex",
+      "displayName": "GPT-5.3 Codex",
+      "providerId": "openai",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000003",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5.2-codex",
+      "displayName": "GPT-5.2 Codex",
+      "providerId": "openai",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000004",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5.1-codex",
+      "displayName": "GPT-5.1 Codex",
+      "providerId": "openai",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000005",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "codex",
+      "modelId": "gpt-5.5",
+      "displayName": "GPT-5.5",
+      "providerId": "openai",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000006",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "modelId": "claude-sonnet-4-6",
+      "displayName": "Claude Sonnet 4.6",
+      "providerId": "anthropic",
+      "status": "active",
+      "defaultForEngine": true,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000007",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "modelId": "claude-code",
+      "displayName": "Claude Code",
+      "providerId": "anthropic",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000008",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "claude-code",
+      "modelId": "claude-3-opus",
+      "displayName": "Claude 3 Opus",
+      "providerId": "anthropic",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000009",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini",
+      "displayName": "Gemini",
+      "providerId": "google",
+      "status": "active",
+      "defaultForEngine": true,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000010",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "auto-gemini-3",
+      "displayName": "Auto Gemini 3",
+      "providerId": "google",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000011",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-3.1-pro-preview",
+      "displayName": "Gemini 3.1 Pro Preview",
+      "providerId": "google",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000012",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-1.5-pro",
+      "displayName": "Gemini 1.5 Pro",
+      "providerId": "google",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000013",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/big-pickle",
+      "displayName": "OpenCode Big Pickle",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": true,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000014",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode",
+      "displayName": "OpenCode",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000015",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "opencode",
+      "modelId": "opencode/claude-sonnet-4-6",
+      "displayName": "OpenCode Claude Sonnet 4.6",
+      "providerId": "opencode",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    }
+  ],
+  "nativeProviders": [
+    {
+      "engineKey": "codex",
+      "engineId": "codex",
+      "displayName": "Codex",
+      "prefix": "codex-native:",
+      "nativeSessionIdPrefix": "codex-native:",
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "discoveryMode": "passive-global",
+      "rawIdKind": "uuid",
+      "description": "Codex provider-native session id."
+    },
+    {
+      "engineKey": "claude-code",
+      "engineId": "claude-code",
+      "displayName": "Claude Code",
+      "prefix": "claude-code-native:",
+      "nativeSessionIdPrefix": "claude-code-native:",
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl",
+        "remote-control-http"
+      ],
+      "discoveryMode": "passive-global",
+      "rawIdKind": "string",
+      "description": "Claude Code provider-native session id."
+    },
+    {
+      "engineKey": "gemini",
+      "engineId": "gemini",
+      "displayName": "Gemini",
+      "prefix": "gemini-native:",
+      "nativeSessionIdPrefix": "gemini-native:",
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "discoveryMode": "passive-global",
+      "rawIdKind": "string",
+      "description": "Gemini provider-native session id."
+    },
+    {
+      "engineKey": "opencode",
+      "engineId": "opencode",
+      "displayName": "OpenCode",
+      "prefix": "opencode-native:",
+      "nativeSessionIdPrefix": "opencode-native:",
+      "transportKinds": [
+        "sdk-stream",
+        "openapi-http",
+        "cli-jsonl"
+      ],
+      "discoveryMode": "passive-global",
+      "rawIdKind": "string",
+      "description": "OpenCode provider-native session id."
+    }
+  ]
+}

@@ -1,0 +1,5513 @@
+{
+  "openapi": "3.1.0",
+  "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+  "x-sdkwork-owner": "sdkwork-birdcoder",
+  "info": {
+    "title": "SDKWork BirdCoder Backend API",
+    "version": "0.1.0",
+    "description": "BirdCoder backend SDK source of truth generated from the canonical coding-server OpenAPI backend surface."
+  },
+  "servers": [
+    {
+      "url": "/backend/v3/api"
+    }
+  ],
+  "tags": [
+    {
+      "name": "iam",
+      "description": "IAM user, tenant, organization, role, permission, policy, and audit resources."
+    },
+    {
+      "name": "platform",
+      "description": "Workspace, project, release, deployment, and delivery resources."
+    }
+  ],
+  "paths": {
+    "/backend/v3/api/iam/api_keys": {
+      "get": {
+        "operationId": "apiKeys.list",
+        "summary": "List SDKWork IAM API keys",
+        "description": "List SDKWork IAM API keys. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM API keys returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamApiKeySummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.apiKeys.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.apiKeys",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/api_keys/{apiKeyId}/revoke": {
+      "post": {
+        "operationId": "apiKeys.revoke",
+        "summary": "Revoke SDKWork IAM API key",
+        "description": "Revoke SDKWork IAM API key. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "apiKeyId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM API key identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM API key revoked successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM API key was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.apiKeys.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.apiKeys",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/audit_events": {
+      "get": {
+        "operationId": "auditEvents.list",
+        "summary": "List SDKWork IAM audit events",
+        "description": "List SDKWork IAM audit events. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM audit events returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamAuditEventSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.auditEvents.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.auditEvents",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/organizations/{organizationId}": {
+      "get": {
+        "operationId": "organizations.retrieve",
+        "summary": "Get SDKWork IAM organization",
+        "description": "Get SDKWork IAM organization. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM organization identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM organization returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamOrganizationSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM organization was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.organizations.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "patch": {
+        "operationId": "organizations.update",
+        "summary": "Update SDKWork IAM organization",
+        "description": "Update SDKWork IAM organization. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM organization identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpdateIamOrganizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM organization updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamOrganizationSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM organization update request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM organization was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.organizations.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "delete": {
+        "operationId": "organizations.delete",
+        "summary": "Delete SDKWork IAM organization",
+        "description": "Delete SDKWork IAM organization. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "organizationId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM organization identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM organization deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM organization was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.organizations.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/organizations": {
+      "post": {
+        "operationId": "organizations.create",
+        "summary": "Create SDKWork IAM organization",
+        "description": "Create SDKWork IAM organization. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamOrganizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM organization created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamOrganizationSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM organization request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.organizations.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/organization_memberships": {
+      "post": {
+        "operationId": "organizationMemberships.create",
+        "summary": "Create SDKWork IAM organization member",
+        "description": "Create SDKWork IAM organization member. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamOrganizationMemberRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM organization member created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamOrganizationMemberSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM organization member request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM organization was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.organizationMemberships.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.organizationMemberships",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/organization_memberships/{membershipId}": {
+      "patch": {
+        "operationId": "organizationMemberships.update",
+        "summary": "Update SDKWork IAM organization member",
+        "description": "Update SDKWork IAM organization member. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "membershipId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM organization membership identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpdateIamOrganizationMemberRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM organization member updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamOrganizationMemberSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM organization member update request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM organization member was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.organizationMemberships.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.organizationMemberships",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/permissions": {
+      "get": {
+        "operationId": "permissions.list",
+        "summary": "List SDKWork IAM permissions",
+        "description": "List SDKWork IAM permissions. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM permissions returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamPermissionSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.permissions.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "post": {
+        "operationId": "permissions.create",
+        "summary": "Create SDKWork IAM permission",
+        "description": "Create SDKWork IAM permission. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamPermissionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM permission created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamPermissionSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM permission request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.permissions.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/permissions/{permissionId}": {
+      "get": {
+        "operationId": "permissions.retrieve",
+        "summary": "Get SDKWork IAM permission",
+        "description": "Get SDKWork IAM permission. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "permissionId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM permission identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM permission returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamPermissionSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM permission was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.permissions.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "patch": {
+        "operationId": "permissions.update",
+        "summary": "Update SDKWork IAM permission",
+        "description": "Update SDKWork IAM permission. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "permissionId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM permission identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpdateIamPermissionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM permission updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamPermissionSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM permission update request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM permission was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.permissions.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "delete": {
+        "operationId": "permissions.delete",
+        "summary": "Delete SDKWork IAM permission",
+        "description": "Delete SDKWork IAM permission. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "permissionId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM permission identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM permission deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM permission was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.permissions.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/policies": {
+      "get": {
+        "operationId": "policies.list",
+        "summary": "List SDKWork IAM policies",
+        "description": "List SDKWork IAM policies. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM policies returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamPolicySummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.policies.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "post": {
+        "operationId": "policies.create",
+        "summary": "Create SDKWork IAM policy",
+        "description": "Create SDKWork IAM policy. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamPolicyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM policy created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamPolicySummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM policy request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.policies.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/policies/{policyId}": {
+      "get": {
+        "operationId": "policies.retrieve",
+        "summary": "Get SDKWork IAM policy",
+        "description": "Get SDKWork IAM policy. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "policyId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM policy identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM policy returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamPolicySummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM policy was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.policies.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "patch": {
+        "operationId": "policies.update",
+        "summary": "Update SDKWork IAM policy",
+        "description": "Update SDKWork IAM policy. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "policyId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM policy identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpdateIamPolicyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM policy updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamPolicySummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM policy update request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM policy was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.policies.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "delete": {
+        "operationId": "policies.delete",
+        "summary": "Delete SDKWork IAM policy",
+        "description": "Delete SDKWork IAM policy. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "policyId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM policy identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM policy deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM policy was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.policies.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/roles": {
+      "get": {
+        "operationId": "roles.list",
+        "summary": "List SDKWork IAM roles",
+        "description": "List SDKWork IAM roles. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM roles returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamRoleSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.roles.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "post": {
+        "operationId": "roles.create",
+        "summary": "Create SDKWork IAM role",
+        "description": "Create SDKWork IAM role. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM role created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamRoleSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM role request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.roles.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/roles/{roleId}": {
+      "get": {
+        "operationId": "roles.retrieve",
+        "summary": "Get SDKWork IAM role",
+        "description": "Get SDKWork IAM role. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM role identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM role returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamRoleSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM role was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.roles.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "patch": {
+        "operationId": "roles.update",
+        "summary": "Update SDKWork IAM role",
+        "description": "Update SDKWork IAM role. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM role identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpdateIamRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM role updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamRoleSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM role update request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM role was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.roles.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "delete": {
+        "operationId": "roles.delete",
+        "summary": "Delete SDKWork IAM role",
+        "description": "Delete SDKWork IAM role. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM role identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM role deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM role was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.roles.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/roles/{roleId}/permissions": {
+      "get": {
+        "operationId": "roles.permissions.list",
+        "summary": "List SDKWork IAM role permissions",
+        "description": "List SDKWork IAM role permissions. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM role identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM role permissions returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamRolePermissionSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM role was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.roles.permissions.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.roles.permissions",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "post": {
+        "operationId": "roles.permissions.create",
+        "summary": "Create SDKWork IAM role permission",
+        "description": "Create SDKWork IAM role permission. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM role identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamRolePermissionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM role permission created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamRolePermissionSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM role permission request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM role was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.roles.permissions.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.roles.permissions",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/roles/{roleId}/permissions/{permissionId}": {
+      "delete": {
+        "operationId": "roles.permissions.delete",
+        "summary": "Delete SDKWork IAM role permission",
+        "description": "Delete SDKWork IAM role permission. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM role identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "permissionId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM permission identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM role permission deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM role permission was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.roles.permissions.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.roles.permissions",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/security_events": {
+      "get": {
+        "operationId": "securityEvents.list",
+        "summary": "List SDKWork IAM security events",
+        "description": "List SDKWork IAM security events. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM security events returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamSecurityEventSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.securityEvents.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.securityEvents",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/tenants": {
+      "get": {
+        "operationId": "tenants.list",
+        "summary": "List SDKWork IAM tenants",
+        "description": "List SDKWork IAM tenants. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM tenants returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamTenantSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.tenants.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "post": {
+        "operationId": "tenants.create",
+        "summary": "Create SDKWork IAM tenant",
+        "description": "Create SDKWork IAM tenant. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamTenantRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM tenant created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamTenantSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM tenant request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.tenants.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/tenants/{tenantId}": {
+      "get": {
+        "operationId": "tenants.retrieve",
+        "summary": "Get SDKWork IAM tenant",
+        "description": "Get SDKWork IAM tenant. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM tenant identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM tenant returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamTenantSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM tenant was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.tenants.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "patch": {
+        "operationId": "tenants.update",
+        "summary": "Update SDKWork IAM tenant",
+        "description": "Update SDKWork IAM tenant. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM tenant identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpdateIamTenantRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM tenant updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamTenantSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM tenant update request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM tenant was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.tenants.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "delete": {
+        "operationId": "tenants.delete",
+        "summary": "Delete SDKWork IAM tenant",
+        "description": "Delete SDKWork IAM tenant. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM tenant identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM tenant deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM tenant was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.tenants.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/tenants/{tenantId}/members": {
+      "get": {
+        "operationId": "tenants.members.list",
+        "summary": "List SDKWork IAM tenant members",
+        "description": "List SDKWork IAM tenant members. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM tenant identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM tenant members returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamTenantMemberSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM tenant was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.tenants.members.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "post": {
+        "operationId": "tenants.members.create",
+        "summary": "Create SDKWork IAM tenant member",
+        "description": "Create SDKWork IAM tenant member. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM tenant identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamTenantMemberRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM tenant member created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamTenantMemberSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM tenant member request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM tenant was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.tenants.members.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/tenants/{tenantId}/members/{userId}": {
+      "patch": {
+        "operationId": "tenants.members.update",
+        "summary": "Update SDKWork IAM tenant member",
+        "description": "Update SDKWork IAM tenant member. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM tenant identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM user identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpdateIamTenantMemberRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM tenant member updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamTenantMemberSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM tenant member update request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM tenant member was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.tenants.members.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "delete": {
+        "operationId": "tenants.members.delete",
+        "summary": "Delete SDKWork IAM tenant member",
+        "description": "Delete SDKWork IAM tenant member. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM tenant identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM user identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM tenant member deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM tenant member was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.tenants.members.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/users": {
+      "get": {
+        "operationId": "users.list",
+        "summary": "List SDKWork IAM users",
+        "description": "List SDKWork IAM users. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM users returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamUserSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.users.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "post": {
+        "operationId": "users.create",
+        "summary": "Create SDKWork IAM user",
+        "description": "Create SDKWork IAM user. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM user created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamUserSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM user request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.users.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/users/{userId}": {
+      "get": {
+        "operationId": "users.retrieve",
+        "summary": "Get SDKWork IAM user",
+        "description": "Get SDKWork IAM user. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM user identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM user returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamUserSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM user was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.users.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "patch": {
+        "operationId": "users.update",
+        "summary": "Update SDKWork IAM user",
+        "description": "Update SDKWork IAM user. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM user identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderUpdateIamUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM user updated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamUserSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM user update request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM user was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.users.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      },
+      "delete": {
+        "operationId": "users.delete",
+        "summary": "Delete SDKWork IAM user",
+        "description": "Delete SDKWork IAM user. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM user identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM user deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM user was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.users.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/role_bindings": {
+      "post": {
+        "operationId": "roleBindings.create",
+        "summary": "Create SDKWork IAM user role binding",
+        "description": "Create SDKWork IAM user role binding. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateIamUserRoleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM user role created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamUserRoleSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork IAM user role request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM user was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.roleBindings.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.roleBindings",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/role_bindings/{roleBindingId}": {
+      "delete": {
+        "operationId": "roleBindings.delete",
+        "summary": "Delete SDKWork IAM user role binding",
+        "description": "Delete SDKWork IAM user role binding. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "roleBindingId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM role binding identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM user role deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork IAM user role was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.roleBindings.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.roleBindings",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/deployments": {
+      "get": {
+        "operationId": "deploymentGovernance.list",
+        "summary": "List governed deployments",
+        "description": "List governed deployments. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin deployment inventory returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeploymentRecordSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.deploymentGovernance.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.deploymentGovernance",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/projects/{projectId}/deployment_targets": {
+      "get": {
+        "operationId": "projects.deploymentTargets.list",
+        "summary": "List deployment targets",
+        "description": "List deployment targets. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deployment targets returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeploymentTargetSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.projects.deploymentTargets.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.projects.deploymentTargets",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/releases": {
+      "get": {
+        "operationId": "releases.list",
+        "summary": "List releases",
+        "description": "List releases. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "Release inventory returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderReleaseSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.releases.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.releases",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/teams/{teamId}/members": {
+      "get": {
+        "operationId": "teams.members.list",
+        "summary": "List team members",
+        "description": "List team members. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "teamId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder team identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Team members returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderTeamMemberSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Team was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.teams.members.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.teams.members",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    },
+    "/backend/v3/api/iam/teams": {
+      "get": {
+        "operationId": "teams.list",
+        "summary": "List teams",
+        "description": "List teams. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "iam"
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "description": "Filter resources to a single user principal.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workspaceId",
+            "in": "query",
+            "description": "Filter resources to a single workspace.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Admin team inventory returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderTeamSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "iam",
+        "x-sdkwork-permission": "iam.teams.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "iam.teams",
+        "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "AuthToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Bearer token"
+      },
+      "AccessToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Access-Token"
+      }
+    },
+    "schemas": {
+      "BirdCoderApiListMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "page",
+          "pageSize",
+          "total",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderApiMeta": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderApiProblemDetails": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "fieldErrors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "retryable"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderBooleanSuccessEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderBooleanSuccessResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderBooleanSuccessResult": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateIamOrganizationMemberRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string"
+          },
+          "remark": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "roleCode"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateIamOrganizationRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateIamPermissionRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "resource",
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateIamPolicyRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "policy": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "policy"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateIamRolePermissionRequest": {
+        "type": "object",
+        "properties": {
+          "permissionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "permissionId"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateIamRoleRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateIamTenantMemberRequest": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string"
+          },
+          "remark": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId",
+          "roleCode"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateIamTenantRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateIamUserRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateIamUserRoleRequest": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "roleId"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeletedResourceEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderDeletedResourceResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeletedResourceResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeploymentRecordSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "targetId": {
+            "type": "string"
+          },
+          "releaseRecordId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planned",
+              "running",
+              "succeeded",
+              "failed",
+              "rolled_back"
+            ]
+          },
+          "endpointUrl": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "targetId",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeploymentRecordSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderDeploymentRecordSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeploymentTargetSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "environmentKey": {
+            "type": "string",
+            "description": "Known values include dev, test, staging, and prod."
+          },
+          "runtime": {
+            "type": "string",
+            "description": "Known values include web, desktop, server, container, and kubernetes."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "projectId",
+          "name",
+          "environmentKey",
+          "runtime",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeploymentTargetSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderDeploymentTargetSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamApiKeySummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permissionScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "userId",
+          "name",
+          "permissionScopes",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamApiKeySummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderIamApiKeySummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamAuditEventSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "actorUserId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "appId": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          },
+          "shardingKey": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "action",
+          "resourceType",
+          "resourceId",
+          "detail",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamAuditEventSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderIamAuditEventSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamOrganizationMemberSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "joinedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "leftAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "remark": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "organizationId",
+          "userId",
+          "roleCode",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamOrganizationMemberSummaryEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamOrganizationMemberSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamOrganizationSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "code",
+          "name",
+          "path",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamOrganizationSummaryEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamOrganizationSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamPermissionSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "resource",
+          "action"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamPermissionSummaryEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamPermissionSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamPermissionSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderIamPermissionSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamPolicySummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "policy": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "code",
+          "name",
+          "policy",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamPolicySummaryEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamPolicySummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamPolicySummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderIamPolicySummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamRolePermissionSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "roleId": {
+            "type": "string"
+          },
+          "permissionId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "roleId",
+          "permissionId"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamRolePermissionSummaryEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamRolePermissionSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamRolePermissionSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderIamRolePermissionSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamRoleSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "code",
+          "name",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamRoleSummaryEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamRoleSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamRoleSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderIamRoleSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamSecurityEventSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "eventType",
+          "severity",
+          "detail",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamSecurityEventSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderIamSecurityEventSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamTenantMemberSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "joinedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "leftAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "remark": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "userId",
+          "roleCode",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamTenantMemberSummaryEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamTenantMemberSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamTenantMemberSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderIamTenantMemberSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamTenantSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamTenantSummaryEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamTenantSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamTenantSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderIamTenantSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamUserRoleSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "roleId": {
+            "type": "string"
+          },
+          "roleCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "userId",
+          "roleId",
+          "roleCode",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamUserRoleSummaryEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamUserRoleSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamUserSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "uuid",
+          "tenantId",
+          "email",
+          "displayName",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamUserSummaryEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamUserSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamUserSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderIamUserSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderProblemEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderApiProblemDetails"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderReleaseSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "releaseVersion": {
+            "type": "string"
+          },
+          "releaseKind": {
+            "type": "string",
+            "description": "Known values include formal, canary, hotfix, rollback."
+          },
+          "rolloutStage": {
+            "type": "string"
+          },
+          "manifest": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string",
+            "description": "Known values include pending, ready, running, succeeded, failed, rolled_back."
+          }
+        },
+        "required": [
+          "id",
+          "releaseVersion",
+          "releaseKind",
+          "rolloutStage",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderReleaseSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderReleaseSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderTeamMemberSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member",
+              "viewer"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "invited",
+              "active",
+              "suspended",
+              "removed"
+            ]
+          },
+          "createdByUserId": {
+            "type": "string"
+          },
+          "grantedByUserId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "teamId",
+          "userId",
+          "role",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderTeamMemberSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderTeamMemberSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderTeamSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "uuid": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "leaderId": {
+            "type": "string"
+          },
+          "createdByUserId": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "workspaceId",
+          "name",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderTeamSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderTeamSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderUpdateIamOrganizationMemberRequest": {
+        "type": "object",
+        "properties": {
+          "roleCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "remark": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderUpdateIamOrganizationRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderUpdateIamPermissionRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderUpdateIamPolicyRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "policy": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderUpdateIamRoleRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderUpdateIamTenantMemberRequest": {
+        "type": "object",
+        "properties": {
+          "roleCode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "remark": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderUpdateIamTenantRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderUpdateIamUserRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

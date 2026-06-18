@@ -113,11 +113,21 @@
       "@sdkwork/birdcoder-pc-commons": [
         "packages/sdkwork-birdcoder-pc-commons/src/index.ts"
       ],
+      "@sdkwork/birdcoder-pc-codeengine": [
+        "packages/sdkwork-birdcoder-pc-codeengine/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-pc-codeengine/*": [
+        "packages/sdkwork-birdcoder-pc-codeengine/src/*.ts",
+        "packages/sdkwork-birdcoder-pc-codeengine/src/*"
+      ],
+      "@sdkwork/birdcoder-pc-host-studio": [
+        "packages/sdkwork-birdcoder-pc-host-studio/src/index.ts"
+      ],
       "@sdkwork/birdcoder-*": [
         "packages/sdkwork-birdcoder-pc-*/src"
       ],
       "@sdkwork/terminal-pc-desktop": [
-        "../../packages/sdkwork-birdcoder-commons/src/terminal/contracts/sdkworkTerminalDesktop.d.ts"
+        "packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalDesktop.d.ts"
       ],
       "lucide-react": [
         "node_modules/lucide-react"
@@ -126,7 +136,7 @@
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-*/src"
       ],
       "@sdkwork/terminal-pc-shell": [
-        "../../packages/sdkwork-birdcoder-commons/src/terminal/contracts/sdkworkTerminalShell.d.ts"
+        "packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalShell.d.ts"
       ],
       "@sdkwork/terminal-pc-shell/*": [
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/*"
@@ -138,7 +148,7 @@
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-sessions/src/model.ts"
       ],
       "@sdkwork/terminal-pc-infrastructure": [
-        "../../packages/sdkwork-birdcoder-commons/src/terminal/contracts/sdkworkTerminalInfrastructure.d.ts"
+        "packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalInfrastructure.d.ts"
       ],
       "@sdkwork/terminal-pc-infrastructure/*": [
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/*"

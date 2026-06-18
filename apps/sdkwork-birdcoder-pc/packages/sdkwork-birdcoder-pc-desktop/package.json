@@ -1,0 +1,61 @@
+{
+  "name": "@sdkwork/birdcoder-pc-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node ../../../../scripts/run-vite-host.mjs serve --mode development",
+    "dev:test": "node ../../../../scripts/run-vite-host.mjs serve --mode test",
+    "dev:tauri": "node ../../../../scripts/run-vite-host.mjs serve --host 127.0.0.1 --port 1520 --strictPort --mode development",
+    "dev:tauri:test": "node ../../../../scripts/run-vite-host.mjs serve --host 127.0.0.1 --port 1520 --strictPort --mode test",
+    "build": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode production",
+    "build:test": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode test",
+    "build:prod": "node ../../../../scripts/prepare-shared-sdk-packages.mjs && node ../../../../scripts/run-vite-host.mjs build --mode production",
+    "preview": "node ../../../../scripts/run-vite-host.mjs preview",
+    "lint": "node ../../../../scripts/run-local-typescript.mjs --noEmit",
+    "tauri:dev:base": "node ../../../../scripts/ensure-tauri-rust-toolchain.mjs && node ../../../../scripts/run-tauri-dev-binary-unlock.mjs --src-tauri-dir src-tauri --binary-name sdkwork-birdcoder-desktop && node ../../../../scripts/ensure-tauri-target-clean.mjs src-tauri && node ../../../../scripts/ensure-tauri-dev-port-free.mjs 127.0.0.1 1520 && node ../../../../scripts/run-tauri-cli.mjs dev",
+    "tauri:dev:test:base": "node ../../../../scripts/ensure-tauri-rust-toolchain.mjs && node ../../../../scripts/run-tauri-dev-binary-unlock.mjs --src-tauri-dir src-tauri --binary-name sdkwork-birdcoder-desktop && node ../../../../scripts/ensure-tauri-target-clean.mjs src-tauri && node ../../../../scripts/ensure-tauri-dev-port-free.mjs 127.0.0.1 1520 && node ../../../../scripts/run-tauri-cli.mjs dev --config src-tauri/tauri.test.conf.json --vite-mode test",
+    "tauri:build:base": "node ../../../../scripts/ensure-tauri-rust-toolchain.mjs && node ../../../../scripts/run-tauri-dev-binary-unlock.mjs --src-tauri-dir src-tauri --binary-name sdkwork-birdcoder-desktop && node ../../../../scripts/ensure-tauri-target-clean.mjs src-tauri && node ../../../../scripts/run-desktop-release-build.mjs --phase bundle --vite-mode production",
+    "tauri:build:test:base": "node ../../../../scripts/ensure-tauri-rust-toolchain.mjs && node ../../../../scripts/run-tauri-dev-binary-unlock.mjs --src-tauri-dir src-tauri --binary-name sdkwork-birdcoder-desktop && node ../../../../scripts/ensure-tauri-target-clean.mjs src-tauri && node ../../../../scripts/run-desktop-release-build.mjs --phase bundle --vite-mode test",
+    "tauri:build:prod:base": "node ../../../../scripts/ensure-tauri-rust-toolchain.mjs && node ../../../../scripts/run-tauri-dev-binary-unlock.mjs --src-tauri-dir src-tauri --binary-name sdkwork-birdcoder-desktop && node ../../../../scripts/ensure-tauri-target-clean.mjs src-tauri && node ../../../../scripts/run-desktop-release-build.mjs --phase bundle --vite-mode production",
+    "tauri:info:base": "node ../../../../scripts/ensure-tauri-rust-toolchain.mjs && node ../../../../scripts/run-tauri-cli.mjs info",
+    "tauri:dev": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:dev --iam-mode desktop-local",
+    "tauri:dev:local": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:dev --iam-mode desktop-local",
+    "tauri:dev:private": "node ../../../../scripts/run-birdcoder-dev-stack.mjs desktop --iam-mode server-private",
+    "tauri:dev:cloud": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:dev --iam-mode cloud-saas",
+    "tauri:dev:test": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:dev:test --iam-mode desktop-local",
+    "tauri:build": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:build --iam-mode desktop-local",
+    "tauri:build:local": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:build --iam-mode desktop-local",
+    "tauri:build:demo": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:build --iam-mode desktop-local --demo-login",
+    "tauri:build:private": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:build --iam-mode server-private",
+    "tauri:build:cloud": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:build --iam-mode cloud-saas",
+    "tauri:build:test": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:build:test --iam-mode desktop-local",
+    "tauri:build:prod": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:build:prod --iam-mode desktop-local",
+    "tauri:info": "node ../../../../scripts/run-birdcoder-desktop-command.mjs tauri:info --iam-mode desktop-local"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-pc-distribution": "workspace:*",
+    "@sdkwork/birdcoder-pc-host-core": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
+    "@tauri-apps/api": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-router": "catalog:",
+    "react-router-dom": "catalog:",
+    "scheduler": "^0.27.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.2",
+    "@tailwindcss/vite": "catalog:",
+    "@tauri-apps/cli": "catalog:",
+    "@types/node": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

@@ -1,9 +1,10 @@
 use axum::{routing::get, Router};
 
 use crate::handlers;
+use crate::handlers::SystemAppState;
 use crate::paths;
 
-pub fn build_system_app_router() -> Router {
+pub fn build_system_app_router() -> Router<SystemAppState> {
     Router::new()
         .route(paths::SYSTEM_DESCRIPTOR_PATH, get(handlers::get_descriptor))
         .route(paths::SYSTEM_ROUTES_PATH, get(handlers::list_routes))

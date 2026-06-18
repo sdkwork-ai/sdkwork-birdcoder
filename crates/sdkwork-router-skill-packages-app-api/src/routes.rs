@@ -1,9 +1,10 @@
 use axum::{routing::get, routing::post, Router};
 
 use crate::handlers;
+use crate::handlers::SkillPackagesAppState;
 use crate::paths;
 
-pub fn build_ecosystem_app_router() -> Router {
+pub fn build_skill_packages_app_router() -> Router<SkillPackagesAppState> {
     Router::new()
         .route(
             paths::SKILL_PACKAGES_PATH,

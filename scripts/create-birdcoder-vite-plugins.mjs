@@ -43,6 +43,12 @@ const BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE = [
   'qrcode',
   'qrcode/lib/browser.js',
 ];
+const BIRDCODER_VITE_DEV_WATCH_IGNORED = [
+  '**/.local/**',
+  '**/*.sqlite3',
+  '**/*.sqlite3-wal',
+  '**/*.sqlite3-shm',
+];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_KEY = '__SDKWORK_PC_REACT_ENV__';
 const BIRDCODER_PUBLIC_RUNTIME_ENV_PREFIXES = ['SDKWORK_', 'VITE_'];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS = ['DEV', 'MODE', 'NODE_ENV', 'PROD'];
@@ -1380,6 +1386,7 @@ function createBirdcoderVitePlugins({
 export {
   BIRDCODER_VITE_DEDUPE_PACKAGES,
   BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE,
+  BIRDCODER_VITE_DEV_WATCH_IGNORED,
   BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE,
   createBirdcoderCommonJsDefaultCompatPlugin,
   createBirdcoderCoreEnvCompatPlugin,

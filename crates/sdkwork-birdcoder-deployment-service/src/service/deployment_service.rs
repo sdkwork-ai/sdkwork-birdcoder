@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::context::SessionContext;
+use crate::context::DeploymentContext;
 use crate::domain::commands::PublishProjectCommand;
 use crate::domain::results::{
     AuditPayload, DeploymentPayload, DeploymentTargetPayload, PolicyPayload,
@@ -29,14 +29,14 @@ impl DeploymentService {
 
     pub async fn list_deployments(
         &self,
-        ctx: &SessionContext,
+        ctx: &DeploymentContext,
     ) -> Result<Vec<DeploymentPayload>, DeploymentError> {
         self.repository.list_deployments(ctx).await
     }
 
     pub async fn list_deployments_by_project(
         &self,
-        ctx: &SessionContext,
+        ctx: &DeploymentContext,
         project_id: &str,
     ) -> Result<Vec<DeploymentPayload>, DeploymentError> {
         self.repository
@@ -46,14 +46,14 @@ impl DeploymentService {
 
     pub async fn list_deployment_targets(
         &self,
-        ctx: &SessionContext,
+        ctx: &DeploymentContext,
     ) -> Result<Vec<DeploymentTargetPayload>, DeploymentError> {
         self.repository.list_deployment_targets(ctx).await
     }
 
     pub async fn list_deployment_targets_by_project(
         &self,
-        ctx: &SessionContext,
+        ctx: &DeploymentContext,
         project_id: &str,
     ) -> Result<Vec<DeploymentTargetPayload>, DeploymentError> {
         self.repository
@@ -63,14 +63,14 @@ impl DeploymentService {
 
     pub async fn list_releases(
         &self,
-        ctx: &SessionContext,
+        ctx: &DeploymentContext,
     ) -> Result<Vec<ReleasePayload>, DeploymentError> {
         self.repository.list_releases(ctx).await
     }
 
     pub async fn list_audit_logs(
         &self,
-        ctx: &SessionContext,
+        ctx: &DeploymentContext,
         scope_type: &str,
         scope_id: &str,
     ) -> Result<Vec<AuditPayload>, DeploymentError> {
@@ -81,7 +81,7 @@ impl DeploymentService {
 
     pub async fn list_policies(
         &self,
-        ctx: &SessionContext,
+        ctx: &DeploymentContext,
         scope_type: &str,
         scope_id: &str,
     ) -> Result<Vec<PolicyPayload>, DeploymentError> {
@@ -92,7 +92,7 @@ impl DeploymentService {
 
     pub async fn publish_project(
         &self,
-        ctx: &SessionContext,
+        ctx: &DeploymentContext,
         command: &PublishProjectCommand,
     ) -> Result<PublishProjectResultPayload, DeploymentError> {
         if command.project_id.trim().is_empty() {

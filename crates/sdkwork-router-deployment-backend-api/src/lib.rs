@@ -4,4 +4,5 @@ pub mod mapper;
 pub mod paths;
 pub mod routes;
 
-pub use routes::build_platform_backend_router;
+pub use handlers::DeploymentBackendAppState;
+pub use routes::build_deployment_backend_router;

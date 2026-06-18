@@ -41,6 +41,7 @@
     "lucide-react": "catalog:",
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-host-studio": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/birdcoder-pc-ui": "workspace:*",
     "@sdkwork/terminal-pc-desktop": "workspace:*",

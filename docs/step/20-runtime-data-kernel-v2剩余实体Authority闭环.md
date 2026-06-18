@@ -39,7 +39,7 @@ Close the remaining `runtime-data-kernel-v2` schema-only entities by promoting `
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - `packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts`
 - shared collaboration or delivery repository and query layers
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
+- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
 - explicit app/backend SDK clients promotion and first consumer adoption
 - governance contracts, architecture writeback, prompt writeback, and release notes
 

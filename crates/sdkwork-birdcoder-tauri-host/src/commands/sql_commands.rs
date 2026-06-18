@@ -1,6 +1,7 @@
 use rusqlite::{params_from_iter, types::Value as SqlValue, types::ValueRef};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Number as JsonNumber, Value as JsonValue};
+use std::collections::HashSet;
 use tauri::AppHandle;
 
 use crate::host::state::open_database;
@@ -141,23 +142,58 @@ fn normalize_sql_for_table_match(sql: &str) -> String {
         .to_ascii_uppercase()
 }
 
-fn local_sql_mentions_allowed_table(sql: &str, allowed_tables: &[String]) -> bool {
+fn read_sql_identifier(value: &str) -> Option<String> {
+    let trimmed = value.trim_start();
+    let name: String = trimmed
+        .chars()
+        .take_while(|character| character.is_ascii_alphanumeric() || *character == '_')
+        .collect();
+    if name.is_empty() || !is_safe_local_sql_identifier(&name) {
+        None
+    } else {
+        Some(name)
+    }
+}
+
+fn local_sql_referenced_tables(sql: &str) -> Vec<String> {
     let normalized_sql = normalize_sql_for_table_match(sql);
-    let padded_sql = format!(" {normalized_sql} ");
-    allowed_tables.iter().any(|table_name| {
-        let table_name = table_name.to_ascii_uppercase();
-        [
-            format!(" FROM {table_name} "),
-            format!(" INTO {table_name} "),
-            format!(" UPDATE {table_name} "),
-            format!(" DELETE FROM {table_name} "),
-            format!(" TABLE {table_name} "),
-            format!(" TABLE IF NOT EXISTS {table_name} "),
-            format!(" ON {table_name} "),
-        ]
+    let keywords = [
+        " FROM ",
+        " JOIN ",
+        " INTO ",
+        " UPDATE ",
+        " DELETE FROM ",
+        " TABLE IF NOT EXISTS ",
+        " TABLE ",
+    ];
+    let mut tables = Vec::new();
+    for keyword in keywords {
+        let mut remainder = normalized_sql.as_str();
+        while let Some(index) = remainder.find(keyword) {
+            let after_keyword = &remainder[index + keyword.len()..];
+            if let Some(table_name) = read_sql_identifier(after_keyword) {
+                tables.push(table_name);
+            }
+            remainder = after_keyword;
+        }
+    }
+    tables.sort();
+    tables.dedup();
+    tables
+}
+
+fn local_sql_mentions_allowed_table(sql: &str, allowed_tables: &[String]) -> bool {
+    let allowed: HashSet<String> = allowed_tables
         .iter()
-        .any(|pattern| padded_sql.contains(pattern))
-    })
+        .map(|table_name| table_name.to_ascii_uppercase())
+        .collect();
+    let referenced = local_sql_referenced_tables(sql);
+    if referenced.is_empty() {
+        return false;
+    }
+    referenced
+        .iter()
+        .all(|table_name| allowed.contains(&table_name.to_ascii_uppercase()))
 }
 
 fn validate_local_sql_statement(

@@ -5,6 +5,7 @@ pub enum SkillPackageError {
     NotFound(String),
     InvalidInput(String),
     Conflict(String),
+    NotImplemented(String),
     Repository(String),
     Internal(String),
 }
@@ -15,6 +16,7 @@ impl fmt::Display for SkillPackageError {
             Self::NotFound(msg) => write!(f, "not found: {msg}"),
             Self::InvalidInput(msg) => write!(f, "invalid input: {msg}"),
             Self::Conflict(msg) => write!(f, "conflict: {msg}"),
+            Self::NotImplemented(msg) => write!(f, "not implemented: {msg}"),
             Self::Repository(msg) => write!(f, "repository error: {msg}"),
             Self::Internal(msg) => write!(f, "internal error: {msg}"),
         }

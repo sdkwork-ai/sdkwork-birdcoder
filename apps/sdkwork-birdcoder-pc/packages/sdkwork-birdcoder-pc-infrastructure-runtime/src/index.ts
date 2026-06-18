@@ -1,10 +1,6 @@
 export * from '@sdkwork/birdcoder-pc-infrastructure';
 
-// Re-export generated SDK client accessor for shared package compatibility
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getBirdCoderGeneratedAppSdkClient(): any {
-  return null;
-}
+export { getBirdCoderGeneratedAppSdkClient } from '@sdkwork/birdcoder-pc-infrastructure';
 
 // Re-export openLocalFolder for shared package compatibility
 export { openLocalFolder } from '@sdkwork/birdcoder-pc-infrastructure/platform/openLocalFolder';

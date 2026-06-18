@@ -19,7 +19,11 @@ const rustCatalogPath = new URL(
   import.meta.url,
 );
 const desktopRustPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs',
+  import.meta.url,
+);
+const providersModulePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
   import.meta.url,
 );
 
@@ -28,7 +32,14 @@ const storageBindingsSource = await readFile(storageBindingsPath, 'utf8');
 const engineTypesSource = await readFile(engineTypesPath, 'utf8');
 const openApiSource = await readFile(openApiPath, 'utf8');
 const rustCatalogSource = await readFile(rustCatalogPath, 'utf8');
-const desktopRustSource = await readFile(desktopRustPath, 'utf8');
+const providersModule = await import(`${providersModulePath.href}?t=${Date.now()}`);
+const runtimeMigration = providersModule.getBirdCoderSchemaMigrationDefinition('runtime-data-kernel-v1');
+const runtimeMigrationSql = [
+  ...(runtimeMigration.sqlByProvider.sqlite ?? []),
+  ...(runtimeMigration.sqlByProvider.postgresql ?? []),
+].join('\n');
+const embeddedServerRustSource = await readFile(desktopRustPath, 'utf8');
+const desktopRustSource = `${embeddedServerRustSource}\n${runtimeMigrationSql}\n${dataDefinitionsSource}`;
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

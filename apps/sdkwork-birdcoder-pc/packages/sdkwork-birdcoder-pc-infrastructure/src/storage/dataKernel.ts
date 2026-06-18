@@ -529,10 +529,15 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
     return volatileTableRecords ?? [];
   }
 
-  function enterVolatileTableFallback(records: readonly TRecord[] = []): TRecord[] {
+  function activateVolatileTableFallback(): void {
+    if (shouldUseVolatileTableFallback) {
+      return;
+    }
+
     shouldUseVolatileTableFallback = true;
-    volatileTableRecords = normalizeStoredTableRecords(records, normalize, sort);
-    return volatileTableRecords;
+    if (volatileTableRecords === null) {
+      volatileTableRecords = [];
+    }
   }
 
   function resolveSqlExecutorPath():
@@ -561,8 +566,9 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
       try {
         const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildListPlan());
         return normalizeStoredTableRecords(result.rows ?? [], normalize, sort);
-      } catch {
-        return enterVolatileTableFallback();
+      } catch (error) {
+        activateVolatileTableFallback();
+        return normalizeStoredTableRecords(resolveVolatileTableRecords(), normalize, sort);
       }
     }
 
@@ -587,10 +593,12 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
         await sqlExecutorPath.storage.executeSqlPlan(
           sqlPlanner.buildUpsertPlan(normalizedRecords.map((record) => sqlExecutorPath.toRow(record))),
         );
-      } catch {
-        enterVolatileTableFallback(normalizedRecords);
+        return normalizedRecords;
+      } catch (error) {
+        activateVolatileTableFallback();
+        volatileTableRecords = normalizedRecords;
+        return normalizedRecords;
       }
-      return normalizedRecords;
     }
 
     await storageAccess.setRawValue(
@@ -632,8 +640,9 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
         try {
           const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildCountPlan());
           return Number(result.rows?.[0]?.total ?? 0);
-        } catch {
-          enterVolatileTableFallback(resolveVolatileTableRecords());
+        } catch (error) {
+          activateVolatileTableFallback();
+          return resolveVolatileTableRecords().length;
         }
       }
 
@@ -646,8 +655,13 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
         try {
           const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildFindByIdPlan(id));
           return normalizeStoredTableRecords(result.rows ?? [], normalize, sort)[0] ?? null;
-        } catch {
-          enterVolatileTableFallback(resolveVolatileTableRecords());
+        } catch (error) {
+          activateVolatileTableFallback();
+          return (
+            normalizeStoredTableRecords(resolveVolatileTableRecords(), normalize, sort).find(
+              (record) => identify(record) === id,
+            ) ?? null
+          );
         }
       }
 
@@ -660,8 +674,12 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
         try {
           await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildDeletePlan(id));
           return;
-        } catch {
-          enterVolatileTableFallback(resolveVolatileTableRecords());
+        } catch (error) {
+          activateVolatileTableFallback();
+          volatileTableRecords = resolveVolatileTableRecords().filter(
+            (record) => identify(record) !== id,
+          );
+          return;
         }
       }
 
@@ -688,9 +706,8 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
             ),
           );
           return normalizedRecords;
-        } catch {
-          enterVolatileTableFallback(normalizedRecords);
-          return normalizedRecords;
+        } catch (error) {
+          activateVolatileTableFallback();
         }
       }
 
@@ -732,8 +749,9 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
         try {
           await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildClearPlan());
           return;
-        } catch {
-          enterVolatileTableFallback();
+        } catch (error) {
+          activateVolatileTableFallback();
+          volatileTableRecords = [];
           return;
         }
       }

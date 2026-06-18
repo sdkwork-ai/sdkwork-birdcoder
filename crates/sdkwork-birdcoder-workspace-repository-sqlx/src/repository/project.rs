@@ -1,4 +1,5 @@
-use std::sync::Mutex;
+use sdkwork_birdcoder_project_service::context::ProjectContext;
+use std::sync::{Arc, Mutex};
 
 use rusqlite::{params, Connection};
 use uuid::Uuid;
@@ -7,7 +8,6 @@ use crate::db::columns::project as col;
 use crate::db::columns::project_collaborator as collab_col;
 use crate::db::rows::{ProjectCollaboratorRow, ProjectRow};
 use crate::mapper::row_mapper;
-use sdkwork_birdcoder_project_service::context::SessionContext;
 use sdkwork_birdcoder_project_service::domain::commands::{
     CreateProjectRequest, UpdateProjectRequest, UpsertProjectCollaboratorRequest,
 };
@@ -15,14 +15,18 @@ use sdkwork_birdcoder_project_service::domain::results::{ProjectCollaboratorPayl
 use sdkwork_birdcoder_project_service::error::ProjectError;
 
 pub struct SqliteProjectRepository {
-    conn: Mutex<Connection>,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl SqliteProjectRepository {
     pub fn new(conn: Connection) -> Self {
         Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         }
+    }
+
+    pub fn with_shared(conn: Arc<Mutex<Connection>>) -> Self {
+        Self { conn }
     }
 
     fn now_iso() -> String {
@@ -38,7 +42,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 {
     async fn find_project_by_id(
         &self,
-        _ctx: &SessionContext,
+        ctx: &ProjectContext,
         id: &str,
     ) -> Result<Option<ProjectPayload>, ProjectError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -47,16 +51,25 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let id_num: i64 = id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid id: {id}"))
         })?;
+        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
+        let mut sql = format!(
+            "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
+            col::TABLE,
+            col::ID,
+            col::IS_DELETED,
+        );
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(id_num)];
+        if let Some(tenant_id) = tenant_id {
+            sql += &format!(" AND {} = ?2", col::TENANT_ID);
+            param_values.push(Box::new(tenant_id));
+        }
         let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
-                col::TABLE,
-                col::ID,
-                col::IS_DELETED,
-            ))
+            .prepare(&sql)
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let row = stmt
-            .query_row(params![id_num], |r| Ok(ProjectRow::from_row(r)))
+            .query_row(params_refs.as_slice(), |r| Ok(ProjectRow::from_row(r)))
             .optional()
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
         match row {
@@ -68,7 +81,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 
     async fn list_projects_by_workspace(
         &self,
-        _ctx: &SessionContext,
+        ctx: &ProjectContext,
         workspace_id: &str,
     ) -> Result<Vec<ProjectPayload>, ProjectError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -77,16 +90,25 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let wid: i64 = workspace_id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
+        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
+        let mut sql = format!(
+            "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
+            col::TABLE,
+            col::WORKSPACE_ID,
+            col::IS_DELETED,
+        );
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(wid)];
+        if let Some(tenant_id) = tenant_id {
+            sql += &format!(" AND {} = ?2", col::TENANT_ID);
+            param_values.push(Box::new(tenant_id));
+        }
         let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
-                col::TABLE,
-                col::WORKSPACE_ID,
-                col::IS_DELETED,
-            ))
+            .prepare(&sql)
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let rows = stmt
-            .query_map(params![wid], |r| Ok(ProjectRow::from_row(r)))
+            .query_map(params_refs.as_slice(), |r| Ok(ProjectRow::from_row(r)))
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
         let mut result = Vec::new();
         for row in rows {
@@ -100,7 +122,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 
     async fn create_project(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         req: &CreateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -201,7 +223,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 
     async fn update_project(
         &self,
-        _ctx: &SessionContext,
+        ctx: &ProjectContext,
         id: &str,
         req: &UpdateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError> {
@@ -211,6 +233,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let id_num: i64 = id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid id: {id}"))
         })?;
+        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let now = Self::now_iso();
         let mut sets = vec![format!("{} = ?1", col::UPDATED_AT)];
         let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];
@@ -313,17 +336,27 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         }
 
         let sql = format!(
-            "UPDATE {} SET {} WHERE {} = ?{}",
+            "UPDATE {} SET {} WHERE {} = ?{}{}",
             col::TABLE,
             sets.join(", "),
             col::ID,
             idx,
+            tenant_id
+                .map(|_value| format!(" AND {} = ?{}", col::TENANT_ID, idx + 1))
+                .unwrap_or_default(),
         );
         param_values.push(Box::new(id_num));
+        if let Some(tenant_id) = tenant_id {
+            param_values.push(Box::new(tenant_id));
+        }
         let params_refs: Vec<&dyn rusqlite::types::ToSql> =
             param_values.iter().map(|p| p.as_ref()).collect();
-        conn.execute(&sql, params_refs.as_slice())
+        let updated = conn
+            .execute(&sql, params_refs.as_slice())
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        if updated == 0 {
+            return Err(ProjectError::NotFound(format!("project {id} not found")));
+        }
 
         let mut stmt = conn
             .prepare(&format!(
@@ -343,7 +376,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 
     async fn delete_project(
         &self,
-        _ctx: &SessionContext,
+        ctx: &ProjectContext,
         id: &str,
     ) -> Result<(), ProjectError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -352,26 +385,44 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let id_num: i64 = id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid id: {id}"))
         })?;
+        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let now = Self::now_iso();
-        conn.execute(
-            &format!(
-                "UPDATE {} SET {} = 1, {} = ?1 WHERE {} = ?2",
-                col::TABLE,
-                col::IS_DELETED,
-                col::UPDATED_AT,
-                col::ID,
-            ),
-            params![now, id_num],
-        )
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        let mut sql = format!(
+            "UPDATE {} SET {} = 1, {} = ?1 WHERE {} = ?2",
+            col::TABLE,
+            col::IS_DELETED,
+            col::UPDATED_AT,
+            col::ID,
+        );
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> =
+            vec![Box::new(now), Box::new(id_num)];
+        if let Some(tenant_id) = tenant_id {
+            sql.push_str(&format!(" AND {} = ?3", col::TENANT_ID));
+            param_values.push(Box::new(tenant_id));
+        }
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
+        let updated = conn
+            .execute(&sql, params_refs.as_slice())
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        if updated == 0 {
+            return Err(ProjectError::NotFound(format!("project {id} not found")));
+        }
         Ok(())
     }
 
     async fn list_project_collaborators(
         &self,
-        _ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
     ) -> Result<Vec<ProjectCollaboratorPayload>, ProjectError> {
+        if self
+            .find_project_by_id(ctx, project_id)
+            .await?
+            .is_none()
+        {
+            return Err(ProjectError::NotFound(format!("project {project_id} not found")));
+        }
         let conn = self.conn.lock().map_err(|e| {
             ProjectError::Repository(format!("lock error: {e}"))
         })?;
@@ -401,10 +452,17 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 
     async fn upsert_project_collaborator(
         &self,
-        ctx: &SessionContext,
+        ctx: &ProjectContext,
         project_id: &str,
         req: &UpsertProjectCollaboratorRequest,
     ) -> Result<ProjectCollaboratorPayload, ProjectError> {
+        if self
+            .find_project_by_id(ctx, project_id)
+            .await?
+            .is_none()
+        {
+            return Err(ProjectError::NotFound(format!("project {project_id} not found")));
+        }
         let conn = self.conn.lock().map_err(|e| {
             ProjectError::Repository(format!("lock error: {e}"))
         })?;
@@ -515,7 +573,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 
     async fn remove_project_collaborator(
         &self,
-        _ctx: &SessionContext,
+        _ctx: &ProjectContext,
         project_id: &str,
         user_id: &str,
     ) -> Result<(), ProjectError> {
@@ -546,4 +604,3 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 }
 
 use rusqlite::OptionalExtension;
-

@@ -10,8 +10,8 @@ Make actual Rust host `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/cap
 
 ## Scope
 
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
-- `packages/sdkwork-birdcoder-server/src-host/generated/engine-catalog.json`
+- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
 - `package.json`
 - `docs/prompts/反复执行Step指令.md`
 - `docs/step/18D-Rust-Host-Engine-Route-Parity-Lane.md`
@@ -50,7 +50,7 @@ Make actual Rust host `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/cap
 ## Verification
 
 - `pnpm.cmd run test:rust-host-engine-route-parity-contract`
-- `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
 - `pnpm.cmd run typecheck`
 - `pnpm.cmd run docs:build`
 - `pnpm.cmd run check:release-flow`

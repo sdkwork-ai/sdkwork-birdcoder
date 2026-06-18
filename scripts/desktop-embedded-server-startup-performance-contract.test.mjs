@@ -3,32 +3,43 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const rootDir = process.cwd();
+const hostStateSource = fs.readFileSync(
+  path.join(rootDir, 'crates/sdkwork-birdcoder-tauri-host/src/host/state.rs'),
+  'utf8',
+);
+const hostCommandSource = fs.readFileSync(
+  path.join(rootDir, 'crates/sdkwork-birdcoder-tauri-host/src/commands/host_commands.rs'),
+  'utf8',
+);
 const desktopLibSource = fs.readFileSync(
-  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs'),
+  path.join(
+    rootDir,
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
+  ),
   'utf8',
 );
 
 assert.match(
-  desktopLibSource,
-  /static DESKTOP_RUNTIME_STARTUP:\s*OnceLock<\s*tokio::sync::OnceCell<Result<DesktopRuntimeConfig,\s*String>>\s*,?\s*>/s,
+  hostStateSource,
+  /static EMBEDDED_RUNTIME_STARTUP:\s*OnceLock<\s*tokio::sync::OnceCell<Result<DesktopRuntimeConfig,\s*String>>\s*,?\s*>/s,
   'Desktop runtime startup must have a shared async OnceCell so setup and desktop_runtime_config do not race or duplicate embedded server startup.',
 );
 
 assert.match(
-  desktopLibSource,
-  /async fn ensure_desktop_runtime_config\(app: AppHandle\) -> Result<DesktopRuntimeConfig,\s*String> \{[\s\S]*tauri::async_runtime::spawn_blocking\(move \|\| start_embedded_coding_server\(&app\)\)/s,
+  hostStateSource,
+  /async fn ensure_desktop_runtime_config\([\s\S]*?\)\s*->\s*Result<DesktopRuntimeConfig,\s*String> \{[\s\S]*tauri::async_runtime::spawn_blocking\(move \|\| start_embedded_coding_server\(&app\)\)/s,
   'Desktop runtime config resolution must move SQLite schema initialization and router construction off the Tauri setup thread.',
 );
 
 assert.match(
-  desktopLibSource,
+  hostStateSource,
   /fn spawn_embedded_coding_server_startup\(app: AppHandle\) \{[\s\S]*tauri::async_runtime::spawn\(async move \{[\s\S]*ensure_desktop_runtime_config\(app\)\.await/s,
   'Desktop setup must schedule embedded server startup in the async runtime instead of blocking window creation.',
 );
 
 assert.match(
-  desktopLibSource,
-  /#\[tauri::command\]\s*async fn desktop_runtime_config\(app: AppHandle\) -> Result<DesktopRuntimeConfig,\s*String> \{[\s\S]*ensure_desktop_runtime_config\(app\)\.await/s,
+  hostCommandSource,
+  /#\[tauri::command\][\s\S]*async fn desktop_runtime_config\([\s\S]*?\)\s*->\s*Result<DesktopRuntimeConfig,\s*String> \{[\s\S]*ensure_desktop_runtime_config\(app\)[\s\S]*?\.await/s,
   'desktop_runtime_config must await the shared startup task so the renderer can resolve the API URL without forcing synchronous setup work.',
 );
 

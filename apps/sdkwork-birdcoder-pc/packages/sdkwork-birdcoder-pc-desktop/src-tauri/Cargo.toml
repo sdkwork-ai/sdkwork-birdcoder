@@ -1,0 +1,19 @@
+[package]
+name = "sdkwork-birdcoder-pc-desktop"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+rfd = "0.16"
+sdkwork-birdcoder-server = { workspace = true }
+sdkwork-birdcoder-tauri-host = { path = "../../../../../crates/sdkwork-birdcoder-tauri-host" }
+serde_json = { workspace = true }
+tauri = { version = "~2.11.0", features = [] }
+tauri-plugin-shell = "2"
+
+[lib]
+name = "sdkwork_birdcoder_pc_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]

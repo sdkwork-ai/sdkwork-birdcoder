@@ -14,7 +14,7 @@
 
 **Files:**
 - Modify: `packages/sdkwork-birdcoder-types/src/server-api.ts`
-- Modify: `packages/sdkwork-birdcoder-server/src/index.ts`
+- Modify: `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts`
 - Test: `scripts/coding-server-route-contract.test.ts`
 - Test: `scripts/split-sdk-client-facade-contract.test.ts`
 
@@ -199,9 +199,9 @@ Expected:
 ### Task 4: Close the Rust host route on the same authority path
 
 **Files:**
-- Modify: `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
+- Modify: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
 - Test: `scripts/coding-server-route-contract.test.ts`
-- Test: targeted Rust route assertions already in `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
+- Test: targeted Rust route assertions already in `crates/sdkwork-birdcoder-api-server/src/lib.rs`
 
 - [ ] **Step 1: Write the failing Rust-host route test**
 
@@ -220,8 +220,8 @@ assert_eq!(admin_team_members_json["items"][0]["role"], "owner");
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run:
-`cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
-`cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
+`cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
+`cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
 
 Expected:
 - FAIL because the member route and backing authority are missing
@@ -282,8 +282,8 @@ Run:
 `node --experimental-strip-types scripts/split-sdk-client-facade-contract.test.ts`
 `node --experimental-strip-types scripts/split-sdk-consumer-contract.test.ts`
 `node --experimental-strip-types scripts/provider-backed-console-contract.test.ts`
-`cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
-`cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
+`cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
+`cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
 `pnpm.cmd run docs:build`
 `node scripts/live-docs-governance-baseline.test.mjs`
 `node scripts/release-flow-contract.test.mjs`

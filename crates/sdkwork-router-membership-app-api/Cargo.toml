@@ -9,7 +9,7 @@ authors.workspace = true
 axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled"] }
 sdkwork-birdcoder-membership-service = { workspace = true }
-
-
-
+sdkwork-birdcoder-membership-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-router-context = { workspace = true }

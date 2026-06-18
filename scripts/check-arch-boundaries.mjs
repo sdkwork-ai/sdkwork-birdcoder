@@ -4,165 +4,171 @@ import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
 const rootDir = process.cwd();
-const packagesDir = path.join(rootDir, 'packages');
+const pcPackagesDir = path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages');
+const pcPackagesRelativeDir = 'apps/sdkwork-birdcoder-pc/packages';
 
 const allowedInternalDependencies = new Map([
+  ['@sdkwork/birdcoder-pc-admin-core', new Set()],
+  ['@sdkwork/birdcoder-pc-admin-shell', new Set()],
   ['@sdkwork/birdcoder-pc-auth', new Set([
     '@sdkwork/birdcoder-pc-commons',
     '@sdkwork/birdcoder-pc-core',
     '@sdkwork/birdcoder-pc-types',
   ])],
-  ['@sdkwork/birdcoder-chat', new Set(['@sdkwork/birdcoder-pc-types'])],
-  ['@sdkwork/birdcoder-chat-claude', new Set(['@sdkwork/birdcoder-chat'])],
-  ['@sdkwork/birdcoder-chat-codex', new Set(['@sdkwork/birdcoder-chat'])],
-  ['@sdkwork/birdcoder-chat-gemini', new Set(['@sdkwork/birdcoder-chat'])],
-  ['@sdkwork/birdcoder-chat-opencode', new Set(['@sdkwork/birdcoder-chat'])],
+  ['@sdkwork/birdcoder-pc-chat', new Set([
+    '@sdkwork/birdcoder-pc-types',
+  ])],
+  ['@sdkwork/birdcoder-pc-chat-claude', new Set([
+    '@sdkwork/birdcoder-pc-chat',
+  ])],
+  ['@sdkwork/birdcoder-pc-chat-codex', new Set([
+    '@sdkwork/birdcoder-pc-chat',
+  ])],
+  ['@sdkwork/birdcoder-pc-chat-gemini', new Set([
+    '@sdkwork/birdcoder-pc-chat',
+  ])],
+  ['@sdkwork/birdcoder-pc-chat-opencode', new Set([
+    '@sdkwork/birdcoder-pc-chat',
+  ])],
   ['@sdkwork/birdcoder-pc-code', new Set([
-    '@sdkwork/birdcoder-codeengine',
+    '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-commons',
     '@sdkwork/birdcoder-pc-types',
-    '@sdkwork/birdcoder-ui-shell',
-    '@sdkwork/birdcoder-ui',
+    '@sdkwork/birdcoder-pc-ui',
+    '@sdkwork/birdcoder-pc-ui-shell',
   ])],
-  ['@sdkwork/birdcoder-codeengine', new Set([
-    '@sdkwork/birdcoder-chat',
-    '@sdkwork/birdcoder-chat-claude',
-    '@sdkwork/birdcoder-chat-codex',
-    '@sdkwork/birdcoder-chat-gemini',
-    '@sdkwork/birdcoder-chat-opencode',
+  ['@sdkwork/birdcoder-pc-codeengine', new Set([
+    '@sdkwork/birdcoder-pc-chat',
+    '@sdkwork/birdcoder-pc-chat-claude',
+    '@sdkwork/birdcoder-pc-chat-codex',
+    '@sdkwork/birdcoder-pc-chat-gemini',
+    '@sdkwork/birdcoder-pc-chat-opencode',
     '@sdkwork/birdcoder-pc-types',
   ])],
   ['@sdkwork/birdcoder-pc-commons', new Set([
-    '@sdkwork/birdcoder-chat',
-    '@sdkwork/birdcoder-chat-claude',
-    '@sdkwork/birdcoder-chat-codex',
-    '@sdkwork/birdcoder-chat-gemini',
-    '@sdkwork/birdcoder-chat-opencode',
-    '@sdkwork/birdcoder-codeengine',
-    '@sdkwork/birdcoder-i18n',
+    '@sdkwork/birdcoder-pc-chat',
+    '@sdkwork/birdcoder-pc-codeengine',
+    '@sdkwork/birdcoder-pc-i18n',
     '@sdkwork/birdcoder-pc-infrastructure',
     '@sdkwork/birdcoder-pc-infrastructure-runtime',
     '@sdkwork/birdcoder-pc-types',
   ])],
-  ['@sdkwork/birdcoder-pc-core', new Set(['@sdkwork/birdcoder-pc-types'])],
+  ['@sdkwork/birdcoder-pc-console-core', new Set()],
+  ['@sdkwork/birdcoder-pc-console-shell', new Set()],
+  ['@sdkwork/birdcoder-pc-core', new Set([
+    '@sdkwork/birdcoder-pc-types',
+  ])],
   ['@sdkwork/birdcoder-pc-desktop', new Set([
-    '@sdkwork/birdcoder-distribution',
+    '@sdkwork/birdcoder-pc-distribution',
     '@sdkwork/birdcoder-pc-host-core',
     '@sdkwork/birdcoder-pc-shell',
-    '@sdkwork/birdcoder-shell-runtime',
+    '@sdkwork/birdcoder-pc-shell-runtime',
   ])],
-  ['@sdkwork/birdcoder-distribution', new Set()],
+  ['@sdkwork/birdcoder-pc-distribution', new Set()],
   ['@sdkwork/birdcoder-pc-host-core', new Set()],
   ['@sdkwork/birdcoder-pc-host-studio', new Set([
-    '@sdkwork/birdcoder-distribution',
     '@sdkwork/birdcoder-pc-host-core',
   ])],
+  ['@sdkwork/birdcoder-pc-i18n', new Set()],
   ['@sdkwork/birdcoder-pc-iam', new Set([
     '@sdkwork/birdcoder-pc-auth',
-    '@sdkwork/birdcoder-pc-core',
     '@sdkwork/birdcoder-pc-infrastructure',
-    '@sdkwork/birdcoder-pc-user',
   ])],
-  ['@sdkwork/birdcoder-i18n', new Set()],
   ['@sdkwork/birdcoder-pc-infrastructure', new Set([
     '@sdkwork/birdcoder-app-sdk',
     '@sdkwork/birdcoder-backend-sdk',
-    '@sdkwork/birdcoder-codeengine',
+    '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-core',
     '@sdkwork/birdcoder-pc-host-core',
     '@sdkwork/birdcoder-pc-types',
   ])],
-  ['@sdkwork/birdcoder-pc-infrastructure-runtime', new Set()],
-  ['@sdkwork/birdcoder-multiwindow', new Set([
-    '@sdkwork/birdcoder-codeengine',
+  ['@sdkwork/birdcoder-pc-infrastructure-runtime', new Set([
+    '@sdkwork/birdcoder-pc-infrastructure',
+  ])],
+  ['@sdkwork/birdcoder-pc-multiwindow', new Set([
+    '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-commons',
     '@sdkwork/birdcoder-pc-types',
-    '@sdkwork/birdcoder-ui-shell',
-    '@sdkwork/birdcoder-ui',
+    '@sdkwork/birdcoder-pc-ui',
+    '@sdkwork/birdcoder-pc-ui-shell',
   ])],
   ['@sdkwork/birdcoder-pc-server', new Set([
-    '@sdkwork/birdcoder-chat',
-    '@sdkwork/birdcoder-codeengine',
+    '@sdkwork/birdcoder-pc-chat',
+    '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-commons',
     '@sdkwork/birdcoder-pc-host-core',
     '@sdkwork/birdcoder-pc-infrastructure',
     '@sdkwork/birdcoder-pc-types',
   ])],
   ['@sdkwork/birdcoder-pc-settings', new Set([
-    '@sdkwork/birdcoder-codeengine',
+    '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-commons',
     '@sdkwork/birdcoder-pc-infrastructure-runtime',
     '@sdkwork/birdcoder-pc-skills',
-    '@sdkwork/birdcoder-ui-shell',
-    '@sdkwork/birdcoder-ui',
+    '@sdkwork/birdcoder-pc-ui',
+    '@sdkwork/birdcoder-pc-ui-shell',
   ])],
   ['@sdkwork/birdcoder-pc-shell', new Set([
     '@sdkwork/birdcoder-pc-code',
     '@sdkwork/birdcoder-pc-commons',
+    '@sdkwork/birdcoder-pc-i18n',
     '@sdkwork/birdcoder-pc-iam',
-    '@sdkwork/birdcoder-i18n',
-    '@sdkwork/birdcoder-multiwindow',
+    '@sdkwork/birdcoder-pc-multiwindow',
     '@sdkwork/birdcoder-pc-settings',
     '@sdkwork/birdcoder-pc-skills',
     '@sdkwork/birdcoder-pc-studio',
     '@sdkwork/birdcoder-pc-templates',
     '@sdkwork/birdcoder-pc-types',
-    '@sdkwork/birdcoder-ui-shell',
+    '@sdkwork/birdcoder-pc-ui-shell',
     '@sdkwork/birdcoder-pc-user',
   ])],
-  ['@sdkwork/birdcoder-shell-runtime', new Set([
+  ['@sdkwork/birdcoder-pc-shell-runtime', new Set([
     '@sdkwork/birdcoder-pc-core',
     '@sdkwork/birdcoder-pc-host-core',
-    '@sdkwork/birdcoder-pc-infrastructure',
     '@sdkwork/birdcoder-pc-infrastructure-runtime',
     '@sdkwork/birdcoder-pc-types',
-    '@sdkwork/birdcoder-pc-user',
-    '@sdkwork/birdcoder-workbench-state',
-    '@sdkwork/birdcoder-workbench-storage',
+    '@sdkwork/birdcoder-pc-workbench-state',
+    '@sdkwork/birdcoder-pc-workbench-storage',
   ])],
   ['@sdkwork/birdcoder-pc-skills', new Set([
     '@sdkwork/birdcoder-pc-types',
-    '@sdkwork/birdcoder-ui',
+    '@sdkwork/birdcoder-pc-ui',
   ])],
   ['@sdkwork/birdcoder-pc-studio', new Set([
-    '@sdkwork/birdcoder-codeengine',
+    '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-commons',
-    '@sdkwork/birdcoder-ui-shell',
-    '@sdkwork/birdcoder-ui',
+    '@sdkwork/birdcoder-pc-host-studio',
+    '@sdkwork/birdcoder-pc-ui',
+    '@sdkwork/birdcoder-pc-ui-shell',
   ])],
   ['@sdkwork/birdcoder-pc-templates', new Set([
     '@sdkwork/birdcoder-pc-types',
-    '@sdkwork/birdcoder-ui',
+    '@sdkwork/birdcoder-pc-ui',
   ])],
   ['@sdkwork/birdcoder-pc-types', new Set()],
-  ['@sdkwork/birdcoder-ui-shell', new Set([
-    '@sdkwork/birdcoder-codeengine',
+  ['@sdkwork/birdcoder-pc-ui', new Set([
+    '@sdkwork/birdcoder-pc-codeengine',
+    '@sdkwork/birdcoder-pc-commons',
+    '@sdkwork/birdcoder-pc-ui-shell',
+  ])],
+  ['@sdkwork/birdcoder-pc-ui-shell', new Set([
+    '@sdkwork/birdcoder-pc-codeengine',
   ])],
   ['@sdkwork/birdcoder-pc-user', new Set([
     '@sdkwork/birdcoder-pc-commons',
-    '@sdkwork/birdcoder-pc-core',
     '@sdkwork/birdcoder-pc-infrastructure-runtime',
     '@sdkwork/birdcoder-pc-types',
-    '@sdkwork/birdcoder-ui-shell',
-    '@sdkwork/birdcoder-workbench-state',
-  ])],
-  ['@sdkwork/birdcoder-ui', new Set([
-    '@sdkwork/birdcoder-codeengine',
-    '@sdkwork/birdcoder-pc-commons',
-    '@sdkwork/birdcoder-ui-shell',
   ])],
   ['@sdkwork/birdcoder-pc-web', new Set([
-    '@sdkwork/birdcoder-distribution',
+    '@sdkwork/birdcoder-pc-distribution',
     '@sdkwork/birdcoder-pc-host-core',
     '@sdkwork/birdcoder-pc-shell',
-    '@sdkwork/birdcoder-shell-runtime',
+    '@sdkwork/birdcoder-pc-shell-runtime',
   ])],
-  ['@sdkwork/birdcoder-workbench-state', new Set([
+  ['@sdkwork/birdcoder-pc-workbench-state', new Set([
     '@sdkwork/birdcoder-pc-commons',
-    '@sdkwork/birdcoder-pc-types',
-    '@sdkwork/birdcoder-workbench-storage',
   ])],
-  ['@sdkwork/birdcoder-workbench-storage', new Set([
+  ['@sdkwork/birdcoder-pc-workbench-storage', new Set([
     '@sdkwork/birdcoder-pc-commons',
   ])],
 ]);
@@ -174,7 +180,7 @@ function readJson(relativePath) {
 }
 
 function resolvePackageDirName(packageName) {
-  return String(packageName).replace(/^@sdkwork\/birdcoder-/u, 'sdkwork-birdcoder-');
+  return `sdkwork-${String(packageName).replace(/^@sdkwork\//u, '')}`;
 }
 
 export function runArchitectureBoundaryCheck({
@@ -183,16 +189,16 @@ export function runArchitectureBoundaryCheck({
 } = {}) {
   const errors = [];
 
-  if (!fs.existsSync(packagesDir)) {
+  if (!fs.existsSync(pcPackagesDir)) {
     stderr('Architecture boundary check failed:');
-    stderr('- Missing packages directory.');
+    stderr(`- Missing PC packages directory: ${pcPackagesRelativeDir}`);
     return 1;
   }
 
   const packageJsonPaths = fs
-    .readdirSync(packagesDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith('sdkwork-birdcoder-'))
-    .map((entry) => path.join('packages', entry.name, 'package.json'))
+    .readdirSync(pcPackagesDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('sdkwork-birdcoder-pc-'))
+    .map((entry) => path.join(pcPackagesRelativeDir, entry.name, 'package.json'))
     .filter((relativePath) => fs.existsSync(path.join(rootDir, relativePath)));
 
   for (const relativePath of packageJsonPaths) {
@@ -224,9 +230,16 @@ export function runArchitectureBoundaryCheck({
   }
 
   for (const packageName of allowedInternalDependencies.keys()) {
-    const packageJsonPath = path.join(rootDir, 'packages', resolvePackageDirName(packageName), 'package.json');
+    const packageJsonPath = path.join(
+      rootDir,
+      pcPackagesRelativeDir,
+      resolvePackageDirName(packageName),
+      'package.json',
+    );
     if (!fs.existsSync(packageJsonPath)) {
-      errors.push(`Architecture policy expects missing package: packages/${resolvePackageDirName(packageName)}/package.json`);
+      errors.push(
+        `Architecture policy expects missing package: ${pcPackagesRelativeDir}/${resolvePackageDirName(packageName)}/package.json`,
+      );
     }
   }
 

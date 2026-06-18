@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::context::SessionContext;
+use crate::context::WorkspaceContext;
 use crate::domain::commands::{CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest};
 use crate::domain::models::WorkspaceScopedQuery;
 use crate::domain::results::{DeleteEntityPayload, WorkspaceMemberPayload, WorkspacePayload};
@@ -27,7 +27,7 @@ impl WorkspaceService {
 
     pub async fn list_workspaces(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         query: &WorkspaceScopedQuery,
     ) -> Result<Vec<WorkspacePayload>, WorkspaceError> {
         self.repository.list_workspaces(ctx, query).await
@@ -35,7 +35,7 @@ impl WorkspaceService {
 
     pub async fn get_workspace(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         id: &str,
     ) -> Result<WorkspacePayload, WorkspaceError> {
         if id.trim().is_empty() {
@@ -51,7 +51,7 @@ impl WorkspaceService {
 
     pub async fn create_workspace(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         request: &CreateWorkspaceRequest,
     ) -> Result<WorkspacePayload, WorkspaceError> {
         if request.name.trim().is_empty() {
@@ -71,7 +71,7 @@ impl WorkspaceService {
 
     pub async fn update_workspace(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         id: &str,
         request: &UpdateWorkspaceRequest,
     ) -> Result<WorkspacePayload, WorkspaceError> {
@@ -99,7 +99,7 @@ impl WorkspaceService {
 
     pub async fn delete_workspace(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         id: &str,
     ) -> Result<DeleteEntityPayload, WorkspaceError> {
         if id.trim().is_empty() {
@@ -119,7 +119,7 @@ impl WorkspaceService {
 
     pub async fn list_workspace_members(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         workspace_id: &str,
     ) -> Result<Vec<WorkspaceMemberPayload>, WorkspaceError> {
         if workspace_id.trim().is_empty() {
@@ -134,7 +134,7 @@ impl WorkspaceService {
 
     pub async fn upsert_workspace_member(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         workspace_id: &str,
         request: &UpsertWorkspaceMemberRequest,
     ) -> Result<WorkspaceMemberPayload, WorkspaceError> {
@@ -165,7 +165,7 @@ impl WorkspaceService {
 
     pub async fn remove_workspace_member(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         workspace_id: &str,
         user_id: &str,
     ) -> Result<(), WorkspaceError> {

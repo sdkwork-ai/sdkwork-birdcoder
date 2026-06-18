@@ -1,0 +1,92 @@
+{
+  "workspace": "sdkwork-birdcoder-app-sdk",
+  "title": "SDKWork BirdCoder App API SDK",
+  "apiVersion": "0.1.0",
+  "openapiVersion": "3.1.0",
+  "authoritySpec": "openapi/sdkwork-birdcoder-app-api.openapi.json",
+  "generationInputSpec": "openapi/sdkwork-birdcoder-app-api.sdkgen.json",
+  "derivedSpecs": {
+    "default": "openapi/sdkwork-birdcoder-app-api.sdkgen.json"
+  },
+  "sdkOwner": "sdkwork-birdcoder",
+  "apiAuthority": "sdkwork-birdcoder-app-api",
+  "discoverySurface": {
+    "sdkTarget": "app",
+    "apiPrefix": "/app/v3/api",
+    "schemaUrl": "/app/v3/openapi.json",
+    "generatedProtocols": [
+      "http-openapi"
+    ],
+    "manualTransports": []
+  },
+  "languages": [
+    {
+      "language": "typescript",
+      "workspace": "sdkwork-birdcoder-app-sdk-typescript",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "packagePath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi",
+      "manifestPath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi/package.json",
+      "name": "@sdkwork/birdcoder-app-sdk",
+      "version": "0.1.0",
+      "description": "Generator-owned TypeScript transport SDK for the SDKWork BirdCoder App API.",
+      "generatedPath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi"
+    },
+    {
+      "language": "rust",
+      "workspace": "sdkwork-birdcoder-app-sdk-rust",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "packagePath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi",
+      "manifestPath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi/Cargo.toml",
+      "name": "sdkwork-birdcoder-app-sdk",
+      "version": "0.1.0",
+      "description": "Generator-owned Rust transport SDK for the SDKWork BirdCoder App API.",
+      "generatedPath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi"
+    }
+  ],
+  "sdkDependencies": [
+    {
+      "workspace": "sdkwork-appbase-app-sdk",
+      "role": "appbase-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "apiAuthority": "sdkwork-appbase-app-api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/appbase-app-sdk",
+        "rust": "sdkwork-appbase-app-sdk"
+      }
+    },
+    {
+      "workspace": "sdkwork-drive-app-sdk",
+      "role": "drive-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "apiAuthority": "sdkwork-drive.app",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/drive-app-sdk",
+        "rust": "sdkwork-drive-app-sdk-generated-rust"
+      }
+    },
+    {
+      "workspace": "sdkwork-messaging-app-sdk",
+      "role": "messaging-app-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/app/v3/api",
+      "apiAuthority": "sdkwork-messaging-app-api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/messaging-app-sdk"
+      }
+    }
+  ],
+  "metadata": {
+    "managedBy": "sdkwork-birdcoder-sdkwork-sdk-migration",
+    "standardVersion": "2026-06-06"
+  }
+}

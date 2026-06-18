@@ -55,7 +55,7 @@ Focused verification commands:
 - `node scripts/birdcoder-sdk-family-standard-contract.test.mjs`
 - `pnpm generate:sdk:birdcoder`
 - `pnpm typecheck`
-- `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
 - `pnpm server:build`
 
 `pnpm lint` remains the final broad gate after the focused IAM checks are clean.

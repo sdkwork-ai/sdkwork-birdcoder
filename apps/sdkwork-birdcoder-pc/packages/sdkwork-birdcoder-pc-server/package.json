@@ -1,0 +1,32 @@
+{
+  "name": "@sdkwork/birdcoder-pc-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev:base": "node ../../../../scripts/run-cargo.mjs run --manifest-path ../../../../Cargo.toml -p sdkwork-birdcoder-api-server",
+    "build:base": "node ../../../../scripts/run-birdcoder-server-build.mjs",
+    "dev": "node ../../../../scripts/run-birdcoder-server-command.mjs dev --iam-mode server-private",
+    "dev:private": "node ../../../../scripts/run-birdcoder-server-command.mjs dev --iam-mode server-private",
+    "dev:cloud": "node ../../../../scripts/run-birdcoder-server-command.mjs dev --iam-mode cloud-saas",
+    "build": "node ../../../../scripts/run-birdcoder-server-command.mjs build --iam-mode server-private",
+    "build:private": "node ../../../../scripts/run-birdcoder-server-command.mjs build --iam-mode server-private",
+    "build:cloud": "node ../../../../scripts/run-birdcoder-server-command.mjs build --iam-mode cloud-saas",
+    "lint": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-pc-chat": "workspace:*",
+    "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
+    "@sdkwork/birdcoder-pc-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-host-core": "workspace:*",
+    "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
+    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/iam-contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

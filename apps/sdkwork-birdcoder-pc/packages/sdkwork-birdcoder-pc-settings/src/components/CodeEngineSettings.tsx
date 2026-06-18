@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import type {
+  BirdCoderEngineAccessLane,
+  BirdCoderEngineAccessPlan,
+  BirdCoderEngineOfficialIntegration,
+} from '@sdkwork/birdcoder-pc-types';
 import {
   BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
+  getWorkbenchCodeEngineKernel,
   hasWorkbenchCodeModel,
   listWorkbenchCodeEngines,
   normalizeWorkbenchServerImplementedCodeEngineId,
@@ -29,6 +35,45 @@ type CodeEngineSettingsSelectionProps = {
   activeEngineId?: WorkbenchCodeEngineId;
   setActiveEngineId?: (engineId: WorkbenchCodeEngineId) => void;
 };
+
+interface WorkbenchEnginePresentation {
+  vendor: string;
+  description: string;
+  accessPlan: BirdCoderEngineAccessPlan | undefined;
+  executionTopology: {
+    authorityPath: string;
+    officialSdkPackageName: string;
+    primaryLane: BirdCoderEngineAccessLane | null;
+    fallbackLanes: readonly BirdCoderEngineAccessLane[];
+    officialIntegration: BirdCoderEngineOfficialIntegration | undefined;
+  };
+}
+
+function resolveWorkbenchEnginePresentation(
+  engineId: WorkbenchCodeEngineId,
+): WorkbenchEnginePresentation {
+  const kernel = getWorkbenchCodeEngineKernel(engineId);
+  const accessPlan = kernel.descriptor.accessPlan;
+  const lanes = accessPlan?.lanes ?? [];
+  const primaryLane =
+    lanes.find((lane) => lane.laneId === accessPlan?.primaryLaneId) ?? lanes[0] ?? null;
+  const fallbackLanes = (accessPlan?.fallbackLaneIds ?? [])
+    .map((laneId) => lanes.find((lane) => lane.laneId === laneId))
+    .filter((lane): lane is BirdCoderEngineAccessLane => Boolean(lane));
+
+  return {
+    vendor: kernel.descriptor.vendor,
+    description: primaryLane?.description ?? kernel.descriptor.homepage ?? '',
+    accessPlan,
+    executionTopology: {
+      authorityPath: kernel.executionTopology.authorityPath,
+      officialSdkPackageName: kernel.executionTopology.officialSdkPackageName,
+      primaryLane,
+      fallbackLanes,
+      officialIntegration: kernel.descriptor.officialIntegration,
+    },
+  };
+}
 
 function listSortedWorkbenchCodeEngines(
   workbenchPreferences: SettingsProps['workbenchPreferences'],
@@ -191,10 +236,8 @@ export function CodeEngineSettingsSidebar({
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         {engines.map((engine) => {
-          const engineSupport = resolveWorkbenchServerEngineSupportState(
-            engine.id,
-            workbenchPreferences,
-          );
+          const enginePresentation = resolveWorkbenchEnginePresentation(engine.id);
+          const engineSupport = resolveWorkbenchServerEngineSupportState(engine.id);
           const isActive = activeEngineId === engine.id;
           const isWorkspaceDefault = workspaceDefaultEngineId === engine.id;
           return (
@@ -219,16 +262,16 @@ export function CodeEngineSettingsSidebar({
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-1 truncate text-xs text-gray-500">{engine.vendor}</div>
+                <div className="mt-1 truncate text-xs text-gray-500">{enginePresentation.vendor}</div>
                 <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-wide">
                   <span
                     className={`rounded px-2 py-0.5 font-medium ${
-                      engineSupport.implemented
+                      engineSupport.serverImplemented
                         ? 'bg-emerald-500/10 text-emerald-300'
                         : 'bg-amber-500/10 text-amber-300'
                     }`}
                   >
-                    {engineSupport.implemented
+                    {engineSupport.serverImplemented
                       ? t('settings.engines.serverReady')
                       : t('settings.engines.serverPlanned')}
                   </span>
@@ -293,11 +336,9 @@ export function CodeEngineSettings({
     return null;
   }
 
-  const activeEngineSupport = resolveWorkbenchServerEngineSupportState(
-    activeEngine.id,
-    workbenchPreferences,
-  );
-  const activeTopology = activeEngine.executionTopology;
+  const activeEngineSupport = resolveWorkbenchServerEngineSupportState(activeEngine.id);
+  const activeEnginePresentation = resolveWorkbenchEnginePresentation(activeEngine.id);
+  const activeTopology = activeEnginePresentation.executionTopology;
   const activePrimaryLane = activeTopology.primaryLane;
   const activeFallbackLanes = activeTopology.fallbackLanes;
   const activeOfficialIntegration = activeTopology.officialIntegration;
@@ -352,16 +393,16 @@ export function CodeEngineSettings({
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-white font-medium">{activeEngine.label}</div>
                     <span className="rounded bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gray-400">
-                      {activeEngine.vendor}
+                      {activeEnginePresentation.vendor}
                     </span>
                     <span
                       className={`rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                        activeEngineSupport.implemented
+                        activeEngineSupport.serverImplemented
                           ? 'bg-emerald-500/10 text-emerald-300'
                           : 'bg-amber-500/10 text-amber-300'
                       }`}
                     >
-                      {activeEngineSupport.implemented
+                      {activeEngineSupport.serverImplemented
                         ? t('settings.engines.serverReady')
                         : t('settings.engines.serverPlanned')}
                     </span>
@@ -371,7 +412,7 @@ export function CodeEngineSettings({
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-1 text-sm text-gray-500">{activeEngine.description}</div>
+                  <div className="mt-1 text-sm text-gray-500">{activeEnginePresentation.description}</div>
                 </div>
               </div>
 
@@ -396,9 +437,9 @@ export function CodeEngineSettings({
                     <Button
                       size="sm"
                       className="mt-3 w-full"
-                      disabled={!activeEngineSupport.implemented}
+                      disabled={!activeEngineSupport.serverImplemented}
                       onClick={() => {
-                        if (!activeEngineSupport.implemented) {
+                        if (!activeEngineSupport.serverImplemented) {
                           return;
                         }
 
@@ -529,13 +570,13 @@ export function CodeEngineSettings({
               </div>
             ) : null}
 
-            {activeEngine.accessPlan?.lanes.length ? (
+            {activeEnginePresentation.accessPlan?.lanes.length ? (
               <div className="mt-4 rounded-xl border border-white/10 bg-[#141417] p-4">
                 <div className="mb-3 text-sm font-medium text-white">
                   {t('settings.engines.deliveryLanes')}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {activeEngine.accessPlan.lanes.map((lane) => (
+                  {activeEnginePresentation.accessPlan.lanes.map((lane) => (
                     <div
                       key={lane.laneId}
                       className="rounded-lg border border-white/10 bg-[#0e0e11] px-3 py-2 text-xs text-gray-200"

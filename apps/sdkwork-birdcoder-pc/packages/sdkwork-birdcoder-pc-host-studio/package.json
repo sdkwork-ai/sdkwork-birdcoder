@@ -1,0 +1,12 @@
+{
+  "name": "@sdkwork/birdcoder-pc-host-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-pc-host-core": "workspace:*"
+  }
+}

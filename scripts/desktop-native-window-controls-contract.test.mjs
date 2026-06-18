@@ -41,14 +41,11 @@ const desktopLibRsPath = path.join(
 );
 const desktopBridgePath = path.join(
   rootDir,
-  'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
-  'sdkwork-birdcoder-pc-desktop',
-  'src-tauri',
+  'crates',
+  'sdkwork-birdcoder-tauri-host',
   'src',
-  'window_controls_bridge.rs',
+  'commands',
+  'window_commands.rs',
 );
 const desktopCargoTomlPath = path.join(
   rootDir,
@@ -189,68 +186,50 @@ assert.match(
 
 assert.match(
   desktopLibRsSource,
-  /mod window_controls_bridge;/,
-  'The desktop host must compile a dedicated window-controls bridge module.',
-);
-
-assert.match(
-  desktopLibRsSource,
-  /window_controls_bridge::desktop_configure_window_controls_bridge/,
+  /host::desktop_configure_window_controls_bridge/,
   'The desktop host must register the native window-controls bridge configuration command.',
 );
 
 assert.match(
   desktopLibRsSource,
-  /window_controls_bridge::desktop_window_controls_bridge_capabilities/,
+  /host::desktop_window_controls_bridge_capabilities/,
   'The desktop host must register the native window-controls bridge capabilities command.',
 );
 
 assert.match(
   desktopLibRsSource,
-  /window_controls_bridge::desktop_perform_window_control_action/,
+  /host::desktop_perform_window_control_action/,
   'The desktop host must register the native window-controls action command.',
 );
 
 assert.match(
   desktopBridgeSource,
-  /WM_NCHITTEST/,
-  'The desktop bridge must intercept WM_NCHITTEST on Windows so maximize\/restore behaves like a native caption button.',
+  /uses_host_control_actions/,
+  'The shared tauri host bridge must expose host-side window control action capability.',
 );
 
 assert.match(
   desktopBridgeSource,
-  /HTMINBUTTON/,
-  'The desktop bridge must return HTMINBUTTON for the mirrored minimize region.',
+  /desktop_perform_window_control_action/,
+  'The shared tauri host bridge must route window-control actions through the desktop host.',
 );
 
 assert.match(
   desktopBridgeSource,
-  /HTMAXBUTTON/,
-  'The desktop bridge must return HTMAXBUTTON for the mirrored maximize region.',
+  /NativeWindowControlAction::Minimize/,
+  'The shared tauri host bridge must support minimize actions.',
 );
 
 assert.match(
   desktopBridgeSource,
-  /HTCLOSE/,
-  'The desktop bridge must return HTCLOSE for the mirrored close region.',
+  /NativeWindowControlAction::ToggleMaximize/,
+  'The shared tauri host bridge must support maximize and restore actions.',
 );
 
 assert.match(
   desktopBridgeSource,
-  /SetWindowSubclass/,
-  'The desktop bridge must install a Win32 subclass so the host can participate in native non-client hit-testing.',
-);
-
-assert.match(
-  desktopBridgeSource,
-  /cfg\(target_os = "windows"\)/,
-  'Windows-specific native hit-testing must stay isolated behind target gates so the bridge remains explicit and portable across desktop platforms.',
-);
-
-assert.match(
-  desktopCargoTomlSource,
-  /\[target\.'cfg\(windows\)'\.dependencies\][\s\S]*windows-sys/s,
-  'Desktop Rust host must scope windows-sys to Windows-only target dependencies so native caption logic does not leak into non-Windows builds.',
+  /NativeWindowControlAction::Close/,
+  'The shared tauri host bridge must support close actions.',
 );
 
 assert.match(

@@ -129,5 +129,12 @@ assert.equal(
   true,
   'root lint gate should include the canonical SDKWork IAM standard through the governed quality-fast runner.',
 );
+assert.equal(
+  qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS.includes(
+    'node scripts/run-workspace-package-script.mjs . check:topology-standard',
+  ),
+  true,
+  'root lint gate should include the SDKWork runtime topology standard through the governed quality-fast runner.',
+);
 
 console.log('governance baseline contract passed.');

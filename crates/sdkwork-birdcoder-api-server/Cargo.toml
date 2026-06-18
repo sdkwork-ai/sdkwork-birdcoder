@@ -32,6 +32,12 @@ sdkwork-router-document-app-api = { workspace = true }
 sdkwork-router-skill-packages-app-api = { workspace = true }
 sdkwork-router-membership-app-api = { workspace = true }
 sdkwork-router-deployment-backend-api = { workspace = true }
+sdkwork_router_iam_app_api = { workspace = true }
+sdkwork-web-axum.workspace = true
+sdkwork_iam_web_adapter.workspace = true
+sdkwork_database_sqlx = { workspace = true }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres"] }
+sdkwork-birdcoder-codeengine = { workspace = true }
 
 # Service crates
 sdkwork-birdcoder-coding-sessions-service = { workspace = true }
@@ -56,6 +62,3 @@ sdkwork-birdcoder-membership-repository-sqlx = { workspace = true }
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 tokio = { workspace = true }
-
-
-

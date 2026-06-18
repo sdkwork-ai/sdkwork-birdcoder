@@ -111,6 +111,6 @@ BirdCoder 的规则、Prompt、SkillHub、AppTemplate、MCP、知识资产必须
   - project creation writes `app_template_instantiation`; coding-session message writes emit `prompt_run` and `prompt_evaluation`.
   - `pnpm.cmd run test:prompt-skill-template-evidence-consumer-contract` is now the active governance command for this service-consumer slice.
 - Step 16 `CP16-3` third coding-server consumer slice is now closed:
-  - `packages/sdkwork-birdcoder-server/src/projectionRepository.ts` now persists `prompt_run` and `prompt_evaluation` on the same provider/UoW transaction used by coding-session projection persistence.
+  - `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts` now persists `prompt_run` and `prompt_evaluation` on the same provider/UoW transaction used by coding-session projection persistence.
   - `pnpm.cmd run test:coding-server-prompt-skill-template-evidence-consumer-contract` is now the executable governance command for coding-server-side consumer adoption.
   - Step 16 `CP16-3` is now fully closed.

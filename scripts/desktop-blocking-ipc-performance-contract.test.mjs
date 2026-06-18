@@ -3,33 +3,34 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const rootDir = process.cwd();
-const desktopLibSource = fs.readFileSync(
-  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs'),
-  'utf8',
-);
+const hostCommandSources = [
+  'crates/sdkwork-birdcoder-tauri-host/src/commands/filesystem_commands.rs',
+  'crates/sdkwork-birdcoder-tauri-host/src/commands/terminal_commands.rs',
+].map((relativePath) => fs.readFileSync(path.join(rootDir, relativePath), 'utf8')).join('\n');
 
 function readCommandSource(commandName) {
-  const signatureIndex = desktopLibSource.indexOf(`fn ${commandName}(`);
+  const signatureIndex = hostCommandSources.indexOf(`fn ${commandName}(`);
   assert.notEqual(
     signatureIndex,
     -1,
-    `Desktop command ${commandName} must exist in the Tauri host.`,
+    `Desktop command ${commandName} must exist in the shared tauri host.`,
   );
 
-  const nextCommandIndex = desktopLibSource.indexOf(
+  const commandStart = hostCommandSources.lastIndexOf('#[tauri::command]', signatureIndex);
+  const nextCommandIndex = hostCommandSources.indexOf(
     '#[tauri::command]',
     signatureIndex + commandName.length,
   );
-  return desktopLibSource.slice(
-    signatureIndex,
-    nextCommandIndex === -1 ? desktopLibSource.length : nextCommandIndex,
+  return hostCommandSources.slice(
+    commandStart === -1 ? signatureIndex : commandStart,
+    nextCommandIndex === -1 ? hostCommandSources.length : nextCommandIndex,
   );
 }
 
 function assertBlockingCommandOffloaded(commandName) {
   assert.match(
-    desktopLibSource,
-    new RegExp(`#\\[tauri::command\\]\\s*async\\s+fn\\s+${commandName}\\(`),
+    hostCommandSources,
+    new RegExp(`#\\[tauri::command\\][\\s\\S]*?\\basync\\s+fn\\s+${commandName}\\(`),
     `Desktop command ${commandName} must be async so blocking work does not run on the IPC command thread.`,
   );
 

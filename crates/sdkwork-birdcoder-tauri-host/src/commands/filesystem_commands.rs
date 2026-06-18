@@ -1,9 +1,46 @@
 use serde::Serialize;
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::time::UNIX_EPOCH;
 
 const USER_HOME_CONFIG_RELATIVE_ROOT: &str = ".sdkwork/birdcoder";
+
+static ALLOWED_FS_ROOTS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
+
+pub fn register_allowed_fs_root(path: PathBuf) -> Result<(), String> {
+    let canonical = path.canonicalize().map_err(|error| {
+        format!(
+            "failed to canonicalize filesystem root {}: {error}",
+            path.display()
+        )
+    })?;
+    ALLOWED_FS_ROOTS
+        .get_or_init(|| Mutex::new(HashSet::new()))
+        .lock()
+        .map_err(|_| "filesystem root registry lock poisoned".to_string())?
+        .insert(canonical);
+    Ok(())
+}
+
+fn is_allowed_fs_root(path: &Path) -> bool {
+    let Ok(canonical) = path.canonicalize() else {
+        return false;
+    };
+    let Some(registry) = ALLOWED_FS_ROOTS.get() else {
+        return true;
+    };
+    let Ok(roots) = registry.lock() else {
+        return false;
+    };
+    if roots.is_empty() {
+        return true;
+    }
+    roots
+        .iter()
+        .any(|allowed| canonical == *allowed || canonical.starts_with(allowed))
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -102,7 +139,16 @@ fn resolve_root_directory_path(root_path: &str) -> Result<PathBuf, String> {
             root_directory.display()
         ));
     }
-    Ok(root_directory)
+    let canonical_root = root_directory
+        .canonicalize()
+        .map_err(|error| format!("failed to canonicalize mounted root path: {error}"))?;
+    if !is_allowed_fs_root(&canonical_root) {
+        return Err(format!(
+            "mounted root path is not registered for desktop filesystem access: {}",
+            canonical_root.display()
+        ));
+    }
+    Ok(canonical_root)
 }
 
 fn resolve_root_directory_name(root_directory: &Path) -> String {
@@ -786,4 +832,20 @@ pub async fn user_home_config_write(
     })
     .await
     .map_err(|error| format!("failed to join user home config write task: {error}"))?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn user_home_config_path_is_scoped_to_birdcoder_config_root() {
+        let resolved_path = resolve_user_home_config_path(
+            ".sdkwork/birdcoder/code-engine-models.json",
+        )
+        .expect("canonical code-engine model config path should be allowed");
+
+        assert!(resolved_path.ends_with(".sdkwork/birdcoder/code-engine-models.json"));
+        assert!(resolve_user_home_config_path(".ssh/config").is_err());
+    }
 }

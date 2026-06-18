@@ -6,5 +6,5 @@ pub mod paths;
 pub mod routes;
 
 pub use error::AppError;
-pub use handlers::IntelligenceAppState;
-pub use routes::build_intelligence_app_api_router;
+pub use handlers::CodingSessionsAppState;
+pub use routes::build_coding_sessions_app_api_router;

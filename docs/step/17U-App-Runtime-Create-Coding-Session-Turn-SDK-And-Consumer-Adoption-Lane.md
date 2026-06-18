@@ -14,7 +14,7 @@ Close the typed app runtime write SDK facade for `codingSessions.turns.create`, 
 - `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts`
 - `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts`
 - `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts`
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
+- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
 - `scripts/app-runtime-write-sdk-client-contract.test.ts`
 - `scripts/default-ide-services-app-runtime-write-sdk-contract.test.ts`
 - `scripts/app-runtime-sdk-facade-governance-contract.test.ts`
@@ -34,9 +34,9 @@ Close the typed app runtime write SDK facade for `codingSessions.turns.create`, 
 
 ## Verification
 
-- `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml create_coding_session_turn_route_returns_created_turn_and_makes_projection_readable`
-- `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml create_coding_session_turn_route_returns_not_found_for_missing_session`
-- `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml create_coding_session_turn_route_persists_into_sqlite_provider_authority`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_turn_route_returns_created_turn_and_makes_projection_readable`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_turn_route_returns_not_found_for_missing_session`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_turn_route_persists_into_sqlite_provider_authority`
 - `pnpm.cmd run test:app-runtime-write-sdk-client-contract`
 - `pnpm.cmd run test:default-ide-services-app-runtime-write-sdk-contract`
 - `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`

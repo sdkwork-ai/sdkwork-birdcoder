@@ -35,6 +35,7 @@ pub trait SkillPackageRepository: Send + Sync {
 
 // ── Service ──────────────────────────────────────────────────────────
 
+#[derive(Clone)]
 pub struct SkillPackageService<R: SkillPackageRepository> {
     repository: R,
 }
@@ -119,7 +120,13 @@ impl<R: SkillPackageRepository> SkillPackageService<R> {
                 &normalized_scope_type,
                 &normalized_scope_id,
             )
-            .map_err(SkillPackageError::Repository)
+            .map_err(|msg| {
+                if msg == "not implemented" {
+                    SkillPackageError::NotImplemented(msg)
+                } else {
+                    SkillPackageError::Repository(msg)
+                }
+            })
     }
 }
 

@@ -10,7 +10,7 @@ Close real server behavior for `engines.capabilities.retrieve` and `models.list`
 
 ## Scope
 
-- `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
+- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - `packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeReadService.ts`
 - `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts`
@@ -32,7 +32,7 @@ Close real server behavior for `engines.capabilities.retrieve` and `models.list`
 
 ## Verification
 
-- `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml core_engine_`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml core_engine_`
 - `pnpm.cmd run test:app-runtime-read-sdk-client-contract`
 - `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
 - `pnpm.cmd run test:default-ide-services-app-runtime-read-service-contract`

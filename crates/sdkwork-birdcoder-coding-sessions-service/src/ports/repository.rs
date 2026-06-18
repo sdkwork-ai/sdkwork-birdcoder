@@ -1,4 +1,4 @@
-use crate::context::SessionContext;
+use crate::context::CodingSessionContext;
 use crate::domain::commands::{
     CreateCodingSessionInput,
     CreateCodingSessionTurnInput,
@@ -25,65 +25,65 @@ use crate::error::CodingSessionError;
 pub trait CodingSessionRepository: Send + Sync {
     async fn list_sessions(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         query: &CodingSessionListQuery,
     ) -> Result<Vec<CodingSessionPayload>, CodingSessionError>;
 
     async fn get_session(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<CodingSessionPayload, CodingSessionError>;
 
     async fn create_session(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         input: &CreateCodingSessionInput,
     ) -> Result<CodingSessionPayload, CodingSessionError>;
 
     async fn update_session(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         input: &UpdateCodingSessionInput,
     ) -> Result<CodingSessionPayload, CodingSessionError>;
 
     async fn delete_session(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<(), CodingSessionError>;
 
     async fn fork_session(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         input: &ForkCodingSessionInput,
     ) -> Result<CodingSessionPayload, CodingSessionError>;
 
     async fn list_turns(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionTurnPayload>, CodingSessionError>;
 
     async fn get_turn(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         turn_id: &str,
     ) -> Result<CodingSessionTurnPayload, CodingSessionError>;
 
     async fn create_turn(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         input: &CreateCodingSessionTurnInput,
     ) -> Result<CodingSessionTurnPayload, CodingSessionError>;
 
     async fn edit_message(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         turn_id: &str,
         input: &EditCodingSessionMessageInput,
@@ -91,25 +91,25 @@ pub trait CodingSessionRepository: Send + Sync {
 
     async fn list_events(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionEventPayload>, CodingSessionError>;
 
     async fn list_artifacts(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionArtifactPayload>, CodingSessionError>;
 
     async fn list_checkpoints(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionCheckpointPayload>, CodingSessionError>;
 
     async fn submit_approval_decision(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         checkpoint_id: &str,
         input: &SubmitApprovalDecisionInput,
@@ -117,7 +117,7 @@ pub trait CodingSessionRepository: Send + Sync {
 
     async fn submit_user_question_answer(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         question_id: &str,
         input: &SubmitUserQuestionAnswerInput,
@@ -125,8 +125,22 @@ pub trait CodingSessionRepository: Send + Sync {
 
     async fn get_operation(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         operation_id: &str,
     ) -> Result<OperationPayload, CodingSessionError>;
+
+    async fn finalize_turn_execution(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        finalized: &crate::domain::results::FinalizedProjectionTurnExecution,
+    ) -> Result<CodingSessionTurnPayload, CodingSessionError>;
+
+    async fn mark_turn_failed(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        turn_id: &str,
+    ) -> Result<(), CodingSessionError>;
 }

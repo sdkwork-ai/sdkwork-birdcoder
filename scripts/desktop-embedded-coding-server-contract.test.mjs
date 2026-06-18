@@ -1,92 +1,115 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-import process from 'node:process';
+import { readFile } from 'node:fs/promises';
 
-const rootDir = process.cwd();
-const desktopLibRsPath = path.join(
-  rootDir,
-  'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
-  'sdkwork-birdcoder-pc-desktop',
-  'src-tauri',
-  'src',
-  'lib.rs',
+const desktopLibRsSource = await readFile(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
+    import.meta.url,
+  ),
+  'utf8',
 );
-const desktopPermissionsPath = path.join(
-  rootDir,
-  'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
-  'sdkwork-birdcoder-pc-desktop',
-  'src-tauri',
-  'permissions',
-  'default.toml',
+const hostStateSource = await readFile(
+  new URL('../crates/sdkwork-birdcoder-tauri-host/src/host/state.rs', import.meta.url),
+  'utf8',
 );
-const desktopMainPath = path.join(
-  rootDir,
-  'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
-  'sdkwork-birdcoder-pc-desktop',
-  'src',
-  'main.tsx',
+const desktopPermissionsSource = await readFile(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/permissions/default.toml',
+    import.meta.url,
+  ),
+  'utf8',
 );
-
-const desktopLibRsSource = fs.readFileSync(desktopLibRsPath, 'utf8');
-const desktopPermissionsSource = fs.readFileSync(desktopPermissionsPath, 'utf8');
-const desktopMainSource = fs.readFileSync(desktopMainPath, 'utf8');
+const desktopMainSource = await readFile(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const desktopRuntimeBootstrapSource = await readFile(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapDesktopRuntime.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
 
 assert.doesNotMatch(
-  desktopLibRsSource,
-  /TcpListener::bind\(BIRD_SERVER_DEFAULT_BIND_ADDRESS\)/,
-  'Desktop embedded coding server must not hard-fail startup by binding only the fixed default API port.',
+  hostStateSource,
+  /TcpListener::bind\(BIRD_SERVER_DEFAULT_BIND_ADDRESS\)/u,
+  'Embedded BirdCoder API must not hard-fail startup by binding only a fixed default API port constant.',
 );
 
 assert.match(
   desktopLibRsSource,
-  /desktop_runtime_config/,
+  /desktop_runtime_config/u,
   'Desktop Rust host must expose a runtime config command so the webview can learn the actual embedded API base URL.',
+);
+
+assert.match(
+  hostStateSource,
+  /bind_embedded_api_listener/u,
+  'Embedded BirdCoder API must bind through a helper that can fall back to an ephemeral loopback port.',
+);
+
+assert.match(
+  hostStateSource,
+  /tokio::net::TcpListener::from_std\(listener\)/u,
+  'Embedded BirdCoder API must adopt the std listener inside the async runtime instead of panicking during setup.',
+);
+
+assert.match(
+  desktopLibRsSource,
+  /host::spawn_embedded_coding_server_startup\(app\.handle\(\)\.clone\(\)\);/u,
+  'Desktop Tauri setup must dispatch embedded BirdCoder API startup without blocking window creation.',
 );
 
 assert.doesNotMatch(
   desktopLibRsSource,
-  /let listener = tokio::net::TcpListener::from_std\(listener\)/,
-  'Desktop embedded coding server must adopt the std listener inside the async runtime instead of panicking during the synchronous Tauri setup hook.',
+  /host::start_embedded_coding_server\(app\.handle\(\)\)\?/u,
+  'Desktop Tauri setup must not synchronously start the embedded BirdCoder API before the window is created.',
 );
 
 assert.match(
   desktopPermissionsSource,
-  /"desktop_runtime_config"/,
+  /"desktop_runtime_config"/u,
   'Desktop permission manifest must allow the desktop_runtime_config command.',
 );
 
 assert.match(
   desktopMainSource,
-  /desktop_runtime_config/,
+  /readDesktopEmbeddedRuntimeConfig/u,
   'Desktop shell bootstrap must resolve API base URL from the Tauri runtime config before binding API-backed services.',
+);
+
+assert.match(
+  desktopMainSource,
+  /publishBirdCoderEmbeddedSdkRuntimeEnv/u,
+  'Desktop shell bootstrap must publish the embedded API base URL into the public runtime env before appbase and BirdCoder SDK clients initialize.',
 );
 
 assert.doesNotMatch(
   desktopMainSource,
-  /readStoredBirdCoderServerBaseUrl|resolveBirdCoderBootstrapServerBaseUrl/,
+  /readStoredBirdCoderServerBaseUrl|resolveBirdCoderBootstrapServerBaseUrl/u,
   'Desktop shell bootstrap must not fall back to stored or distribution default API URLs when the embedded runtime config is unavailable.',
 );
 
-assert.match(
+assert.doesNotMatch(
   desktopMainSource,
-  /throw new Error\(\s*`Failed to resolve BirdCoder desktop runtime API base URL:/,
-  'Desktop shell bootstrap must surface desktop_runtime_config failures instead of rendering app SDK consumers against a dead default :10240 endpoint.',
+  /import\('@tauri-apps\/api\/core'\)/u,
+  'Desktop shell bootstrap must resolve Tauri invoke through the shared desktop runtime helper instead of importing @tauri-apps/api/core directly.',
 );
 
 assert.match(
-  desktopMainSource,
-  /throw new Error\('BirdCoder desktop runtime config did not provide an API base URL\.'/,
-  'Desktop shell bootstrap must fail when desktop_runtime_config returns no usable API base URL.',
+  desktopRuntimeBootstrapSource,
+  /__TAURI__\?\.core\?\.invoke/u,
+  'Desktop runtime bootstrap must prefer the injected Tauri core invoke bridge before falling back to the npm module.',
+);
+
+assert.match(
+  desktopRuntimeBootstrapSource,
+  /publishBirdCoderEmbeddedSdkRuntimeEnv/u,
+  'Desktop runtime bootstrap must publish appbase and BirdCoder SDK base URLs from the embedded API base URL.',
 );
 
 console.log('desktop embedded coding server contract passed.');

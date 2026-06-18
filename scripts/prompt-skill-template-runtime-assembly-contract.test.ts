@@ -9,7 +9,7 @@ import {
   assembleBirdCoderPromptRuntime,
   assembleBirdCoderSkillRuntime,
   instantiateBirdCoderAppTemplateRuntime,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/promptSkillTemplateRuntime.ts';
 
 assert.throws(
   () =>

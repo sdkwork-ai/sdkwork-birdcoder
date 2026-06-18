@@ -227,7 +227,7 @@ try {
   );
   assert.match(
     terminalInfrastructureSource,
-    /\/@id\/__x00__sdkwork-birdcoder-desktop-xterm-xterm/u,
+    /\/@id\/__x00__sdkwork-birdcoder-pc-desktop-xterm-xterm/u,
     'sdkwork-terminal infrastructure must resolve xterm through the desktop CommonJS compat virtual module instead of Vite prebundled deps.',
   );
   assert.doesNotMatch(
@@ -237,7 +237,7 @@ try {
   );
 
   const { response: xtermCompatResponse, source: xtermCompatSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-xterm-xterm',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-xterm-xterm',
   );
 
   assert.equal(
@@ -283,7 +283,7 @@ try {
   );
 
   const { response: voidElementsCompatResponse, source: voidElementsCompatSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-void-elements',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-void-elements',
   );
 
   assert.equal(
@@ -311,7 +311,7 @@ try {
   );
 
   const { response: styleToJsCompatResponse, source: styleToJsCompatSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-style-to-js',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-style-to-js',
   );
 
   assert.equal(
@@ -341,7 +341,7 @@ try {
   );
 
   const { response: highlightJsCompatResponse, source: highlightJsCompatSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-highlight-js',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-highlight-js',
   );
 
   assert.equal(
@@ -371,7 +371,7 @@ try {
   );
 
   const { response: debugCompatResponse, source: debugCompatSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-debug',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-debug',
   );
 
   assert.equal(
@@ -386,7 +386,7 @@ try {
   );
 
   const { response: debugCompatCompiledResponse, source: debugCompatCompiledSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-debug-compiled',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-debug-compiled',
   );
 
   assert.equal(
@@ -421,7 +421,7 @@ try {
   );
 
   const { response: extendCompatResponse, source: extendCompatSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-extend',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-extend',
   );
 
   assert.equal(
@@ -436,7 +436,7 @@ try {
   );
 
   const { response: reactDomClientCompiledResponse, source: reactDomClientCompiledSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-react-dom-client-compiled',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-react-dom-client-compiled',
   );
 
   assert.equal(
@@ -451,7 +451,7 @@ try {
   );
 
   const { response: reactCompatCompiledResponse, source: reactCompatCompiledSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-react-compiled',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-react-compiled',
   );
 
   assert.equal(
@@ -466,7 +466,7 @@ try {
   );
 
   const { response: reactCompatWrapperResponse, source: reactCompatWrapperSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-react',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-react',
   );
 
   assert.equal(
@@ -476,12 +476,12 @@ try {
   );
   assert.match(
     reactCompatWrapperSource,
-    /import __compatModule from ['"]\/@id\/__x00__sdkwork-birdcoder-desktop-react-compiled['"]/u,
+    /import __compatModule from ['"]\/@id\/__x00__sdkwork-birdcoder-pc-desktop-react-compiled['"]/u,
     'Desktop react compat wrapper must continue to import the compiled React chunk as a default export.',
   );
 
   const { response: useSyncShimCompiledResponse, source: useSyncShimCompiledSource } = await readServerProbe(
-    '/@id/__x00__sdkwork-birdcoder-desktop-use-sync-external-store-shim-compiled',
+    '/@id/__x00__sdkwork-birdcoder-pc-desktop-use-sync-external-store-shim-compiled',
   );
 
   assert.equal(

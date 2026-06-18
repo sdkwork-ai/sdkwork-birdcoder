@@ -5,17 +5,17 @@ use sdkwork_birdcoder_deployment_service::error::DeploymentError;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProblemDetails {
+pub struct ProblemDetailsPayload {
     pub code: String,
     pub message: String,
     pub retryable: bool,
 }
 
-pub fn map_service_error(error: DeploymentError) -> (StatusCode, Json<ProblemDetails>) {
+pub fn map_service_error(error: DeploymentError) -> (StatusCode, Json<ProblemDetailsPayload>) {
     match error {
         DeploymentError::NotFound(msg) => (
             StatusCode::NOT_FOUND,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "not_found".into(),
                 message: msg,
                 retryable: false,
@@ -23,7 +23,7 @@ pub fn map_service_error(error: DeploymentError) -> (StatusCode, Json<ProblemDet
         ),
         DeploymentError::InvalidInput(msg) => (
             StatusCode::BAD_REQUEST,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "invalid_input".into(),
                 message: msg,
                 retryable: false,
@@ -31,7 +31,7 @@ pub fn map_service_error(error: DeploymentError) -> (StatusCode, Json<ProblemDet
         ),
         DeploymentError::Conflict(msg) => (
             StatusCode::CONFLICT,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "conflict".into(),
                 message: msg,
                 retryable: false,
@@ -41,7 +41,7 @@ pub fn map_service_error(error: DeploymentError) -> (StatusCode, Json<ProblemDet
         | DeploymentError::EventPublish(msg)
         | DeploymentError::Internal(msg) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "internal".into(),
                 message: msg,
                 retryable: true,
@@ -49,4 +49,3 @@ pub fn map_service_error(error: DeploymentError) -> (StatusCode, Json<ProblemDet
         ),
     }
 }
-

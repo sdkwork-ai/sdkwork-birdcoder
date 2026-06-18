@@ -13,7 +13,7 @@ const infrastructurePath = new URL(
 const rustSources = [
   {
     label: 'desktop',
-    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs', import.meta.url),
+    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
   },
   {
     label: 'server',

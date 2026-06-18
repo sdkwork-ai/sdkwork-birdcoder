@@ -6,7 +6,6 @@
   "dependencies": {
     "@babel/runtime": "catalog:",
     "html-parse-stringify": "catalog:",
-    "@sdkwork/birdcoder-pc-auth": "workspace:*",
     "@sdkwork/birdcoder-pc-i18n": "workspace:*",
     "@sdkwork/birdcoder-pc-iam": "workspace:*",
     "@sdkwork/birdcoder-pc-user": "workspace:*",

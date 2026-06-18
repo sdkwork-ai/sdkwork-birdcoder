@@ -10,8 +10,8 @@ Close the remaining Step 18 server-side sink by projecting the shared workbench 
 
 ## Scope
 
-- `packages/sdkwork-birdcoder-server/src/index.ts`
-- `packages/sdkwork-birdcoder-server/src/projectionRepository.ts`
+- `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts`
+- `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts`
 - `scripts/coding-server-sse-contract.test.ts`
 - `scripts/coding-server-provider-projection-repository-contract.test.ts`
 - `docs/prompts/反复执行Step指令.md`
@@ -34,11 +34,11 @@ Close the remaining Step 18 server-side sink by projecting the shared workbench 
 
 ## Closure Facts
 
-- `packages/sdkwork-birdcoder-server/src/index.ts` now executes core-session runs by:
+- `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts` now executes core-session runs by:
   - calling `chatEngine.describeRuntime(...)`
   - streaming `chatEngine.sendCanonicalEvents(...)`
   - projecting `nativeRef.transportKind`, `nativeRef.nativeSessionId`, and `capabilitySnapshot` into `BirdCoderCodingSessionRuntime`
-- `packages/sdkwork-birdcoder-server/src/projectionRepository.ts` already persists and reloads the same canonical runtime fields through:
+- `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts` already persists and reloads the same canonical runtime fields through:
   - `transport_kind`
   - `native_session_id`
   - `native_turn_container_id`

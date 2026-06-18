@@ -22,6 +22,15 @@ pub fn resolve_root_directory_path(root_path: &str) -> Result<PathBuf, String> {
     Ok(root_directory)
 }
 
+pub fn resolve_root_directory_name(root_directory: &Path) -> String {
+    root_directory
+        .file_name()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "mounted-folder".to_string())
+}
+
 pub fn normalize_relative_path(relative_path: &str) -> Result<PathBuf, String> {
     let trimmed_relative_path = relative_path.trim();
     if trimmed_relative_path.is_empty() {
@@ -44,6 +53,23 @@ pub fn normalize_relative_path(relative_path: &str) -> Result<PathBuf, String> {
         return Err("relative path must not be empty".to_string());
     }
     Ok(normalized_path)
+}
+
+pub fn build_virtual_path_from_relative(root_virtual_path: &str, relative_path: &Path) -> String {
+    let normalized_root_virtual_path =
+        if root_virtual_path.ends_with('/') && root_virtual_path.len() > 1 {
+            &root_virtual_path[..root_virtual_path.len() - 1]
+        } else {
+            root_virtual_path
+        };
+    let mut virtual_path = normalized_root_virtual_path.to_string();
+    for component in relative_path.components() {
+        if let Component::Normal(value) = component {
+            virtual_path.push('/');
+            virtual_path.push_str(&value.to_string_lossy());
+        }
+    }
+    virtual_path
 }
 
 pub fn resolve_scoped_path(root_path: &str, relative_path: &str) -> Result<PathBuf, String> {

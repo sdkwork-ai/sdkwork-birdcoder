@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
-use rusqlite::{params, Connection};
-use sdkwork_birdcoder_coding_sessions_service::context::SessionContext;
+use rusqlite::{params, Connection, OptionalExtension};
+use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
     CreateCodingSessionInput,
     CreateCodingSessionTurnInput,
@@ -20,6 +20,7 @@ use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     CodingSessionEventPayload,
     CodingSessionPayload,
     CodingSessionTurnPayload,
+    FinalizedProjectionTurnExecution,
     OperationPayload,
     UserQuestionAnswerPayload,
 };
@@ -27,6 +28,89 @@ use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_coding_sessions_service::ports::repository::CodingSessionRepository;
 use time::OffsetDateTime;
 use uuid::Uuid;
+fn parse_scoped_tenant_id(ctx: &CodingSessionContext) -> Option<i64> {
+    ctx.tenant_id
+        .parse::<i64>()
+        .ok()
+        .filter(|tenant_id| *tenant_id > 0)
+}
+
+fn append_session_tenant_scope(
+    ctx: &CodingSessionContext,
+    session_alias: &str,
+    sql: &mut String,
+    param_values: &mut Vec<Box<dyn rusqlite::types::ToSql>>,
+) {
+    if let Some(tenant_id) = parse_scoped_tenant_id(ctx) {
+        sql.push_str(&format!(
+            " AND EXISTS (SELECT 1 FROM studio_workspace w WHERE CAST(w.id AS TEXT) = {session_alias}.workspace_id AND w.tenant_id = ?{} AND w.is_deleted = 0)",
+            param_values.len() + 1
+        ));
+        param_values.push(Box::new(tenant_id));
+    }
+}
+
+fn ensure_workspace_in_tenant_scope(
+    conn: &Connection,
+    ctx: &CodingSessionContext,
+    workspace_id: &str,
+) -> Result<(), RepositoryError> {
+    let Some(tenant_id) = parse_scoped_tenant_id(ctx) else {
+        return Ok(());
+    };
+    let workspace_id = workspace_id.trim();
+    if workspace_id.is_empty() {
+        return Err(RepositoryError::NotFound("workspace not found".into()));
+    }
+    let found = conn
+        .query_row(
+            "SELECT 1 FROM studio_workspace WHERE CAST(id AS TEXT) = ?1 AND tenant_id = ?2 AND is_deleted = 0",
+            params![workspace_id, tenant_id],
+            |_| Ok(()),
+        )
+        .optional()
+        .map_err(|error| RepositoryError::Query(error.to_string()))?
+        .is_some();
+    if !found {
+        return Err(RepositoryError::NotFound(format!(
+            "workspace {workspace_id} not found"
+        )));
+    }
+    Ok(())
+}
+
+fn ensure_session_in_tenant_scope(
+    conn: &Connection,
+    ctx: &CodingSessionContext,
+    session_id: &str,
+) -> Result<(), RepositoryError> {
+    if parse_scoped_tenant_id(ctx).is_none() {
+        return Ok(());
+    }
+    let mut sql = format!(
+        "SELECT 1 FROM {} s WHERE s.{} = ?1 AND s.{} = 0",
+        columns::session::TABLE,
+        columns::session::ID,
+        columns::session::IS_DELETED,
+    );
+    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> =
+        vec![Box::new(session_id.to_string())];
+    append_session_tenant_scope(ctx, "s", &mut sql, &mut param_values);
+    let params_ref: Vec<&dyn rusqlite::types::ToSql> =
+        param_values.iter().map(|param| param.as_ref()).collect();
+    let found = conn
+        .query_row(&sql, params_ref.as_slice(), |_| Ok(()))
+        .optional()
+        .map_err(|error| RepositoryError::Query(error.to_string()))?
+        .is_some();
+    if !found {
+        return Err(RepositoryError::NotFound(format!(
+            "session {session_id} not found"
+        )));
+    }
+    Ok(())
+}
+
 
 use crate::db::columns;
 use crate::db::rows::*;
@@ -34,14 +118,18 @@ use crate::error::RepositoryError;
 use crate::mapper::row_mapper;
 
 pub struct SqliteCodingSessionRepository {
-    conn: Mutex<Connection>,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl SqliteCodingSessionRepository {
     pub fn new(conn: Connection) -> Self {
         Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         }
+    }
+
+    pub fn with_shared(conn: Arc<Mutex<Connection>>) -> Self {
+        Self { conn }
     }
 
     fn with_conn<F, T>(&self, f: F) -> Result<T, RepositoryError>
@@ -63,7 +151,7 @@ impl SqliteCodingSessionRepository {
 impl CodingSessionRepository for SqliteCodingSessionRepository {
     async fn list_sessions(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         query: &CodingSessionListQuery,
     ) -> Result<Vec<CodingSessionPayload>, CodingSessionError> {
         self.with_conn(|conn| {
@@ -75,6 +163,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
                  WHERE s.is_deleted = 0",
             );
             let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+            append_session_tenant_scope(ctx, "s", &mut sql, &mut param_values);
 
             if let Some(ref engine_id) = query.engine_id {
                 sql.push_str(&format!(" AND s.{} = ?{}", columns::session::ENGINE_ID, param_values.len() + 1));
@@ -141,19 +230,24 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn get_session(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
         let session_id = session_id.to_string();
         self.with_conn(|conn| {
-            let sql = format!(
+            let mut sql = format!(
                 "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
                 columns::session::TABLE,
                 columns::session::ID,
                 columns::session::IS_DELETED,
             );
+            let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> =
+                vec![Box::new(session_id.clone())];
+            append_session_tenant_scope(ctx, columns::session::TABLE, &mut sql, &mut param_values);
+            let params_ref: Vec<&dyn rusqlite::types::ToSql> =
+                param_values.iter().map(|param| param.as_ref()).collect();
             let row = conn
-                .query_row(&sql, params![session_id], |row| {
+                .query_row(&sql, params_ref.as_slice(), |row| {
                     Ok(SessionRow {
                         id: row.get(0)?,
                         uuid: row.get(1)?,
@@ -207,7 +301,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn create_session(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         input: &CreateCodingSessionInput,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
         let now = Self::now_iso();
@@ -222,6 +316,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let id2 = id.clone();
 
         self.with_conn(|conn| {
+
+            ensure_workspace_in_tenant_scope(conn, ctx, &workspace_id)?;
             conn.execute(
                 &format!(
                     "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
@@ -286,7 +382,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn update_session(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         input: &UpdateCodingSessionInput,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
@@ -295,6 +391,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let input = input.clone();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let mut sets = Vec::new();
             let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
             let mut idx = 1usize;
@@ -390,13 +488,15 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn delete_session(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<(), CodingSessionError> {
         let session_id = session_id.to_string();
         let now = Self::now_iso();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let updated = conn
                 .execute(
                     &format!(
@@ -423,7 +523,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn fork_session(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         input: &ForkCodingSessionInput,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
@@ -431,6 +531,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let input = input.clone();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let sql = format!(
                 "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
                 columns::session::TABLE,
@@ -540,12 +642,14 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn list_turns(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionTurnPayload>, CodingSessionError> {
         let session_id = session_id.to_string();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let sql = format!(
                 "SELECT * FROM {} WHERE {} = ?1 AND {} = 0 ORDER BY {} ASC",
                 columns::turn::TABLE,
@@ -584,7 +688,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn get_turn(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         turn_id: &str,
     ) -> Result<CodingSessionTurnPayload, CodingSessionError> {
@@ -592,6 +696,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let turn_id = turn_id.to_string();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let sql = format!(
                 "SELECT * FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
                 columns::turn::TABLE,
@@ -630,7 +736,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn create_turn(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         input: &CreateCodingSessionTurnInput,
     ) -> Result<CodingSessionTurnPayload, CodingSessionError> {
@@ -646,6 +752,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let now2 = now.clone();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             conn.execute(
                 &format!(
                     "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
@@ -705,7 +813,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn edit_message(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         turn_id: &str,
         input: &EditCodingSessionMessageInput,
@@ -715,6 +823,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let content = input.content.clone();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let now = Self::now_iso();
             conn.execute(
                 &format!(
@@ -770,12 +880,14 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn list_events(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionEventPayload>, CodingSessionError> {
         let session_id = session_id.to_string();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let sql = format!(
                 "SELECT * FROM {} WHERE {} = ?1 AND {} = 0 ORDER BY {} ASC",
                 columns::event::TABLE,
@@ -813,12 +925,14 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn list_artifacts(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionArtifactPayload>, CodingSessionError> {
         let session_id = session_id.to_string();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let sql = format!(
                 "SELECT * FROM {} WHERE {} = ?1 AND {} = 0 ORDER BY {} ASC",
                 columns::artifact::TABLE,
@@ -856,12 +970,14 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn list_checkpoints(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionCheckpointPayload>, CodingSessionError> {
         let session_id = session_id.to_string();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let sql = format!(
                 "SELECT * FROM {} WHERE {} = ?1 AND {} = 0 ORDER BY {} ASC",
                 columns::checkpoint::TABLE,
@@ -898,7 +1014,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn submit_approval_decision(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         checkpoint_id: &str,
         input: &SubmitApprovalDecisionInput,
@@ -909,6 +1025,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let reason = input.reason.clone();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let sql = format!(
                 "SELECT * FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
                 columns::checkpoint::TABLE,
@@ -996,7 +1114,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn submit_user_question_answer(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         question_id: &str,
         input: &SubmitUserQuestionAnswerInput,
@@ -1009,6 +1127,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let rejected = input.rejected;
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let sql = format!(
                 "SELECT * FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
                 columns::event::TABLE,
@@ -1090,7 +1210,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
     async fn get_operation(
         &self,
-        _ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         operation_id: &str,
     ) -> Result<OperationPayload, CodingSessionError> {
@@ -1098,6 +1218,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let operation_id = operation_id.to_string();
 
         self.with_conn(|conn| {
+
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
             let sql = format!(
                 "SELECT * FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
                 columns::operation::TABLE,
@@ -1132,5 +1254,123 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         })
         .map_err(CodingSessionError::from)
     }
+
+    async fn finalize_turn_execution(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        finalized: &FinalizedProjectionTurnExecution,
+    ) -> Result<CodingSessionTurnPayload, CodingSessionError> {
+        let session_id = session_id.to_string();
+        let turn = finalized.turn.clone();
+        let turn_id = turn.id.clone();
+        let now = Self::now_iso();
+
+        self.with_conn(|conn| {
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
+            let started_at = turn.started_at.clone().unwrap_or_else(|| now.clone());
+            let completed_at = turn.completed_at.clone().unwrap_or_else(|| now.clone());
+
+            conn.execute(
+                &format!(
+                    "UPDATE {} SET {} = ?1, {} = ?2, {} = ?3, {} = ?4, {} = {} + 1 \
+                     WHERE {} = ?5 AND {} = ?6 AND {} = 0",
+                    columns::turn::TABLE,
+                    columns::turn::STATUS,
+                    columns::turn::STARTED_AT,
+                    columns::turn::COMPLETED_AT,
+                    columns::turn::UPDATED_AT,
+                    columns::turn::VERSION,
+                    columns::turn::VERSION,
+                    columns::turn::ID,
+                    columns::turn::CODING_SESSION_ID,
+                    columns::turn::IS_DELETED,
+                ),
+                params![
+                    turn.status,
+                    started_at,
+                    completed_at,
+                    now,
+                    turn_id,
+                    session_id,
+                ],
+            )
+            .map_err(|e| RepositoryError::Update(e.to_string()))?;
+
+            for event in &finalized.events {
+                let payload_json = serde_json::to_string(&event.payload)
+                    .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+                conn.execute(
+                    &format!(
+                        "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                        columns::event::TABLE,
+                        columns::event::ID,
+                        columns::event::CREATED_AT,
+                        columns::event::UPDATED_AT,
+                        columns::event::VERSION,
+                        columns::event::IS_DELETED,
+                        columns::event::CODING_SESSION_ID,
+                        columns::event::TURN_ID,
+                        columns::event::RUNTIME_ID,
+                        columns::event::EVENT_KIND,
+                        columns::event::SEQUENCE_NO,
+                        columns::event::PAYLOAD_JSON,
+                    ),
+                    params![
+                        event.id,
+                        event.created_at,
+                        event.created_at,
+                        0i64,
+                        0i64,
+                        session_id,
+                        event.turn_id,
+                        event.runtime_id,
+                        event.kind,
+                        event.sequence as i64,
+                        payload_json,
+                    ],
+                )
+                .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+            }
+
+            Ok(turn)
+        })
+        .map_err(CodingSessionError::from)
+    }
+
+    async fn mark_turn_failed(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        turn_id: &str,
+    ) -> Result<(), CodingSessionError> {
+        let session_id = session_id.to_string();
+        let turn_id = turn_id.to_string();
+        let now = Self::now_iso();
+
+        self.with_conn(|conn| {
+            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
+            conn.execute(
+                &format!(
+                    "UPDATE {} SET {} = 'failed', {} = ?1, {} = {} + 1 \
+                     WHERE {} = ?2 AND {} = ?3 AND {} = 0",
+                    columns::turn::TABLE,
+                    columns::turn::STATUS,
+                    columns::turn::UPDATED_AT,
+                    columns::turn::VERSION,
+                    columns::turn::VERSION,
+                    columns::turn::ID,
+                    columns::turn::CODING_SESSION_ID,
+                    columns::turn::IS_DELETED,
+                ),
+                params![now, turn_id, session_id],
+            )
+            .map_err(|e| RepositoryError::Update(e.to_string()))?;
+            Ok(())
+        })
+        .map_err(CodingSessionError::from)
+    }
+
 }
 

@@ -14,3 +14,10 @@ export {
   waitForBirdCoderApiReady,
   type WaitForBirdCoderApiReadyOptions,
 } from './application/bootstrap/bootstrapServerApiReady';
+export {
+  isBirdCoderDesktopTauriRuntime,
+  publishBirdCoderEmbeddedSdkRuntimeEnv,
+  publishBirdCoderRuntimeEnvPatch,
+  readDesktopEmbeddedRuntimeConfig,
+  type DesktopEmbeddedRuntimeConfig,
+} from './application/bootstrap/bootstrapDesktopRuntime';

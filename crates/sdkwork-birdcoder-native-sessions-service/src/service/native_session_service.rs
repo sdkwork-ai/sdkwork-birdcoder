@@ -122,6 +122,7 @@ pub trait NativeSessionRepository: Send + Sync {
 
 // ── Service ──────────────────────────────────────────────────────────
 
+#[derive(Clone)]
 pub struct NativeSessionService<R: NativeSessionRepository> {
     repository: R,
 }

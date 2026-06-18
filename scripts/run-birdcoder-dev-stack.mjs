@@ -128,7 +128,9 @@ function parseArgs(argv = []) {
 function resolveApiOriginUrl(env) {
   const rawApiBaseUrl =
     readTrimmedValue(env.BIRDCODER_API_BASE_URL)
-    || readTrimmedValue(env.VITE_BIRDCODER_API_BASE_URL);
+    || readTrimmedValue(env.VITE_BIRDCODER_API_BASE_URL)
+    || readTrimmedValue(env.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL)
+    || readTrimmedValue(env.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL);
   if (!rawApiBaseUrl) {
     return undefined;
   }

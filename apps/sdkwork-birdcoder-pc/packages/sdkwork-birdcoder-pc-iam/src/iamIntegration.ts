@@ -104,6 +104,7 @@ export function resolveBirdCoderIamDeploymentProfile(
       readBirdCoderPublicEnvValue(
         'VITE_SDKWORK_DEPLOYMENT_MODE',
         'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE',
+        'VITE_SDKWORK_BIRDCODER_IAM_DEPLOYMENT_MODE',
       ),
     )
     ?? 'private';

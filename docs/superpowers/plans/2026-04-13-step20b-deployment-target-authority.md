@@ -14,7 +14,7 @@
 
 **Files:**
 - Modify: `packages/sdkwork-birdcoder-types/src/server-api.ts`
-- Modify: `packages/sdkwork-birdcoder-server/src/index.ts`
+- Modify: `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts`
 - Modify: `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts`
 - Modify: `packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts`
 - Test: `scripts/coding-server-route-contract.test.ts`
@@ -52,8 +52,8 @@
 ### Task 4: Close the Rust host route on the same authority path
 
 **Files:**
-- Modify: `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
-- Test: targeted Rust route assertions in `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
+- Modify: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- Test: targeted Rust route assertions in `crates/sdkwork-birdcoder-api-server/src/lib.rs`
 
 - [ ] **Step 1: Write the failing Rust host route and OpenAPI assertions**
 - [ ] **Step 2: Run tests to verify they fail**

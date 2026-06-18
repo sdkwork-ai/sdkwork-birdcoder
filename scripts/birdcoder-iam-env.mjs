@@ -6,6 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { applyTopologyProfileToEnv } from './lib/birdcoder-topology.mjs';
 import {
   normalizeViteMode,
   resolveWorkspaceRootDir,
@@ -75,26 +76,40 @@ const VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD_ENV =
 const VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE_ENV =
   'VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE';
 
+const SDKWORK_IAM_DATABASE_URL_ENV = 'SDKWORK_IAM_DATABASE_URL';
+
 const DEFAULT_SQLITE_RELATIVE_PATHS = Object.freeze({
   'cloud-saas': path.join(
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
     'sdkwork-birdcoder-pc-server',
     '.local',
     'sdkwork-birdcoder-cloud-saas.sqlite3',
   ),
   'desktop-local': path.join(
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
     'sdkwork-birdcoder-pc-desktop',
     '.local',
     'sdkwork-birdcoder-pc-desktop-local.sqlite3',
   ),
   'server-private': path.join(
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
     'sdkwork-birdcoder-pc-server',
     '.local',
     'sdkwork-birdcoder-pc-server-private.sqlite3',
   ),
 });
+
+export function resolveBirdcoderPcAppRootDir(
+  workspaceRootDir = resolveWorkspaceRootDir(),
+) {
+  return path.join(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc');
+}
 
 function readTrimmedValue(value) {
   const normalizedValue = String(value ?? '').trim();
@@ -297,12 +312,44 @@ function loadBirdcoderWorkspaceEnv({
   workspaceRootDir = resolveWorkspaceRootDir(),
 } = {}) {
   const resolvedViteMode = normalizeViteMode(viteMode, 'development');
-  const fileEnv = loadWorkspaceEnvFiles(resolvedViteMode, workspaceRootDir, '');
+  const pcAppRootDir = resolveBirdcoderPcAppRootDir(workspaceRootDir);
+  const fileEnv = {
+    ...loadWorkspaceEnvFiles(resolvedViteMode, workspaceRootDir, ''),
+    ...loadWorkspaceEnvFiles(resolvedViteMode, pcAppRootDir, ''),
+  };
 
   return {
     ...fileEnv,
     ...env,
   };
+}
+
+function isRuntimeDevTarget(target) {
+  return target === 'desktop-dev' || target === 'server-dev';
+}
+
+function applyWindowsLocalIamDatabaseDefaults({
+  env,
+  sdkworkIamMode,
+  target,
+}) {
+  if (process.platform !== 'win32') {
+    return;
+  }
+
+  if (!isRuntimeDevTarget(target)) {
+    return;
+  }
+
+  if (sdkworkIamMode !== 'local' && sdkworkIamMode !== 'private') {
+    return;
+  }
+
+  if (readEnvValue(env, SDKWORK_IAM_DATABASE_URL_ENV)) {
+    return;
+  }
+
+  // Local IAM database URL must come from .env.local; do not embed credentials in repo scripts.
 }
 
 function loadWorkspaceEnvFiles(mode, workspaceRootDir, prefix) {
@@ -773,13 +820,16 @@ export function resolveBirdcoderIamCommandEnv({
     viteMode: resolvedViteMode,
     workspaceRootDir,
   });
-  const nextEnv = {
-    ...loadedEnv,
-  };
   const resolvedIamMode = normalizeBirdcoderIamDeploymentMode(
-    iamMode ?? nextEnv[BIRDCODER_IAM_DEPLOYMENT_MODE_ENV],
+    iamMode ?? loadedEnv[BIRDCODER_IAM_DEPLOYMENT_MODE_ENV],
     resolveDefaultIamMode(target),
   );
+  const nextEnv = applyTopologyProfileToEnv({
+    env: loadedEnv,
+    iamMode: resolvedIamMode,
+    target,
+    viteMode: resolvedViteMode,
+  });
   const errors = [];
   const sdkworkIamMode = resolveSdkworkIamMode(resolvedIamMode);
 
@@ -816,6 +866,12 @@ export function resolveBirdcoderIamCommandEnv({
   applyClientApiBaseUrl({
     env: nextEnv,
     iamMode: resolvedIamMode,
+    target,
+  });
+
+  applyWindowsLocalIamDatabaseDefaults({
+    env: nextEnv,
+    sdkworkIamMode: resolvedSdkworkIamMode,
     target,
   });
 

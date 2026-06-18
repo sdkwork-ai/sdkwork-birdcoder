@@ -100,6 +100,7 @@ pub trait EngineCatalogProvider: Send + Sync {
 
 // ── Service ──────────────────────────────────────────────────────────
 
+#[derive(Clone)]
 pub struct EngineCatalogService<P: EngineCatalogProvider> {
     provider: P,
     api_version: String,

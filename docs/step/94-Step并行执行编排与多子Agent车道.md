@@ -25,7 +25,7 @@
 
 | 车道 | 责任 | 主写目录 |
 | --- | --- | --- |
-| A 总控车道 | `00-05`、`09`、`17`、`13`、共享契约、最终集成 | `packages/sdkwork-birdcoder-core` `packages/sdkwork-birdcoder-server` `.github` `docs/release` |
+| A 总控车道 | `00-05`、`09`、`17`、`13`、共享契约、最终集成 | `packages/sdkwork-birdcoder-core` `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server` `.github` `docs/release` |
 | B Code 车道 | `06` | `packages/sdkwork-birdcoder-code` `packages/sdkwork-birdcoder-ui` |
 | C Studio 车道 | `07` | `packages/sdkwork-birdcoder-studio` `packages/sdkwork-birdcoder-host-studio` `packages/sdkwork-birdcoder-templates` |
 | D External 集成车道 | `08` | `packages/sdkwork-birdcoder-commons` `packages/sdkwork-birdcoder-desktop` `packages/sdkwork-birdcoder-shell` |

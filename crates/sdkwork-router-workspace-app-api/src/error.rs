@@ -7,17 +7,17 @@ use sdkwork_birdcoder_deployment_service::error::DeploymentError;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProblemDetails {
+pub struct ProblemDetailsPayload {
     pub code: String,
     pub message: String,
     pub retryable: bool,
 }
 
-pub fn map_workspace_error(error: WorkspaceError) -> (StatusCode, Json<ProblemDetails>) {
+pub fn map_workspace_error(error: WorkspaceError) -> (StatusCode, Json<ProblemDetailsPayload>) {
     match error {
         WorkspaceError::NotFound(msg) => (
             StatusCode::NOT_FOUND,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "not_found".into(),
                 message: msg,
                 retryable: false,
@@ -25,7 +25,7 @@ pub fn map_workspace_error(error: WorkspaceError) -> (StatusCode, Json<ProblemDe
         ),
         WorkspaceError::InvalidInput(msg) => (
             StatusCode::BAD_REQUEST,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "invalid_input".into(),
                 message: msg,
                 retryable: false,
@@ -33,7 +33,7 @@ pub fn map_workspace_error(error: WorkspaceError) -> (StatusCode, Json<ProblemDe
         ),
         WorkspaceError::Conflict(msg) => (
             StatusCode::CONFLICT,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "conflict".into(),
                 message: msg,
                 retryable: false,
@@ -43,7 +43,7 @@ pub fn map_workspace_error(error: WorkspaceError) -> (StatusCode, Json<ProblemDe
         | WorkspaceError::EventPublish(msg)
         | WorkspaceError::Internal(msg) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "internal".into(),
                 message: msg,
                 retryable: true,
@@ -52,11 +52,11 @@ pub fn map_workspace_error(error: WorkspaceError) -> (StatusCode, Json<ProblemDe
     }
 }
 
-pub fn map_project_error(error: ProjectError) -> (StatusCode, Json<ProblemDetails>) {
+pub fn map_project_error(error: ProjectError) -> (StatusCode, Json<ProblemDetailsPayload>) {
     match error {
         ProjectError::NotFound(msg) => (
             StatusCode::NOT_FOUND,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "not_found".into(),
                 message: msg,
                 retryable: false,
@@ -64,7 +64,7 @@ pub fn map_project_error(error: ProjectError) -> (StatusCode, Json<ProblemDetail
         ),
         ProjectError::InvalidInput(msg) => (
             StatusCode::BAD_REQUEST,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "invalid_input".into(),
                 message: msg,
                 retryable: false,
@@ -72,7 +72,7 @@ pub fn map_project_error(error: ProjectError) -> (StatusCode, Json<ProblemDetail
         ),
         ProjectError::Conflict(msg) => (
             StatusCode::CONFLICT,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "conflict".into(),
                 message: msg,
                 retryable: false,
@@ -80,7 +80,7 @@ pub fn map_project_error(error: ProjectError) -> (StatusCode, Json<ProblemDetail
         ),
         ProjectError::GitOperation(msg) => (
             StatusCode::UNPROCESSABLE_ENTITY,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "git_operation".into(),
                 message: msg,
                 retryable: false,
@@ -90,7 +90,7 @@ pub fn map_project_error(error: ProjectError) -> (StatusCode, Json<ProblemDetail
         | ProjectError::EventPublish(msg)
         | ProjectError::Internal(msg) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "internal".into(),
                 message: msg,
                 retryable: true,
@@ -99,11 +99,11 @@ pub fn map_project_error(error: ProjectError) -> (StatusCode, Json<ProblemDetail
     }
 }
 
-pub fn map_deployment_error(error: DeploymentError) -> (StatusCode, Json<ProblemDetails>) {
+pub fn map_deployment_error(error: DeploymentError) -> (StatusCode, Json<ProblemDetailsPayload>) {
     match error {
         DeploymentError::NotFound(msg) => (
             StatusCode::NOT_FOUND,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "not_found".into(),
                 message: msg,
                 retryable: false,
@@ -111,7 +111,7 @@ pub fn map_deployment_error(error: DeploymentError) -> (StatusCode, Json<Problem
         ),
         DeploymentError::InvalidInput(msg) => (
             StatusCode::BAD_REQUEST,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "invalid_input".into(),
                 message: msg,
                 retryable: false,
@@ -119,7 +119,7 @@ pub fn map_deployment_error(error: DeploymentError) -> (StatusCode, Json<Problem
         ),
         DeploymentError::Conflict(msg) => (
             StatusCode::CONFLICT,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "conflict".into(),
                 message: msg,
                 retryable: false,
@@ -129,7 +129,7 @@ pub fn map_deployment_error(error: DeploymentError) -> (StatusCode, Json<Problem
         | DeploymentError::EventPublish(msg)
         | DeploymentError::Internal(msg) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "internal".into(),
                 message: msg,
                 retryable: true,
@@ -138,3 +138,13 @@ pub fn map_deployment_error(error: DeploymentError) -> (StatusCode, Json<Problem
     }
 }
 
+pub fn map_not_implemented(message: impl Into<String>) -> (StatusCode, Json<ProblemDetailsPayload>) {
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(ProblemDetailsPayload {
+            code: "not_implemented".into(),
+            message: message.into(),
+            retryable: false,
+        }),
+    )
+}

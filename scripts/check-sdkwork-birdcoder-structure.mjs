@@ -240,6 +240,9 @@ function collectRootPackageScriptTargetPaths(rootPackageJson) {
 
     for (const match of command.matchAll(/((?:(?:\.\.?\/)*)scripts\/[A-Za-z0-9_./-]+\.(?:cjs|js|mjs|ps1|ts))/g)) {
       const rawPath = match[1].replace(/\\/g, '/');
+      if (rawPath.includes('..')) {
+        continue;
+      }
       const scriptsIndex = rawPath.indexOf('scripts/');
 
       if (scriptsIndex === -1) {
@@ -247,6 +250,9 @@ function collectRootPackageScriptTargetPaths(rootPackageJson) {
       }
 
       const relativePath = rawPath.slice(scriptsIndex);
+      if (relativePath.includes('..')) {
+        continue;
+      }
       const dedupeKey = `${scriptName}:${relativePath}`;
       if (seen.has(dedupeKey)) {
         continue;

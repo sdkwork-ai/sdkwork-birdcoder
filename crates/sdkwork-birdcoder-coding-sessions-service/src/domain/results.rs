@@ -1,4 +1,4 @@
-use serde::{de, Deserialize, Deserializer, Serialize};
+﻿use serde::{de, Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
 
 use super::models::{
@@ -6,7 +6,7 @@ use super::models::{
     CodingSessionTurnOptionsPayload,
 };
 
-// ── Serialization helpers ────────────────────────────────────────────
+// 鈹€鈹€ Serialization helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 pub fn serialize_i64_as_decimal_string<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -67,7 +67,7 @@ where
     }
 }
 
-// ── Operation payload ────────────────────────────────────────────────
+// 鈹€鈹€ Operation payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -79,7 +79,7 @@ pub struct OperationPayload {
     pub stream_kind: String,
 }
 
-// ── Coding session payload ───────────────────────────────────────────
+// 鈹€鈹€ Coding session payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -109,7 +109,7 @@ pub struct CodingSessionPayload {
     pub transcript_updated_at: Option<String>,
 }
 
-// ── Coding session turn payload ──────────────────────────────────────
+// 鈹€鈹€ Coding session turn payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -124,12 +124,12 @@ pub struct CodingSessionTurnPayload {
     pub completed_at: Option<String>,
 }
 
-// ── Type aliases ─────────────────────────────────────────────────────
+// 鈹€鈹€ Type aliases 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 pub type CodingSessionEventPayloadMap = BTreeMap<String, serde_json::Value>;
 pub type CodingSessionCheckpointStateMap = BTreeMap<String, serde_json::Value>;
 
-// ── Coding session event payload ─────────────────────────────────────
+// 鈹€鈹€ Coding session event payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -148,7 +148,7 @@ pub struct CodingSessionEventPayload {
     pub created_at: String,
 }
 
-// ── Coding session checkpoint payload ────────────────────────────────
+// 鈹€鈹€ Coding session checkpoint payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -162,7 +162,7 @@ pub struct CodingSessionCheckpointPayload {
     pub created_at: String,
 }
 
-// ── Coding session artifact payload ──────────────────────────────────
+// 鈹€鈹€ Coding session artifact payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -177,7 +177,7 @@ pub struct CodingSessionArtifactPayload {
     pub created_at: String,
 }
 
-// ── Approval decision payload ────────────────────────────────────────
+// 鈹€鈹€ Approval decision payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -195,7 +195,7 @@ pub struct ApprovalDecisionPayload {
     pub operation_status: String,
 }
 
-// ── User question answer payload ─────────────────────────────────────
+// 鈹€鈹€ User question answer payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -213,7 +213,7 @@ pub struct UserQuestionAnswerPayload {
     pub turn_id: Option<String>,
 }
 
-// ── Projection turn execution ────────────────────────────────────────
+// 鈹€鈹€ Projection turn execution 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug)]
 pub struct PendingProjectionTurnExecution {
@@ -233,7 +233,7 @@ pub struct FinalizedProjectionTurnExecution {
     pub events: Vec<CodingSessionEventPayload>,
 }
 
-// ── Delete entity payload ────────────────────────────────────────────
+// 鈹€鈹€ Delete entity payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -241,7 +241,7 @@ pub struct DeleteEntityPayload {
     pub id: String,
 }
 
-// ── Pending turn result ──────────────────────────────────────────────
+// 鈹€鈹€ Pending turn result 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug)]
 pub struct PendingTurnResult {

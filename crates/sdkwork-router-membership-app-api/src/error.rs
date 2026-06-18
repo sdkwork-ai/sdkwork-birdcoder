@@ -1,53 +1,53 @@
 use axum::http::StatusCode;
 use axum::Json;
 use serde::Serialize;
-use sdkwork_birdcoder_membership_service::error::CommerceMembershipError;
+use sdkwork_birdcoder_membership_service::error::MembershipError;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProblemDetails {
+pub struct ProblemDetailsPayload {
     pub code: String,
     pub message: String,
     pub retryable: bool,
 }
 
-pub fn map_service_error(error: CommerceMembershipError) -> (StatusCode, Json<ProblemDetails>) {
+pub fn map_service_error(error: MembershipError) -> (StatusCode, Json<ProblemDetailsPayload>) {
     match error {
-        CommerceMembershipError::NotFound(msg) => (
+        MembershipError::NotFound(msg) => (
             StatusCode::NOT_FOUND,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "not_found".into(),
                 message: msg,
                 retryable: false,
             }),
         ),
-        CommerceMembershipError::InvalidInput(msg) => (
+        MembershipError::InvalidInput(msg) => (
             StatusCode::BAD_REQUEST,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "invalid_input".into(),
                 message: msg,
                 retryable: false,
             }),
         ),
-        CommerceMembershipError::Conflict(msg) => (
+        MembershipError::Conflict(msg) => (
             StatusCode::CONFLICT,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "conflict".into(),
                 message: msg,
                 retryable: false,
             }),
         ),
-        CommerceMembershipError::Provider(msg) => (
+        MembershipError::Provider(msg) => (
             StatusCode::BAD_GATEWAY,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "provider".into(),
                 message: msg,
                 retryable: true,
             }),
         ),
-        CommerceMembershipError::Repository(msg) | CommerceMembershipError::Internal(msg) => (
+        MembershipError::Repository(msg) | MembershipError::Internal(msg) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(ProblemDetails {
+            Json(ProblemDetailsPayload {
                 code: "internal".into(),
                 message: msg,
                 retryable: true,
@@ -55,4 +55,3 @@ pub fn map_service_error(error: CommerceMembershipError) -> (StatusCode, Json<Pr
         ),
     }
 }
-

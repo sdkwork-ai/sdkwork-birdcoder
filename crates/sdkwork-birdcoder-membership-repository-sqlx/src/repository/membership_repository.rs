@@ -6,14 +6,23 @@ use crate::error::RepositoryError;
 
 pub fn get_current_membership(
     conn: &Connection,
+    tenant_id: Option<i64>,
     owner_user_id: &str,
 ) -> Result<MembershipRow, RepositoryError> {
-    let sql = format!(
-        "SELECT {} FROM {} WHERE owner_user_id = ?1 AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1",
+    let mut sql = format!(
+        "SELECT {} FROM {} WHERE owner_user_id = ?1 AND is_deleted = 0",
         ALL_MEMBERSHIP_COLUMNS,
         columns::membership::TABLE,
     );
-    conn.query_row(&sql, [owner_user_id], |row| MembershipRow::from_row(row))
+    let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(owner_user_id.to_string())];
+    if let Some(tenant_id) = tenant_id.filter(|value| *value > 0) {
+        sql.push_str(&format!(" AND {} = ?2", columns::membership::TENANT_ID));
+        params.push(Box::new(tenant_id));
+    }
+    sql.push_str(" ORDER BY created_at DESC LIMIT 1");
+    let params_ref: Vec<&dyn rusqlite::types::ToSql> =
+        params.iter().map(|param| param.as_ref()).collect();
+    conn.query_row(&sql, params_ref.as_slice(), |row| MembershipRow::from_row(row))
         .map_err(|e| match e {
             rusqlite::Error::QueryReturnedNoRows => {
                 RepositoryError::NotFound(format!(

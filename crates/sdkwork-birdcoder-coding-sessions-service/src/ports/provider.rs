@@ -1,4 +1,4 @@
-use crate::context::SessionContext;
+use crate::context::CodingSessionContext;
 use crate::domain::commands::{
     SubmitApprovalDecisionInput,
     SubmitUserQuestionAnswerInput,
@@ -13,13 +13,13 @@ use crate::error::CodingSessionError;
 pub trait CodeEngineProvider: Send + Sync {
     async fn execute_turn(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         pending: &PendingProjectionTurnExecution,
     ) -> Result<FinalizedProjectionTurnExecution, CodingSessionError>;
 
     async fn submit_approval(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         checkpoint_id: &str,
         input: &SubmitApprovalDecisionInput,
@@ -27,7 +27,7 @@ pub trait CodeEngineProvider: Send + Sync {
 
     async fn submit_question_answer(
         &self,
-        ctx: &SessionContext,
+        ctx: &CodingSessionContext,
         session_id: &str,
         question_id: &str,
         input: &SubmitUserQuestionAnswerInput,

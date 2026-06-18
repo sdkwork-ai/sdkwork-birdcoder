@@ -102,7 +102,7 @@
 
 ### CP16-3 addendum - 2026-04-12 (coding-server consumer slice)
 
-- `packages/sdkwork-birdcoder-server/src/projectionRepository.ts` now writes `prompt_run` and `prompt_evaluation` through `createBirdCoderPromptSkillTemplateEvidenceRepositories()` on the same provider/UoW transaction used by projection persistence.
+- `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts` now writes `prompt_run` and `prompt_evaluation` through `createBirdCoderPromptSkillTemplateEvidenceRepositories()` on the same provider/UoW transaction used by projection persistence.
 - `scripts/coding-server-prompt-skill-template-evidence-consumer-contract.test.ts` proves coding-server projection consumers persist evidence through the shared path instead of bypassing it.
 - `pnpm.cmd run test:coding-server-prompt-skill-template-evidence-consumer-contract` is promoted into `lint`, `check:release-flow`, and governance regression.
 - Step 16 `CP16-3` is now fully closed.

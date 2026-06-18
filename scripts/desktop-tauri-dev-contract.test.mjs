@@ -178,6 +178,17 @@ const desktopCargoTomlSource = fs.readFileSync(desktopCargoTomlPath, 'utf8');
 const desktopCargoLockSource = fs.readFileSync(desktopCargoLockPath, 'utf8');
 const desktopBuildRsSource = fs.readFileSync(desktopBuildRsPath, 'utf8');
 const desktopLibRsSource = fs.readFileSync(desktopLibRsPath, 'utf8');
+const desktopTauriHostFileSystemSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'crates',
+    'sdkwork-birdcoder-tauri-host',
+    'src',
+    'commands',
+    'filesystem_commands.rs',
+  ),
+  'utf8',
+);
 const desktopViteConfigSource = fs.readFileSync(desktopViteConfigPath, 'utf8');
 const desktopViteHostSource = fs.readFileSync(desktopViteHostPath, 'utf8');
 const appSource = fs.readFileSync(appSourcePath, 'utf8');
@@ -664,8 +675,8 @@ assert.match(
 );
 assert.match(
   desktopLibRsSource,
-  /start_embedded_coding_server\(/,
-  'Desktop runtime setup must call an embedded server bootstrap helper so localhost API requests do not race against an unstarted Rust server.',
+  /spawn_embedded_coding_server_startup\(/,
+  'Desktop runtime setup must dispatch embedded server bootstrap asynchronously so localhost API requests do not race against an unstarted Rust server.',
 );
 assert.ok(
   fs.existsSync(desktopCapabilityPath),
@@ -762,22 +773,22 @@ for (const command of [
   );
 }
 assert.match(
-  desktopLibRsSource,
+  desktopTauriHostFileSystemSource,
   /const USER_HOME_CONFIG_RELATIVE_ROOT:\s*&str\s*=\s*"\.sdkwork\/birdcoder";/,
   'Desktop user_home_config bridge must define ~/.sdkwork/birdcoder as the only writable home config root.',
 );
 assert.match(
-  desktopLibRsSource,
+  desktopTauriHostFileSystemSource,
   /normalized_relative_path\.starts_with\(USER_HOME_CONFIG_RELATIVE_ROOT\)/,
   'Desktop user_home_config bridge must reject relative paths outside ~/.sdkwork/birdcoder before reading or writing.',
 );
 assert.match(
-  desktopLibRsSource,
-  /resolve_user_home_config_path\("\.sdkwork\/birdcoder\/code-engine-models\.json"\)/,
+  desktopTauriHostFileSystemSource,
+  /resolve_user_home_config_path\(\s*"\.sdkwork\/birdcoder\/code-engine-models\.json"\s*,?\s*\)/,
   'Desktop Rust tests must cover the canonical code-engine model config path under ~/.sdkwork/birdcoder.',
 );
 assert.match(
-  desktopLibRsSource,
+  desktopTauriHostFileSystemSource,
   /resolve_user_home_config_path\("\.ssh\/config"\)\.is_err\(\)/,
   'Desktop Rust tests must prove user_home_config cannot read or write arbitrary home files such as ~/.ssh/config.',
 );

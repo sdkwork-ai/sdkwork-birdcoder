@@ -4,6 +4,26 @@ import path from 'node:path';
 import process from 'node:process';
 
 const rootDir = process.cwd();
+const architectureDocDir = path.join(rootDir, 'docs', '\u67b6\u6784');
+const pcPackagesDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages');
+const h5PackagesDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-h5', 'packages');
+const requiredArchitectureDocBasenames = [
+  'README.md',
+  '01-\u4ea7\u54c1\u8bbe\u8ba1\u4e0e\u9700\u6c42\u8303\u56f4.md',
+  '02-\u67b6\u6784\u6807\u51c6\u4e0e\u603b\u4f53\u8bbe\u8ba1.md',
+  '03-\u6a21\u5757\u89c4\u5212\u4e0e\u8fb9\u754c.md',
+  '04-\u6280\u672f\u9009\u578b\u4e0e\u53ef\u63d2\u62d4\u7b56\u7565.md',
+  '05-\u7edf\u4e00Kernel\u4e0eCode Engine\u6807\u51c6.md',
+  '06-\u7f16\u8bd1\u73af\u5883-\u9884\u89c8-\u6a21\u62df\u5668-\u6d4b\u8bd5\u4f53\u7cfb.md',
+  '07-\u6570\u636e\u6a21\u578b-\u72b6\u6001\u6a21\u578b-\u63a5\u53e3\u5951\u7ea6.md',
+  '08-\u6027\u80fd-\u5b89\u5168-\u53ef\u89c2\u6d4b\u6027\u6807\u51c6.md',
+  '09-\u5b89\u88c5-\u90e8\u7f72-\u53d1\u5e03\u6807\u51c6.md',
+  '10-\u5f00\u53d1\u6d41\u7a0b-\u8d28\u91cf\u95e8\u7981-\u8bc4\u4f30\u6807\u51c6.md',
+  '11-\u884c\u4e1a\u5bf9\u6807\u4e0e\u80fd\u529b\u77e9\u9635.md',
+  '12-\u7edf\u4e00\u5de5\u5177\u534f\u8bae-\u6743\u9650\u6c99\u7bb1-\u5ba1\u8ba1\u6807\u51c6.md',
+  '13-\u89c4\u5219-\u6280\u80fd-MCP-\u77e5\u8bc6\u7cfb\u7edf\u6807\u51c6.md',
+  '14-\u73b0\u72b6\u57fa\u7ebf-\u5dee\u8ddd-\u6f14\u8fdb\u8def\u7ebf.md',
+];
 
 const requiredPaths = [
   '.github/workflows/ci.yml',
@@ -27,21 +47,6 @@ const requiredPaths = [
   'docs/reference/api-reference.md',
   'docs/reference/commands.md',
   'docs/reference/environment.md',
-  'docs/架构/README.md',
-  'docs/架构/01-产品设计与需求范�?md',
-  'docs/架构/02-架构标准与总体设计.md',
-  'docs/架构/03-模块规划与边�?md',
-  'docs/架构/04-技术选型与可插拔策略.md',
-  'docs/架构/05-统一Kernel与Code Engine标准.md',
-  'docs/架构/06-编译环境-预览-模拟�?测试体系.md',
-  'docs/架构/07-数据模型-状态模�?接口契约.md',
-  'docs/架构/08-性能-安全-可观测性标�?md',
-  'docs/架构/09-安装-部署-发布标准.md',
-  'docs/架构/10-开发流�?质量门禁-评估标准.md',
-  'docs/架构/11-行业对标与能力矩�?md',
-  'docs/架构/12-统一工具协议-权限沙箱-审计标准.md',
-  'docs/架构/13-规则-技�?MCP-知识系统标准.md',
-  'docs/架构/14-现状基线-差距-演进路线.md',
   'docs/release/releases.json',
   'docs/.vitepress/config.mts',
   'docs/.vitepress/searchIndexPolicy.ts',
@@ -189,6 +194,17 @@ for (const relativePath of requiredPaths) {
   assert.ok(
     fs.existsSync(path.join(rootDir, relativePath)),
     `Expected architecture path to exist: ${relativePath}`,
+  );
+}
+
+assert.ok(
+  fs.existsSync(architectureDocDir),
+  'Expected architecture docs directory to exist: docs/??',
+);
+for (const basename of requiredArchitectureDocBasenames) {
+  assert.ok(
+    fs.existsSync(path.join(architectureDocDir, basename)),
+    `Expected architecture doc to exist: docs/??/${basename}`,
   );
 }
 
@@ -378,7 +394,7 @@ assert.match(
 );
 
 const shellPackageJson = JSON.parse(
-  fs.readFileSync(path.join(rootDir, 'packages', 'sdkwork-birdcoder-shell', 'package.json'), 'utf8'),
+  fs.readFileSync(path.join(pcPackagesDir, 'sdkwork-birdcoder-pc-shell', 'package.json'), 'utf8'),
 );
 
 assert.equal(
@@ -398,13 +414,13 @@ assert.equal(
 );
 
 const iamPackageJson = JSON.parse(
-  fs.readFileSync(path.join(rootDir, 'packages', 'sdkwork-birdcoder-iam', 'package.json'), 'utf8'),
+  fs.readFileSync(path.join(pcPackagesDir, 'sdkwork-birdcoder-pc-iam', 'package.json'), 'utf8'),
 );
 const authPackageJson = JSON.parse(
-  fs.readFileSync(path.join(rootDir, 'packages', 'sdkwork-birdcoder-auth', 'package.json'), 'utf8'),
+  fs.readFileSync(path.join(pcPackagesDir, 'sdkwork-birdcoder-pc-auth', 'package.json'), 'utf8'),
 );
 const userPackageJson = JSON.parse(
-  fs.readFileSync(path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'package.json'), 'utf8'),
+  fs.readFileSync(path.join(pcPackagesDir, 'sdkwork-birdcoder-pc-user', 'package.json'), 'utf8'),
 );
 
 assert.equal(
@@ -439,11 +455,11 @@ assert.equal(
 );
 
 const authIndexSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-auth', 'src', 'index.ts'),
+  path.join(pcPackagesDir, 'sdkwork-birdcoder-pc-auth', 'src', 'index.ts'),
   'utf8',
 );
 const userIndexSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'src', 'index.ts'),
+  path.join(pcPackagesDir, 'sdkwork-birdcoder-pc-user', 'src', 'index.ts'),
   'utf8',
 );
 
@@ -493,15 +509,15 @@ for (const lazyPageTarget of [
 }
 
 const authSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-auth', 'src', 'auth.ts'),
+  path.join(pcPackagesDir, 'sdkwork-birdcoder-pc-auth', 'src', 'auth.ts'),
   'utf8',
 );
 const userSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'src', 'user.ts'),
+  path.join(pcPackagesDir, 'sdkwork-birdcoder-pc-user', 'src', 'user.ts'),
   'utf8',
 );
 const vipSource = fs.readFileSync(
-  path.join(rootDir, 'packages', 'sdkwork-birdcoder-user', 'src', 'vip.ts'),
+  path.join(pcPackagesDir, 'sdkwork-birdcoder-pc-user', 'src', 'vip.ts'),
   'utf8',
 );
 for (const sourcePackageName of [
@@ -599,10 +615,22 @@ for (const scriptName of [
   assert.ok(rootPackageJson.scripts?.[scriptName], `Missing root script: ${scriptName}`);
 }
 
-const packageJsonFiles = fs.readdirSync(path.join(rootDir, 'packages'), { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => path.join(rootDir, 'packages', entry.name, 'package.json'))
-  .filter((absolutePath) => fs.existsSync(absolutePath));
+function collectPackageJsonFiles(packagesRoot) {
+  if (!fs.existsSync(packagesRoot)) {
+    return [];
+  }
+
+  return fs.readdirSync(packagesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(packagesRoot, entry.name, 'package.json'))
+    .filter((absolutePath) => fs.existsSync(absolutePath));
+}
+
+const packageJsonFiles = [
+  ...collectPackageJsonFiles(path.join(rootDir, 'packages')),
+  ...collectPackageJsonFiles(pcPackagesDir),
+  ...collectPackageJsonFiles(h5PackagesDir),
+];
 
 for (const absolutePath of packageJsonFiles) {
   const source = fs.readFileSync(absolutePath, 'utf8');

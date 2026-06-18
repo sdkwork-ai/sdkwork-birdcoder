@@ -4,12 +4,21 @@ use crate::error::DocumentError;
 // ── Repository trait ─────────────────────────────────────────────────
 
 pub trait DocumentRepository: Send + Sync {
-    fn list_documents(&self, project_id: Option<&str>) -> Result<Vec<DocumentPayload>, String>;
-    fn find_document_by_id(&self, document_id: &str) -> Result<Option<DocumentPayload>, String>;
+    fn list_documents(
+        &self,
+        project_id: Option<&str>,
+        tenant_id: Option<&str>,
+    ) -> Result<Vec<DocumentPayload>, String>;
+    fn find_document_by_id(
+        &self,
+        document_id: &str,
+        tenant_id: Option<&str>,
+    ) -> Result<Option<DocumentPayload>, String>;
 }
 
 // ── Service ──────────────────────────────────────────────────────────
 
+#[derive(Clone)]
 pub struct DocumentService<R: DocumentRepository> {
     repository: R,
 }
@@ -22,19 +31,24 @@ impl<R: DocumentRepository> DocumentService<R> {
     pub fn list_documents(
         &self,
         project_id: Option<&str>,
+        tenant_id: Option<&str>,
     ) -> Result<Vec<DocumentPayload>, DocumentError> {
         self.repository
-            .list_documents(project_id)
+            .list_documents(project_id, tenant_id)
             .map_err(DocumentError::Repository)
     }
 
-    pub fn get_document(&self, document_id: &str) -> Result<DocumentPayload, DocumentError> {
+    pub fn get_document(
+        &self,
+        document_id: &str,
+        tenant_id: Option<&str>,
+    ) -> Result<DocumentPayload, DocumentError> {
         let normalized_id = normalize_required(document_id).ok_or_else(|| {
             DocumentError::InvalidInput("documentId is required.".to_string())
         })?;
 
         self.repository
-            .find_document_by_id(&normalized_id)
+            .find_document_by_id(&normalized_id, tenant_id)
             .map_err(DocumentError::Repository)?
             .ok_or_else(|| {
                 DocumentError::NotFound(format!("Document \"{normalized_id}\" was not found."))

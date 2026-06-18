@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use rusqlite::{params, Connection};
 use uuid::Uuid;
@@ -7,19 +7,23 @@ use crate::db::columns::team as col;
 use crate::db::columns::team_member as member_col;
 use crate::db::rows::{TeamMemberRow, TeamRow};
 use crate::mapper::row_mapper;
-use sdkwork_birdcoder_workspace_service::context::SessionContext;
+use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_birdcoder_workspace_service::domain::results::{TeamMemberPayload, TeamPayload};
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
 
 pub struct SqliteTeamRepository {
-    conn: Mutex<Connection>,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl SqliteTeamRepository {
     pub fn new(conn: Connection) -> Self {
         Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         }
+    }
+
+    pub fn with_shared(conn: Arc<Mutex<Connection>>) -> Self {
+        Self { conn }
     }
 
     fn now_iso() -> String {
@@ -30,7 +34,7 @@ impl SqliteTeamRepository {
 
     pub fn find_team_by_id(
         &self,
-        _ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         id: &str,
     ) -> Result<Option<TeamPayload>, WorkspaceError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -39,16 +43,25 @@ impl SqliteTeamRepository {
         let id_num: i64 = id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid id: {id}"))
         })?;
+        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
+        let mut sql = format!(
+            "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
+            col::TABLE,
+            col::ID,
+            col::IS_DELETED,
+        );
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(id_num)];
+        if let Some(tenant_id) = tenant_id {
+            sql += &format!(" AND {} = ?2", col::TENANT_ID);
+            param_values.push(Box::new(tenant_id));
+        }
         let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
-                col::TABLE,
-                col::ID,
-                col::IS_DELETED,
-            ))
+            .prepare(&sql)
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let row = stmt
-            .query_row(params![id_num], |r| Ok(TeamRow::from_row(r)))
+            .query_row(params_refs.as_slice(), |r| Ok(TeamRow::from_row(r)))
             .optional()
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         match row {
@@ -60,7 +73,7 @@ impl SqliteTeamRepository {
 
     pub fn list_teams_by_workspace(
         &self,
-        _ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         workspace_id: &str,
     ) -> Result<Vec<TeamPayload>, WorkspaceError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -69,16 +82,25 @@ impl SqliteTeamRepository {
         let wid: i64 = workspace_id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
+        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
+        let mut sql = format!(
+            "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
+            col::TABLE,
+            col::WORKSPACE_ID,
+            col::IS_DELETED,
+        );
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(wid)];
+        if let Some(tenant_id) = tenant_id {
+            sql += &format!(" AND {} = ?2", col::TENANT_ID);
+            param_values.push(Box::new(tenant_id));
+        }
         let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
-                col::TABLE,
-                col::WORKSPACE_ID,
-                col::IS_DELETED,
-            ))
+            .prepare(&sql)
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let rows = stmt
-            .query_map(params![wid], |r| Ok(TeamRow::from_row(r)))
+            .query_map(params_refs.as_slice(), |r| Ok(TeamRow::from_row(r)))
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         let mut result = Vec::new();
         for row in rows {
@@ -92,7 +114,7 @@ impl SqliteTeamRepository {
 
     pub fn create_team(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         workspace_id: &str,
         name: &str,
         description: Option<&str>,
@@ -148,7 +170,7 @@ impl SqliteTeamRepository {
 
     pub fn delete_team(
         &self,
-        _ctx: &SessionContext,
+        _ctx: &WorkspaceContext,
         id: &str,
     ) -> Result<(), WorkspaceError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -174,7 +196,7 @@ impl SqliteTeamRepository {
 
     pub fn list_team_members(
         &self,
-        _ctx: &SessionContext,
+        _ctx: &WorkspaceContext,
         team_id: &str,
     ) -> Result<Vec<TeamMemberPayload>, WorkspaceError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -206,7 +228,7 @@ impl SqliteTeamRepository {
 
     pub fn add_team_member(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         team_id: &str,
         user_id: &str,
         role: &str,
@@ -265,7 +287,7 @@ impl SqliteTeamRepository {
 
     pub fn remove_team_member(
         &self,
-        _ctx: &SessionContext,
+        _ctx: &WorkspaceContext,
         team_id: &str,
         user_id: &str,
     ) -> Result<(), WorkspaceError> {
@@ -296,4 +318,3 @@ impl SqliteTeamRepository {
 }
 
 use rusqlite::OptionalExtension;
-

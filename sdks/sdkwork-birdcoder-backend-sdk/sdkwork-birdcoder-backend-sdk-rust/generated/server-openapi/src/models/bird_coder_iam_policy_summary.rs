@@ -1,0 +1,25 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct BirdCoderIamPolicySummary {
+    pub id: String,
+
+    #[serde(rename = "tenantId")]
+    pub tenant_id: String,
+
+    pub code: String,
+
+    pub name: String,
+
+    pub policy: std::collections::HashMap<String, serde_json::Value>,
+
+    pub status: String,
+
+    #[serde(rename = "createdAt")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+
+    #[serde(rename = "updatedAt")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<String>,
+}

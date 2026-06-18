@@ -22,7 +22,7 @@ try {
   assert.equal(server.config.mode, 'development');
   assert.match(
     server.config.plugins.map((plugin) => plugin.name).join('\n'),
-    /sdkwork-birdcoder-desktop-cjs-default-compat/u,
+    /sdkwork-birdcoder-pc-desktop-cjs-default-compat/u,
     'Desktop standard Vite test server must load the desktop CommonJS default compatibility plugin through the shared desktop Vite config builder.',
   );
 

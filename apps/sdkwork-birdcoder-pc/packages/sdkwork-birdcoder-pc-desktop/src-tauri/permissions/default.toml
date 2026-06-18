@@ -1,0 +1,271 @@
+[default]
+description = "Default desktop app permissions for the BirdCoder Rust host bridge."
+permissions = [
+  "allow-host-mode",
+  "allow-desktop-runtime-config",
+  "allow-local-store",
+  "allow-file-system-bridge",
+  "allow-desktop-host-bridge",
+]
+
+[[set]]
+identifier = "allow-local-store"
+description = "Allows desktop local store bridge commands."
+permissions = [
+  "allow-local-store-get",
+  "allow-local-store-set",
+  "allow-local-store-delete",
+  "allow-local-store-list",
+  "allow-local-sql-execute-plan",
+  "allow-user-home-config-read",
+  "allow-user-home-config-write",
+]
+
+[[set]]
+identifier = "allow-file-system-bridge"
+description = "Allows mounted project file-system bridge commands."
+permissions = [
+  "allow-fs-list-directory",
+  "allow-fs-snapshot-folder",
+  "allow-fs-read-file",
+  "allow-fs-get-file-revision",
+  "allow-fs-get-file-revisions",
+  "allow-fs-get-directory-revisions",
+  "allow-fs-write-file",
+  "allow-fs-create-file",
+  "allow-fs-create-directory",
+  "allow-fs-delete-entry",
+  "allow-fs-rename-entry",
+  "allow-fs-watch-start",
+  "allow-fs-watch-stop",
+]
+
+[[set]]
+identifier = "allow-desktop-host-bridge"
+description = "Allows desktop shell host bridge commands."
+permissions = [
+  "allow-terminal-cli-profile-detect",
+  "allow-desktop-pick-working-directory",
+  "allow-desktop-window-controls-bridge-capabilities",
+  "allow-desktop-configure-window-controls-bridge",
+  "allow-desktop-perform-window-control-action",
+  "allow-desktop-session-index",
+  "allow-desktop-session-replay-slice",
+  "allow-desktop-session-attach",
+  "allow-desktop-session-detach",
+  "allow-desktop-session-reattach",
+  "allow-desktop-terminal-session-inventory-list",
+  "allow-desktop-local-shell-exec",
+  "allow-desktop-local-shell-session-create",
+  "allow-desktop-local-process-session-create",
+  "allow-desktop-session-input",
+  "allow-desktop-session-input-bytes",
+  "allow-desktop-session-attachment-acknowledge",
+  "allow-desktop-session-resize",
+  "allow-desktop-session-terminate",
+]
+
+[[permission]]
+identifier = "allow-host-mode"
+description = "Enables the host_mode command."
+commands.allow = ["host_mode"]
+
+[[permission]]
+identifier = "allow-desktop-runtime-config"
+description = "Enables the desktop_runtime_config command."
+commands.allow = ["desktop_runtime_config"]
+
+[[permission]]
+identifier = "allow-local-store-get"
+description = "Enables the local_store_get command."
+commands.allow = ["local_store_get"]
+
+[[permission]]
+identifier = "allow-local-store-set"
+description = "Enables the local_store_set command."
+commands.allow = ["local_store_set"]
+
+[[permission]]
+identifier = "allow-local-store-delete"
+description = "Enables the local_store_delete command."
+commands.allow = ["local_store_delete"]
+
+[[permission]]
+identifier = "allow-local-store-list"
+description = "Enables the local_store_list command."
+commands.allow = ["local_store_list"]
+
+[[permission]]
+identifier = "allow-local-sql-execute-plan"
+description = "Enables the local_sql_execute_plan command."
+commands.allow = ["local_sql_execute_plan"]
+
+[[permission]]
+identifier = "allow-user-home-config-read"
+description = "Enables the user_home_config_read command."
+commands.allow = ["user_home_config_read"]
+
+[[permission]]
+identifier = "allow-user-home-config-write"
+description = "Enables the user_home_config_write command."
+commands.allow = ["user_home_config_write"]
+
+[[permission]]
+identifier = "allow-fs-list-directory"
+description = "Enables the fs_list_directory command."
+commands.allow = ["fs_list_directory"]
+
+[[permission]]
+identifier = "allow-fs-snapshot-folder"
+description = "Enables the fs_snapshot_folder command."
+commands.allow = ["fs_snapshot_folder"]
+
+[[permission]]
+identifier = "allow-fs-read-file"
+description = "Enables the fs_read_file command."
+commands.allow = ["fs_read_file"]
+
+[[permission]]
+identifier = "allow-fs-get-file-revision"
+description = "Enables the fs_get_file_revision command."
+commands.allow = ["fs_get_file_revision"]
+
+[[permission]]
+identifier = "allow-fs-get-file-revisions"
+description = "Enables the fs_get_file_revisions command."
+commands.allow = ["fs_get_file_revisions"]
+
+[[permission]]
+identifier = "allow-fs-get-directory-revisions"
+description = "Enables the fs_get_directory_revisions command."
+commands.allow = ["fs_get_directory_revisions"]
+
+[[permission]]
+identifier = "allow-fs-write-file"
+description = "Enables the fs_write_file command."
+commands.allow = ["fs_write_file"]
+
+[[permission]]
+identifier = "allow-fs-create-file"
+description = "Enables the fs_create_file command."
+commands.allow = ["fs_create_file"]
+
+[[permission]]
+identifier = "allow-fs-create-directory"
+description = "Enables the fs_create_directory command."
+commands.allow = ["fs_create_directory"]
+
+[[permission]]
+identifier = "allow-fs-delete-entry"
+description = "Enables the fs_delete_entry command."
+commands.allow = ["fs_delete_entry"]
+
+[[permission]]
+identifier = "allow-fs-rename-entry"
+description = "Enables the fs_rename_entry command."
+commands.allow = ["fs_rename_entry"]
+
+[[permission]]
+identifier = "allow-fs-watch-start"
+description = "Enables the fs_watch_start command."
+commands.allow = ["fs_watch_start"]
+
+[[permission]]
+identifier = "allow-fs-watch-stop"
+description = "Enables the fs_watch_stop command."
+commands.allow = ["fs_watch_stop"]
+
+[[permission]]
+identifier = "allow-terminal-cli-profile-detect"
+description = "Enables the terminal_cli_profile_detect command."
+commands.allow = ["terminal_cli_profile_detect"]
+
+[[permission]]
+identifier = "allow-desktop-pick-working-directory"
+description = "Enables the desktop_pick_working_directory command."
+commands.allow = ["desktop_pick_working_directory"]
+
+[[permission]]
+identifier = "allow-desktop-window-controls-bridge-capabilities"
+description = "Enables the desktop_window_controls_bridge_capabilities command."
+commands.allow = ["desktop_window_controls_bridge_capabilities"]
+
+[[permission]]
+identifier = "allow-desktop-configure-window-controls-bridge"
+description = "Enables the desktop_configure_window_controls_bridge command."
+commands.allow = ["desktop_configure_window_controls_bridge"]
+
+[[permission]]
+identifier = "allow-desktop-perform-window-control-action"
+description = "Enables the desktop_perform_window_control_action command."
+commands.allow = ["desktop_perform_window_control_action"]
+
+[[permission]]
+identifier = "allow-desktop-session-index"
+description = "Enables the desktop_session_index command."
+commands.allow = ["desktop_session_index"]
+
+[[permission]]
+identifier = "allow-desktop-session-replay-slice"
+description = "Enables the desktop_session_replay_slice command."
+commands.allow = ["desktop_session_replay_slice"]
+
+[[permission]]
+identifier = "allow-desktop-session-attach"
+description = "Enables the desktop_session_attach command."
+commands.allow = ["desktop_session_attach"]
+
+[[permission]]
+identifier = "allow-desktop-session-detach"
+description = "Enables the desktop_session_detach command."
+commands.allow = ["desktop_session_detach"]
+
+[[permission]]
+identifier = "allow-desktop-session-reattach"
+description = "Enables the desktop_session_reattach command."
+commands.allow = ["desktop_session_reattach"]
+
+[[permission]]
+identifier = "allow-desktop-terminal-session-inventory-list"
+description = "Enables the desktop_terminal_session_inventory_list command."
+commands.allow = ["desktop_terminal_session_inventory_list"]
+
+[[permission]]
+identifier = "allow-desktop-local-shell-exec"
+description = "Enables the desktop_local_shell_exec command."
+commands.allow = ["desktop_local_shell_exec"]
+
+[[permission]]
+identifier = "allow-desktop-local-shell-session-create"
+description = "Enables the desktop_local_shell_session_create command."
+commands.allow = ["desktop_local_shell_session_create"]
+
+[[permission]]
+identifier = "allow-desktop-local-process-session-create"
+description = "Enables the desktop_local_process_session_create command."
+commands.allow = ["desktop_local_process_session_create"]
+
+[[permission]]
+identifier = "allow-desktop-session-input"
+description = "Enables the desktop_session_input command."
+commands.allow = ["desktop_session_input"]
+
+[[permission]]
+identifier = "allow-desktop-session-input-bytes"
+description = "Enables the desktop_session_input_bytes command."
+commands.allow = ["desktop_session_input_bytes"]
+
+[[permission]]
+identifier = "allow-desktop-session-attachment-acknowledge"
+description = "Enables the desktop_session_attachment_acknowledge command."
+commands.allow = ["desktop_session_attachment_acknowledge"]
+
+[[permission]]
+identifier = "allow-desktop-session-resize"
+description = "Enables the desktop_session_resize command."
+commands.allow = ["desktop_session_resize"]
+
+[[permission]]
+identifier = "allow-desktop-session-terminate"
+description = "Enables the desktop_session_terminate command."
+commands.allow = ["desktop_session_terminate"]

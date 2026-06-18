@@ -7,7 +7,7 @@ Rust host must prove that the live HTTP engine/model routes emit the same JSON t
 ## Standard
 
 - Canonical artifact:
-  - `packages/sdkwork-birdcoder-server/src-host/generated/engine-catalog.json`
+  - `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
 - Artifact generator:
   - `scripts/generate-rust-host-engine-catalog.ts`
 - Route parity rules:
@@ -38,7 +38,7 @@ Rust host must prove that the live HTTP engine/model routes emit the same JSON t
 
 - Required verification:
   - `pnpm.cmd run test:rust-host-engine-route-parity-contract`
-  - `cargo test --manifest-path packages/sdkwork-birdcoder-server/src-host/Cargo.toml`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
   - `pnpm.cmd run typecheck`
   - `pnpm.cmd run docs:build`
   - `pnpm.cmd run check:release-flow`

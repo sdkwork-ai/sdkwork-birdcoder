@@ -33,9 +33,8 @@ impl From<serde_json::Error> for RepositoryError {
     }
 }
 
-impl From<RepositoryError> for sdkwork_birdcoder_membership_service::error::CommerceMembershipError {
+impl From<RepositoryError> for sdkwork_birdcoder_membership_service::error::MembershipError {
     fn from(err: RepositoryError) -> Self {
         Self::Repository(err.to_string())
     }
 }
-

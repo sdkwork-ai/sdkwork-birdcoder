@@ -34,7 +34,7 @@
 | Check | Result |
 |---|---|
 | TypeScript typecheck | ✅ PASSED |
-| Lint contract tests | ✅ PASSED (5/5 contracts) |
+| Lint contract tests | ✅ PASSED (5 of 5 contracts) |
 | Lint vite build | ⚠️ ENOENT (environment-specific, not spec issue) |
 
 ## Remaining Work (2%)

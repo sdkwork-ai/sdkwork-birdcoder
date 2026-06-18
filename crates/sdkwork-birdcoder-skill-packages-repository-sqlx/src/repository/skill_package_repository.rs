@@ -137,3 +137,66 @@ const ALL_CAPABILITY_COLUMNS: &str =
 
 const ALL_INSTALLATION_COLUMNS: &str =
     "id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, scope_type, scope_id, skill_version_id, status, installed_at";
+
+pub fn find_skill_installation_for_scope(
+    conn: &Connection,
+    scope_type: &str,
+    scope_id: &str,
+    package_id: &str,
+) -> Result<Option<(SkillInstallationRow, String)>, RepositoryError> {
+    let installation_columns = ALL_INSTALLATION_COLUMNS
+        .split(", ")
+        .map(|column| format!("i.{column}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let sql = format!(
+        "SELECT {installation_columns}, v.skill_package_id \
+         FROM {} i \
+         INNER JOIN {} v ON v.id = i.skill_version_id \
+         WHERE i.scope_type = ?1 AND i.scope_id = ?2 AND v.skill_package_id = ?3 \
+           AND i.is_deleted = 0 AND v.is_deleted = 0 \
+         ORDER BY i.installed_at DESC LIMIT 1",
+        columns::skill_installation::TABLE,
+        columns::skill_version::TABLE,
+    );
+    let result = conn.query_row(&sql, [scope_type, scope_id, package_id], |row| {
+        let installation = SkillInstallationRow {
+            id: row.get(0)?,
+            uuid: row.get(1)?,
+            tenant_id: row.get(2)?,
+            organization_id: row.get(3)?,
+            created_at: row.get(4)?,
+            updated_at: row.get(5)?,
+            version: row.get(6)?,
+            is_deleted: row.get(7)?,
+            scope_type: row.get(8)?,
+            scope_id: row.get(9)?,
+            skill_version_id: row.get(10)?,
+            status: row.get(11)?,
+            installed_at: row.get(12)?,
+        };
+        Ok((installation, row.get(13)?))
+    });
+    match result {
+        Ok(value) => Ok(Some(value)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(other) => Err(RepositoryError::Database(other.to_string())),
+    }
+}
+
+pub fn scope_exists(conn: &Connection, scope_type: &str, scope_id: &str) -> Result<bool, RepositoryError> {
+    let table = if scope_type == "workspace" {
+        "studio_workspace"
+    } else if scope_type == "project" {
+        "studio_project"
+    } else {
+        return Ok(false);
+    };
+    let sql = format!("SELECT 1 FROM {table} WHERE id = ?1 AND is_deleted = 0 LIMIT 1");
+    let result = conn.query_row(&sql, [scope_id], |_| Ok(()));
+    match result {
+        Ok(()) => Ok(true),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(false),
+        Err(other) => Err(RepositoryError::Database(other.to_string())),
+    }
+}

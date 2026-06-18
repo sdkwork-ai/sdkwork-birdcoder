@@ -4,8 +4,8 @@ import {
   type RunConfigurationRecord,
   type RunConfigurationTerminalLaunchResult,
   type RunConfigurationTerminalRequest,
-} from '@sdkwork/birdcoder-pc-commons';
-import type { HostStudioSimulatorSession } from '../../../sdkwork-birdcoder-pc-host-studio/src/index.ts';
+} from '@sdkwork/birdcoder-pc-commons/terminal/runConfigs';
+import type { HostStudioSimulatorSession } from '@sdkwork/birdcoder-pc-host-studio';
 
 export const STUDIO_SIMULATOR_EXECUTION_ADAPTER_ID = 'studio.simulator.execution';
 

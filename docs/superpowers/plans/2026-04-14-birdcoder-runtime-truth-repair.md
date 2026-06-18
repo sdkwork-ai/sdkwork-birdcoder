@@ -45,7 +45,7 @@ Run the new focused test commands and confirm they fail for the current broken b
 **Files:**
 - Modify: `packages/sdkwork-birdcoder-distribution/src/manifests/cn.ts`
 - Modify: `packages/sdkwork-birdcoder-distribution/src/manifests/global.ts` if needed for symmetry
-- Modify: `packages/sdkwork-birdcoder-server/src/index.ts`
+- Modify: `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts`
 - Modify: `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts` only if normalization helper changes are required
 - Modify: related tests from Task 1
 
@@ -89,8 +89,8 @@ Verify the page-layer runtime orchestration now passes.
 ### Task 4: Promote the Rust coding-server turn route from authority-only to runtime-producing
 
 **Files:**
-- Modify: `packages/sdkwork-birdcoder-server/src-host/src/lib.rs`
-- Modify: `packages/sdkwork-birdcoder-server/src/index.ts` only if TypeScript contract helpers must stay aligned
+- Modify: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- Modify: `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts` only if TypeScript contract helpers must stay aligned
 - Modify: Rust tests covering `create_coding_session_turn`
 
 - [ ] **Step 1: Extend the failing Rust turn-route tests**

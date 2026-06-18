@@ -4,4 +4,5 @@ pub mod mapper;
 pub mod paths;
 pub mod routes;
 
-pub use routes::build_platform_app_router;
+pub use handlers::WorkspaceAppState;
+pub use routes::build_workspace_app_router;

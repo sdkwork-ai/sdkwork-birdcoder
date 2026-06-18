@@ -95,6 +95,30 @@ export function runWorkspacePackageScriptRunnerContract() {
 
   {
     const plan = createWorkspacePackageScriptPlan({
+      packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop',
+      scriptName: 'tauri:dev',
+      workspaceRootDir: rootDir,
+      platform: 'win32',
+      env: {
+        ComSpec: 'C:\\Windows\\System32\\cmd.exe',
+        PATH: 'C:\\Windows\\System32',
+      },
+    });
+
+    assert.equal(
+      plan.command,
+      process.execPath,
+      'Workspace package-script runner must resolve the standard BirdCoder desktop package path for root tauri:dev without failing before Tauri starts.',
+    );
+    assert.deepEqual(
+      plan.args,
+      ['../../../../scripts/run-birdcoder-desktop-command.mjs', 'tauri:dev', '--iam-mode', 'desktop-local'],
+      'Workspace package-script runner must preserve the BirdCoder desktop tauri:dev command arguments after the desktop package migration.',
+    );
+  }
+
+  {
+    const plan = createWorkspacePackageScriptPlan({
       packageDir: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server',
       scriptName: 'dev:base',
       workspaceRootDir: rootDir,
@@ -107,13 +131,20 @@ export function runWorkspacePackageScriptRunnerContract() {
 
     assert.equal(
       plan.command,
-      'C:\\Windows\\System32\\cmd.exe',
-      'Workspace package-script runner must keep shell fallback for non-node base package scripts such as the cargo-run server entrypoint.',
+      process.execPath,
+      'Workspace package-script runner must execute the BirdCoder server dev entrypoint through the shared run-cargo wrapper.',
     );
     assert.deepEqual(
       plan.args,
-      ['/d', '/s', '/c', 'cargo run --manifest-path src-host/Cargo.toml'],
-      'Workspace package-script runner must preserve the original shell command for non-node package scripts.',
+      [
+        '../../../../scripts/run-cargo.mjs',
+        'run',
+        '--manifest-path',
+        '../../../../Cargo.toml',
+        '-p',
+        'sdkwork-birdcoder-api-server',
+      ],
+      'Workspace package-script runner must preserve the workspace api-server dev command.',
     );
   }
 

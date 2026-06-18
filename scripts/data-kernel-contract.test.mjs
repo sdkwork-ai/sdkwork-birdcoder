@@ -10,7 +10,7 @@ const serverHostSourcePath = new URL(
   import.meta.url,
 );
 const desktopHostSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs',
   import.meta.url,
 );
 

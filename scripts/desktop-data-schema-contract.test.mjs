@@ -1,22 +1,41 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const rustLibPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
-  import.meta.url,
-);
+const schemaSources = await Promise.all([
+  readFile(
+    new URL(
+      '../crates/sdkwork-birdcoder-tauri-host/src/host/state.rs',
+      import.meta.url,
+    ),
+    'utf8',
+  ),
+  readFile(
+    new URL(
+      '../crates/sdkwork-birdcoder-workspace-repository-sqlx/src/db/schema.rs',
+      import.meta.url,
+    ),
+    'utf8',
+  ),
+  readFile(
+    new URL(
+      '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
+      import.meta.url,
+    ),
+    'utf8',
+  ),
+]);
 
-const rustSource = await readFile(rustLibPath, 'utf8');
+const schemaSource = schemaSources.join('\n');
 
 for (const requiredTable of [
-  'CREATE TABLE IF NOT EXISTS ops_schema_migration_history',
-  'CREATE TABLE IF NOT EXISTS ops_run_configuration',
-  'CREATE TABLE IF NOT EXISTS ops_terminal_execution',
-  'CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry',
-  'CREATE TABLE IF NOT EXISTS ai_saved_prompt_entry',
-  'CREATE TABLE IF NOT EXISTS ops_release_record',
+  'ops_schema_migration_history',
+  'ops_run_configuration',
+  'ops_terminal_execution',
+  'ai_coding_session_prompt_entry',
+  'ai_saved_prompt_entry',
+  'ops_release_record',
 ]) {
-  assert.match(rustSource, new RegExp(requiredTable), `Missing schema table: ${requiredTable}`);
+  assert.match(schemaSource, new RegExp(requiredTable), `Missing schema table: ${requiredTable}`);
 }
 
 for (const requiredIndex of [
@@ -28,35 +47,35 @@ for (const requiredIndex of [
   'uk_ai_saved_prompt_entry_normalized_prompt',
   'uk_ops_release_record_version',
 ]) {
-  assert.match(rustSource, new RegExp(requiredIndex), `Missing schema index: ${requiredIndex}`);
+  assert.match(schemaSource, new RegExp(requiredIndex), `Missing schema index: ${requiredIndex}`);
 }
 
 assert.doesNotMatch(
-  rustSource,
+  schemaSource,
   /\buk_release_records_version\b|CREATE TABLE(?: IF NOT EXISTS)? release_records\b|"release_records"/u,
   'Desktop schema must use ops_release_record table and uk_ops_release_record_version index only.',
 );
 
 assert.doesNotMatch(
-  rustSource,
+  schemaSource,
   /LEGACY_DESKTOP_SQLITE_FILE_NAME|backfill_legacy_run_configuration_config_keys|derive_legacy_run_configuration_config_key|legacy_desktop_local_sibling_database_path|read_legacy_desktop_local_projects|import_legacy_desktop_local_projects_from_sibling|LegacyDesktopLocalProject/u,
   'Desktop runtime is a new app and must not retain legacy sqlite import or run-configuration backfill paths.',
 );
 
 assert.doesNotMatch(
-  rustSource,
+  schemaSource,
   /legacy authority local-store|legacy authority backfill/u,
   'Desktop runtime must describe reserved authority-table cleanup without legacy compatibility wording.',
 );
 
 assert.doesNotMatch(
-  rustSource,
+  schemaSource,
   /app_dir\.push\("sdkwork-birdcoder\.sqlite3"\)|with_file_name\(LEGACY_DESKTOP_SQLITE_FILE_NAME\)/u,
   'Desktop runtime must use sdkwork-birdcoder-pc-desktop-local.sqlite3 as the canonical local sqlite file name.',
 );
 
 assert.match(
-  rustSource,
+  schemaSources[0],
   /app_dir\.push\(DESKTOP_LOCAL_SQLITE_FILE_NAME\)/u,
   'Desktop runtime must resolve the default local sqlite path through DESKTOP_LOCAL_SQLITE_FILE_NAME.',
 );

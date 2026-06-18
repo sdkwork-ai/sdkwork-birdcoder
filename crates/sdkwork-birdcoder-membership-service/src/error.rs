@@ -1,7 +1,7 @@
 use std::fmt;
 
 #[derive(Clone, Debug)]
-pub enum CommerceMembershipError {
+pub enum MembershipError {
     NotFound(String),
     InvalidInput(String),
     Conflict(String),
@@ -10,7 +10,7 @@ pub enum CommerceMembershipError {
     Internal(String),
 }
 
-impl fmt::Display for CommerceMembershipError {
+impl fmt::Display for MembershipError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NotFound(msg) => write!(f, "not found: {msg}"),
@@ -23,4 +23,4 @@ impl fmt::Display for CommerceMembershipError {
     }
 }
 
-impl std::error::Error for CommerceMembershipError {}
+impl std::error::Error for MembershipError {}

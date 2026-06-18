@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use rusqlite::{params, Connection};
 use uuid::Uuid;
@@ -7,7 +7,7 @@ use crate::db::columns::workspace as col;
 use crate::db::columns::workspace_member as member_col;
 use crate::db::rows::{WorkspaceMemberRow, WorkspaceRow};
 use crate::mapper::row_mapper;
-use sdkwork_birdcoder_workspace_service::context::SessionContext;
+use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_birdcoder_workspace_service::domain::commands::{
     CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest,
 };
@@ -16,14 +16,18 @@ use sdkwork_birdcoder_workspace_service::domain::results::{WorkspaceMemberPayloa
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
 
 pub struct SqliteWorkspaceRepository {
-    conn: Mutex<Connection>,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl SqliteWorkspaceRepository {
     pub fn new(conn: Connection) -> Self {
         Self {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         }
+    }
+
+    pub fn with_shared(conn: Arc<Mutex<Connection>>) -> Self {
+        Self { conn }
     }
 
     fn now_iso() -> String {
@@ -39,7 +43,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
 {
     async fn find_workspace_by_id(
         &self,
-        _ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         id: &str,
     ) -> Result<Option<WorkspacePayload>, WorkspaceError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -48,16 +52,25 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         let id_num: i64 = id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid id: {id}"))
         })?;
+        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
+        let mut sql = format!(
+            "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
+            col::TABLE,
+            col::ID,
+            col::IS_DELETED,
+        );
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(id_num)];
+        if let Some(tenant_id) = tenant_id {
+            sql += &format!(" AND {} = ?2", col::TENANT_ID);
+            param_values.push(Box::new(tenant_id));
+        }
         let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
-                col::TABLE,
-                col::ID,
-                col::IS_DELETED,
-            ))
+            .prepare(&sql)
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
         let row = stmt
-            .query_row(params![id_num], |r| Ok(WorkspaceRow::from_row(r)))
+            .query_row(params_refs.as_slice(), |r| Ok(WorkspaceRow::from_row(r)))
             .optional()
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         match row {
@@ -69,7 +82,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
 
     async fn list_workspaces(
         &self,
-        _ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         query: &WorkspaceScopedQuery,
     ) -> Result<Vec<WorkspacePayload>, WorkspaceError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -81,6 +94,12 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             col::IS_DELETED,
         );
         let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+        if let Ok(tenant_id) = ctx.tenant_id.parse::<i64>() {
+            if tenant_id > 0 {
+                sql += &format!(" AND {} = ?{}", col::TENANT_ID, param_values.len() + 1);
+                param_values.push(Box::new(tenant_id));
+            }
+        }
         if let Some(ref uid) = query.user_id {
             sql += &format!(" AND {} = ?{}", col::OWNER_ID, param_values.len() + 1);
             param_values.push(Box::new(uid.clone()));
@@ -109,7 +128,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
 
     async fn create_workspace(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         req: &CreateWorkspaceRequest,
     ) -> Result<WorkspacePayload, WorkspaceError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -199,7 +218,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
 
     async fn update_workspace(
         &self,
-        _ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         id: &str,
         req: &UpdateWorkspaceRequest,
     ) -> Result<WorkspacePayload, WorkspaceError> {
@@ -209,6 +228,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         let id_num: i64 = id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid id: {id}"))
         })?;
+        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let now = Self::now_iso();
         let mut sets = vec![format!("{} = ?1", col::UPDATED_AT)];
         let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];
@@ -288,17 +308,27 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         }
 
         let sql = format!(
-            "UPDATE {} SET {} WHERE {} = ?{}",
+            "UPDATE {} SET {} WHERE {} = ?{}{}",
             col::TABLE,
             sets.join(", "),
             col::ID,
             idx,
+            tenant_id
+                .map(|_value| format!(" AND {} = ?{}", col::TENANT_ID, idx + 1))
+                .unwrap_or_default(),
         );
         param_values.push(Box::new(id_num));
+        if let Some(tenant_id) = tenant_id {
+            param_values.push(Box::new(tenant_id));
+        }
         let params_refs: Vec<&dyn rusqlite::types::ToSql> =
             param_values.iter().map(|p| p.as_ref()).collect();
-        conn.execute(&sql, params_refs.as_slice())
+        let updated = conn
+            .execute(&sql, params_refs.as_slice())
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        if updated == 0 {
+            return Err(WorkspaceError::NotFound(format!("workspace {id} not found")));
+        }
 
         let mut stmt = conn
             .prepare(&format!(
@@ -318,7 +348,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
 
     async fn delete_workspace(
         &self,
-        _ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         id: &str,
     ) -> Result<(), WorkspaceError> {
         let conn = self.conn.lock().map_err(|e| {
@@ -327,26 +357,46 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         let id_num: i64 = id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid id: {id}"))
         })?;
+        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let now = Self::now_iso();
-        conn.execute(
-            &format!(
-                "UPDATE {} SET {} = 1, {} = ?1 WHERE {} = ?2",
-                col::TABLE,
-                col::IS_DELETED,
-                col::UPDATED_AT,
-                col::ID,
-            ),
-            params![now, id_num],
-        )
-        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let mut sql = format!(
+            "UPDATE {} SET {} = 1, {} = ?1 WHERE {} = ?2",
+            col::TABLE,
+            col::IS_DELETED,
+            col::UPDATED_AT,
+            col::ID,
+        );
+        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> =
+            vec![Box::new(now), Box::new(id_num)];
+        if let Some(tenant_id) = tenant_id {
+            sql.push_str(&format!(" AND {} = ?3", col::TENANT_ID));
+            param_values.push(Box::new(tenant_id));
+        }
+        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
+            param_values.iter().map(|p| p.as_ref()).collect();
+        let updated = conn
+            .execute(&sql, params_refs.as_slice())
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        if updated == 0 {
+            return Err(WorkspaceError::NotFound(format!("workspace {id} not found")));
+        }
         Ok(())
     }
 
     async fn list_workspace_members(
         &self,
-        _ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         workspace_id: &str,
     ) -> Result<Vec<WorkspaceMemberPayload>, WorkspaceError> {
+        if self
+            .find_workspace_by_id(ctx, workspace_id)
+            .await?
+            .is_none()
+        {
+            return Err(WorkspaceError::NotFound(format!(
+                "workspace {workspace_id} not found"
+            )));
+        }
         let conn = self.conn.lock().map_err(|e| {
             WorkspaceError::Repository(format!("lock error: {e}"))
         })?;
@@ -376,10 +426,19 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
 
     async fn upsert_workspace_member(
         &self,
-        ctx: &SessionContext,
+        ctx: &WorkspaceContext,
         workspace_id: &str,
         req: &UpsertWorkspaceMemberRequest,
     ) -> Result<WorkspaceMemberPayload, WorkspaceError> {
+        if self
+            .find_workspace_by_id(ctx, workspace_id)
+            .await?
+            .is_none()
+        {
+            return Err(WorkspaceError::NotFound(format!(
+                "workspace {workspace_id} not found"
+            )));
+        }
         let conn = self.conn.lock().map_err(|e| {
             WorkspaceError::Repository(format!("lock error: {e}"))
         })?;
@@ -483,7 +542,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
 
     async fn remove_workspace_member(
         &self,
-        _ctx: &SessionContext,
+        _ctx: &WorkspaceContext,
         workspace_id: &str,
         user_id: &str,
     ) -> Result<(), WorkspaceError> {
@@ -514,4 +573,3 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
 }
 
 use rusqlite::OptionalExtension;
-

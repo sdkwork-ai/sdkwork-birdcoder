@@ -14,12 +14,17 @@ mod turns;
 
 pub mod codex_cli;
 pub mod native_session;
+mod native_session_catalog;
 
 pub use native_session::{
     build_native_session_id, format_missing_native_session_provider_error,
     is_authority_backed_native_session_id, lookup_standard_native_session_provider_registration,
     native_session_prefix_for_engine, resolve_native_session_engine_id,
     standard_native_session_provider_registrations,
+};
+pub use native_session_catalog::{
+    get_codeengine_native_session_detail, get_codeengine_native_session_summary,
+    list_codeengine_native_session_summaries,
 };
 
 pub use catalog::{

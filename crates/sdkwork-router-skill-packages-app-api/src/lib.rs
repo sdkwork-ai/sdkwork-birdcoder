@@ -4,4 +4,5 @@ pub mod mapper;
 pub mod paths;
 pub mod routes;
 
-pub use routes::build_ecosystem_app_router;
+pub use handlers::SkillPackagesAppState;
+pub use routes::build_skill_packages_app_router;

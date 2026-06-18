@@ -1,4 +1,5 @@
-import { getStoredJson, getTerminalProfile, setStoredJson } from '@sdkwork/birdcoder-pc-commons';
+import { getStoredJson, setStoredJson } from '@sdkwork/birdcoder-pc-commons/storage/localStore';
+import { getTerminalProfile } from '@sdkwork/birdcoder-pc-commons/terminal/profiles';
 
 import {
   STUDIO_TEST_EXECUTION_ADAPTER_ID,

@@ -1,9 +1,10 @@
 use axum::{routing::get, routing::post, Router};
 
 use crate::handlers;
+use crate::handlers::WorkspaceAppState;
 use crate::paths;
 
-pub fn build_platform_app_router() -> Router {
+pub fn build_workspace_app_router() -> Router<WorkspaceAppState> {
     Router::new()
         .route(
             paths::WORKSPACES_PATH,

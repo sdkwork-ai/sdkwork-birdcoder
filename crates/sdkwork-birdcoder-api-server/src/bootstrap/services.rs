@@ -5,6 +5,8 @@ use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceSe
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 use sdkwork_birdcoder_deployment_service::service::deployment_service::DeploymentService;
 
+use crate::bootstrap::adapters::{wire_code_engine_provider, wire_engine_validator};
+use crate::bootstrap::config::BirdServerConfig;
 use crate::bootstrap::repositories::Repositories;
 
 #[derive(Clone)]
@@ -15,13 +17,14 @@ pub struct Services {
     pub deployment: DeploymentService,
 }
 
-pub fn wire_services(repos: &Repositories) -> Services {
+pub fn wire_services(repos: &Repositories, config: &BirdServerConfig) -> Services {
     let coding_session = CodingSessionService::new(
         repos.coding_session.clone(),
-        Arc::new(NoopCodeEngineProvider),
+        wire_code_engine_provider(config),
         Arc::new(NoopRealtimeEventPublisher),
-        Arc::new(NoopEngineValidator),
-    );
+        wire_engine_validator(),
+    )
+    .with_default_working_directory(config.project_root.clone());
 
     let workspace = WorkspaceService::new(
         repos.workspace.clone(),
@@ -49,46 +52,6 @@ pub fn wire_services(repos: &Repositories) -> Services {
 
 // ── Noop port implementations ────────────────────────────────────────
 
-struct NoopCodeEngineProvider;
-
-#[async_trait::async_trait]
-impl sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider
-    for NoopCodeEngineProvider
-{
-    async fn execute_turn(
-        &self,
-        _ctx: &sdkwork_birdcoder_coding_sessions_service::context::SessionContext,
-        _pending: &sdkwork_birdcoder_coding_sessions_service::domain::results::PendingProjectionTurnExecution,
-    ) -> Result<
-        sdkwork_birdcoder_coding_sessions_service::domain::results::FinalizedProjectionTurnExecution,
-        sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError,
-    > {
-        Err(sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError::Repository(
-            "code engine provider not wired".into(),
-        ))
-    }
-
-    async fn submit_approval(
-        &self,
-        _ctx: &sdkwork_birdcoder_coding_sessions_service::context::SessionContext,
-        _session_id: &str,
-        _checkpoint_id: &str,
-        _input: &sdkwork_birdcoder_coding_sessions_service::domain::commands::SubmitApprovalDecisionInput,
-    ) -> Result<(), sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError> {
-        Ok(())
-    }
-
-    async fn submit_question_answer(
-        &self,
-        _ctx: &sdkwork_birdcoder_coding_sessions_service::context::SessionContext,
-        _session_id: &str,
-        _question_id: &str,
-        _input: &sdkwork_birdcoder_coding_sessions_service::domain::commands::SubmitUserQuestionAnswerInput,
-    ) -> Result<(), sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError> {
-        Ok(())
-    }
-}
-
 struct NoopRealtimeEventPublisher;
 
 #[async_trait::async_trait]
@@ -97,7 +60,7 @@ impl sdkwork_birdcoder_coding_sessions_service::ports::events::RealtimeEventPubl
 {
     async fn publish_workspace_event(
         &self,
-        _ctx: &sdkwork_birdcoder_coding_sessions_service::context::SessionContext,
+        _ctx: &sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext,
         _workspace_id: &str,
         _event_kind: &str,
         _payload_json: &str,
@@ -107,31 +70,10 @@ impl sdkwork_birdcoder_coding_sessions_service::ports::events::RealtimeEventPubl
 
     async fn publish_coding_session_event(
         &self,
-        _ctx: &sdkwork_birdcoder_coding_sessions_service::context::SessionContext,
+        _ctx: &sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext,
         _event: &sdkwork_birdcoder_coding_sessions_service::ports::events::CodingSessionRealtimeEventInput,
     ) -> Result<(), sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError> {
         Ok(())
-    }
-}
-
-struct NoopEngineValidator;
-
-#[async_trait::async_trait]
-impl sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator
-    for NoopEngineValidator
-{
-    fn validate_engine_runtime_profile(
-        &self,
-        _engine_id: &str,
-        _host_mode: &str,
-    ) -> Result<
-        sdkwork_birdcoder_coding_sessions_service::domain::models::AuthoritativeEngineRuntimeProfile,
-        sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError,
-    > {
-        Ok(sdkwork_birdcoder_coding_sessions_service::domain::models::AuthoritativeEngineRuntimeProfile {
-            transport_kind: "stdio".to_string(),
-            capability_snapshot_json: "{}".to_string(),
-        })
     }
 }
 
@@ -248,4 +190,3 @@ impl sdkwork_birdcoder_deployment_service::ports::events::DeploymentEventPublish
         Ok(())
     }
 }
-
