@@ -104,6 +104,20 @@ on:
         description: sdkwork-sdk-generator commit/ref.
         required: false
         default: 0b0e984ffbdec49a28c2da3edebcdddab4087e62
+      sdkwork_web_framework_ref:
+        description: sdkwork-web-framework commit/ref.
+        required: false
+      sdkwork_database_ref:
+        description: sdkwork-database commit/ref.
+        required: false
+      sdkwork_app_topology_ref:
+        description: sdkwork-app-topology commit/ref.
+        required: false
+        default: fb656fe301244e7b4b9923d0bbdc9cc02176bc85
+      sdkwork_models_ref:
+        description: sdkwork-models commit/ref.
+        required: false
+        default: 39e1950a73500387352be00ef245c0d701dd0313
 
 permissions:
   contents: write
@@ -139,6 +153,10 @@ jobs:
           "SDKWORK_SDK_COMMONS_REF": "${{ github.event.inputs.sdkwork_sdk_commons_ref || vars.SDKWORK_SDK_COMMONS_REF }}",
           "SDKWORK_SEARCH_REF": "${{ github.event.inputs.sdkwork_search_ref || vars.SDKWORK_SEARCH_REF }}",
           "SDKWORK_TERMINAL_REF": "${{ github.event.inputs.sdkwork_terminal_ref || vars.SDKWORK_TERMINAL_REF }}",
-          "SDKWORK_SDK_GENERATOR_REF": "${{ github.event.inputs.sdkwork_sdk_generator_ref || vars.SDKWORK_SDK_GENERATOR_REF }}"
+          "SDKWORK_SDK_GENERATOR_REF": "${{ github.event.inputs.sdkwork_sdk_generator_ref || vars.SDKWORK_SDK_GENERATOR_REF }}",
+          "SDKWORK_WEB_FRAMEWORK_REF": "${{ github.event.inputs.sdkwork_web_framework_ref || vars.SDKWORK_WEB_FRAMEWORK_REF }}",
+          "SDKWORK_DATABASE_REF": "${{ github.event.inputs.sdkwork_database_ref || vars.SDKWORK_DATABASE_REF }}",
+          "SDKWORK_APP_TOPOLOGY_REF": "${{ github.event.inputs.sdkwork_app_topology_ref || vars.SDKWORK_APP_TOPOLOGY_REF }}",
+          "SDKWORK_MODELS_REF": "${{ github.event.inputs.sdkwork_models_ref || vars.SDKWORK_MODELS_REF }}"
         }
     secrets: inherit

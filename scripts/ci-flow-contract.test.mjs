@@ -112,7 +112,7 @@ assert.match(ciWorkflow, /pnpm check:desktop/);
 assert.match(ciWorkflow, /pnpm check:server/);
 assert.match(
   ciWorkflow,
-  /node scripts\/run-cargo\.mjs test --manifest-path packages\/sdkwork-birdcoder-pc-desktop\/src-tauri\/Cargo\.toml/,
+  /node scripts\/run-cargo\.mjs test --manifest-path apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-desktop\/src-tauri\/Cargo\.toml/,
 );
 assert.match(ciWorkflow, /pnpm server:build/);
 assert.match(ciWorkflow, /pnpm docs:build/);
@@ -337,6 +337,9 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
     'node scripts/run-workspace-package-script.mjs . check:code-workbench-command-boundary',
     'node scripts/run-workspace-package-script.mjs . check:code-run-entry-boundary',
   'node scripts/run-workspace-package-script.mjs . check:api-transport-standard',
+  'node scripts/run-workspace-package-script.mjs . check:web-framework-standard',
+  'node scripts/run-workspace-package-script.mjs . check:database-framework-standard',
+  'node scripts/run-workspace-package-script.mjs . check:dependency-management',
   'node scripts/run-workspace-package-script.mjs . check:sdkwork-shared-package-boundary',
   'node scripts/run-workspace-package-script.mjs . check:iam-standard',
   'node scripts/run-workspace-package-script.mjs . check:auth-session-standard',
@@ -353,6 +356,7 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:package-governance',
   'node scripts/run-workspace-package-script.mjs . check:package-subpath-exports',
   'node scripts/run-workspace-package-script.mjs . check:governance-baseline',
+  'node scripts/run-workspace-package-script.mjs . check:topology-standard',
   'node scripts/run-workspace-package-script.mjs . check:technical-debt',
   'node scripts/run-workspace-package-script.mjs . check:governance-regression-contract',
   'node scripts/run-workspace-package-script.mjs . check:live-docs-governance-baseline',

@@ -132,6 +132,9 @@
       "@sdkwork/terminal-pc-infrastructure": [
         "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalInfrastructure.d.ts"
       ],
+      "@sdkwork/terminal-local-runtime-app-sdk": [
+        "../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript/src/index.ts"
+      ],
       "@sdkwork/terminal-pc-infrastructure/*": [
         "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/*"
       ],

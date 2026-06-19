@@ -9,21 +9,21 @@
     "protocol": "http",
     "packageName": "@sdkwork/birdcoder-app-sdk"
   },
-  "changeFingerprint": "d304b2c00cb5d182b77900f53352758443fcc1b55c6f634dff8c5b5b7a8d24d4",
+  "changeFingerprint": "18f1348b27d7b04a7846350109b94175b0666b25d6f31f1ac23b43a452f91deb",
   "changes": {
-    "createdGeneratedFiles": [
-      "src/types/bird-coder-iam-device-authorization-create-request.ts",
-      "src/types/bird-coder-iam-device-authorization-envelope.ts",
-      "src/types/bird-coder-iam-device-authorization-password-completion-request.ts",
-      "src/types/bird-coder-iam-device-authorization-scan-request.ts",
-      "src/types/bird-coder-iam-device-authorization-summary.ts"
-    ],
+    "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [
       "README.md",
+      "src/api/iam.ts",
       "src/api/index.ts",
-      "src/api/oauth.ts",
+      "src/api/intelligence.ts",
+      "src/api/runtime.ts",
       "src/sdk.ts",
-      "src/types/index.ts"
+      "src/types/bird-coder-engine-access-lane.ts",
+      "src/types/bird-coder-engine-descriptor.ts",
+      "src/types/bird-coder-iam-device-authorization-summary.ts",
+      "src/types/bird-coder-model-catalog-entry.ts",
+      "src/types/bird-coder-native-session-provider-summary.ts"
     ],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
@@ -40,11 +40,9 @@
       "src/api/collaboration.ts",
       "src/api/commerce.ts",
       "src/api/content.ts",
-      "src/api/iam.ts",
-      "src/api/intelligence.ts",
+      "src/api/oauth.ts",
       "src/api/paths.ts",
       "src/api/platform.ts",
-      "src/api/runtime.ts",
       "src/api/skills.ts",
       "src/api/system.ts",
       "src/api/templates.ts",
@@ -105,22 +103,15 @@
       "src/types/bird-coder-create-project-git-worktree-request.ts",
       "src/types/bird-coder-create-project-request.ts",
       "src/types/bird-coder-create-workspace-request.ts",
-      "src/types/bird-coder-delete-coding-session-message-result-envelope.ts",
-      "src/types/bird-coder-delete-coding-session-message-result.ts",
       "src/types/bird-coder-deleted-resource-envelope.ts",
       "src/types/bird-coder-deleted-resource-result.ts",
       "src/types/bird-coder-deployment-record-summary-list-envelope.ts",
       "src/types/bird-coder-deployment-record-summary.ts",
       "src/types/bird-coder-deployment-target-summary.ts",
-      "src/types/bird-coder-edit-coding-session-message-request.ts",
-      "src/types/bird-coder-edit-coding-session-message-result-envelope.ts",
-      "src/types/bird-coder-edit-coding-session-message-result.ts",
-      "src/types/bird-coder-engine-access-lane.ts",
       "src/types/bird-coder-engine-access-plan.ts",
       "src/types/bird-coder-engine-capability-matrix-envelope.ts",
       "src/types/bird-coder-engine-capability-matrix.ts",
       "src/types/bird-coder-engine-descriptor-list-envelope.ts",
-      "src/types/bird-coder-engine-descriptor.ts",
       "src/types/bird-coder-engine-official-entry.ts",
       "src/types/bird-coder-engine-official-integration.ts",
       "src/types/bird-coder-fork-coding-session-request.ts",
@@ -128,6 +119,10 @@
       "src/types/bird-coder-git-status-counts.ts",
       "src/types/bird-coder-git-worktree-summary.ts",
       "src/types/bird-coder-iam-create-session-request.ts",
+      "src/types/bird-coder-iam-device-authorization-create-request.ts",
+      "src/types/bird-coder-iam-device-authorization-envelope.ts",
+      "src/types/bird-coder-iam-device-authorization-password-completion-request.ts",
+      "src/types/bird-coder-iam-device-authorization-scan-request.ts",
       "src/types/bird-coder-iam-oauth-authorization-create-request.ts",
       "src/types/bird-coder-iam-oauth-authorization-envelope.ts",
       "src/types/bird-coder-iam-oauth-authorization-summary.ts",
@@ -153,13 +148,11 @@
       "src/types/bird-coder-iam-verification-policy-summary.ts",
       "src/types/bird-coder-install-skill-package-request.ts",
       "src/types/bird-coder-model-catalog-entry-list-envelope.ts",
-      "src/types/bird-coder-model-catalog-entry.ts",
       "src/types/bird-coder-native-session-command.ts",
       "src/types/bird-coder-native-session-detail-envelope.ts",
       "src/types/bird-coder-native-session-detail.ts",
       "src/types/bird-coder-native-session-message.ts",
       "src/types/bird-coder-native-session-provider-summary-list-envelope.ts",
-      "src/types/bird-coder-native-session-provider-summary.ts",
       "src/types/bird-coder-native-session-summary-list-envelope.ts",
       "src/types/bird-coder-native-session-summary.ts",
       "src/types/bird-coder-operation-descriptor-envelope.ts",
@@ -207,16 +200,10 @@
       "src/types/bird-coder-workspace-summary-list-envelope.ts",
       "src/types/bird-coder-workspace-summary.ts",
       "src/types/common.ts",
+      "src/types/index.ts",
       "tsconfig.json"
     ],
-    "deletedGeneratedFiles": [
-      "src/api/open-platform.ts",
-      "src/types/bird-coder-iam-qr-auth-session-create-request.ts",
-      "src/types/bird-coder-iam-qr-auth-session-envelope.ts",
-      "src/types/bird-coder-iam-qr-auth-session-password-request.ts",
-      "src/types/bird-coder-iam-qr-auth-session-scan-request.ts",
-      "src/types/bird-coder-iam-qr-auth-session-summary.ts"
-    ],
+    "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/build-runtime.mjs",
@@ -235,26 +222,21 @@
       {
         "area": "api-surface",
         "paths": [
+          "src/api/iam.ts",
           "src/api/index.ts",
-          "src/api/oauth.ts",
-          "src/api/open-platform.ts",
+          "src/api/intelligence.ts",
+          "src/api/runtime.ts",
           "src/sdk.ts"
         ]
       },
       {
         "area": "models",
         "paths": [
-          "src/types/bird-coder-iam-device-authorization-create-request.ts",
-          "src/types/bird-coder-iam-device-authorization-envelope.ts",
-          "src/types/bird-coder-iam-device-authorization-password-completion-request.ts",
-          "src/types/bird-coder-iam-device-authorization-scan-request.ts",
+          "src/types/bird-coder-engine-access-lane.ts",
+          "src/types/bird-coder-engine-descriptor.ts",
           "src/types/bird-coder-iam-device-authorization-summary.ts",
-          "src/types/bird-coder-iam-qr-auth-session-create-request.ts",
-          "src/types/bird-coder-iam-qr-auth-session-envelope.ts",
-          "src/types/bird-coder-iam-qr-auth-session-password-request.ts",
-          "src/types/bird-coder-iam-qr-auth-session-scan-request.ts",
-          "src/types/bird-coder-iam-qr-auth-session-summary.ts",
-          "src/types/index.ts"
+          "src/types/bird-coder-model-catalog-entry.ts",
+          "src/types/bird-coder-native-session-provider-summary.ts"
         ]
       },
       {
@@ -312,14 +294,12 @@
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "high",
+    "riskLevel": "medium",
     "nextAction": "verify",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "deleted-generated-files",
-      "manual-review-required",
       "verification-required"
     ]
   },

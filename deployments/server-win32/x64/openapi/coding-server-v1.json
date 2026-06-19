@@ -499,8 +499,8 @@
             "type": "string",
             "enum": [
               "rust-native",
-              "grpc-bridge",
               "cli-spawn",
+              "grpc-bridge",
               "remote-control",
               "openapi-proxy"
             ]
@@ -509,24 +509,23 @@
             "type": "string",
             "enum": [
               "rust-server",
-              "typescript-bridge",
-              "external-service"
+              "typescript-bridge"
             ]
           },
           "bridgeProtocol": {
             "type": "string",
             "enum": [
               "direct",
-              "grpc",
               "stdio",
+              "grpc",
               "http"
             ]
           },
           "transportKind": {
             "type": "string",
             "enum": [
-              "cli-jsonl",
               "sdk-stream",
+              "cli-jsonl",
               "remote-control-http",
               "openapi-http"
             ]
@@ -534,8 +533,7 @@
           "status": {
             "type": "string",
             "enum": [
-              "ready",
-              "planned"
+              "ready"
             ]
           },
           "enabledByDefault": {
@@ -722,6 +720,7 @@
           "installationKind": {
             "type": "string",
             "enum": [
+              "embedded-sdk",
               "external-cli"
             ]
           },
@@ -747,8 +746,8 @@
             "items": {
               "type": "string",
               "enum": [
-                "cli-jsonl",
                 "sdk-stream",
+                "cli-jsonl",
                 "remote-control-http",
                 "openapi-http"
               ]
@@ -848,8 +847,8 @@
             "items": {
               "type": "string",
               "enum": [
-                "cli-jsonl",
                 "sdk-stream",
+                "cli-jsonl",
                 "remote-control-http",
                 "openapi-http"
               ]
@@ -1928,8 +1927,8 @@
             "items": {
               "type": "string",
               "enum": [
-                "cli-jsonl",
                 "sdk-stream",
+                "cli-jsonl",
                 "remote-control-http",
                 "openapi-http"
               ]
@@ -2500,6 +2499,68 @@
         },
         "additionalProperties": false
       },
+      "BirdCoderIamVerificationCodeCreateRequest": {
+        "type": "object",
+        "properties": {
+          "scene": {
+            "type": "string",
+            "enum": [
+              "LOGIN",
+              "REGISTER",
+              "RESET_PASSWORD"
+            ]
+          },
+          "target": {
+            "type": "string"
+          },
+          "verifyType": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "PHONE"
+            ]
+          }
+        },
+        "required": [
+          "scene",
+          "target",
+          "verifyType"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamVerificationCodeVerifyRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "scene": {
+            "type": "string",
+            "enum": [
+              "LOGIN",
+              "REGISTER",
+              "RESET_PASSWORD"
+            ]
+          },
+          "target": {
+            "type": "string"
+          },
+          "verifyType": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "PHONE"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "scene",
+          "target",
+          "verifyType"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderIamPasswordResetRequestCreateRequest": {
         "type": "object",
         "properties": {
@@ -2540,28 +2601,6 @@
           "account",
           "code",
           "newPassword"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderIamOAuthAuthorizationCreateRequest": {
-        "type": "object",
-        "properties": {
-          "provider": {
-            "type": "string"
-          },
-          "redirectUri": {
-            "type": "string"
-          },
-          "scope": {
-            "type": "string"
-          },
-          "state": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "provider",
-          "redirectUri"
         ],
         "additionalProperties": false
       },
@@ -2608,6 +2647,28 @@
         ],
         "additionalProperties": false
       },
+      "BirdCoderIamOAuthAuthorizationCreateRequest": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "redirectUri": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "redirectUri"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderIamDeviceAuthorizationCreateRequest": {
         "type": "object",
         "properties": {
@@ -2630,6 +2691,9 @@
       "BirdCoderIamDeviceAuthorizationSummary": {
         "type": "object",
         "properties": {
+          "deviceAuthorizationId": {
+            "type": "string"
+          },
           "expiresAt": {
             "type": "string",
             "format": "date-time"
@@ -2638,9 +2702,6 @@
             "type": "string"
           },
           "qrUrl": {
-            "type": "string"
-          },
-          "deviceAuthorizationId": {
             "type": "string"
           },
           "status": {
@@ -2669,6 +2730,82 @@
         "additionalProperties": false
       },
       "BirdCoderIamDeviceAuthorizationPasswordCompletionRequest": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "username"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamQrAuthSessionCreateRequest": {
+        "type": "object",
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "login",
+              "register"
+            ]
+          },
+          "redirectUri": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "purpose"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamQrAuthSessionSummary": {
+        "type": "object",
+        "properties": {
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "qrContent": {
+            "type": "string"
+          },
+          "qrUrl": {
+            "type": "string"
+          },
+          "sessionKey": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "scanned",
+              "confirmed",
+              "expired"
+            ]
+          }
+        },
+        "required": [
+          "sessionKey",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamQrAuthSessionScanRequest": {
+        "type": "object",
+        "properties": {
+          "scanSource": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderIamQrAuthSessionPasswordRequest": {
         "type": "object",
         "properties": {
           "password": {
@@ -6577,6 +6714,33 @@
         ],
         "additionalProperties": false
       },
+      "BirdCoderIamQrAuthSessionEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderIamQrAuthSessionSummary"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderIamUserProfileEnvelope": {
         "type": "object",
         "properties": {
@@ -7873,7 +8037,7 @@
     }
   },
   "paths": {
-    "/app/v3/api/coding_sessions/{id}": {
+    "/app/v3/api/intelligence/coding_sessions/{sessionId}": {
       "get": {
         "operationId": "codingSessions.retrieve",
         "summary": "Get coding session",
@@ -7883,7 +8047,7 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "sessionId",
             "in": "path",
             "required": true,
             "description": "BirdCoder coding session identifier.",
@@ -7959,7 +8123,7 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "sessionId",
             "in": "path",
             "required": true,
             "description": "BirdCoder coding session identifier.",
@@ -8035,7 +8199,7 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "sessionId",
             "in": "path",
             "required": true,
             "description": "BirdCoder coding session identifier.",
@@ -8123,7 +8287,7 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/coding_sessions": {
+    "/app/v3/api/intelligence/coding_sessions": {
       "get": {
         "operationId": "codingSessions.list",
         "summary": "List coding sessions",
@@ -8467,7 +8631,7 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/coding_sessions/{id}/fork": {
+    "/app/v3/api/intelligence/coding_sessions/{sessionId}/fork": {
       "post": {
         "operationId": "codingSessions.forks.create",
         "summary": "Fork coding session",
@@ -8477,7 +8641,7 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "sessionId",
             "in": "path",
             "required": true,
             "description": "BirdCoder coding session identifier.",
@@ -8575,7 +8739,7 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "sessionId",
             "in": "path",
             "required": true,
             "description": "BirdCoder coding session identifier.",
@@ -8837,7 +9001,7 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/coding_sessions/{id}/events": {
+    "/app/v3/api/intelligence/coding_sessions/{sessionId}/events": {
       "get": {
         "operationId": "codingSessions.events.list",
         "summary": "Replay or subscribe to coding session events",
@@ -8847,7 +9011,7 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "sessionId",
             "in": "path",
             "required": true,
             "description": "BirdCoder coding session identifier.",
@@ -9179,9 +9343,9 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/approvals/{approvalId}/decision": {
+    "/app/v3/api/intelligence/coding_sessions/{sessionId}/checkpoints/{checkpointId}/approval": {
       "post": {
-        "operationId": "approvals.decisions.create",
+        "operationId": "codingSessions.checkpoints.approval.create",
         "summary": "Submit approval decision",
         "description": "Submit approval decision. Requires an authenticated BirdCoder user session.",
         "tags": [
@@ -9189,7 +9353,16 @@
         ],
         "parameters": [
           {
-            "name": "approvalId",
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder coding session identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "checkpointId",
             "in": "path",
             "required": true,
             "description": "Approval checkpoint identifier.",
@@ -9260,22 +9433,31 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.approvals.decisions.create",
+        "x-sdkwork-permission": "intelligence.codingSessions.checkpoints.approval.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.approvals.decisions",
+        "x-sdkwork-resource": "intelligence.codingSessions.checkpoints.approval",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/questions/{questionId}/answer": {
+    "/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer": {
       "post": {
-        "operationId": "questions.answers.create",
+        "operationId": "codingSessions.questions.answers.create",
         "summary": "Submit user-question answer",
         "description": "Submit user-question answer. Requires an authenticated BirdCoder user session.",
         "tags": [
           "intelligence"
         ],
         "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder coding session identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "questionId",
             "in": "path",
@@ -9348,9 +9530,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.questions.answers.create",
+        "x-sdkwork-permission": "intelligence.codingSessions.questions.answers.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.questions.answers",
+        "x-sdkwork-resource": "intelligence.codingSessions.questions.answers",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -9449,7 +9631,7 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/coding_sessions/{id}/artifacts": {
+    "/app/v3/api/intelligence/coding_sessions/{sessionId}/artifacts": {
       "get": {
         "operationId": "codingSessions.artifacts.list",
         "summary": "List coding session artifacts",
@@ -9459,7 +9641,7 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "sessionId",
             "in": "path",
             "required": true,
             "description": "BirdCoder coding session identifier.",
@@ -9517,7 +9699,7 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/coding_sessions/{id}/checkpoints": {
+    "/app/v3/api/intelligence/coding_sessions/{sessionId}/checkpoints": {
       "get": {
         "operationId": "codingSessions.checkpoints.list",
         "summary": "List coding session checkpoints",
@@ -9527,7 +9709,7 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "sessionId",
             "in": "path",
             "required": true,
             "description": "BirdCoder coding session identifier.",
@@ -9585,199 +9767,7 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
-    "/app/v3/api/coding_sessions/{id}/messages/{messageId}": {
-      "delete": {
-        "operationId": "codingSessions.messages.delete",
-        "summary": "Delete coding session message",
-        "description": "Delete coding session message. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "intelligence"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "description": "BirdCoder coding session identifier.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "messageId",
-            "in": "path",
-            "required": true,
-            "description": "BirdCoder coding session message identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Coding session message deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeleteCodingSessionMessageResultEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Coding session message was not found.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Coding session message could not be deleted.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "user",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.messages.delete",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.messages",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      },
-      "patch": {
-        "operationId": "codingSessions.messages.update",
-        "summary": "Edit coding session message",
-        "description": "Edit coding session message. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "intelligence"
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "description": "BirdCoder coding session identifier.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "messageId",
-            "in": "path",
-            "required": true,
-            "description": "BirdCoder coding session message identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderEditCodingSessionMessageRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Coding session message edited successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderEditCodingSessionMessageResultEnvelope"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Coding session message edit request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Coding session message was not found.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Coding session message could not be edited.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "user",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.messages.update",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.messages",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      }
-    },
-    "/app/v3/api/coding_sessions/{id}/turns": {
+    "/app/v3/api/intelligence/coding_sessions/{sessionId}/turns": {
       "post": {
         "operationId": "codingSessions.turns.create",
         "summary": "Create coding session turn",
@@ -9787,7 +9777,7 @@
         ],
         "parameters": [
           {
-            "name": "id",
+            "name": "sessionId",
             "in": "path",
             "required": true,
             "description": "BirdCoder coding session identifier.",
@@ -9977,7 +9967,7 @@
         },
         "responses": {
           "200": {
-            "description": "OAuth authorization URL created successfully.",
+            "description": "OAuth authorization URL resolved successfully.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10011,9 +10001,9 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
+        "x-sdkwork-domain": "system",
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "oauth.authorizationUrls",
+        "x-sdkwork-resource": "system.oauth.authorizationUrls",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -10082,9 +10072,286 @@
         "x-sdkwork-auth-mode": "user",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
+        "x-sdkwork-domain": "system",
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "oauth.sessions",
+        "x-sdkwork-resource": "system.oauth.sessions",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/oauth/device_authorizations": {
+      "post": {
+        "operationId": "oauth.deviceAuthorizations.create",
+        "summary": "Create SDKWork IAM OAuth device authorization",
+        "description": "Create SDKWork IAM OAuth device authorization. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "oauth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM OAuth device authorization created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth device authorization request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "system.oauth.deviceAuthorizations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}": {
+      "get": {
+        "operationId": "oauth.deviceAuthorizations.retrieve",
+        "summary": "Get SDKWork IAM OAuth device authorization",
+        "description": "Get SDKWork IAM OAuth device authorization. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "deviceAuthorizationId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM OAuth device authorization identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM OAuth device authorization returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "OAuth device authorization was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "system.oauth.deviceAuthorizations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/scans": {
+      "post": {
+        "operationId": "oauth.deviceAuthorizations.scans.create",
+        "summary": "Create SDKWork IAM OAuth device authorization scan",
+        "description": "Create SDKWork IAM OAuth device authorization scan. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "deviceAuthorizationId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM OAuth device authorization identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationScanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM OAuth device authorization scan accepted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "OAuth device authorization was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "system.oauth.deviceAuthorizations.scans",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
+    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions": {
+      "post": {
+        "operationId": "oauth.deviceAuthorizations.passwordCompletions.create",
+        "summary": "Complete SDKWork IAM OAuth device authorization with password",
+        "description": "Complete SDKWork IAM OAuth device authorization with password. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "deviceAuthorizationId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM OAuth device authorization identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationPasswordCompletionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM OAuth device authorization completed with password successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth device authorization password completion is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "OAuth device authorization was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "system.oauth.deviceAuthorizations.passwordCompletions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -10671,253 +10938,6 @@
         "x-sdkwork-resource": "iam.users.current",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
-      }
-    },
-    "/app/v3/api/oauth/device_authorizations": {
-      "post": {
-        "operationId": "oauth.deviceAuthorizations.create",
-        "summary": "Create SDKWork IAM OAuth device authorization",
-        "description": "Create SDKWork IAM OAuth device authorization. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "oauth"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationCreateRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "SDKWork IAM OAuth device authorization created successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationEnvelope"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "SDKWork IAM OAuth device authorization could not be created.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "oauth.deviceAuthorizations",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
-      }
-    },
-    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}": {
-      "get": {
-        "operationId": "oauth.deviceAuthorizations.retrieve",
-        "summary": "Get SDKWork IAM OAuth device authorization",
-        "description": "Get SDKWork IAM OAuth device authorization. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "oauth"
-        ],
-        "parameters": [
-          {
-            "name": "deviceAuthorizationId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM OAuth device authorization identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "SDKWork IAM OAuth device authorization returned successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "SDKWork IAM OAuth device authorization was not found.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "oauth.deviceAuthorizations",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
-      }
-    },
-    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/scans": {
-      "post": {
-        "operationId": "oauth.deviceAuthorizations.scans.create",
-        "summary": "Create SDKWork IAM OAuth device authorization scan",
-        "description": "Create SDKWork IAM OAuth device authorization scan. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "oauth"
-        ],
-        "parameters": [
-          {
-            "name": "deviceAuthorizationId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM OAuth device authorization identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationScanRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "SDKWork IAM OAuth device authorization scan accepted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "oauth.deviceAuthorizations.scans",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
-      }
-    },
-    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions": {
-      "post": {
-        "operationId": "oauth.deviceAuthorizations.passwordCompletions.create",
-        "summary": "Complete SDKWork IAM OAuth device authorization with password",
-        "description": "Complete SDKWork IAM OAuth device authorization with password. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "oauth"
-        ],
-        "parameters": [
-          {
-            "name": "deviceAuthorizationId",
-            "in": "path",
-            "required": true,
-            "description": "SDKWork IAM OAuth device authorization identifier.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationPasswordCompletionRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "SDKWork IAM OAuth device authorization completed by password successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "platform",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "iam",
-        "x-sdkwork-public": true,
-        "x-sdkwork-resource": "oauth.deviceAuthorizations.passwordCompletions",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "platform"
       }
     },
     "/app/v3/api/app_templates": {
@@ -13733,28 +13753,18 @@
     "/app/v3/api/iam/organization_memberships": {
       "get": {
         "operationId": "organizationMemberships.list",
-        "summary": "List SDKWork IAM organization members",
-        "description": "List SDKWork IAM organization members. Requires an authenticated BirdCoder user session.",
+        "summary": "List SDKWork IAM organization memberships",
+        "description": "List SDKWork IAM organization memberships. Requires an authenticated BirdCoder user session.",
         "tags": [
           "iam"
         ],
         "responses": {
           "200": {
-            "description": "SDKWork IAM organization members returned successfully.",
+            "description": "SDKWork IAM organization memberships returned successfully.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderIamOrganizationMemberSummaryListEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "SDKWork IAM organization was not found.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
               }
             }
@@ -13790,8 +13800,8 @@
     "/backend/v3/api/iam/organization_memberships": {
       "post": {
         "operationId": "organizationMemberships.create",
-        "summary": "Create SDKWork IAM organization member",
-        "description": "Create SDKWork IAM organization member. Requires an authenticated BirdCoder admin session.",
+        "summary": "Create SDKWork IAM organization membership",
+        "description": "Create SDKWork IAM organization membership. Requires an authenticated BirdCoder admin session.",
         "tags": [
           "iam"
         ],
@@ -13807,7 +13817,7 @@
         },
         "responses": {
           "200": {
-            "description": "SDKWork IAM organization member created successfully.",
+            "description": "SDKWork IAM organization membership created successfully.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13817,17 +13827,7 @@
             }
           },
           "400": {
-            "description": "SDKWork IAM organization member request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "SDKWork IAM organization was not found.",
+            "description": "SDKWork IAM organization membership request is invalid.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -13867,8 +13867,8 @@
     "/backend/v3/api/iam/organization_memberships/{membershipId}": {
       "patch": {
         "operationId": "organizationMemberships.update",
-        "summary": "Update SDKWork IAM organization member",
-        "description": "Update SDKWork IAM organization member. Requires an authenticated BirdCoder admin session.",
+        "summary": "Update SDKWork IAM organization membership",
+        "description": "Update SDKWork IAM organization membership. Requires an authenticated BirdCoder admin session.",
         "tags": [
           "iam"
         ],
@@ -13895,7 +13895,7 @@
         },
         "responses": {
           "200": {
-            "description": "SDKWork IAM organization member updated successfully.",
+            "description": "SDKWork IAM organization membership updated successfully.",
             "content": {
               "application/json": {
                 "schema": {
@@ -13905,7 +13905,7 @@
             }
           },
           "400": {
-            "description": "SDKWork IAM organization member update request is invalid.",
+            "description": "SDKWork IAM organization membership update request is invalid.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -13915,7 +13915,7 @@
             }
           },
           "404": {
-            "description": "SDKWork IAM organization member was not found.",
+            "description": "SDKWork IAM organization membership was not found.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -16226,21 +16226,11 @@
         ],
         "responses": {
           "200": {
-            "description": "SDKWork IAM user roles returned successfully.",
+            "description": "SDKWork IAM user role bindings returned successfully.",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BirdCoderIamUserRoleSummaryListEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "SDKWork IAM user was not found.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
                 }
               }
             }
@@ -16293,7 +16283,7 @@
         },
         "responses": {
           "200": {
-            "description": "SDKWork IAM user role created successfully.",
+            "description": "SDKWork IAM user role binding created successfully.",
             "content": {
               "application/json": {
                 "schema": {
@@ -16303,17 +16293,7 @@
             }
           },
           "400": {
-            "description": "SDKWork IAM user role request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "SDKWork IAM user was not found.",
+            "description": "SDKWork IAM user role binding request is invalid.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -16371,7 +16351,7 @@
         ],
         "responses": {
           "200": {
-            "description": "SDKWork IAM user role deleted successfully.",
+            "description": "SDKWork IAM user role binding deleted successfully.",
             "content": {
               "application/json": {
                 "schema": {
@@ -16381,7 +16361,7 @@
             }
           },
           "404": {
-            "description": "SDKWork IAM user role was not found.",
+            "description": "SDKWork IAM user role binding was not found.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -16721,9 +16701,9 @@
     "docsPath": "/docs",
     "liveOpenApiPath": "/openapi.json",
     "routeCatalogPath": "/app/v3/api/system/routes",
-    "routeCount": 129,
+    "routeCount": 127,
     "routesBySurface": {
-      "app": 80,
+      "app": 78,
       "backend": 49
     },
     "surfaces": [
@@ -16732,7 +16712,7 @@
         "basePath": "/app/v3/api",
         "description": "Application-facing coding runtime, workspace, project, collaboration, and IAM routes.",
         "name": "app",
-        "routeCount": 80
+        "routeCount": 78
       },
       {
         "authMode": "admin",

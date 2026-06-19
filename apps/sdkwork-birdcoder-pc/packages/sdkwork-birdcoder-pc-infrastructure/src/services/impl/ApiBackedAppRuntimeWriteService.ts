@@ -52,17 +52,19 @@ export class ApiBackedAppRuntimeWriteService implements IAppRuntimeWriteService 
   }
 
   async submitApprovalDecision(
-    approvalId: Parameters<BirdCoderAppRuntimeWriteSdkApiClient['submitApprovalDecision']>[0],
-    request: Parameters<BirdCoderAppRuntimeWriteSdkApiClient['submitApprovalDecision']>[1],
+    codingSessionId: Parameters<BirdCoderAppRuntimeWriteSdkApiClient['submitApprovalDecision']>[0],
+    checkpointId: Parameters<BirdCoderAppRuntimeWriteSdkApiClient['submitApprovalDecision']>[1],
+    request: Parameters<BirdCoderAppRuntimeWriteSdkApiClient['submitApprovalDecision']>[2],
   ) {
-    return this.client.submitApprovalDecision(approvalId, request);
+    return this.client.submitApprovalDecision(codingSessionId, checkpointId, request);
   }
 
   async submitUserQuestionAnswer(
-    questionId: Parameters<BirdCoderAppRuntimeWriteSdkApiClient['submitUserQuestionAnswer']>[0],
-    request: Parameters<BirdCoderAppRuntimeWriteSdkApiClient['submitUserQuestionAnswer']>[1],
+    codingSessionId: Parameters<BirdCoderAppRuntimeWriteSdkApiClient['submitUserQuestionAnswer']>[0],
+    questionId: Parameters<BirdCoderAppRuntimeWriteSdkApiClient['submitUserQuestionAnswer']>[1],
+    request: Parameters<BirdCoderAppRuntimeWriteSdkApiClient['submitUserQuestionAnswer']>[2],
   ) {
-    return this.client.submitUserQuestionAnswer(questionId, request);
+    return this.client.submitUserQuestionAnswer(codingSessionId, questionId, request);
   }
 
   async syncModelConfig(

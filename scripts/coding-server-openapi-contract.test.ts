@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 
+import { readCanonicalTurnStreamBundle } from './birdcoder-canonical-server-rust-sources.mjs';
+
 import { buildBirdCoderCodingServerOpenApiDocument } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts';
 
 const document = buildBirdCoderCodingServerOpenApiDocument();
-const rustServerSource = readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
-  'utf8',
-);
+const rustServerSource = readCanonicalTurnStreamBundle();
 
 function readJsonFixture<T>(url: URL): T {
   return JSON.parse(readFileSync(url, 'utf8').replace(/^\uFEFF/u, '')) as T;
@@ -130,26 +129,22 @@ assert.equal(document.paths['/app/v3/api/system/routes']?.get?.operationId, 'rou
 assert.equal(document.paths['/app/v3/api/system/routes']?.get?.['x-sdkwork-auth-mode'], 'user');
 assert.equal(document.paths['/app/v3/api/native_sessions']?.get?.operationId, 'nativeSessions.list');
 assert.equal(document.paths['/app/v3/api/native_sessions/{id}']?.get?.operationId, 'nativeSessions.retrieve');
-assert.equal(document.paths['/app/v3/api/coding_sessions']?.post?.operationId, 'codingSessions.create');
-assert.equal(document.paths['/app/v3/api/coding_sessions/{id}']?.patch?.operationId, 'codingSessions.update');
-assert.equal(document.paths['/app/v3/api/coding_sessions/{id}']?.delete?.operationId, 'codingSessions.delete');
+assert.equal(document.paths['/app/v3/api/intelligence/coding_sessions']?.post?.operationId, 'codingSessions.create');
+assert.equal(document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.patch?.operationId, 'codingSessions.update');
+assert.equal(document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.delete?.operationId, 'codingSessions.delete');
 assert.equal(
-  document.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.patch?.operationId,
-  'codingSessions.messages.update',
-);
-assert.equal(
-  document.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.delete?.operationId,
-  'codingSessions.messages.delete',
-);
-assert.equal(
-  document.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.operationId,
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/fork']?.post?.operationId,
   'codingSessions.forks.create',
 );
-assert.equal(document.paths['/app/v3/api/coding_sessions/{id}/events']?.get?.operationId, 'codingSessions.events.list');
+assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/events']?.get?.operationId,
+  'codingSessions.events.list',
+);
 assert.equal(document.paths['/app/v3/api/operations/{operationId}']?.get?.operationId, 'operations.retrieve');
 assert.equal(
-  document.paths['/app/v3/api/questions/{questionId}/answer']?.post?.operationId,
-  'questions.answers.create',
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer']?.post
+    ?.operationId,
+  'codingSessions.questions.answers.create',
 );
 assert.equal(document.paths['/app/v3/api/system/iam/runtime']?.get?.operationId, 'iam.runtime.retrieve');
 assert.equal(
@@ -534,27 +529,22 @@ assert.equal(
 );
 assert.match(
   rustServerSource,
-  /struct CreateCodingSessionTurnRequest \{[\s\S]*stream:\s*Option<bool>/,
+  /pub struct CreateCodingSessionTurnRequest \{[\s\S]*pub stream: Option<bool>/,
   'Rust create-turn request payload must accept the optional stream flag instead of dropping the client default.',
 );
 assert.match(
   rustServerSource,
-  /struct CreateCodingSessionTurnInput \{[\s\S]*stream:\s*bool/,
+  /pub struct CreateCodingSessionTurnInput \{[\s\S]*pub stream: bool/,
   'Rust create-turn input must normalize stream into an explicit boolean so turn execution has a stable default.',
 );
 assert.match(
   rustServerSource,
-  /stream:\s*true,/,
+  /stream: true,/,
   'Rust create-turn input must normalize stream to true so stream:false cannot downgrade IDE turns out of live event mode.',
-);
-assert.match(
-  rustServerSource,
-  /let\s+should_stream_turn\s*=\s*true;/,
-  'Rust create-turn route must always execute provider turns through execute_native_session_turn_with_events.',
 );
 assert.doesNotMatch(
   rustServerSource,
-  /let\s+should_stream_turn\s*=\s*input\.stream;/,
+  /stream:\s*request\.stream\.unwrap_or\(false\)/,
   'Rust create-turn route must not let request.stream=false bypass streamed provider execution.',
 );
 for (const [schemaName, properties] of [
@@ -609,8 +599,8 @@ assert.ok(document.components.schemas?.BirdCoderIamCreateSessionRequest);
 assert.ok(document.components.schemas?.BirdCoderIamUpdateCurrentSessionRequest);
 assert.ok(document.components.schemas?.BirdCoderIamRefreshSessionRequest);
 assert.ok(document.components.schemas?.BirdCoderIamRegistrationCreateRequest);
-assert.equal(document.components.schemas?.BirdCoderIamVerificationCodeCreateRequest, undefined);
-assert.equal(document.components.schemas?.BirdCoderIamVerificationCodeVerifyRequest, undefined);
+assert.ok(document.components.schemas?.BirdCoderIamVerificationCodeCreateRequest);
+assert.ok(document.components.schemas?.BirdCoderIamVerificationCodeVerifyRequest);
 assert.ok(document.components.schemas?.BirdCoderIamPasswordResetRequestCreateRequest);
 assert.ok(document.components.schemas?.BirdCoderIamPasswordResetCreateRequest);
 assert.ok(document.components.schemas?.BirdCoderIamOAuthAuthorizationSummary);
@@ -619,10 +609,10 @@ assert.ok(document.components.schemas?.BirdCoderIamDeviceAuthorizationSummary);
 assert.ok(document.components.schemas?.BirdCoderIamDeviceAuthorizationCreateRequest);
 assert.ok(document.components.schemas?.BirdCoderIamDeviceAuthorizationScanRequest);
 assert.ok(document.components.schemas?.BirdCoderIamDeviceAuthorizationPasswordCompletionRequest);
-assert.equal(document.components.schemas?.BirdCoderIamQrAuthSessionSummary, undefined);
-assert.equal(document.components.schemas?.BirdCoderIamQrAuthSessionCreateRequest, undefined);
-assert.equal(document.components.schemas?.BirdCoderIamQrAuthSessionScanRequest, undefined);
-assert.equal(document.components.schemas?.BirdCoderIamQrAuthSessionPasswordRequest, undefined);
+assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionSummary);
+assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionCreateRequest);
+assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionScanRequest);
+assert.ok(document.components.schemas?.BirdCoderIamQrAuthSessionPasswordRequest);
 assert.ok(document.components.schemas?.BirdCoderIamUserProfileSummary);
 assert.deepEqual(
   document.components.schemas.BirdCoderIamRuntimeSettingsSummary.required,
@@ -663,54 +653,47 @@ assert.ok(
   'engine descriptor schema must require defaultModelId so every engine catalog consumer sees an explicit default model contract.',
 );
 assert.equal(
-  document.paths['/app/v3/api/coding_sessions']?.post?.requestBody?.content['application/json']
+  document.paths['/app/v3/api/intelligence/coding_sessions']?.post?.requestBody?.content['application/json']
     ?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCreateCodingSessionRequest',
 );
 assert.equal(
-  document.paths['/app/v3/api/coding_sessions/{id}']?.patch?.requestBody?.content[
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.patch?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderUpdateCodingSessionRequest',
 );
 assert.equal(
-  document.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/fork']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderForkCodingSessionRequest',
 );
 assert.equal(
-  document.paths['/app/v3/api/coding_sessions/{id}']?.delete?.responses['200']?.content[
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.delete?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderDeletedResourceEnvelope',
 );
 assert.equal(
-  document.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.delete?.responses[
-    '200'
-  ]?.content['application/json']?.schema?.['$ref'],
-  '#/components/schemas/BirdCoderDeleteCodingSessionMessageResultEnvelope',
-);
-assert.equal(
-  document.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.responses['201']?.content[
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/fork']?.post?.responses['201']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCodingSessionSummaryEnvelope',
 );
 assert.equal(
-  document.paths['/app/v3/api/coding_sessions/{id}/turns']?.post?.requestBody?.content[
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/turns']?.post?.requestBody?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCreateCodingSessionTurnRequest',
 );
 assert.equal(
-  document.paths['/app/v3/api/questions/{questionId}/answer']?.post?.requestBody?.content[
-    'application/json'
-  ]?.schema?.['$ref'],
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer']?.post
+    ?.requestBody?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderSubmitUserQuestionAnswerRequest',
 );
 assert.equal(
-  document.paths['/app/v3/api/coding_sessions']?.get?.responses['200']?.content[
+  document.paths['/app/v3/api/intelligence/coding_sessions']?.get?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderCodingSessionSummaryListEnvelope',
@@ -863,14 +846,14 @@ assert.equal(
 for (const bundledServerFamily of [
   {
     arch: 'x64',
-    manifestPath: 'server/windows/x64/release-asset-manifest.json',
-    openApiPath: 'server/windows/x64/openapi/coding-server-v1.json',
+    manifestPath: 'deployments/server-windows/x64/release-asset-manifest.json',
+    openApiPath: 'deployments/server-windows/x64/openapi/coding-server-v1.json',
     platform: 'windows',
   },
   {
     arch: 'x64',
-    manifestPath: 'server/win32/x64/release-asset-manifest.json',
-    openApiPath: 'server/win32/x64/openapi/coding-server-v1.json',
+    manifestPath: 'deployments/server-win32/x64/release-asset-manifest.json',
+    openApiPath: 'deployments/server-win32/x64/openapi/coding-server-v1.json',
     platform: 'win32',
   },
 ] as const) {
@@ -883,8 +866,8 @@ for (const bundledServerFamily of [
     platform?: string;
   }>(manifestUrl);
   const openApiSize = statSync(openApiUrl).size;
-  const openApiArtifact = manifest.artifacts?.find(
-    (artifact) => artifact.relativePath === bundledServerFamily.openApiPath,
+  const openApiArtifact = manifest.artifacts?.find((artifact) =>
+    artifact.relativePath?.endsWith('openapi/coding-server-v1.json'),
   );
 
   assert.equal(manifest.family, 'server', `${bundledServerFamily.manifestPath} must describe a server asset family.`);

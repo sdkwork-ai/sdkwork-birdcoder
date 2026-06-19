@@ -1,0 +1,114 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+const workspaceRoot = path.resolve(import.meta.dirname, '..');
+
+export const CANONICAL_SERVER_RUST_PATHS = Object.freeze({
+  apiServerAuth: 'crates/sdkwork-birdcoder-api-server/src/bootstrap/auth.rs',
+  apiServerBootstrapSmoke: 'crates/sdkwork-birdcoder-api-server/tests/bootstrap_smoke.rs',
+  codingSessionsPaths: 'crates/sdkwork-router-coding-sessions-app-api/src/paths.rs',
+  codingSessionsHandlers: 'crates/sdkwork-router-coding-sessions-app-api/src/handlers.rs',
+  codingSessionsMapper: 'crates/sdkwork-router-coding-sessions-app-api/src/mapper/request.rs',
+  codingSessionsService: 'crates/sdkwork-birdcoder-coding-sessions-service/src/service/coding_session_service.rs',
+  codingSessionsEventPayload: 'crates/sdkwork-birdcoder-coding-sessions-service/src/event_payload.rs',
+  engineCatalogRoutes: 'crates/sdkwork-router-engine-catalog-app-api/src/routes.rs',
+  engineCatalogHandlers: 'crates/sdkwork-router-engine-catalog-app-api/src/handlers.rs',
+  engineCatalogPaths: 'crates/sdkwork-router-engine-catalog-app-api/src/paths.rs',
+  sqlxCodingSessionsSchema: 'crates/sdkwork-birdcoder-coding-sessions-repository-sqlx/src/db/schema.rs',
+  sqlxWorkspaceSchema: 'crates/sdkwork-birdcoder-workspace-repository-sqlx/src/db/schema.rs',
+  sqlxSkillPackagesSchema: 'crates/sdkwork-birdcoder-skill-packages-repository-sqlx/src/db/schema.rs',
+  sqlxModelConfigSchema: 'crates/sdkwork-birdcoder-model-config-repository-sqlx/src/db/schema.rs',
+  sqlxMembershipSchema: 'crates/sdkwork-birdcoder-membership-repository-sqlx/src/db/schema.rs',
+});
+
+export const CANONICAL_DOMAIN_RUST_PATHS = Object.freeze({
+  workspaceDomainResults: 'crates/sdkwork-birdcoder-workspace-service/src/domain/results.rs',
+  projectDomainResults: 'crates/sdkwork-birdcoder-project-service/src/domain/results.rs',
+  codingSessionsDomainModels: 'crates/sdkwork-birdcoder-coding-sessions-service/src/domain/models.rs',
+  codingSessionsDomainCommands: 'crates/sdkwork-birdcoder-coding-sessions-service/src/domain/commands.rs',
+  codingSessionsEventPayload: 'crates/sdkwork-birdcoder-coding-sessions-service/src/event_payload.rs',
+  nativeSessionService: 'crates/sdkwork-birdcoder-native-sessions-service/src/service/native_session_service.rs',
+  codeengineTurns: 'crates/sdkwork-birdcoder-codeengine/src/turns.rs',
+});
+
+const SQLITE_SCHEMA_PATHS = [
+  CANONICAL_SERVER_RUST_PATHS.sqlxCodingSessionsSchema,
+  CANONICAL_SERVER_RUST_PATHS.sqlxWorkspaceSchema,
+  CANONICAL_SERVER_RUST_PATHS.sqlxSkillPackagesSchema,
+  CANONICAL_SERVER_RUST_PATHS.sqlxModelConfigSchema,
+  CANONICAL_SERVER_RUST_PATHS.sqlxMembershipSchema,
+];
+
+const TURN_STREAM_PATHS = [
+  CANONICAL_SERVER_RUST_PATHS.codingSessionsMapper,
+  CANONICAL_SERVER_RUST_PATHS.codingSessionsService,
+  CANONICAL_SERVER_RUST_PATHS.codingSessionsHandlers,
+  CANONICAL_DOMAIN_RUST_PATHS.codingSessionsDomainCommands,
+];
+
+const ENGINE_CATALOG_PATHS = [
+  CANONICAL_SERVER_RUST_PATHS.engineCatalogPaths,
+  CANONICAL_SERVER_RUST_PATHS.engineCatalogRoutes,
+  CANONICAL_SERVER_RUST_PATHS.engineCatalogHandlers,
+];
+
+export const LEGACY_ARCHIVE_RUST_PATHS = Object.freeze({
+  monolithLib:
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive/lib.rs',
+  nativeSessions:
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive/native_sessions.rs',
+  iamAuthority:
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive/iam_authority.rs',
+});
+
+export function readCanonicalServerRustSource(relativePath) {
+  const absolutePath = path.join(workspaceRoot, relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    throw new Error(`Canonical server Rust source is missing: ${relativePath}`);
+  }
+
+  return fs.readFileSync(absolutePath, 'utf8').replace(/\r\n?/g, '\n');
+}
+
+export function readCanonicalServerRustBundle(relativePaths) {
+  return relativePaths.map((relativePath) => readCanonicalServerRustSource(relativePath)).join('\n');
+}
+
+export function readCanonicalSqliteSchemaBundle() {
+  return readCanonicalServerRustBundle(SQLITE_SCHEMA_PATHS);
+}
+
+export function readCanonicalTurnStreamBundle() {
+  return readCanonicalServerRustBundle(TURN_STREAM_PATHS);
+}
+
+export const CANONICAL_CODEENGINE_RUST_PATHS = Object.freeze({
+  lib: 'crates/sdkwork-birdcoder-codeengine/src/lib.rs',
+  catalog: 'crates/sdkwork-birdcoder-codeengine/src/catalog.rs',
+  provider: 'crates/sdkwork-birdcoder-codeengine/src/provider.rs',
+  turns: 'crates/sdkwork-birdcoder-codeengine/src/turns.rs',
+  sdkBridge: 'crates/sdkwork-birdcoder-codeengine/src/sdk_bridge.rs',
+  codeengineDialect: 'crates/sdkwork-birdcoder-codeengine/src/codeengine_dialect.rs',
+  claudeCodeProvider: 'crates/sdkwork-birdcoder-codeengine/src/claude_code_provider.rs',
+  geminiProvider: 'crates/sdkwork-birdcoder-codeengine/src/gemini_provider.rs',
+  codexSessions: 'crates/sdkwork-birdcoder-codeengine/src/codex_sessions.rs',
+  codexProvider: 'crates/sdkwork-birdcoder-codeengine/src/codex_provider.rs',
+  opencodeProvider: 'crates/sdkwork-birdcoder-codeengine/src/opencode_provider.rs',
+});
+
+export const CANONICAL_CODEENGINE_ARTIFACT_PATHS = Object.freeze({
+  engineCatalogJson: 'crates/sdkwork-birdcoder-codeengine/generated/engine-catalog.json',
+});
+
+export const CODEENGINE_LEGACY_ARCHIVE_RUST_PATHS = Object.freeze({
+  srcRoot:
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/legacy-archive/src',
+});
+
+export function readCanonicalCodeengineRustBundle(relativePaths) {
+  return readCanonicalServerRustBundle(relativePaths);
+}
+
+export function readCanonicalEngineCatalogBundle() {
+  return readCanonicalServerRustBundle(ENGINE_CATALOG_PATHS);
+}

@@ -64,11 +64,11 @@
     },
     {
       "path": "src/api/iam.rs",
-      "sha256": "95ed09c69202933aeb87dc62f8158c3b92a23cb5813d1963606655edd65f5a4b"
+      "sha256": "b579f75bfc90ac19948e8dbe7e6980cfe4121835e5fa35cf226273949a39098a"
     },
     {
       "path": "src/api/intelligence.rs",
-      "sha256": "fa4a0cf7269a83c38dd619e751baae865a18b144050a0ab505faabb449efe0de"
+      "sha256": "b1a7f2ebfb6681e2d13fb3b7642352864a1dce4bc23ee8e07a7d4264dfc92a7e"
     },
     {
       "path": "src/api/mod.rs",
@@ -331,14 +331,6 @@
       "sha256": "d5e41943c94d130476f26934eda3cdd5aed43797b894f899959a1c00f99f65de"
     },
     {
-      "path": "src/models/bird_coder_delete_coding_session_message_result_envelope.rs",
-      "sha256": "a8d9d441bc87c482a962a98d97b8d3efb312a7425d3f95dca0b1f60f4c0e3dca"
-    },
-    {
-      "path": "src/models/bird_coder_delete_coding_session_message_result.rs",
-      "sha256": "f759a5dd26127a80e431736ea8995c49b1a6a3388779fb29123087bb4054dbd8"
-    },
-    {
       "path": "src/models/bird_coder_deleted_resource_envelope.rs",
       "sha256": "d656cb5e6c216dfc98de58ee0dc5c59cfb295a4cf2c5ae1fb6c1feb2c529c785"
     },
@@ -357,18 +349,6 @@
     {
       "path": "src/models/bird_coder_deployment_target_summary.rs",
       "sha256": "07b1a6ccc34cbb39cef1e358ee8441ae1ed43dfc8d7dd9a164e48a27e768a974"
-    },
-    {
-      "path": "src/models/bird_coder_edit_coding_session_message_request.rs",
-      "sha256": "c70058eb2c156dd6d3861b7912ad807aeb859740427473aa08ad0e41c9d19468"
-    },
-    {
-      "path": "src/models/bird_coder_edit_coding_session_message_result_envelope.rs",
-      "sha256": "8bd993bb95f2e1d5cf8fff6e82d4b6eafbca63d313999a0a9dd7917305d2c1b5"
-    },
-    {
-      "path": "src/models/bird_coder_edit_coding_session_message_result.rs",
-      "sha256": "1a1067d795d8aa23580f45dbeac22d6f7246de6ab2a7c52e2aad6ce134627ca8"
     },
     {
       "path": "src/models/bird_coder_engine_access_lane.rs",
@@ -440,7 +420,7 @@
     },
     {
       "path": "src/models/bird_coder_iam_device_authorization_summary.rs",
-      "sha256": "0f9b7ac2cb3e9545873591e06425ae2c18546f37e8eead5d1d5e9e87626467f5"
+      "sha256": "bb1619ed16f96fff359a89cc2b944ad73a548c8b5f50d6d10e28dc245b869651"
     },
     {
       "path": "src/models/bird_coder_iam_oauth_authorization_create_request.rs",
@@ -760,7 +740,7 @@
     },
     {
       "path": "src/models/mod.rs",
-      "sha256": "0bee025c63951f98bef09f391173d9e9cddfa99881ebdec62c164d34785d2ca0"
+      "sha256": "f8e9bbf59050d882a1253f691b2906519b535e188be08df840119d7aa5742704"
     }
   ],
   "scaffoldFiles": [

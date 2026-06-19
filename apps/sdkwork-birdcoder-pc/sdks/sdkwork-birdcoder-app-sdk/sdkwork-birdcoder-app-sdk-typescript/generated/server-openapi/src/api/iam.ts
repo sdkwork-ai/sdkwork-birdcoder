@@ -26,7 +26,7 @@ export class IamOrganizationMembershipsApi {
   }
 
 
-/** List SDKWork IAM organization members */
+/** List SDKWork IAM organization memberships */
   async list(): Promise<BirdCoderIamOrganizationMemberSummaryListEnvelope> {
     return this.client.get<BirdCoderIamOrganizationMemberSummaryListEnvelope>(appApiPath(`/iam/organization_memberships`));
   }

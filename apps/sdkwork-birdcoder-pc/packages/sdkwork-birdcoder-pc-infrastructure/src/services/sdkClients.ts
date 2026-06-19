@@ -196,10 +196,12 @@ export interface BirdCoderAppSdkApiClient {
     request: BirdCoderRemoveProjectGitWorktreeRequest,
   ): Promise<BirdCoderProjectGitOverview>;
   submitApprovalDecision(
-    approvalId: string,
+    codingSessionId: string,
+    checkpointId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ): Promise<BirdCoderApprovalDecisionResult>;
   submitUserQuestionAnswer(
+    codingSessionId: string,
     questionId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ): Promise<BirdCoderUserQuestionAnswerResult>;
@@ -944,22 +946,22 @@ export function createBirdCoderAppSdkApiClient({
     },
     async getCodingSession(codingSessionId) {
       return readCanonicalData<BirdCoderCodingSessionSummary>(
-        await client.intelligence.codingSessions.retrieve({ id: codingSessionId }),
+        await client.intelligence.codingSessions.retrieve({ sessionId: codingSessionId }),
       );
     },
     async listCodingSessionEvents(codingSessionId) {
       return readCanonicalItems<BirdCoderCodingSessionEvent>(
-        await client.intelligence.codingSessions.events.list({ id: codingSessionId }),
+        await client.intelligence.codingSessions.events.list({ sessionId: codingSessionId }),
       );
     },
     async listCodingSessionArtifacts(codingSessionId) {
       return readCanonicalItems<BirdCoderCodingSessionArtifact>(
-        await client.intelligence.codingSessions.artifacts.list({ id: codingSessionId }),
+        await client.intelligence.codingSessions.artifacts.list({ sessionId: codingSessionId }),
       );
     },
     async listCodingSessionCheckpoints(codingSessionId) {
       return readCanonicalItems<BirdCoderCodingSessionCheckpoint>(
-        await client.intelligence.codingSessions.checkpoints.list({ id: codingSessionId }),
+        await client.intelligence.codingSessions.checkpoints.list({ sessionId: codingSessionId }),
       );
     },
     async createCodingSession(request) {
@@ -972,7 +974,7 @@ export function createBirdCoderAppSdkApiClient({
     async forkCodingSession(codingSessionId, request = {}) {
       return readCanonicalData<BirdCoderCodingSessionSummary>(
         await client.intelligence.codingSessions.forks.create(
-          { id: codingSessionId },
+          { sessionId: codingSessionId },
           request as unknown as GeneratedBirdCoderForkCodingSessionRequest,
         ),
       );
@@ -980,48 +982,48 @@ export function createBirdCoderAppSdkApiClient({
     async updateCodingSession(codingSessionId, request) {
       return readCanonicalData<BirdCoderCodingSessionSummary>(
         await client.intelligence.codingSessions.update(
-          { id: codingSessionId },
+          { sessionId: codingSessionId },
           request as unknown as GeneratedBirdCoderUpdateCodingSessionRequest,
         ),
       );
     },
     async deleteCodingSession(codingSessionId) {
       return readCanonicalData<BirdCoderDeleteCodingSessionResult>(
-        await client.intelligence.codingSessions.delete({ id: codingSessionId }),
+        await client.intelligence.codingSessions.delete({ sessionId: codingSessionId }),
       );
     },
-    async editCodingSessionMessage(codingSessionId, messageId, request) {
-      return readCanonicalData<BirdCoderEditCodingSessionMessageResult>(
-        await client.intelligence.codingSessions.messages.update(
-          { id: codingSessionId, messageId },
-          request,
-        ),
+    async editCodingSessionMessage() {
+      throw new Error(
+        'BirdCoder app API does not expose coding session message edit over HTTP.',
       );
     },
-    async deleteCodingSessionMessage(codingSessionId, messageId) {
-      return readCanonicalData<BirdCoderDeleteCodingSessionMessageResult>(
-        await client.intelligence.codingSessions.messages.delete({
-          id: codingSessionId,
-          messageId,
-        }),
+    async deleteCodingSessionMessage() {
+      throw new Error(
+        'BirdCoder app API does not expose coding session message delete over HTTP.',
       );
     },
     async createCodingSessionTurn(codingSessionId, request) {
       return readCanonicalData<BirdCoderCodingSessionTurn>(
         await client.intelligence.codingSessions.turns.create(
-          { id: codingSessionId },
+          { sessionId: codingSessionId },
           request as unknown as GeneratedBirdCoderCreateCodingSessionTurnRequest,
         ),
       );
     },
-    async submitApprovalDecision(approvalId, request) {
+    async submitApprovalDecision(codingSessionId, checkpointId, request) {
       return readCanonicalData<BirdCoderApprovalDecisionResult>(
-        await client.intelligence.approvals.decisions.create({ approvalId }, request),
+        await client.intelligence.codingSessions.checkpoints.approval.create(
+          { sessionId: codingSessionId, checkpointId },
+          request,
+        ),
       );
     },
-    async submitUserQuestionAnswer(questionId, request) {
+    async submitUserQuestionAnswer(codingSessionId, questionId, request) {
       return readCanonicalData<BirdCoderUserQuestionAnswerResult>(
-        await client.intelligence.questions.answers.create({ questionId }, request),
+        await client.intelligence.codingSessions.questions.answers.create(
+          { sessionId: codingSessionId, questionId },
+          request,
+        ),
       );
     },
     async createWorkspace(request) {

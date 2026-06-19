@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component.spec",
   "component": {
-    "name": "sdkwork-birdcoder-pc-server-host",
-    "displayName": "SDKWork BirdCoder PC Server Host",
+    "name": "sdkwork-birdcoder-pc-server-host-shim",
+    "displayName": "SDKWork BirdCoder PC Server Host Shim",
     "version": "0.1.0",
     "type": "tauri-host",
     "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host",
     "domain": "device",
     "declaredDomain": null,
     "capability": "component",
-    "status": "standardizing",
+    "status": "retired-shim",
     "languages": [
       "rust"
     ],
@@ -80,7 +80,7 @@
   "contracts": {
     "publicExports": [],
     "runtimeEntrypoints": [
-      "Cargo.toml"
+      "src/main.rs"
     ],
     "sdkClients": [],
     "events": [],
@@ -94,7 +94,7 @@
   },
   "verification": {
     "commands": [
-      "cargo test --manifest-path apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/Cargo.toml"
+      "cargo test -p sdkwork-birdcoder-api-server"
     ]
   },
   "metadata": {

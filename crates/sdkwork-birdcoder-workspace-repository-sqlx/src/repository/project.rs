@@ -1,7 +1,5 @@
 use sdkwork_birdcoder_project_service::context::ProjectContext;
-use std::sync::{Arc, Mutex};
-
-use rusqlite::{params, Connection};
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use uuid::Uuid;
 
 use crate::db::columns::project as col;
@@ -14,19 +12,14 @@ use sdkwork_birdcoder_project_service::domain::commands::{
 use sdkwork_birdcoder_project_service::domain::results::{ProjectCollaboratorPayload, ProjectPayload};
 use sdkwork_birdcoder_project_service::error::ProjectError;
 
+#[derive(Clone)]
 pub struct SqliteProjectRepository {
-    conn: Arc<Mutex<Connection>>,
+    pool: SqlitePool,
 }
 
 impl SqliteProjectRepository {
-    pub fn new(conn: Connection) -> Self {
-        Self {
-            conn: Arc::new(Mutex::new(conn)),
-        }
-    }
-
-    pub fn with_shared(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
     }
 
     fn now_iso() -> String {
@@ -45,36 +38,40 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         ctx: &ProjectContext,
         id: &str,
     ) -> Result<Option<ProjectPayload>, ProjectError> {
-        let conn = self.conn.lock().map_err(|e| {
-            ProjectError::Repository(format!("lock error: {e}"))
-        })?;
-        let id_num: i64 = id.parse().map_err(|_| {
-            ProjectError::InvalidInput(format!("invalid id: {id}"))
-        })?;
+        let id_num: i64 = id
+            .parse()
+            .map_err(|_| ProjectError::InvalidInput(format!("invalid id: {id}")))?;
         let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
             col::TABLE,
             col::ID,
             col::IS_DELETED,
         );
-        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(id_num)];
-        if let Some(tenant_id) = tenant_id {
-            sql += &format!(" AND {} = ?2", col::TENANT_ID);
-            param_values.push(Box::new(tenant_id));
+        if tenant_id.is_some() {
+            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
         }
-        let mut stmt = conn
-            .prepare(&sql)
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
-            param_values.iter().map(|p| p.as_ref()).collect();
-        let row = stmt
-            .query_row(params_refs.as_slice(), |r| Ok(ProjectRow::from_row(r)))
-            .optional()
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
+
+        let row = if let Some(tenant_id) = tenant_id {
+            sqlx::query(&sql)
+                .bind(id_num)
+                .bind(tenant_id)
+                .fetch_optional(&self.pool)
+                .await
+        } else {
+            sqlx::query(&sql)
+                .bind(id_num)
+                .fetch_optional(&self.pool)
+                .await
+        }
+        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+
         match row {
-            Some(Ok(r)) => Ok(Some(row_mapper::project_row_to_payload(&r))),
-            Some(Err(e)) => Err(ProjectError::Repository(e.to_string())),
+            Some(row) => {
+                let r = ProjectRow::from_row(&row)
+                    .map_err(|e| ProjectError::Repository(e.to_string()))?;
+                Ok(Some(row_mapper::project_row_to_payload(&r)))
+            }
             None => Ok(None),
         }
     }
@@ -84,40 +81,38 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         ctx: &ProjectContext,
         workspace_id: &str,
     ) -> Result<Vec<ProjectPayload>, ProjectError> {
-        let conn = self.conn.lock().map_err(|e| {
-            ProjectError::Repository(format!("lock error: {e}"))
-        })?;
         let wid: i64 = workspace_id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
         let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
             col::TABLE,
             col::WORKSPACE_ID,
             col::IS_DELETED,
         );
-        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(wid)];
-        if let Some(tenant_id) = tenant_id {
-            sql += &format!(" AND {} = ?2", col::TENANT_ID);
-            param_values.push(Box::new(tenant_id));
+        if tenant_id.is_some() {
+            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
         }
-        let mut stmt = conn
-            .prepare(&sql)
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
-            param_values.iter().map(|p| p.as_ref()).collect();
-        let rows = stmt
-            .query_map(params_refs.as_slice(), |r| Ok(ProjectRow::from_row(r)))
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        let mut result = Vec::new();
-        for row in rows {
-            match row.map_err(|e| ProjectError::Repository(e.to_string()))? {
-                Ok(r) => result.push(row_mapper::project_row_to_payload(&r)),
-                Err(e) => return Err(ProjectError::Repository(e.to_string())),
-            }
+
+        let rows = if let Some(tenant_id) = tenant_id {
+            sqlx::query(&sql)
+                .bind(wid)
+                .bind(tenant_id)
+                .fetch_all(&self.pool)
+                .await
+        } else {
+            sqlx::query(&sql).bind(wid).fetch_all(&self.pool).await
         }
-        Ok(result)
+        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+
+        rows.iter()
+            .map(|row| {
+                ProjectRow::from_row(row)
+                    .map(|r| row_mapper::project_row_to_payload(&r))
+                    .map_err(|e| ProjectError::Repository(e.to_string()))
+            })
+            .collect()
     }
 
     async fn create_project(
@@ -125,9 +120,6 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         ctx: &ProjectContext,
         req: &CreateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError> {
-        let conn = self.conn.lock().map_err(|e| {
-            ProjectError::Repository(format!("lock error: {e}"))
-        })?;
         let now = Self::now_iso();
         let uuid = Uuid::new_v4().to_string();
         let tenant_id: i64 = req
@@ -169,56 +161,57 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .cover_image
             .as_ref()
             .and_then(|v| serde_json::to_string(v).ok());
+        let parent_id = req.parent_id.as_deref().and_then(|s| s.parse::<i64>().ok());
+        let user_id = req.user_id.as_deref().and_then(|s| s.parse::<i64>().ok());
+        let title = req.title.as_deref().unwrap_or(&req.name);
+        let code = req.code.as_deref().unwrap_or("");
+        let is_template = req.is_template.map(|b| if b { 1i64 } else { 0i64 }).unwrap_or(0);
 
-        conn.execute(
-            &format!(
-                "INSERT INTO {t} (uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope, parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image, author, code, type, site_path, domain_prefix, description, status, workspace_id, workspace_uuid, is_deleted, is_template) VALUES (?1,?2,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24)",
-                t = col::TABLE,
-            ),
-            params![
-                uuid,
-                now,
-                0i64,
-                tenant_id,
-                organization_id,
-                data_scope,
-                req.parent_id.as_deref().and_then(|s| s.parse::<i64>().ok()),
-                req.parent_uuid,
-                parent_metadata,
-                req.user_id.as_deref().and_then(|s| s.parse::<i64>().ok()),
-                req.name,
-                req.title.as_deref().unwrap_or(&req.name),
-                cover_image,
-                req.author,
-                req.code.as_deref().unwrap_or(""),
-                entity_type,
-                req.site_path,
-                req.domain_prefix,
-                req.description,
-                status,
-                workspace_id,
-                req.workspace_uuid,
-                0i64,
-                req.is_template.map(|b| if b { 1i64 } else { 0i64 }).unwrap_or(0),
-            ],
-        )
+        let result = sqlx::query(&format!(
+            "INSERT INTO {t} (uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope, parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image, author, code, type, site_path, domain_prefix, description, status, workspace_id, workspace_uuid, is_deleted, is_template) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            t = col::TABLE,
+        ))
+        .bind(&uuid)
+        .bind(&now)
+        .bind(&now)
+        .bind(0i64)
+        .bind(tenant_id)
+        .bind(organization_id)
+        .bind(data_scope)
+        .bind(parent_id)
+        .bind(&req.parent_uuid)
+        .bind(&parent_metadata)
+        .bind(user_id)
+        .bind(&req.name)
+        .bind(title)
+        .bind(&cover_image)
+        .bind(&req.author)
+        .bind(code)
+        .bind(entity_type)
+        .bind(&req.site_path)
+        .bind(&req.domain_prefix)
+        .bind(&req.description)
+        .bind(status)
+        .bind(workspace_id)
+        .bind(&req.workspace_uuid)
+        .bind(0i64)
+        .bind(is_template)
+        .execute(&self.pool)
+        .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
-        let id = conn.last_insert_rowid();
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1",
-                col::TABLE,
-                col::ID,
-            ))
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        let row = stmt
-            .query_row(params![id], |r| Ok(ProjectRow::from_row(r)))
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        match row {
-            Ok(r) => Ok(row_mapper::project_row_to_payload(&r)),
-            Err(e) => Err(ProjectError::Repository(e.to_string())),
-        }
+        let id = result.last_insert_rowid();
+        let row = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = ?",
+            col::TABLE,
+            col::ID,
+        ))
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        let r = ProjectRow::from_row(&row).map_err(|e| ProjectError::Repository(e.to_string()))?;
+        Ok(row_mapper::project_row_to_payload(&r))
     }
 
     async fn update_project(
@@ -227,185 +220,166 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         id: &str,
         req: &UpdateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError> {
-        let conn = self.conn.lock().map_err(|e| {
-            ProjectError::Repository(format!("lock error: {e}"))
-        })?;
-        let id_num: i64 = id.parse().map_err(|_| {
-            ProjectError::InvalidInput(format!("invalid id: {id}"))
-        })?;
+        let id_num: i64 = id
+            .parse()
+            .map_err(|_| ProjectError::InvalidInput(format!("invalid id: {id}")))?;
         let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let now = Self::now_iso();
-        let mut sets = vec![format!("{} = ?1", col::UPDATED_AT)];
-        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];
-        let mut idx = 2;
 
-        macro_rules! add_opt {
-            ($field:expr, $col:expr) => {
-                if let Some(ref v) = $field {
-                    sets.push(format!("{} = ?{}", $col, idx));
-                    param_values.push(Box::new(v.clone()));
-                    idx += 1;
+        let mut builder: QueryBuilder<Sqlite> =
+            QueryBuilder::new(format!("UPDATE {} SET ", col::TABLE));
+        {
+            let mut sep = builder.separated(", ");
+            sep.push(format!("{} = ", col::UPDATED_AT));
+            sep.push_bind_unseparated(&now);
+
+            macro_rules! add_opt {
+                ($field:expr, $col:expr) => {
+                    if let Some(ref v) = $field {
+                        sep.push(format!("{} = ", $col));
+                        sep.push_bind_unseparated(v.as_str());
+                    }
+                };
+            }
+
+            add_opt!(req.name, col::NAME);
+            add_opt!(req.description, col::DESCRIPTION);
+            add_opt!(req.code, col::CODE);
+            add_opt!(req.title, col::TITLE);
+            add_opt!(req.author, col::AUTHOR);
+            add_opt!(req.site_path, col::SITE_PATH);
+            add_opt!(req.domain_prefix, col::DOMAIN_PREFIX);
+            add_opt!(req.parent_uuid, col::PARENT_UUID);
+            add_opt!(req.root_path, col::SITE_PATH);
+
+            if let Some(ref v) = req.entity_type {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::TYPE));
+                    sep.push_bind_unseparated(n);
                 }
-            };
-        }
-
-        add_opt!(req.name, col::NAME);
-        add_opt!(req.description, col::DESCRIPTION);
-        add_opt!(req.code, col::CODE);
-        add_opt!(req.title, col::TITLE);
-        add_opt!(req.author, col::AUTHOR);
-        add_opt!(req.site_path, col::SITE_PATH);
-        add_opt!(req.domain_prefix, col::DOMAIN_PREFIX);
-        add_opt!(req.parent_uuid, col::PARENT_UUID);
-        add_opt!(req.root_path, col::SITE_PATH);
-
-        if let Some(ref v) = req.entity_type {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::TYPE, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
             }
-        }
-        if let Some(ref v) = req.status {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::STATUS, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
+            if let Some(ref v) = req.status {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::STATUS));
+                    sep.push_bind_unseparated(n);
+                }
             }
-        }
-        if let Some(ref v) = req.data_scope {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::DATA_SCOPE, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
+            if let Some(ref v) = req.data_scope {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::DATA_SCOPE));
+                    sep.push_bind_unseparated(n);
+                }
             }
-        }
-        if let Some(ref v) = req.user_id {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::USER_ID, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
+            if let Some(ref v) = req.user_id {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::USER_ID));
+                    sep.push_bind_unseparated(n);
+                }
             }
-        }
-        if let Some(ref v) = req.parent_id {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::PARENT_ID, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
+            if let Some(ref v) = req.parent_id {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::PARENT_ID));
+                    sep.push_bind_unseparated(n);
+                }
             }
-        }
-        if let Some(ref v) = req.file_id {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::FILE_ID, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
+            if let Some(ref v) = req.file_id {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::FILE_ID));
+                    sep.push_bind_unseparated(n);
+                }
             }
-        }
-        if let Some(ref v) = req.conversation_id {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::CONVERSATION_ID, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
+            if let Some(ref v) = req.conversation_id {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::CONVERSATION_ID));
+                    sep.push_bind_unseparated(n);
+                }
             }
-        }
-        if let Some(ref v) = req.budget_amount {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::BUDGET_AMOUNT, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
+            if let Some(ref v) = req.budget_amount {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::BUDGET_AMOUNT));
+                    sep.push_bind_unseparated(n);
+                }
             }
-        }
-        if let Some(v) = req.is_template {
-            sets.push(format!("{} = ?{}", col::IS_TEMPLATE, idx));
-            param_values.push(Box::new(if v { 1i64 } else { 0i64 }));
-            idx += 1;
-        }
-        if let Some(ref v) = req.cover_image {
-            if let Ok(json) = serde_json::to_string(v) {
-                sets.push(format!("{} = ?{}", col::COVER_IMAGE, idx));
-                param_values.push(Box::new(json));
-                idx += 1;
+            if let Some(v) = req.is_template {
+                sep.push(format!("{} = ", col::IS_TEMPLATE));
+                sep.push_bind_unseparated(if v { 1i64 } else { 0i64 });
             }
-        }
-        if let Some(ref v) = req.parent_metadata {
-            if let Ok(json) = serde_json::to_string(v) {
-                sets.push(format!("{} = ?{}", col::PARENT_METADATA, idx));
-                param_values.push(Box::new(json));
-                idx += 1;
+            if let Some(ref v) = req.cover_image {
+                if let Ok(json) = serde_json::to_string(v) {
+                    sep.push(format!("{} = ", col::COVER_IMAGE));
+                    sep.push_bind_unseparated(json);
+                }
+            }
+            if let Some(ref v) = req.parent_metadata {
+                if let Ok(json) = serde_json::to_string(v) {
+                    sep.push(format!("{} = ", col::PARENT_METADATA));
+                    sep.push_bind_unseparated(json);
+                }
             }
         }
 
-        let sql = format!(
-            "UPDATE {} SET {} WHERE {} = ?{}{}",
-            col::TABLE,
-            sets.join(", "),
-            col::ID,
-            idx,
-            tenant_id
-                .map(|_value| format!(" AND {} = ?{}", col::TENANT_ID, idx + 1))
-                .unwrap_or_default(),
-        );
-        param_values.push(Box::new(id_num));
+        builder.push(format!(" WHERE {} = ", col::ID));
+        builder.push_bind(id_num);
         if let Some(tenant_id) = tenant_id {
-            param_values.push(Box::new(tenant_id));
+            builder.push(format!(" AND {} = ", col::TENANT_ID));
+            builder.push_bind(tenant_id);
         }
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
-            param_values.iter().map(|p| p.as_ref()).collect();
-        let updated = conn
-            .execute(&sql, params_refs.as_slice())
+
+        let result = builder
+            .build()
+            .execute(&self.pool)
+            .await
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        if updated == 0 {
+        if result.rows_affected() == 0 {
             return Err(ProjectError::NotFound(format!("project {id} not found")));
         }
 
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1",
-                col::TABLE,
-                col::ID,
-            ))
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        let row = stmt
-            .query_row(params![id_num], |r| Ok(ProjectRow::from_row(r)))
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        match row {
-            Ok(r) => Ok(row_mapper::project_row_to_payload(&r)),
-            Err(e) => Err(ProjectError::Repository(e.to_string())),
-        }
+        let row = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = ?",
+            col::TABLE,
+            col::ID,
+        ))
+        .bind(id_num)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        let r = ProjectRow::from_row(&row).map_err(|e| ProjectError::Repository(e.to_string()))?;
+        Ok(row_mapper::project_row_to_payload(&r))
     }
 
-    async fn delete_project(
-        &self,
-        ctx: &ProjectContext,
-        id: &str,
-    ) -> Result<(), ProjectError> {
-        let conn = self.conn.lock().map_err(|e| {
-            ProjectError::Repository(format!("lock error: {e}"))
-        })?;
-        let id_num: i64 = id.parse().map_err(|_| {
-            ProjectError::InvalidInput(format!("invalid id: {id}"))
-        })?;
+    async fn delete_project(&self, ctx: &ProjectContext, id: &str) -> Result<(), ProjectError> {
+        let id_num: i64 = id
+            .parse()
+            .map_err(|_| ProjectError::InvalidInput(format!("invalid id: {id}")))?;
         let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let now = Self::now_iso();
         let mut sql = format!(
-            "UPDATE {} SET {} = 1, {} = ?1 WHERE {} = ?2",
+            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ?",
             col::TABLE,
             col::IS_DELETED,
             col::UPDATED_AT,
             col::ID,
         );
-        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> =
-            vec![Box::new(now), Box::new(id_num)];
-        if let Some(tenant_id) = tenant_id {
-            sql.push_str(&format!(" AND {} = ?3", col::TENANT_ID));
-            param_values.push(Box::new(tenant_id));
+        if tenant_id.is_some() {
+            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
         }
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
-            param_values.iter().map(|p| p.as_ref()).collect();
-        let updated = conn
-            .execute(&sql, params_refs.as_slice())
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        if updated == 0 {
+
+        let result = if let Some(tenant_id) = tenant_id {
+            sqlx::query(&sql)
+                .bind(&now)
+                .bind(id_num)
+                .bind(tenant_id)
+                .execute(&self.pool)
+                .await
+        } else {
+            sqlx::query(&sql)
+                .bind(&now)
+                .bind(id_num)
+                .execute(&self.pool)
+                .await
+        }
+        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        if result.rows_affected() == 0 {
             return Err(ProjectError::NotFound(format!("project {id} not found")));
         }
         Ok(())
@@ -416,38 +390,32 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         ctx: &ProjectContext,
         project_id: &str,
     ) -> Result<Vec<ProjectCollaboratorPayload>, ProjectError> {
-        if self
-            .find_project_by_id(ctx, project_id)
-            .await?
-            .is_none()
-        {
-            return Err(ProjectError::NotFound(format!("project {project_id} not found")));
+        if self.find_project_by_id(ctx, project_id).await?.is_none() {
+            return Err(ProjectError::NotFound(format!(
+                "project {project_id} not found"
+            )));
         }
-        let conn = self.conn.lock().map_err(|e| {
-            ProjectError::Repository(format!("lock error: {e}"))
-        })?;
         let pid: i64 = project_id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid project_id: {project_id}"))
         })?;
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
-                collab_col::TABLE,
-                collab_col::PROJECT_ID,
-                collab_col::IS_DELETED,
-            ))
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        let rows = stmt
-            .query_map(params![pid], |r| Ok(ProjectCollaboratorRow::from_row(r)))
-            .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        let mut result = Vec::new();
-        for row in rows {
-            match row.map_err(|e| ProjectError::Repository(e.to_string()))? {
-                Ok(r) => result.push(row_mapper::project_collaborator_row_to_payload(&r)),
-                Err(e) => return Err(ProjectError::Repository(e.to_string())),
-            }
-        }
-        Ok(result)
+        let rows = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+            collab_col::TABLE,
+            collab_col::PROJECT_ID,
+            collab_col::IS_DELETED,
+        ))
+        .bind(pid)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+
+        rows.iter()
+            .map(|row| {
+                ProjectCollaboratorRow::from_row(row)
+                    .map(|r| row_mapper::project_collaborator_row_to_payload(&r))
+                    .map_err(|e| ProjectError::Repository(e.to_string()))
+            })
+            .collect()
     }
 
     async fn upsert_project_collaborator(
@@ -456,16 +424,11 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         project_id: &str,
         req: &UpsertProjectCollaboratorRequest,
     ) -> Result<ProjectCollaboratorPayload, ProjectError> {
-        if self
-            .find_project_by_id(ctx, project_id)
-            .await?
-            .is_none()
-        {
-            return Err(ProjectError::NotFound(format!("project {project_id} not found")));
+        if self.find_project_by_id(ctx, project_id).await?.is_none() {
+            return Err(ProjectError::NotFound(format!(
+                "project {project_id} not found"
+            )));
         }
-        let conn = self.conn.lock().map_err(|e| {
-            ProjectError::Repository(format!("lock error: {e}"))
-        })?;
         let pid: i64 = project_id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid project_id: {project_id}"))
         })?;
@@ -481,48 +444,48 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let role = req.role.as_deref().unwrap_or("member");
         let status = req.status.as_deref().unwrap_or("active");
 
-        let existing = conn
-            .prepare(&format!(
-                "SELECT {} FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
-                collab_col::ID,
-                collab_col::TABLE,
-                collab_col::PROJECT_ID,
-                collab_col::USER_ID,
-                collab_col::IS_DELETED,
-            ))
-            .map_err(|e| ProjectError::Repository(e.to_string()))?
-            .query_row(params![pid, uid], |r| r.get::<_, i64>(0))
-            .ok();
+        let existing: Option<i64> = sqlx::query_scalar(&format!(
+            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
+            collab_col::ID,
+            collab_col::TABLE,
+            collab_col::PROJECT_ID,
+            collab_col::USER_ID,
+            collab_col::IS_DELETED,
+        ))
+        .bind(pid)
+        .bind(uid)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
         if let Some(existing_id) = existing {
-            conn.execute(
-                &format!(
-                    "UPDATE {} SET {} = ?1, {} = ?2, {} = ?3 WHERE {} = ?4",
-                    collab_col::TABLE,
-                    collab_col::ROLE,
-                    collab_col::STATUS,
-                    collab_col::UPDATED_AT,
-                    collab_col::ID,
-                ),
-                params![role, status, now, existing_id],
-            )
+            sqlx::query(&format!(
+                "UPDATE {} SET {} = ?, {} = ?, {} = ? WHERE {} = ?",
+                collab_col::TABLE,
+                collab_col::ROLE,
+                collab_col::STATUS,
+                collab_col::UPDATED_AT,
+                collab_col::ID,
+            ))
+            .bind(role)
+            .bind(status)
+            .bind(&now)
+            .bind(existing_id)
+            .execute(&self.pool)
+            .await
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
-            let mut stmt = conn
-                .prepare(&format!(
-                    "SELECT * FROM {} WHERE {} = ?1",
-                    collab_col::TABLE,
-                    collab_col::ID,
-                ))
+            let row = sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ?",
+                collab_col::TABLE,
+                collab_col::ID,
+            ))
+            .bind(existing_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
+            let r = ProjectCollaboratorRow::from_row(&row)
                 .map_err(|e| ProjectError::Repository(e.to_string()))?;
-            let row = stmt
-                .query_row(params![existing_id], |r| {
-                    Ok(ProjectCollaboratorRow::from_row(r))
-                })
-                .map_err(|e| ProjectError::Repository(e.to_string()))?;
-            match row {
-                Ok(r) => Ok(row_mapper::project_collaborator_row_to_payload(&r)),
-                Err(e) => Err(ProjectError::Repository(e.to_string())),
-            }
+            Ok(row_mapper::project_collaborator_row_to_payload(&r))
         } else {
             let wid: i64 = req
                 .team_id
@@ -530,44 +493,52 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
                 .unwrap_or("0")
                 .parse()
                 .unwrap_or(0);
-            conn.execute(
-                &format!(
-                    "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status) VALUES (?1,?2,?3,?4,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
-                    t = collab_col::TABLE,
-                ),
-                params![
-                    uuid,
-                    tenant_id,
-                    0i64,
-                    now,
-                    0i64,
-                    0i64,
-                    pid,
-                    wid,
-                    uid,
-                    req.team_id.as_deref().and_then(|s| s.parse::<i64>().ok()),
-                    role,
-                    req.created_by_user_id.as_deref().and_then(|s| s.parse::<i64>().ok()),
-                    req.granted_by_user_id.as_deref().and_then(|s| s.parse::<i64>().ok()),
-                    status,
-                ],
-            )
+            let team_id = req.team_id.as_deref().and_then(|s| s.parse::<i64>().ok());
+            let created_by = req
+                .created_by_user_id
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok());
+            let granted_by = req
+                .granted_by_user_id
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok());
+
+            let result = sqlx::query(&format!(
+                "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                t = collab_col::TABLE,
+            ))
+            .bind(&uuid)
+            .bind(tenant_id)
+            .bind(0i64)
+            .bind(&now)
+            .bind(&now)
+            .bind(0i64)
+            .bind(0i64)
+            .bind(pid)
+            .bind(wid)
+            .bind(uid)
+            .bind(team_id)
+            .bind(role)
+            .bind(created_by)
+            .bind(granted_by)
+            .bind(status)
+            .execute(&self.pool)
+            .await
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
-            let new_id = conn.last_insert_rowid();
-            let mut stmt = conn
-                .prepare(&format!(
-                    "SELECT * FROM {} WHERE {} = ?1",
-                    collab_col::TABLE,
-                    collab_col::ID,
-                ))
+
+            let new_id = result.last_insert_rowid();
+            let row = sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ?",
+                collab_col::TABLE,
+                collab_col::ID,
+            ))
+            .bind(new_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
+            let r = ProjectCollaboratorRow::from_row(&row)
                 .map_err(|e| ProjectError::Repository(e.to_string()))?;
-            let row = stmt
-                .query_row(params![new_id], |r| Ok(ProjectCollaboratorRow::from_row(r)))
-                .map_err(|e| ProjectError::Repository(e.to_string()))?;
-            match row {
-                Ok(r) => Ok(row_mapper::project_collaborator_row_to_payload(&r)),
-                Err(e) => Err(ProjectError::Repository(e.to_string())),
-            }
+            Ok(row_mapper::project_collaborator_row_to_payload(&r))
         }
     }
 
@@ -577,30 +548,27 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         project_id: &str,
         user_id: &str,
     ) -> Result<(), ProjectError> {
-        let conn = self.conn.lock().map_err(|e| {
-            ProjectError::Repository(format!("lock error: {e}"))
-        })?;
         let pid: i64 = project_id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid project_id: {project_id}"))
         })?;
-        let uid: i64 = user_id.parse().map_err(|_| {
-            ProjectError::InvalidInput(format!("invalid user_id: {user_id}"))
-        })?;
+        let uid: i64 = user_id
+            .parse()
+            .map_err(|_| ProjectError::InvalidInput(format!("invalid user_id: {user_id}")))?;
         let now = Self::now_iso();
-        conn.execute(
-            &format!(
-                "UPDATE {} SET {} = 1, {} = ?1 WHERE {} = ?2 AND {} = ?3",
-                collab_col::TABLE,
-                collab_col::IS_DELETED,
-                collab_col::UPDATED_AT,
-                collab_col::PROJECT_ID,
-                collab_col::USER_ID,
-            ),
-            params![now, pid, uid],
-        )
+        sqlx::query(&format!(
+            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ? AND {} = ?",
+            collab_col::TABLE,
+            collab_col::IS_DELETED,
+            collab_col::UPDATED_AT,
+            collab_col::PROJECT_ID,
+            collab_col::USER_ID,
+        ))
+        .bind(&now)
+        .bind(pid)
+        .bind(uid)
+        .execute(&self.pool)
+        .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
         Ok(())
     }
 }
-
-use rusqlite::OptionalExtension;

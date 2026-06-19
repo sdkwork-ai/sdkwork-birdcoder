@@ -1,28 +1,14 @@
 [package]
-name = "sdkwork-birdcoder-server"
+name = "sdkwork-birdcoder-pc-server-host-shim"
 version = "0.1.0"
 edition = "2021"
+publish = false
+
+[[bin]]
+name = "sdkwork-birdcoder-pc-server-host-shim"
+path = "src/main.rs"
 
 [dependencies]
-argon2 = "0.5"
-axum = { version = "0.8", features = ["ws"] }
-base64 = "0.22"
-hmac = "0.12"
-rusqlite = { version = "0.32", features = ["bundled"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-sha2 = "0.10"
-sdkwork-birdcoder-codeengine = { path = "../../sdkwork-birdcoder-codeengine/src-host" }
-sdkwork-birdcoder-git = { path = "../../sdkwork-birdcoder-git/src-host" }
-sdkwork_iam_core = { path = "../../../../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-core-rust" }
-sdkwork_iam_http = { path = "../../../../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-http-rust" }
-sdkwork_iam_storage_sqlx = { path = "../../../../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-storage-sqlx-rust" }
-sdkwork_iam_tauri = { path = "../../../../sdkwork-appbase/packages/native-rust/iam/sdkwork-iam-tauri-rust" }
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
-tower-http = { version = "0.6", features = ["cors"] }
-time = { version = "0.3", features = ["formatting", "parsing"] }
-ureq = "2"
-uuid = { version = "1", features = ["v4", "v5"] }
-
-[dev-dependencies]
-tower = { version = "0.5", features = ["util"] }
+sdkwork-birdcoder-api-server = { path = "../../../../../../crates/sdkwork-birdcoder-api-server" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

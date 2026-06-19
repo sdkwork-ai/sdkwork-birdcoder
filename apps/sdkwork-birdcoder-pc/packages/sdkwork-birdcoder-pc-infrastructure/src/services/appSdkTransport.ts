@@ -43,15 +43,13 @@ export interface CreateBirdCoderInProcessAppSdkTransportOptions {
 function isAppRuntimeSdkRoute(path: string): boolean {
   const appPrefix = BIRDCODER_CODING_SERVER_API_PREFIXES.app;
   return (
-    path.startsWith(`${appPrefix}/approvals/`) ||
-    path.startsWith(`${appPrefix}/coding_sessions`) ||
+    path.startsWith(`${appPrefix}/intelligence/coding_sessions`) ||
     path.startsWith(`${appPrefix}/engines`) ||
     path.startsWith(`${appPrefix}/model_config`) ||
     path.startsWith(`${appPrefix}/models`) ||
     path.startsWith(`${appPrefix}/native_session_providers`) ||
     path.startsWith(`${appPrefix}/native_sessions`) ||
     path.startsWith(`${appPrefix}/operations/`) ||
-    path.startsWith(`${appPrefix}/questions/`) ||
     path.startsWith(`${appPrefix}/system/`)
   );
 }

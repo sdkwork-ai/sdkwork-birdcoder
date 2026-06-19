@@ -198,6 +198,21 @@ assert.doesNotMatch(
 );
 assert.match(
   sdkClientsSource,
+  /client\.intelligence\.codingSessions\.checkpoints\.approval\.create/u,
+  'app SDK wrapper must route approval decisions through nested intelligence coding session checkpoints.',
+);
+assert.match(
+  sdkClientsSource,
+  /BirdCoder app API does not expose coding session message edit over HTTP/u,
+  'app SDK wrapper must not call removed HTTP message edit routes.',
+);
+assert.doesNotMatch(
+  sdkClientsSource,
+  /client\.intelligence\.codingSessions\.messages/u,
+  'app SDK wrapper must not depend on removed intelligence message HTTP routes.',
+);
+assert.match(
+  sdkClientsSource,
   /client\.intelligence\.codingSessions\.turns\.create/u,
   'app SDK wrapper must route coding runtime turn creation through the generated app SDK intelligence namespace.',
 );

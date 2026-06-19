@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::Json;
 
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
-use sdkwork_birdcoder_router_context::{coding_session_context, RequiredIamContext};
+use sdkwork_birdcoder_router_context::{coding_session_context, RequiredIamContext, WebRequestContext};
 
 use crate::error::AppError;
 use crate::mapper::request::{
@@ -19,6 +19,7 @@ pub struct CodingSessionsAppState {
 }
 
 pub async fn list_sessions(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Query(query): Query<ListSessionsQuery>,
@@ -31,19 +32,21 @@ pub async fn list_sessions(
 }
 
 pub async fn get_session(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(session_id): Path<String>,
+    Path(sessionId): Path<String>,
 ) -> Result<
     Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload>>,
     AppError,
 > {
     let ctx = coding_session_context(&iam);
-    let session = state.service.get_session(&ctx, &session_id).await?;
+    let session = state.service.get_session(&ctx, &sessionId).await?;
     Ok(Json(ApiResponse::new(session)))
 }
 
 pub async fn create_session(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Json(request): Json<CreateCodingSessionRequest>,
@@ -57,9 +60,10 @@ pub async fn create_session(
 }
 
 pub async fn update_session(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(session_id): Path<String>,
+    Path(sessionId): Path<String>,
     Json(request): Json<UpdateCodingSessionRequest>,
 ) -> Result<
     Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload>>,
@@ -68,25 +72,27 @@ pub async fn update_session(
     let ctx = coding_session_context(&iam);
     let session = state
         .service
-        .update_session(&ctx, &session_id, request.into())
+        .update_session(&ctx, &sessionId, request.into())
         .await?;
     Ok(Json(ApiResponse::new(session)))
 }
 
 pub async fn delete_session(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(session_id): Path<String>,
+    Path(sessionId): Path<String>,
 ) -> Result<Json<ApiResponse<DeleteResponse>>, AppError> {
     let ctx = coding_session_context(&iam);
-    let result = state.service.delete_session(&ctx, &session_id).await?;
+    let result = state.service.delete_session(&ctx, &sessionId).await?;
     Ok(Json(ApiResponse::new(result.into())))
 }
 
 pub async fn fork_session(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(session_id): Path<String>,
+    Path(sessionId): Path<String>,
     Json(request): Json<ForkCodingSessionRequest>,
 ) -> Result<
     (StatusCode, Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload>>),
@@ -95,15 +101,16 @@ pub async fn fork_session(
     let ctx = coding_session_context(&iam);
     let session = state
         .service
-        .fork_session(&ctx, &session_id, request.into())
+        .fork_session(&ctx, &sessionId, request.into())
         .await?;
     Ok((StatusCode::CREATED, Json(ApiResponse::new(session))))
 }
 
 pub async fn create_turn(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(session_id): Path<String>,
+    Path(sessionId): Path<String>,
     Json(request): Json<CreateCodingSessionTurnRequest>,
 ) -> Result<
     (StatusCode, Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionTurnPayload>>),
@@ -112,54 +119,58 @@ pub async fn create_turn(
     let ctx = coding_session_context(&iam);
     let pending = state
         .service
-        .create_turn(&ctx, &session_id, request.into())
+        .create_turn(&ctx, &sessionId, request.into())
         .await?;
     Ok((StatusCode::CREATED, Json(ApiResponse::new(pending.turn))))
 }
 
 pub async fn list_events(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(session_id): Path<String>,
+    Path(sessionId): Path<String>,
 ) -> Result<
     Json<ApiListResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionEventPayload>>,
     AppError,
 > {
     let ctx = coding_session_context(&iam);
-    let events = state.service.list_events(&ctx, &session_id).await?;
+    let events = state.service.list_events(&ctx, &sessionId).await?;
     Ok(Json(ApiListResponse::new(events)))
 }
 
 pub async fn list_artifacts(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(session_id): Path<String>,
+    Path(sessionId): Path<String>,
 ) -> Result<
     Json<ApiListResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionArtifactPayload>>,
     AppError,
 > {
     let ctx = coding_session_context(&iam);
-    let artifacts = state.service.list_artifacts(&ctx, &session_id).await?;
+    let artifacts = state.service.list_artifacts(&ctx, &sessionId).await?;
     Ok(Json(ApiListResponse::new(artifacts)))
 }
 
 pub async fn list_checkpoints(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(session_id): Path<String>,
+    Path(sessionId): Path<String>,
 ) -> Result<
     Json<ApiListResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionCheckpointPayload>>,
     AppError,
 > {
     let ctx = coding_session_context(&iam);
-    let checkpoints = state.service.list_checkpoints(&ctx, &session_id).await?;
+    let checkpoints = state.service.list_checkpoints(&ctx, &sessionId).await?;
     Ok(Json(ApiListResponse::new(checkpoints)))
 }
 
 pub async fn submit_approval_decision(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path((session_id, checkpoint_id)): Path<(String, String)>,
+    Path((sessionId, checkpointId)): Path<(String, String)>,
     Json(request): Json<SubmitApprovalDecisionRequest>,
 ) -> Result<
     Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::ApprovalDecisionPayload>>,
@@ -168,15 +179,16 @@ pub async fn submit_approval_decision(
     let ctx = coding_session_context(&iam);
     let approval = state
         .service
-        .submit_approval_decision(&ctx, &session_id, &checkpoint_id, request.into())
+        .submit_approval_decision(&ctx, &sessionId, &checkpointId, request.into())
         .await?;
     Ok(Json(ApiResponse::new(approval)))
 }
 
 pub async fn submit_user_question_answer(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path((session_id, question_id)): Path<(String, String)>,
+    Path((sessionId, questionId)): Path<(String, String)>,
     Json(request): Json<SubmitUserQuestionAnswerRequest>,
 ) -> Result<
     Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::UserQuestionAnswerPayload>>,
@@ -185,7 +197,7 @@ pub async fn submit_user_question_answer(
     let ctx = coding_session_context(&iam);
     let answer = state
         .service
-        .submit_user_question_answer(&ctx, &session_id, &question_id, request.into())
+        .submit_user_question_answer(&ctx, &sessionId, &questionId, request.into())
         .await?;
     Ok(Json(ApiResponse::new(answer)))
 }

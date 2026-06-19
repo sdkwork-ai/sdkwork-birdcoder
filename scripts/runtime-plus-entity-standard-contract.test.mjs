@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { readCanonicalSqliteSchemaBundle } from './birdcoder-canonical-server-rust-sources.mjs';
 
 const dataDefinitionsPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
@@ -17,10 +18,7 @@ const workbenchPreferencesPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts',
   import.meta.url,
 );
-const desktopRustPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs',
-  import.meta.url,
-);
+const canonicalSqliteSchemaSource = readCanonicalSqliteSchemaBundle();
 const providersModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/providers.ts',
   import.meta.url,
@@ -36,7 +34,7 @@ const runtimeMigrationSql = [
   ...(runtimeMigration.sqlByProvider.sqlite ?? []),
   ...(runtimeMigration.sqlByProvider.postgresql ?? []),
 ].join('\n');
-const embeddedServerRustSource = await readFile(desktopRustPath, 'utf8');
+const embeddedServerRustSource = canonicalSqliteSchemaSource;
 const desktopRustSource = `${embeddedServerRustSource}\n${runtimeMigrationSql}\n${dataDefinitionsSource}`;
 
 function escapeRegExp(value) {

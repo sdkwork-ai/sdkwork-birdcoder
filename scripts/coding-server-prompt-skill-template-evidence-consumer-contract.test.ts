@@ -112,7 +112,7 @@ const projection = {
     operationId: 'turn-evidence-consumer-contract:operation',
     status: 'succeeded',
     artifactRefs: ['artifact-evidence-consumer-contract-1'],
-    streamUrl: '/app/v3/api/coding_sessions/coding-session-evidence-consumer-contract/events',
+    streamUrl: '/app/v3/api/intelligence/coding_sessions/coding-session-evidence-consumer-contract/events',
     streamKind: 'sse',
   },
 } satisfies Parameters<typeof store.persistRunProjection>[0];

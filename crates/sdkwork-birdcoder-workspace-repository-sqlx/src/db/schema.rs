@@ -275,7 +275,3 @@ CREATE TABLE IF NOT EXISTS ops_governance_policy (
     status TEXT NOT NULL
 );
 "#;
-
-pub fn initialize_schema(conn: &rusqlite::Connection) -> rusqlite::Result<()> {
-    conn.execute_batch(ALL_TABLES_DDL)
-}

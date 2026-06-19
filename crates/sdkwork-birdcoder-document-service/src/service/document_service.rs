@@ -3,13 +3,15 @@ use crate::error::DocumentError;
 
 // ── Repository trait ─────────────────────────────────────────────────
 
+#[async_trait::async_trait]
 pub trait DocumentRepository: Send + Sync {
-    fn list_documents(
+    async fn list_documents(
         &self,
         project_id: Option<&str>,
         tenant_id: Option<&str>,
     ) -> Result<Vec<DocumentPayload>, String>;
-    fn find_document_by_id(
+
+    async fn find_document_by_id(
         &self,
         document_id: &str,
         tenant_id: Option<&str>,
@@ -28,17 +30,18 @@ impl<R: DocumentRepository> DocumentService<R> {
         Self { repository }
     }
 
-    pub fn list_documents(
+    pub async fn list_documents(
         &self,
         project_id: Option<&str>,
         tenant_id: Option<&str>,
     ) -> Result<Vec<DocumentPayload>, DocumentError> {
         self.repository
             .list_documents(project_id, tenant_id)
+            .await
             .map_err(DocumentError::Repository)
     }
 
-    pub fn get_document(
+    pub async fn get_document(
         &self,
         document_id: &str,
         tenant_id: Option<&str>,
@@ -49,6 +52,7 @@ impl<R: DocumentRepository> DocumentService<R> {
 
         self.repository
             .find_document_by_id(&normalized_id, tenant_id)
+            .await
             .map_err(DocumentError::Repository)?
             .ok_or_else(|| {
                 DocumentError::NotFound(format!("Document \"{normalized_id}\" was not found."))

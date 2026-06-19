@@ -80,6 +80,13 @@ function resolveSdkworkTerminalInfrastructureEntryPath(
   return resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/index.ts');
 }
 
+function resolveSdkworkTerminalLocalRuntimeAppSdkEntryPath() {
+  return resolveDependencyPath(
+    'sdkwork-terminal',
+    'apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript/src/index.ts',
+  );
+}
+
 function resolveSdkworkCorePcReactBrowserFacadePath() {
   return path.join(
     workspaceRootDir,
@@ -317,15 +324,19 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: resolveSdkworkTerminalInfrastructureEntryPath(appRootDir),
     },
     {
+      find: '@sdkwork/terminal-local-runtime-app-sdk',
+      replacement: resolveSdkworkTerminalLocalRuntimeAppSdkEntryPath(),
+    },
+    {
       find: '@sdkwork/terminal-pc-desktop',
       replacement: resolveSdkworkTerminalDesktopEntryPath(appRootDir),
     },
     {
-      find: /^@sdkwork\/terminal-([^/]+)\/(.+)$/u,
+      find: /^@sdkwork\/terminal-(?!local-runtime-app-sdk$)([^/]+)\/(.+)$/u,
       replacement: resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src/$2'),
     },
     {
-      find: /^@sdkwork\/terminal-([^/]+)$/u,
+      find: /^@sdkwork\/terminal-(?!local-runtime-app-sdk$)([^/]+)$/u,
       replacement: resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
     },
   ];

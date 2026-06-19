@@ -28,8 +28,10 @@ function readOptionValue(argv: string[], index: number, flag: string): string {
 function defaultSourceFile(): string {
   return path.join(
     process.cwd(),
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
-    'sdkwork-birdcoder-types',
+    'sdkwork-birdcoder-pc-types',
     'src',
     'generated',
     'coding-server-openapi.ts',
@@ -39,8 +41,10 @@ function defaultSourceFile(): string {
 function defaultOutputFile(): string {
   return path.join(
     process.cwd(),
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
-    'sdkwork-birdcoder-types',
+    'sdkwork-birdcoder-pc-types',
     'src',
     'generated',
     'coding-server-client.ts',

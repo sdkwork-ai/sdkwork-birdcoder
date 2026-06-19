@@ -2,7 +2,7 @@ use axum::extract::{Path, Query, State};
 use axum::Json;
 
 use sdkwork_birdcoder_router_context::{
-    deployment_context, project_context, workspace_context, RequiredIamContext,
+    deployment_context, project_context, workspace_context, RequiredIamContext, WebRequestContext,
 };
 use sdkwork_birdcoder_workspace_service::domain::commands::{
     CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest,
@@ -41,6 +41,7 @@ pub struct WorkspaceAppState {
 // ── Workspace handlers ───────────────────────────────────────────────
 
 pub async fn list_workspaces(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Query(_query): Query<serde_json::Value>,
@@ -58,6 +59,7 @@ pub async fn list_workspaces(
 }
 
 pub async fn get_workspace(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
@@ -70,6 +72,7 @@ pub async fn get_workspace(
 }
 
 pub async fn create_workspace(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Json(body): Json<CreateWorkspaceBody>,
@@ -107,6 +110,7 @@ pub async fn create_workspace(
 }
 
 pub async fn update_workspace(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
@@ -143,6 +147,7 @@ pub async fn update_workspace(
 }
 
 pub async fn delete_workspace(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
@@ -165,6 +170,7 @@ pub async fn subscribe_workspace_realtime(
 }
 
 pub async fn list_workspace_members(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
@@ -177,6 +183,7 @@ pub async fn list_workspace_members(
 }
 
 pub async fn upsert_workspace_member(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
@@ -201,6 +208,7 @@ pub async fn upsert_workspace_member(
 // ── Project handlers ─────────────────────────────────────────────────
 
 pub async fn list_projects(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Query(query): Query<ProjectListQuery>,
@@ -214,6 +222,7 @@ pub async fn list_projects(
 }
 
 pub async fn get_project(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -226,6 +235,7 @@ pub async fn get_project(
 }
 
 pub async fn create_project(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Json(body): Json<CreateProjectBody>,
@@ -271,6 +281,7 @@ pub async fn create_project(
 }
 
 pub async fn update_project(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -310,6 +321,7 @@ pub async fn update_project(
 }
 
 pub async fn delete_project(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -324,6 +336,7 @@ pub async fn delete_project(
 // ── Git handlers ─────────────────────────────────────────────────────
 
 pub async fn get_project_git_overview(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -336,6 +349,7 @@ pub async fn get_project_git_overview(
 }
 
 pub async fn create_project_git_branch(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -352,6 +366,7 @@ pub async fn create_project_git_branch(
 }
 
 pub async fn switch_project_git_branch(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -368,6 +383,7 @@ pub async fn switch_project_git_branch(
 }
 
 pub async fn commit_project_git_changes(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -384,6 +400,7 @@ pub async fn commit_project_git_changes(
 }
 
 pub async fn push_project_git_branch(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -401,6 +418,7 @@ pub async fn push_project_git_branch(
 }
 
 pub async fn create_project_git_worktree(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -418,6 +436,7 @@ pub async fn create_project_git_worktree(
 }
 
 pub async fn remove_project_git_worktree(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -435,6 +454,7 @@ pub async fn remove_project_git_worktree(
 }
 
 pub async fn prune_project_git_worktrees(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -449,6 +469,7 @@ pub async fn prune_project_git_worktrees(
 // ── Collaborator handlers ────────────────────────────────────────────
 
 pub async fn list_project_collaborators(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -461,6 +482,7 @@ pub async fn list_project_collaborators(
 }
 
 pub async fn upsert_project_collaborator(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -485,6 +507,7 @@ pub async fn upsert_project_collaborator(
 // ── Deployment handlers ──────────────────────────────────────────────
 
 pub async fn list_deployments(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
@@ -496,6 +519,7 @@ pub async fn list_deployments(
 }
 
 pub async fn publish_project(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,

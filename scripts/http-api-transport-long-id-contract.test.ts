@@ -150,7 +150,7 @@ assert.equal(
   'code engine numeric status normalization must reject unsafe Long-sized strings instead of parsing them into rounded JavaScript numbers.',
 );
 assert.deepEqual(observedRequests.map((request) => request.path), [
-  '/app/v3/api/coding_sessions',
+  '/app/v3/api/intelligence/coding_sessions',
 ]);
 
 const createdTurn = await appClient.createCodingSessionTurn(createdSession.id, {
@@ -161,12 +161,12 @@ const createdTurn = await appClient.createCodingSessionTurn(createdSession.id, {
 assert.equal(createdTurn.id, unsafeTurnId);
 assert.equal(createdTurn.codingSessionId, unsafeSessionId);
 assert.deepEqual(observedRequests.map((request) => request.path), [
-  '/app/v3/api/coding_sessions',
-  `/app/v3/api/coding_sessions/${unsafeSessionId}/turns`,
+  '/app/v3/api/intelligence/coding_sessions',
+  `/app/v3/api/intelligence/coding_sessions/${unsafeSessionId}/turns`,
 ]);
 assert.notEqual(
   observedRequests[1]?.path,
-  `/app/v3/api/coding_sessions/${String(Number(unsafeSessionId))}/turns`,
+  `/app/v3/api/intelligence/coding_sessions/${String(Number(unsafeSessionId))}/turns`,
   'create-turn must route with the exact server-created session id, not the rounded Java/Rust Long value that causes session-not-found toasts.',
 );
 

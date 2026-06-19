@@ -1,20 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const turnsSource = fs.readFileSync(
-  new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/turns.rs',
-    import.meta.url,
-  ),
-  'utf8',
-);
-const codexSessionsSource = fs.readFileSync(
-  new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/codex_sessions.rs',
-    import.meta.url,
-  ),
-  'utf8',
-);
+import {
+  readCanonicalServerRustSource,
+  CANONICAL_CODEENGINE_RUST_PATHS,
+} from './birdcoder-canonical-server-rust-sources.mjs';
+
+const turnsSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.turns);
+const codexSessionsSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.codexSessions);
 
 assert.match(
   turnsSource,

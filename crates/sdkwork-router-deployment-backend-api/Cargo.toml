@@ -12,6 +12,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sdkwork-birdcoder-deployment-service = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
+sdkwork-web-contract = { workspace = true }
+sdkwork-web-core = { workspace = true }
 
 
 

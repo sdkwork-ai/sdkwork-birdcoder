@@ -58,19 +58,19 @@
         "../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/*"
       ],
       "@sdkwork/birdcoder-commons/*": [
-        "../../packages/sdkwork-birdcoder-commons/src/*"
+        "packages/sdkwork-birdcoder-pc-commons/src/*"
       ],
       "@sdkwork/birdcoder-infrastructure/*": [
-        "../../packages/sdkwork-birdcoder-infrastructure/src/*"
+        "packages/sdkwork-birdcoder-pc-infrastructure/src/*"
       ],
       "@sdkwork/birdcoder-shell/*": [
-        "../../packages/sdkwork-birdcoder-shell/src/*"
+        "packages/sdkwork-birdcoder-pc-shell/src/*"
       ],
       "@sdkwork/birdcoder-types/*": [
-        "../../packages/sdkwork-birdcoder-types/src/*"
+        "packages/sdkwork-birdcoder-pc-types/src/*"
       ],
       "@sdkwork/birdcoder-commons/shell": [
-        "../../packages/sdkwork-birdcoder-commons/src/shell.ts"
+        "packages/sdkwork-birdcoder-pc-commons/src/shell.ts"
       ],
       "@sdkwork/appbase-pc-react": [
         "src/appbase-public-types/appbase-pc-react.d.ts"
@@ -91,7 +91,7 @@
         "../../../sdkwork-core/sdkwork-core-pc-react/dist/index.d.ts"
       ],
       "@sdkwork/birdcoder-shell/runtime": [
-        "../../packages/sdkwork-birdcoder-shell/src/runtime.ts"
+        "packages/sdkwork-birdcoder-pc-shell/src/runtime.ts"
       ],
       "@sdkwork/ui-pc-react": [
         "../../../sdkwork-ui/sdkwork-ui-pc-react/src/index.ts"
@@ -131,6 +131,9 @@
       ],
       "lucide-react": [
         "node_modules/lucide-react"
+      ],
+      "@sdkwork/terminal-local-runtime-app-sdk": [
+        "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/terminal-*": [
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-*/src"
@@ -172,7 +175,7 @@
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-types/src/*"
       ],
       "sdkwork-birdcoder-commons/shell": [
-        "../../packages/sdkwork-birdcoder-commons/src/shell.ts"
+        "packages/sdkwork-birdcoder-pc-commons/src/shell.ts"
       ],
       "sdkwork-birdcoder-*": [
         "packages/sdkwork-birdcoder-pc-*/src"
@@ -189,7 +192,7 @@
     "**/target/**",
     "**/src-tauri/target/**",
     "../../scripts/vite-shims/sdkwork-core-pc-react-browser-facade.mjs",
-    "../../packages/sdkwork-birdcoder-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts",
+    "packages/sdkwork-birdcoder-pc-commons/src/terminal/birdcoderTerminalInfrastructureRuntime.ts",
     "artifacts/**"
   ]
 }

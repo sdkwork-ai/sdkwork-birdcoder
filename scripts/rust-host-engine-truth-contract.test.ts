@@ -11,14 +11,14 @@ function toJsonComparable<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-const sharedCatalogPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/generated/engine-catalog.json',
-  import.meta.url,
-);
-const rustSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/catalog.rs',
-  import.meta.url,
-);
+import {
+  CANONICAL_CODEENGINE_ARTIFACT_PATHS,
+  CANONICAL_CODEENGINE_RUST_PATHS,
+  readCanonicalServerRustSource,
+} from './birdcoder-canonical-server-rust-sources.mjs';
+
+const sharedCatalogPath = new URL(`../${CANONICAL_CODEENGINE_ARTIFACT_PATHS.engineCatalogJson}`, import.meta.url);
+const rustSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.catalog);
 
 assert.equal(
   existsSync(sharedCatalogPath),
@@ -49,8 +49,6 @@ assert.deepEqual(
   toJsonComparable(listBirdCoderCodeEngineNativeSessionProviders()),
   'Rust codeengine artifact must stay aligned with promoted native session provider truth.',
 );
-
-const rustSource = readFileSync(rustSourcePath, 'utf8');
 
 assert.match(
   rustSource,

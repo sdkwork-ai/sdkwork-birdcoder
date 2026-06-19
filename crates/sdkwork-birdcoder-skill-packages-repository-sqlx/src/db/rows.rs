@@ -1,4 +1,4 @@
-use rusqlite::Row;
+use sqlx::Row;
 
 #[derive(Clone, Debug)]
 pub struct SkillPackageRow {
@@ -17,20 +17,20 @@ pub struct SkillPackageRow {
 }
 
 impl SkillPackageRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            slug: row.get("slug")?,
-            source_uri: row.get("source_uri")?,
-            status: row.get("status")?,
-            manifest_json: row.get("manifest_json")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            slug: row.try_get("slug")?,
+            source_uri: row.try_get("source_uri")?,
+            status: row.try_get("status")?,
+            manifest_json: row.try_get("manifest_json")?,
         })
     }
 }
@@ -52,20 +52,20 @@ pub struct SkillVersionRow {
 }
 
 impl SkillVersionRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            skill_package_id: row.get("skill_package_id")?,
-            version_label: row.get("version_label")?,
-            manifest_json: row.get("manifest_json")?,
-            status: row.get("status")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            skill_package_id: row.try_get("skill_package_id")?,
+            version_label: row.try_get("version_label")?,
+            manifest_json: row.try_get("manifest_json")?,
+            status: row.try_get("status")?,
         })
     }
 }
@@ -87,20 +87,20 @@ pub struct SkillCapabilityRow {
 }
 
 impl SkillCapabilityRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            skill_version_id: row.get("skill_version_id")?,
-            capability_key: row.get("capability_key")?,
-            description_text: row.get("description_text")?,
-            payload_json: row.get("payload_json")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            skill_version_id: row.try_get("skill_version_id")?,
+            capability_key: row.try_get("capability_key")?,
+            description_text: row.try_get("description_text")?,
+            payload_json: row.try_get("payload_json")?,
         })
     }
 }
@@ -123,21 +123,21 @@ pub struct SkillInstallationRow {
 }
 
 impl SkillInstallationRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            scope_type: row.get("scope_type")?,
-            scope_id: row.get("scope_id")?,
-            skill_version_id: row.get("skill_version_id")?,
-            status: row.get("status")?,
-            installed_at: row.get("installed_at")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            scope_type: row.try_get("scope_type")?,
+            scope_id: row.try_get("scope_id")?,
+            skill_version_id: row.try_get("skill_version_id")?,
+            status: row.try_get("status")?,
+            installed_at: row.try_get("installed_at")?,
         })
     }
 }

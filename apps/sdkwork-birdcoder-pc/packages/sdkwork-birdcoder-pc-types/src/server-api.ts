@@ -1170,9 +1170,7 @@ export interface BirdCoderAppRuntimeApiContract {
   codingSession: BirdCoderApiRouteDefinition;
   codingSessions: BirdCoderApiRouteDefinition;
   deleteCodingSession: BirdCoderApiRouteDefinition;
-  deleteCodingSessionMessage: BirdCoderApiRouteDefinition;
   descriptor: BirdCoderApiRouteDefinition;
-  editCodingSessionMessage: BirdCoderApiRouteDefinition;
   engineCapabilities: BirdCoderApiRouteDefinition;
   engines: BirdCoderApiRouteDefinition;
   events: BirdCoderApiRouteDefinition;

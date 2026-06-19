@@ -240,6 +240,18 @@ assert.equal(
   dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/index.ts'),
 );
 
+const terminalLocalRuntimeSdkAlias = findAlias(
+  (entry) => entry.find === '@sdkwork/terminal-local-runtime-app-sdk',
+  'Desktop host config must keep the terminal local runtime app SDK alias.',
+);
+assert.equal(
+  terminalLocalRuntimeSdkAlias.replacement,
+  dependencyPath(
+    'sdkwork-terminal',
+    'apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript/src/index.ts',
+  ),
+);
+
 const terminalDesktopAlias = findAlias(
   (entry) => entry.find === '@sdkwork/terminal-pc-desktop',
   'Desktop host config must keep the terminal desktop alias.',
@@ -258,6 +270,11 @@ assert.equal(
   terminalPackageSubpathAlias.replacement,
   dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src/$2'),
 );
+assert.equal(
+  terminalPackageSubpathAlias.find.test('@sdkwork/terminal-local-runtime-app-sdk'),
+  false,
+  'Terminal package aliases must not shadow the dedicated terminal local runtime app SDK alias.',
+);
 
 const terminalPackageRootAlias = findAlias(
   (entry) => entry.find instanceof RegExp && entry.find.test('@sdkwork/terminal-core'),
@@ -266,6 +283,11 @@ const terminalPackageRootAlias = findAlias(
 assert.equal(
   terminalPackageRootAlias.replacement,
   dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
+);
+assert.equal(
+  terminalPackageRootAlias.find.test('@sdkwork/terminal-local-runtime-app-sdk'),
+  false,
+  'Terminal package root aliases must not shadow the dedicated terminal local runtime app SDK alias.',
 );
 assert.notEqual(
   birdcoderPackageSubpathAlias.replacement,

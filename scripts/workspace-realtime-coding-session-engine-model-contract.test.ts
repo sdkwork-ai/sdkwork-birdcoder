@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+import { readCanonicalServerRustSource, LEGACY_ARCHIVE_RUST_PATHS } from './birdcoder-canonical-server-rust-sources.mjs';
+
 import type { BirdCoderProject, BirdCoderWorkspaceRealtimeEvent } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 import {
   applyWorkspaceRealtimeEventToProjects,
@@ -452,10 +454,7 @@ assert.deepEqual(
   'workspace realtime must merge streamed tool.call events directly into cached session command cards instead of waiting for final message.completed commandsJson.',
 );
 
-const serverHostSource = readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
-  'utf8',
-);
+const serverHostSource = readCanonicalServerRustSource(LEGACY_ARCHIVE_RUST_PATHS.monolithLib);
 assert.match(
   serverHostSource,
   /fn publish_coding_session_realtime_event\(/,

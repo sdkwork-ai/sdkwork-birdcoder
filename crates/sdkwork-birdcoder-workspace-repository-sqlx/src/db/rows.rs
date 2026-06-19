@@ -1,4 +1,4 @@
-use rusqlite::Row;
+use sqlx::Row;
 
 #[derive(Clone, Debug)]
 pub struct WorkspaceRow {
@@ -35,38 +35,38 @@ pub struct WorkspaceRow {
 }
 
 impl WorkspaceRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            data_scope: row.get("data_scope")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            name: row.get("name")?,
-            code: row.get("code")?,
-            title: row.get("title")?,
-            description: row.get("description")?,
-            owner_id: row.get("owner_id")?,
-            leader_id: row.get("leader_id")?,
-            created_by_user_id: row.get("created_by_user_id")?,
-            icon: row.get("icon")?,
-            color: row.get("color")?,
-            r#type: row.get("type")?,
-            start_time: row.get("start_time")?,
-            end_time: row.get("end_time")?,
-            max_members: row.get("max_members")?,
-            current_members: row.get("current_members")?,
-            member_count: row.get("member_count")?,
-            max_storage: row.get("max_storage")?,
-            used_storage: row.get("used_storage")?,
-            settings_json: row.get("settings_json")?,
-            is_public: row.get("is_public")?,
-            is_template: row.get("is_template")?,
-            status: row.get("status")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            data_scope: row.try_get("data_scope")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            name: row.try_get("name")?,
+            code: row.try_get("code")?,
+            title: row.try_get("title")?,
+            description: row.try_get("description")?,
+            owner_id: row.try_get("owner_id")?,
+            leader_id: row.try_get("leader_id")?,
+            created_by_user_id: row.try_get("created_by_user_id")?,
+            icon: row.try_get("icon")?,
+            color: row.try_get("color")?,
+            r#type: row.try_get("type")?,
+            start_time: row.try_get("start_time")?,
+            end_time: row.try_get("end_time")?,
+            max_members: row.try_get("max_members")?,
+            current_members: row.try_get("current_members")?,
+            member_count: row.try_get("member_count")?,
+            max_storage: row.try_get("max_storage")?,
+            used_storage: row.try_get("used_storage")?,
+            settings_json: row.try_get("settings_json")?,
+            is_public: row.try_get("is_public")?,
+            is_template: row.try_get("is_template")?,
+            status: row.try_get("status")?,
         })
     }
 }
@@ -91,23 +91,23 @@ pub struct WorkspaceMemberRow {
 }
 
 impl WorkspaceMemberRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            workspace_id: row.get("workspace_id")?,
-            user_id: row.get("user_id")?,
-            team_id: row.get("team_id")?,
-            role: row.get("role")?,
-            created_by_user_id: row.get("created_by_user_id")?,
-            granted_by_user_id: row.get("granted_by_user_id")?,
-            status: row.get("status")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            workspace_id: row.try_get("workspace_id")?,
+            user_id: row.try_get("user_id")?,
+            team_id: row.try_get("team_id")?,
+            role: row.try_get("role")?,
+            created_by_user_id: row.try_get("created_by_user_id")?,
+            granted_by_user_id: row.try_get("granted_by_user_id")?,
+            status: row.try_get("status")?,
         })
     }
 }
@@ -149,40 +149,40 @@ pub struct ProjectRow {
 }
 
 impl ProjectRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            v: row.get("v")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            data_scope: row.get("data_scope")?,
-            parent_id: row.get("parent_id")?,
-            parent_uuid: row.get("parent_uuid")?,
-            parent_metadata: row.get("parent_metadata")?,
-            user_id: row.get("user_id")?,
-            name: row.get("name")?,
-            title: row.get("title")?,
-            cover_image: row.get("cover_image")?,
-            author: row.get("author")?,
-            file_id: row.get("file_id")?,
-            code: row.get("code")?,
-            r#type: row.get("type")?,
-            site_path: row.get("site_path")?,
-            domain_prefix: row.get("domain_prefix")?,
-            description: row.get("description")?,
-            status: row.get("status")?,
-            conversation_id: row.get("conversation_id")?,
-            workspace_id: row.get("workspace_id")?,
-            workspace_uuid: row.get("workspace_uuid")?,
-            leader_id: row.get("leader_id")?,
-            start_time: row.get("start_time")?,
-            end_time: row.get("end_time")?,
-            budget_amount: row.get("budget_amount")?,
-            is_deleted: row.get("is_deleted")?,
-            is_template: row.get("is_template")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            v: row.try_get("v")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            data_scope: row.try_get("data_scope")?,
+            parent_id: row.try_get("parent_id")?,
+            parent_uuid: row.try_get("parent_uuid")?,
+            parent_metadata: row.try_get("parent_metadata")?,
+            user_id: row.try_get("user_id")?,
+            name: row.try_get("name")?,
+            title: row.try_get("title")?,
+            cover_image: row.try_get("cover_image")?,
+            author: row.try_get("author")?,
+            file_id: row.try_get("file_id")?,
+            code: row.try_get("code")?,
+            r#type: row.try_get("type")?,
+            site_path: row.try_get("site_path")?,
+            domain_prefix: row.try_get("domain_prefix")?,
+            description: row.try_get("description")?,
+            status: row.try_get("status")?,
+            conversation_id: row.try_get("conversation_id")?,
+            workspace_id: row.try_get("workspace_id")?,
+            workspace_uuid: row.try_get("workspace_uuid")?,
+            leader_id: row.try_get("leader_id")?,
+            start_time: row.try_get("start_time")?,
+            end_time: row.try_get("end_time")?,
+            budget_amount: row.try_get("budget_amount")?,
+            is_deleted: row.try_get("is_deleted")?,
+            is_template: row.try_get("is_template")?,
         })
     }
 }
@@ -208,24 +208,24 @@ pub struct ProjectCollaboratorRow {
 }
 
 impl ProjectCollaboratorRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            project_id: row.get("project_id")?,
-            workspace_id: row.get("workspace_id")?,
-            user_id: row.get("user_id")?,
-            team_id: row.get("team_id")?,
-            role: row.get("role")?,
-            created_by_user_id: row.get("created_by_user_id")?,
-            granted_by_user_id: row.get("granted_by_user_id")?,
-            status: row.get("status")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            project_id: row.try_get("project_id")?,
+            workspace_id: row.try_get("workspace_id")?,
+            user_id: row.try_get("user_id")?,
+            team_id: row.try_get("team_id")?,
+            role: row.try_get("role")?,
+            created_by_user_id: row.try_get("created_by_user_id")?,
+            granted_by_user_id: row.try_get("granted_by_user_id")?,
+            status: row.try_get("status")?,
         })
     }
 }
@@ -248,21 +248,21 @@ pub struct DeploymentTargetRow {
 }
 
 impl DeploymentTargetRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            project_id: row.get("project_id")?,
-            name: row.get("name")?,
-            environment_key: row.get("environment_key")?,
-            runtime: row.get("runtime")?,
-            status: row.get("status")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            project_id: row.try_get("project_id")?,
+            name: row.try_get("name")?,
+            environment_key: row.try_get("environment_key")?,
+            runtime: row.try_get("runtime")?,
+            status: row.try_get("status")?,
         })
     }
 }
@@ -287,23 +287,23 @@ pub struct DeploymentRecordRow {
 }
 
 impl DeploymentRecordRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            project_id: row.get("project_id")?,
-            target_id: row.get("target_id")?,
-            release_record_id: row.get("release_record_id")?,
-            status: row.get("status")?,
-            endpoint_url: row.get("endpoint_url")?,
-            started_at: row.get("started_at")?,
-            completed_at: row.get("completed_at")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            project_id: row.try_get("project_id")?,
+            target_id: row.try_get("target_id")?,
+            release_record_id: row.try_get("release_record_id")?,
+            status: row.try_get("status")?,
+            endpoint_url: row.try_get("endpoint_url")?,
+            started_at: row.try_get("started_at")?,
+            completed_at: row.try_get("completed_at")?,
         })
     }
 }
@@ -331,26 +331,26 @@ pub struct TeamRow {
 }
 
 impl TeamRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            workspace_id: row.get("workspace_id")?,
-            name: row.get("name")?,
-            code: row.get("code")?,
-            title: row.get("title")?,
-            description: row.get("description")?,
-            owner_id: row.get("owner_id")?,
-            leader_id: row.get("leader_id")?,
-            created_by_user_id: row.get("created_by_user_id")?,
-            metadata_json: row.get("metadata_json")?,
-            status: row.get("status")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            workspace_id: row.try_get("workspace_id")?,
+            name: row.try_get("name")?,
+            code: row.try_get("code")?,
+            title: row.try_get("title")?,
+            description: row.try_get("description")?,
+            owner_id: row.try_get("owner_id")?,
+            leader_id: row.try_get("leader_id")?,
+            created_by_user_id: row.try_get("created_by_user_id")?,
+            metadata_json: row.try_get("metadata_json")?,
+            status: row.try_get("status")?,
         })
     }
 }
@@ -374,22 +374,22 @@ pub struct TeamMemberRow {
 }
 
 impl TeamMemberRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            team_id: row.get("team_id")?,
-            user_id: row.get("user_id")?,
-            role: row.get("role")?,
-            created_by_user_id: row.get("created_by_user_id")?,
-            granted_by_user_id: row.get("granted_by_user_id")?,
-            status: row.get("status")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            team_id: row.try_get("team_id")?,
+            user_id: row.try_get("user_id")?,
+            role: row.try_get("role")?,
+            created_by_user_id: row.try_get("created_by_user_id")?,
+            granted_by_user_id: row.try_get("granted_by_user_id")?,
+            status: row.try_get("status")?,
         })
     }
 }
@@ -412,21 +412,21 @@ pub struct ReleaseRecordRow {
 }
 
 impl ReleaseRecordRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            release_version: row.get("release_version")?,
-            release_kind: row.get("release_kind")?,
-            rollout_stage: row.get("rollout_stage")?,
-            manifest_json: row.get("manifest_json")?,
-            status: row.get("status")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            release_version: row.try_get("release_version")?,
+            release_kind: row.try_get("release_kind")?,
+            rollout_stage: row.try_get("rollout_stage")?,
+            manifest_json: row.try_get("manifest_json")?,
+            status: row.try_get("status")?,
         })
     }
 }
@@ -448,20 +448,20 @@ pub struct AuditEventRow {
 }
 
 impl AuditEventRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            scope_type: row.get("scope_type")?,
-            scope_id: row.get("scope_id")?,
-            event_type: row.get("event_type")?,
-            payload_json: row.get("payload_json")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            scope_type: row.try_get("scope_type")?,
+            scope_id: row.try_get("scope_id")?,
+            event_type: row.try_get("event_type")?,
+            payload_json: row.try_get("payload_json")?,
         })
     }
 }
@@ -487,24 +487,24 @@ pub struct GovernancePolicyRow {
 }
 
 impl GovernancePolicyRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            scope_type: row.get("scope_type")?,
-            scope_id: row.get("scope_id")?,
-            policy_category: row.get("policy_category")?,
-            target_type: row.get("target_type")?,
-            target_id: row.get("target_id")?,
-            approval_policy: row.get("approval_policy")?,
-            rationale: row.get("rationale")?,
-            status: row.get("status")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            scope_type: row.try_get("scope_type")?,
+            scope_id: row.try_get("scope_id")?,
+            policy_category: row.try_get("policy_category")?,
+            target_type: row.try_get("target_type")?,
+            target_id: row.try_get("target_id")?,
+            approval_policy: row.try_get("approval_policy")?,
+            rationale: row.try_get("rationale")?,
+            status: row.try_get("status")?,
         })
     }
 }

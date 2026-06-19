@@ -1,17 +1,25 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+
+import {
+  readCanonicalSqliteSchemaBundle,
+  readCanonicalServerRustSource,
+} from './birdcoder-canonical-server-rust-sources.mjs';
+
+const canonicalSqliteSchemaSource = readCanonicalSqliteSchemaBundle();
+const apiServerDatabaseSource = readCanonicalServerRustSource(
+  'crates/sdkwork-birdcoder-api-server/src/bootstrap/database.rs',
+);
 
 const sources = [
   {
     label: 'desktop embedded server',
-    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
+    source: canonicalSqliteSchemaSource,
   },
   {
     label: 'server',
-    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
+    source: canonicalSqliteSchemaSource,
   },
 ];
-
 const requiredWorkspaceColumns = [
   'id',
   'uuid',
@@ -223,9 +231,7 @@ function bodyMatchesColumnType(body, columnName, columnDefinition) {
   ).test(body);
 }
 
-for (const { label, path } of sources) {
-  const rustSource = await readFile(path, 'utf8');
-
+for (const { label, source: rustSource } of sources) {
   const workspaceBodies = collectCreateTableBodies(rustSource, 'studio_workspace');
   assert(
     workspaceBodies.length > 0,
@@ -335,21 +341,20 @@ for (const { label, path } of sources) {
 
   if (label === 'server') {
     assert.match(
-      rustSource,
-      /ensure_sqlite_provider_authority_schema_upgrade\(connection\)\?/,
-      'server sqlite provider authority upgrade must invoke the unified schema migration.',
+      apiServerDatabaseSource,
+      /bootstrap_database\(/,
+      'api-server database bootstrap must own sqlite schema initialization.',
     );
-    assert.doesNotMatch(
-      rustSource,
-      /ensure_sqlite_provider_authority_integer_identifier_upgrade|SQLITE_INTEGER_IDENTIFIER_TABLE_RULES/u,
-      'server sqlite provider authority must not retain the retired integer identifier compatibility migration surface.',
+    assert.match(
+      apiServerDatabaseSource,
+      /sdkwork_birdcoder_coding_sessions_repository_sqlx::db::schema::SCHEMA_SQL/,
+      'api-server database bootstrap must apply intelligence coding session schema from the sqlx repository crate.',
     );
-    assert.doesNotMatch(
-      rustSource,
-      /archive_legacy_bootstrap_project|legacy bootstrap project|restores_legacy_bootstrap_project/u,
-      'server bootstrap must not retain legacy project archival or restore compatibility paths.',
+    assert.match(
+      apiServerDatabaseSource,
+      /sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL/,
+      'api-server database bootstrap must apply platform workspace schema from the sqlx repository crate.',
     );
   }
 }
-
 console.log('rust workspace/project schema parity contract passed.');

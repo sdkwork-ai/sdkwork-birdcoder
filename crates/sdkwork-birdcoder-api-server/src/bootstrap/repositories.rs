@@ -1,45 +1,43 @@
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use rusqlite::Connection;
+use sdkwork_database_sqlx::DatabasePool;
+use sqlx::SqlitePool;
 
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::coding_session_repository::SqliteCodingSessionRepository;
+use sdkwork_birdcoder_document_repository_sqlx::SqliteDocumentRepository;
+use sdkwork_birdcoder_membership_repository_sqlx::SqliteMembershipRepository;
+use sdkwork_birdcoder_skill_packages_repository_sqlx::SqliteSkillPackageRepository;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::deployment::SqliteDeploymentRepository;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::project::SqliteProjectRepository;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::team::SqliteTeamRepository;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::workspace::SqliteWorkspaceRepository;
 
+use crate::bootstrap::database::require_sqlite_pool;
+
 #[derive(Clone)]
 pub struct Repositories {
+    pub sqlite_pool: SqlitePool,
     pub coding_session: Arc<SqliteCodingSessionRepository>,
     pub workspace: Arc<SqliteWorkspaceRepository>,
     pub project: Arc<SqliteProjectRepository>,
     pub deployment: Arc<SqliteDeploymentRepository>,
     pub team: Arc<SqliteTeamRepository>,
-    pub skill_package_conn: Arc<Mutex<Connection>>,
-    pub model_config_conn: Arc<Mutex<Connection>>,
-    pub membership_conn: Arc<Mutex<Connection>>,
-    pub document_conn: Arc<Mutex<Connection>>,
+    pub document: Arc<SqliteDocumentRepository>,
+    pub skill_package: Arc<SqliteSkillPackageRepository>,
+    pub membership: Arc<SqliteMembershipRepository>,
 }
 
-fn open_rw(db_path: &Path) -> Connection {
-    let conn = Connection::open(db_path).expect("open sqlite connection");
-    conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
-        .expect("set pragmas");
-    conn
-}
-
-pub fn wire_repositories(db_path: &Path) -> Repositories {
-    let shared = Arc::new(Mutex::new(open_rw(db_path)));
+pub fn wire_repositories(pool: Arc<DatabasePool>) -> Repositories {
+    let sqlite = require_sqlite_pool(&pool).expect("birdcoder repositories require sqlite pool");
     Repositories {
-        coding_session: Arc::new(SqliteCodingSessionRepository::with_shared(shared.clone())),
-        workspace: Arc::new(SqliteWorkspaceRepository::with_shared(shared.clone())),
-        project: Arc::new(SqliteProjectRepository::with_shared(shared.clone())),
-        deployment: Arc::new(SqliteDeploymentRepository::with_shared(shared.clone())),
-        team: Arc::new(SqliteTeamRepository::with_shared(shared.clone())),
-        skill_package_conn: shared.clone(),
-        model_config_conn: shared.clone(),
-        membership_conn: shared.clone(),
-        document_conn: shared.clone(),
+        sqlite_pool: sqlite.clone(),
+        coding_session: Arc::new(SqliteCodingSessionRepository::new(sqlite.clone())),
+        workspace: Arc::new(SqliteWorkspaceRepository::new(sqlite.clone())),
+        project: Arc::new(SqliteProjectRepository::new(sqlite.clone())),
+        deployment: Arc::new(SqliteDeploymentRepository::new(sqlite.clone())),
+        team: Arc::new(SqliteTeamRepository::new(sqlite.clone())),
+        document: Arc::new(SqliteDocumentRepository::new(sqlite.clone())),
+        skill_package: Arc::new(SqliteSkillPackageRepository::new(sqlite.clone())),
+        membership: Arc::new(SqliteMembershipRepository::new(sqlite)),
     }
 }

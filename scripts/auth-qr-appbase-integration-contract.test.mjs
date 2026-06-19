@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import {
+  CANONICAL_SERVER_RUST_PATHS,
+  LEGACY_ARCHIVE_RUST_PATHS,
+  readCanonicalServerRustSource,
+} from './birdcoder-canonical-server-rust-sources.mjs';
 
 const rootDir = process.cwd();
 const appbaseRootDir = path.resolve(rootDir, '../sdkwork-appbase');
@@ -50,30 +55,20 @@ const iamRuntimeSource = readText(
   'iamRuntime.ts',
 );
 const vitePluginSource = readText('scripts', 'create-birdcoder-vite-plugins.mjs');
-const iamAuthoritySource = readText(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-server',
-  'src-host',
-  'src',
-  'iam_authority.rs',
-);
-const serverLibSource = readText(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-server',
-  'src-host',
-  'src',
-  'lib.rs',
-);
+const iamAuthoritySource = readCanonicalServerRustSource(LEGACY_ARCHIVE_RUST_PATHS.iamAuthority);
+const apiServerIamSource = [
+  readCanonicalServerRustSource(CANONICAL_SERVER_RUST_PATHS.apiServerAuth),
+  readCanonicalServerRustSource('crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs'),
+  readText(
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-server',
+    'src-host',
+    'src',
+    'main.rs',
+  ),
+].join('\n');
 const sharedAuthPageSource = readAppbaseText(
   'packages',
   'pc-react',
@@ -200,9 +195,14 @@ assert.match(
   'BirdCoder local IAM must store no qrUrl unless it is a real image URL; appbase will render qrContent with qrcode.',
 );
 assert.doesNotMatch(
-  serverLibSource,
+  apiServerIamSource,
   /resolve_request_base_url/u,
-  'BirdCoder server must not keep request-base-url plumbing solely to create a non-image QR status URL.',
+  'BirdCoder canonical api-server bootstrap must not keep request-base-url plumbing solely to create a non-image QR status URL.',
+);
+assert.match(
+  apiServerIamSource,
+  /sdkwork_router_iam_app_api::build_sdkwork_appbase_app_api_router/u,
+  'BirdCoder canonical api-server must wire IAM through sdkwork-appbase router crates.',
 );
 
 console.log('auth qr appbase integration contract passed.');

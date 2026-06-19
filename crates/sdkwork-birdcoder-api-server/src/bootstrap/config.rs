@@ -1,8 +1,9 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 10240;
 pub const DEFAULT_SQLITE_FILE: &str = ".local/sdkwork-birdcoder-pc-server-private.sqlite3";
+const BIRDCODER_DATABASE_SERVICE: &str = "BIRDCODER";
 
 pub struct BirdServerConfig {
     pub host: String,
@@ -40,6 +41,23 @@ impl BirdServerConfig {
     pub fn bind_address(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }
+
+    pub fn seed_birdcoder_database_env(&self) {
+        let url_key = format!("SDKWORK_{BIRDCODER_DATABASE_SERVICE}_DATABASE_URL");
+        let engine_key = format!("SDKWORK_{BIRDCODER_DATABASE_SERVICE}_DATABASE_ENGINE");
+
+        if std::env::var(&url_key).is_err() {
+            std::env::set_var(&url_key, sqlite_database_url(&self.sqlite_file));
+        }
+        if std::env::var(&engine_key).is_err() {
+            std::env::set_var(&engine_key, "sqlite");
+        }
+    }
+}
+
+pub fn sqlite_database_url(path: &Path) -> String {
+    let normalized = path.to_string_lossy().replace('\\', "/");
+    format!("sqlite://{normalized}?mode=rwc")
 }
 
 pub fn default_allowed_origins_for_host(host: &str) -> Vec<String> {

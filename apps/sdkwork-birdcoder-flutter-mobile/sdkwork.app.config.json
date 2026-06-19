@@ -25,16 +25,25 @@
     "grantMode": "current",
     "platform": "WEB",
     "appId": null,
-    "tenantId": "20001",
     "organizationId": null
   },
   "runtime": {
     "family": "mobile",
     "framework": "flutter",
-    "runtimes": ["FLUTTER_IOS", "FLUTTER_ANDROID"],
-    "deliveryModes": ["APP_STORE", "PLAY_STORE"],
+    "runtimes": [
+      "FLUTTER_IOS",
+      "FLUTTER_ANDROID"
+    ],
+    "deliveryModes": [
+      "APP_STORE",
+      "PLAY_STORE"
+    ],
     "defaultPlatform": "FLUTTER_ANDROID",
-    "defaultArchitecture": "universal"
+    "defaultArchitecture": "universal",
+    "supportedDeploymentProfiles": [
+      "standalone"
+    ],
+    "defaultDeploymentProfile": "standalone"
   },
   "media": {
     "icons": {
@@ -73,9 +82,15 @@
     "installSkill": {
       "name": "sdkwork-skills-app"
     },
-    "platforms": ["FLUTTER_IOS", "FLUTTER_ANDROID"],
-    "installPlatforms": ["FLUTTER_IOS", "FLUTTER_ANDROID"],
-    "defaultPackageId": "flutter-android-production",
+    "platforms": [
+      "FLUTTER_IOS",
+      "FLUTTER_ANDROID"
+    ],
+    "installPlatforms": [
+      "FLUTTER_IOS",
+      "FLUTTER_ANDROID"
+    ],
+    "defaultPackageId": "android-universal-standalone-mobile-aab",
     "storeUrl": "https://sdkwork.com/apps/sdkwork-birdcoder-flutter",
     "stores": [],
     "config": {
@@ -108,13 +123,13 @@
   },
   "artifacts": {
     "installConfig": {
-      "defaultPackageId": "flutter-android-production",
+      "defaultPackageId": "android-universal-standalone-mobile-aab",
       "installCommand": "sdkwork install sdkwork-birdcoder-flutter",
       "launchCommand": "sdkwork open sdkwork-birdcoder-flutter",
       "uninstallCommand": "sdkwork uninstall sdkwork-birdcoder-flutter",
       "packages": [
         {
-          "id": "flutter-android-production",
+          "id": "android-universal-standalone-mobile-aab",
           "name": "SDKWork Birdcoder Flutter Android Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "AAB",
@@ -124,10 +139,12 @@
           "metadata": {},
           "architecture": "universal",
           "checksumAlgorithm": "SHA-256",
-          "checksum": "0000000000000000000000000000000000000000000000000000000000000000"
+          "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "flutter-android"
         },
         {
-          "id": "flutter-ios-production",
+          "id": "ios-universal-standalone-mobile-ipa",
           "name": "SDKWork Birdcoder Flutter iOS Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "IPA",
@@ -137,7 +154,9 @@
           "metadata": {},
           "architecture": "universal",
           "checksumAlgorithm": "SHA-256",
-          "checksum": "0000000000000000000000000000000000000000000000000000000000000000"
+          "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "flutter-ios"
         }
       ],
       "metadata": {
@@ -166,8 +185,8 @@
           "SDKWork App Standard v3 configuration"
         ],
         "packageIds": [
-          "flutter-android-production",
-          "flutter-ios-production"
+          "android-universal-standalone-mobile-aab",
+          "ios-universal-standalone-mobile-ipa"
         ],
         "publishedAt": "2026-06-13T00:00:00Z",
         "current": true,

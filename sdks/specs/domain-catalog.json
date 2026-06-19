@@ -160,9 +160,11 @@
         "ops"
       ],
       "apiTags": [
+        "oauth",
         "system"
       ],
       "sdkNamespaces": [
+        "oauth",
         "system"
       ],
       "permissionPrefixes": [
@@ -180,7 +182,8 @@
         "descriptor",
         "routeCatalog",
         "runtimeMetadata",
-        "operations"
+        "operations",
+        "oauth"
       ],
       "dependsOn": [],
       "extends": [],

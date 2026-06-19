@@ -34,9 +34,9 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCatalogPath, '/app/v3/api/system/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 129);
+  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 127);
   assert.deepEqual(writtenDocument['x-sdkwork-api-gateway']?.routesBySurface, {
-    app: 80,
+    app: 78,
     backend: 49,
   });
   const publishedOperationIds = Object.values(writtenDocument.paths).flatMap((methods) =>
@@ -107,35 +107,29 @@ try {
     'modelConfig.sync',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/coding_sessions/{id}']?.patch?.operationId,
+    writtenDocument.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.patch?.operationId,
     'codingSessions.update',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/coding_sessions/{id}']?.delete?.operationId,
+    writtenDocument.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.delete?.operationId,
     'codingSessions.delete',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.operationId,
+    writtenDocument.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/fork']?.post?.operationId,
     'codingSessions.forks.create',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.patch?.operationId,
-    'codingSessions.messages.update',
-  );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/coding_sessions/{id}/messages/{messageId}']?.delete?.operationId,
-    'codingSessions.messages.delete',
-  );
-  assert.equal(
-    writtenDocument.paths['/app/v3/api/coding_sessions/{id}/events']?.get?.operationId,
+    writtenDocument.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/events']?.get?.operationId,
     'codingSessions.events.list',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/questions/{questionId}/answer']?.post?.operationId,
-    'questions.answers.create',
+    writtenDocument.paths[
+      '/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer'
+    ]?.post?.operationId,
+    'codingSessions.questions.answers.create',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/coding_sessions/{id}/fork']?.post?.responses['201']?.content[
+    writtenDocument.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/fork']?.post?.responses['201']?.content[
       'application/json'
     ]?.schema?.['$ref'],
     '#/components/schemas/BirdCoderCodingSessionSummaryEnvelope',

@@ -14,7 +14,8 @@
     "status": "ACTIVE",
     "languages": [
       "typescript",
-      "react"
+      "react",
+      "rust"
     ],
     "generated": false,
     "private": true,
@@ -163,6 +164,21 @@
       "file": "SECURITY_SPEC.md",
       "path": "../sdkwork-specs/SECURITY_SPEC.md",
       "purpose": "Token model, tenant-bound signing, authn/authz, secrets, rate limits, CORS."
+    },
+    {
+      "file": "WEB_FRAMEWORK_SPEC.md",
+      "path": "../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
+      "purpose": "Mandatory sdkwork-web-framework integration for HTTP *-api surfaces."
+    },
+    {
+      "file": "WEB_BACKEND_SPEC.md",
+      "path": "../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "purpose": "HTTP backend handler/service/repository layering after the web framework boundary."
+    },
+    {
+      "file": "DATABASE_SPEC.md",
+      "path": "../sdkwork-specs/DATABASE_SPEC.md",
+      "purpose": "Portable data contracts, sdkwork-database pool management, and repository standards."
     }
   ],
   "contracts": {
@@ -191,7 +207,11 @@
   },
   "verification": {
     "commands": [
-      "pnpm --filter @sdkwork/birdcoder-workspace typecheck"
+      "pnpm typecheck",
+      "pnpm check:sdkwork-birdcoder-structure",
+      "pnpm check:web-framework-standard",
+      "pnpm check:database-framework-standard",
+      "pnpm check:dependency-management"
     ]
   },
   "metadata": {

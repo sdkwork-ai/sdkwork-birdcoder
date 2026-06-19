@@ -526,7 +526,6 @@ export default defineConfig(({ mode }) => {
           if (
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-codeengine/src/',
-              '/packages/sdkwork-birdcoder-pc-codeengine/src-host/generated/',
             ])
           ) {
             return 'birdcoder-codeengine';

@@ -40,7 +40,7 @@ const client = createBirdCoderAppSdkApiClient({
       });
 
       switch (request.path) {
-        case '/app/v3/api/coding_sessions':
+        case '/app/v3/api/intelligence/coding_sessions':
           return createEnvelope(
             {
               id: 'coding-session-generated-write',
@@ -57,7 +57,7 @@ const client = createBirdCoderAppSdkApiClient({
             },
             'req.app.create-session',
           ) as TResponse;
-        case '/app/v3/api/coding_sessions/coding-session-generated-write/fork':
+        case '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/fork':
           return createEnvelope(
             {
               id: 'coding-session-generated-write-fork',
@@ -74,7 +74,7 @@ const client = createBirdCoderAppSdkApiClient({
             },
             'req.app.fork-session',
           ) as TResponse;
-        case '/app/v3/api/coding_sessions/coding-session-generated-write':
+        case '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write':
           if (request.method === 'PATCH') {
             return createEnvelope(
               {
@@ -102,25 +102,7 @@ const client = createBirdCoderAppSdkApiClient({
             ) as TResponse;
           }
           break;
-        case '/app/v3/api/coding_sessions/coding-session-generated-write/messages/message-generated-write':
-          if (request.method === 'PATCH') {
-            return createEnvelope(
-              {
-                id: 'message-generated-write',
-                codingSessionId: 'coding-session-generated-write',
-                content: 'Edited generated write message',
-              },
-              'req.app.edit-session-message',
-            ) as TResponse;
-          }
-          return createEnvelope(
-            {
-              id: 'message-generated-write',
-              codingSessionId: 'coding-session-generated-write',
-            },
-            'req.app.delete-session-message',
-          ) as TResponse;
-        case '/app/v3/api/coding_sessions/coding-session-generated-write/turns':
+        case '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/turns':
           return createEnvelope(
             {
               id: 'coding-turn-generated-write',
@@ -134,7 +116,7 @@ const client = createBirdCoderAppSdkApiClient({
             },
             'req.app.create-session-turn',
           ) as TResponse;
-        case '/app/v3/api/approvals/approval-generated-write/decision':
+        case '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/checkpoints/checkpoint-generated-write/approval':
           return createEnvelope(
             {
               approvalId: 'approval-generated-write',
@@ -151,7 +133,7 @@ const client = createBirdCoderAppSdkApiClient({
             },
             'req.app.submit-approval-decision',
           ) as TResponse;
-        case '/app/v3/api/questions/question-generated-write/answer':
+        case '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/questions/question-generated-write/answer':
           return createEnvelope(
             {
               questionId: 'question-generated-write',
@@ -164,7 +146,7 @@ const client = createBirdCoderAppSdkApiClient({
             },
             'req.app.submit-user-question-answer',
           ) as TResponse;
-        case '/app/v3/api/questions/question-generated-write-reject/answer':
+        case '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/questions/question-generated-write-reject/answer':
           return createEnvelope(
             {
               questionId: 'question-generated-write-reject',
@@ -215,25 +197,18 @@ assert.equal(updatedSession.title, 'Renamed Generated App Runtime Write Session'
 assert.equal(updatedSession.status, 'paused');
 assert.equal(updatedSession.modelId, 'gpt-5-codex');
 
-const editedMessage = await client.editCodingSessionMessage(
-  'coding-session-generated-write',
-  'message-generated-write',
-  {
-    content: 'Edited generated write message',
-  },
+await assert.rejects(
+  () =>
+    client.editCodingSessionMessage('coding-session-generated-write', 'message-generated-write', {
+      content: 'Edited generated write message',
+    }),
+  /does not expose coding session message edit over HTTP/,
 );
 
-assert.equal(editedMessage.id, 'message-generated-write');
-assert.equal(editedMessage.codingSessionId, 'coding-session-generated-write');
-assert.equal(editedMessage.content, 'Edited generated write message');
-
-const deletedMessage = await client.deleteCodingSessionMessage(
-  'coding-session-generated-write',
-  'message-generated-write',
+await assert.rejects(
+  () => client.deleteCodingSessionMessage('coding-session-generated-write', 'message-generated-write'),
+  /does not expose coding session message delete over HTTP/,
 );
-
-assert.equal(deletedMessage.id, 'message-generated-write');
-assert.equal(deletedMessage.codingSessionId, 'coding-session-generated-write');
 
 const deletedSession = await client.deleteCodingSession('coding-session-generated-write');
 
@@ -252,10 +227,14 @@ assert.equal(createdTurn.runtimeId, 'runtime-generated-write');
 assert.equal(createdTurn.requestKind, 'chat');
 assert.equal(createdTurn.inputSummary, 'Implement app runtime write turn facade');
 
-const approvalResult = await client.submitApprovalDecision('approval-generated-write', {
-  decision: 'approved',
-  reason: 'Looks safe',
-});
+const approvalResult = await client.submitApprovalDecision(
+  'coding-session-generated-write',
+  'checkpoint-generated-write',
+  {
+    decision: 'approved',
+    reason: 'Looks safe',
+  },
+);
 
 assert.equal(approvalResult.approvalId, 'approval-generated-write');
 assert.equal(approvalResult.codingSessionId, 'coding-session-generated-write');
@@ -263,16 +242,21 @@ assert.equal(approvalResult.operationId, 'coding-turn-generated-write:operation'
 assert.equal(approvalResult.decision, 'approved');
 assert.equal(approvalResult.reason, 'Looks safe');
 
-const questionAnswerResult = await client.submitUserQuestionAnswer('question-generated-write', {
-  answer: 'Run unit tests',
-  optionLabel: 'Unit',
-});
+const questionAnswerResult = await client.submitUserQuestionAnswer(
+  'coding-session-generated-write',
+  'question-generated-write',
+  {
+    answer: 'Run unit tests',
+    optionLabel: 'Unit',
+  },
+);
 
 assert.equal(questionAnswerResult.questionId, 'question-generated-write');
 assert.equal(questionAnswerResult.codingSessionId, 'coding-session-generated-write');
 assert.equal(questionAnswerResult.answer, 'Run unit tests');
 
 const questionRejectResult = await client.submitUserQuestionAnswer(
+  'coding-session-generated-write',
   'question-generated-write-reject',
   {
     rejected: true,
@@ -289,7 +273,7 @@ assert.equal(
 assert.deepEqual(observedRequests, [
   {
     method: 'POST',
-    path: '/app/v3/api/coding_sessions',
+    path: '/app/v3/api/intelligence/coding_sessions',
     body: {
       workspaceId: 'workspace-generated-write',
       projectId: 'project-generated-write',
@@ -301,37 +285,26 @@ assert.deepEqual(observedRequests, [
   },
   {
     method: 'POST',
-    path: '/app/v3/api/coding_sessions/coding-session-generated-write/fork',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/fork',
     body: {
       title: 'Forked Generated App Runtime Write Session',
     },
   },
   {
     method: 'PATCH',
-    path: '/app/v3/api/coding_sessions/coding-session-generated-write',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write',
     body: {
       title: 'Renamed Generated App Runtime Write Session',
       status: 'paused',
     },
   },
   {
-    method: 'PATCH',
-    path: '/app/v3/api/coding_sessions/coding-session-generated-write/messages/message-generated-write',
-    body: {
-      content: 'Edited generated write message',
-    },
-  },
-  {
     method: 'DELETE',
-    path: '/app/v3/api/coding_sessions/coding-session-generated-write/messages/message-generated-write',
-  },
-  {
-    method: 'DELETE',
-    path: '/app/v3/api/coding_sessions/coding-session-generated-write',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write',
   },
   {
     method: 'POST',
-    path: '/app/v3/api/coding_sessions/coding-session-generated-write/turns',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/turns',
     body: {
       runtimeId: 'runtime-generated-write',
       requestKind: 'chat',
@@ -341,7 +314,7 @@ assert.deepEqual(observedRequests, [
   },
   {
     method: 'POST',
-    path: '/app/v3/api/approvals/approval-generated-write/decision',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/checkpoints/checkpoint-generated-write/approval',
     body: {
       decision: 'approved',
       reason: 'Looks safe',
@@ -349,7 +322,7 @@ assert.deepEqual(observedRequests, [
   },
   {
     method: 'POST',
-    path: '/app/v3/api/questions/question-generated-write/answer',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/questions/question-generated-write/answer',
     body: {
       answer: 'Run unit tests',
       optionLabel: 'Unit',
@@ -357,7 +330,7 @@ assert.deepEqual(observedRequests, [
   },
   {
     method: 'POST',
-    path: '/app/v3/api/questions/question-generated-write-reject/answer',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/questions/question-generated-write-reject/answer',
     body: {
       rejected: true,
     },

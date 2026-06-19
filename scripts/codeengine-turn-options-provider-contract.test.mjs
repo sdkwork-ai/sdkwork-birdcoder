@@ -1,18 +1,14 @@
 import assert from 'node:assert/strict';
+
+import {
+  readCanonicalServerRustSource,
+  CANONICAL_CODEENGINE_RUST_PATHS,
+} from './birdcoder-canonical-server-rust-sources.mjs';
 import fs from 'node:fs';
 
-const rustSdkBridgeSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/sdk_bridge.rs', import.meta.url),
-  'utf8',
-);
-const claudeProviderSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/claude_code_provider.rs', import.meta.url),
-  'utf8',
-);
-const geminiProviderSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/gemini_provider.rs', import.meta.url),
-  'utf8',
-);
+const rustSdkBridgeSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.sdkBridge);
+const claudeProviderSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.claudeCodeProvider);
+const geminiProviderSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.geminiProvider);
 const sdkBridgeScriptSource = fs.readFileSync(
   new URL('./codeengine-official-sdk-bridge.ts', import.meta.url),
   'utf8',

@@ -50,7 +50,7 @@ impl IamApi {
         self.client.get(&path, None, None).await
     }
 
-    /// List SDKWork IAM organization members
+    /// List SDKWork IAM organization memberships
     pub async fn organization_memberships_list(&self) -> Result<BirdCoderIamOrganizationMemberSummaryListEnvelope, SdkworkError> {
         let path = app_path(&"/iam/organization_memberships".to_string());
         self.client.get(&path, None, None).await

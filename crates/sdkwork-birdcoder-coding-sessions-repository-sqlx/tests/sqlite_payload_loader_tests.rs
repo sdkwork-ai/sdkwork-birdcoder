@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection};
+use sqlx::SqlitePool;
 
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::db::schema::PROVIDER_AUTHORITY_SCHEMA;
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::provider::constants::*;
@@ -9,46 +9,47 @@ use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::provider::str
     build_project_config_data, project_status_storage_value, project_type_storage_value,
 };
 
-#[test]
-fn sqlite_provider_payload_loaders_normalize_integer_java_long_columns() {
-    let connection = Connection::open_in_memory().expect("open in-memory provider authority");
-    connection
-        .execute_batch(PROVIDER_AUTHORITY_SCHEMA)
+#[tokio::test]
+async fn sqlite_provider_payload_loaders_normalize_integer_java_long_columns() {
+    let pool = SqlitePool::connect("sqlite::memory:")
+        .await
+        .expect("open in-memory provider authority");
+    sqlx::raw_sql(PROVIDER_AUTHORITY_SCHEMA)
+        .execute(&pool)
+        .await
         .expect("create sqlite provider authority schema");
-    connection
-        .execute(
-            r#"
+    sqlx::query(
+        r#"
             INSERT INTO studio_workspace AS workspaces (
                 id, uuid, tenant_id, organization_id, data_scope, created_at, updated_at,
                 version, is_deleted, name, code, title, description, owner_id, leader_id,
                 created_by_user_id, type, settings_json, is_public, is_template, status
             )
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, 0, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, 0, 0, ?17)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)
             "#,
-            params![
-                101_i64,
-                "workspace-integer-uuid",
-                0_i64,
-                0_i64,
-                SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
-                "2026-04-24T00:00:00Z",
-                "2026-04-24T00:00:00Z",
-                "Integer workspace",
-                "integer.workspace",
-                "Integer workspace",
-                "Workspace row with Java Long columns",
-                1001_i64,
-                1002_i64,
-                1003_i64,
-                "DEFAULT",
-                "{}",
-                "active",
-            ],
-        )
-        .expect("insert integer workspace row");
-    connection
-        .execute(
-            r#"
+    )
+    .bind(101_i64)
+    .bind("workspace-integer-uuid")
+    .bind(0_i64)
+    .bind(0_i64)
+    .bind(SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE)
+    .bind("2026-04-24T00:00:00Z")
+    .bind("2026-04-24T00:00:00Z")
+    .bind("Integer workspace")
+    .bind("integer.workspace")
+    .bind("Integer workspace")
+    .bind("Workspace row with Java Long columns")
+    .bind(1001_i64)
+    .bind(1002_i64)
+    .bind(1003_i64)
+    .bind("DEFAULT")
+    .bind("{}")
+    .bind("active")
+    .execute(&pool)
+    .await
+    .expect("insert integer workspace row");
+    sqlx::query(
+        r#"
             INSERT INTO studio_project AS projects (
                 id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                 parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image,
@@ -56,67 +57,69 @@ fn sqlite_provider_payload_loaders_normalize_integer_java_long_columns() {
                 conversation_id, workspace_id, workspace_uuid, leader_id, start_time, end_time,
                 budget_amount, is_deleted, is_template
             )
-            VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, NULL, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, NULL, NULL, NULL, 0, 0)
+            VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 0, 0)
             "#,
-            params![
-                201_i64,
-                "project-integer-uuid",
-                "2026-04-24T00:00:01Z",
-                "2026-04-24T00:00:01Z",
-                0_i64,
-                0_i64,
-                SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
-                0_i64,
-                DEFAULT_TREE_ROOT_UUID,
-                "{}",
-                1004_i64,
-                "Integer project",
-                "Integer project",
-                "1003",
-                3001_i64,
-                "integer.project",
-                project_type_storage_value(Some("SDK")),
-                "/integer-project",
-                "integer-project",
-                "Project row with Java Long columns",
-                project_status_storage_value(Some("active")),
-                4001_i64,
-                101_i64,
-                "workspace-integer-uuid",
-                1002_i64,
-            ],
-        )
-        .expect("insert integer project row");
-    connection
-        .execute(
-            r#"
+    )
+    .bind(201_i64)
+    .bind("project-integer-uuid")
+    .bind("2026-04-24T00:00:01Z")
+    .bind("2026-04-24T00:00:01Z")
+    .bind(0_i64)
+    .bind(0_i64)
+    .bind(SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE)
+    .bind(0_i64)
+    .bind(DEFAULT_TREE_ROOT_UUID)
+    .bind("{}")
+    .bind(1004_i64)
+    .bind("Integer project")
+    .bind("Integer project")
+    .bind("1003")
+    .bind(3001_i64)
+    .bind("integer.project")
+    .bind(project_type_storage_value(Some("SDK")))
+    .bind("/integer-project")
+    .bind("integer-project")
+    .bind("Project row with Java Long columns")
+    .bind(project_status_storage_value(Some("active")))
+    .bind(4001_i64)
+    .bind(101_i64)
+    .bind("workspace-integer-uuid")
+    .bind(1002_i64)
+    .execute(&pool)
+    .await
+    .expect("insert integer project row");
+    sqlx::query(
+        r#"
             INSERT INTO studio_project_content (
                 id, uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope,
                 user_id, parent_id, project_id, project_uuid, config_data, content_data,
                 metadata, content_version, content_hash
             )
-            VALUES (?1, ?2, ?3, ?4, 0, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, NULL, NULL, '1.0', NULL)
+            VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, '1.0', NULL)
             "#,
-            params![
-                202_i64,
-                "project-integer-content-uuid",
-                "2026-04-24T00:00:01Z",
-                "2026-04-24T00:00:01Z",
-                0_i64,
-                0_i64,
-                SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE,
-                1004_i64,
-                0_i64,
-                201_i64,
-                "project-integer-uuid",
-                build_project_config_data(Some("D:/workspace/integer-project")),
-            ],
-        )
-        .expect("insert integer project content row");
+    )
+    .bind(202_i64)
+    .bind("project-integer-content-uuid")
+    .bind("2026-04-24T00:00:01Z")
+    .bind("2026-04-24T00:00:01Z")
+    .bind(0_i64)
+    .bind(0_i64)
+    .bind(SQLITE_DEFAULT_PRIVATE_DATA_SCOPE_VALUE)
+    .bind(1004_i64)
+    .bind(0_i64)
+    .bind(201_i64)
+    .bind("project-integer-uuid")
+    .bind(build_project_config_data(Some("D:/workspace/integer-project")))
+    .execute(&pool)
+    .await
+    .expect("insert integer project content row");
 
-    let workspaces =
-        load_provider_workspace_payloads(&connection).expect("load workspace payloads");
-    let projects = load_provider_project_payloads(&connection).expect("load project payloads");
+    let workspaces = load_provider_workspace_payloads(&pool)
+        .await
+        .expect("load workspace payloads");
+    let projects = load_provider_project_payloads(&pool)
+        .await
+        .expect("load project payloads");
 
     assert_eq!(workspaces.len(), 1);
     assert_eq!(workspaces[0].id, "101");
@@ -145,5 +148,3 @@ fn sqlite_provider_payload_loaders_normalize_integer_java_long_columns() {
     assert_eq!(projects[0].leader_id.as_deref(), Some("1002"));
     assert_eq!(projects[0].created_by_user_id.as_deref(), Some("1004"));
 }
-
-

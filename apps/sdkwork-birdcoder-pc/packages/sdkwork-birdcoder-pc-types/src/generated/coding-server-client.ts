@@ -25,16 +25,6 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "summary": "Revoke SDKWork IAM API key",
       "surface": "backend"
     },
-  "approvals.decisions.create":     {
-      "method": "POST",
-      "operationId": "approvals.decisions.create",
-      "path": "/app/v3/api/approvals/{approvalId}/decision",
-      "pathParamNames": [
-        "approvalId"
-      ],
-      "summary": "Submit approval decision",
-      "surface": "app"
-    },
   "appTemplates.list":     {
       "method": "GET",
       "operationId": "appTemplates.list",
@@ -54,19 +44,30 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "codingSessions.artifacts.list":     {
       "method": "GET",
       "operationId": "codingSessions.artifacts.list",
-      "path": "/app/v3/api/coding_sessions/{id}/artifacts",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/artifacts",
       "pathParamNames": [
-        "id"
+        "sessionId"
       ],
       "summary": "List coding session artifacts",
+      "surface": "app"
+    },
+  "codingSessions.checkpoints.approval.create":     {
+      "method": "POST",
+      "operationId": "codingSessions.checkpoints.approval.create",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/checkpoints/{checkpointId}/approval",
+      "pathParamNames": [
+        "sessionId",
+        "checkpointId"
+      ],
+      "summary": "Submit approval decision",
       "surface": "app"
     },
   "codingSessions.checkpoints.list":     {
       "method": "GET",
       "operationId": "codingSessions.checkpoints.list",
-      "path": "/app/v3/api/coding_sessions/{id}/checkpoints",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/checkpoints",
       "pathParamNames": [
-        "id"
+        "sessionId"
       ],
       "summary": "List coding session checkpoints",
       "surface": "app"
@@ -74,7 +75,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "codingSessions.create":     {
       "method": "POST",
       "operationId": "codingSessions.create",
-      "path": "/app/v3/api/coding_sessions",
+      "path": "/app/v3/api/intelligence/coding_sessions",
       "pathParamNames": [],
       "summary": "Create coding session",
       "surface": "app"
@@ -82,9 +83,9 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "codingSessions.delete":     {
       "method": "DELETE",
       "operationId": "codingSessions.delete",
-      "path": "/app/v3/api/coding_sessions/{id}",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}",
       "pathParamNames": [
-        "id"
+        "sessionId"
       ],
       "summary": "Delete coding session",
       "surface": "app"
@@ -92,9 +93,9 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "codingSessions.events.list":     {
       "method": "GET",
       "operationId": "codingSessions.events.list",
-      "path": "/app/v3/api/coding_sessions/{id}/events",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/events",
       "pathParamNames": [
-        "id"
+        "sessionId"
       ],
       "summary": "Replay or subscribe to coding session events",
       "surface": "app"
@@ -102,9 +103,9 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "codingSessions.forks.create":     {
       "method": "POST",
       "operationId": "codingSessions.forks.create",
-      "path": "/app/v3/api/coding_sessions/{id}/fork",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/fork",
       "pathParamNames": [
-        "id"
+        "sessionId"
       ],
       "summary": "Fork coding session",
       "surface": "app"
@@ -112,39 +113,28 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "codingSessions.list":     {
       "method": "GET",
       "operationId": "codingSessions.list",
-      "path": "/app/v3/api/coding_sessions",
+      "path": "/app/v3/api/intelligence/coding_sessions",
       "pathParamNames": [],
       "summary": "List coding sessions",
       "surface": "app"
     },
-  "codingSessions.messages.delete":     {
-      "method": "DELETE",
-      "operationId": "codingSessions.messages.delete",
-      "path": "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
+  "codingSessions.questions.answers.create":     {
+      "method": "POST",
+      "operationId": "codingSessions.questions.answers.create",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer",
       "pathParamNames": [
-        "id",
-        "messageId"
+        "sessionId",
+        "questionId"
       ],
-      "summary": "Delete coding session message",
-      "surface": "app"
-    },
-  "codingSessions.messages.update":     {
-      "method": "PATCH",
-      "operationId": "codingSessions.messages.update",
-      "path": "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
-      "pathParamNames": [
-        "id",
-        "messageId"
-      ],
-      "summary": "Edit coding session message",
+      "summary": "Submit user-question answer",
       "surface": "app"
     },
   "codingSessions.retrieve":     {
       "method": "GET",
       "operationId": "codingSessions.retrieve",
-      "path": "/app/v3/api/coding_sessions/{id}",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}",
       "pathParamNames": [
-        "id"
+        "sessionId"
       ],
       "summary": "Get coding session",
       "surface": "app"
@@ -152,9 +142,9 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "codingSessions.turns.create":     {
       "method": "POST",
       "operationId": "codingSessions.turns.create",
-      "path": "/app/v3/api/coding_sessions/{id}/turns",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/turns",
       "pathParamNames": [
-        "id"
+        "sessionId"
       ],
       "summary": "Create coding session turn",
       "surface": "app"
@@ -162,9 +152,9 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
   "codingSessions.update":     {
       "method": "PATCH",
       "operationId": "codingSessions.update",
-      "path": "/app/v3/api/coding_sessions/{id}",
+      "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}",
       "pathParamNames": [
-        "id"
+        "sessionId"
       ],
       "summary": "Update coding session",
       "surface": "app"
@@ -378,7 +368,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "organizationMemberships.create",
       "path": "/backend/v3/api/iam/organization_memberships",
       "pathParamNames": [],
-      "summary": "Create SDKWork IAM organization member",
+      "summary": "Create SDKWork IAM organization membership",
       "surface": "backend"
     },
   "organizationMemberships.list":     {
@@ -386,7 +376,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "operationId": "organizationMemberships.list",
       "path": "/app/v3/api/iam/organization_memberships",
       "pathParamNames": [],
-      "summary": "List SDKWork IAM organization members",
+      "summary": "List SDKWork IAM organization memberships",
       "surface": "app"
     },
   "organizationMemberships.update":     {
@@ -396,7 +386,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
       "pathParamNames": [
         "membershipId"
       ],
-      "summary": "Update SDKWork IAM organization member",
+      "summary": "Update SDKWork IAM organization membership",
       "surface": "backend"
     },
   "organizations.create":     {
@@ -725,16 +715,6 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_CLIENT_OPERATIONS = {
         "projectId"
       ],
       "summary": "Update project",
-      "surface": "app"
-    },
-  "questions.answers.create":     {
-      "method": "POST",
-      "operationId": "questions.answers.create",
-      "path": "/app/v3/api/questions/{questionId}/answer",
-      "pathParamNames": [
-        "questionId"
-      ],
-      "summary": "Submit user-question answer",
       "surface": "app"
     },
   "registrations.create":     {
@@ -1188,21 +1168,20 @@ export type BirdCoderFinalizedCodingServerClientOperationId =
 interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "apiKeys.list": {};
   "apiKeys.revoke": { apiKeyId: string };
-  "approvals.decisions.create": { approvalId: string };
   "appTemplates.list": {};
   "auditEvents.list": {};
-  "codingSessions.artifacts.list": { id: string };
-  "codingSessions.checkpoints.list": { id: string };
+  "codingSessions.artifacts.list": { sessionId: string };
+  "codingSessions.checkpoints.approval.create": { sessionId: string; checkpointId: string };
+  "codingSessions.checkpoints.list": { sessionId: string };
   "codingSessions.create": {};
-  "codingSessions.delete": { id: string };
-  "codingSessions.events.list": { id: string };
-  "codingSessions.forks.create": { id: string };
+  "codingSessions.delete": { sessionId: string };
+  "codingSessions.events.list": { sessionId: string };
+  "codingSessions.forks.create": { sessionId: string };
   "codingSessions.list": {};
-  "codingSessions.messages.delete": { id: string; messageId: string };
-  "codingSessions.messages.update": { id: string; messageId: string };
-  "codingSessions.retrieve": { id: string };
-  "codingSessions.turns.create": { id: string };
-  "codingSessions.update": { id: string };
+  "codingSessions.questions.answers.create": { sessionId: string; questionId: string };
+  "codingSessions.retrieve": { sessionId: string };
+  "codingSessions.turns.create": { sessionId: string };
+  "codingSessions.update": { sessionId: string };
   "deploymentGovernance.list": {};
   "deployments.list": {};
   "descriptor.retrieve": {};
@@ -1265,7 +1244,6 @@ interface BirdCoderFinalizedCodingServerClientPathParamsMap {
   "projects.publish.create": { projectId: string };
   "projects.retrieve": { projectId: string };
   "projects.update": { projectId: string };
-  "questions.answers.create": { questionId: string };
   "registrations.create": {};
   "releases.list": {};
   "roleBindings.create": {};

@@ -49,8 +49,10 @@ function readOptionValue(argv, index, flag) {
 function defaultOutputFile() {
   return path.join(
     process.cwd(),
+    'apps',
+    'sdkwork-birdcoder-pc',
     'packages',
-    'sdkwork-birdcoder-types',
+    'sdkwork-birdcoder-pc-types',
     'src',
     'generated',
     'coding-server-openapi.ts',

@@ -1,6 +1,4 @@
-use std::sync::{Arc, Mutex};
-
-use rusqlite::{params, Connection};
+use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use uuid::Uuid;
 
 use crate::db::columns::workspace as col;
@@ -15,19 +13,14 @@ use sdkwork_birdcoder_workspace_service::domain::models::WorkspaceScopedQuery;
 use sdkwork_birdcoder_workspace_service::domain::results::{WorkspaceMemberPayload, WorkspacePayload};
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
 
+#[derive(Clone)]
 pub struct SqliteWorkspaceRepository {
-    conn: Arc<Mutex<Connection>>,
+    pool: SqlitePool,
 }
 
 impl SqliteWorkspaceRepository {
-    pub fn new(conn: Connection) -> Self {
-        Self {
-            conn: Arc::new(Mutex::new(conn)),
-        }
-    }
-
-    pub fn with_shared(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
     }
 
     fn now_iso() -> String {
@@ -46,36 +39,40 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         ctx: &WorkspaceContext,
         id: &str,
     ) -> Result<Option<WorkspacePayload>, WorkspaceError> {
-        let conn = self.conn.lock().map_err(|e| {
-            WorkspaceError::Repository(format!("lock error: {e}"))
-        })?;
-        let id_num: i64 = id.parse().map_err(|_| {
-            WorkspaceError::InvalidInput(format!("invalid id: {id}"))
-        })?;
+        let id_num: i64 = id
+            .parse()
+            .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
         let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
             col::TABLE,
             col::ID,
             col::IS_DELETED,
         );
-        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(id_num)];
-        if let Some(tenant_id) = tenant_id {
-            sql += &format!(" AND {} = ?2", col::TENANT_ID);
-            param_values.push(Box::new(tenant_id));
+        if tenant_id.is_some() {
+            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
         }
-        let mut stmt = conn
-            .prepare(&sql)
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
-            param_values.iter().map(|p| p.as_ref()).collect();
-        let row = stmt
-            .query_row(params_refs.as_slice(), |r| Ok(WorkspaceRow::from_row(r)))
-            .optional()
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+
+        let row = if let Some(tenant_id) = tenant_id {
+            sqlx::query(&sql)
+                .bind(id_num)
+                .bind(tenant_id)
+                .fetch_optional(&self.pool)
+                .await
+        } else {
+            sqlx::query(&sql)
+                .bind(id_num)
+                .fetch_optional(&self.pool)
+                .await
+        }
+        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+
         match row {
-            Some(Ok(r)) => Ok(Some(row_mapper::workspace_row_to_payload(&r))),
-            Some(Err(e)) => Err(WorkspaceError::Repository(e.to_string())),
+            Some(row) => {
+                let r = WorkspaceRow::from_row(&row)
+                    .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+                Ok(Some(row_mapper::workspace_row_to_payload(&r)))
+            }
             None => Ok(None),
         }
     }
@@ -85,45 +82,45 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         ctx: &WorkspaceContext,
         query: &WorkspaceScopedQuery,
     ) -> Result<Vec<WorkspacePayload>, WorkspaceError> {
-        let conn = self.conn.lock().map_err(|e| {
-            WorkspaceError::Repository(format!("lock error: {e}"))
-        })?;
         let mut sql = format!(
             "SELECT * FROM {} WHERE {} = 0",
             col::TABLE,
             col::IS_DELETED,
         );
-        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-        if let Ok(tenant_id) = ctx.tenant_id.parse::<i64>() {
-            if tenant_id > 0 {
-                sql += &format!(" AND {} = ?{}", col::TENANT_ID, param_values.len() + 1);
-                param_values.push(Box::new(tenant_id));
-            }
+        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
+        if tenant_id.is_some() {
+            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
+        }
+        if query.user_id.is_some() {
+            sql.push_str(&format!(" AND {} = ?", col::OWNER_ID));
+        }
+        if query.workspace_id.is_some() {
+            sql.push_str(&format!(" AND {} = ?", col::ID));
+        }
+
+        let mut q = sqlx::query(&sql);
+        if let Some(tenant_id) = tenant_id {
+            q = q.bind(tenant_id);
         }
         if let Some(ref uid) = query.user_id {
-            sql += &format!(" AND {} = ?{}", col::OWNER_ID, param_values.len() + 1);
-            param_values.push(Box::new(uid.clone()));
+            q = q.bind(uid.as_str());
         }
         if let Some(ref wid) = query.workspace_id {
-            sql += &format!(" AND {} = ?{}", col::ID, param_values.len() + 1);
-            param_values.push(Box::new(wid.clone()));
+            q = q.bind(wid.as_str());
         }
-        let mut stmt = conn
-            .prepare(&sql)
+
+        let rows = q
+            .fetch_all(&self.pool)
+            .await
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
-            param_values.iter().map(|p| p.as_ref()).collect();
-        let rows = stmt
-            .query_map(params_refs.as_slice(), |r| Ok(WorkspaceRow::from_row(r)))
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let mut result = Vec::new();
-        for row in rows {
-            match row.map_err(|e| WorkspaceError::Repository(e.to_string()))? {
-                Ok(r) => result.push(row_mapper::workspace_row_to_payload(&r)),
-                Err(e) => return Err(WorkspaceError::Repository(e.to_string())),
-            }
-        }
-        Ok(result)
+
+        rows.iter()
+            .map(|row| {
+                WorkspaceRow::from_row(row)
+                    .map(|r| row_mapper::workspace_row_to_payload(&r))
+                    .map_err(|e| WorkspaceError::Repository(e.to_string()))
+            })
+            .collect()
     }
 
     async fn create_workspace(
@@ -131,9 +128,6 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         ctx: &WorkspaceContext,
         req: &CreateWorkspaceRequest,
     ) -> Result<WorkspacePayload, WorkspaceError> {
-        let conn = self.conn.lock().map_err(|e| {
-            WorkspaceError::Repository(format!("lock error: {e}"))
-        })?;
         let now = Self::now_iso();
         let uuid = Uuid::new_v4().to_string();
         let tenant_id: i64 = req
@@ -164,56 +158,60 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             .settings
             .as_ref()
             .and_then(|v| serde_json::to_string(v).ok());
+        let leader_id = req.leader_id.as_deref().and_then(|s| s.parse::<i64>().ok());
+        let created_by = req
+            .created_by_user_id
+            .as_deref()
+            .and_then(|s| s.parse::<i64>().ok());
+        let is_public = req.is_public.map(|b| if b { 1i64 } else { 0 });
+        let is_template = req.is_template.map(|b| if b { 1i64 } else { 0 });
 
-        conn.execute(
-            &format!(
-                "INSERT INTO {t} (uuid, tenant_id, organization_id, data_scope, created_at, updated_at, version, is_deleted, name, code, title, description, owner_id, leader_id, created_by_user_id, icon, color, type, start_time, end_time, max_members, settings_json, is_public, is_template, status) VALUES (?1,?2,?3,?4,?5,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20,?21,?22,?23,?24)",
-                t = col::TABLE,
-            ),
-            params![
-                uuid,
-                tenant_id,
-                organization_id,
-                data_scope,
-                now,
-                0i64,
-                0i64,
-                req.name,
-                req.code,
-                req.title,
-                req.description,
-                owner_id,
-                req.leader_id.as_deref().and_then(|s| s.parse::<i64>().ok()),
-                req.created_by_user_id.as_deref().and_then(|s| s.parse::<i64>().ok()),
-                req.icon,
-                req.color,
-                req.entity_type,
-                req.start_time,
-                req.end_time,
-                req.max_members,
-                settings_json,
-                req.is_public.map(|b| if b { 1i64 } else { 0 }),
-                req.is_template.map(|b| if b { 1i64 } else { 0 }),
-                "active",
-            ],
-        )
+        let result = sqlx::query(&format!(
+            "INSERT INTO {t} (uuid, tenant_id, organization_id, data_scope, created_at, updated_at, version, is_deleted, name, code, title, description, owner_id, leader_id, created_by_user_id, icon, color, type, start_time, end_time, max_members, settings_json, is_public, is_template, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            t = col::TABLE,
+        ))
+        .bind(&uuid)
+        .bind(tenant_id)
+        .bind(organization_id)
+        .bind(data_scope)
+        .bind(&now)
+        .bind(&now)
+        .bind(0i64)
+        .bind(0i64)
+        .bind(&req.name)
+        .bind(&req.code)
+        .bind(&req.title)
+        .bind(&req.description)
+        .bind(owner_id)
+        .bind(leader_id)
+        .bind(created_by)
+        .bind(&req.icon)
+        .bind(&req.color)
+        .bind(&req.entity_type)
+        .bind(&req.start_time)
+        .bind(&req.end_time)
+        .bind(req.max_members)
+        .bind(&settings_json)
+        .bind(is_public)
+        .bind(is_template)
+        .bind("active")
+        .execute(&self.pool)
+        .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
-        let id = conn.last_insert_rowid();
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1",
-                col::TABLE,
-                col::ID,
-            ))
+        let id = result.last_insert_rowid();
+        let row = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = ?",
+            col::TABLE,
+            col::ID,
+        ))
+        .bind(id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let r = WorkspaceRow::from_row(&row)
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let row = stmt
-            .query_row(params![id], |r| Ok(WorkspaceRow::from_row(r)))
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        match row {
-            Ok(r) => Ok(row_mapper::workspace_row_to_payload(&r)),
-            Err(e) => Err(WorkspaceError::Repository(e.to_string())),
-        }
+        Ok(row_mapper::workspace_row_to_payload(&r))
     }
 
     async fn update_workspace(
@@ -222,128 +220,114 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         id: &str,
         req: &UpdateWorkspaceRequest,
     ) -> Result<WorkspacePayload, WorkspaceError> {
-        let conn = self.conn.lock().map_err(|e| {
-            WorkspaceError::Repository(format!("lock error: {e}"))
-        })?;
-        let id_num: i64 = id.parse().map_err(|_| {
-            WorkspaceError::InvalidInput(format!("invalid id: {id}"))
-        })?;
+        let id_num: i64 = id
+            .parse()
+            .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
         let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let now = Self::now_iso();
-        let mut sets = vec![format!("{} = ?1", col::UPDATED_AT)];
-        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = vec![Box::new(now)];
-        let mut idx = 2;
 
-        macro_rules! add_opt {
-            ($field:expr, $col:expr) => {
-                if let Some(ref v) = $field {
-                    sets.push(format!("{} = ?{}", $col, idx));
-                    param_values.push(Box::new(v.clone()));
-                    idx += 1;
+        let mut builder: QueryBuilder<Sqlite> =
+            QueryBuilder::new(format!("UPDATE {} SET ", col::TABLE));
+        {
+            let mut sep = builder.separated(", ");
+            sep.push(format!("{} = ", col::UPDATED_AT));
+            sep.push_bind_unseparated(&now);
+
+            macro_rules! add_opt {
+                ($field:expr, $col:expr) => {
+                    if let Some(ref v) = $field {
+                        sep.push(format!("{} = ", $col));
+                        sep.push_bind_unseparated(v.as_str());
+                    }
+                };
+            }
+            macro_rules! add_opt_i64 {
+                ($field:expr, $col:expr) => {
+                    if let Some(v) = $field {
+                        sep.push(format!("{} = ", $col));
+                        sep.push_bind_unseparated(v);
+                    }
+                };
+            }
+            macro_rules! add_opt_bool {
+                ($field:expr, $col:expr) => {
+                    if let Some(v) = $field {
+                        sep.push(format!("{} = ", $col));
+                        sep.push_bind_unseparated(if v { 1i64 } else { 0i64 });
+                    }
+                };
+            }
+
+            add_opt!(req.name, col::NAME);
+            add_opt!(req.description, col::DESCRIPTION);
+            add_opt!(req.code, col::CODE);
+            add_opt!(req.title, col::TITLE);
+            add_opt!(req.icon, col::ICON);
+            add_opt!(req.color, col::COLOR);
+            add_opt!(req.entity_type, col::TYPE);
+            add_opt!(req.start_time, col::START_TIME);
+            add_opt!(req.end_time, col::END_TIME);
+            add_opt_i64!(req.max_members, col::MAX_MEMBERS);
+            add_opt_i64!(req.current_members, col::CURRENT_MEMBERS);
+            add_opt_i64!(req.member_count, col::MEMBER_COUNT);
+            add_opt!(req.status, col::STATUS);
+            add_opt_bool!(req.is_public, col::IS_PUBLIC);
+            add_opt_bool!(req.is_template, col::IS_TEMPLATE);
+
+            if let Some(ref settings) = req.settings {
+                if let Ok(json) = serde_json::to_string(settings) {
+                    sep.push(format!("{} = ", col::SETTINGS_JSON));
+                    sep.push_bind_unseparated(json);
                 }
-            };
-        }
-        macro_rules! add_opt_i64 {
-            ($field:expr, $col:expr) => {
-                if let Some(v) = $field {
-                    sets.push(format!("{} = ?{}", $col, idx));
-                    param_values.push(Box::new(v));
-                    idx += 1;
+            }
+            if let Some(ref v) = req.data_scope {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::DATA_SCOPE));
+                    sep.push_bind_unseparated(n);
                 }
-            };
-        }
-        macro_rules! add_opt_bool {
-            ($field:expr, $col:expr) => {
-                if let Some(v) = $field {
-                    sets.push(format!("{} = ?{}", $col, idx));
-                    param_values.push(Box::new(if v { 1i64 } else { 0i64 }));
-                    idx += 1;
+            }
+            if let Some(ref v) = req.owner_id {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::OWNER_ID));
+                    sep.push_bind_unseparated(n);
                 }
-            };
-        }
-
-        add_opt!(req.name, col::NAME);
-        add_opt!(req.description, col::DESCRIPTION);
-        add_opt!(req.code, col::CODE);
-        add_opt!(req.title, col::TITLE);
-        add_opt!(req.icon, col::ICON);
-        add_opt!(req.color, col::COLOR);
-        add_opt!(req.entity_type, col::TYPE);
-        add_opt!(req.start_time, col::START_TIME);
-        add_opt!(req.end_time, col::END_TIME);
-        add_opt_i64!(req.max_members, col::MAX_MEMBERS);
-        add_opt_i64!(req.current_members, col::CURRENT_MEMBERS);
-        add_opt_i64!(req.member_count, col::MEMBER_COUNT);
-        add_opt!(req.status, col::STATUS);
-        add_opt_bool!(req.is_public, col::IS_PUBLIC);
-        add_opt_bool!(req.is_template, col::IS_TEMPLATE);
-
-        if let Some(ref settings) = req.settings {
-            if let Ok(json) = serde_json::to_string(settings) {
-                sets.push(format!("{} = ?{}", col::SETTINGS_JSON, idx));
-                param_values.push(Box::new(json));
-                idx += 1;
             }
-        }
-        if let Some(ref v) = req.data_scope {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::DATA_SCOPE, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
-            }
-        }
-        if let Some(ref v) = req.owner_id {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::OWNER_ID, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
-            }
-        }
-        if let Some(ref v) = req.leader_id {
-            if let Ok(n) = v.parse::<i64>() {
-                sets.push(format!("{} = ?{}", col::LEADER_ID, idx));
-                param_values.push(Box::new(n));
-                idx += 1;
+            if let Some(ref v) = req.leader_id {
+                if let Ok(n) = v.parse::<i64>() {
+                    sep.push(format!("{} = ", col::LEADER_ID));
+                    sep.push_bind_unseparated(n);
+                }
             }
         }
 
-        let sql = format!(
-            "UPDATE {} SET {} WHERE {} = ?{}{}",
-            col::TABLE,
-            sets.join(", "),
-            col::ID,
-            idx,
-            tenant_id
-                .map(|_value| format!(" AND {} = ?{}", col::TENANT_ID, idx + 1))
-                .unwrap_or_default(),
-        );
-        param_values.push(Box::new(id_num));
+        builder.push(format!(" WHERE {} = ", col::ID));
+        builder.push_bind(id_num);
         if let Some(tenant_id) = tenant_id {
-            param_values.push(Box::new(tenant_id));
+            builder.push(format!(" AND {} = ", col::TENANT_ID));
+            builder.push_bind(tenant_id);
         }
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
-            param_values.iter().map(|p| p.as_ref()).collect();
-        let updated = conn
-            .execute(&sql, params_refs.as_slice())
+
+        let result = builder
+            .build()
+            .execute(&self.pool)
+            .await
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        if updated == 0 {
+        if result.rows_affected() == 0 {
             return Err(WorkspaceError::NotFound(format!("workspace {id} not found")));
         }
 
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1",
-                col::TABLE,
-                col::ID,
-            ))
+        let row = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = ?",
+            col::TABLE,
+            col::ID,
+        ))
+        .bind(id_num)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let r = WorkspaceRow::from_row(&row)
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let row = stmt
-            .query_row(params![id_num], |r| Ok(WorkspaceRow::from_row(r)))
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        match row {
-            Ok(r) => Ok(row_mapper::workspace_row_to_payload(&r)),
-            Err(e) => Err(WorkspaceError::Repository(e.to_string())),
-        }
+        Ok(row_mapper::workspace_row_to_payload(&r))
     }
 
     async fn delete_workspace(
@@ -351,33 +335,38 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         ctx: &WorkspaceContext,
         id: &str,
     ) -> Result<(), WorkspaceError> {
-        let conn = self.conn.lock().map_err(|e| {
-            WorkspaceError::Repository(format!("lock error: {e}"))
-        })?;
-        let id_num: i64 = id.parse().map_err(|_| {
-            WorkspaceError::InvalidInput(format!("invalid id: {id}"))
-        })?;
+        let id_num: i64 = id
+            .parse()
+            .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
         let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
         let now = Self::now_iso();
         let mut sql = format!(
-            "UPDATE {} SET {} = 1, {} = ?1 WHERE {} = ?2",
+            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ?",
             col::TABLE,
             col::IS_DELETED,
             col::UPDATED_AT,
             col::ID,
         );
-        let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> =
-            vec![Box::new(now), Box::new(id_num)];
-        if let Some(tenant_id) = tenant_id {
-            sql.push_str(&format!(" AND {} = ?3", col::TENANT_ID));
-            param_values.push(Box::new(tenant_id));
+        if tenant_id.is_some() {
+            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
         }
-        let params_refs: Vec<&dyn rusqlite::types::ToSql> =
-            param_values.iter().map(|p| p.as_ref()).collect();
-        let updated = conn
-            .execute(&sql, params_refs.as_slice())
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        if updated == 0 {
+
+        let result = if let Some(tenant_id) = tenant_id {
+            sqlx::query(&sql)
+                .bind(&now)
+                .bind(id_num)
+                .bind(tenant_id)
+                .execute(&self.pool)
+                .await
+        } else {
+            sqlx::query(&sql)
+                .bind(&now)
+                .bind(id_num)
+                .execute(&self.pool)
+                .await
+        }
+        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        if result.rows_affected() == 0 {
             return Err(WorkspaceError::NotFound(format!("workspace {id} not found")));
         }
         Ok(())
@@ -388,40 +377,32 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         ctx: &WorkspaceContext,
         workspace_id: &str,
     ) -> Result<Vec<WorkspaceMemberPayload>, WorkspaceError> {
-        if self
-            .find_workspace_by_id(ctx, workspace_id)
-            .await?
-            .is_none()
-        {
+        if self.find_workspace_by_id(ctx, workspace_id).await?.is_none() {
             return Err(WorkspaceError::NotFound(format!(
                 "workspace {workspace_id} not found"
             )));
         }
-        let conn = self.conn.lock().map_err(|e| {
-            WorkspaceError::Repository(format!("lock error: {e}"))
-        })?;
         let wid: i64 = workspace_id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
-        let mut stmt = conn
-            .prepare(&format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
-                member_col::TABLE,
-                member_col::WORKSPACE_ID,
-                member_col::IS_DELETED,
-            ))
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let rows = stmt
-            .query_map(params![wid], |r| Ok(WorkspaceMemberRow::from_row(r)))
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let mut result = Vec::new();
-        for row in rows {
-            match row.map_err(|e| WorkspaceError::Repository(e.to_string()))? {
-                Ok(r) => result.push(row_mapper::workspace_member_row_to_payload(&r)),
-                Err(e) => return Err(WorkspaceError::Repository(e.to_string())),
-            }
-        }
-        Ok(result)
+        let rows = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+            member_col::TABLE,
+            member_col::WORKSPACE_ID,
+            member_col::IS_DELETED,
+        ))
+        .bind(wid)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+
+        rows.iter()
+            .map(|row| {
+                WorkspaceMemberRow::from_row(row)
+                    .map(|r| row_mapper::workspace_member_row_to_payload(&r))
+                    .map_err(|e| WorkspaceError::Repository(e.to_string()))
+            })
+            .collect()
     }
 
     async fn upsert_workspace_member(
@@ -430,18 +411,11 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         workspace_id: &str,
         req: &UpsertWorkspaceMemberRequest,
     ) -> Result<WorkspaceMemberPayload, WorkspaceError> {
-        if self
-            .find_workspace_by_id(ctx, workspace_id)
-            .await?
-            .is_none()
-        {
+        if self.find_workspace_by_id(ctx, workspace_id).await?.is_none() {
             return Err(WorkspaceError::NotFound(format!(
                 "workspace {workspace_id} not found"
             )));
         }
-        let conn = self.conn.lock().map_err(|e| {
-            WorkspaceError::Repository(format!("lock error: {e}"))
-        })?;
         let wid: i64 = workspace_id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
@@ -457,86 +431,94 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         let role = req.role.as_deref().unwrap_or("member");
         let status = req.status.as_deref().unwrap_or("active");
 
-        let existing = conn
-            .prepare(&format!(
-                "SELECT {} FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
-                member_col::ID,
-                member_col::TABLE,
-                member_col::WORKSPACE_ID,
-                member_col::USER_ID,
-                member_col::IS_DELETED,
-            ))
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?
-            .query_row(params![wid, uid], |r| r.get::<_, i64>(0))
-            .ok();
+        let existing: Option<i64> = sqlx::query_scalar(&format!(
+            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
+            member_col::ID,
+            member_col::TABLE,
+            member_col::WORKSPACE_ID,
+            member_col::USER_ID,
+            member_col::IS_DELETED,
+        ))
+        .bind(wid)
+        .bind(uid)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
         if let Some(existing_id) = existing {
-            conn.execute(
-                &format!(
-                    "UPDATE {} SET {} = ?1, {} = ?2, {} = ?3 WHERE {} = ?4",
-                    member_col::TABLE,
-                    member_col::ROLE,
-                    member_col::STATUS,
-                    member_col::UPDATED_AT,
-                    member_col::ID,
-                ),
-                params![role, status, now, existing_id],
-            )
+            sqlx::query(&format!(
+                "UPDATE {} SET {} = ?, {} = ?, {} = ? WHERE {} = ?",
+                member_col::TABLE,
+                member_col::ROLE,
+                member_col::STATUS,
+                member_col::UPDATED_AT,
+                member_col::ID,
+            ))
+            .bind(role)
+            .bind(status)
+            .bind(&now)
+            .bind(existing_id)
+            .execute(&self.pool)
+            .await
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            let mut stmt = conn
-                .prepare(&format!(
-                    "SELECT * FROM {} WHERE {} = ?1",
-                    member_col::TABLE,
-                    member_col::ID,
-                ))
+            let row = sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ?",
+                member_col::TABLE,
+                member_col::ID,
+            ))
+            .bind(existing_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+            let r = WorkspaceMemberRow::from_row(&row)
                 .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            let row = stmt
-                .query_row(params![existing_id], |r| {
-                    Ok(WorkspaceMemberRow::from_row(r))
-                })
-                .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            match row {
-                Ok(r) => Ok(row_mapper::workspace_member_row_to_payload(&r)),
-                Err(e) => Err(WorkspaceError::Repository(e.to_string())),
-            }
+            Ok(row_mapper::workspace_member_row_to_payload(&r))
         } else {
-            conn.execute(
-                &format!(
-                    "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status) VALUES (?1,?2,?3,?4,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
-                    t = member_col::TABLE,
-                ),
-                params![
-                    uuid,
-                    tenant_id,
-                    0i64,
-                    now,
-                    0i64,
-                    0i64,
-                    wid,
-                    uid,
-                    req.team_id.as_deref().and_then(|s| s.parse::<i64>().ok()),
-                    role,
-                    req.created_by_user_id.as_deref().and_then(|s| s.parse::<i64>().ok()),
-                    req.granted_by_user_id.as_deref().and_then(|s| s.parse::<i64>().ok()),
-                    status,
-                ],
-            )
+            let team_id = req.team_id.as_deref().and_then(|s| s.parse::<i64>().ok());
+            let created_by = req
+                .created_by_user_id
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok());
+            let granted_by = req
+                .granted_by_user_id
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok());
+
+            let result = sqlx::query(&format!(
+                "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                t = member_col::TABLE,
+            ))
+            .bind(&uuid)
+            .bind(tenant_id)
+            .bind(0i64)
+            .bind(&now)
+            .bind(&now)
+            .bind(0i64)
+            .bind(0i64)
+            .bind(wid)
+            .bind(uid)
+            .bind(team_id)
+            .bind(role)
+            .bind(created_by)
+            .bind(granted_by)
+            .bind(status)
+            .execute(&self.pool)
+            .await
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            let new_id = conn.last_insert_rowid();
-            let mut stmt = conn
-                .prepare(&format!(
-                    "SELECT * FROM {} WHERE {} = ?1",
-                    member_col::TABLE,
-                    member_col::ID,
-                ))
+
+            let new_id = result.last_insert_rowid();
+            let row = sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ?",
+                member_col::TABLE,
+                member_col::ID,
+            ))
+            .bind(new_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+            let r = WorkspaceMemberRow::from_row(&row)
                 .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            let row = stmt
-                .query_row(params![new_id], |r| Ok(WorkspaceMemberRow::from_row(r)))
-                .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-            match row {
-                Ok(r) => Ok(row_mapper::workspace_member_row_to_payload(&r)),
-                Err(e) => Err(WorkspaceError::Repository(e.to_string())),
-            }
+            Ok(row_mapper::workspace_member_row_to_payload(&r))
         }
     }
 
@@ -546,30 +528,27 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         workspace_id: &str,
         user_id: &str,
     ) -> Result<(), WorkspaceError> {
-        let conn = self.conn.lock().map_err(|e| {
-            WorkspaceError::Repository(format!("lock error: {e}"))
-        })?;
         let wid: i64 = workspace_id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
-        let uid: i64 = user_id.parse().map_err(|_| {
-            WorkspaceError::InvalidInput(format!("invalid user_id: {user_id}"))
-        })?;
+        let uid: i64 = user_id
+            .parse()
+            .map_err(|_| WorkspaceError::InvalidInput(format!("invalid user_id: {user_id}")))?;
         let now = Self::now_iso();
-        conn.execute(
-            &format!(
-                "UPDATE {} SET {} = 1, {} = ?1 WHERE {} = ?2 AND {} = ?3",
-                member_col::TABLE,
-                member_col::IS_DELETED,
-                member_col::UPDATED_AT,
-                member_col::WORKSPACE_ID,
-                member_col::USER_ID,
-            ),
-            params![now, wid, uid],
-        )
+        sqlx::query(&format!(
+            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ? AND {} = ?",
+            member_col::TABLE,
+            member_col::IS_DELETED,
+            member_col::UPDATED_AT,
+            member_col::WORKSPACE_ID,
+            member_col::USER_ID,
+        ))
+        .bind(&now)
+        .bind(wid)
+        .bind(uid)
+        .execute(&self.pool)
+        .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         Ok(())
     }
 }
-
-use rusqlite::OptionalExtension;

@@ -774,7 +774,7 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "permission": "iam.organizationMemberships.create",
     "public": false,
     "resource": "iam.organizationMemberships",
-    "summary": "Create SDKWork IAM organization member",
+    "summary": "Create SDKWork IAM organization membership",
     "tag": "iam",
     "tenantScope": "tenant"
   },
@@ -792,7 +792,7 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "permission": "iam.organizationMemberships.update",
     "public": false,
     "resource": "iam.organizationMemberships",
-    "summary": "Update SDKWork IAM organization member",
+    "summary": "Update SDKWork IAM organization membership",
     "tag": "iam",
     "tenantScope": "tenant"
   },

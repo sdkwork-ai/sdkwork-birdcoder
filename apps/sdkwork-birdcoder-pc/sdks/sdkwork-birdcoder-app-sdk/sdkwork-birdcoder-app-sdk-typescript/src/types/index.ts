@@ -518,18 +518,6 @@ export interface BirdCoderCreateWorkspaceRequest {
   isTemplate?: boolean;
 }
 
-export interface BirdCoderDeleteCodingSessionMessageResult {
-  id: string;
-  codingSessionId: string;
-}
-
-export interface BirdCoderDeleteCodingSessionMessageResultEnvelope {
-  data: BirdCoderDeleteCodingSessionMessageResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
 export interface BirdCoderDeletedResourceEnvelope {
   data: BirdCoderDeletedResourceResult;
   meta: BirdCoderApiMeta;
@@ -578,31 +566,14 @@ export interface BirdCoderDeploymentTargetSummary {
   status: "active" | "archived";
 }
 
-export interface BirdCoderEditCodingSessionMessageRequest {
-  content: string;
-}
-
-export interface BirdCoderEditCodingSessionMessageResult {
-  id: string;
-  codingSessionId: string;
-  content: string;
-}
-
-export interface BirdCoderEditCodingSessionMessageResultEnvelope {
-  data: BirdCoderEditCodingSessionMessageResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
 export interface BirdCoderEngineAccessLane {
   laneId: string;
   label: string;
-  strategyKind: "rust-native" | "grpc-bridge" | "cli-spawn" | "remote-control" | "openapi-proxy";
-  runtimeOwner: "rust-server" | "typescript-bridge" | "external-service";
-  bridgeProtocol: "direct" | "grpc" | "stdio" | "http";
-  transportKind: "cli-jsonl" | "sdk-stream" | "remote-control-http" | "openapi-http";
-  status: "ready" | "planned";
+  strategyKind: "rust-native" | "cli-spawn" | "grpc-bridge" | "remote-control" | "openapi-proxy";
+  runtimeOwner: "rust-server" | "typescript-bridge";
+  bridgeProtocol: "direct" | "stdio" | "grpc" | "http";
+  transportKind: "sdk-stream" | "cli-jsonl" | "remote-control-http" | "openapi-http";
+  status: "ready";
   enabledByDefault: boolean;
   hostModes: Array<"web" | "desktop" | "server">;
   description: string;
@@ -649,11 +620,11 @@ export interface BirdCoderEngineDescriptor {
   engineKey: "codex" | "claude-code" | "gemini" | "opencode";
   displayName: string;
   vendor: string;
-  installationKind: "external-cli";
+  installationKind: "embedded-sdk" | "external-cli";
   defaultModelId: string;
   homepage?: string;
   supportedHostModes: Array<"web" | "desktop" | "server">;
-  transportKinds: Array<"cli-jsonl" | "sdk-stream" | "remote-control-http" | "openapi-http">;
+  transportKinds: Array<"sdk-stream" | "cli-jsonl" | "remote-control-http" | "openapi-http">;
   capabilityMatrix: BirdCoderEngineCapabilityMatrix;
   status: "active" | "preview" | "deprecated" | "disabled";
   accessPlan?: BirdCoderEngineAccessPlan;
@@ -755,10 +726,10 @@ export interface BirdCoderIamDeviceAuthorizationScanRequest {
 }
 
 export interface BirdCoderIamDeviceAuthorizationSummary {
+  deviceAuthorizationId: string;
   expiresAt?: string;
   qrContent?: string;
   qrUrl?: string;
-  deviceAuthorizationId: string;
   status: "pending" | "scanned" | "confirmed" | "expired";
 }
 
@@ -967,7 +938,7 @@ export interface BirdCoderModelCatalogEntry {
   providerId?: string;
   status: "active" | "preview" | "deprecated" | "disabled";
   defaultForEngine: boolean;
-  transportKinds: Array<"cli-jsonl" | "sdk-stream" | "remote-control-http" | "openapi-http">;
+  transportKinds: Array<"sdk-stream" | "cli-jsonl" | "remote-control-http" | "openapi-http">;
   capabilityMatrix: Record<string, unknown>;
 }
 
@@ -1021,7 +992,7 @@ export interface BirdCoderNativeSessionProviderSummary {
   engineId: "codex" | "claude-code" | "gemini" | "opencode";
   displayName: string;
   nativeSessionIdPrefix: string;
-  transportKinds: Array<"cli-jsonl" | "sdk-stream" | "remote-control-http" | "openapi-http">;
+  transportKinds: Array<"sdk-stream" | "cli-jsonl" | "remote-control-http" | "openapi-http">;
   discoveryMode: "explicit-only" | "passive-global";
 }
 
@@ -1570,28 +1541,29 @@ export interface IamWorkspacesMembersUpsertPathParams {
   workspaceId: string;
 }
 
-export interface IntelligenceApprovalsDecisionsCreatePathParams {
-  approvalId: string;
+export interface IntelligenceCodingSessionsArtifactsListPathParams {
+  sessionId: string;
 }
 
-export interface IntelligenceCodingSessionsArtifactsListPathParams {
-  id: string;
+export interface IntelligenceCodingSessionsCheckpointsApprovalCreatePathParams {
+  sessionId: string;
+  checkpointId: string;
 }
 
 export interface IntelligenceCodingSessionsCheckpointsListPathParams {
-  id: string;
+  sessionId: string;
 }
 
 export interface IntelligenceCodingSessionsDeletePathParams {
-  id: string;
+  sessionId: string;
 }
 
 export interface IntelligenceCodingSessionsEventsListPathParams {
-  id: string;
+  sessionId: string;
 }
 
 export interface IntelligenceCodingSessionsForksCreatePathParams {
-  id: string;
+  sessionId: string;
 }
 
 export interface IntelligenceCodingSessionsListQuery extends Record<string, BirdcoderSdkQueryValue> {
@@ -1602,30 +1574,21 @@ export interface IntelligenceCodingSessionsListQuery extends Record<string, Bird
   offset?: number;
 }
 
-export interface IntelligenceCodingSessionsMessagesDeletePathParams {
-  id: string;
-  messageId: string;
-}
-
-export interface IntelligenceCodingSessionsMessagesUpdatePathParams {
-  id: string;
-  messageId: string;
+export interface IntelligenceCodingSessionsQuestionsAnswersCreatePathParams {
+  sessionId: string;
+  questionId: string;
 }
 
 export interface IntelligenceCodingSessionsRetrievePathParams {
-  id: string;
+  sessionId: string;
 }
 
 export interface IntelligenceCodingSessionsTurnsCreatePathParams {
-  id: string;
+  sessionId: string;
 }
 
 export interface IntelligenceCodingSessionsUpdatePathParams {
-  id: string;
-}
-
-export interface IntelligenceQuestionsAnswersCreatePathParams {
-  questionId: string;
+  sessionId: string;
 }
 
 export interface OauthDeviceAuthorizationsPasswordCompletionsCreatePathParams {
@@ -1957,7 +1920,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "permission": "iam.organizationMemberships.read",
     "public": false,
     "resource": "iam.organizationMemberships",
-    "summary": "List SDKWork IAM organization members",
+    "summary": "List SDKWork IAM organization memberships",
     "tag": "iam",
     "tenantScope": "tenant"
   },
@@ -2078,30 +2041,12 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "tenantScope": "tenant"
   },
   {
-    "key": "intelligence.approvals.decisions.create",
-    "method": "POST",
-    "operationId": "approvals.decisions.create",
-    "path": "/app/v3/api/approvals/{approvalId}/decision",
-    "pathParamNames": [
-      "approvalId"
-    ],
-    "dataScope": "user",
-    "deployment": "all",
-    "domain": "intelligence",
-    "permission": "intelligence.approvals.decisions.create",
-    "public": false,
-    "resource": "intelligence.approvals.decisions",
-    "summary": "Submit approval decision",
-    "tag": "intelligence",
-    "tenantScope": "tenant"
-  },
-  {
     "key": "intelligence.codingSessions.artifacts.list",
     "method": "GET",
     "operationId": "codingSessions.artifacts.list",
-    "path": "/app/v3/api/coding_sessions/{id}/artifacts",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/artifacts",
     "pathParamNames": [
-      "id"
+      "sessionId"
     ],
     "dataScope": "user",
     "deployment": "all",
@@ -2114,12 +2059,31 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "tenantScope": "tenant"
   },
   {
+    "key": "intelligence.codingSessions.checkpoints.approval.create",
+    "method": "POST",
+    "operationId": "codingSessions.checkpoints.approval.create",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/checkpoints/{checkpointId}/approval",
+    "pathParamNames": [
+      "sessionId",
+      "checkpointId"
+    ],
+    "dataScope": "user",
+    "deployment": "all",
+    "domain": "intelligence",
+    "permission": "intelligence.codingSessions.checkpoints.approval.create",
+    "public": false,
+    "resource": "intelligence.codingSessions.checkpoints.approval",
+    "summary": "Submit approval decision",
+    "tag": "intelligence",
+    "tenantScope": "tenant"
+  },
+  {
     "key": "intelligence.codingSessions.checkpoints.list",
     "method": "GET",
     "operationId": "codingSessions.checkpoints.list",
-    "path": "/app/v3/api/coding_sessions/{id}/checkpoints",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/checkpoints",
     "pathParamNames": [
-      "id"
+      "sessionId"
     ],
     "dataScope": "user",
     "deployment": "all",
@@ -2135,7 +2099,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "key": "intelligence.codingSessions.create",
     "method": "POST",
     "operationId": "codingSessions.create",
-    "path": "/app/v3/api/coding_sessions",
+    "path": "/app/v3/api/intelligence/coding_sessions",
     "pathParamNames": [],
     "dataScope": "user",
     "deployment": "all",
@@ -2151,9 +2115,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "key": "intelligence.codingSessions.delete",
     "method": "DELETE",
     "operationId": "codingSessions.delete",
-    "path": "/app/v3/api/coding_sessions/{id}",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}",
     "pathParamNames": [
-      "id"
+      "sessionId"
     ],
     "dataScope": "user",
     "deployment": "all",
@@ -2169,9 +2133,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "key": "intelligence.codingSessions.events.list",
     "method": "GET",
     "operationId": "codingSessions.events.list",
-    "path": "/app/v3/api/coding_sessions/{id}/events",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/events",
     "pathParamNames": [
-      "id"
+      "sessionId"
     ],
     "dataScope": "user",
     "deployment": "all",
@@ -2187,9 +2151,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "key": "intelligence.codingSessions.forks.create",
     "method": "POST",
     "operationId": "codingSessions.forks.create",
-    "path": "/app/v3/api/coding_sessions/{id}/fork",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/fork",
     "pathParamNames": [
-      "id"
+      "sessionId"
     ],
     "dataScope": "user",
     "deployment": "all",
@@ -2205,7 +2169,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "key": "intelligence.codingSessions.list",
     "method": "GET",
     "operationId": "codingSessions.list",
-    "path": "/app/v3/api/coding_sessions",
+    "path": "/app/v3/api/intelligence/coding_sessions",
     "pathParamNames": [],
     "dataScope": "user",
     "deployment": "all",
@@ -2218,40 +2182,21 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "tenantScope": "tenant"
   },
   {
-    "key": "intelligence.codingSessions.messages.delete",
-    "method": "DELETE",
-    "operationId": "codingSessions.messages.delete",
-    "path": "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
+    "key": "intelligence.codingSessions.questions.answers.create",
+    "method": "POST",
+    "operationId": "codingSessions.questions.answers.create",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer",
     "pathParamNames": [
-      "id",
-      "messageId"
+      "sessionId",
+      "questionId"
     ],
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.messages.delete",
+    "permission": "intelligence.codingSessions.questions.answers.create",
     "public": false,
-    "resource": "intelligence.codingSessions.messages",
-    "summary": "Delete coding session message",
-    "tag": "intelligence",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "intelligence.codingSessions.messages.update",
-    "method": "PATCH",
-    "operationId": "codingSessions.messages.update",
-    "path": "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
-    "pathParamNames": [
-      "id",
-      "messageId"
-    ],
-    "dataScope": "user",
-    "deployment": "all",
-    "domain": "intelligence",
-    "permission": "intelligence.codingSessions.messages.update",
-    "public": false,
-    "resource": "intelligence.codingSessions.messages",
-    "summary": "Edit coding session message",
+    "resource": "intelligence.codingSessions.questions.answers",
+    "summary": "Submit user-question answer",
     "tag": "intelligence",
     "tenantScope": "tenant"
   },
@@ -2259,9 +2204,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "key": "intelligence.codingSessions.retrieve",
     "method": "GET",
     "operationId": "codingSessions.retrieve",
-    "path": "/app/v3/api/coding_sessions/{id}",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}",
     "pathParamNames": [
-      "id"
+      "sessionId"
     ],
     "dataScope": "user",
     "deployment": "all",
@@ -2277,9 +2222,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "key": "intelligence.codingSessions.turns.create",
     "method": "POST",
     "operationId": "codingSessions.turns.create",
-    "path": "/app/v3/api/coding_sessions/{id}/turns",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/turns",
     "pathParamNames": [
-      "id"
+      "sessionId"
     ],
     "dataScope": "user",
     "deployment": "all",
@@ -2295,9 +2240,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "key": "intelligence.codingSessions.update",
     "method": "PATCH",
     "operationId": "codingSessions.update",
-    "path": "/app/v3/api/coding_sessions/{id}",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}",
     "pathParamNames": [
-      "id"
+      "sessionId"
     ],
     "dataScope": "user",
     "deployment": "all",
@@ -2310,24 +2255,6 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "tenantScope": "tenant"
   },
   {
-    "key": "intelligence.questions.answers.create",
-    "method": "POST",
-    "operationId": "questions.answers.create",
-    "path": "/app/v3/api/questions/{questionId}/answer",
-    "pathParamNames": [
-      "questionId"
-    ],
-    "dataScope": "user",
-    "deployment": "all",
-    "domain": "intelligence",
-    "permission": "intelligence.questions.answers.create",
-    "public": false,
-    "resource": "intelligence.questions.answers",
-    "summary": "Submit user-question answer",
-    "tag": "intelligence",
-    "tenantScope": "tenant"
-  },
-  {
     "key": "oauth.authorizationUrls.create",
     "method": "POST",
     "operationId": "oauth.authorizationUrls.create",
@@ -2335,9 +2262,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "pathParamNames": [],
     "dataScope": "platform",
     "deployment": "all",
-    "domain": "iam",
+    "domain": "system",
     "public": true,
-    "resource": "oauth.authorizationUrls",
+    "resource": "system.oauth.authorizationUrls",
     "summary": "Resolve OAuth authorization URL for SDKWork IAM sign-in",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2350,9 +2277,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "pathParamNames": [],
     "dataScope": "platform",
     "deployment": "all",
-    "domain": "iam",
+    "domain": "system",
     "public": true,
-    "resource": "oauth.deviceAuthorizations",
+    "resource": "system.oauth.deviceAuthorizations",
     "summary": "Create SDKWork IAM OAuth device authorization",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2367,9 +2294,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     ],
     "dataScope": "platform",
     "deployment": "all",
-    "domain": "iam",
+    "domain": "system",
     "public": true,
-    "resource": "oauth.deviceAuthorizations.passwordCompletions",
+    "resource": "system.oauth.deviceAuthorizations.passwordCompletions",
     "summary": "Complete SDKWork IAM OAuth device authorization with password",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2384,9 +2311,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     ],
     "dataScope": "platform",
     "deployment": "all",
-    "domain": "iam",
+    "domain": "system",
     "public": true,
-    "resource": "oauth.deviceAuthorizations",
+    "resource": "system.oauth.deviceAuthorizations",
     "summary": "Get SDKWork IAM OAuth device authorization",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2401,9 +2328,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     ],
     "dataScope": "platform",
     "deployment": "all",
-    "domain": "iam",
+    "domain": "system",
     "public": true,
-    "resource": "oauth.deviceAuthorizations.scans",
+    "resource": "system.oauth.deviceAuthorizations.scans",
     "summary": "Create SDKWork IAM OAuth device authorization scan",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2416,9 +2343,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "pathParamNames": [],
     "dataScope": "platform",
     "deployment": "all",
-    "domain": "iam",
+    "domain": "system",
     "public": true,
-    "resource": "oauth.sessions",
+    "resource": "system.oauth.sessions",
     "summary": "Create SDKWork IAM session with OAuth authorization code",
     "tag": "oauth",
     "tenantScope": "platform"

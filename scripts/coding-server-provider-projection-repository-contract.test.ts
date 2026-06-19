@@ -227,7 +227,7 @@ await withMockCodexCliJsonl(async () => {
         id: 'turn-long-artifact-ref:operation',
         status: 'succeeded',
         artifact_refs_json: `[${unsafeArtifactRefId}]`,
-        stream_url: '/app/v3/api/coding_sessions/coding-session-long-artifact-ref/events',
+        stream_url: '/app/v3/api/intelligence/coding_sessions/coding-session-long-artifact-ref/events',
         stream_kind: 'sse',
       },
     ]),

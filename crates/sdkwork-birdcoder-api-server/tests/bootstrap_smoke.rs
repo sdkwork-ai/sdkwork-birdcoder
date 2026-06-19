@@ -100,17 +100,23 @@ async fn build_app_exposes_public_iam_runtime() {
 }
 
 #[tokio::test]
-async fn build_app_with_missing_sqlite_directory_fails_gracefully() {
+async fn build_app_with_invalid_sqlite_target_fails_gracefully() {
+    let sqlite_dir = std::env::temp_dir().join("bootstrap-smoke-invalid-sqlite-target");
+    let _ = std::fs::remove_dir_all(&sqlite_dir);
+    std::fs::create_dir_all(&sqlite_dir).expect("create invalid sqlite target directory");
+
     let config = sdkwork_birdcoder_api_server::bootstrap::config::BirdServerConfig {
         host: "127.0.0.1".to_string(),
         port: 0,
-        sqlite_file: std::path::PathBuf::from("/nonexistent/deeply/nested/path/server.db"),
+        sqlite_file: sqlite_dir.clone(),
         allowed_origins: vec!["http://127.0.0.1:5173".to_string()],
         project_root: None,
     };
 
     let result = sdkwork_birdcoder_api_server::bootstrap::build_app(&config).await;
-    assert!(result.is_err(), "build_app should fail for invalid sqlite path");
+    assert!(result.is_err(), "build_app should fail when sqlite target is not a file");
+
+    let _ = std::fs::remove_dir_all(&sqlite_dir);
 }
 
 #[tokio::test]
@@ -124,7 +130,7 @@ async fn intelligence_session_list_requires_authentication() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri("/app/v3/api/intelligence/coding-sessions")
+                .uri("/app/v3/api/intelligence/coding_sessions")
                 .body(Body::empty())
                 .expect("build list sessions request"),
         )

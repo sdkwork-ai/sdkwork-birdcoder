@@ -99,7 +99,7 @@ pub mod iam {
             permission: Some("iam.organizationMemberships.create"),
             public: false,
             resource: "iam.organizationMemberships",
-            summary: "Create SDKWork IAM organization member",
+            summary: "Create SDKWork IAM organization membership",
             tag: "iam",
             tenant_scope: "tenant",
         };
@@ -116,7 +116,7 @@ pub mod iam {
             permission: Some("iam.organizationMemberships.update"),
             public: false,
             resource: "iam.organizationMemberships",
-            summary: "Update SDKWork IAM organization member",
+            summary: "Update SDKWork IAM organization membership",
             tag: "iam",
             tenant_scope: "tenant",
         };

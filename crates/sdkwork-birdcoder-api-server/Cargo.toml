@@ -12,8 +12,6 @@ path = "src/main.rs"
 [dependencies]
 axum = { workspace = true }
 tokio = { workspace = true }
-tower-http = { version = "0.6", features = ["cors"] }
-rusqlite = { version = "0.32", features = ["bundled"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
@@ -34,9 +32,13 @@ sdkwork-router-membership-app-api = { workspace = true }
 sdkwork-router-deployment-backend-api = { workspace = true }
 sdkwork_router_iam_app_api = { workspace = true }
 sdkwork-web-axum.workspace = true
+sdkwork-web-core = { workspace = true }
+sdkwork-web-contract = { workspace = true }
 sdkwork_iam_web_adapter.workspace = true
 sdkwork_database_sqlx = { workspace = true }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "postgres"] }
+sdkwork_database_config = { workspace = true }
+sqlx = { workspace = true }
+sdkwork-birdcoder-document-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-codeengine = { workspace = true }
 
 # Service crates

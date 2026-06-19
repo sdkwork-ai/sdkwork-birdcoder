@@ -12,6 +12,8 @@ serde_json = { workspace = true }
 sdkwork-birdcoder-coding-sessions-service = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
+sdkwork-web-contract = { workspace = true }
+sdkwork-web-core = { workspace = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

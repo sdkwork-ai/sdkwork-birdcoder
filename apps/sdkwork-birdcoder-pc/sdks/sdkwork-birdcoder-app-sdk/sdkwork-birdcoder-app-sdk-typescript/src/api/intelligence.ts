@@ -7,31 +7,27 @@ import type {
 import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
-type IntelligenceApprovalsDecisionsCreatePathParams = Types.IntelligenceApprovalsDecisionsCreatePathParams;
 type IntelligenceCodingSessionsArtifactsListPathParams = Types.IntelligenceCodingSessionsArtifactsListPathParams;
+type IntelligenceCodingSessionsCheckpointsApprovalCreatePathParams = Types.IntelligenceCodingSessionsCheckpointsApprovalCreatePathParams;
 type IntelligenceCodingSessionsCheckpointsListPathParams = Types.IntelligenceCodingSessionsCheckpointsListPathParams;
 type IntelligenceCodingSessionsDeletePathParams = Types.IntelligenceCodingSessionsDeletePathParams;
 type IntelligenceCodingSessionsEventsListPathParams = Types.IntelligenceCodingSessionsEventsListPathParams;
 type IntelligenceCodingSessionsForksCreatePathParams = Types.IntelligenceCodingSessionsForksCreatePathParams;
 type IntelligenceCodingSessionsListQuery = Types.IntelligenceCodingSessionsListQuery;
-type IntelligenceCodingSessionsMessagesDeletePathParams = Types.IntelligenceCodingSessionsMessagesDeletePathParams;
-type IntelligenceCodingSessionsMessagesUpdatePathParams = Types.IntelligenceCodingSessionsMessagesUpdatePathParams;
+type IntelligenceCodingSessionsQuestionsAnswersCreatePathParams = Types.IntelligenceCodingSessionsQuestionsAnswersCreatePathParams;
 type IntelligenceCodingSessionsRetrievePathParams = Types.IntelligenceCodingSessionsRetrievePathParams;
 type IntelligenceCodingSessionsTurnsCreatePathParams = Types.IntelligenceCodingSessionsTurnsCreatePathParams;
 type IntelligenceCodingSessionsUpdatePathParams = Types.IntelligenceCodingSessionsUpdatePathParams;
-type IntelligenceQuestionsAnswersCreatePathParams = Types.IntelligenceQuestionsAnswersCreatePathParams;
 
 export interface IntelligenceApi {
-  approvals: {
-    decisions: {
-      create(pathParams: IntelligenceApprovalsDecisionsCreatePathParams, body: Types.BirdCoderSubmitApprovalDecisionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderApprovalDecisionResultEnvelope>;
-    };
-  };
   codingSessions: {
     artifacts: {
       list(pathParams: IntelligenceCodingSessionsArtifactsListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionArtifactListEnvelope>;
     };
     checkpoints: {
+      approval: {
+        create(pathParams: IntelligenceCodingSessionsCheckpointsApprovalCreatePathParams, body: Types.BirdCoderSubmitApprovalDecisionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderApprovalDecisionResultEnvelope>;
+      };
       list(pathParams: IntelligenceCodingSessionsCheckpointsListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionCheckpointListEnvelope>;
     };
     create(body: Types.BirdCoderCreateCodingSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryEnvelope>;
@@ -43,9 +39,10 @@ export interface IntelligenceApi {
       create(pathParams: IntelligenceCodingSessionsForksCreatePathParams, body: Types.BirdCoderForkCodingSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryEnvelope>;
     };
     list(query?: IntelligenceCodingSessionsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryListEnvelope>;
-    messages: {
-      delete(pathParams: IntelligenceCodingSessionsMessagesDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeleteCodingSessionMessageResultEnvelope>;
-      update(pathParams: IntelligenceCodingSessionsMessagesUpdatePathParams, body: Types.BirdCoderEditCodingSessionMessageRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderEditCodingSessionMessageResultEnvelope>;
+    questions: {
+      answers: {
+        create(pathParams: IntelligenceCodingSessionsQuestionsAnswersCreatePathParams, body: Types.BirdCoderSubmitUserQuestionAnswerRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserQuestionAnswerResultEnvelope>;
+      };
     };
     retrieve(pathParams: IntelligenceCodingSessionsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryEnvelope>;
     turns: {
@@ -53,22 +50,10 @@ export interface IntelligenceApi {
     };
     update(pathParams: IntelligenceCodingSessionsUpdatePathParams, body: Types.BirdCoderUpdateCodingSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryEnvelope>;
   };
-  questions: {
-    answers: {
-      create(pathParams: IntelligenceQuestionsAnswersCreatePathParams, body: Types.BirdCoderSubmitUserQuestionAnswerRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserQuestionAnswerResultEnvelope>;
-    };
-  };
 }
 
 export function createIntelligenceApi(requestOperation: BirdcoderSdkRequestOperation): IntelligenceApi {
   return {
-    approvals: {
-      decisions: {
-        create(pathParams: IntelligenceApprovalsDecisionsCreatePathParams, body: Types.BirdCoderSubmitApprovalDecisionRequest, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderApprovalDecisionResultEnvelope>("intelligence.approvals.decisions.create", { pathParams, body }, options);
-        }
-      }
-    },
     codingSessions: {
       artifacts: {
         list(pathParams: IntelligenceCodingSessionsArtifactsListPathParams, options: BirdcoderSdkRequestOptions = {}) {
@@ -76,6 +61,11 @@ export function createIntelligenceApi(requestOperation: BirdcoderSdkRequestOpera
         }
       },
       checkpoints: {
+        approval: {
+          create(pathParams: IntelligenceCodingSessionsCheckpointsApprovalCreatePathParams, body: Types.BirdCoderSubmitApprovalDecisionRequest, options: BirdcoderSdkRequestOptions = {}) {
+            return requestOperation<Types.BirdCoderApprovalDecisionResultEnvelope>("intelligence.codingSessions.checkpoints.approval.create", { pathParams, body }, options);
+          }
+        },
         list(pathParams: IntelligenceCodingSessionsCheckpointsListPathParams, options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<Types.BirdCoderCodingSessionCheckpointListEnvelope>("intelligence.codingSessions.checkpoints.list", { pathParams }, options);
         }
@@ -99,12 +89,11 @@ export function createIntelligenceApi(requestOperation: BirdcoderSdkRequestOpera
       list(query: IntelligenceCodingSessionsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderCodingSessionSummaryListEnvelope>("intelligence.codingSessions.list", { query }, options);
       },
-      messages: {
-        delete(pathParams: IntelligenceCodingSessionsMessagesDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderDeleteCodingSessionMessageResultEnvelope>("intelligence.codingSessions.messages.delete", { pathParams }, options);
-        },
-        update(pathParams: IntelligenceCodingSessionsMessagesUpdatePathParams, body: Types.BirdCoderEditCodingSessionMessageRequest, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderEditCodingSessionMessageResultEnvelope>("intelligence.codingSessions.messages.update", { pathParams, body }, options);
+      questions: {
+        answers: {
+          create(pathParams: IntelligenceCodingSessionsQuestionsAnswersCreatePathParams, body: Types.BirdCoderSubmitUserQuestionAnswerRequest, options: BirdcoderSdkRequestOptions = {}) {
+            return requestOperation<Types.BirdCoderUserQuestionAnswerResultEnvelope>("intelligence.codingSessions.questions.answers.create", { pathParams, body }, options);
+          }
         }
       },
       retrieve(pathParams: IntelligenceCodingSessionsRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
@@ -117,13 +106,6 @@ export function createIntelligenceApi(requestOperation: BirdcoderSdkRequestOpera
       },
       update(pathParams: IntelligenceCodingSessionsUpdatePathParams, body: Types.BirdCoderUpdateCodingSessionRequest, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderCodingSessionSummaryEnvelope>("intelligence.codingSessions.update", { pathParams, body }, options);
-      }
-    },
-    questions: {
-      answers: {
-        create(pathParams: IntelligenceQuestionsAnswersCreatePathParams, body: Types.BirdCoderSubmitUserQuestionAnswerRequest, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderUserQuestionAnswerResultEnvelope>("intelligence.questions.answers.create", { pathParams, body }, options);
-        }
       }
     }
   };

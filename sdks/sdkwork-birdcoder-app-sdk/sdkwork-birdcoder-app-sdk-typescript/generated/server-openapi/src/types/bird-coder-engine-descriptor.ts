@@ -12,11 +12,11 @@ export interface BirdCoderEngineDescriptor {
   engineKey: 'codex' | 'claude-code' | 'gemini' | 'opencode';
   displayName: string;
   vendor: string;
-  installationKind: 'external-cli';
+  installationKind: 'embedded-sdk' | 'external-cli';
   defaultModelId: string;
   homepage?: string;
   supportedHostModes: ('web' | 'desktop' | 'server')[];
-  transportKinds: ('cli-jsonl' | 'sdk-stream' | 'remote-control-http' | 'openapi-http')[];
+  transportKinds: ('sdk-stream' | 'cli-jsonl' | 'remote-control-http' | 'openapi-http')[];
   capabilityMatrix: BirdCoderEngineCapabilityMatrix;
   status: 'active' | 'preview' | 'deprecated' | 'disabled';
   accessPlan?: BirdCoderEngineAccessPlan;

@@ -74,7 +74,7 @@ export class RuntimeNativeSessionsApi {
 
 
 /** Get discovered native engine session detail */
-  async retrieve(id: string, params?: RuntimeNativeSessionsRetrieveParams): Promise<BirdCoderNativeSessionDetailEnvelope> {
+  async retrieve(id: string | number, params?: RuntimeNativeSessionsRetrieveParams): Promise<BirdCoderNativeSessionDetailEnvelope> {
     const query = buildQueryString([
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
       { name: 'projectId', value: params?.projectId, style: 'form', explode: true, allowReserved: false },

@@ -1,23 +1,16 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
+import { readCanonicalSqliteSchemaBundle } from './birdcoder-canonical-server-rust-sources.mjs';
+
 const dataModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/data.ts',
-  import.meta.url,
-);
-const serverHostSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs',
-  import.meta.url,
-);
-const desktopHostSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs',
   import.meta.url,
 );
 
 const dataModule = await import(`${dataModulePath.href}?t=${Date.now()}`);
 const dataModuleSource = await readFile(dataModulePath, 'utf8');
-const serverHostSource = await readFile(serverHostSourcePath, 'utf8');
-const desktopHostSource = await readFile(desktopHostSourcePath, 'utf8');
+const canonicalSqliteSchemaSource = readCanonicalSqliteSchemaBundle();
 
 assert.deepEqual(dataModule.BIRDCODER_DATABASE_PROVIDER_IDS, ['sqlite', 'postgresql']);
 assert.equal(dataModule.BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE, 'ops_schema_migration_history');
@@ -253,8 +246,8 @@ assert.ok(
 assert.equal(dataModule.BIRDCODER_CODING_SESSION_STORAGE_BINDING.storageMode, 'table');
 
 for (const [label, source] of [
-  ['server host sqlite schema', serverHostSource],
-  ['desktop host sqlite schema', desktopHostSource],
+  ['canonical sqlx sqlite schema', canonicalSqliteSchemaSource],
+  ['canonical sqlx sqlite schema (desktop parity)', canonicalSqliteSchemaSource],
 ]) {
   assert.doesNotMatch(
     source,

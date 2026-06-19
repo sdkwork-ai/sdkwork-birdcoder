@@ -9,6 +9,8 @@ authors.workspace = true
 axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sdkwork-web-contract = { workspace = true }
+sdkwork-web-core = { workspace = true }
 sdkwork-birdcoder-system-descriptor-service = { workspace = true }
 
 [dev-dependencies]

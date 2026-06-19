@@ -79,6 +79,32 @@
       "ref": "0b0e984ffbdec49a28c2da3edebcdddab4087e62",
       "refInput": "SDKWORK_SDK_GENERATOR_REF",
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-web-framework",
+      "repository": "Sdkwork-Cloud/sdkwork-web-framework",
+      "refInput": "SDKWORK_WEB_FRAMEWORK_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-database",
+      "repository": "Sdkwork-Cloud/sdkwork-database",
+      "refInput": "SDKWORK_DATABASE_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-app-topology",
+      "repository": "Sdkwork-Cloud/sdkwork-app-topology",
+      "ref": "fb656fe301244e7b4b9923d0bbdc9cc02176bc85",
+      "refInput": "SDKWORK_APP_TOPOLOGY_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
+      "id": "sdkwork-models",
+      "repository": "Sdkwork-Cloud/sdkwork-models",
+      "ref": "39e1950a73500387352be00ef245c0d701dd0313",
+      "refInput": "SDKWORK_MODELS_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     }
   ],
   "toolchains": {
@@ -116,6 +142,20 @@
         "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs package"
       }
     ],
+    "sign": [
+      {
+        "name": "Write BirdCoder package signing evidence",
+        "shell": "node",
+        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs sign"
+      }
+    ],
+    "sbom": [
+      {
+        "name": "Write BirdCoder package SBOM evidence",
+        "shell": "node",
+        "run": "node scripts/release/sdkwork-workflow-lifecycle.mjs sbom"
+      }
+    ],
     "validate": [
       {
         "name": "Validate selected BirdCoder release target",
@@ -133,272 +173,436 @@
   },
   "targets": [
     {
-      "id": "windows-x64-desktop-exe",
+      "id": "windows-x64-standalone-desktop-exe",
       "profile": "desktop",
       "platform": "windows",
       "architecture": "x64",
-      "formats": ["exe"],
+      "formats": [
+        "exe"
+      ],
       "runner": "windows-2022",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "windows-x64-desktop-msi",
+      "id": "windows-x64-standalone-desktop-msi",
       "profile": "desktop",
       "platform": "windows",
       "architecture": "x64",
-      "formats": ["msi"],
+      "formats": [
+        "msi"
+      ],
       "runner": "windows-2022",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "windows-arm64-desktop-exe",
+      "id": "windows-arm64-standalone-desktop-exe",
       "profile": "desktop",
       "platform": "windows",
       "architecture": "arm64",
-      "formats": ["exe"],
+      "formats": [
+        "exe"
+      ],
       "runner": "windows-11-arm",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "linux-debian-x64-desktop-deb",
+      "id": "linux-debian-x64-standalone-desktop-deb",
       "profile": "desktop",
       "platform": "linux",
       "distribution": "debian",
       "architecture": "x64",
-      "formats": ["deb"],
+      "formats": [
+        "deb"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "linux-rhel-x64-desktop-rpm",
+      "id": "linux-rhel-x64-standalone-desktop-rpm",
       "profile": "desktop",
       "platform": "linux",
       "distribution": "rhel",
       "architecture": "x64",
-      "formats": ["rpm"],
+      "formats": [
+        "rpm"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "linux-x64-desktop-appimage",
+      "id": "linux-x64-standalone-desktop-appimage",
       "profile": "desktop",
       "platform": "linux",
       "architecture": "x64",
-      "formats": ["appimage"],
+      "formats": [
+        "appimage"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "linux-debian-arm64-desktop-deb",
+      "id": "linux-debian-arm64-standalone-desktop-deb",
       "profile": "desktop",
       "platform": "linux",
       "distribution": "debian",
       "architecture": "arm64",
-      "formats": ["deb"],
+      "formats": [
+        "deb"
+      ],
       "runner": "ubuntu-24.04-arm",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "linux-arm64-desktop-appimage",
+      "id": "linux-arm64-standalone-desktop-appimage",
       "profile": "desktop",
       "platform": "linux",
       "architecture": "arm64",
-      "formats": ["appimage"],
+      "formats": [
+        "appimage"
+      ],
       "runner": "ubuntu-24.04-arm",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "macos-x64-desktop-tar-gz",
+      "id": "macos-x64-standalone-desktop-tar-gz",
       "profile": "desktop",
       "platform": "macos",
       "architecture": "x64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "macos-15-intel",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "macos-x64-desktop-dmg",
+      "id": "macos-x64-standalone-desktop-dmg",
       "profile": "desktop",
       "platform": "macos",
       "architecture": "x64",
-      "formats": ["dmg"],
+      "formats": [
+        "dmg"
+      ],
       "runner": "macos-15-intel",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "macos-arm64-desktop-tar-gz",
+      "id": "macos-arm64-standalone-desktop-tar-gz",
       "profile": "desktop",
       "platform": "macos",
       "architecture": "arm64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "macos-15",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "macos-arm64-desktop-dmg",
+      "id": "macos-arm64-standalone-desktop-dmg",
       "profile": "desktop",
       "platform": "macos",
       "architecture": "arm64",
-      "formats": ["dmg"],
+      "formats": [
+        "dmg"
+      ],
       "runner": "macos-15",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "desktop"
     },
     {
-      "id": "windows-x64-server-tar-gz",
+      "id": "windows-x64-standalone-server-tar-gz",
       "profile": "server",
       "platform": "windows",
       "architecture": "x64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "windows-2022",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "windows-arm64-server-tar-gz",
+      "id": "windows-arm64-standalone-server-tar-gz",
       "profile": "server",
       "platform": "windows",
       "architecture": "arm64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "windows-11-arm",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "linux-x64-server-tar-gz",
+      "id": "linux-x64-standalone-server-tar-gz",
       "profile": "server",
       "platform": "linux",
       "architecture": "x64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "linux-arm64-server-tar-gz",
+      "id": "linux-arm64-standalone-server-tar-gz",
       "profile": "server",
       "platform": "linux",
       "architecture": "arm64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-24.04-arm",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "macos-x64-server-tar-gz",
+      "id": "macos-x64-standalone-server-tar-gz",
       "profile": "server",
       "platform": "macos",
       "architecture": "x64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "macos-15-intel",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "macos-arm64-server-tar-gz",
+      "id": "macos-arm64-standalone-server-tar-gz",
       "profile": "server",
       "platform": "macos",
       "architecture": "arm64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "macos-15",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "standalone",
+      "runtimeTarget": "server"
     },
     {
-      "id": "web-noarch-web-tar-gz",
-      "profile": "web",
+      "id": "web-universal-cloud-browser-tar-gz",
+      "profile": "browser",
       "platform": "web",
-      "architecture": "noarch",
-      "formats": ["tar.gz"],
+      "architecture": "universal",
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "browser"
     },
     {
-      "id": "container-x64-server-cpu-tar-gz",
-      "profile": "server",
+      "id": "container-x64-cloud-container-cpu-tar-gz",
+      "profile": "container",
       "platform": "container",
       "architecture": "x64",
       "variant": "cpu",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "container"
     },
     {
-      "id": "container-x64-server-nvidia-cuda-tar-gz",
-      "profile": "server",
+      "id": "container-x64-cloud-container-nvidia-cuda-tar-gz",
+      "profile": "container",
       "platform": "container",
       "architecture": "x64",
       "variant": "nvidia-cuda",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "container"
     },
     {
-      "id": "container-x64-server-amd-rocm-tar-gz",
-      "profile": "server",
+      "id": "container-x64-cloud-container-amd-rocm-tar-gz",
+      "profile": "container",
       "platform": "container",
       "architecture": "x64",
       "variant": "amd-rocm",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "container"
     },
     {
-      "id": "container-arm64-server-cpu-tar-gz",
-      "profile": "server",
+      "id": "container-arm64-cloud-container-cpu-tar-gz",
+      "profile": "container",
       "platform": "container",
       "architecture": "arm64",
       "variant": "cpu",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-24.04-arm",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "container"
     },
     {
-      "id": "container-x64-server-cpu-helm",
-      "profile": "server",
+      "id": "container-x64-cloud-container-cpu-helm",
+      "profile": "container",
       "platform": "container",
       "architecture": "x64",
       "variant": "cpu",
-      "formats": ["helm"],
+      "formats": [
+        "helm"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "container"
     },
     {
-      "id": "container-x64-server-nvidia-cuda-helm",
-      "profile": "server",
+      "id": "container-x64-cloud-container-nvidia-cuda-helm",
+      "profile": "container",
       "platform": "container",
       "architecture": "x64",
       "variant": "nvidia-cuda",
-      "formats": ["helm"],
+      "formats": [
+        "helm"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "container"
     },
     {
-      "id": "container-x64-server-amd-rocm-helm",
-      "profile": "server",
+      "id": "container-x64-cloud-container-amd-rocm-helm",
+      "profile": "container",
       "platform": "container",
       "architecture": "x64",
       "variant": "amd-rocm",
-      "formats": ["helm"],
+      "formats": [
+        "helm"
+      ],
       "runner": "ubuntu-24.04",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "container"
     },
     {
-      "id": "container-arm64-server-cpu-helm",
-      "profile": "server",
+      "id": "container-arm64-cloud-container-cpu-helm",
+      "profile": "container",
       "platform": "container",
       "architecture": "arm64",
       "variant": "cpu",
-      "formats": ["helm"],
+      "formats": [
+        "helm"
+      ],
       "runner": "ubuntu-24.04-arm",
-      "outputGlobs": ["artifacts/release/**/*"]
+      "outputGlobs": [
+        "artifacts/release/**/*"
+      ],
+      "deploymentProfile": "cloud",
+      "runtimeTarget": "container"
     }
   ],
   "security": {
     "oidcRequired": true,
     "artifactAttestations": true,
-    "sbomRequired": false,
-    "signingRequired": false
+    "sbomRequired": true,
+    "signingRequired": true
   },
   "publish": {
     "workflowArtifact": true,
     "githubRelease": true,
     "aggregateRelease": true,
     "aggregateArtifactPath": "release-assets",
-    "aggregateUploadGlobs": ["release-assets/**/*"],
+    "aggregateUploadGlobs": [
+      "release-assets/**/*"
+    ],
     "retentionDays": 30
   }
 }

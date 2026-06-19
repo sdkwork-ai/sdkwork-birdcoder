@@ -208,7 +208,7 @@ const client = createBirdCoderAppSdkApiClient({
             ],
             'req.app.routes',
           ) as TResponse;
-        case '/app/v3/api/coding_sessions':
+        case '/app/v3/api/intelligence/coding_sessions':
           return createListEnvelope(
             [
               {
@@ -289,7 +289,7 @@ const client = createBirdCoderAppSdkApiClient({
               operationId: 'op-app-runtime-read',
               status: 'running',
               artifactRefs: ['artifact-1'],
-              streamUrl: '/app/v3/api/coding_sessions/session-1/events',
+              streamUrl: '/app/v3/api/intelligence/coding_sessions/session-1/events',
               streamKind: 'sse',
             },
             'req.app.operation',
@@ -376,7 +376,7 @@ assert.deepEqual(observedRequests, [
   },
   {
     method: 'GET',
-    path: '/app/v3/api/coding_sessions',
+    path: '/app/v3/api/intelligence/coding_sessions',
     query: {
       engineId: 'codex',
       limit: 20,

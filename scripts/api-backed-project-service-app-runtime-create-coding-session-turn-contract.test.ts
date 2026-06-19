@@ -214,7 +214,7 @@ try {
     async createCodingSessionTurn(codingSessionId, request) {
       if (codingSessionId === 'coding-session-turn-stale-local') {
         throw new Error(
-          'BirdCoder API request failed: POST /app/v3/api/coding_sessions/coding-session-turn-stale-local/turns -> 404 (Coding session projection was not found.)',
+          'BirdCoder API request failed: POST /app/v3/api/intelligence/coding_sessions/coding-session-turn-stale-local/turns -> 404 (Coding session projection was not found.)',
         );
       }
 

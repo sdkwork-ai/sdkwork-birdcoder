@@ -986,18 +986,20 @@ export async function loadCodingSessionPendingInteractionState(
 
 export async function submitCodingSessionApprovalDecision(
   appRuntimeWriteService: Pick<IAppRuntimeWriteService, 'submitApprovalDecision'>,
-  approvalId: string,
+  codingSessionId: string,
+  checkpointId: string,
   request: BirdCoderSubmitApprovalDecisionRequest,
 ): Promise<BirdCoderApprovalDecisionResult> {
-  return appRuntimeWriteService.submitApprovalDecision(approvalId, request);
+  return appRuntimeWriteService.submitApprovalDecision(codingSessionId, checkpointId, request);
 }
 
 export async function submitCodingSessionUserQuestionAnswer(
   appRuntimeWriteService: Pick<IAppRuntimeWriteService, 'submitUserQuestionAnswer'>,
+  codingSessionId: string,
   questionId: string,
   request: BirdCoderSubmitUserQuestionAnswerRequest,
 ): Promise<BirdCoderUserQuestionAnswerResult> {
-  return appRuntimeWriteService.submitUserQuestionAnswer(questionId, request);
+  return appRuntimeWriteService.submitUserQuestionAnswer(codingSessionId, questionId, request);
 }
 
 export function useCodingSessionProjection(
@@ -1127,11 +1129,20 @@ export function useCodingSessionApprovalState(
 
   const submitApprovalDecision = useCallback(
     async (approvalId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
-      const decision = await submitCodingSessionApprovalDecision(appRuntimeWriteService, approvalId, request);
+      const pendingApproval = state.approvals.find((approval) => approval.approvalId === approvalId);
+      if (!pendingApproval) {
+        throw new Error(`Approval ${approvalId} was not found in the current coding session.`);
+      }
+      const decision = await submitCodingSessionApprovalDecision(
+        appRuntimeWriteService,
+        pendingApproval.codingSessionId,
+        pendingApproval.checkpointId,
+        request,
+      );
       await refreshApprovals();
       return decision;
     },
-    [appRuntimeWriteService, refreshApprovals],
+    [appRuntimeWriteService, refreshApprovals, state.approvals],
   );
 
   useEffect(() => {
@@ -1218,24 +1229,37 @@ export function useCodingSessionPendingInteractionState(
 
   const submitApprovalDecision = useCallback(
     async (approvalId: string, request: BirdCoderSubmitApprovalDecisionRequest) => {
-      const decision = await submitCodingSessionApprovalDecision(appRuntimeWriteService, approvalId, request);
+      const pendingApproval = state.approvals.find((approval) => approval.approvalId === approvalId);
+      if (!pendingApproval) {
+        throw new Error(`Approval ${approvalId} was not found in the current coding session.`);
+      }
+      const decision = await submitCodingSessionApprovalDecision(
+        appRuntimeWriteService,
+        pendingApproval.codingSessionId,
+        pendingApproval.checkpointId,
+        request,
+      );
       await refreshPendingInteractions();
       return decision;
     },
-    [appRuntimeWriteService, refreshPendingInteractions],
+    [appRuntimeWriteService, refreshPendingInteractions, state.approvals],
   );
 
   const submitUserQuestionAnswer = useCallback(
     async (questionId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
+      if (!codingSessionId) {
+        throw new Error('Coding session id is required to submit a user-question answer.');
+      }
       const answer = await submitCodingSessionUserQuestionAnswer(
         appRuntimeWriteService,
+        codingSessionId,
         questionId,
         request,
       );
       await refreshPendingInteractions();
       return answer;
     },
-    [appRuntimeWriteService, refreshPendingInteractions],
+    [appRuntimeWriteService, codingSessionId, refreshPendingInteractions],
   );
 
   useEffect(() => {
@@ -1313,15 +1337,19 @@ export function useCodingSessionUserQuestionState(
 
   const submitUserQuestionAnswer = useCallback(
     async (questionId: string, request: BirdCoderSubmitUserQuestionAnswerRequest) => {
+      if (!codingSessionId) {
+        throw new Error('Coding session id is required to submit a user-question answer.');
+      }
       const answer = await submitCodingSessionUserQuestionAnswer(
         appRuntimeWriteService,
+        codingSessionId,
         questionId,
         request,
       );
       await refreshQuestions();
       return answer;
     },
-    [appRuntimeWriteService, refreshQuestions],
+    [appRuntimeWriteService, codingSessionId, refreshQuestions],
   );
 
   useEffect(() => {

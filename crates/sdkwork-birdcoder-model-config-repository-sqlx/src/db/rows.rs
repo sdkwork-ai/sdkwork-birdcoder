@@ -1,4 +1,4 @@
-use rusqlite::Row;
+use sqlx::Row;
 
 #[derive(Clone, Debug)]
 pub struct ModelConfigRow {
@@ -12,15 +12,15 @@ pub struct ModelConfigRow {
 }
 
 impl ModelConfigRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            config_key: row.get("config_key")?,
-            config_json: row.get("config_json")?,
-            schema_version: row.get("schema_version")?,
-            source: row.get("source")?,
-            updated_at: row.get("updated_at")?,
-            created_at: row.get("created_at")?,
+            id: row.try_get("id")?,
+            config_key: row.try_get("config_key")?,
+            config_json: row.try_get("config_json")?,
+            schema_version: row.try_get("schema_version")?,
+            source: row.try_get("source")?,
+            updated_at: row.try_get("updated_at")?,
+            created_at: row.try_get("created_at")?,
         })
     }
 }

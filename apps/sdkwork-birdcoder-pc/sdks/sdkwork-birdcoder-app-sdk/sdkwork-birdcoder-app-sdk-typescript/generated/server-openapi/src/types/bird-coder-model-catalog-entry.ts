@@ -11,6 +11,6 @@ export interface BirdCoderModelCatalogEntry {
   providerId?: string;
   status: 'active' | 'preview' | 'deprecated' | 'disabled';
   defaultForEngine: boolean;
-  transportKinds: ('cli-jsonl' | 'sdk-stream' | 'remote-control-http' | 'openapi-http')[];
+  transportKinds: ('sdk-stream' | 'cli-jsonl' | 'remote-control-http' | 'openapi-http')[];
   capabilityMatrix: Record<string, unknown>;
 }

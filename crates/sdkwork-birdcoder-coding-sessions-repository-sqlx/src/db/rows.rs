@@ -1,3 +1,5 @@
+use sqlx::Row;
+
 pub struct SessionRow {
     pub id: String,
     pub uuid: Option<String>,
@@ -20,6 +22,34 @@ pub struct SessionRow {
     pub pinned: i64,
     pub archived: i64,
     pub unread: i64,
+}
+
+impl SessionRow {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            workspace_id: row.try_get("workspace_id")?,
+            project_id: row.try_get("project_id")?,
+            title: row.try_get("title")?,
+            status: row.try_get("status")?,
+            entry_surface: row.try_get("entry_surface")?,
+            host_mode: row.try_get("host_mode")?,
+            engine_id: row.try_get("engine_id")?,
+            model_id: row.try_get("model_id")?,
+            last_turn_at: row.try_get("last_turn_at")?,
+            native_session_id: row.try_get("native_session_id")?,
+            sort_timestamp: row.try_get("sort_timestamp")?,
+            transcript_updated_at: row.try_get("transcript_updated_at")?,
+            pinned: row.try_get("pinned")?,
+            archived: row.try_get("archived")?,
+            unread: row.try_get("unread")?,
+        })
+    }
 }
 
 pub struct MessageRow {
@@ -76,6 +106,25 @@ pub struct TurnRow {
     pub completed_at: Option<String>,
 }
 
+impl TurnRow {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            coding_session_id: row.try_get("coding_session_id")?,
+            runtime_id: row.try_get("runtime_id")?,
+            request_kind: row.try_get("request_kind")?,
+            status: row.try_get("status")?,
+            input_summary: row.try_get("input_summary")?,
+            started_at: row.try_get("started_at")?,
+            completed_at: row.try_get("completed_at")?,
+        })
+    }
+}
+
 pub struct EventRow {
     pub id: String,
     pub created_at: String,
@@ -88,6 +137,24 @@ pub struct EventRow {
     pub event_kind: String,
     pub sequence_no: i64,
     pub payload_json: String,
+}
+
+impl EventRow {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            coding_session_id: row.try_get("coding_session_id")?,
+            turn_id: row.try_get("turn_id")?,
+            runtime_id: row.try_get("runtime_id")?,
+            event_kind: row.try_get("event_kind")?,
+            sequence_no: row.try_get("sequence_no")?,
+            payload_json: row.try_get("payload_json")?,
+        })
+    }
 }
 
 pub struct ArtifactRow {
@@ -104,6 +171,24 @@ pub struct ArtifactRow {
     pub metadata_json: String,
 }
 
+impl ArtifactRow {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            coding_session_id: row.try_get("coding_session_id")?,
+            turn_id: row.try_get("turn_id")?,
+            artifact_kind: row.try_get("artifact_kind")?,
+            title: row.try_get("title")?,
+            blob_ref: row.try_get("blob_ref")?,
+            metadata_json: row.try_get("metadata_json")?,
+        })
+    }
+}
+
 pub struct CheckpointRow {
     pub id: String,
     pub created_at: String,
@@ -115,6 +200,23 @@ pub struct CheckpointRow {
     pub checkpoint_kind: String,
     pub resumable: i64,
     pub state_json: String,
+}
+
+impl CheckpointRow {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            coding_session_id: row.try_get("coding_session_id")?,
+            runtime_id: row.try_get("runtime_id")?,
+            checkpoint_kind: row.try_get("checkpoint_kind")?,
+            resumable: row.try_get("resumable")?,
+            state_json: row.try_get("state_json")?,
+        })
+    }
 }
 
 pub struct OperationRow {
@@ -129,6 +231,24 @@ pub struct OperationRow {
     pub stream_url: String,
     pub stream_kind: String,
     pub artifact_refs_json: String,
+}
+
+impl OperationRow {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            coding_session_id: row.try_get("coding_session_id")?,
+            turn_id: row.try_get("turn_id")?,
+            status: row.try_get("status")?,
+            stream_url: row.try_get("stream_url")?,
+            stream_kind: row.try_get("stream_kind")?,
+            artifact_refs_json: row.try_get("artifact_refs_json")?,
+        })
+    }
 }
 
 pub struct PromptEntryRow {

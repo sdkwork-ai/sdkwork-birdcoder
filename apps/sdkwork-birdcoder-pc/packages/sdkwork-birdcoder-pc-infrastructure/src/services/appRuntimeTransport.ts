@@ -550,6 +550,10 @@ function matchOperationPath(
   return params;
 }
 
+function resolveCodingSessionPathParam(pathParams: Record<string, string>): string {
+  return pathParams.sessionId ?? pathParams.id ?? '';
+}
+
 function resolveRouteOperation(
   request: BirdCoderApiTransportRequest,
 ): ResolvedRouteOperation | null {
@@ -906,7 +910,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
             projectService,
             codingSessionProjectIndex,
             knownWorkspaceIds,
-            resolvedOperation.pathParams.id,
+            resolveCodingSessionPathParam(resolvedOperation.pathParams),
           );
           return createEnvelope(toCodingSessionSummary(codingSession)) as TResponse;
         }
@@ -936,7 +940,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
             projectService,
             codingSessionProjectIndex,
             knownWorkspaceIds,
-            resolvedOperation.pathParams.id,
+            resolveCodingSessionPathParam(resolvedOperation.pathParams),
           );
           return createEnvelope<BirdCoderNativeSessionDetail>({
             summary: toNativeSessionSummary(codingSession),
@@ -950,7 +954,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
             projectService,
             codingSessionProjectIndex,
             knownWorkspaceIds,
-            resolvedOperation.pathParams.id,
+            resolveCodingSessionPathParam(resolvedOperation.pathParams),
           );
           return createListEnvelope(buildProjectionEvents(codingSession)) as TResponse;
         }
@@ -989,7 +993,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           return createEnvelope(toCodingSessionSummary(createdSession)) as TResponse;
         }
         case 'codingSessions.forks.create': {
-          const codingSessionId = resolvedOperation.pathParams.id;
+          const codingSessionId = resolveCodingSessionPathParam(resolvedOperation.pathParams);
           const body = readRequestBody<BirdCoderForkCodingSessionRequest>(request);
           const projectId = await resolveProjectIdForCodingSession(
             projectService,
@@ -1013,7 +1017,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           return createEnvelope(toCodingSessionSummary(forkedSession)) as TResponse;
         }
         case 'codingSessions.update': {
-          const codingSessionId = resolvedOperation.pathParams.id;
+          const codingSessionId = resolveCodingSessionPathParam(resolvedOperation.pathParams);
           const body = readRequestBody<BirdCoderUpdateCodingSessionRequest>(request);
           const projectId = await resolveProjectIdForCodingSession(
             projectService,
@@ -1042,7 +1046,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           return createEnvelope(toCodingSessionSummary(updatedSession)) as TResponse;
         }
         case 'codingSessions.delete': {
-          const codingSessionId = resolvedOperation.pathParams.id;
+          const codingSessionId = resolveCodingSessionPathParam(resolvedOperation.pathParams);
           const projectId = await resolveProjectIdForCodingSession(
             projectService,
             codingSessionProjectIndex,
@@ -1055,46 +1059,8 @@ export function createBirdCoderInProcessAppRuntimeTransport({
             id: codingSessionId,
           }) as TResponse;
         }
-        case 'codingSessions.messages.delete': {
-          const codingSessionId = resolvedOperation.pathParams.id;
-          const messageId = resolvedOperation.pathParams.messageId;
-          const projectId = await resolveProjectIdForCodingSession(
-            projectService,
-            codingSessionProjectIndex,
-            knownWorkspaceIds,
-            codingSessionId,
-          );
-          await projectService.deleteCodingSessionMessage(projectId, codingSessionId, messageId);
-          return createEnvelope<BirdCoderDeleteCodingSessionMessageResult>({
-            id: messageId,
-            codingSessionId,
-          }) as TResponse;
-        }
-        case 'codingSessions.messages.update': {
-          const codingSessionId = resolvedOperation.pathParams.id;
-          const messageId = resolvedOperation.pathParams.messageId;
-          const body = readRequestBody<BirdCoderEditCodingSessionMessageRequest>(request);
-          const content = normalizeText(body.content);
-          if (!content) {
-            throw new Error('edit coding session message request must include content.');
-          }
-          const projectId = await resolveProjectIdForCodingSession(
-            projectService,
-            codingSessionProjectIndex,
-            knownWorkspaceIds,
-            codingSessionId,
-          );
-          await projectService.editCodingSessionMessage(projectId, codingSessionId, messageId, {
-            content,
-          });
-          return createEnvelope<BirdCoderEditCodingSessionMessageResult>({
-            id: messageId,
-            codingSessionId,
-            content,
-          }) as TResponse;
-        }
         case 'codingSessions.turns.create': {
-          const codingSessionId = resolvedOperation.pathParams.id;
+          const codingSessionId = resolveCodingSessionPathParam(resolvedOperation.pathParams);
           const body = readRequestBody<BirdCoderCreateCodingSessionTurnRequest>(request);
           const scopedProjectId = normalizeText(body.ideContext?.projectId);
           const scopedProject = scopedProjectId
@@ -1187,13 +1153,14 @@ export function createBirdCoderInProcessAppRuntimeTransport({
             status: 'succeeded',
             artifactRefs: [],
           }) as TResponse;
-        case 'approvals.decisions.create': {
-          const approvalId = resolvedOperation.pathParams.approvalId;
+        case 'submitApprovalDecision': {
+          const codingSessionId = resolveCodingSessionPathParam(resolvedOperation.pathParams);
+          const checkpointId = resolvedOperation.pathParams.checkpointId;
           const body = readRequestBody<BirdCoderSubmitApprovalDecisionRequest>(request);
           const result: BirdCoderApprovalDecisionResult = {
-            approvalId,
-            checkpointId: '',
-            codingSessionId: '',
+            approvalId: checkpointId,
+            checkpointId,
+            codingSessionId,
             decision: body.decision,
             decidedAt: new Date().toISOString(),
             operationId: '',
@@ -1205,13 +1172,14 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           };
           return createEnvelope(result) as TResponse;
         }
-        case 'questions.answers.create': {
+        case 'submitUserQuestionAnswer': {
+          const codingSessionId = resolveCodingSessionPathParam(resolvedOperation.pathParams);
           const questionId = resolvedOperation.pathParams.questionId;
           const body = readRequestBody<BirdCoderSubmitUserQuestionAnswerRequest>(request);
           const rejected = body.rejected === true;
           const result: BirdCoderUserQuestionAnswerResult = {
             questionId,
-            codingSessionId: '',
+            codingSessionId,
             ...(rejected ? {} : { answer: body.answer }),
             answeredAt: new Date().toISOString(),
             optionId: normalizeText(body.optionId),

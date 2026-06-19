@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+import {
+  readCanonicalServerRustSource,
+  CANONICAL_DOMAIN_RUST_PATHS,
+} from './birdcoder-canonical-server-rust-sources.mjs';
+
 const typesSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts', import.meta.url),
   'utf8',
@@ -21,10 +26,7 @@ const workspaceRealtimeSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/stores/workspaceRealtime.ts', import.meta.url),
   'utf8',
 );
-const rustServerSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
-  'utf8',
-);
+const rustServerSource = readCanonicalServerRustSource(CANONICAL_DOMAIN_RUST_PATHS.codingSessionsEventPayload);
 
 assert.match(
   typesSource,
@@ -142,14 +144,14 @@ assert.match(
 
 assert.match(
   rustServerSource,
-  /fn is_terminal_reply_role\(/,
-  'Rust server projection summaries must explicitly classify assistant/planner/reviewer/tool replies as terminal reply roles.',
+  /insert_payload_string\(&mut assistant_message_payload, "runtimeStatus", "completed"\)/,
+  'Rust coding-session event projection must settle assistant message.completed events to completed runtimeStatus.',
 );
 
 assert.match(
   rustServerSource,
-  /role\.is_some_and\(is_terminal_reply_role\)[\s\S]*runtime_status\.or\(Some\("completed"\)\)/,
-  'Rust server projection summaries must settle assistant message.completed events to completed even when older providers omit runtimeStatus.',
+  /kind: "message\.completed"\.to_owned\(\)/,
+  'Rust coding-session event projection must emit message.completed events for terminal assistant replies.',
 );
 
 console.log('coding session runtime status contract passed.');

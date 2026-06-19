@@ -19,7 +19,7 @@ use sdkwork_birdcoder_native_sessions_service::service::native_session_service::
     NativeSessionService, NativeSessionSummaryPayload, NativeSessionTurnPayload,
 };
 
-use sdkwork_birdcoder_router_context::RequiredIamContext;
+use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 
 use crate::error;
 use crate::mapper::request::{
@@ -213,6 +213,7 @@ impl Default for EngineCatalogAppState {
 // ── Handlers ─────────────────────────────────────────────────────────
 
 pub async fn list_engines(
+    _web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
@@ -224,6 +225,7 @@ pub async fn list_engines(
 }
 
 pub async fn get_engine_capabilities(
+    _web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Path(params): Path<EngineKeyPathParams>,
@@ -239,6 +241,7 @@ pub async fn get_engine_capabilities(
 }
 
 pub async fn list_native_session_providers(
+    _web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
@@ -253,6 +256,7 @@ pub async fn list_native_session_providers(
 }
 
 pub async fn list_native_sessions(
+    _web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Query(params): Query<NativeSessionQueryParams>,
@@ -271,6 +275,7 @@ pub async fn list_native_sessions(
 }
 
 pub async fn get_native_session(
+    _web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Path(params): Path<NativeSessionPathParams>,
@@ -289,6 +294,7 @@ pub async fn get_native_session(
 }
 
 pub async fn list_models(
+    _web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
@@ -300,6 +306,7 @@ pub async fn list_models(
 }
 
 pub async fn get_model_config(
+    _web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
@@ -311,6 +318,7 @@ pub async fn get_model_config(
 }
 
 pub async fn sync_model_config(
+    _web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Json(body): Json<SyncModelConfigRequest>,

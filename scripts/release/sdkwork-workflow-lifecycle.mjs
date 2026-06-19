@@ -9,188 +9,190 @@ import { pathToFileURL } from 'node:url';
 import { DEFAULT_RELEASE_PROFILE_ID } from './release-profiles.mjs';
 
 const RELEASE_ASSETS_DIR = 'artifacts/release';
+const SIGNATURE_EVIDENCE_DIR = 'artifacts/release/signatures';
+const SBOM_EVIDENCE_DIR = 'artifacts/release/sbom';
 const AGGREGATE_RELEASE_ASSETS_DIR = 'release-assets';
 const DEFAULT_RELEASE_KIND = 'formal';
 const DEFAULT_ROLLOUT_STAGE = 'general-availability';
 const DEFAULT_IMAGE_REPOSITORY = 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server';
 
 const TARGETS = Object.freeze({
-  'windows-x64-desktop-exe': Object.freeze({
+  'windows-x64-standalone-desktop-exe': Object.freeze({
     family: 'desktop',
     platform: 'windows',
     arch: 'x64',
     target: 'x86_64-pc-windows-msvc',
     bundle: 'nsis',
   }),
-  'windows-x64-desktop-msi': Object.freeze({
+  'windows-x64-standalone-desktop-msi': Object.freeze({
     family: 'desktop',
     platform: 'windows',
     arch: 'x64',
     target: 'x86_64-pc-windows-msvc',
     bundle: 'msi',
   }),
-  'windows-arm64-desktop-exe': Object.freeze({
+  'windows-arm64-standalone-desktop-exe': Object.freeze({
     family: 'desktop',
     platform: 'windows',
     arch: 'arm64',
     target: 'aarch64-pc-windows-msvc',
     bundle: 'nsis',
   }),
-  'linux-debian-x64-desktop-deb': Object.freeze({
+  'linux-debian-x64-standalone-desktop-deb': Object.freeze({
     family: 'desktop',
     platform: 'linux',
     arch: 'x64',
     target: 'x86_64-unknown-linux-gnu',
     bundle: 'deb',
   }),
-  'linux-rhel-x64-desktop-rpm': Object.freeze({
+  'linux-rhel-x64-standalone-desktop-rpm': Object.freeze({
     family: 'desktop',
     platform: 'linux',
     arch: 'x64',
     target: 'x86_64-unknown-linux-gnu',
     bundle: 'rpm',
   }),
-  'linux-x64-desktop-appimage': Object.freeze({
+  'linux-x64-standalone-desktop-appimage': Object.freeze({
     family: 'desktop',
     platform: 'linux',
     arch: 'x64',
     target: 'x86_64-unknown-linux-gnu',
     bundle: 'appimage',
   }),
-  'linux-debian-arm64-desktop-deb': Object.freeze({
+  'linux-debian-arm64-standalone-desktop-deb': Object.freeze({
     family: 'desktop',
     platform: 'linux',
     arch: 'arm64',
     target: 'aarch64-unknown-linux-gnu',
     bundle: 'deb',
   }),
-  'linux-arm64-desktop-appimage': Object.freeze({
+  'linux-arm64-standalone-desktop-appimage': Object.freeze({
     family: 'desktop',
     platform: 'linux',
     arch: 'arm64',
     target: 'aarch64-unknown-linux-gnu',
     bundle: 'appimage',
   }),
-  'macos-x64-desktop-tar-gz': Object.freeze({
+  'macos-x64-standalone-desktop-tar-gz': Object.freeze({
     family: 'desktop',
     platform: 'macos',
     arch: 'x64',
     target: 'x86_64-apple-darwin',
     bundle: 'app',
   }),
-  'macos-x64-desktop-dmg': Object.freeze({
+  'macos-x64-standalone-desktop-dmg': Object.freeze({
     family: 'desktop',
     platform: 'macos',
     arch: 'x64',
     target: 'x86_64-apple-darwin',
     bundle: 'dmg',
   }),
-  'macos-arm64-desktop-tar-gz': Object.freeze({
+  'macos-arm64-standalone-desktop-tar-gz': Object.freeze({
     family: 'desktop',
     platform: 'macos',
     arch: 'arm64',
     target: 'aarch64-apple-darwin',
     bundle: 'app',
   }),
-  'macos-arm64-desktop-dmg': Object.freeze({
+  'macos-arm64-standalone-desktop-dmg': Object.freeze({
     family: 'desktop',
     platform: 'macos',
     arch: 'arm64',
     target: 'aarch64-apple-darwin',
     bundle: 'dmg',
   }),
-  'windows-x64-server-tar-gz': Object.freeze({
+  'windows-x64-standalone-server-tar-gz': Object.freeze({
     family: 'server',
     platform: 'windows',
     arch: 'x64',
     target: 'x86_64-pc-windows-msvc',
   }),
-  'windows-arm64-server-tar-gz': Object.freeze({
+  'windows-arm64-standalone-server-tar-gz': Object.freeze({
     family: 'server',
     platform: 'windows',
     arch: 'arm64',
     target: 'aarch64-pc-windows-msvc',
   }),
-  'linux-x64-server-tar-gz': Object.freeze({
+  'linux-x64-standalone-server-tar-gz': Object.freeze({
     family: 'server',
     platform: 'linux',
     arch: 'x64',
     target: 'x86_64-unknown-linux-gnu',
   }),
-  'linux-arm64-server-tar-gz': Object.freeze({
+  'linux-arm64-standalone-server-tar-gz': Object.freeze({
     family: 'server',
     platform: 'linux',
     arch: 'arm64',
     target: 'aarch64-unknown-linux-gnu',
   }),
-  'macos-x64-server-tar-gz': Object.freeze({
+  'macos-x64-standalone-server-tar-gz': Object.freeze({
     family: 'server',
     platform: 'macos',
     arch: 'x64',
     target: 'x86_64-apple-darwin',
   }),
-  'macos-arm64-server-tar-gz': Object.freeze({
+  'macos-arm64-standalone-server-tar-gz': Object.freeze({
     family: 'server',
     platform: 'macos',
     arch: 'arm64',
     target: 'aarch64-apple-darwin',
   }),
-  'web-noarch-web-tar-gz': Object.freeze({
+  'web-universal-cloud-browser-tar-gz': Object.freeze({
     family: 'web',
     platform: '',
     arch: '',
     target: '',
   }),
-  'container-x64-server-cpu-tar-gz': Object.freeze({
+  'container-x64-cloud-container-cpu-tar-gz': Object.freeze({
     family: 'container',
     platform: 'linux',
     arch: 'x64',
     target: 'x86_64-unknown-linux-gnu',
     accelerator: 'cpu',
   }),
-  'container-x64-server-nvidia-cuda-tar-gz': Object.freeze({
+  'container-x64-cloud-container-nvidia-cuda-tar-gz': Object.freeze({
     family: 'container',
     platform: 'linux',
     arch: 'x64',
     target: 'x86_64-unknown-linux-gnu',
     accelerator: 'nvidia-cuda',
   }),
-  'container-x64-server-amd-rocm-tar-gz': Object.freeze({
+  'container-x64-cloud-container-amd-rocm-tar-gz': Object.freeze({
     family: 'container',
     platform: 'linux',
     arch: 'x64',
     target: 'x86_64-unknown-linux-gnu',
     accelerator: 'amd-rocm',
   }),
-  'container-arm64-server-cpu-tar-gz': Object.freeze({
+  'container-arm64-cloud-container-cpu-tar-gz': Object.freeze({
     family: 'container',
     platform: 'linux',
     arch: 'arm64',
     target: 'aarch64-unknown-linux-gnu',
     accelerator: 'cpu',
   }),
-  'container-x64-server-cpu-helm': Object.freeze({
+  'container-x64-cloud-container-cpu-helm': Object.freeze({
     family: 'kubernetes',
     platform: 'linux',
     arch: 'x64',
     target: 'x86_64-unknown-linux-gnu',
     accelerator: 'cpu',
   }),
-  'container-x64-server-nvidia-cuda-helm': Object.freeze({
+  'container-x64-cloud-container-nvidia-cuda-helm': Object.freeze({
     family: 'kubernetes',
     platform: 'linux',
     arch: 'x64',
     target: 'x86_64-unknown-linux-gnu',
     accelerator: 'nvidia-cuda',
   }),
-  'container-x64-server-amd-rocm-helm': Object.freeze({
+  'container-x64-cloud-container-amd-rocm-helm': Object.freeze({
     family: 'kubernetes',
     platform: 'linux',
     arch: 'x64',
     target: 'x86_64-unknown-linux-gnu',
     accelerator: 'amd-rocm',
   }),
-  'container-arm64-server-cpu-helm': Object.freeze({
+  'container-arm64-cloud-container-cpu-helm': Object.freeze({
     family: 'kubernetes',
     platform: 'linux',
     arch: 'arm64',
@@ -532,6 +534,83 @@ function buildPackageCommands(target, env = process.env) {
   throw new Error(`Unsupported package family: ${target.family}`);
 }
 
+function writePackageSignatureEvidenceCommand(target, env = process.env) {
+  const packageId = nonEmpty(env.SDKWORK_PACKAGE_ID, currentTargetId(env));
+  const evidencePath = path.posix.join(SIGNATURE_EVIDENCE_DIR, `${packageId}.signature-evidence.json`);
+  return nodeCommand([
+    '-e',
+    [
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      `const evidencePath = ${JSON.stringify(evidencePath)};`,
+      'fs.mkdirSync(path.dirname(evidencePath), { recursive: true });',
+      'const env = process.env;',
+      'const evidence = {',
+      '  schemaVersion: "2026-06-06.sdkwork.signature-evidence.v1",',
+      '  appId: env.SDKWORK_APP_ID || "sdkwork-birdcoder",',
+      `  packageId: ${JSON.stringify(packageId)},`,
+      `  targetId: ${JSON.stringify(currentTargetId(env))},`,
+      `  runtimeTarget: ${JSON.stringify(nonEmpty(env.SDKWORK_RUNTIME_TARGET, target.family))},`,
+      `  deploymentProfile: ${JSON.stringify(nonEmpty(env.SDKWORK_DEPLOYMENT_PROFILE, target.family === 'container' || target.family === 'kubernetes' ? 'cloud' : 'standalone'))},`,
+      `  packageProfile: ${JSON.stringify(nonEmpty(env.SDKWORK_PACKAGE_PROFILE, target.family))},`,
+      '  releaseTag: env.SDKWORK_RELEASE_TAG || "release-local",',
+      '  required: true,',
+      '  status: "pending-external-signature",',
+      '  signerWorkflow: ".github/workflows/package.yml",',
+      '  note: "Package signing is enforced through SDKWork release validation and platform-specific trust evidence.",',
+      '  generatedAt: new Date().toISOString()',
+      '};',
+      'fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\\n`);',
+    ].join('\n'),
+  ]);
+}
+
+function writePackageSbomEvidenceCommand(target, env = process.env) {
+  const packageId = nonEmpty(env.SDKWORK_PACKAGE_ID, currentTargetId(env));
+  const sbomPath = path.posix.join(SBOM_EVIDENCE_DIR, `${packageId}.sbom.json`);
+  return nodeCommand([
+    '-e',
+    [
+      'const fs = require("node:fs");',
+      'const path = require("node:path");',
+      `const sbomPath = ${JSON.stringify(sbomPath)};`,
+      'fs.mkdirSync(path.dirname(sbomPath), { recursive: true });',
+      'const env = process.env;',
+      'const sbom = {',
+      '  bomFormat: "CycloneDX",',
+      '  specVersion: "1.6",',
+      '  version: 1,',
+      '  metadata: {',
+      '    timestamp: new Date().toISOString(),',
+      '    tools: [{ vendor: "SDKWork", name: "sdkwork-birdcoder-release-lifecycle", version: "1.0.0" }],',
+      '    component: {',
+      '      type: "application",',
+      '      name: env.SDKWORK_APP_ID || "sdkwork-birdcoder",',
+      '      version: env.SDKWORK_PACKAGE_VERSION || env.SDKWORK_RELEASE_TAG || "release-local",',
+      '      "bom-ref": env.SDKWORK_PACKAGE_ID || "sdkwork-birdcoder-package"',
+      '    },',
+      '    properties: [',
+      `      { name: "sdkwork:packageId", value: ${JSON.stringify(packageId)} },`,
+      `      { name: "sdkwork:targetId", value: ${JSON.stringify(currentTargetId(env))} },`,
+      `      { name: "sdkwork:runtimeTarget", value: ${JSON.stringify(nonEmpty(env.SDKWORK_RUNTIME_TARGET, target.family))} },`,
+      `      { name: "sdkwork:deploymentProfile", value: ${JSON.stringify(nonEmpty(env.SDKWORK_DEPLOYMENT_PROFILE, target.family === 'container' || target.family === 'kubernetes' ? 'cloud' : 'standalone'))} }`,
+      '    ]',
+      '  },',
+      '  components: []',
+      '};',
+      'fs.writeFileSync(sbomPath, `${JSON.stringify(sbom, null, 2)}\\n`);',
+    ].join('\n'),
+  ]);
+}
+
+function buildSignCommands(target, env = process.env) {
+  return [writePackageSignatureEvidenceCommand(target, env)];
+}
+
+function buildSbomCommands(target, env = process.env) {
+  return [writePackageSbomEvidenceCommand(target, env)];
+}
+
 function buildValidateCommands(target) {
   if (target.family === 'desktop') {
     return [
@@ -674,6 +753,10 @@ function buildLifecycleCommands(phase, env = process.env) {
       return buildBuildCommands(target);
     case 'package':
       return buildPackageCommands(target, env);
+    case 'sign':
+      return buildSignCommands(target, env);
+    case 'sbom':
+      return buildSbomCommands(target, env);
     case 'validate':
       return buildValidateCommands(target);
     case 'publish':
@@ -703,6 +786,8 @@ export {
   buildLifecycleCommands,
   commandToString,
   resolveTarget,
+  writePackageSbomEvidenceCommand,
+  writePackageSignatureEvidenceCommand,
 };
 
 export async function runLifecycle(phase, { env = process.env } = {}) {
@@ -721,7 +806,7 @@ export async function runLifecycle(phase, { env = process.env } = {}) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const phase = process.argv[2];
   if (!phase) {
-    console.error('Usage: node scripts/release/sdkwork-workflow-lifecycle.mjs <preflight|install|build|package|validate|publish>');
+    console.error('Usage: node scripts/release/sdkwork-workflow-lifecycle.mjs <preflight|install|build|package|sign|sbom|validate|publish>');
     process.exit(1);
   }
 

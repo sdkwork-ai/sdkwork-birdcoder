@@ -39,10 +39,12 @@ export interface IAppRuntimeWriteService {
     request: BirdCoderCreateCodingSessionTurnRequest,
   ): Promise<BirdCoderCodingSessionTurn>;
   submitApprovalDecision(
-    approvalId: string,
+    codingSessionId: string,
+    checkpointId: string,
     request: BirdCoderSubmitApprovalDecisionRequest,
   ): Promise<BirdCoderApprovalDecisionResult>;
   submitUserQuestionAnswer(
+    codingSessionId: string,
     questionId: string,
     request: BirdCoderSubmitUserQuestionAnswerRequest,
   ): Promise<BirdCoderUserQuestionAnswerResult>;

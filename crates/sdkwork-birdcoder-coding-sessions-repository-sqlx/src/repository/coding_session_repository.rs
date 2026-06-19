@@ -1,143 +1,39 @@
 use std::collections::BTreeMap;
-use std::sync::{Arc, Mutex};
 
-use rusqlite::{params, Connection, OptionalExtension};
+use sqlx::{Row, SqlitePool};
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
-    CreateCodingSessionInput,
-    CreateCodingSessionTurnInput,
-    EditCodingSessionMessageInput,
-    ForkCodingSessionInput,
-    SubmitApprovalDecisionInput,
-    SubmitUserQuestionAnswerInput,
+    CreateCodingSessionInput, CreateCodingSessionTurnInput, EditCodingSessionMessageInput,
+    ForkCodingSessionInput, SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
     UpdateCodingSessionInput,
 };
 use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
-    ApprovalDecisionPayload,
-    CodingSessionArtifactPayload,
-    CodingSessionCheckpointPayload,
-    CodingSessionEventPayload,
-    CodingSessionPayload,
-    CodingSessionTurnPayload,
-    FinalizedProjectionTurnExecution,
-    OperationPayload,
-    UserQuestionAnswerPayload,
+    ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
+    CodingSessionEventPayload, CodingSessionPayload, CodingSessionTurnPayload,
+    FinalizedProjectionTurnExecution, OperationPayload, UserQuestionAnswerPayload,
 };
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_coding_sessions_service::ports::repository::CodingSessionRepository;
 use time::OffsetDateTime;
 use uuid::Uuid;
-fn parse_scoped_tenant_id(ctx: &CodingSessionContext) -> Option<i64> {
-    ctx.tenant_id
-        .parse::<i64>()
-        .ok()
-        .filter(|tenant_id| *tenant_id > 0)
-}
-
-fn append_session_tenant_scope(
-    ctx: &CodingSessionContext,
-    session_alias: &str,
-    sql: &mut String,
-    param_values: &mut Vec<Box<dyn rusqlite::types::ToSql>>,
-) {
-    if let Some(tenant_id) = parse_scoped_tenant_id(ctx) {
-        sql.push_str(&format!(
-            " AND EXISTS (SELECT 1 FROM studio_workspace w WHERE CAST(w.id AS TEXT) = {session_alias}.workspace_id AND w.tenant_id = ?{} AND w.is_deleted = 0)",
-            param_values.len() + 1
-        ));
-        param_values.push(Box::new(tenant_id));
-    }
-}
-
-fn ensure_workspace_in_tenant_scope(
-    conn: &Connection,
-    ctx: &CodingSessionContext,
-    workspace_id: &str,
-) -> Result<(), RepositoryError> {
-    let Some(tenant_id) = parse_scoped_tenant_id(ctx) else {
-        return Ok(());
-    };
-    let workspace_id = workspace_id.trim();
-    if workspace_id.is_empty() {
-        return Err(RepositoryError::NotFound("workspace not found".into()));
-    }
-    let found = conn
-        .query_row(
-            "SELECT 1 FROM studio_workspace WHERE CAST(id AS TEXT) = ?1 AND tenant_id = ?2 AND is_deleted = 0",
-            params![workspace_id, tenant_id],
-            |_| Ok(()),
-        )
-        .optional()
-        .map_err(|error| RepositoryError::Query(error.to_string()))?
-        .is_some();
-    if !found {
-        return Err(RepositoryError::NotFound(format!(
-            "workspace {workspace_id} not found"
-        )));
-    }
-    Ok(())
-}
-
-fn ensure_session_in_tenant_scope(
-    conn: &Connection,
-    ctx: &CodingSessionContext,
-    session_id: &str,
-) -> Result<(), RepositoryError> {
-    if parse_scoped_tenant_id(ctx).is_none() {
-        return Ok(());
-    }
-    let mut sql = format!(
-        "SELECT 1 FROM {} s WHERE s.{} = ?1 AND s.{} = 0",
-        columns::session::TABLE,
-        columns::session::ID,
-        columns::session::IS_DELETED,
-    );
-    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> =
-        vec![Box::new(session_id.to_string())];
-    append_session_tenant_scope(ctx, "s", &mut sql, &mut param_values);
-    let params_ref: Vec<&dyn rusqlite::types::ToSql> =
-        param_values.iter().map(|param| param.as_ref()).collect();
-    let found = conn
-        .query_row(&sql, params_ref.as_slice(), |_| Ok(()))
-        .optional()
-        .map_err(|error| RepositoryError::Query(error.to_string()))?
-        .is_some();
-    if !found {
-        return Err(RepositoryError::NotFound(format!(
-            "session {session_id} not found"
-        )));
-    }
-    Ok(())
-}
-
 
 use crate::db::columns;
 use crate::db::rows::*;
-use crate::error::RepositoryError;
+use crate::error::{map_sqlx_error, RepositoryError};
 use crate::mapper::row_mapper;
+use crate::repository::sqlx_helpers::{
+    append_session_tenant_scope_sql, ensure_session_in_tenant_scope, ensure_workspace_in_tenant_scope,
+};
 
+#[derive(Clone)]
 pub struct SqliteCodingSessionRepository {
-    conn: Arc<Mutex<Connection>>,
+    pool: SqlitePool,
 }
 
 impl SqliteCodingSessionRepository {
-    pub fn new(conn: Connection) -> Self {
-        Self {
-            conn: Arc::new(Mutex::new(conn)),
-        }
-    }
-
-    pub fn with_shared(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
-    }
-
-    fn with_conn<F, T>(&self, f: F) -> Result<T, RepositoryError>
-    where
-        F: FnOnce(&Connection) -> Result<T, RepositoryError>,
-    {
-        let conn = self.conn.lock().map_err(|e| RepositoryError::Connection(e.to_string()))?;
-        f(&conn)
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
     }
 
     fn now_iso() -> String {
@@ -154,78 +50,57 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         query: &CodingSessionListQuery,
     ) -> Result<Vec<CodingSessionPayload>, CodingSessionError> {
-        self.with_conn(|conn| {
-            let mut sql = String::from(
-                "SELECT s.*, r.status AS runtime_status FROM ai_coding_session s \
-                 LEFT JOIN (SELECT coding_session_id, status FROM ai_coding_session_runtime \
-                 WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT 1) r \
-                 ON r.coding_session_id = s.id \
-                 WHERE s.is_deleted = 0",
-            );
-            let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-            append_session_tenant_scope(ctx, "s", &mut sql, &mut param_values);
+        let mut sql = String::from(
+            "SELECT s.*, r.status AS runtime_status FROM ai_coding_session s \
+             LEFT JOIN (SELECT coding_session_id, status FROM ai_coding_session_runtime \
+             WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT 1) r \
+             ON r.coding_session_id = s.id \
+             WHERE s.is_deleted = 0",
+        );
+        let tenant_id = append_session_tenant_scope_sql(ctx, "s", &mut sql);
 
-            if let Some(ref engine_id) = query.engine_id {
-                sql.push_str(&format!(" AND s.{} = ?{}", columns::session::ENGINE_ID, param_values.len() + 1));
-                param_values.push(Box::new(engine_id.clone()));
-            }
-            if let Some(ref project_id) = query.project_id {
-                sql.push_str(&format!(" AND s.{} = ?{}", columns::session::PROJECT_ID, param_values.len() + 1));
-                param_values.push(Box::new(project_id.clone()));
-            }
-            if let Some(ref workspace_id) = query.workspace_id {
-                sql.push_str(&format!(" AND s.{} = ?{}", columns::session::WORKSPACE_ID, param_values.len() + 1));
-                param_values.push(Box::new(workspace_id.clone()));
-            }
+        if query.engine_id.is_some() {
+            sql.push_str(&format!(" AND s.{} = ?", columns::session::ENGINE_ID));
+        }
+        if query.project_id.is_some() {
+            sql.push_str(&format!(" AND s.{} = ?", columns::session::PROJECT_ID));
+        }
+        if query.workspace_id.is_some() {
+            sql.push_str(&format!(" AND s.{} = ?", columns::session::WORKSPACE_ID));
+        }
 
-            sql.push_str(" ORDER BY s.sort_timestamp DESC");
+        sql.push_str(" ORDER BY s.sort_timestamp DESC");
 
-            if let Some(limit) = query.limit {
-                sql.push_str(&format!(" LIMIT {}", limit));
-            }
-            if let Some(offset) = query.offset {
-                sql.push_str(&format!(" OFFSET {}", offset));
-            }
+        if let Some(limit) = query.limit {
+            sql.push_str(&format!(" LIMIT {limit}"));
+        }
+        if let Some(offset) = query.offset {
+            sql.push_str(&format!(" OFFSET {offset}"));
+        }
 
-            let params_ref: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
-            let mut stmt = conn.prepare(&sql).map_err(|e| RepositoryError::Query(e.to_string()))?;
-            let rows = stmt
-                .query_map(params_ref.as_slice(), |row| {
-                    Ok(SessionRow {
-                        id: row.get(0)?,
-                        uuid: row.get(1)?,
-                        created_at: row.get(2)?,
-                        updated_at: row.get(3)?,
-                        version: row.get(4)?,
-                        is_deleted: row.get(5)?,
-                        workspace_id: row.get(6)?,
-                        project_id: row.get(7)?,
-                        title: row.get(8)?,
-                        status: row.get(9)?,
-                        entry_surface: row.get(10)?,
-                        host_mode: row.get(11)?,
-                        engine_id: row.get(12)?,
-                        model_id: row.get(13)?,
-                        last_turn_at: row.get(14)?,
-                        native_session_id: row.get(15)?,
-                        sort_timestamp: row.get(16)?,
-                        transcript_updated_at: row.get(17)?,
-                        pinned: row.get(18)?,
-                        archived: row.get(19)?,
-                        unread: row.get(20)?,
-                    })
-                })
-                .map_err(|e| RepositoryError::Query(e.to_string()))?;
+        let mut q = sqlx::query(&sql);
+        if let Some(ref engine_id) = query.engine_id {
+            q = q.bind(engine_id);
+        }
+        if let Some(ref project_id) = query.project_id {
+            q = q.bind(project_id);
+        }
+        if let Some(ref workspace_id) = query.workspace_id {
+            q = q.bind(workspace_id);
+        }
+        if let Some(tenant_id) = tenant_id {
+            q = q.bind(tenant_id);
+        }
 
-            let mut result = Vec::new();
-            for row in rows {
-                let r = row.map_err(|e| RepositoryError::Query(e.to_string()))?;
-                let runtime_status: Option<String> = None;
-                result.push(row_mapper::session_row_to_payload(r, runtime_status));
-            }
-            Ok(result)
-        })
-        .map_err(CodingSessionError::from)
+        let rows = map_sqlx_error(q.fetch_all(&self.pool).await)?;
+
+        let mut result = Vec::new();
+        for row in rows {
+            let session = map_sqlx_error(SessionRow::from_row(&row))?;
+            let runtime_status: Option<String> = None;
+            result.push(row_mapper::session_row_to_payload(session, runtime_status));
+        }
+        Ok(result)
     }
 
     async fn get_session(
@@ -233,70 +108,43 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
-        let session_id = session_id.to_string();
-        self.with_conn(|conn| {
-            let mut sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
-                columns::session::TABLE,
-                columns::session::ID,
-                columns::session::IS_DELETED,
-            );
-            let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> =
-                vec![Box::new(session_id.clone())];
-            append_session_tenant_scope(ctx, columns::session::TABLE, &mut sql, &mut param_values);
-            let params_ref: Vec<&dyn rusqlite::types::ToSql> =
-                param_values.iter().map(|param| param.as_ref()).collect();
-            let row = conn
-                .query_row(&sql, params_ref.as_slice(), |row| {
-                    Ok(SessionRow {
-                        id: row.get(0)?,
-                        uuid: row.get(1)?,
-                        created_at: row.get(2)?,
-                        updated_at: row.get(3)?,
-                        version: row.get(4)?,
-                        is_deleted: row.get(5)?,
-                        workspace_id: row.get(6)?,
-                        project_id: row.get(7)?,
-                        title: row.get(8)?,
-                        status: row.get(9)?,
-                        entry_surface: row.get(10)?,
-                        host_mode: row.get(11)?,
-                        engine_id: row.get(12)?,
-                        model_id: row.get(13)?,
-                        last_turn_at: row.get(14)?,
-                        native_session_id: row.get(15)?,
-                        sort_timestamp: row.get(16)?,
-                        transcript_updated_at: row.get(17)?,
-                        pinned: row.get(18)?,
-                        archived: row.get(19)?,
-                        unread: row.get(20)?,
-                    })
-                })
-                .map_err(|e| match e {
-                    rusqlite::Error::QueryReturnedNoRows => {
-                        RepositoryError::NotFound(format!("session {session_id} not found"))
-                    }
-                    _ => RepositoryError::Query(e.to_string()),
-                })?;
+        let mut sql = format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+            columns::session::TABLE,
+            columns::session::ID,
+            columns::session::IS_DELETED,
+        );
+        let tenant_id = append_session_tenant_scope_sql(ctx, columns::session::TABLE, &mut sql);
 
-            let runtime_status: Option<String> = conn
-                .query_row(
-                    &format!(
-                        "SELECT {} FROM {} WHERE {} = ?1 AND {} = 0 ORDER BY {} DESC LIMIT 1",
-                        columns::runtime::STATUS,
-                        columns::runtime::TABLE,
-                        columns::runtime::CODING_SESSION_ID,
-                        columns::runtime::IS_DELETED,
-                        columns::runtime::CREATED_AT,
-                    ),
-                    params![session_id],
-                    |row| row.get(0),
-                )
-                .ok();
+        let mut q = sqlx::query(&sql).bind(session_id);
+        if let Some(tenant_id) = tenant_id {
+            q = q.bind(tenant_id);
+        }
 
-            Ok(row_mapper::session_row_to_payload(row, runtime_status))
-        })
-        .map_err(CodingSessionError::from)
+        let row = map_sqlx_error(
+            q.fetch_optional(&self.pool)
+                .await,
+        )?
+            .ok_or_else(|| RepositoryError::NotFound(format!("session {session_id} not found")))?;
+
+        let session = map_sqlx_error(SessionRow::from_row(&row))?;
+
+        let runtime_status = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT {} FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} DESC LIMIT 1",
+                columns::runtime::STATUS,
+                columns::runtime::TABLE,
+                columns::runtime::CODING_SESSION_ID,
+                columns::runtime::IS_DELETED,
+                columns::runtime::CREATED_AT,
+            ))
+            .bind(session_id)
+            .fetch_optional(&self.pool)
+            .await,
+        )?
+        .and_then(|row| row.try_get::<String, _>(0).ok());
+
+        Ok(row_mapper::session_row_to_payload(session, runtime_status))
     }
 
     async fn create_session(
@@ -312,72 +160,68 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let host_mode = input.host_mode.clone();
         let engine_id = input.engine_id.clone();
         let model_id = input.model_id.clone();
-        let now2 = now.clone();
-        let id2 = id.clone();
+        let sort_timestamp = OffsetDateTime::now_utc().unix_timestamp();
 
-        self.with_conn(|conn| {
+        ensure_workspace_in_tenant_scope(&self.pool, ctx, &workspace_id)
+            .await
+            .map_err(CodingSessionError::from)?;
 
-            ensure_workspace_in_tenant_scope(conn, ctx, &workspace_id)?;
-            conn.execute(
-                &format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
-                    columns::session::TABLE,
-                    columns::session::ID,
-                    columns::session::UUID,
-                    columns::session::CREATED_AT,
-                    columns::session::UPDATED_AT,
-                    columns::session::VERSION,
-                    columns::session::IS_DELETED,
-                    columns::session::WORKSPACE_ID,
-                    columns::session::PROJECT_ID,
-                    columns::session::TITLE,
-                    columns::session::STATUS,
-                    columns::session::ENTRY_SURFACE,
-                    columns::session::HOST_MODE,
-                    columns::session::ENGINE_ID,
-                    columns::session::MODEL_ID,
-                    columns::session::SORT_TIMESTAMP,
-                ),
-                params![
-                    id2,
-                    None::<String>,
-                    now,
-                    now2,
-                    0i64,
-                    0i64,
-                    workspace_id,
-                    project_id,
-                    title,
-                    "active",
-                    "unknown",
-                    host_mode,
-                    engine_id,
-                    model_id,
-                    OffsetDateTime::now_utc().unix_timestamp(),
-                ],
-            )
-            .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+        sqlx::query(&format!(
+            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            columns::session::TABLE,
+            columns::session::ID,
+            columns::session::UUID,
+            columns::session::CREATED_AT,
+            columns::session::UPDATED_AT,
+            columns::session::VERSION,
+            columns::session::IS_DELETED,
+            columns::session::WORKSPACE_ID,
+            columns::session::PROJECT_ID,
+            columns::session::TITLE,
+            columns::session::STATUS,
+            columns::session::ENTRY_SURFACE,
+            columns::session::HOST_MODE,
+            columns::session::ENGINE_ID,
+            columns::session::MODEL_ID,
+            columns::session::SORT_TIMESTAMP,
+        ))
+        .bind(&id)
+        .bind(None::<String>)
+        .bind(&now)
+        .bind(&now)
+        .bind(0i64)
+        .bind(0i64)
+        .bind(&workspace_id)
+        .bind(&project_id)
+        .bind(&title)
+        .bind("active")
+        .bind("unknown")
+        .bind(&host_mode)
+        .bind(&engine_id)
+        .bind(&model_id)
+        .bind(sort_timestamp)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Insert(e.to_string()))?;
 
-            Ok(CodingSessionPayload {
-                id: id2,
-                workspace_id,
-                project_id,
-                title,
-                status: "active".to_string(),
-                host_mode,
-                engine_id,
-                model_id,
-                native_session_id: None,
-                created_at: now2.clone(),
-                updated_at: now2,
-                last_turn_at: None,
-                runtime_status: None,
-                sort_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
-                transcript_updated_at: None,
-            })
+        Ok(CodingSessionPayload {
+            id,
+            workspace_id,
+            project_id,
+            title,
+            status: "active".to_string(),
+            host_mode,
+            engine_id,
+            model_id,
+            native_session_id: None,
+            created_at: now.clone(),
+            updated_at: now,
+            last_turn_at: None,
+            runtime_status: None,
+            sort_timestamp,
+            transcript_updated_at: None,
         })
-        .map_err(CodingSessionError::from)
     }
 
     async fn update_session(
@@ -386,104 +230,82 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         session_id: &str,
         input: &UpdateCodingSessionInput,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
-        let session_id = session_id.to_string();
         let now = Self::now_iso();
-        let input = input.clone();
 
-        self.with_conn(|conn| {
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let mut sets = Vec::new();
-            let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
-            let mut idx = 1usize;
+        let mut sets = Vec::new();
+        if input.title.is_some() {
+            sets.push(format!("{} = ?", columns::session::TITLE));
+        }
+        if input.status.is_some() {
+            sets.push(format!("{} = ?", columns::session::STATUS));
+        }
+        if input.host_mode.is_some() {
+            sets.push(format!("{} = ?", columns::session::HOST_MODE));
+        }
+        if input.engine_id.is_some() {
+            sets.push(format!("{} = ?", columns::session::ENGINE_ID));
+        }
+        if input.model_id.is_some() {
+            sets.push(format!("{} = ?", columns::session::MODEL_ID));
+        }
+        sets.push(format!("{} = ?", columns::session::UPDATED_AT));
+        sets.push(format!(
+            "{} = {} + 1",
+            columns::session::VERSION, columns::session::VERSION
+        ));
 
-            if let Some(ref title) = input.title {
-                sets.push(format!("{} = ?{}", columns::session::TITLE, idx));
-                param_values.push(Box::new(title.clone()));
-                idx += 1;
-            }
-            if let Some(ref status) = input.status {
-                sets.push(format!("{} = ?{}", columns::session::STATUS, idx));
-                param_values.push(Box::new(status.clone()));
-                idx += 1;
-            }
-            if let Some(ref host_mode) = input.host_mode {
-                sets.push(format!("{} = ?{}", columns::session::HOST_MODE, idx));
-                param_values.push(Box::new(host_mode.clone()));
-                idx += 1;
-            }
-            if let Some(ref engine_id) = input.engine_id {
-                sets.push(format!("{} = ?{}", columns::session::ENGINE_ID, idx));
-                param_values.push(Box::new(engine_id.clone()));
-                idx += 1;
-            }
-            if let Some(ref model_id) = input.model_id {
-                sets.push(format!("{} = ?{}", columns::session::MODEL_ID, idx));
-                param_values.push(Box::new(model_id.clone()));
-                idx += 1;
-            }
+        let sql = format!(
+            "UPDATE {} SET {} WHERE {} = ? AND {} = 0",
+            columns::session::TABLE,
+            sets.join(", "),
+            columns::session::ID,
+            columns::session::IS_DELETED,
+        );
 
-            sets.push(format!("{} = ?{}", columns::session::UPDATED_AT, idx));
-            param_values.push(Box::new(now.clone()));
-            idx += 1;
+        let mut q = sqlx::query(&sql);
+        if let Some(ref title) = input.title {
+            q = q.bind(title);
+        }
+        if let Some(ref status) = input.status {
+            q = q.bind(status);
+        }
+        if let Some(ref host_mode) = input.host_mode {
+            q = q.bind(host_mode);
+        }
+        if let Some(ref engine_id) = input.engine_id {
+            q = q.bind(engine_id);
+        }
+        if let Some(ref model_id) = input.model_id {
+            q = q.bind(model_id);
+        }
+        q = q.bind(&now).bind(session_id);
 
-            sets.push(format!("{} = {} + 1", columns::session::VERSION, columns::session::VERSION));
+        let result = q
+            .execute(&self.pool)
+            .await
+            .map_err(|e| RepositoryError::Update(e.to_string()))?;
 
-            let sql = format!(
-                "UPDATE {} SET {} WHERE {} = ?{} AND {} = 0",
+        if result.rows_affected() == 0 {
+            return Err(RepositoryError::NotFound(format!("session {session_id} not found")).into());
+        }
+
+        let row = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ?",
                 columns::session::TABLE,
-                sets.join(", "),
                 columns::session::ID,
-                idx,
-                columns::session::IS_DELETED,
-            );
-            param_values.push(Box::new(session_id.clone()));
+            ))
+            .bind(session_id)
+            .fetch_one(&self.pool)
+            .await,
+        )?;
 
-            let params_ref: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
-            let updated = conn
-                .execute(&sql, params_ref.as_slice())
-                .map_err(|e| RepositoryError::Update(e.to_string()))?;
-
-            if updated == 0 {
-                return Err(RepositoryError::NotFound(format!("session {session_id} not found")));
-            }
-
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1",
-                columns::session::TABLE,
-                columns::session::ID,
-            );
-            let row = conn
-                .query_row(&sql, params![session_id], |row| {
-                    Ok(SessionRow {
-                        id: row.get(0)?,
-                        uuid: row.get(1)?,
-                        created_at: row.get(2)?,
-                        updated_at: row.get(3)?,
-                        version: row.get(4)?,
-                        is_deleted: row.get(5)?,
-                        workspace_id: row.get(6)?,
-                        project_id: row.get(7)?,
-                        title: row.get(8)?,
-                        status: row.get(9)?,
-                        entry_surface: row.get(10)?,
-                        host_mode: row.get(11)?,
-                        engine_id: row.get(12)?,
-                        model_id: row.get(13)?,
-                        last_turn_at: row.get(14)?,
-                        native_session_id: row.get(15)?,
-                        sort_timestamp: row.get(16)?,
-                        transcript_updated_at: row.get(17)?,
-                        pinned: row.get(18)?,
-                        archived: row.get(19)?,
-                        unread: row.get(20)?,
-                    })
-                })
-                .map_err(|e| RepositoryError::Query(e.to_string()))?;
-
-            Ok(row_mapper::session_row_to_payload(row, None))
-        })
-        .map_err(CodingSessionError::from)
+        Ok(row_mapper::session_row_to_payload(
+            map_sqlx_error(SessionRow::from_row(&row))?,
+            None,
+        ))
     }
 
     async fn delete_session(
@@ -491,34 +313,30 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<(), CodingSessionError> {
-        let session_id = session_id.to_string();
         let now = Self::now_iso();
 
-        self.with_conn(|conn| {
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let updated = conn
-                .execute(
-                    &format!(
-                        "UPDATE {} SET {} = 1, {} = ?1, {} = {} + 1 WHERE {} = ?2 AND {} = 0",
-                        columns::session::TABLE,
-                        columns::session::IS_DELETED,
-                        columns::session::UPDATED_AT,
-                        columns::session::VERSION,
-                        columns::session::VERSION,
-                        columns::session::ID,
-                        columns::session::IS_DELETED,
-                    ),
-                    params![now, session_id],
-                )
-                .map_err(|e| RepositoryError::Delete(e.to_string()))?;
+        let result = sqlx::query(&format!(
+            "UPDATE {} SET {} = 1, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = 0",
+            columns::session::TABLE,
+            columns::session::IS_DELETED,
+            columns::session::UPDATED_AT,
+            columns::session::VERSION,
+            columns::session::VERSION,
+            columns::session::ID,
+            columns::session::IS_DELETED,
+        ))
+        .bind(&now)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Delete(e.to_string()))?;
 
-            if updated == 0 {
-                return Err(RepositoryError::NotFound(format!("session {session_id} not found")));
-            }
-            Ok(())
-        })
-        .map_err(CodingSessionError::from)
+        if result.rows_affected() == 0 {
+            return Err(RepositoryError::NotFound(format!("session {session_id} not found")).into());
+        }
+        Ok(())
     }
 
     async fn fork_session(
@@ -527,117 +345,86 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         session_id: &str,
         input: &ForkCodingSessionInput,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
-        let session_id = session_id.to_string();
-        let input = input.clone();
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-        self.with_conn(|conn| {
-
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0",
+        let row = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = 0",
                 columns::session::TABLE,
                 columns::session::ID,
                 columns::session::IS_DELETED,
-            );
-            let original = conn
-                .query_row(&sql, params![session_id], |row| {
-                    Ok(SessionRow {
-                        id: row.get(0)?,
-                        uuid: row.get(1)?,
-                        created_at: row.get(2)?,
-                        updated_at: row.get(3)?,
-                        version: row.get(4)?,
-                        is_deleted: row.get(5)?,
-                        workspace_id: row.get(6)?,
-                        project_id: row.get(7)?,
-                        title: row.get(8)?,
-                        status: row.get(9)?,
-                        entry_surface: row.get(10)?,
-                        host_mode: row.get(11)?,
-                        engine_id: row.get(12)?,
-                        model_id: row.get(13)?,
-                        last_turn_at: row.get(14)?,
-                        native_session_id: row.get(15)?,
-                        sort_timestamp: row.get(16)?,
-                        transcript_updated_at: row.get(17)?,
-                        pinned: row.get(18)?,
-                        archived: row.get(19)?,
-                        unread: row.get(20)?,
-                    })
-                })
-                .map_err(|e| match e {
-                    rusqlite::Error::QueryReturnedNoRows => {
-                        RepositoryError::NotFound(format!("session {session_id} not found"))
-                    }
-                    _ => RepositoryError::Query(e.to_string()),
-                })?;
+            ))
+            .bind(session_id)
+            .fetch_optional(&self.pool)
+            .await,
+        )?
+        .ok_or_else(|| RepositoryError::NotFound(format!("session {session_id} not found")))?;
 
-            let now = Self::now_iso();
-            let new_id = Uuid::new_v4().to_string();
-            let title = input
-                .title
-                .unwrap_or_else(|| format!("{} (fork)", original.title));
+        let original = map_sqlx_error(SessionRow::from_row(&row))?;
+        let now = Self::now_iso();
+        let new_id = Uuid::new_v4().to_string();
+        let title = input
+            .title
+            .clone()
+            .unwrap_or_else(|| format!("{} (fork)", original.title));
+        let sort_timestamp = OffsetDateTime::now_utc().unix_timestamp();
 
-            conn.execute(
-                &format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
-                    columns::session::TABLE,
-                    columns::session::ID,
-                    columns::session::UUID,
-                    columns::session::CREATED_AT,
-                    columns::session::UPDATED_AT,
-                    columns::session::VERSION,
-                    columns::session::IS_DELETED,
-                    columns::session::WORKSPACE_ID,
-                    columns::session::PROJECT_ID,
-                    columns::session::TITLE,
-                    columns::session::STATUS,
-                    columns::session::ENTRY_SURFACE,
-                    columns::session::HOST_MODE,
-                    columns::session::ENGINE_ID,
-                    columns::session::MODEL_ID,
-                    columns::session::SORT_TIMESTAMP,
-                ),
-                params![
-                    new_id,
-                    None::<String>,
-                    now,
-                    now,
-                    0i64,
-                    0i64,
-                    original.workspace_id,
-                    original.project_id,
-                    title,
-                    "active",
-                    original.entry_surface,
-                    original.host_mode,
-                    original.engine_id,
-                    original.model_id,
-                    OffsetDateTime::now_utc().unix_timestamp(),
-                ],
-            )
-            .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+        sqlx::query(&format!(
+            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            columns::session::TABLE,
+            columns::session::ID,
+            columns::session::UUID,
+            columns::session::CREATED_AT,
+            columns::session::UPDATED_AT,
+            columns::session::VERSION,
+            columns::session::IS_DELETED,
+            columns::session::WORKSPACE_ID,
+            columns::session::PROJECT_ID,
+            columns::session::TITLE,
+            columns::session::STATUS,
+            columns::session::ENTRY_SURFACE,
+            columns::session::HOST_MODE,
+            columns::session::ENGINE_ID,
+            columns::session::MODEL_ID,
+            columns::session::SORT_TIMESTAMP,
+        ))
+        .bind(&new_id)
+        .bind(None::<String>)
+        .bind(&now)
+        .bind(&now)
+        .bind(0i64)
+        .bind(0i64)
+        .bind(&original.workspace_id)
+        .bind(&original.project_id)
+        .bind(&title)
+        .bind("active")
+        .bind(&original.entry_surface)
+        .bind(&original.host_mode)
+        .bind(&original.engine_id)
+        .bind(&original.model_id)
+        .bind(sort_timestamp)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Insert(e.to_string()))?;
 
-            Ok(CodingSessionPayload {
-                id: new_id,
-                workspace_id: original.workspace_id,
-                project_id: original.project_id,
-                title,
-                status: "active".to_string(),
-                host_mode: original.host_mode,
-                engine_id: original.engine_id,
-                model_id: original.model_id,
-                native_session_id: None,
-                created_at: now.clone(),
-                updated_at: now,
-                last_turn_at: None,
-                runtime_status: None,
-                sort_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
-                transcript_updated_at: None,
-            })
+        Ok(CodingSessionPayload {
+            id: new_id,
+            workspace_id: original.workspace_id,
+            project_id: original.project_id,
+            title,
+            status: "active".to_string(),
+            host_mode: original.host_mode,
+            engine_id: original.engine_id,
+            model_id: original.model_id,
+            native_session_id: None,
+            created_at: now.clone(),
+            updated_at: now,
+            last_turn_at: None,
+            runtime_status: None,
+            sort_timestamp,
+            transcript_updated_at: None,
         })
-        .map_err(CodingSessionError::from)
     }
 
     async fn list_turns(
@@ -645,45 +432,26 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionTurnPayload>, CodingSessionError> {
-        let session_id = session_id.to_string();
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-        self.with_conn(|conn| {
-
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0 ORDER BY {} ASC",
+        let rows = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
                 columns::turn::TABLE,
                 columns::turn::CODING_SESSION_ID,
                 columns::turn::IS_DELETED,
                 columns::turn::CREATED_AT,
-            );
-            let mut stmt = conn.prepare(&sql).map_err(|e| RepositoryError::Query(e.to_string()))?;
-            let rows = stmt
-                .query_map(params![session_id], |row| {
-                    Ok(TurnRow {
-                        id: row.get(0)?,
-                        created_at: row.get(1)?,
-                        updated_at: row.get(2)?,
-                        version: row.get(3)?,
-                        is_deleted: row.get(4)?,
-                        coding_session_id: row.get(5)?,
-                        runtime_id: row.get(6)?,
-                        request_kind: row.get(7)?,
-                        status: row.get(8)?,
-                        input_summary: row.get(9)?,
-                        started_at: row.get(10)?,
-                        completed_at: row.get(11)?,
-                    })
-                })
-                .map_err(|e| RepositoryError::Query(e.to_string()))?;
+            ))
+            .bind(session_id)
+            .fetch_all(&self.pool)
+            .await,
+        )?;
 
-            let mut result = Vec::new();
-            for row in rows {
-                result.push(row_mapper::turn_row_to_payload(row.map_err(|e| RepositoryError::Query(e.to_string()))?));
-            }
-            Ok(result)
-        })
-        .map_err(CodingSessionError::from)
+        rows.iter()
+            .map(|row| {
+                Ok(row_mapper::turn_row_to_payload(map_sqlx_error(TurnRow::from_row(row))?))
+            })
+            .collect()
     }
 
     async fn get_turn(
@@ -692,46 +460,24 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         session_id: &str,
         turn_id: &str,
     ) -> Result<CodingSessionTurnPayload, CodingSessionError> {
-        let session_id = session_id.to_string();
-        let turn_id = turn_id.to_string();
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-        self.with_conn(|conn| {
-
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
+        let row = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
                 columns::turn::TABLE,
                 columns::turn::ID,
                 columns::turn::CODING_SESSION_ID,
                 columns::turn::IS_DELETED,
-            );
-            let row = conn
-                .query_row(&sql, params![turn_id, session_id], |row| {
-                    Ok(TurnRow {
-                        id: row.get(0)?,
-                        created_at: row.get(1)?,
-                        updated_at: row.get(2)?,
-                        version: row.get(3)?,
-                        is_deleted: row.get(4)?,
-                        coding_session_id: row.get(5)?,
-                        runtime_id: row.get(6)?,
-                        request_kind: row.get(7)?,
-                        status: row.get(8)?,
-                        input_summary: row.get(9)?,
-                        started_at: row.get(10)?,
-                        completed_at: row.get(11)?,
-                    })
-                })
-                .map_err(|e| match e {
-                    rusqlite::Error::QueryReturnedNoRows => {
-                        RepositoryError::NotFound(format!("turn {turn_id} not found"))
-                    }
-                    _ => RepositoryError::Query(e.to_string()),
-                })?;
+            ))
+            .bind(turn_id)
+            .bind(session_id)
+            .fetch_optional(&self.pool)
+            .await,
+        )?
+        .ok_or_else(|| RepositoryError::NotFound(format!("turn {turn_id} not found")))?;
 
-            Ok(row_mapper::turn_row_to_payload(row))
-        })
-        .map_err(CodingSessionError::from)
+        Ok(row_mapper::turn_row_to_payload(map_sqlx_error(TurnRow::from_row(&row))?))
     }
 
     async fn create_turn(
@@ -740,7 +486,6 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         session_id: &str,
         input: &CreateCodingSessionTurnInput,
     ) -> Result<CodingSessionTurnPayload, CodingSessionError> {
-        let session_id = session_id.to_string();
         let now = Self::now_iso();
         let turn_id = Uuid::new_v4().to_string();
         let runtime_id = input
@@ -749,66 +494,62 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .unwrap_or_else(|| Uuid::new_v4().to_string());
         let request_kind = input.request_kind.clone();
         let input_summary = input.input_summary.clone();
-        let now2 = now.clone();
 
-        self.with_conn(|conn| {
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            conn.execute(
-                &format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-                    columns::turn::TABLE,
-                    columns::turn::ID,
-                    columns::turn::CREATED_AT,
-                    columns::turn::UPDATED_AT,
-                    columns::turn::VERSION,
-                    columns::turn::IS_DELETED,
-                    columns::turn::CODING_SESSION_ID,
-                    columns::turn::RUNTIME_ID,
-                    columns::turn::REQUEST_KIND,
-                    columns::turn::STATUS,
-                    columns::turn::INPUT_SUMMARY,
-                ),
-                params![
-                    turn_id,
-                    now,
-                    now2,
-                    0i64,
-                    0i64,
-                    session_id,
-                    runtime_id,
-                    request_kind,
-                    "pending",
-                    input_summary,
-                ],
-            )
-            .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+        sqlx::query(&format!(
+            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            columns::turn::TABLE,
+            columns::turn::ID,
+            columns::turn::CREATED_AT,
+            columns::turn::UPDATED_AT,
+            columns::turn::VERSION,
+            columns::turn::IS_DELETED,
+            columns::turn::CODING_SESSION_ID,
+            columns::turn::RUNTIME_ID,
+            columns::turn::REQUEST_KIND,
+            columns::turn::STATUS,
+            columns::turn::INPUT_SUMMARY,
+        ))
+        .bind(&turn_id)
+        .bind(&now)
+        .bind(&now)
+        .bind(0i64)
+        .bind(0i64)
+        .bind(session_id)
+        .bind(&runtime_id)
+        .bind(&request_kind)
+        .bind("pending")
+        .bind(&input_summary)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Insert(e.to_string()))?;
 
-            conn.execute(
-                &format!(
-                    "UPDATE {} SET {} = ?1, {} = ?2 WHERE {} = ?3",
-                    columns::session::TABLE,
-                    columns::session::LAST_TURN_AT,
-                    columns::session::UPDATED_AT,
-                    columns::session::ID,
-                ),
-                params![now, now, session_id],
-            )
-            .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+        sqlx::query(&format!(
+            "UPDATE {} SET {} = ?, {} = ? WHERE {} = ?",
+            columns::session::TABLE,
+            columns::session::LAST_TURN_AT,
+            columns::session::UPDATED_AT,
+            columns::session::ID,
+        ))
+        .bind(&now)
+        .bind(&now)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Insert(e.to_string()))?;
 
-            Ok(CodingSessionTurnPayload {
-                id: turn_id,
-                coding_session_id: session_id,
-                runtime_id: Some(runtime_id),
-                request_kind,
-                status: "pending".to_string(),
-                input_summary,
-                started_at: None,
-                completed_at: None,
-            })
+        Ok(CodingSessionTurnPayload {
+            id: turn_id,
+            coding_session_id: session_id.to_string(),
+            runtime_id: Some(runtime_id),
+            request_kind,
+            status: "pending".to_string(),
+            input_summary,
+            started_at: None,
+            completed_at: None,
         })
-        .map_err(CodingSessionError::from)
     }
 
     async fn edit_message(
@@ -818,64 +559,46 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         turn_id: &str,
         input: &EditCodingSessionMessageInput,
     ) -> Result<CodingSessionTurnPayload, CodingSessionError> {
-        let session_id = session_id.to_string();
-        let turn_id = turn_id.to_string();
         let content = input.content.clone();
+        let now = Self::now_iso();
 
-        self.with_conn(|conn| {
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let now = Self::now_iso();
-            conn.execute(
-                &format!(
-                    "UPDATE {} SET {} = ?1, {} = ?2, {} = {} + 1 WHERE {} = ?3 AND {} = ?4 AND {} = 0",
-                    columns::message::TABLE,
-                    columns::message::CONTENT,
-                    columns::message::UPDATED_AT,
-                    columns::message::VERSION,
-                    columns::message::VERSION,
-                    columns::message::CODING_SESSION_ID,
-                    columns::message::TURN_ID,
-                    columns::message::IS_DELETED,
-                ),
-                params![content, now, session_id, turn_id],
-            )
-            .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        sqlx::query(&format!(
+            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = ? AND {} = 0",
+            columns::message::TABLE,
+            columns::message::CONTENT,
+            columns::message::UPDATED_AT,
+            columns::message::VERSION,
+            columns::message::VERSION,
+            columns::message::CODING_SESSION_ID,
+            columns::message::TURN_ID,
+            columns::message::IS_DELETED,
+        ))
+        .bind(&content)
+        .bind(&now)
+        .bind(session_id)
+        .bind(turn_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Update(e.to_string()))?;
 
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
+        let row = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
                 columns::turn::TABLE,
                 columns::turn::ID,
                 columns::turn::CODING_SESSION_ID,
                 columns::turn::IS_DELETED,
-            );
-            let row = conn
-                .query_row(&sql, params![turn_id, session_id], |row| {
-                    Ok(TurnRow {
-                        id: row.get(0)?,
-                        created_at: row.get(1)?,
-                        updated_at: row.get(2)?,
-                        version: row.get(3)?,
-                        is_deleted: row.get(4)?,
-                        coding_session_id: row.get(5)?,
-                        runtime_id: row.get(6)?,
-                        request_kind: row.get(7)?,
-                        status: row.get(8)?,
-                        input_summary: row.get(9)?,
-                        started_at: row.get(10)?,
-                        completed_at: row.get(11)?,
-                    })
-                })
-                .map_err(|e| match e {
-                    rusqlite::Error::QueryReturnedNoRows => {
-                        RepositoryError::NotFound(format!("turn {turn_id} not found"))
-                    }
-                    _ => RepositoryError::Query(e.to_string()),
-                })?;
+            ))
+            .bind(turn_id)
+            .bind(session_id)
+            .fetch_optional(&self.pool)
+            .await,
+        )?
+        .ok_or_else(|| RepositoryError::NotFound(format!("turn {turn_id} not found")))?;
 
-            Ok(row_mapper::turn_row_to_payload(row))
-        })
-        .map_err(CodingSessionError::from)
+        Ok(row_mapper::turn_row_to_payload(map_sqlx_error(TurnRow::from_row(&row))?))
     }
 
     async fn list_events(
@@ -883,44 +606,26 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionEventPayload>, CodingSessionError> {
-        let session_id = session_id.to_string();
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-        self.with_conn(|conn| {
-
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0 ORDER BY {} ASC",
+        let rows = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
                 columns::event::TABLE,
                 columns::event::CODING_SESSION_ID,
                 columns::event::IS_DELETED,
                 columns::event::SEQUENCE_NO,
-            );
-            let mut stmt = conn.prepare(&sql).map_err(|e| RepositoryError::Query(e.to_string()))?;
-            let rows = stmt
-                .query_map(params![session_id], |row| {
-                    Ok(EventRow {
-                        id: row.get(0)?,
-                        created_at: row.get(1)?,
-                        updated_at: row.get(2)?,
-                        version: row.get(3)?,
-                        is_deleted: row.get(4)?,
-                        coding_session_id: row.get(5)?,
-                        turn_id: row.get(6)?,
-                        runtime_id: row.get(7)?,
-                        event_kind: row.get(8)?,
-                        sequence_no: row.get(9)?,
-                        payload_json: row.get(10)?,
-                    })
-                })
-                .map_err(|e| RepositoryError::Query(e.to_string()))?;
+            ))
+            .bind(session_id)
+            .fetch_all(&self.pool)
+            .await,
+        )?;
 
-            let mut result = Vec::new();
-            for row in rows {
-                result.push(row_mapper::event_row_to_payload(row.map_err(|e| RepositoryError::Query(e.to_string()))?));
-            }
-            Ok(result)
-        })
-        .map_err(CodingSessionError::from)
+        rows.iter()
+            .map(|row| {
+                Ok(row_mapper::event_row_to_payload(map_sqlx_error(EventRow::from_row(row))?))
+            })
+            .collect()
     }
 
     async fn list_artifacts(
@@ -928,44 +633,28 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionArtifactPayload>, CodingSessionError> {
-        let session_id = session_id.to_string();
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-        self.with_conn(|conn| {
-
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0 ORDER BY {} ASC",
+        let rows = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
                 columns::artifact::TABLE,
                 columns::artifact::CODING_SESSION_ID,
                 columns::artifact::IS_DELETED,
                 columns::artifact::CREATED_AT,
-            );
-            let mut stmt = conn.prepare(&sql).map_err(|e| RepositoryError::Query(e.to_string()))?;
-            let rows = stmt
-                .query_map(params![session_id], |row| {
-                    Ok(ArtifactRow {
-                        id: row.get(0)?,
-                        created_at: row.get(1)?,
-                        updated_at: row.get(2)?,
-                        version: row.get(3)?,
-                        is_deleted: row.get(4)?,
-                        coding_session_id: row.get(5)?,
-                        turn_id: row.get(6)?,
-                        artifact_kind: row.get(7)?,
-                        title: row.get(8)?,
-                        blob_ref: row.get(9)?,
-                        metadata_json: row.get(10)?,
-                    })
-                })
-                .map_err(|e| RepositoryError::Query(e.to_string()))?;
+            ))
+            .bind(session_id)
+            .fetch_all(&self.pool)
+            .await,
+        )?;
 
-            let mut result = Vec::new();
-            for row in rows {
-                result.push(row_mapper::artifact_row_to_payload(row.map_err(|e| RepositoryError::Query(e.to_string()))?));
-            }
-            Ok(result)
-        })
-        .map_err(CodingSessionError::from)
+        rows.iter()
+            .map(|row| {
+                Ok(row_mapper::artifact_row_to_payload(map_sqlx_error(ArtifactRow::from_row(
+                    row,
+                ))?))
+            })
+            .collect()
     }
 
     async fn list_checkpoints(
@@ -973,43 +662,28 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<Vec<CodingSessionCheckpointPayload>, CodingSessionError> {
-        let session_id = session_id.to_string();
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-        self.with_conn(|conn| {
-
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = 0 ORDER BY {} ASC",
+        let rows = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
                 columns::checkpoint::TABLE,
                 columns::checkpoint::CODING_SESSION_ID,
                 columns::checkpoint::IS_DELETED,
                 columns::checkpoint::CREATED_AT,
-            );
-            let mut stmt = conn.prepare(&sql).map_err(|e| RepositoryError::Query(e.to_string()))?;
-            let rows = stmt
-                .query_map(params![session_id], |row| {
-                    Ok(CheckpointRow {
-                        id: row.get(0)?,
-                        created_at: row.get(1)?,
-                        updated_at: row.get(2)?,
-                        version: row.get(3)?,
-                        is_deleted: row.get(4)?,
-                        coding_session_id: row.get(5)?,
-                        runtime_id: row.get(6)?,
-                        checkpoint_kind: row.get(7)?,
-                        resumable: row.get(8)?,
-                        state_json: row.get(9)?,
-                    })
-                })
-                .map_err(|e| RepositoryError::Query(e.to_string()))?;
+            ))
+            .bind(session_id)
+            .fetch_all(&self.pool)
+            .await,
+        )?;
 
-            let mut result = Vec::new();
-            for row in rows {
-                result.push(row_mapper::checkpoint_row_to_payload(row.map_err(|e| RepositoryError::Query(e.to_string()))?));
-            }
-            Ok(result)
-        })
-        .map_err(CodingSessionError::from)
+        rows.iter()
+            .map(|row| {
+                Ok(row_mapper::checkpoint_row_to_payload(map_sqlx_error(
+                    CheckpointRow::from_row(row),
+                )?))
+            })
+            .collect()
     }
 
     async fn submit_approval_decision(
@@ -1019,97 +693,83 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         checkpoint_id: &str,
         input: &SubmitApprovalDecisionInput,
     ) -> Result<ApprovalDecisionPayload, CodingSessionError> {
-        let session_id = session_id.to_string();
-        let checkpoint_id = checkpoint_id.to_string();
         let decision = input.decision.clone();
         let reason = input.reason.clone();
 
-        self.with_conn(|conn| {
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
+        let row = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
                 columns::checkpoint::TABLE,
                 columns::checkpoint::ID,
                 columns::checkpoint::CODING_SESSION_ID,
                 columns::checkpoint::IS_DELETED,
-            );
-            let row = conn
-                .query_row(&sql, params![checkpoint_id, session_id], |row| {
-                    Ok(CheckpointRow {
-                        id: row.get(0)?,
-                        created_at: row.get(1)?,
-                        updated_at: row.get(2)?,
-                        version: row.get(3)?,
-                        is_deleted: row.get(4)?,
-                        coding_session_id: row.get(5)?,
-                        runtime_id: row.get(6)?,
-                        checkpoint_kind: row.get(7)?,
-                        resumable: row.get(8)?,
-                        state_json: row.get(9)?,
-                    })
-                })
-                .map_err(|e| match e {
-                    rusqlite::Error::QueryReturnedNoRows => {
-                        RepositoryError::NotFound(format!("checkpoint {checkpoint_id} not found"))
-                    }
-                    _ => RepositoryError::Query(e.to_string()),
-                })?;
+            ))
+            .bind(checkpoint_id)
+            .bind(session_id)
+            .fetch_optional(&self.pool)
+            .await,
+        )?
+        .ok_or_else(|| {
+            RepositoryError::NotFound(format!("checkpoint {checkpoint_id} not found"))
+        })?;
 
-            let runtime_id = row.runtime_id.clone();
-            let mut state: BTreeMap<String, serde_json::Value> =
-                serde_json::from_str(&row.state_json).unwrap_or_default();
+        let checkpoint = map_sqlx_error(CheckpointRow::from_row(&row))?;
+        let runtime_id = checkpoint.runtime_id.clone();
+        let mut state: BTreeMap<String, serde_json::Value> =
+            serde_json::from_str(&checkpoint.state_json).unwrap_or_default();
 
-            let approval_id = Uuid::new_v4().to_string();
-            let now = Self::now_iso();
+        let approval_id = Uuid::new_v4().to_string();
+        let now = Self::now_iso();
 
-            let mut approvals: Vec<serde_json::Value> = state
-                .get("approvals")
-                .and_then(|v| serde_json::from_value(v.clone()).ok())
-                .unwrap_or_default();
+        let mut approvals: Vec<serde_json::Value> = state
+            .get("approvals")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default();
 
-            approvals.push(serde_json::json!({
-                "approvalId": approval_id,
-                "decision": decision,
-                "reason": reason,
-                "decidedAt": now,
-            }));
+        approvals.push(serde_json::json!({
+            "approvalId": approval_id,
+            "decision": decision,
+            "reason": reason,
+            "decidedAt": now,
+        }));
 
-            state.insert(
-                "approvals".to_string(),
-                serde_json::to_value(&approvals).unwrap_or_default(),
-            );
+        state.insert(
+            "approvals".to_string(),
+            serde_json::to_value(&approvals).unwrap_or_default(),
+        );
 
-            let new_state_json = serde_json::to_string(&state).unwrap_or_else(|_| "{}".to_string());
-            conn.execute(
-                &format!(
-                    "UPDATE {} SET {} = ?1, {} = ?2, {} = {} + 1 WHERE {} = ?3",
-                    columns::checkpoint::TABLE,
-                    columns::checkpoint::STATE_JSON,
-                    columns::checkpoint::UPDATED_AT,
-                    columns::checkpoint::VERSION,
-                    columns::checkpoint::VERSION,
-                    columns::checkpoint::ID,
-                ),
-                params![new_state_json, now, checkpoint_id],
-            )
-            .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        let new_state_json = serde_json::to_string(&state).unwrap_or_else(|_| "{}".to_string());
+        sqlx::query(&format!(
+            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 WHERE {} = ?",
+            columns::checkpoint::TABLE,
+            columns::checkpoint::STATE_JSON,
+            columns::checkpoint::UPDATED_AT,
+            columns::checkpoint::VERSION,
+            columns::checkpoint::VERSION,
+            columns::checkpoint::ID,
+        ))
+        .bind(&new_state_json)
+        .bind(&now)
+        .bind(checkpoint_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Update(e.to_string()))?;
 
-            Ok(ApprovalDecisionPayload {
-                approval_id,
-                checkpoint_id,
-                coding_session_id: session_id,
-                runtime_id,
-                turn_id: None,
-                operation_id: None,
-                decision,
-                reason,
-                decided_at: now,
-                runtime_status: "approved".to_string(),
-                operation_status: "approved".to_string(),
-            })
+        Ok(ApprovalDecisionPayload {
+            approval_id,
+            checkpoint_id: checkpoint_id.to_string(),
+            coding_session_id: session_id.to_string(),
+            runtime_id,
+            turn_id: None,
+            operation_id: None,
+            decision,
+            reason,
+            decided_at: now,
+            runtime_status: "approved".to_string(),
+            operation_status: "approved".to_string(),
         })
-        .map_err(CodingSessionError::from)
     }
 
     async fn submit_user_question_answer(
@@ -1119,93 +779,81 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         question_id: &str,
         input: &SubmitUserQuestionAnswerInput,
     ) -> Result<UserQuestionAnswerPayload, CodingSessionError> {
-        let session_id = session_id.to_string();
-        let question_id = question_id.to_string();
         let answer = input.answer.clone();
         let option_id = input.option_id.clone();
         let option_label = input.option_label.clone();
         let rejected = input.rejected;
 
-        self.with_conn(|conn| {
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
+        let row = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
                 columns::event::TABLE,
                 columns::event::CODING_SESSION_ID,
                 columns::event::ID,
                 columns::event::IS_DELETED,
+            ))
+            .bind(session_id)
+            .bind(question_id)
+            .fetch_optional(&self.pool)
+            .await,
+        )?
+        .ok_or_else(|| {
+            RepositoryError::NotFound(format!("question event {question_id} not found"))
+        })?;
+
+        let event = map_sqlx_error(EventRow::from_row(&row))?;
+        let runtime_id = event.runtime_id.clone();
+        let turn_id = event.turn_id.clone();
+        let mut payload: BTreeMap<String, serde_json::Value> =
+            serde_json::from_str(&event.payload_json).unwrap_or_default();
+
+        let now = Self::now_iso();
+        if let Some(a) = &answer {
+            payload.insert("answer".to_string(), serde_json::Value::String(a.clone()));
+        }
+        if let Some(oid) = &option_id {
+            payload.insert("optionId".to_string(), serde_json::Value::String(oid.clone()));
+        }
+        if let Some(ol) = &option_label {
+            payload.insert(
+                "optionLabel".to_string(),
+                serde_json::Value::String(ol.clone()),
             );
-            let row = conn
-                .query_row(&sql, params![session_id, question_id], |row| {
-                    Ok(EventRow {
-                        id: row.get(0)?,
-                        created_at: row.get(1)?,
-                        updated_at: row.get(2)?,
-                        version: row.get(3)?,
-                        is_deleted: row.get(4)?,
-                        coding_session_id: row.get(5)?,
-                        turn_id: row.get(6)?,
-                        runtime_id: row.get(7)?,
-                        event_kind: row.get(8)?,
-                        sequence_no: row.get(9)?,
-                        payload_json: row.get(10)?,
-                    })
-                })
-                .map_err(|e| match e {
-                    rusqlite::Error::QueryReturnedNoRows => {
-                        RepositoryError::NotFound(format!("question event {question_id} not found"))
-                    }
-                    _ => RepositoryError::Query(e.to_string()),
-                })?;
+        }
+        payload.insert("rejected".to_string(), serde_json::Value::Bool(rejected));
+        payload.insert("answeredAt".to_string(), serde_json::Value::String(now.clone()));
 
-            let runtime_id = row.runtime_id.clone();
-            let turn_id = row.turn_id.clone();
-            let mut payload: BTreeMap<String, serde_json::Value> =
-                serde_json::from_str(&row.payload_json).unwrap_or_default();
+        let new_payload_json = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
+        sqlx::query(&format!(
+            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 WHERE {} = ?",
+            columns::event::TABLE,
+            columns::event::PAYLOAD_JSON,
+            columns::event::UPDATED_AT,
+            columns::event::VERSION,
+            columns::event::VERSION,
+            columns::event::ID,
+        ))
+        .bind(&new_payload_json)
+        .bind(&now)
+        .bind(question_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Update(e.to_string()))?;
 
-            let now = Self::now_iso();
-            if let Some(a) = &answer {
-                payload.insert("answer".to_string(), serde_json::Value::String(a.clone()));
-            }
-            if let Some(oid) = &option_id {
-                payload.insert("optionId".to_string(), serde_json::Value::String(oid.clone()));
-            }
-            if let Some(ol) = &option_label {
-                payload.insert("optionLabel".to_string(), serde_json::Value::String(ol.clone()));
-            }
-            payload.insert("rejected".to_string(), serde_json::Value::Bool(rejected));
-            payload.insert("answeredAt".to_string(), serde_json::Value::String(now.clone()));
-
-            let new_payload_json = serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string());
-            conn.execute(
-                &format!(
-                    "UPDATE {} SET {} = ?1, {} = ?2, {} = {} + 1 WHERE {} = ?3",
-                    columns::event::TABLE,
-                    columns::event::PAYLOAD_JSON,
-                    columns::event::UPDATED_AT,
-                    columns::event::VERSION,
-                    columns::event::VERSION,
-                    columns::event::ID,
-                ),
-                params![new_payload_json, now, question_id],
-            )
-            .map_err(|e| RepositoryError::Update(e.to_string()))?;
-
-            Ok(UserQuestionAnswerPayload {
-                question_id,
-                coding_session_id: session_id,
-                answer,
-                answered_at: now,
-                option_id,
-                option_label,
-                rejected,
-                runtime_id,
-                runtime_status: "answered".to_string(),
-                turn_id,
-            })
+        Ok(UserQuestionAnswerPayload {
+            question_id: question_id.to_string(),
+            coding_session_id: session_id.to_string(),
+            answer,
+            answered_at: now,
+            option_id,
+            option_label,
+            rejected,
+            runtime_id,
+            runtime_status: "answered".to_string(),
+            turn_id,
         })
-        .map_err(CodingSessionError::from)
     }
 
     async fn get_operation(
@@ -1214,45 +862,28 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         session_id: &str,
         operation_id: &str,
     ) -> Result<OperationPayload, CodingSessionError> {
-        let session_id = session_id.to_string();
-        let operation_id = operation_id.to_string();
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-        self.with_conn(|conn| {
-
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let sql = format!(
-                "SELECT * FROM {} WHERE {} = ?1 AND {} = ?2 AND {} = 0",
+        let row = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
                 columns::operation::TABLE,
                 columns::operation::ID,
                 columns::operation::CODING_SESSION_ID,
                 columns::operation::IS_DELETED,
-            );
-            let row = conn
-                .query_row(&sql, params![operation_id, session_id], |row| {
-                    Ok(OperationRow {
-                        id: row.get(0)?,
-                        created_at: row.get(1)?,
-                        updated_at: row.get(2)?,
-                        version: row.get(3)?,
-                        is_deleted: row.get(4)?,
-                        coding_session_id: row.get(5)?,
-                        turn_id: row.get(6)?,
-                        status: row.get(7)?,
-                        stream_url: row.get(8)?,
-                        stream_kind: row.get(9)?,
-                        artifact_refs_json: row.get(10)?,
-                    })
-                })
-                .map_err(|e| match e {
-                    rusqlite::Error::QueryReturnedNoRows => {
-                        RepositoryError::NotFound(format!("operation {operation_id} not found"))
-                    }
-                    _ => RepositoryError::Query(e.to_string()),
-                })?;
+            ))
+            .bind(operation_id)
+            .bind(session_id)
+            .fetch_optional(&self.pool)
+            .await,
+        )?
+        .ok_or_else(|| {
+            RepositoryError::NotFound(format!("operation {operation_id} not found"))
+        })?;
 
-            Ok(row_mapper::operation_row_to_payload(row))
-        })
-        .map_err(CodingSessionError::from)
+        Ok(row_mapper::operation_row_to_payload(map_sqlx_error(
+            OperationRow::from_row(&row),
+        )?))
     }
 
     async fn finalize_turn_execution(
@@ -1261,82 +892,75 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         session_id: &str,
         finalized: &FinalizedProjectionTurnExecution,
     ) -> Result<CodingSessionTurnPayload, CodingSessionError> {
-        let session_id = session_id.to_string();
         let turn = finalized.turn.clone();
         let turn_id = turn.id.clone();
         let now = Self::now_iso();
 
-        self.with_conn(|conn| {
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            let started_at = turn.started_at.clone().unwrap_or_else(|| now.clone());
-            let completed_at = turn.completed_at.clone().unwrap_or_else(|| now.clone());
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-            conn.execute(
-                &format!(
-                    "UPDATE {} SET {} = ?1, {} = ?2, {} = ?3, {} = ?4, {} = {} + 1 \
-                     WHERE {} = ?5 AND {} = ?6 AND {} = 0",
-                    columns::turn::TABLE,
-                    columns::turn::STATUS,
-                    columns::turn::STARTED_AT,
-                    columns::turn::COMPLETED_AT,
-                    columns::turn::UPDATED_AT,
-                    columns::turn::VERSION,
-                    columns::turn::VERSION,
-                    columns::turn::ID,
-                    columns::turn::CODING_SESSION_ID,
-                    columns::turn::IS_DELETED,
-                ),
-                params![
-                    turn.status,
-                    started_at,
-                    completed_at,
-                    now,
-                    turn_id,
-                    session_id,
-                ],
-            )
-            .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        let started_at = turn.started_at.clone().unwrap_or_else(|| now.clone());
+        let completed_at = turn.completed_at.clone().unwrap_or_else(|| now.clone());
 
-            for event in &finalized.events {
-                let payload_json = serde_json::to_string(&event.payload)
-                    .map_err(|e| RepositoryError::Insert(e.to_string()))?;
-                conn.execute(
-                    &format!(
-                        "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-                        columns::event::TABLE,
-                        columns::event::ID,
-                        columns::event::CREATED_AT,
-                        columns::event::UPDATED_AT,
-                        columns::event::VERSION,
-                        columns::event::IS_DELETED,
-                        columns::event::CODING_SESSION_ID,
-                        columns::event::TURN_ID,
-                        columns::event::RUNTIME_ID,
-                        columns::event::EVENT_KIND,
-                        columns::event::SEQUENCE_NO,
-                        columns::event::PAYLOAD_JSON,
-                    ),
-                    params![
-                        event.id,
-                        event.created_at,
-                        event.created_at,
-                        0i64,
-                        0i64,
-                        session_id,
-                        event.turn_id,
-                        event.runtime_id,
-                        event.kind,
-                        event.sequence as i64,
-                        payload_json,
-                    ],
-                )
+        sqlx::query(&format!(
+            "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = ?, {} = {} + 1 \
+             WHERE {} = ? AND {} = ? AND {} = 0",
+            columns::turn::TABLE,
+            columns::turn::STATUS,
+            columns::turn::STARTED_AT,
+            columns::turn::COMPLETED_AT,
+            columns::turn::UPDATED_AT,
+            columns::turn::VERSION,
+            columns::turn::VERSION,
+            columns::turn::ID,
+            columns::turn::CODING_SESSION_ID,
+            columns::turn::IS_DELETED,
+        ))
+        .bind(&turn.status)
+        .bind(&started_at)
+        .bind(&completed_at)
+        .bind(&now)
+        .bind(&turn_id)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Update(e.to_string()))?;
+
+        for event in &finalized.events {
+            let payload_json = serde_json::to_string(&event.payload)
                 .map_err(|e| RepositoryError::Insert(e.to_string()))?;
-            }
+            sqlx::query(&format!(
+                "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                columns::event::TABLE,
+                columns::event::ID,
+                columns::event::CREATED_AT,
+                columns::event::UPDATED_AT,
+                columns::event::VERSION,
+                columns::event::IS_DELETED,
+                columns::event::CODING_SESSION_ID,
+                columns::event::TURN_ID,
+                columns::event::RUNTIME_ID,
+                columns::event::EVENT_KIND,
+                columns::event::SEQUENCE_NO,
+                columns::event::PAYLOAD_JSON,
+            ))
+            .bind(&event.id)
+            .bind(&event.created_at)
+            .bind(&event.created_at)
+            .bind(0i64)
+            .bind(0i64)
+            .bind(session_id)
+            .bind(&event.turn_id)
+            .bind(&event.runtime_id)
+            .bind(&event.kind)
+            .bind(event.sequence as i64)
+            .bind(&payload_json)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+        }
 
-            Ok(turn)
-        })
-        .map_err(CodingSessionError::from)
+        Ok(turn)
     }
 
     async fn mark_turn_failed(
@@ -1345,32 +969,29 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         session_id: &str,
         turn_id: &str,
     ) -> Result<(), CodingSessionError> {
-        let session_id = session_id.to_string();
-        let turn_id = turn_id.to_string();
         let now = Self::now_iso();
 
-        self.with_conn(|conn| {
-            ensure_session_in_tenant_scope(conn, ctx, &session_id)?;
-            conn.execute(
-                &format!(
-                    "UPDATE {} SET {} = 'failed', {} = ?1, {} = {} + 1 \
-                     WHERE {} = ?2 AND {} = ?3 AND {} = 0",
-                    columns::turn::TABLE,
-                    columns::turn::STATUS,
-                    columns::turn::UPDATED_AT,
-                    columns::turn::VERSION,
-                    columns::turn::VERSION,
-                    columns::turn::ID,
-                    columns::turn::CODING_SESSION_ID,
-                    columns::turn::IS_DELETED,
-                ),
-                params![now, turn_id, session_id],
-            )
-            .map_err(|e| RepositoryError::Update(e.to_string()))?;
-            Ok(())
-        })
-        .map_err(CodingSessionError::from)
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+
+        sqlx::query(&format!(
+            "UPDATE {} SET {} = 'failed', {} = ?, {} = {} + 1 \
+             WHERE {} = ? AND {} = ? AND {} = 0",
+            columns::turn::TABLE,
+            columns::turn::STATUS,
+            columns::turn::UPDATED_AT,
+            columns::turn::VERSION,
+            columns::turn::VERSION,
+            columns::turn::ID,
+            columns::turn::CODING_SESSION_ID,
+            columns::turn::IS_DELETED,
+        ))
+        .bind(&now)
+        .bind(turn_id)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| RepositoryError::Update(e.to_string()))?;
+
+        Ok(())
     }
-
 }
-

@@ -83,7 +83,3 @@ ON commerce_membership_benefit(membership_id);
 CREATE INDEX IF NOT EXISTS idx_commerce_membership_package_group_id
 ON commerce_membership_package(group_id);
 "#;
-
-pub fn initialize_schema(conn: &rusqlite::Connection) -> rusqlite::Result<()> {
-    conn.execute_batch(ALL_TABLES_DDL)
-}

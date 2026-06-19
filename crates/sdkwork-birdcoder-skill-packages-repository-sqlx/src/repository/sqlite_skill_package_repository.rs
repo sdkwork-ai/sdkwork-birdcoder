@@ -1,6 +1,4 @@
-use std::sync::{Arc, Mutex};
-
-use rusqlite::Connection;
+use sqlx::SqlitePool;
 use time::format_description::well_known::Iso8601;
 use uuid::Uuid;
 
@@ -14,12 +12,12 @@ use crate::repository::skill_package_repository;
 
 #[derive(Clone)]
 pub struct SqliteSkillPackageRepository {
-    conn: Arc<Mutex<Connection>>,
+    pool: SqlitePool,
 }
 
 impl SqliteSkillPackageRepository {
-    pub fn new(conn: Arc<Mutex<Connection>>) -> Self {
-        Self { conn }
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
     }
 
     fn now_iso() -> String {
@@ -46,13 +44,15 @@ impl SqliteSkillPackageRepository {
     }
 }
 
+#[async_trait::async_trait]
 impl SkillPackageRepository for SqliteSkillPackageRepository {
-    fn list_packages(
+    async fn list_packages(
         &self,
         _workspace_id: Option<&str>,
     ) -> Result<Vec<SkillPackagePayload>, String> {
-        let conn = self.conn.lock().map_err(|e| e.to_string())?;
-        let rows = skill_package_repository::list_skill_packages(&conn).map_err(|e| e.to_string())?;
+        let rows = skill_package_repository::list_skill_packages(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
         Ok(rows
             .into_iter()
             .map(|row| SkillPackagePayload {
@@ -78,45 +78,44 @@ impl SkillPackageRepository for SqliteSkillPackageRepository {
             .collect())
     }
 
-    fn find_latest_version(
+    async fn find_latest_version(
         &self,
         package_id: &str,
     ) -> Result<Option<(String, String)>, String> {
-        let conn = self.conn.lock().map_err(|e| e.to_string())?;
-        let versions =
-            skill_package_repository::list_skill_versions_by_package(&conn, package_id)
-                .map_err(|e| e.to_string())?;
+        let versions = skill_package_repository::list_skill_versions_by_package(&self.pool, package_id)
+            .await
+            .map_err(|e| e.to_string())?;
         Ok(versions
             .first()
             .map(|version| (version.id.clone(), version.version_label.clone())))
     }
 
-    fn find_existing_installation(
+    async fn find_existing_installation(
         &self,
         scope_type: &str,
         scope_id: &str,
         package_id: &str,
     ) -> Result<Option<SkillInstallationPayload>, String> {
-        let conn = self.conn.lock().map_err(|e| e.to_string())?;
         let found = skill_package_repository::find_skill_installation_for_scope(
-            &conn,
+            &self.pool,
             scope_type,
             scope_id,
             package_id,
         )
+        .await
         .map_err(|e| e.to_string())?;
         Ok(found.map(|(row, package_id)| Self::map_installation(row, package_id)))
     }
 
-    fn create_installation(
+    async fn create_installation(
         &self,
         package_id: &str,
         version_id: &str,
         scope_type: &str,
         scope_id: &str,
     ) -> Result<SkillInstallationPayload, String> {
-        let conn = self.conn.lock().map_err(|e| e.to_string())?;
-        let package = skill_package_repository::get_skill_package_by_id(&conn, package_id)
+        let package = skill_package_repository::get_skill_package_by_id(&self.pool, package_id)
+            .await
             .map_err(|e| e.to_string())?;
         let now = Self::now_iso();
         let row = SkillInstallationRow {
@@ -134,14 +133,15 @@ impl SkillPackageRepository for SqliteSkillPackageRepository {
             status: "installed".to_string(),
             installed_at: now,
         };
-        skill_package_repository::insert_skill_installation(&conn, &row)
+        skill_package_repository::insert_skill_installation(&self.pool, &row)
+            .await
             .map_err(|e| e.to_string())?;
         Ok(Self::map_installation(row, package_id.to_string()))
     }
 
-    fn scope_exists(&self, scope_type: &str, scope_id: &str) -> Result<bool, String> {
-        let conn = self.conn.lock().map_err(|e| e.to_string())?;
-        skill_package_repository::scope_exists(&conn, scope_type, scope_id)
+    async fn scope_exists(&self, scope_type: &str, scope_id: &str) -> Result<bool, String> {
+        skill_package_repository::scope_exists(&self.pool, scope_type, scope_id)
+            .await
             .map_err(|e| e.to_string())
     }
 }

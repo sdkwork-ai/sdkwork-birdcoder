@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+import {
+  readCanonicalServerRustSource,
+  readCanonicalTurnStreamBundle,
+  CANONICAL_DOMAIN_RUST_PATHS,
+} from './birdcoder-canonical-server-rust-sources.mjs';
+
 const typesSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts', import.meta.url),
   'utf8',
@@ -17,18 +23,10 @@ const serverOpenApiSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url),
   'utf8',
 );
-const rustServerSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
-  'utf8',
-);
-const nativeSessionsSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/native_sessions.rs', import.meta.url),
-  'utf8',
-);
-const codeEngineTurnsSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/turns.rs', import.meta.url),
-  'utf8',
-);
+
+const rustServerSource = `${readCanonicalTurnStreamBundle()}\n${readCanonicalServerRustSource(CANONICAL_DOMAIN_RUST_PATHS.codingSessionsDomainModels)}`;
+const nativeSessionsSource = readCanonicalServerRustSource(CANONICAL_DOMAIN_RUST_PATHS.nativeSessionService);
+const codeEngineTurnsSource = readCanonicalServerRustSource(CANONICAL_DOMAIN_RUST_PATHS.codeengineTurns);
 
 assert.match(
   typesSource,
@@ -42,7 +40,7 @@ assert.match(
 );
 assert.match(
   sdkClientsSource,
-  /client\.intelligence\.codingSessions\.turns\.create\(\s*\{\s*id: codingSessionId\s*\},\s*request as unknown as GeneratedBirdCoderCreateCodingSessionTurnRequest,/,
+  /client\.intelligence\.codingSessions\.turns\.create\(\s*\{\s*sessionId: codingSessionId\s*\},\s*request as unknown as GeneratedBirdCoderCreateCodingSessionTurnRequest,/,
   'App runtime SDK wrapper must pass standard turn options through the generated app SDK request body.',
 );
 
@@ -80,28 +78,28 @@ assert.match(
 
 assert.match(
   rustServerSource,
-  /struct CodingSessionTurnOptionsPayload[\s\S]*temperature: Option<f64>[\s\S]*top_p: Option<f64>[\s\S]*max_tokens: Option<i64>/,
+  /pub struct CodingSessionTurnOptionsPayload[\s\S]*pub temperature: Option<f64>[\s\S]*pub top_p: Option<f64>[\s\S]*pub max_tokens: Option<i64>/,
   'Rust server must deserialize standard turn options.',
 );
 assert.match(
   rustServerSource,
-  /struct CreateCodingSessionTurnRequest[\s\S]*options: Option<CodingSessionTurnOptionsPayload>/,
+  /pub struct CreateCodingSessionTurnRequest[\s\S]*pub stream: Option<bool>[\s\S]*pub options: Option<CodingSessionTurnOptionsPayload>/,
   'Rust create-turn request must accept options.',
 );
 assert.match(
   rustServerSource,
-  /struct CreateCodingSessionTurnInput[\s\S]*options: Option<CodingSessionTurnOptionsPayload>/,
+  /pub struct CreateCodingSessionTurnInput[\s\S]*pub stream: bool[\s\S]*pub options: Option<CodingSessionTurnOptionsPayload>/,
   'Rust normalized create-turn input must preserve options.',
 );
 assert.match(
   rustServerSource,
-  /options: normalize_turn_options\(value\.options\)/,
+  /options: normalize_turn_options\(request\.options\)/,
   'Rust request normalization must sanitize turn options.',
 );
 
 assert.match(
   nativeSessionsSource,
-  /struct NativeSessionTurnConfig[\s\S]*temperature: Option<f64>[\s\S]*top_p: Option<f64>[\s\S]*max_tokens: Option<i64>/,
+  /pub struct NativeSessionTurnConfig[\s\S]*pub temperature: Option<f64>[\s\S]*pub top_p: Option<f64>[\s\S]*pub max_tokens: Option<u32>/,
   'Native session turn config must carry standard model sampling options.',
 );
 assert.match(

@@ -1,20 +1,21 @@
-use sdkwork_birdcoder_server::{
-    build_app_from_runtime_config, print_coding_server_startup_summary,
-    BIRD_SERVER_DEFAULT_BIND_ADDRESS,
-};
+use sdkwork_birdcoder_api_server::bootstrap;
+use sdkwork_birdcoder_api_server::server;
 
 #[tokio::main]
 async fn main() {
-    let listener = tokio::net::TcpListener::bind(BIRD_SERVER_DEFAULT_BIND_ADDRESS)
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
+    let config = bootstrap::config::BirdServerConfig::from_env();
+    let app = bootstrap::build_app(&config)
         .await
-        .expect("bind bird server");
-    let local_address = listener
-        .local_addr()
-        .expect("read bird server local address");
-    let api_base_url = format!("http://{local_address}");
+        .expect("bootstrap failed");
 
-    let app = build_app_from_runtime_config().expect("load bird server app");
-    print_coding_server_startup_summary(&api_base_url);
-
-    axum::serve(listener, app).await.expect("serve bird server");
+    let bind_address = config.bind_address();
+    tracing::info!("sdkwork-birdcoder-pc-server-host-shim listening on {bind_address}");
+    server::listen::serve(app, &bind_address).await;
 }

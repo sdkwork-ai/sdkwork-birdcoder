@@ -198,7 +198,7 @@ function main() {
   );
   assert.match(
     lifecycle,
-    /docker buildx build/,
+    /createCommand\('docker',\s*\[[\s\S]*?'buildx'[\s\S]*?'build'/u,
     'BirdCoder lifecycle dispatcher must publish OCI images before kubernetes bundles are finalized',
   );
   assert.match(

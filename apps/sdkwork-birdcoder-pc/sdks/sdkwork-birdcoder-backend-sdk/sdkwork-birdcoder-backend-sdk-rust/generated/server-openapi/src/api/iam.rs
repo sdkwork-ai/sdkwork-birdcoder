@@ -57,13 +57,13 @@ impl IamApi {
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
-    /// Create SDKWork IAM organization member
+    /// Create SDKWork IAM organization membership
     pub async fn organization_memberships_create(&self, body: &BirdCoderCreateIamOrganizationMemberRequest) -> Result<BirdCoderIamOrganizationMemberSummaryEnvelope, SdkworkError> {
         let path = backend_path(&"/iam/organization_memberships".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
-    /// Update SDKWork IAM organization member
+    /// Update SDKWork IAM organization membership
     pub async fn organization_memberships_update(&self, membership_id: &str, body: &BirdCoderUpdateIamOrganizationMemberRequest) -> Result<BirdCoderIamOrganizationMemberSummaryEnvelope, SdkworkError> {
         let path = backend_path(&format!("/iam/organization_memberships/{}", serialize_path_parameter(membership_id, PathParameterSpec::new("membershipId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await

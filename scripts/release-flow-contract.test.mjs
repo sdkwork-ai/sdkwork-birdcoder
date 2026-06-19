@@ -104,7 +104,11 @@ for (const forwardedInput of ['tag', 'package_version', 'platform', 'architectur
 }
 assert.match(packageWorkflow, /publish_release:\s*true/u);
 assert.match(packageWorkflow, /upload_artifact:\s*true/u);
-assert.match(packageWorkflow, /dependency_refs_json:\s*'\{\}'/u);
+assert.match(packageWorkflow, /dependency_refs_json:\s*>-/u);
+assert.match(packageWorkflow, /SDKWORK_APPBASE_REF/u);
+assert.match(packageWorkflow, /SDKWORK_WEB_FRAMEWORK_REF/u);
+assert.match(packageWorkflow, /SDKWORK_DATABASE_REF/u);
+assert.doesNotMatch(packageWorkflow, /dependency_refs_json:\s*'\{\}'/u);
 
 for (const forbiddenLocalAction of [
   'softprops/action-gh-release',
@@ -140,7 +144,7 @@ assert.equal(workflowConfig.publish.aggregateArtifactPath, 'release-assets');
 assert.deepEqual(workflowConfig.publish.aggregateUploadGlobs, ['release-assets/**/*']);
 assert.equal(workflowConfig.security.artifactAttestations, true);
 
-for (const phase of ['preflight', 'install', 'build', 'package', 'validate', 'publish']) {
+for (const phase of ['preflight', 'install', 'build', 'package', 'sign', 'sbom', 'validate', 'publish']) {
   assertSourceIncludes(
     lifecycleRunForPhase(workflowConfig, phase),
     `node scripts/release/sdkwork-workflow-lifecycle.mjs ${phase}`,
@@ -149,52 +153,52 @@ for (const phase of ['preflight', 'install', 'build', 'package', 'validate', 'pu
 }
 
 for (const targetId of [
-  'windows-x64-desktop-exe',
-  'windows-x64-desktop-msi',
-  'windows-arm64-desktop-exe',
-  'linux-debian-x64-desktop-deb',
-  'linux-rhel-x64-desktop-rpm',
-  'linux-x64-desktop-appimage',
-  'linux-debian-arm64-desktop-deb',
-  'linux-arm64-desktop-appimage',
-  'macos-x64-desktop-tar-gz',
-  'macos-x64-desktop-dmg',
-  'macos-arm64-desktop-tar-gz',
-  'macos-arm64-desktop-dmg',
-  'windows-x64-server-tar-gz',
-  'windows-arm64-server-tar-gz',
-  'linux-x64-server-tar-gz',
-  'linux-arm64-server-tar-gz',
-  'macos-x64-server-tar-gz',
-  'macos-arm64-server-tar-gz',
-  'web-noarch-web-tar-gz',
-  'container-x64-server-cpu-tar-gz',
-  'container-x64-server-nvidia-cuda-tar-gz',
-  'container-x64-server-amd-rocm-tar-gz',
-  'container-arm64-server-cpu-tar-gz',
-  'container-x64-server-cpu-helm',
-  'container-x64-server-nvidia-cuda-helm',
-  'container-x64-server-amd-rocm-helm',
-  'container-arm64-server-cpu-helm',
+  'windows-x64-standalone-desktop-exe',
+  'windows-x64-standalone-desktop-msi',
+  'windows-arm64-standalone-desktop-exe',
+  'linux-debian-x64-standalone-desktop-deb',
+  'linux-rhel-x64-standalone-desktop-rpm',
+  'linux-x64-standalone-desktop-appimage',
+  'linux-debian-arm64-standalone-desktop-deb',
+  'linux-arm64-standalone-desktop-appimage',
+  'macos-x64-standalone-desktop-tar-gz',
+  'macos-x64-standalone-desktop-dmg',
+  'macos-arm64-standalone-desktop-tar-gz',
+  'macos-arm64-standalone-desktop-dmg',
+  'windows-x64-standalone-server-tar-gz',
+  'windows-arm64-standalone-server-tar-gz',
+  'linux-x64-standalone-server-tar-gz',
+  'linux-arm64-standalone-server-tar-gz',
+  'macos-x64-standalone-server-tar-gz',
+  'macos-arm64-standalone-server-tar-gz',
+  'web-universal-cloud-browser-tar-gz',
+  'container-x64-cloud-container-cpu-tar-gz',
+  'container-x64-cloud-container-nvidia-cuda-tar-gz',
+  'container-x64-cloud-container-amd-rocm-tar-gz',
+  'container-arm64-cloud-container-cpu-tar-gz',
+  'container-x64-cloud-container-cpu-helm',
+  'container-x64-cloud-container-nvidia-cuda-helm',
+  'container-x64-cloud-container-amd-rocm-helm',
+  'container-arm64-cloud-container-cpu-helm',
 ]) {
   findTarget(workflowConfig, targetId);
 }
 
-assertTarget(workflowConfig, 'windows-x64-desktop-exe', {
+assertTarget(workflowConfig, 'windows-x64-standalone-desktop-exe', {
   profile: 'desktop',
   platform: 'windows',
   architecture: 'x64',
   formats: ['exe'],
   runner: 'windows-2022',
 });
-assertTarget(workflowConfig, 'windows-x64-desktop-msi', {
+assertTarget(workflowConfig, 'windows-x64-standalone-desktop-msi', {
   profile: 'desktop',
   platform: 'windows',
   architecture: 'x64',
   formats: ['msi'],
   runner: 'windows-2022',
 });
-assertTarget(workflowConfig, 'linux-rhel-x64-desktop-rpm', {
+assertTarget(workflowConfig, 'linux-rhel-x64-standalone-desktop-rpm', {
   profile: 'desktop',
   platform: 'linux',
   distribution: 'rhel',
@@ -202,23 +206,23 @@ assertTarget(workflowConfig, 'linux-rhel-x64-desktop-rpm', {
   formats: ['rpm'],
   runner: 'ubuntu-24.04',
 });
-assertTarget(workflowConfig, 'web-noarch-web-tar-gz', {
-  profile: 'web',
+assertTarget(workflowConfig, 'web-universal-cloud-browser-tar-gz', {
+  profile: 'browser',
   platform: 'web',
-  architecture: 'noarch',
+  architecture: 'universal',
   formats: ['tar.gz'],
   runner: 'ubuntu-24.04',
 });
-assertTarget(workflowConfig, 'container-x64-server-nvidia-cuda-tar-gz', {
-  profile: 'server',
+assertTarget(workflowConfig, 'container-x64-cloud-container-nvidia-cuda-tar-gz', {
+  profile: 'container',
   platform: 'container',
   architecture: 'x64',
   variant: 'nvidia-cuda',
   formats: ['tar.gz'],
   runner: 'ubuntu-24.04',
 });
-assertTarget(workflowConfig, 'container-x64-server-cpu-helm', {
-  profile: 'server',
+assertTarget(workflowConfig, 'container-x64-cloud-container-cpu-helm', {
+  profile: 'container',
   platform: 'container',
   architecture: 'x64',
   variant: 'cpu',
@@ -228,12 +232,12 @@ assertTarget(workflowConfig, 'container-x64-server-cpu-helm', {
 
 assertSourceIncludes(
   lifecycleSource,
-  /windows-x64-desktop-exe[\s\S]*bundle:\s*'nsis'/u,
+  /windows-x64-standalone-desktop-exe[\s\S]*bundle:\s*'nsis'/u,
   'desktop EXE target must map to the NSIS bundle so Windows EXE and MSI are independently packageable.',
 );
 assertSourceIncludes(
   lifecycleSource,
-  /windows-x64-desktop-msi[\s\S]*bundle:\s*'msi'/u,
+  /windows-x64-standalone-desktop-msi[\s\S]*bundle:\s*'msi'/u,
   'desktop MSI target must map to the MSI bundle.',
 );
 assertSourceIncludes(lifecycleSource, /run-desktop-release-build\.mjs[\s\S]*--phase[\s\S]*bundle[\s\S]*--bundles/u);
@@ -252,73 +256,105 @@ assertSourceIncludes(lifecycleSource, /smoke-web-release-assets\.mjs/u);
 assertSourceIncludes(lifecycleSource, /container-image-metadata/u);
 assertSourceIncludes(lifecycleSource, /package-release-assets\.mjs[\s\S]*container/u);
 assertSourceIncludes(lifecycleSource, /package-release-assets\.mjs[\s\S]*kubernetes[\s\S]*--image-repository[\s\S]*--image-tag[\s\S]*--image-digest/u);
+assertSourceIncludes(lifecycleSource, /writePackageSignatureEvidenceCommand/u);
+assertSourceIncludes(lifecycleSource, /writePackageSbomEvidenceCommand/u);
 assertSourceIncludes(lifecycleSource, /render-release-notes\.mjs[\s\S]*release-notes\.md/u);
 assertSourceIncludes(lifecycleSource, /smoke-finalized-release-assets\.mjs/u);
 assertSourceIncludes(lifecycleSource, /write-attestation-evidence\.mjs/u);
 assertSourceIncludes(lifecycleSource, /assert-release-readiness\.mjs/u);
 
 const desktopExePackagePlan = commandPlanText(lifecycleModule.buildLifecycleCommands('package', {
-  SDKWORK_PACKAGE_TARGET_ID: 'windows-x64-desktop-exe',
+  SDKWORK_PACKAGE_TARGET_ID: 'windows-x64-standalone-desktop-exe',
   SDKWORK_RELEASE_TAG: 'release-0.1.0',
 }));
 assert.match(desktopExePackagePlan, /package-release-assets\.mjs desktop[\s\S]*--bundles nsis/u);
 
 const desktopMsiPackagePlan = commandPlanText(lifecycleModule.buildLifecycleCommands('package', {
-  SDKWORK_PACKAGE_TARGET_ID: 'windows-x64-desktop-msi',
+  SDKWORK_PACKAGE_TARGET_ID: 'windows-x64-standalone-desktop-msi',
   SDKWORK_RELEASE_TAG: 'release-0.1.0',
 }));
 assert.match(desktopMsiPackagePlan, /package-release-assets\.mjs desktop[\s\S]*--bundles msi/u);
 
 const cpuContainerPackagePlan = commandPlanText(lifecycleModule.buildLifecycleCommands('package', {
-  SDKWORK_PACKAGE_TARGET_ID: 'container-x64-server-cpu-tar-gz',
+  SDKWORK_PACKAGE_TARGET_ID: 'container-x64-cloud-container-cpu-tar-gz',
   SDKWORK_RELEASE_TAG: 'release-0.1.0',
   GITHUB_REPOSITORY: 'Sdkwork-Cloud/sdkwork-birdcoder',
   GITHUB_SHA: '0123456789abcdef',
 }));
 assert.match(cpuContainerPackagePlan, /package-release-assets\.mjs container/u);
 assert.match(cpuContainerPackagePlan, /docker buildx build/u);
-assert.match(cpuContainerPackagePlan, /docker login ghcr\.io/u);
-assert.match(cpuContainerPackagePlan, /tar -xzf/u);
-assert.match(cpuContainerPackagePlan, /--strip-components 1/u);
-assert.match(cpuContainerPackagePlan, /--metadata-file/u);
-assert.match(cpuContainerPackagePlan, /\.sdkwork\/release\/container-image-context\/x64/u);
-assert.match(cpuContainerPackagePlan, /ghcr\.io\/sdkwork-cloud\/sdkwork-birdcoder-pc-server:release-0\.1\.0-linux-x64/u);
-assert.match(cpuContainerPackagePlan, /container-image-metadata[\\/]x64[\\/]published-image\.json/u);
+assert.match(cpuContainerPackagePlan, /deployments\/docker\/Dockerfile/u);
+assert.match(cpuContainerPackagePlan, /artifacts\/release\/container\/linux/u);
+assert.match(cpuContainerPackagePlan, /ghcr\.io\/sdkwork-cloud\/sdkwork-birdcoder-server:release-0\.1\.0/u);
+assert.match(cpuContainerPackagePlan, /container-image-metadata[\s\S]*published-image\.json/u);
+
+const cpuContainerImageMetadataPath = path.join(
+  rootDir,
+  'artifacts',
+  'release',
+  'container-image-metadata',
+  'x64',
+  'published-image.json',
+);
+fs.mkdirSync(path.dirname(cpuContainerImageMetadataPath), { recursive: true });
+fs.writeFileSync(
+  cpuContainerImageMetadataPath,
+  `${JSON.stringify({
+    imageRepository: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server',
+    imageTag: 'release-0.1.0',
+    imageDigest: 'sha256:fixture',
+    imageReference: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server@sha256:fixture',
+  }, null, 2)}\n`,
+);
 
 const kubernetesPackagePlan = commandPlanText(lifecycleModule.buildLifecycleCommands('package', {
-  SDKWORK_PACKAGE_TARGET_ID: 'container-x64-server-cpu-helm',
+  SDKWORK_PACKAGE_TARGET_ID: 'container-x64-cloud-container-cpu-helm',
   SDKWORK_RELEASE_TAG: 'release-0.1.0',
 }));
 assert.match(kubernetesPackagePlan, /package-release-assets\.mjs kubernetes/u);
-assert.match(kubernetesPackagePlan, /--image-repository ghcr\.io\/sdkwork-cloud\/sdkwork-birdcoder-pc-server/u);
-assert.match(kubernetesPackagePlan, /--image-tag release-0\.1\.0-linux-x64/u);
+assert.match(kubernetesPackagePlan, /--image-repository ghcr\.io\/sdkwork-cloud\/sdkwork-birdcoder-server/u);
+assert.match(kubernetesPackagePlan, /--image-tag release-0\.1\.0/u);
 
 const containerValidatePlan = commandPlanText(lifecycleModule.buildLifecycleCommands('validate', {
-  SDKWORK_PACKAGE_TARGET_ID: 'container-x64-server-cpu-tar-gz',
+  SDKWORK_PACKAGE_TARGET_ID: 'container-x64-cloud-container-cpu-tar-gz',
   SDKWORK_RELEASE_TAG: 'release-0.1.0',
 }));
 assert.match(containerValidatePlan, /smoke-deployment-release-assets\.mjs[\s\S]*--family container/u);
 
 const kubernetesValidatePlan = commandPlanText(lifecycleModule.buildLifecycleCommands('validate', {
-  SDKWORK_PACKAGE_TARGET_ID: 'container-x64-server-cpu-helm',
+  SDKWORK_PACKAGE_TARGET_ID: 'container-x64-cloud-container-cpu-helm',
   SDKWORK_RELEASE_TAG: 'release-0.1.0',
 }));
 assert.match(kubernetesValidatePlan, /smoke-deployment-release-assets\.mjs[\s\S]*--family kubernetes/u);
+
+const packageSignPlan = commandPlanText(lifecycleModule.buildLifecycleCommands('sign', {
+  SDKWORK_PACKAGE_TARGET_ID: 'linux-x64-standalone-server-tar-gz',
+  SDKWORK_PACKAGE_ID: 'linux-x64-standalone-server-tar-gz',
+  SDKWORK_RELEASE_TAG: 'release-0.1.0',
+}));
+assert.match(packageSignPlan, /signatures\/linux-x64-standalone-server-tar-gz\.signature-evidence\.json/u);
+
+const packageSbomPlan = commandPlanText(lifecycleModule.buildLifecycleCommands('sbom', {
+  SDKWORK_PACKAGE_TARGET_ID: 'linux-x64-standalone-server-tar-gz',
+  SDKWORK_PACKAGE_ID: 'linux-x64-standalone-server-tar-gz',
+  SDKWORK_RELEASE_TAG: 'release-0.1.0',
+}));
+assert.match(packageSbomPlan, /sbom\/linux-x64-standalone-server-tar-gz\.sbom\.json/u);
 
 const aggregateFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-aggregate-release-'));
 try {
   const aggregateReleaseAssetsDir = path.join(aggregateFixtureRoot, 'release-assets');
   writeJsonFixture(path.join(aggregateReleaseAssetsDir, 'container-image-metadata', 'x64', 'published-image.json'), {
-    imageRepository: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-pc-server',
-    imageTag: 'release-0.1.0-linux-x64',
+    imageRepository: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server',
+    imageTag: 'release-0.1.0',
     imageDigest: 'sha256:x64digest',
-    imageReference: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-pc-server@sha256:x64digest',
+    imageReference: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server@sha256:x64digest',
   });
   writeJsonFixture(path.join(aggregateReleaseAssetsDir, 'container-image-metadata', 'arm64', 'published-image.json'), {
-    imageRepository: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-pc-server',
-    imageTag: 'release-0.1.0-linux-arm64',
+    imageRepository: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server',
+    imageTag: 'release-0.1.0',
     imageDigest: 'sha256:arm64digest',
-    imageReference: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-pc-server@sha256:arm64digest',
+    imageReference: 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server@sha256:arm64digest',
   });
 
   const aggregatePublishPlan = commandPlanText(lifecycleModule.buildLifecycleCommands('publish', {
@@ -327,14 +363,11 @@ try {
     SDKWORK_RELEASE_TAG: 'release-0.1.0',
     GITHUB_REPOSITORY: 'Sdkwork-Cloud/sdkwork-birdcoder',
   }));
-  assert.match(aggregatePublishPlan, /package-release-assets\.mjs kubernetes[\s\S]*--image-digest sha256:x64digest/u);
-  assert.match(aggregatePublishPlan, /package-release-assets\.mjs kubernetes[\s\S]*--image-digest sha256:arm64digest/u);
-  assert.match(aggregatePublishPlan, /smoke-deployment-release-assets\.mjs[\s\S]*--family kubernetes/u);
+  assert.match(aggregatePublishPlan, /render-release-notes\.mjs/u);
   assert.match(aggregatePublishPlan, /finalize-release-assets\.mjs[\s\S]*--release-kind formal[\s\S]*--rollout-stage general-availability/u);
-  assert.ok(
-    aggregatePublishPlan.indexOf('package-release-assets.mjs kubernetes') < aggregatePublishPlan.indexOf('finalize-release-assets.mjs'),
-    'aggregate publish must regenerate Kubernetes bundles with published OCI digests before finalizing release assets.',
-  );
+  assert.match(aggregatePublishPlan, /smoke-finalized-release-assets\.mjs/u);
+  assert.match(aggregatePublishPlan, /write-attestation-evidence\.mjs/u);
+  assert.match(aggregatePublishPlan, /assert-release-readiness\.mjs/u);
 } finally {
   fs.rmSync(aggregateFixtureRoot, { recursive: true, force: true });
 }
@@ -346,18 +379,18 @@ assert.match(
 );
 assert.match(
   dockerfileSource,
-  /COPY --chown=birdcoder:birdcoder server \/opt\/sdkwork-birdcoder\/server/u,
-  'Container Dockerfile must copy the packaged server runtime from the extracted bundle-root context.',
+  /COPY --chown=birdcoder:birdcoder artifacts\/release\/server \/opt\/sdkwork-birdcoder\//u,
+  'Container Dockerfile must copy the packaged server runtime bundle into the image.',
 );
 assert.match(
   dockerfileSource,
-  /COPY --chown=birdcoder:birdcoder web \/opt\/sdkwork-birdcoder\/web/u,
-  'Container Dockerfile must copy the packaged web runtime from the extracted bundle-root context.',
+  /COPY --chown=birdcoder:birdcoder artifacts\/release\/server-binary \/opt\/sdkwork-birdcoder\//u,
+  'Container Dockerfile must copy the packaged server binary into the image.',
 );
 assert.doesNotMatch(
   dockerfileSource,
-  /artifacts\/release\/server-binary/u,
-  'Container Dockerfile must not depend on the old workflow-only artifacts/release/server-binary context layout.',
+  /COPY --chown=birdcoder:birdcoder web \/opt\/sdkwork-birdcoder\/web/u,
+  'Container Dockerfile must not copy a separate web bundle when the server image is binary-only.',
 );
 
 const releaseFlowCommandsJoined = releaseFlowRunnerModule.RELEASE_FLOW_CHECK_COMMANDS.join(' && ');

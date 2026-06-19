@@ -23,9 +23,20 @@
   "runtime": {
     "family": "desktop",
     "framework": "react-tauri",
-    "runtimes": ["WEB", "TAURI"],
-    "deliveryModes": ["WEB_URL", "DIRECT_DOWNLOAD"],
+    "runtimes": [
+      "WEB",
+      "TAURI"
+    ],
+    "deliveryModes": [
+      "WEB_URL",
+      "DIRECT_DOWNLOAD"
+    ],
     "defaultPlatform": "WEB",
-    "defaultArchitecture": "x64"
+    "defaultArchitecture": "x64",
+    "supportedDeploymentProfiles": [
+      "cloud",
+      "standalone"
+    ],
+    "defaultDeploymentProfile": "cloud"
   }
 }

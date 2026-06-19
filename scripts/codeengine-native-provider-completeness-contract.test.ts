@@ -8,37 +8,24 @@ import {
   listBirdCoderCodeEngineNativeSessionProviders,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/manifest.ts';
 
+import {
+  readCanonicalServerRustSource,
+  CANONICAL_CODEENGINE_RUST_PATHS,
+  LEGACY_ARCHIVE_RUST_PATHS,
+} from './birdcoder-canonical-server-rust-sources.mjs';
+
 const codeengineHostSourceDirectory = fileURLToPath(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/', import.meta.url),
+  new URL('../../../crates/sdkwork-birdcoder-codeengine/src/', import.meta.url),
 );
-const providerSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/provider.rs',
-  import.meta.url,
-);
-const turnsSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/turns.rs',
-  import.meta.url,
-);
-const libSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/lib.rs',
-  import.meta.url,
-);
-const sdkBridgeSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/sdk_bridge.rs',
-  import.meta.url,
-);
-const codeengineDialectSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/codeengine_dialect.rs',
-  import.meta.url,
-);
-const serverHostSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs',
-  import.meta.url,
-);
-const serverNativeSessionsSourcePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/native_sessions.rs',
-  import.meta.url,
-);
+
+const providerSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.provider);
+const turnsSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.turns);
+const libSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.lib);
+const sdkBridgeSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.sdkBridge);
+const codeengineDialectSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.codeengineDialect);
+const serverHostSource = readCanonicalServerRustSource(LEGACY_ARCHIVE_RUST_PATHS.monolithLib);
+const serverNativeSessionsSource = readCanonicalServerRustSource(LEGACY_ARCHIVE_RUST_PATHS.nativeSessions);
+
 const productionAdapterSourcePaths = [
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts', import.meta.url),
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts', import.meta.url),
@@ -83,14 +70,6 @@ assert.equal(
   'Gemini SDK bridge sessions are locally persisted and must be visible in unfiltered native-session inventory refreshes.',
 );
 
-const providerSource = readFileSync(providerSourcePath, 'utf8');
-const turnsSource = readFileSync(turnsSourcePath, 'utf8');
-const libSource = readFileSync(libSourcePath, 'utf8');
-const sdkBridgeSource = readFileSync(sdkBridgeSourcePath, 'utf8');
-const codeengineDialectSource = readFileSync(codeengineDialectSourcePath, 'utf8');
-const serverHostSource = readFileSync(serverHostSourcePath, 'utf8');
-const serverNativeSessionsSource = readFileSync(serverNativeSessionsSourcePath, 'utf8');
-
 const rustProviderModulesByEngineId = new Map([
   ['codex', 'codex_provider'],
   ['claude-code', 'claude_code_provider'],
@@ -113,7 +92,7 @@ for (const engineId of authorityBackedStandardEngineIds) {
   assert.equal(
     existsSync(`${codeengineHostSourceDirectory}${providerModuleName}.rs`),
     true,
-    `Rust host must implement ${engineId} in src-host/src/${providerModuleName}.rs.`,
+    `Rust codeengine crate must implement ${engineId} in crates/sdkwork-birdcoder-codeengine/src/${providerModuleName}.rs.`,
   );
   const providerModuleSource = readFileSync(
     `${codeengineHostSourceDirectory}${providerModuleName}.rs`,

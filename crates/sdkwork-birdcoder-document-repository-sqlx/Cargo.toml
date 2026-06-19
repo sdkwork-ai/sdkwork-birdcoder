@@ -6,5 +6,6 @@ license.workspace = true
 authors.workspace = true
 
 [dependencies]
-rusqlite = { version = "0.32", features = ["bundled"] }
+async-trait = { workspace = true }
+sqlx = { workspace = true }
 sdkwork-birdcoder-document-service = { workspace = true }

@@ -21,8 +21,8 @@ impl fmt::Display for RepositoryError {
 
 impl std::error::Error for RepositoryError {}
 
-impl From<rusqlite::Error> for RepositoryError {
-    fn from(err: rusqlite::Error) -> Self {
+impl From<sqlx::Error> for RepositoryError {
+    fn from(err: sqlx::Error) -> Self {
         Self::Database(err.to_string())
     }
 }

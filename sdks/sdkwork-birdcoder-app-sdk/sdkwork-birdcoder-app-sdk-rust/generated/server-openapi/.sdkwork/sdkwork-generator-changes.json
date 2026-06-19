@@ -9,21 +9,16 @@
     "protocol": "http",
     "packageName": "sdkwork-birdcoder-app-sdk"
   },
-  "changeFingerprint": "4ed1b3e2170a070b7996b9fd6c879c226bd8404c077edf70e430acea0627ba5c",
+  "changeFingerprint": "14008a1881b49d284b28cc3f2fa0ad75df6b02ac7ee99472c4b8aba24be30db2",
   "changes": {
-    "createdGeneratedFiles": [
-      "src/models/bird_coder_iam_device_authorization_create_request.rs",
-      "src/models/bird_coder_iam_device_authorization_envelope.rs",
-      "src/models/bird_coder_iam_device_authorization_password_completion_request.rs",
-      "src/models/bird_coder_iam_device_authorization_scan_request.rs",
-      "src/models/bird_coder_iam_device_authorization_summary.rs"
-    ],
+    "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [
       "README.md",
+      "src/api/iam.rs",
+      "src/api/intelligence.rs",
       "src/api/mod.rs",
-      "src/api/oauth.rs",
       "src/client.rs",
-      "src/models/mod.rs"
+      "src/models/bird_coder_iam_device_authorization_summary.rs"
     ],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
@@ -38,8 +33,7 @@
       "src/api/collaboration.rs",
       "src/api/commerce.rs",
       "src/api/content.rs",
-      "src/api/iam.rs",
-      "src/api/intelligence.rs",
+      "src/api/oauth.rs",
       "src/api/paths.rs",
       "src/api/platform.rs",
       "src/api/runtime.rs",
@@ -102,16 +96,11 @@
       "src/models/bird_coder_create_project_git_worktree_request.rs",
       "src/models/bird_coder_create_project_request.rs",
       "src/models/bird_coder_create_workspace_request.rs",
-      "src/models/bird_coder_delete_coding_session_message_result_envelope.rs",
-      "src/models/bird_coder_delete_coding_session_message_result.rs",
       "src/models/bird_coder_deleted_resource_envelope.rs",
       "src/models/bird_coder_deleted_resource_result.rs",
       "src/models/bird_coder_deployment_record_summary_list_envelope.rs",
       "src/models/bird_coder_deployment_record_summary.rs",
       "src/models/bird_coder_deployment_target_summary.rs",
-      "src/models/bird_coder_edit_coding_session_message_request.rs",
-      "src/models/bird_coder_edit_coding_session_message_result_envelope.rs",
-      "src/models/bird_coder_edit_coding_session_message_result.rs",
       "src/models/bird_coder_engine_access_lane.rs",
       "src/models/bird_coder_engine_access_plan.rs",
       "src/models/bird_coder_engine_capability_matrix_envelope.rs",
@@ -125,6 +114,10 @@
       "src/models/bird_coder_git_status_counts.rs",
       "src/models/bird_coder_git_worktree_summary.rs",
       "src/models/bird_coder_iam_create_session_request.rs",
+      "src/models/bird_coder_iam_device_authorization_create_request.rs",
+      "src/models/bird_coder_iam_device_authorization_envelope.rs",
+      "src/models/bird_coder_iam_device_authorization_password_completion_request.rs",
+      "src/models/bird_coder_iam_device_authorization_scan_request.rs",
       "src/models/bird_coder_iam_oauth_authorization_create_request.rs",
       "src/models/bird_coder_iam_oauth_authorization_envelope.rs",
       "src/models/bird_coder_iam_oauth_authorization_summary.rs",
@@ -203,16 +196,10 @@
       "src/models/bird_coder_workspace_summary_envelope.rs",
       "src/models/bird_coder_workspace_summary_list_envelope.rs",
       "src/models/bird_coder_workspace_summary.rs",
-      "src/models/common.rs"
+      "src/models/common.rs",
+      "src/models/mod.rs"
     ],
-    "deletedGeneratedFiles": [
-      "src/api/open_platform.rs",
-      "src/models/bird_coder_iam_qr_auth_session_create_request.rs",
-      "src/models/bird_coder_iam_qr_auth_session_envelope.rs",
-      "src/models/bird_coder_iam_qr_auth_session_password_request.rs",
-      "src/models/bird_coder_iam_qr_auth_session_scan_request.rs",
-      "src/models/bird_coder_iam_qr_auth_session_summary.rs"
-    ],
+    "deletedGeneratedFiles": [],
     "scaffoldedFiles": [],
     "preservedScaffoldFiles": [
       "custom/README.md"
@@ -231,25 +218,15 @@
       {
         "area": "api-surface",
         "paths": [
-          "src/api/mod.rs",
-          "src/api/oauth.rs",
-          "src/api/open_platform.rs"
+          "src/api/iam.rs",
+          "src/api/intelligence.rs",
+          "src/api/mod.rs"
         ]
       },
       {
         "area": "models",
         "paths": [
-          "src/models/bird_coder_iam_device_authorization_create_request.rs",
-          "src/models/bird_coder_iam_device_authorization_envelope.rs",
-          "src/models/bird_coder_iam_device_authorization_password_completion_request.rs",
-          "src/models/bird_coder_iam_device_authorization_scan_request.rs",
-          "src/models/bird_coder_iam_device_authorization_summary.rs",
-          "src/models/bird_coder_iam_qr_auth_session_create_request.rs",
-          "src/models/bird_coder_iam_qr_auth_session_envelope.rs",
-          "src/models/bird_coder_iam_qr_auth_session_password_request.rs",
-          "src/models/bird_coder_iam_qr_auth_session_scan_request.rs",
-          "src/models/bird_coder_iam_qr_auth_session_summary.rs",
-          "src/models/mod.rs"
+          "src/models/bird_coder_iam_device_authorization_summary.rs"
         ]
       },
       {
@@ -319,7 +296,6 @@
     "applyRequiresExpectedFingerprint": false,
     "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "deleted-generated-files",
       "manual-review-required",
       "unknown-impact",
       "verification-required"

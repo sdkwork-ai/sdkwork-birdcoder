@@ -13,6 +13,7 @@ import {
   listWorkbenchCodeEngineDescriptors,
   listWorkbenchModelCatalogEntries,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
+import { readCanonicalServerRustSource, CANONICAL_CODEENGINE_RUST_PATHS } from './birdcoder-canonical-server-rust-sources.mjs';
 import { normalizeBirdCoderCodeEngineNativeSessionId } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/catalog.ts';
 import { listBirdCoderCodeEngineManifests } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/manifest.ts';
 import {
@@ -334,10 +335,7 @@ const manifestSource = await readFile(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/manifest.ts', import.meta.url),
   'utf8',
 );
-const codeengineHostSource = await readFile(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/lib.rs', import.meta.url),
-  'utf8',
-);
+const codeengineHostSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.lib);
 assert.equal(
   manifestSource.includes('defaultModel?.modelId ?? input.id'),
   false,

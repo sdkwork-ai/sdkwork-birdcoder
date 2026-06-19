@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { LEGACY_ARCHIVE_RUST_PATHS } from './birdcoder-canonical-server-rust-sources.mjs';
+
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
 const appbaseRoot = path.resolve(workspaceRoot, '..', 'sdkwork-appbase');
 
@@ -13,11 +15,15 @@ function readText(rootDir, relativePath) {
 
 const birdCoderIamAuthoritySource = readText(
   workspaceRoot,
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/iam_authority.rs',
+  LEGACY_ARCHIVE_RUST_PATHS.iamAuthority,
 );
 const birdCoderServerCargoSource = readText(
   workspaceRoot,
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/Cargo.toml',
+  'crates/sdkwork-birdcoder-api-server/Cargo.toml',
+);
+const apiServerIamBootstrapSource = readText(
+  workspaceRoot,
+  'crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs',
 );
 const appbaseIamContextSource = readText(
   appbaseRoot,
@@ -28,19 +34,28 @@ const appbaseIamDirectoryRepositorySource = readText(
   'crates/sdkwork-iam-directory-repository-sqlx/src/lib.rs',
 );
 
-for (const requiredDependencyName of [
-  'sdkwork_iam_context_service',
-  'sdkwork_router_iam_app_api',
-  'sdkwork_router_iam_backend_api',
-  'sdkwork_iam_directory_repository_sqlx',
-  'sdkwork_appbase_tauri_host',
+for (const [requiredDependencyName, pattern] of [
+  [
+    'sdkwork_router_iam_app_api',
+    /^sdkwork_router_iam_app_api = \{ workspace = true \}/mu,
+  ],
+  [
+    'sdkwork_iam_web_adapter',
+    /^sdkwork_iam_web_adapter(?:\.workspace = true| = \{ workspace = true \})/mu,
+  ],
 ]) {
   assert.match(
     birdCoderServerCargoSource,
-    new RegExp(`^${requiredDependencyName} = \\{ workspace = true \\}`, 'mu'),
-    `BirdCoder server host must depend on the standard ${requiredDependencyName} crate.`,
+    pattern,
+    `BirdCoder api-server must depend on the standard ${requiredDependencyName} crate.`,
   );
 }
+
+assert.match(
+  apiServerIamBootstrapSource,
+  /sdkwork_router_iam_app_api::build_sdkwork_appbase_app_api_router/u,
+  'BirdCoder api-server IAM bootstrap must wire the standard appbase IAM app router.',
+);
 
 for (const requiredIamCorePattern of [
   /pub struct IamAppContext/u,

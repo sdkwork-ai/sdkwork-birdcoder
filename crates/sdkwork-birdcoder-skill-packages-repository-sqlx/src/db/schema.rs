@@ -69,7 +69,3 @@ ON ai_skill_capability(skill_version_id);
 CREATE INDEX IF NOT EXISTS idx_ai_skill_installation_version_id
 ON ai_skill_installation(skill_version_id);
 "#;
-
-pub fn initialize_schema(conn: &rusqlite::Connection) -> rusqlite::Result<()> {
-    conn.execute_batch(ALL_TABLES_DDL)
-}

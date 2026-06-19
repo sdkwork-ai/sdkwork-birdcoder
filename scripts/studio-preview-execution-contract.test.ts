@@ -170,7 +170,7 @@ const previewRuntimeSource = readFileSync(
 );
 assert.match(
   previewRuntimeSource,
-  /\.\.\/\.\.\/\.\.\/sdkwork-birdcoder-host-studio\/src\/index\.ts/,
+  /from '@sdkwork\/birdcoder-pc-host-studio'/u,
 );
 
 const studioPageSource = readFileSync(

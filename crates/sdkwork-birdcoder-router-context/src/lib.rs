@@ -6,8 +6,10 @@ use sdkwork_birdcoder_deployment_service::context::DeploymentContext;
 use sdkwork_birdcoder_project_service::context::ProjectContext;
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_iam_context_service::IamAppContext;
+use sdkwork_iam_web_adapter::iam_app_context_from_web_request;
 
-/// Authenticated IAM context extracted from request extensions (set by api-server middleware).
+pub use sdkwork_web_core::WebRequestContext;
+/// Authenticated IAM context resolved from `WebRequestContext` (preferred) or request extensions.
 #[derive(Clone, Debug)]
 pub struct RequiredIamContext(pub IamAppContext);
 
@@ -18,6 +20,12 @@ where
     type Rejection = (StatusCode, &'static str);
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        if let Some(web) = parts.extensions.get::<WebRequestContext>() {
+            if let Some(iam) = iam_app_context_from_web_request(web) {
+                return Ok(RequiredIamContext(iam));
+            }
+        }
+
         parts
             .extensions
             .get::<IamAppContext>()

@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import {
+  readCanonicalServerRustSource,
+  CANONICAL_CODEENGINE_RUST_PATHS,
+  CANONICAL_CODEENGINE_ARTIFACT_PATHS,
+} from './birdcoder-canonical-server-rust-sources.mjs';
+
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
 
 function readText(relativePath) {
@@ -10,11 +16,9 @@ function readText(relativePath) {
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
-const rustCatalogSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/src/catalog.rs');
+const rustCatalogSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.catalog);
 const tsManifestSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/manifest.ts');
-const generatedCatalogSource = readText(
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/generated/engine-catalog.json',
-);
+const generatedCatalogSource = readText(CANONICAL_CODEENGINE_ARTIFACT_PATHS.engineCatalogJson);
 
 assert.match(
   rustCatalogSource,

@@ -5,6 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { applyWebFrameworkOpenApiExtensions } from './web-framework-openapi-extensions.mjs';
+
 const HTTP_METHODS = new Set(['delete', 'get', 'patch', 'post', 'put']);
 const rootDir = process.cwd();
 const assemblyPath = path.join(rootDir, 'sdks', '.sdkwork-assembly.json');
@@ -14,6 +16,30 @@ const ACCESS_TOKEN_SCHEME = 'AccessToken';
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function mirrorAppSdkOpenApiIfNeeded(relativePath, content) {
+  const mirrorByRootPath = new Map(
+    [
+      ['sdks/specs/openapi/birdcoder-app-v3.openapi.json', 'apps/sdkwork-birdcoder-pc/sdks/specs/openapi/birdcoder-app-v3.openapi.json'],
+      ['sdks/specs/openapi/birdcoder-backend-v3.openapi.json', 'apps/sdkwork-birdcoder-pc/sdks/specs/openapi/birdcoder-backend-v3.openapi.json'],
+      [
+        'sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
+        'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json',
+      ],
+      [
+        'sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json',
+        'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json',
+      ],
+    ].map(([rootPath, mirrorPath]) => [normalizeRelativePath(rootPath), normalizeRelativePath(mirrorPath)]),
+  );
+  const mirrorRelativePath = mirrorByRootPath.get(normalizeRelativePath(relativePath));
+  if (!mirrorRelativePath) {
+    return;
+  }
+  const mirrorPath = path.join(rootDir, ...mirrorRelativePath.split('/'));
+  fs.mkdirSync(path.dirname(mirrorPath), { recursive: true });
+  fs.writeFileSync(mirrorPath, content, 'utf8');
 }
 
 function normalizeRelativePath(value) {
@@ -37,6 +63,7 @@ function writeJsonFile(filePath, value, { check, mismatches }) {
 
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, nextContent, 'utf8');
+  mirrorAppSdkOpenApiIfNeeded(path.relative(rootDir, filePath).replace(/\\/gu, '/'), nextContent);
 }
 
 function normalizeSecurityRequirement(requirement) {
@@ -297,6 +324,10 @@ export function syncBirdcoderSdkOpenApi({ check = false } = {}) {
 
   for (const surface of assembly.surfaces ?? []) {
     const surfaceDocument = createSurfaceOpenApi(canonicalDocument, surface);
+    applyWebFrameworkOpenApiExtensions(
+      surfaceDocument,
+      surface.surface === 'app' ? 'app-api' : 'backend-api',
+    );
     for (const outputSpecPath of resolveSurfaceOpenApiOutputPaths(surface)) {
       const outputPath = path.join(rootDir, ...outputSpecPath.split('/'));
       writeJsonFile(outputPath, surfaceDocument, { check, mismatches });

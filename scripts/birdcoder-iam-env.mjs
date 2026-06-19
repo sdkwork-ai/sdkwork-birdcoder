@@ -57,6 +57,8 @@ const SDKWORK_IAM_LOCAL_OAUTH_ENV_PREFIX = 'SDKWORK_IAM_LOCAL_OAUTH_';
 const SDKWORK_IAM_APP_API_ENV_PREFIX = 'SDKWORK_IAM_APP_API_';
 const BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV =
   'BIRDCODER_CODING_SERVER_SQLITE_FILE';
+const SDKWORK_BIRDCODER_DATABASE_URL_ENV = 'SDKWORK_BIRDCODER_DATABASE_URL';
+const SDKWORK_BIRDCODER_DATABASE_ENGINE_ENV = 'SDKWORK_BIRDCODER_DATABASE_ENGINE';
 const BIRDCODER_API_BASE_URL_ENV = 'BIRDCODER_API_BASE_URL';
 const VITE_BIRDCODER_API_BASE_URL_ENV = 'VITE_BIRDCODER_API_BASE_URL';
 const BIRDCODER_ENABLE_RELEASE_DEMO_LOGIN_ENV =
@@ -169,6 +171,11 @@ function setEnvDefault(env, key, value) {
   }
 
   setEnvValue(env, key, value);
+}
+
+function sqliteDatabaseUrl(filePath) {
+  const normalized = String(filePath).replace(/\\/g, '/');
+  return `sqlite://${normalized}?mode=rwc`;
 }
 
 function readEnvValue(env, ...keys) {
@@ -892,6 +899,12 @@ export function resolveBirdcoderIamCommandEnv({
   });
   if (sqliteFilePath) {
     setEnvDefault(nextEnv, BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV, sqliteFilePath);
+    setEnvDefault(
+      nextEnv,
+      SDKWORK_BIRDCODER_DATABASE_URL_ENV,
+      sqliteDatabaseUrl(sqliteFilePath),
+    );
+    setEnvDefault(nextEnv, SDKWORK_BIRDCODER_DATABASE_ENGINE_ENV, 'sqlite');
   }
 
   applyAuthSurfaceDefaults({

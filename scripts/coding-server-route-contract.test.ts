@@ -17,9 +17,9 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/app/v3/api/system/routes',
-    routeCount: 129,
+    routeCount: 127,
     routesBySurface: {
-      app: 80,
+      app: 78,
       backend: 49,
     },
     surfaces: [
@@ -28,7 +28,7 @@ assert.deepEqual(descriptor, {
         basePath: '/app/v3/api',
         description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
         name: 'app',
-        routeCount: 80,
+        routeCount: 78,
       },
       {
         authMode: 'admin',
@@ -52,19 +52,23 @@ assert.equal(appRuntimeContract.engineCapabilities.path, '/app/v3/api/engines/:e
 assert.equal(appRuntimeContract.nativeSessionProviders.path, '/app/v3/api/native_session_providers');
 assert.equal(appRuntimeContract.nativeSessions.path, '/app/v3/api/native_sessions');
 assert.equal(appRuntimeContract.nativeSession.path, '/app/v3/api/native_sessions/:id');
-assert.equal(appRuntimeContract.sessions.path, '/app/v3/api/coding_sessions');
-assert.equal(appRuntimeContract.codingSession.path, '/app/v3/api/coding_sessions/:id');
-assert.equal(appRuntimeContract.updateCodingSession.path, '/app/v3/api/coding_sessions/:id');
-assert.equal(appRuntimeContract.deleteCodingSession.path, '/app/v3/api/coding_sessions/:id');
-assert.equal(appRuntimeContract.editCodingSessionMessage.path, '/app/v3/api/coding_sessions/:id/messages/:messageId');
-assert.equal(appRuntimeContract.deleteCodingSessionMessage.path, '/app/v3/api/coding_sessions/:id/messages/:messageId');
-assert.equal(appRuntimeContract.forkCodingSession.path, '/app/v3/api/coding_sessions/:id/fork');
-assert.equal(appRuntimeContract.sessionTurns.path, '/app/v3/api/coding_sessions/:id/turns');
-assert.equal(appRuntimeContract.events.path, '/app/v3/api/coding_sessions/:id/events');
-assert.equal(appRuntimeContract.sessionArtifacts.path, '/app/v3/api/coding_sessions/:id/artifacts');
-assert.equal(appRuntimeContract.sessionCheckpoints.path, '/app/v3/api/coding_sessions/:id/checkpoints');
-assert.equal(appRuntimeContract.approvals.path, '/app/v3/api/approvals/:approvalId/decision');
-assert.equal(appRuntimeContract.questions.path, '/app/v3/api/questions/:questionId/answer');
+assert.equal(appRuntimeContract.sessions.path, '/app/v3/api/intelligence/coding_sessions');
+assert.equal(appRuntimeContract.codingSession.path, '/app/v3/api/intelligence/coding_sessions/:sessionId');
+assert.equal(appRuntimeContract.updateCodingSession.path, '/app/v3/api/intelligence/coding_sessions/:sessionId');
+assert.equal(appRuntimeContract.deleteCodingSession.path, '/app/v3/api/intelligence/coding_sessions/:sessionId');
+assert.equal(appRuntimeContract.forkCodingSession.path, '/app/v3/api/intelligence/coding_sessions/:sessionId/fork');
+assert.equal(appRuntimeContract.sessionTurns.path, '/app/v3/api/intelligence/coding_sessions/:sessionId/turns');
+assert.equal(appRuntimeContract.events.path, '/app/v3/api/intelligence/coding_sessions/:sessionId/events');
+assert.equal(appRuntimeContract.sessionArtifacts.path, '/app/v3/api/intelligence/coding_sessions/:sessionId/artifacts');
+assert.equal(appRuntimeContract.sessionCheckpoints.path, '/app/v3/api/intelligence/coding_sessions/:sessionId/checkpoints');
+assert.equal(
+  appRuntimeContract.approvals.path,
+  '/app/v3/api/intelligence/coding_sessions/:sessionId/checkpoints/:checkpointId/approval',
+);
+assert.equal(
+  appRuntimeContract.questions.path,
+  '/app/v3/api/intelligence/coding_sessions/:sessionId/questions/:questionId/answer',
+);
 assert.equal(appRuntimeContract.operations.path, '/app/v3/api/operations/:operationId');
 assert.equal(appRuntimeContract.models.path, '/app/v3/api/models');
 assert.equal(appRuntimeContract.modelConfig.path, '/app/v3/api/model_config');
@@ -213,7 +217,7 @@ assert.equal(admin.releases.path, '/backend/v3/api/releases');
 assert.equal(admin.deployments.path, '/backend/v3/api/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 129, 'coding-server should expose the full app/backend route matrix');
+assert.equal(routes.length, 127, 'coding-server should expose the full app/backend route matrix');
 assert.equal(
   routes.every((route) => route.path.startsWith('/app/v3/api') || route.path.startsWith('/backend/v3/api')),
   true,
@@ -324,9 +328,9 @@ assert.deepEqual(
   {
     authMode: 'user',
     method: 'PATCH',
-    openApiPath: '/app/v3/api/coding_sessions/{id}',
+    openApiPath: '/app/v3/api/intelligence/coding_sessions/{sessionId}',
     operationId: 'codingSessions.update',
-    path: '/app/v3/api/coding_sessions/:id',
+    path: '/app/v3/api/intelligence/coding_sessions/:sessionId',
     surface: 'app',
     summary: 'Update coding session',
   },
@@ -336,35 +340,11 @@ assert.deepEqual(
   {
     authMode: 'user',
     method: 'DELETE',
-    openApiPath: '/app/v3/api/coding_sessions/{id}',
+    openApiPath: '/app/v3/api/intelligence/coding_sessions/{sessionId}',
     operationId: 'codingSessions.delete',
-    path: '/app/v3/api/coding_sessions/:id',
+    path: '/app/v3/api/intelligence/coding_sessions/:sessionId',
     surface: 'app',
     summary: 'Delete coding session',
-  },
-);
-assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'codingSessions.messages.update'),
-  {
-    authMode: 'user',
-    method: 'PATCH',
-    openApiPath: '/app/v3/api/coding_sessions/{id}/messages/{messageId}',
-    operationId: 'codingSessions.messages.update',
-    path: '/app/v3/api/coding_sessions/:id/messages/:messageId',
-    surface: 'app',
-    summary: 'Edit coding session message',
-  },
-);
-assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'codingSessions.messages.delete'),
-  {
-    authMode: 'user',
-    method: 'DELETE',
-    openApiPath: '/app/v3/api/coding_sessions/{id}/messages/{messageId}',
-    operationId: 'codingSessions.messages.delete',
-    path: '/app/v3/api/coding_sessions/:id/messages/:messageId',
-    surface: 'app',
-    summary: 'Delete coding session message',
   },
 );
 assert.deepEqual(
@@ -372,21 +352,22 @@ assert.deepEqual(
   {
     authMode: 'user',
     method: 'POST',
-    openApiPath: '/app/v3/api/coding_sessions/{id}/fork',
+    openApiPath: '/app/v3/api/intelligence/coding_sessions/{sessionId}/fork',
     operationId: 'codingSessions.forks.create',
-    path: '/app/v3/api/coding_sessions/:id/fork',
+    path: '/app/v3/api/intelligence/coding_sessions/:sessionId/fork',
     surface: 'app',
     summary: 'Fork coding session',
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'questions.answers.create'),
+  routeCatalog.find((route) => route.operationId === 'codingSessions.questions.answers.create'),
   {
     authMode: 'user',
     method: 'POST',
-    openApiPath: '/app/v3/api/questions/{questionId}/answer',
-    operationId: 'questions.answers.create',
-    path: '/app/v3/api/questions/:questionId/answer',
+    openApiPath:
+      '/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer',
+    operationId: 'codingSessions.questions.answers.create',
+    path: '/app/v3/api/intelligence/coding_sessions/:sessionId/questions/:questionId/answer',
     surface: 'app',
     summary: 'Submit user-question answer',
   },

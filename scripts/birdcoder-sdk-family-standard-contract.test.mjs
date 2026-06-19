@@ -93,7 +93,6 @@ const expectedSurfaces = [
     typescriptOutputPath: 'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript',
     rustOutputPath: 'sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-rust',
     forbiddenPathFragments: [
-      '/app/v3/api/intelligence/',
       '/app/v3/api/platform/',
     ],
   },
@@ -923,7 +922,7 @@ function assertReadmesAndGeneratedOutputs() {
     /client\.auth\.sessions\.create/u,
     'SDK root README backend examples must not advertise app auth session creation.',
   );
-  assert.doesNotMatch(rootReadme, /\/app\/v3\/api\/(?:platform|intelligence)\//u);
+  assert.doesNotMatch(rootReadme, /\/app\/v3\/api\/platform\//u);
   assert.doesNotMatch(rootReadme, /\/backend\/v3\/api\/platform\//u);
   assert.doesNotMatch(rootReadme, /\bidentity\b/iu);
   assert.match(
@@ -1050,9 +1049,9 @@ function assertReadmesAndGeneratedOutputs() {
       /export interface BirdcoderSdkTransportRequest|function requestOperation/u,
       'generated SDK root index must stay a package barrel instead of a monolithic SDK implementation.',
     );
-    assert.doesNotMatch(tsSource, /\/app\/v3\/api\/(?:platform|intelligence)\//u);
+    assert.doesNotMatch(tsSource, /\/app\/v3\/api\/platform\//u);
     assert.doesNotMatch(tsSource, /\/backend\/v3\/api\/platform\//u);
-    assert.doesNotMatch(tsSdkSource, /\/app\/v3\/api\/(?:platform|intelligence)\//u);
+    assert.doesNotMatch(tsSdkSource, /\/app\/v3\/api\/platform\//u);
     assert.doesNotMatch(tsSdkSource, /\/backend\/v3\/api\/platform\//u);
     assert.doesNotMatch(tsHttpSource, /\bfetch\s*\(/u, 'generated SDK source must not hard-code fetch.');
     assert.doesNotMatch(tsHttpSource, /\baxios\b/u, 'generated SDK source must not depend on axios.');
@@ -1201,7 +1200,7 @@ function assertReadmesAndGeneratedOutputs() {
     assert.match(rustSource, /pub permission: Option<&'static str>,/u);
     assert.match(rustSource, /pub tenant_scope: &'static str,/u);
     assert.match(rustSource, /pub deployment: &'static str,/u);
-    assert.doesNotMatch(rustSource, /\/app\/v3\/api\/(?:platform|intelligence)\//u);
+    assert.doesNotMatch(rustSource, /\/app\/v3\/api\/platform\//u);
     assert.doesNotMatch(rustSource, /\/backend\/v3\/api\/platform\//u);
 
     if (expected.surface === 'app') {

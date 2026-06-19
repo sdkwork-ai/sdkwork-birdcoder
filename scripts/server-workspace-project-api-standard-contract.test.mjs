@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const rustPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs',
-  import.meta.url,
-);
+import {
+  readCanonicalServerRustSource,
+  CANONICAL_DOMAIN_RUST_PATHS,
+} from './birdcoder-canonical-server-rust-sources.mjs';
+
+const workspaceRustSource = readCanonicalServerRustSource(CANONICAL_DOMAIN_RUST_PATHS.workspaceDomainResults);
+const projectRustSource = readCanonicalServerRustSource(CANONICAL_DOMAIN_RUST_PATHS.projectDomainResults);
 const openApiPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url);
 
-const rustSource = await readFile(rustPath, 'utf8');
 const openApiSource = await readFile(openApiPath, 'utf8');
 
 function escapeRegExp(value) {
@@ -103,8 +105,21 @@ assertFields(
 );
 
 const workspaceStructFields = [
+  'id',
+  'uuid',
+  'tenant_id',
+  'organization_id',
+  'data_scope',
+  'code',
+  'title',
+  'name',
+  'description',
   'icon',
   'color',
+  'owner_id',
+  'leader_id',
+  'created_by_user_id',
+  'entity_type',
   'start_time',
   'end_time',
   'max_members',
@@ -115,97 +130,59 @@ const workspaceStructFields = [
   'settings',
   'is_public',
   'is_template',
+  'status',
+  'viewer_role',
 ];
 
 const projectStructFields = [
-  'site_path',
-  'domain_prefix',
-  'file_id',
-  'conversation_id',
-  'start_time',
-  'end_time',
-  'budget_amount',
+  'id',
+  'uuid',
+  'tenant_id',
+  'organization_id',
+  'data_scope',
+  'parent_id',
+  'parent_uuid',
+  'parent_metadata',
+  'user_id',
+  'name',
+  'title',
   'cover_image',
-  'is_template',
-];
-
-assertFields(rustSource, 'struct WorkspacePayload {', workspaceStructFields, 'WorkspacePayload');
-assertFields(
-  rustSource,
-  'struct CreateWorkspaceRequest {',
-  workspaceStructFields,
-  'CreateWorkspaceRequest',
-);
-assertFields(
-  rustSource,
-  'struct UpdateWorkspaceRequest {',
-  workspaceStructFields,
-  'UpdateWorkspaceRequest',
-);
-assertFields(rustSource, 'struct ProjectPayload {', projectStructFields, 'ProjectPayload');
-assertFields(
-  rustSource,
-  'struct CreateProjectRequest {',
-  projectStructFields,
-  'CreateProjectRequest',
-);
-assertFields(
-  rustSource,
-  'struct UpdateProjectRequest {',
-  projectStructFields,
-  'UpdateProjectRequest',
-);
-
-const workspaceExtraFieldsSnake = [
-  'icon',
-  'color',
-  'start_time',
-  'end_time',
-  'max_members',
-  'current_members',
-  'member_count',
-  'max_storage',
-  'used_storage',
-  'settings_json',
-  'is_public',
-  'is_template',
-];
-
-const projectExtraFieldsSnake = [
+  'author',
+  'file_id',
+  'code',
+  'entity_type',
   'site_path',
   'domain_prefix',
-  'file_id',
+  'description',
+  'status',
   'conversation_id',
+  'workspace_id',
+  'workspace_uuid',
+  'leader_id',
   'start_time',
   'end_time',
   'budget_amount',
-  'cover_image_json',
   'is_template',
 ];
 
+assertFields(workspaceRustSource, 'pub struct WorkspacePayload {', workspaceStructFields, 'WorkspacePayload');
 assertFields(
-  rustSource,
-  'INSERT INTO workspaces (',
-  workspaceExtraFieldsSnake,
-  'workspace insert/update SQL lane',
+  workspaceRustSource,
+  'pub struct WorkspaceMemberPayload {',
+  ['workspace_id', 'user_id', 'team_id', 'role', 'status', 'created_by_user_id'],
+  'WorkspaceMemberPayload',
 );
 assertFields(
-  rustSource,
-  'UPDATE workspaces',
-  workspaceExtraFieldsSnake,
-  'workspace update SQL lane',
+  projectRustSource,
+  'pub struct ProjectPayload {',
+  projectStructFields,
+  'ProjectPayload',
 );
 assertFields(
-  rustSource,
-  'INSERT INTO projects (',
-  projectExtraFieldsSnake,
-  'project insert/update SQL lane',
-);
-assertFields(
-  rustSource,
-  'UPDATE projects',
-  projectExtraFieldsSnake,
-  'project update SQL lane',
+  projectRustSource,
+  'pub struct ProjectCollaboratorPayload {',
+  ['project_id', 'workspace_id', 'user_id', 'role', 'status', 'created_by_user_id'],
+  'ProjectCollaboratorPayload',
 );
 
-console.log('server workspace/project api standard contract passed.');
+console.log('server workspace/project API standard contract passed.');

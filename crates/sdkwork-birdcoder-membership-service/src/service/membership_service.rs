@@ -6,14 +6,15 @@ use crate::error::MembershipError;
 
 // ── Repository trait ─────────────────────────────────────────────────
 
+#[async_trait::async_trait]
 pub trait MembershipRepository: Send + Sync {
-    fn find_current_membership(
+    async fn find_current_membership(
         &self,
         tenant_id: Option<&str>,
         owner_user_id: &str,
     ) -> Result<Option<CommerceMembershipCurrentPayload>, String>;
 
-    fn list_package_groups(&self) -> Result<Vec<CommerceMembershipPackageGroupPayload>, String>;
+    async fn list_package_groups(&self) -> Result<Vec<CommerceMembershipPackageGroupPayload>, String>;
 }
 
 // ── Service ──────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ impl<R: MembershipRepository> MembershipService<R> {
         Self { repository }
     }
 
-    pub fn get_current_membership(
+    pub async fn get_current_membership(
         &self,
         tenant_id: Option<String>,
         organization_id: Option<String>,
@@ -42,10 +43,8 @@ impl<R: MembershipRepository> MembershipService<R> {
 
         if let Some(existing) = self
             .repository
-            .find_current_membership(
-                tenant_id.as_deref(),
-                owner_user_id,
-            )
+            .find_current_membership(tenant_id.as_deref(), owner_user_id)
+            .await
             .map_err(MembershipError::Repository)?
         {
             return Ok(existing);
@@ -58,11 +57,12 @@ impl<R: MembershipRepository> MembershipService<R> {
         ))
     }
 
-    pub fn list_package_groups(
+    pub async fn list_package_groups(
         &self,
     ) -> Result<Vec<CommerceMembershipPackageGroupPayload>, MembershipError> {
         self.repository
             .list_package_groups()
+            .await
             .map_err(MembershipError::Repository)
     }
 }

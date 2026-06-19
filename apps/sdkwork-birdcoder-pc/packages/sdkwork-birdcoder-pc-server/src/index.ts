@@ -544,7 +544,11 @@ function getOpenApiTagForOperationId(operationId: string): string {
   if (/^memberships\./u.test(normalizedOperationId)) {
     return 'commerce';
   }
-  if (/^(?:codingSessions|approvals|questions)\./u.test(normalizedOperationId)) {
+  if (
+    /^(?:codingSessions)\b/u.test(
+      normalizedOperationId,
+    )
+  ) {
     return 'intelligence';
   }
   if (/^documents\./u.test(normalizedOperationId)) {
@@ -3392,20 +3396,16 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
     createOpenApiIntegerSchema(0),
   );
   const codingSessionIdPathParameter = createOpenApiPathParameter(
-    'id',
+    'sessionId',
     'BirdCoder coding session identifier.',
   );
-  const messageIdPathParameter = createOpenApiPathParameter(
-    'messageId',
-    'BirdCoder coding session message identifier.',
+  const checkpointIdPathParameter = createOpenApiPathParameter(
+    'checkpointId',
+    'Approval checkpoint identifier.',
   );
   const engineKeyPathParameter = createOpenApiPathParameter(
     'engineKey',
     'BirdCoder engine key.',
-  );
-  const approvalIdPathParameter = createOpenApiPathParameter(
-    'approvalId',
-    'Approval checkpoint identifier.',
   );
   const operationIdPathParameter = createOpenApiPathParameter(
     'operationId',
@@ -3572,38 +3572,6 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
-    'codingSessions.messages.update': {
-      parameters: [codingSessionIdPathParameter, messageIdPathParameter],
-      requestBody: createOpenApiRequestBody(
-        createOpenApiSchemaReference('BirdCoderEditCodingSessionMessageRequest'),
-      ),
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'Coding session message edited successfully.',
-        successSchema: createOpenApiSchemaReference(
-          'BirdCoderEditCodingSessionMessageResultEnvelope',
-        ),
-        extraResponses: {
-          '400': createProblemResponse('Coding session message edit request is invalid.'),
-          '404': createProblemResponse('Coding session message was not found.'),
-          '500': createProblemResponse('Coding session message could not be edited.'),
-        },
-      }),
-    },
-    'codingSessions.messages.delete': {
-      parameters: [codingSessionIdPathParameter, messageIdPathParameter],
-      responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'Coding session message deleted successfully.',
-        successSchema: createOpenApiSchemaReference(
-          'BirdCoderDeleteCodingSessionMessageResultEnvelope',
-        ),
-        extraResponses: {
-          '404': createProblemResponse('Coding session message was not found.'),
-          '500': createProblemResponse('Coding session message could not be deleted.'),
-        },
-      }),
-    },
     'codingSessions.forks.create': {
       parameters: [codingSessionIdPathParameter],
       requestBody: createOpenApiRequestBody(
@@ -3759,8 +3727,8 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
-    'approvals.decisions.create': {
-      parameters: [approvalIdPathParameter],
+    'codingSessions.checkpoints.approval.create': {
+      parameters: [codingSessionIdPathParameter, checkpointIdPathParameter],
       requestBody: createOpenApiRequestBody(
         createOpenApiSchemaReference('BirdCoderSubmitApprovalDecisionRequest'),
       ),
@@ -3774,8 +3742,9 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
-    'questions.answers.create': {
+    'codingSessions.questions.answers.create': {
       parameters: [
+        codingSessionIdPathParameter,
         createOpenApiPathParameter(
           'questionId',
           'User-question request identifier.',
@@ -5152,7 +5121,11 @@ function getOpenApiScopeMetadata(
     };
   }
 
-  if (/^(?:codingSessions|approvals|questions|operations|nativeSessions)/u.test(operationId)) {
+  if (
+    /^(?:codingSessions|operations|nativeSessions)/u.test(
+      operationId,
+    )
+  ) {
     return {
       dataScope: 'user',
       tenantScope: 'tenant',
@@ -5214,20 +5187,24 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['PUT /app/v3/api/model_config', 'modelConfig.sync'],
     ['GET /app/v3/api/system/runtime', 'runtime.retrieve'],
     ['GET /app/v3/api/system/health', 'health.retrieve'],
-    ['GET /app/v3/api/coding_sessions', 'codingSessions.list'],
-    ['POST /app/v3/api/coding_sessions', 'codingSessions.create'],
-    ['GET /app/v3/api/coding_sessions/:id', 'codingSessions.retrieve'],
-    ['PATCH /app/v3/api/coding_sessions/:id', 'codingSessions.update'],
-    ['DELETE /app/v3/api/coding_sessions/:id', 'codingSessions.delete'],
-    ['PATCH /app/v3/api/coding_sessions/:id/messages/:messageId', 'codingSessions.messages.update'],
-    ['DELETE /app/v3/api/coding_sessions/:id/messages/:messageId', 'codingSessions.messages.delete'],
-    ['POST /app/v3/api/coding_sessions/:id/fork', 'codingSessions.forks.create'],
-    ['POST /app/v3/api/coding_sessions/:id/turns', 'codingSessions.turns.create'],
-    ['GET /app/v3/api/coding_sessions/:id/events', 'codingSessions.events.list'],
-    ['GET /app/v3/api/coding_sessions/:id/artifacts', 'codingSessions.artifacts.list'],
-    ['GET /app/v3/api/coding_sessions/:id/checkpoints', 'codingSessions.checkpoints.list'],
-    ['POST /app/v3/api/approvals/:approvalId/decision', 'approvals.decisions.create'],
-    ['POST /app/v3/api/questions/:questionId/answer', 'questions.answers.create'],
+    ['GET /app/v3/api/intelligence/coding_sessions', 'codingSessions.list'],
+    ['POST /app/v3/api/intelligence/coding_sessions', 'codingSessions.create'],
+    ['GET /app/v3/api/intelligence/coding_sessions/:sessionId', 'codingSessions.retrieve'],
+    ['PATCH /app/v3/api/intelligence/coding_sessions/:sessionId', 'codingSessions.update'],
+    ['DELETE /app/v3/api/intelligence/coding_sessions/:sessionId', 'codingSessions.delete'],
+    ['POST /app/v3/api/intelligence/coding_sessions/:sessionId/fork', 'codingSessions.forks.create'],
+    ['POST /app/v3/api/intelligence/coding_sessions/:sessionId/turns', 'codingSessions.turns.create'],
+    ['GET /app/v3/api/intelligence/coding_sessions/:sessionId/events', 'codingSessions.events.list'],
+    ['GET /app/v3/api/intelligence/coding_sessions/:sessionId/artifacts', 'codingSessions.artifacts.list'],
+    ['GET /app/v3/api/intelligence/coding_sessions/:sessionId/checkpoints', 'codingSessions.checkpoints.list'],
+    [
+      'POST /app/v3/api/intelligence/coding_sessions/:sessionId/checkpoints/:checkpointId/approval',
+      'codingSessions.checkpoints.approval.create',
+    ],
+    [
+      'POST /app/v3/api/intelligence/coding_sessions/:sessionId/questions/:questionId/answer',
+      'codingSessions.questions.answers.create',
+    ],
     ['GET /app/v3/api/operations/:operationId', 'operations.retrieve'],
     ['GET /app/v3/api/memberships/current', 'memberships.current.retrieve'],
     ['GET /app/v3/api/memberships/package_groups', 'memberships.packageGroups.list'],
@@ -5519,12 +5496,12 @@ function resolveOperationStatus(
 const APP_RUNTIME_API_CONTRACT: BirdCoderAppRuntimeApiContract = {
   codingSession: createRoute('app', 'user',
     'GET',
-    '/app/v3/api/coding_sessions/:id',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId',
     'Get coding session',
   ),
   codingSessions: createRoute('app', 'user',
     'GET',
-    '/app/v3/api/coding_sessions',
+    '/app/v3/api/intelligence/coding_sessions',
     'List coding sessions',
   ),
   descriptor: createRoute('app', 'user', 'GET', '/app/v3/api/system/descriptor', 'Get coding-server descriptor'),
@@ -5536,7 +5513,7 @@ const APP_RUNTIME_API_CONTRACT: BirdCoderAppRuntimeApiContract = {
   engines: createRoute('app', 'user', 'GET', '/app/v3/api/engines', 'List available engines'),
   forkCodingSession: createRoute('app', 'user',
     'POST',
-    '/app/v3/api/coding_sessions/:id/fork',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId/fork',
     'Fork coding session',
   ),
   nativeSession: createRoute('app', 'user',
@@ -5556,7 +5533,7 @@ const APP_RUNTIME_API_CONTRACT: BirdCoderAppRuntimeApiContract = {
   ),
   events: createRoute('app', 'user',
     'GET',
-    '/app/v3/api/coding_sessions/:id/events',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId/events',
     'Replay or subscribe to coding session events',
   ),
   health: createRoute('app', 'user', 'GET', '/app/v3/api/system/health', 'Get coding-server health'),
@@ -5573,49 +5550,39 @@ const APP_RUNTIME_API_CONTRACT: BirdCoderAppRuntimeApiContract = {
   ),
   approvals: createRoute('app', 'user',
     'POST',
-    '/app/v3/api/approvals/:approvalId/decision',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId/checkpoints/:checkpointId/approval',
     'Submit approval decision',
   ),
   questions: createRoute('app', 'user',
     'POST',
-    '/app/v3/api/questions/:questionId/answer',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId/questions/:questionId/answer',
     'Submit user-question answer',
   ),
   routes: createRoute('app', 'user', 'GET', BIRDCODER_CODING_SERVER_ROUTE_CATALOG_PATH, 'List unified API routes'),
   runtime: createRoute('app', 'user', 'GET', '/app/v3/api/system/runtime', 'Get runtime metadata'),
   sessions: createRoute('app', 'user',
     'POST',
-    '/app/v3/api/coding_sessions',
+    '/app/v3/api/intelligence/coding_sessions',
     'Create coding session',
   ),
   sessionArtifacts: createRoute('app', 'user',
     'GET',
-    '/app/v3/api/coding_sessions/:id/artifacts',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId/artifacts',
     'List coding session artifacts',
   ),
   sessionCheckpoints: createRoute('app', 'user',
     'GET',
-    '/app/v3/api/coding_sessions/:id/checkpoints',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId/checkpoints',
     'List coding session checkpoints',
   ),
   deleteCodingSession: createRoute('app', 'user',
     'DELETE',
-    '/app/v3/api/coding_sessions/:id',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId',
     'Delete coding session',
-  ),
-  deleteCodingSessionMessage: createRoute('app', 'user',
-    'DELETE',
-    '/app/v3/api/coding_sessions/:id/messages/:messageId',
-    'Delete coding session message',
-  ),
-  editCodingSessionMessage: createRoute('app', 'user',
-    'PATCH',
-    '/app/v3/api/coding_sessions/:id/messages/:messageId',
-    'Edit coding session message',
   ),
   sessionTurns: createRoute('app', 'user',
     'POST',
-    '/app/v3/api/coding_sessions/:id/turns',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId/turns',
     'Create coding session turn',
   ),
   syncModelConfig: createRoute('app', 'user',
@@ -5625,7 +5592,7 @@ const APP_RUNTIME_API_CONTRACT: BirdCoderAppRuntimeApiContract = {
   ),
   updateCodingSession: createRoute('app', 'user',
     'PATCH',
-    '/app/v3/api/coding_sessions/:id',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId',
     'Update coding session',
   ),
 };
@@ -6260,7 +6227,7 @@ export async function executeBirdCoderCoreSessionRun(
     operationId: `${request.turnId}:operation`,
     status: resolveOperationStatus(events),
     artifactRefs: artifacts.map((artifact) => artifact.id),
-    streamUrl: `/app/v3/api/coding_sessions/${request.sessionId}/events`,
+    streamUrl: `/app/v3/api/intelligence/coding_sessions/${request.sessionId}/events`,
     streamKind: 'sse',
   };
 

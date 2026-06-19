@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderApprovalDecisionResultEnvelope, BirdCoderCodingSessionArtifactListEnvelope, BirdCoderCodingSessionCheckpointListEnvelope, BirdCoderCodingSessionEventListEnvelope, BirdCoderCodingSessionSummaryEnvelope, BirdCoderCodingSessionSummaryListEnvelope, BirdCoderCodingSessionTurnEnvelope, BirdCoderCreateCodingSessionRequest, BirdCoderCreateCodingSessionTurnRequest, BirdCoderDeleteCodingSessionMessageResultEnvelope, BirdCoderDeletedResourceEnvelope, BirdCoderEditCodingSessionMessageRequest, BirdCoderEditCodingSessionMessageResultEnvelope, BirdCoderForkCodingSessionRequest, BirdCoderSubmitApprovalDecisionRequest, BirdCoderSubmitUserQuestionAnswerRequest, BirdCoderUpdateCodingSessionRequest, BirdCoderUserQuestionAnswerResultEnvelope};
+use crate::models::{BirdCoderApprovalDecisionResultEnvelope, BirdCoderCodingSessionArtifactListEnvelope, BirdCoderCodingSessionCheckpointListEnvelope, BirdCoderCodingSessionEventListEnvelope, BirdCoderCodingSessionSummaryEnvelope, BirdCoderCodingSessionSummaryListEnvelope, BirdCoderCodingSessionTurnEnvelope, BirdCoderCreateCodingSessionRequest, BirdCoderCreateCodingSessionTurnRequest, BirdCoderDeletedResourceEnvelope, BirdCoderForkCodingSessionRequest, BirdCoderSubmitApprovalDecisionRequest, BirdCoderSubmitUserQuestionAnswerRequest, BirdCoderUpdateCodingSessionRequest, BirdCoderUserQuestionAnswerResultEnvelope};
 
 #[derive(Clone)]
 pub struct IntelligenceApi {
@@ -16,20 +16,20 @@ impl IntelligenceApi {
     }
 
     /// Get coding session
-    pub async fn coding_sessions_retrieve(&self, id: &str) -> Result<BirdCoderCodingSessionSummaryEnvelope, SdkworkError> {
-        let path = app_path(&format!("/coding_sessions/{}", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false))));
+    pub async fn coding_sessions_retrieve(&self, session_id: &str) -> Result<BirdCoderCodingSessionSummaryEnvelope, SdkworkError> {
+        let path = app_path(&format!("/intelligence/coding_sessions/{}", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Delete coding session
-    pub async fn coding_sessions_delete(&self, id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
-        let path = app_path(&format!("/coding_sessions/{}", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false))));
+    pub async fn coding_sessions_delete(&self, session_id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
+        let path = app_path(&format!("/intelligence/coding_sessions/{}", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
 
     /// Update coding session
-    pub async fn coding_sessions_update(&self, id: &str, body: &BirdCoderUpdateCodingSessionRequest) -> Result<BirdCoderCodingSessionSummaryEnvelope, SdkworkError> {
-        let path = app_path(&format!("/coding_sessions/{}", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false))));
+    pub async fn coding_sessions_update(&self, session_id: &str, body: &BirdCoderUpdateCodingSessionRequest) -> Result<BirdCoderCodingSessionSummaryEnvelope, SdkworkError> {
+        let path = app_path(&format!("/intelligence/coding_sessions/{}", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
 
@@ -42,67 +42,55 @@ impl IntelligenceApi {
             QueryParameterSpec::new("limit", limit, "form", true, false, None),
             QueryParameterSpec::new("offset", offset, "form", true, false, None),
         ]);
-        let path = append_query_string(app_path(&"/coding_sessions".to_string()), &query);
+        let path = append_query_string(app_path(&"/intelligence/coding_sessions".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// Create coding session
     pub async fn coding_sessions_create(&self, body: &BirdCoderCreateCodingSessionRequest) -> Result<BirdCoderCodingSessionSummaryEnvelope, SdkworkError> {
-        let path = app_path(&"/coding_sessions".to_string());
+        let path = app_path(&"/intelligence/coding_sessions".to_string());
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Fork coding session
-    pub async fn coding_sessions_forks_create(&self, id: &str, body: &BirdCoderForkCodingSessionRequest) -> Result<BirdCoderCodingSessionSummaryEnvelope, SdkworkError> {
-        let path = app_path(&format!("/coding_sessions/{}/fork", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false))));
+    pub async fn coding_sessions_forks_create(&self, session_id: &str, body: &BirdCoderForkCodingSessionRequest) -> Result<BirdCoderCodingSessionSummaryEnvelope, SdkworkError> {
+        let path = app_path(&format!("/intelligence/coding_sessions/{}/fork", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Replay or subscribe to coding session events
-    pub async fn coding_sessions_events_list(&self, id: &str) -> Result<BirdCoderCodingSessionEventListEnvelope, SdkworkError> {
-        let path = app_path(&format!("/coding_sessions/{}/events", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false))));
+    pub async fn coding_sessions_events_list(&self, session_id: &str) -> Result<BirdCoderCodingSessionEventListEnvelope, SdkworkError> {
+        let path = app_path(&format!("/intelligence/coding_sessions/{}/events", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// Submit approval decision
-    pub async fn approvals_decisions_create(&self, approval_id: &str, body: &BirdCoderSubmitApprovalDecisionRequest) -> Result<BirdCoderApprovalDecisionResultEnvelope, SdkworkError> {
-        let path = app_path(&format!("/approvals/{}/decision", serialize_path_parameter(approval_id, PathParameterSpec::new("approvalId", "simple", false))));
+    pub async fn coding_sessions_checkpoints_approval_create(&self, session_id: &str, checkpoint_id: &str, body: &BirdCoderSubmitApprovalDecisionRequest) -> Result<BirdCoderApprovalDecisionResultEnvelope, SdkworkError> {
+        let path = app_path(&format!("/intelligence/coding_sessions/{}/checkpoints/{}/approval", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false)), serialize_path_parameter(checkpoint_id, PathParameterSpec::new("checkpointId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// Submit user-question answer
-    pub async fn questions_answers_create(&self, question_id: &str, body: &BirdCoderSubmitUserQuestionAnswerRequest) -> Result<BirdCoderUserQuestionAnswerResultEnvelope, SdkworkError> {
-        let path = app_path(&format!("/questions/{}/answer", serialize_path_parameter(question_id, PathParameterSpec::new("questionId", "simple", false))));
+    pub async fn coding_sessions_questions_answers_create(&self, session_id: &str, question_id: &str, body: &BirdCoderSubmitUserQuestionAnswerRequest) -> Result<BirdCoderUserQuestionAnswerResultEnvelope, SdkworkError> {
+        let path = app_path(&format!("/intelligence/coding_sessions/{}/questions/{}/answer", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false)), serialize_path_parameter(question_id, PathParameterSpec::new("questionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List coding session artifacts
-    pub async fn coding_sessions_artifacts_list(&self, id: &str) -> Result<BirdCoderCodingSessionArtifactListEnvelope, SdkworkError> {
-        let path = app_path(&format!("/coding_sessions/{}/artifacts", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false))));
+    pub async fn coding_sessions_artifacts_list(&self, session_id: &str) -> Result<BirdCoderCodingSessionArtifactListEnvelope, SdkworkError> {
+        let path = app_path(&format!("/intelligence/coding_sessions/{}/artifacts", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
     /// List coding session checkpoints
-    pub async fn coding_sessions_checkpoints_list(&self, id: &str) -> Result<BirdCoderCodingSessionCheckpointListEnvelope, SdkworkError> {
-        let path = app_path(&format!("/coding_sessions/{}/checkpoints", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false))));
+    pub async fn coding_sessions_checkpoints_list(&self, session_id: &str) -> Result<BirdCoderCodingSessionCheckpointListEnvelope, SdkworkError> {
+        let path = app_path(&format!("/intelligence/coding_sessions/{}/checkpoints", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
         self.client.get(&path, None, None).await
     }
 
-    /// Delete coding session message
-    pub async fn coding_sessions_messages_delete(&self, id: &str, message_id: &str) -> Result<BirdCoderDeleteCodingSessionMessageResultEnvelope, SdkworkError> {
-        let path = app_path(&format!("/coding_sessions/{}/messages/{}", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false)), serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
-        self.client.delete(&path, None, None).await
-    }
-
-    /// Edit coding session message
-    pub async fn coding_sessions_messages_update(&self, id: &str, message_id: &str, body: &BirdCoderEditCodingSessionMessageRequest) -> Result<BirdCoderEditCodingSessionMessageResultEnvelope, SdkworkError> {
-        let path = app_path(&format!("/coding_sessions/{}/messages/{}", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false)), serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
-        self.client.patch(&path, Some(body), None, None, Some("application/json")).await
-    }
-
     /// Create coding session turn
-    pub async fn coding_sessions_turns_create(&self, id: &str, body: &BirdCoderCreateCodingSessionTurnRequest) -> Result<BirdCoderCodingSessionTurnEnvelope, SdkworkError> {
-        let path = app_path(&format!("/coding_sessions/{}/turns", serialize_path_parameter(id, PathParameterSpec::new("id", "simple", false))));
+    pub async fn coding_sessions_turns_create(&self, session_id: &str, body: &BirdCoderCreateCodingSessionTurnRequest) -> Result<BirdCoderCodingSessionTurnEnvelope, SdkworkError> {
+        let path = app_path(&format!("/intelligence/coding_sessions/{}/turns", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 

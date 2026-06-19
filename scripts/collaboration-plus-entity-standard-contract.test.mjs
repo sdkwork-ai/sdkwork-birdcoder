@@ -1,19 +1,33 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
+import {
+  CANONICAL_DOMAIN_RUST_PATHS,
+  readCanonicalServerRustSource,
+  readCanonicalSqliteSchemaBundle,
+} from './birdcoder-canonical-server-rust-sources.mjs';
+
 const serverTypesPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
   import.meta.url,
 );
 const openApiPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url);
+
+const canonicalSqliteSchemaSource = readCanonicalSqliteSchemaBundle();
+const workspaceDomainResultsSource = readCanonicalServerRustSource(
+  CANONICAL_DOMAIN_RUST_PATHS.workspaceDomainResults,
+);
+const projectDomainResultsSource = readCanonicalServerRustSource(
+  CANONICAL_DOMAIN_RUST_PATHS.projectDomainResults,
+);
 const rustSources = [
   {
     label: 'desktop',
-    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
+    source: canonicalSqliteSchemaSource,
   },
   {
     label: 'server',
-    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
+    source: `${workspaceDomainResultsSource}\n${projectDomainResultsSource}\n${canonicalSqliteSchemaSource}`,
   },
 ];
 
@@ -153,8 +167,7 @@ const rustMemberFieldsSnake = [
   'status',
 ];
 
-for (const { label, path } of rustSources) {
-  const rustSource = await readFile(path, 'utf8');
+for (const { label, source: rustSource } of rustSources) {
 
   if (label === 'server') {
     assertFields(rustSource, 'struct TeamPayload {', rustTeamFieldsSnake, 'TeamPayload');

@@ -25,16 +25,28 @@
     "grantMode": "current",
     "platform": "WEB",
     "appId": null,
-    "tenantId": "20001",
     "organizationId": null
   },
   "runtime": {
     "family": "mobile",
     "framework": "react-capacitor",
-    "runtimes": ["WEB", "CAPACITOR_IOS", "CAPACITOR_ANDROID"],
-    "deliveryModes": ["WEB_URL", "APP_STORE", "PLAY_STORE"],
+    "runtimes": [
+      "WEB",
+      "CAPACITOR_IOS",
+      "CAPACITOR_ANDROID"
+    ],
+    "deliveryModes": [
+      "WEB_URL",
+      "APP_STORE",
+      "PLAY_STORE"
+    ],
     "defaultPlatform": "WEB",
-    "defaultArchitecture": "universal"
+    "defaultArchitecture": "universal",
+    "supportedDeploymentProfiles": [
+      "cloud",
+      "standalone"
+    ],
+    "defaultDeploymentProfile": "cloud"
   },
   "media": {
     "icons": {
@@ -73,9 +85,17 @@
     "installSkill": {
       "name": "sdkwork-skills-app"
     },
-    "platforms": ["WEB", "CAPACITOR_IOS", "CAPACITOR_ANDROID"],
-    "installPlatforms": ["WEB", "CAPACITOR_IOS", "CAPACITOR_ANDROID"],
-    "defaultPackageId": "h5-web-production",
+    "platforms": [
+      "WEB",
+      "CAPACITOR_IOS",
+      "CAPACITOR_ANDROID"
+    ],
+    "installPlatforms": [
+      "WEB",
+      "CAPACITOR_IOS",
+      "CAPACITOR_ANDROID"
+    ],
+    "defaultPackageId": "h5-universal-cloud-mobile-zip",
     "storeUrl": "https://sdkwork.com/apps/sdkwork-birdcoder-h5",
     "stores": [],
     "config": {
@@ -108,13 +128,13 @@
   },
   "artifacts": {
     "installConfig": {
-      "defaultPackageId": "h5-web-production",
+      "defaultPackageId": "h5-universal-cloud-mobile-zip",
       "installCommand": "sdkwork install sdkwork-birdcoder-h5",
       "launchCommand": "sdkwork open sdkwork-birdcoder-h5",
       "uninstallCommand": "sdkwork uninstall sdkwork-birdcoder-h5",
       "packages": [
         {
-          "id": "h5-web-production",
+          "id": "h5-universal-cloud-mobile-zip",
           "name": "SDKWork Birdcoder H5 Web Bundle",
           "sourceType": "WEB_URL",
           "packageFormat": "ZIP",
@@ -123,10 +143,13 @@
           "enabled": true,
           "metadata": {},
           "checksumAlgorithm": "SHA-256",
-          "checksum": "0000000000000000000000000000000000000000000000000000000000000000"
+          "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "browser"
         },
         {
-          "id": "capacitor-ios",
+          "id": "ios-universal-standalone-mobile-ipa",
           "name": "SDKWork Birdcoder H5 iOS Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "IPA",
@@ -136,10 +159,12 @@
           "metadata": {},
           "architecture": "universal",
           "checksumAlgorithm": "SHA-256",
-          "checksum": "0000000000000000000000000000000000000000000000000000000000000000"
+          "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "capacitor-ios"
         },
         {
-          "id": "capacitor-android",
+          "id": "android-arm64-standalone-mobile-aab",
           "name": "SDKWork Birdcoder H5 Android Bundle",
           "sourceType": "BINARY_URL",
           "packageFormat": "AAB",
@@ -147,9 +172,11 @@
           "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-h5/STABLE/0.1.0/android/app.aab",
           "enabled": true,
           "metadata": {},
-          "architecture": "universal",
+          "architecture": "arm64",
           "checksumAlgorithm": "SHA-256",
-          "checksum": "0000000000000000000000000000000000000000000000000000000000000000"
+          "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "capacitor-android"
         }
       ],
       "metadata": {
@@ -178,9 +205,9 @@
           "SDKWork App Standard v3 configuration"
         ],
         "packageIds": [
-          "h5-web-production",
-          "capacitor-ios",
-          "capacitor-android"
+          "h5-universal-cloud-mobile-zip",
+          "ios-universal-standalone-mobile-ipa",
+          "android-arm64-standalone-mobile-aab"
         ],
         "publishedAt": "2026-06-13T00:00:00Z",
         "current": true,

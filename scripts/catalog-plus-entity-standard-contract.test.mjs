@@ -1,22 +1,34 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
+import {
+  readCanonicalServerRustSource,
+  readCanonicalSqliteSchemaBundle,
+} from './birdcoder-canonical-server-rust-sources.mjs';
+
 const serverTypesPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
   import.meta.url,
 );
 const openApiPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url);
+
+const canonicalSqliteSchemaSource = readCanonicalSqliteSchemaBundle();
+const skillPackagesModelsSource = readCanonicalServerRustSource(
+  'crates/sdkwork-birdcoder-skill-packages-service/src/domain/models.rs',
+);
+const appTemplatesModelsSource = readCanonicalServerRustSource(
+  'crates/sdkwork-birdcoder-app-templates-service/src/domain/models.rs',
+);
 const rustSources = [
   {
     label: 'desktop',
-    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
+    source: canonicalSqliteSchemaSource,
   },
   {
     label: 'server',
-    path: new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
+    source: `${skillPackagesModelsSource}\n${appTemplatesModelsSource}\n${canonicalSqliteSchemaSource}`,
   },
 ];
-
 const serverTypesSource = await readFile(serverTypesPath, 'utf8');
 const openApiSource = await readFile(openApiPath, 'utf8');
 
@@ -154,8 +166,7 @@ for (const expectation of openApiExpectations) {
   assertFields(openApiSource, expectation.anchor, expectation.fields, expectation.label);
 }
 
-for (const { label, path } of rustSources) {
-  const rustSource = await readFile(path, 'utf8');
+for (const { label, source: rustSource } of rustSources) {
 
   if (label === 'server') {
     assertFields(

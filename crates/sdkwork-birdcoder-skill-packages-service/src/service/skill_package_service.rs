@@ -2,27 +2,26 @@ use crate::domain::commands::InstallSkillPackageInput;
 use crate::domain::models::{SkillInstallationPayload, SkillPackagePayload};
 use crate::error::SkillPackageError;
 
-// ── Repository trait ─────────────────────────────────────────────────
-
+#[async_trait::async_trait]
 pub trait SkillPackageRepository: Send + Sync {
-    fn list_packages(
+    async fn list_packages(
         &self,
         workspace_id: Option<&str>,
     ) -> Result<Vec<SkillPackagePayload>, String>;
 
-    fn find_latest_version(
+    async fn find_latest_version(
         &self,
         package_id: &str,
     ) -> Result<Option<(String, String)>, String>;
 
-    fn find_existing_installation(
+    async fn find_existing_installation(
         &self,
         scope_type: &str,
         scope_id: &str,
         package_id: &str,
     ) -> Result<Option<SkillInstallationPayload>, String>;
 
-    fn create_installation(
+    async fn create_installation(
         &self,
         package_id: &str,
         version_id: &str,
@@ -30,10 +29,8 @@ pub trait SkillPackageRepository: Send + Sync {
         scope_id: &str,
     ) -> Result<SkillInstallationPayload, String>;
 
-    fn scope_exists(&self, scope_type: &str, scope_id: &str) -> Result<bool, String>;
+    async fn scope_exists(&self, scope_type: &str, scope_id: &str) -> Result<bool, String>;
 }
-
-// ── Service ──────────────────────────────────────────────────────────
 
 #[derive(Clone)]
 pub struct SkillPackageService<R: SkillPackageRepository> {
@@ -45,16 +42,17 @@ impl<R: SkillPackageRepository> SkillPackageService<R> {
         Self { repository }
     }
 
-    pub fn list_packages(
+    pub async fn list_packages(
         &self,
         workspace_id: Option<&str>,
     ) -> Result<Vec<SkillPackagePayload>, SkillPackageError> {
         self.repository
             .list_packages(workspace_id)
+            .await
             .map_err(SkillPackageError::Repository)
     }
 
-    pub fn install_package(
+    pub async fn install_package(
         &self,
         package_id: &str,
         input: &InstallSkillPackageInput,
@@ -78,6 +76,7 @@ impl<R: SkillPackageRepository> SkillPackageService<R> {
         let scope_exists = self
             .repository
             .scope_exists(&normalized_scope_type, &normalized_scope_id)
+            .await
             .map_err(SkillPackageError::Repository)?;
         if !scope_exists {
             return Err(SkillPackageError::NotFound(format!(
@@ -94,6 +93,7 @@ impl<R: SkillPackageRepository> SkillPackageService<R> {
         let (version_id, resolved_package_id) = self
             .repository
             .find_latest_version(&normalized_package_id)
+            .await
             .map_err(SkillPackageError::Repository)?
             .ok_or_else(|| {
                 SkillPackageError::NotFound(format!(
@@ -108,6 +108,7 @@ impl<R: SkillPackageRepository> SkillPackageService<R> {
                 &normalized_scope_id,
                 &resolved_package_id,
             )
+            .await
             .map_err(SkillPackageError::Repository)?
         {
             return Ok(existing);
@@ -120,6 +121,7 @@ impl<R: SkillPackageRepository> SkillPackageService<R> {
                 &normalized_scope_type,
                 &normalized_scope_id,
             )
+            .await
             .map_err(|msg| {
                 if msg == "not implemented" {
                     SkillPackageError::NotImplemented(msg)

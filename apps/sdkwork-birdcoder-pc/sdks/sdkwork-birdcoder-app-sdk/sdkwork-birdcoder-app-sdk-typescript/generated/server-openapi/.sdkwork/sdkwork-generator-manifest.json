@@ -72,7 +72,7 @@
     },
     {
       "path": "src/api/iam.ts",
-      "sha256": "7b0c349936f3991864172d026afba46f9169356707513e94402f42ca5d7b4c4e"
+      "sha256": "35b85f3e7fb29e458c69fa3a9462f5d61ab31b7ef6ff321e1f9060192b928964"
     },
     {
       "path": "src/api/index.ts",
@@ -80,7 +80,7 @@
     },
     {
       "path": "src/api/intelligence.ts",
-      "sha256": "62227b3c33d50477f16ae2a81df1cba5e28b7e7180b948ad3802a572d6eb505e"
+      "sha256": "73c959df8b4eedf4f2b86f81ce5a997d470ced8aa4076dc0193510be8a4d9111"
     },
     {
       "path": "src/api/oauth.ts",
@@ -96,7 +96,7 @@
     },
     {
       "path": "src/api/runtime.ts",
-      "sha256": "3a79a4a9024c611087f2717ad2d931eaf0fe1ffdbf3732b64e1cee93cafc520a"
+      "sha256": "996929069c197775382d864d1660b5abbed2d9b9008ba20db5e939bc729e70b0"
     },
     {
       "path": "src/api/skills.ts",
@@ -343,14 +343,6 @@
       "sha256": "90987acc247fb2421bfc9b5c01a16ac0693f29b29a8b803d1989d5b55cedf649"
     },
     {
-      "path": "src/types/bird-coder-delete-coding-session-message-result-envelope.ts",
-      "sha256": "bcc4711f4e0274d961b680b806093ec422ed6f23f04d3dcf5d442396cbfbbf71"
-    },
-    {
-      "path": "src/types/bird-coder-delete-coding-session-message-result.ts",
-      "sha256": "1825782e6e075d1f608be6757f8ad76ae978965a6579bd187144e504f91ba53b"
-    },
-    {
       "path": "src/types/bird-coder-deleted-resource-envelope.ts",
       "sha256": "9463415eadad51697d1883e52c15d61efee5fbafd3a143bc885b1a598e11ac84"
     },
@@ -371,20 +363,8 @@
       "sha256": "080f451ccdf9fdeb38fecf315a120bb0901e3aaae0169b1d96599f707c3d91e3"
     },
     {
-      "path": "src/types/bird-coder-edit-coding-session-message-request.ts",
-      "sha256": "d7e100343e77bed78bef992ea0e789cd3b043a9079b14a9c6212c7b9078b9161"
-    },
-    {
-      "path": "src/types/bird-coder-edit-coding-session-message-result-envelope.ts",
-      "sha256": "f9d9a15f5ad37336978b26e4112a32599dee6cfa155d572bc2fff741a80d6ea1"
-    },
-    {
-      "path": "src/types/bird-coder-edit-coding-session-message-result.ts",
-      "sha256": "eda1da459b274913e7fb0a1c17f27e2698af5de69d6698e7dc86b122fde0d0dd"
-    },
-    {
       "path": "src/types/bird-coder-engine-access-lane.ts",
-      "sha256": "df31004f6e98e9cb158af4df050a745481b73f8468d6bf721b2fc00a1bed2d7c"
+      "sha256": "d54ce6799f8ec1a42447a210426413cfe5b96e3ecad24c2f7197da7e10f1d026"
     },
     {
       "path": "src/types/bird-coder-engine-access-plan.ts",
@@ -404,7 +384,7 @@
     },
     {
       "path": "src/types/bird-coder-engine-descriptor.ts",
-      "sha256": "4397d97b9ea3138e576b885d3f886edabb64d4c04e7316745594207b5c9f3462"
+      "sha256": "77251d49ffee4fab5913b9a4da0d27f1170b76bd2496252cd9a56e3a75944ebc"
     },
     {
       "path": "src/types/bird-coder-engine-official-entry.ts",
@@ -452,7 +432,7 @@
     },
     {
       "path": "src/types/bird-coder-iam-device-authorization-summary.ts",
-      "sha256": "421510fe41a6e8fa78b3023be808f471f1f95c75fbddb593ff502f598fef8388"
+      "sha256": "b84b44272c0de49805e06863bb237e5b49fa8c6d372447873f3c1c54842c914c"
     },
     {
       "path": "src/types/bird-coder-iam-oauth-authorization-create-request.ts",
@@ -556,7 +536,7 @@
     },
     {
       "path": "src/types/bird-coder-model-catalog-entry.ts",
-      "sha256": "41da01a1a175fb6e992abda2b6bde40354c0f811e928bbbab1cd5b8d29f05cda"
+      "sha256": "08f00ea73f983a1bf0472cd2fcdfecd1db3a56712fca596a1f1439476c7364d4"
     },
     {
       "path": "src/types/bird-coder-native-session-command.ts",
@@ -580,7 +560,7 @@
     },
     {
       "path": "src/types/bird-coder-native-session-provider-summary.ts",
-      "sha256": "57fb927e2109c3f079c207e4a2cca0e3e384d76317b512d251352453db97f006"
+      "sha256": "0dbab259d5c0678511d940214cf602a7867bb12b567b91f6efde4fa96e420d64"
     },
     {
       "path": "src/types/bird-coder-native-session-summary-list-envelope.ts",
@@ -772,7 +752,7 @@
     },
     {
       "path": "src/types/index.ts",
-      "sha256": "74a805675315012a154b90245c89806ccdcece86d5f319e838490676ae0eebcd"
+      "sha256": "45fcf16d4f6db7def2d42a178a468c1055612e5ed56bc34575e465e57b5a97c0"
     },
     {
       "path": "tsconfig.json",

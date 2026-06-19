@@ -58,8 +58,21 @@ function resolveDevelopmentSnapshotPath(releaseAssetsDir, openApiSnapshotPath) {
     return path.resolve(openApiSnapshotPath);
   }
 
+  const workspaceRoot = resolveDevelopmentWorkspaceRoot(releaseAssetsDir);
+  const deploymentSnapshotPath = path.join(
+    workspaceRoot,
+    'deployments',
+    'server-windows',
+    'x64',
+    'openapi',
+    'coding-server-v1.json',
+  );
+  if (fs.existsSync(deploymentSnapshotPath)) {
+    return deploymentSnapshotPath;
+  }
+
   return path.join(
-    resolveDevelopmentWorkspaceRoot(releaseAssetsDir),
+    workspaceRoot,
     'artifacts',
     'openapi',
     'coding-server-v1.json',

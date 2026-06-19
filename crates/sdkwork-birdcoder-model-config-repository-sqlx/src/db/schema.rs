@@ -12,7 +12,3 @@ CREATE TABLE IF NOT EXISTS runtime_model_config (
 CREATE UNIQUE INDEX IF NOT EXISTS uk_runtime_model_config_key
 ON runtime_model_config(config_key);
 "#;
-
-pub fn initialize_schema(conn: &rusqlite::Connection) -> rusqlite::Result<()> {
-    conn.execute_batch(ALL_TABLES_DDL)
-}

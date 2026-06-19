@@ -33,7 +33,7 @@ const excludedDirectoryNames = new Set([
 
 const excludedPathPatterns = [
   /^packages\/sdkwork-birdcoder-pc-server\//u,
-  /^packages\/sdkwork-birdcoder-pc-codeengine\/src-host\//u,
+  /^packages\/sdkwork-birdcoder-pc-codeengine\/src-host\/legacy-archive\//u,
   /^sdks\/sdkwork-birdcoder-(?:app|backend)-sdk\/sdkwork-birdcoder-(?:app|backend)-sdk-typescript\/src\/types\//u,
 ];
 

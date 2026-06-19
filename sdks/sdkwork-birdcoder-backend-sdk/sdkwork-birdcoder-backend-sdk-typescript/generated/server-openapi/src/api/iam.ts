@@ -311,12 +311,12 @@ export class IamOrganizationMembershipsApi {
   }
 
 
-/** Create SDKWork IAM organization member */
+/** Create SDKWork IAM organization membership */
   async create(body: BirdCoderCreateIamOrganizationMemberRequest): Promise<BirdCoderIamOrganizationMemberSummaryEnvelope> {
     return this.client.post<BirdCoderIamOrganizationMemberSummaryEnvelope>(backendApiPath(`/iam/organization_memberships`), body, undefined, undefined, 'application/json');
   }
 
-/** Update SDKWork IAM organization member */
+/** Update SDKWork IAM organization membership */
   async update(membershipId: string, body: BirdCoderUpdateIamOrganizationMemberRequest): Promise<BirdCoderIamOrganizationMemberSummaryEnvelope> {
     return this.client.patch<BirdCoderIamOrganizationMemberSummaryEnvelope>(backendApiPath(`/iam/organization_memberships/${serializePathParameter(membershipId, { name: 'membershipId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
   }

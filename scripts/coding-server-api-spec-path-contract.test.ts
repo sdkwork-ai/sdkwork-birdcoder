@@ -333,7 +333,7 @@ assertActiveDocsUseCanonicalApiAndSdkLanguage();
 assertNoRetiredAdminApiSurfaceNaming();
 assertNoRetiredOpenApiSeedBuilder();
 assertNoRetiredBillingVipServerTypes();
-assert.equal(descriptor.gateway.routesBySurface.app, 80);
+assert.equal(descriptor.gateway.routesBySurface.app, 78);
 assert.equal(descriptor.gateway.routesBySurface.backend, 49);
 assert.deepEqual(descriptor.surfaces, ['app', 'backend']);
 assert.equal(
@@ -425,7 +425,7 @@ assert.deepEqual(openApiDocument.tags.map((tag) => tag.name), [
   'system',
   'templates',
 ]);
-assert.equal(openApiDocument['x-sdkwork-api-gateway'].routesBySurface.app, 80);
+assert.equal(openApiDocument['x-sdkwork-api-gateway'].routesBySurface.app, 78);
 assert.equal(openApiDocument['x-sdkwork-api-gateway'].routesBySurface.backend, 49);
 assert.equal(
   'basePath' in openApiDocument['x-sdkwork-api-gateway'],
@@ -481,28 +481,28 @@ for (const [pathKey, methods] of Object.entries(openApiDocument.paths)) {
   }
 }
 
-const rustHostSource = readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/src/lib.rs', import.meta.url),
+const codingSessionsRouteSource = readFileSync(
+  new URL('../crates/sdkwork-router-coding-sessions-app-api/src/paths.rs', import.meta.url),
   'utf8',
 );
 for (const forbiddenPrefix of FORBIDDEN_PREFIXES) {
   assert.equal(
-    rustHostSource.includes(forbiddenPrefix),
+    codingSessionsRouteSource.includes(forbiddenPrefix),
     false,
-    `Rust host source must not retain forbidden API prefix ${forbiddenPrefix}.`,
+    `Coding sessions route crate must not retain forbidden API prefix ${forbiddenPrefix}.`,
   );
 }
 for (const forbiddenResourcePath of FORBIDDEN_RUNTIME_RESOURCE_PATHS) {
   assert.equal(
-    rustHostSource.includes(forbiddenResourcePath),
+    codingSessionsRouteSource.includes(forbiddenResourcePath),
     false,
-    `Rust host source must not expose database-table-style API resource path ${forbiddenResourcePath}.`,
+    `Coding sessions route crate must not expose database-table-style API resource path ${forbiddenResourcePath}.`,
   );
 }
 assert.equal(
-  rustHostSource.includes('/app/v3/api/coding_sessions'),
+  codingSessionsRouteSource.includes('/app/v3/api/intelligence/coding_sessions'),
   true,
-  'Rust host source must expose canonical coding session API paths from API_SPEC.',
+  'Coding sessions route crate must expose canonical intelligence coding session API paths from API_SPEC.',
 );
 
 console.log('coding server API_SPEC path contract passed.');

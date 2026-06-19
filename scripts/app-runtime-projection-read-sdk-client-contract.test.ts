@@ -48,7 +48,7 @@ const client = createBirdCoderAppSdkApiClient({
       });
 
       switch (request.path) {
-        case '/app/v3/api/coding_sessions/session-generated':
+        case '/app/v3/api/intelligence/coding_sessions/session-generated':
           return createEnvelope(
             {
               id: 'session-generated',
@@ -66,7 +66,7 @@ const client = createBirdCoderAppSdkApiClient({
             },
             'req.app.session',
           ) as TResponse;
-        case '/app/v3/api/coding_sessions/session-generated/events':
+        case '/app/v3/api/intelligence/coding_sessions/session-generated/events':
           return createListEnvelope(
             [
               {
@@ -81,7 +81,7 @@ const client = createBirdCoderAppSdkApiClient({
             ],
             'req.app.events',
           ) as TResponse;
-        case '/app/v3/api/coding_sessions/session-generated/artifacts':
+        case '/app/v3/api/intelligence/coding_sessions/session-generated/artifacts':
           return createListEnvelope(
             [
               {
@@ -95,7 +95,7 @@ const client = createBirdCoderAppSdkApiClient({
             ],
             'req.app.artifacts',
           ) as TResponse;
-        case '/app/v3/api/coding_sessions/session-generated/checkpoints':
+        case '/app/v3/api/intelligence/coding_sessions/session-generated/checkpoints':
           return createListEnvelope(
             [
               {
@@ -127,19 +127,19 @@ assert.equal(checkpoints[0]?.id, 'checkpoint-1');
 assert.deepEqual(observedRequests, [
   {
     method: 'GET',
-    path: '/app/v3/api/coding_sessions/session-generated',
+    path: '/app/v3/api/intelligence/coding_sessions/session-generated',
   },
   {
     method: 'GET',
-    path: '/app/v3/api/coding_sessions/session-generated/events',
+    path: '/app/v3/api/intelligence/coding_sessions/session-generated/events',
   },
   {
     method: 'GET',
-    path: '/app/v3/api/coding_sessions/session-generated/artifacts',
+    path: '/app/v3/api/intelligence/coding_sessions/session-generated/artifacts',
   },
   {
     method: 'GET',
-    path: '/app/v3/api/coding_sessions/session-generated/checkpoints',
+    path: '/app/v3/api/intelligence/coding_sessions/session-generated/checkpoints',
   },
 ]);
 

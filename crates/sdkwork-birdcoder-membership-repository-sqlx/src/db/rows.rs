@@ -1,4 +1,4 @@
-use rusqlite::Row;
+use sqlx::Row;
 
 #[derive(Clone, Debug)]
 pub struct MembershipRow {
@@ -25,28 +25,28 @@ pub struct MembershipRow {
 }
 
 impl MembershipRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            owner_user_id: row.get("owner_user_id")?,
-            plan_id: row.get("plan_id")?,
-            plan_name: row.get("plan_name")?,
-            status: row.get("status")?,
-            started_at: row.get("started_at")?,
-            expires_at: row.get("expires_at")?,
-            remaining_days: row.get("remaining_days")?,
-            total_days: row.get("total_days")?,
-            total_spent: row.get("total_spent")?,
-            points: row.get("points")?,
-            growth_value: row.get("growth_value")?,
-            upgrade_growth_value: row.get("upgrade_growth_value")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            owner_user_id: row.try_get("owner_user_id")?,
+            plan_id: row.try_get("plan_id")?,
+            plan_name: row.try_get("plan_name")?,
+            status: row.try_get("status")?,
+            started_at: row.try_get("started_at")?,
+            expires_at: row.try_get("expires_at")?,
+            remaining_days: row.try_get("remaining_days")?,
+            total_days: row.try_get("total_days")?,
+            total_spent: row.try_get("total_spent")?,
+            points: row.try_get("points")?,
+            growth_value: row.try_get("growth_value")?,
+            upgrade_growth_value: row.try_get("upgrade_growth_value")?,
         })
     }
 }
@@ -73,25 +73,25 @@ pub struct MembershipBenefitRow {
 }
 
 impl MembershipBenefitRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            membership_id: row.get("membership_id")?,
-            name: row.get("name")?,
-            benefit_key: row.get("benefit_key")?,
-            benefit_type: row.get("benefit_type")?,
-            description: row.get("description")?,
-            icon: row.get("icon")?,
-            claimed: row.get("claimed")?,
-            usage_limit: row.get("usage_limit")?,
-            used_count: row.get("used_count")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            membership_id: row.try_get("membership_id")?,
+            name: row.try_get("name")?,
+            benefit_key: row.try_get("benefit_key")?,
+            benefit_type: row.try_get("benefit_type")?,
+            description: row.try_get("description")?,
+            icon: row.try_get("icon")?,
+            claimed: row.try_get("claimed")?,
+            usage_limit: row.try_get("usage_limit")?,
+            used_count: row.try_get("used_count")?,
         })
     }
 }
@@ -112,19 +112,19 @@ pub struct PackageGroupRow {
 }
 
 impl PackageGroupRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            name: row.get("name")?,
-            description: row.get("description")?,
-            sort_weight: row.get("sort_weight")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            name: row.try_get("name")?,
+            description: row.try_get("description")?,
+            sort_weight: row.try_get("sort_weight")?,
         })
     }
 }
@@ -152,26 +152,26 @@ pub struct MembershipPackageRow {
 }
 
 impl MembershipPackageRow {
-    pub fn from_row(row: &Row<'_>) -> rusqlite::Result<Self> {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            id: row.get("id")?,
-            uuid: row.get("uuid")?,
-            tenant_id: row.get("tenant_id")?,
-            organization_id: row.get("organization_id")?,
-            created_at: row.get("created_at")?,
-            updated_at: row.get("updated_at")?,
-            version: row.get("version")?,
-            is_deleted: row.get("is_deleted")?,
-            group_id: row.get("group_id")?,
-            name: row.get("name")?,
-            description: row.get("description")?,
-            price: row.get("price")?,
-            original_price: row.get("original_price")?,
-            point_amount: row.get("point_amount")?,
-            duration_days: row.get("duration_days")?,
-            plan_name: row.get("plan_name")?,
-            sort_weight: row.get("sort_weight")?,
-            recommended: row.get("recommended")?,
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            tenant_id: row.try_get("tenant_id")?,
+            organization_id: row.try_get("organization_id")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            group_id: row.try_get("group_id")?,
+            name: row.try_get("name")?,
+            description: row.try_get("description")?,
+            price: row.try_get("price")?,
+            original_price: row.try_get("original_price")?,
+            point_amount: row.try_get("point_amount")?,
+            duration_days: row.try_get("duration_days")?,
+            plan_name: row.try_get("plan_name")?,
+            sort_weight: row.try_get("sort_weight")?,
+            recommended: row.try_get("recommended")?,
         })
     }
 }

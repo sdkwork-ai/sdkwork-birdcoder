@@ -4,6 +4,7 @@ pub mod config;
 pub mod database;
 pub mod iam;
 pub mod repositories;
+pub mod route_manifest;
 pub mod routers;
 pub mod services;
 pub mod state;
@@ -13,11 +14,11 @@ use axum::Router;
 use config::BirdServerConfig;
 
 pub async fn build_app(config: &BirdServerConfig) -> Result<Router, Box<dyn std::error::Error>> {
-    database::ensure_schema(config)?;
-    let repositories = repositories::wire_repositories(&config.sqlite_file);
+    let database_pool = database::bootstrap_database(config).await?;
+    let repositories = repositories::wire_repositories(database_pool.clone());
     let services = services::wire_services(&repositories, config);
     let adapters = adapters::wire_adapters(config);
-    let state = state::AppState::new(services, repositories, adapters);
+    let state = state::AppState::new(services, repositories, adapters, database_pool);
     let app = routers::build_router(state, config).await?;
 
     Ok(app)

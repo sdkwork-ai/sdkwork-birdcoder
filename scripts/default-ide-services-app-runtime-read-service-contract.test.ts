@@ -150,7 +150,7 @@ const operationFixture: BirdCoderOperationDescriptor = {
   status: 'running',
   artifactRefs: ['artifact-app-runtime-read-contract'],
   streamKind: 'sse',
-  streamUrl: '/app/v3/api/coding_sessions/session-app-runtime-read-contract/events',
+  streamUrl: '/app/v3/api/intelligence/coding_sessions/session-app-runtime-read-contract/events',
 };
 
 const sessionFixture: BirdCoderCodingSessionSummary = {

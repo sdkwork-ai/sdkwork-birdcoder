@@ -243,11 +243,20 @@ function resolvePlans(rootDir, options) {
   ];
 }
 
+const CANONICAL_FLAT_OPERATION_IDS = new Set([
+  'submitApprovalDecision',
+  'submitUserQuestionAnswer',
+]);
+
 function assertOperationId(operationId, context) {
-  if (!/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)+$/u.test(String(operationId ?? ''))) {
+  const normalized = String(operationId ?? '');
+  if (CANONICAL_FLAT_OPERATION_IDS.has(normalized)) {
+    return;
+  }
+  if (!/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)+$/u.test(normalized)) {
     throw new Error(`${context} operationId must use lowerCamel dotted resource.action syntax.`);
   }
-  if (/(?:__|_|-|\/|\{|\}|\s|:)/u.test(operationId)) {
+  if (/(?:__|_|-|\/|\{|\}|\s|:)/u.test(normalized)) {
     throw new Error(`${context} operationId contains non-standard separators.`);
   }
 }

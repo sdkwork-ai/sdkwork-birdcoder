@@ -127,7 +127,7 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
     );
   }
 
-  if (url.includes('/app/v3/api/coding_sessions')) {
+  if (url.includes('/app/v3/api/intelligence/coding_sessions')) {
     return new Response(
       JSON.stringify(createListEnvelope([])),
       {
@@ -264,7 +264,7 @@ try {
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/coding_sessions?workspaceId=workspace-server-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/intelligence/coding_sessions?workspaceId=workspace-server-runtime-contract',
       },
       {
         method: 'GET',

@@ -2,7 +2,7 @@ use axum::extract::{Query, State};
 use axum::Json;
 
 use sdkwork_birdcoder_deployment_service::service::deployment_service::DeploymentService;
-use sdkwork_birdcoder_router_context::{deployment_context, RequiredIamContext};
+use sdkwork_birdcoder_router_context::{deployment_context, RequiredIamContext, WebRequestContext};
 
 use crate::error;
 use crate::mapper::request::DeploymentTargetListQuery;
@@ -13,6 +13,7 @@ pub struct DeploymentBackendAppState {
 }
 
 pub async fn admin_deployment_targets(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<DeploymentBackendAppState>,
     Query(query): Query<DeploymentTargetListQuery>,
@@ -34,6 +35,7 @@ pub async fn admin_deployment_targets(
 }
 
 pub async fn admin_releases(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<DeploymentBackendAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
@@ -46,6 +48,7 @@ pub async fn admin_releases(
 }
 
 pub async fn admin_deployments(
+    _web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<DeploymentBackendAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>

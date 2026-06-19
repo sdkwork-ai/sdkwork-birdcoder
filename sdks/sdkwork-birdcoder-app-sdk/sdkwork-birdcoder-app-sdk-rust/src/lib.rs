@@ -276,7 +276,7 @@ pub mod iam {
             permission: Some("iam.organizationMemberships.read"),
             public: false,
             resource: "iam.organizationMemberships",
-            summary: "List SDKWork IAM organization members",
+            summary: "List SDKWork IAM organization memberships",
             tag: "iam",
             tenant_scope: "tenant",
         };
@@ -417,27 +417,6 @@ pub mod iam {
 }
 
 pub mod intelligence {
-    pub mod approvals {
-        pub mod decisions {
-            pub const CREATE: crate::SdkOperation = crate::SdkOperation {
-                data_scope: "user",
-                deployment: "all",
-                domain: "intelligence",
-                key: "intelligence.approvals.decisions.create",
-                method: "POST",
-                operation_id: "approvals.decisions.create",
-                path: "/app/v3/api/approvals/{approvalId}/decision",
-                path_param_names: &["approvalId"],
-                permission: Some("intelligence.approvals.decisions.create"),
-                public: false,
-                resource: "intelligence.approvals.decisions",
-                summary: "Submit approval decision",
-                tag: "intelligence",
-                tenant_scope: "tenant",
-            };
-        }
-    }
-
     pub mod coding_sessions {
         pub mod artifacts {
             pub const LIST: crate::SdkOperation = crate::SdkOperation {
@@ -447,8 +426,8 @@ pub mod intelligence {
                 key: "intelligence.codingSessions.artifacts.list",
                 method: "GET",
                 operation_id: "codingSessions.artifacts.list",
-                path: "/app/v3/api/coding_sessions/{id}/artifacts",
-                path_param_names: &["id"],
+                path: "/app/v3/api/intelligence/coding_sessions/{sessionId}/artifacts",
+                path_param_names: &["sessionId"],
                 permission: Some("intelligence.codingSessions.artifacts.read"),
                 public: false,
                 resource: "intelligence.codingSessions.artifacts",
@@ -459,6 +438,25 @@ pub mod intelligence {
         }
 
         pub mod checkpoints {
+            pub mod approval {
+                pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                    data_scope: "user",
+                    deployment: "all",
+                    domain: "intelligence",
+                    key: "intelligence.codingSessions.checkpoints.approval.create",
+                    method: "POST",
+                    operation_id: "codingSessions.checkpoints.approval.create",
+                    path: "/app/v3/api/intelligence/coding_sessions/{sessionId}/checkpoints/{checkpointId}/approval",
+                    path_param_names: &["sessionId", "checkpointId"],
+                    permission: Some("intelligence.codingSessions.checkpoints.approval.create"),
+                    public: false,
+                    resource: "intelligence.codingSessions.checkpoints.approval",
+                    summary: "Submit approval decision",
+                    tag: "intelligence",
+                    tenant_scope: "tenant",
+                };
+            }
+
             pub const LIST: crate::SdkOperation = crate::SdkOperation {
                 data_scope: "user",
                 deployment: "all",
@@ -466,8 +464,8 @@ pub mod intelligence {
                 key: "intelligence.codingSessions.checkpoints.list",
                 method: "GET",
                 operation_id: "codingSessions.checkpoints.list",
-                path: "/app/v3/api/coding_sessions/{id}/checkpoints",
-                path_param_names: &["id"],
+                path: "/app/v3/api/intelligence/coding_sessions/{sessionId}/checkpoints",
+                path_param_names: &["sessionId"],
                 permission: Some("intelligence.codingSessions.checkpoints.read"),
                 public: false,
                 resource: "intelligence.codingSessions.checkpoints",
@@ -484,7 +482,7 @@ pub mod intelligence {
             key: "intelligence.codingSessions.create",
             method: "POST",
             operation_id: "codingSessions.create",
-            path: "/app/v3/api/coding_sessions",
+            path: "/app/v3/api/intelligence/coding_sessions",
             path_param_names: &[],
             permission: Some("intelligence.codingSessions.create"),
             public: false,
@@ -501,8 +499,8 @@ pub mod intelligence {
             key: "intelligence.codingSessions.delete",
             method: "DELETE",
             operation_id: "codingSessions.delete",
-            path: "/app/v3/api/coding_sessions/{id}",
-            path_param_names: &["id"],
+            path: "/app/v3/api/intelligence/coding_sessions/{sessionId}",
+            path_param_names: &["sessionId"],
             permission: Some("intelligence.codingSessions.delete"),
             public: false,
             resource: "intelligence.codingSessions",
@@ -519,8 +517,8 @@ pub mod intelligence {
                 key: "intelligence.codingSessions.events.list",
                 method: "GET",
                 operation_id: "codingSessions.events.list",
-                path: "/app/v3/api/coding_sessions/{id}/events",
-                path_param_names: &["id"],
+                path: "/app/v3/api/intelligence/coding_sessions/{sessionId}/events",
+                path_param_names: &["sessionId"],
                 permission: Some("intelligence.codingSessions.events.read"),
                 public: false,
                 resource: "intelligence.codingSessions.events",
@@ -538,8 +536,8 @@ pub mod intelligence {
                 key: "intelligence.codingSessions.forks.create",
                 method: "POST",
                 operation_id: "codingSessions.forks.create",
-                path: "/app/v3/api/coding_sessions/{id}/fork",
-                path_param_names: &["id"],
+                path: "/app/v3/api/intelligence/coding_sessions/{sessionId}/fork",
+                path_param_names: &["sessionId"],
                 permission: Some("intelligence.codingSessions.forks.create"),
                 public: false,
                 resource: "intelligence.codingSessions.forks",
@@ -556,7 +554,7 @@ pub mod intelligence {
             key: "intelligence.codingSessions.list",
             method: "GET",
             operation_id: "codingSessions.list",
-            path: "/app/v3/api/coding_sessions",
+            path: "/app/v3/api/intelligence/coding_sessions",
             path_param_names: &[],
             permission: Some("intelligence.codingSessions.read"),
             public: false,
@@ -566,40 +564,25 @@ pub mod intelligence {
             tenant_scope: "tenant",
         };
 
-        pub mod messages {
-            pub const DELETE: crate::SdkOperation = crate::SdkOperation {
-                data_scope: "user",
-                deployment: "all",
-                domain: "intelligence",
-                key: "intelligence.codingSessions.messages.delete",
-                method: "DELETE",
-                operation_id: "codingSessions.messages.delete",
-                path: "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
-                path_param_names: &["id", "messageId"],
-                permission: Some("intelligence.codingSessions.messages.delete"),
-                public: false,
-                resource: "intelligence.codingSessions.messages",
-                summary: "Delete coding session message",
-                tag: "intelligence",
-                tenant_scope: "tenant",
-            };
-
-            pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
-                data_scope: "user",
-                deployment: "all",
-                domain: "intelligence",
-                key: "intelligence.codingSessions.messages.update",
-                method: "PATCH",
-                operation_id: "codingSessions.messages.update",
-                path: "/app/v3/api/coding_sessions/{id}/messages/{messageId}",
-                path_param_names: &["id", "messageId"],
-                permission: Some("intelligence.codingSessions.messages.update"),
-                public: false,
-                resource: "intelligence.codingSessions.messages",
-                summary: "Edit coding session message",
-                tag: "intelligence",
-                tenant_scope: "tenant",
-            };
+        pub mod questions {
+            pub mod answers {
+                pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                    data_scope: "user",
+                    deployment: "all",
+                    domain: "intelligence",
+                    key: "intelligence.codingSessions.questions.answers.create",
+                    method: "POST",
+                    operation_id: "codingSessions.questions.answers.create",
+                    path: "/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer",
+                    path_param_names: &["sessionId", "questionId"],
+                    permission: Some("intelligence.codingSessions.questions.answers.create"),
+                    public: false,
+                    resource: "intelligence.codingSessions.questions.answers",
+                    summary: "Submit user-question answer",
+                    tag: "intelligence",
+                    tenant_scope: "tenant",
+                };
+            }
         }
 
         pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
@@ -609,8 +592,8 @@ pub mod intelligence {
             key: "intelligence.codingSessions.retrieve",
             method: "GET",
             operation_id: "codingSessions.retrieve",
-            path: "/app/v3/api/coding_sessions/{id}",
-            path_param_names: &["id"],
+            path: "/app/v3/api/intelligence/coding_sessions/{sessionId}",
+            path_param_names: &["sessionId"],
             permission: Some("intelligence.codingSessions.read"),
             public: false,
             resource: "intelligence.codingSessions",
@@ -627,8 +610,8 @@ pub mod intelligence {
                 key: "intelligence.codingSessions.turns.create",
                 method: "POST",
                 operation_id: "codingSessions.turns.create",
-                path: "/app/v3/api/coding_sessions/{id}/turns",
-                path_param_names: &["id"],
+                path: "/app/v3/api/intelligence/coding_sessions/{sessionId}/turns",
+                path_param_names: &["sessionId"],
                 permission: Some("intelligence.codingSessions.turns.create"),
                 public: false,
                 resource: "intelligence.codingSessions.turns",
@@ -645,8 +628,8 @@ pub mod intelligence {
             key: "intelligence.codingSessions.update",
             method: "PATCH",
             operation_id: "codingSessions.update",
-            path: "/app/v3/api/coding_sessions/{id}",
-            path_param_names: &["id"],
+            path: "/app/v3/api/intelligence/coding_sessions/{sessionId}",
+            path_param_names: &["sessionId"],
             permission: Some("intelligence.codingSessions.update"),
             public: false,
             resource: "intelligence.codingSessions",
@@ -655,27 +638,6 @@ pub mod intelligence {
             tenant_scope: "tenant",
         };
     }
-
-    pub mod questions {
-        pub mod answers {
-            pub const CREATE: crate::SdkOperation = crate::SdkOperation {
-                data_scope: "user",
-                deployment: "all",
-                domain: "intelligence",
-                key: "intelligence.questions.answers.create",
-                method: "POST",
-                operation_id: "questions.answers.create",
-                path: "/app/v3/api/questions/{questionId}/answer",
-                path_param_names: &["questionId"],
-                permission: Some("intelligence.questions.answers.create"),
-                public: false,
-                resource: "intelligence.questions.answers",
-                summary: "Submit user-question answer",
-                tag: "intelligence",
-                tenant_scope: "tenant",
-            };
-        }
-    }
 }
 
 pub mod oauth {
@@ -683,7 +645,7 @@ pub mod oauth {
         pub const CREATE: crate::SdkOperation = crate::SdkOperation {
             data_scope: "platform",
             deployment: "all",
-            domain: "iam",
+            domain: "system",
             key: "oauth.authorizationUrls.create",
             method: "POST",
             operation_id: "oauth.authorizationUrls.create",
@@ -691,7 +653,7 @@ pub mod oauth {
             path_param_names: &[],
             permission: None,
             public: true,
-            resource: "oauth.authorizationUrls",
+            resource: "system.oauth.authorizationUrls",
             summary: "Resolve OAuth authorization URL for SDKWork IAM sign-in",
             tag: "oauth",
             tenant_scope: "platform",
@@ -702,7 +664,7 @@ pub mod oauth {
         pub const CREATE: crate::SdkOperation = crate::SdkOperation {
             data_scope: "platform",
             deployment: "all",
-            domain: "iam",
+            domain: "system",
             key: "oauth.deviceAuthorizations.create",
             method: "POST",
             operation_id: "oauth.deviceAuthorizations.create",
@@ -710,7 +672,7 @@ pub mod oauth {
             path_param_names: &[],
             permission: None,
             public: true,
-            resource: "oauth.deviceAuthorizations",
+            resource: "system.oauth.deviceAuthorizations",
             summary: "Create SDKWork IAM OAuth device authorization",
             tag: "oauth",
             tenant_scope: "platform",
@@ -720,7 +682,7 @@ pub mod oauth {
             pub const CREATE: crate::SdkOperation = crate::SdkOperation {
                 data_scope: "platform",
                 deployment: "all",
-                domain: "iam",
+                domain: "system",
                 key: "oauth.deviceAuthorizations.passwordCompletions.create",
                 method: "POST",
                 operation_id: "oauth.deviceAuthorizations.passwordCompletions.create",
@@ -728,7 +690,7 @@ pub mod oauth {
                 path_param_names: &["deviceAuthorizationId"],
                 permission: None,
                 public: true,
-                resource: "oauth.deviceAuthorizations.passwordCompletions",
+                resource: "system.oauth.deviceAuthorizations.passwordCompletions",
                 summary: "Complete SDKWork IAM OAuth device authorization with password",
                 tag: "oauth",
                 tenant_scope: "platform",
@@ -738,7 +700,7 @@ pub mod oauth {
         pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
             data_scope: "platform",
             deployment: "all",
-            domain: "iam",
+            domain: "system",
             key: "oauth.deviceAuthorizations.retrieve",
             method: "GET",
             operation_id: "oauth.deviceAuthorizations.retrieve",
@@ -746,7 +708,7 @@ pub mod oauth {
             path_param_names: &["deviceAuthorizationId"],
             permission: None,
             public: true,
-            resource: "oauth.deviceAuthorizations",
+            resource: "system.oauth.deviceAuthorizations",
             summary: "Get SDKWork IAM OAuth device authorization",
             tag: "oauth",
             tenant_scope: "platform",
@@ -756,7 +718,7 @@ pub mod oauth {
             pub const CREATE: crate::SdkOperation = crate::SdkOperation {
                 data_scope: "platform",
                 deployment: "all",
-                domain: "iam",
+                domain: "system",
                 key: "oauth.deviceAuthorizations.scans.create",
                 method: "POST",
                 operation_id: "oauth.deviceAuthorizations.scans.create",
@@ -764,7 +726,7 @@ pub mod oauth {
                 path_param_names: &["deviceAuthorizationId"],
                 permission: None,
                 public: true,
-                resource: "oauth.deviceAuthorizations.scans",
+                resource: "system.oauth.deviceAuthorizations.scans",
                 summary: "Create SDKWork IAM OAuth device authorization scan",
                 tag: "oauth",
                 tenant_scope: "platform",
@@ -776,7 +738,7 @@ pub mod oauth {
         pub const CREATE: crate::SdkOperation = crate::SdkOperation {
             data_scope: "platform",
             deployment: "all",
-            domain: "iam",
+            domain: "system",
             key: "oauth.sessions.create",
             method: "POST",
             operation_id: "oauth.sessions.create",
@@ -784,7 +746,7 @@ pub mod oauth {
             path_param_names: &[],
             permission: None,
             public: true,
-            resource: "oauth.sessions",
+            resource: "system.oauth.sessions",
             summary: "Create SDKWork IAM session with OAuth authorization code",
             tag: "oauth",
             tenant_scope: "platform",
@@ -1567,20 +1529,18 @@ pub const OPERATIONS: &[SdkOperation] = &[
     iam::users::current::UPDATE,
     iam::workspaces::members::LIST,
     iam::workspaces::members::UPSERT,
-    intelligence::approvals::decisions::CREATE,
     intelligence::coding_sessions::artifacts::LIST,
+    intelligence::coding_sessions::checkpoints::approval::CREATE,
     intelligence::coding_sessions::checkpoints::LIST,
     intelligence::coding_sessions::CREATE,
     intelligence::coding_sessions::DELETE,
     intelligence::coding_sessions::events::LIST,
     intelligence::coding_sessions::forks::CREATE,
     intelligence::coding_sessions::LIST,
-    intelligence::coding_sessions::messages::DELETE,
-    intelligence::coding_sessions::messages::UPDATE,
+    intelligence::coding_sessions::questions::answers::CREATE,
     intelligence::coding_sessions::RETRIEVE,
     intelligence::coding_sessions::turns::CREATE,
     intelligence::coding_sessions::UPDATE,
-    intelligence::questions::answers::CREATE,
     oauth::authorization_urls::CREATE,
     oauth::device_authorizations::CREATE,
     oauth::device_authorizations::password_completions::CREATE,

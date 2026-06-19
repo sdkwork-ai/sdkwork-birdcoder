@@ -1,5 +1,7 @@
 use std::fmt;
 
+use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
+
 #[derive(Debug)]
 pub enum RepositoryError {
     Connection(String),
@@ -27,10 +29,14 @@ impl fmt::Display for RepositoryError {
 
 impl std::error::Error for RepositoryError {}
 
-impl From<rusqlite::Error> for RepositoryError {
-    fn from(err: rusqlite::Error) -> Self {
+impl From<sqlx::Error> for RepositoryError {
+    fn from(err: sqlx::Error) -> Self {
         Self::Query(err.to_string())
     }
+}
+
+pub(crate) fn map_sqlx_error<T>(result: Result<T, sqlx::Error>) -> Result<T, CodingSessionError> {
+    result.map_err(|err| CodingSessionError::from(RepositoryError::from(err)))
 }
 
 impl From<serde_json::Error> for RepositoryError {
