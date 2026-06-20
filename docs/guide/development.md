@@ -1,4 +1,4 @@
-# Development
+﻿# Development
 
 BirdCoder development follows the package-first SDKWork application workflow while keeping IAM on the canonical SDKWork IAM contract.
 
@@ -64,8 +64,7 @@ They then normalize mode-specific defaults for:
 
 - `SDKWORK_IAM_MODE`
 - `SDKWORK_IAM_APP_API_BASE_URL`
-- `SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL`
-- `SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD`
+- `SDKWORK_IAM_DEV_FIXED_VERIFY_CODE`
 - `BIRDCODER_API_BASE_URL` and `VITE_BIRDCODER_API_BASE_URL`
 - `BIRDCODER_CODING_SERVER_SQLITE_FILE`
 - `VITE_BIRDCODER_AUTH_DEV_*` quick-login hints
@@ -90,22 +89,22 @@ The inspector masks secret-like values but keeps the effective sqlite path, IAM 
 
 For local iteration, remote desktop modes use `http://127.0.0.1:10240` as the default client API base URL when no explicit value is configured. For release packaging, `tauri:build:private` and `tauri:build:cloud` require an explicit `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL`, so packaged apps never fall back to localhost by accident.
 
-## Local Bootstrap Account
+## Local Identity And Developer Prefill
 
-In development and test flows, the local SDKWork IAM authority seeds one bootstrap account and the shared auth UI pre-fills it by default for `pnpm dev`, `pnpm dev:private`, `pnpm dev:local`, `pnpm tauri:dev`, and the matching local/private development lanes:
+Identity (`tenant_id`, `organization_id`, `app_id`) is established through the standard SaaS dual-token flow:
 
-- Account: `local-default@sdkwork-iam.local`
-- Password: `dev123456`
-- Fixed verify code for local dev wrappers: `123456`
+1. `POST /app/v3/api/auth/register` on a cold database, or
+2. `POST /app/v3/api/auth/sessions` after registration
 
-Override these defaults through `.env` when a different quick-login target is needed:
+Do not inject fixed tenant, organization, or app identifiers through environment variables.
+
+For optional login-form prefill in development, set explicit `VITE_BIRDCODER_AUTH_DEV_*` values. For fixed verification codes in local server runs, set `SDKWORK_IAM_DEV_FIXED_VERIFY_CODE`.
 
 ```bash
-SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL=local-default@sdkwork-iam.local
-SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD=dev123456
 VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED=true
-VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT=local-default@sdkwork-iam.local
-VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD=dev123456
+VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL=you@example.test
+VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD=your-dev-password
+SDKWORK_IAM_DEV_FIXED_VERIFY_CODE=123456
 ```
 
 `pnpm lint` is the fastest source-hygiene checkpoint for style and static consistency, `pnpm build` freezes the shared production bundle outputs, `pnpm docs:build` freezes the VitePress documentation output, and `pnpm check:multi-mode` verifies that desktop, server, container, kubernetes, and web delivery surfaces still move together before broader release verification.

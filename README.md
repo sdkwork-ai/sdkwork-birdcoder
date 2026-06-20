@@ -186,13 +186,13 @@ The wrappers load `.env`, `.env.local`, `.env.development`, `.env.development.lo
 
 Development commands for `server-private` and `cloud-saas` desktop modes default the client base URL to `http://127.0.0.1:10240` when you are iterating locally. Production desktop packaging for those two remote modes is stricter: you must explicitly set `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL` so the packaged app cannot silently target a localhost endpoint.
 
-For local development, BirdCoder seeds this SDKWork IAM account automatically:
+For local development, register or log in through the standard SDKWork IAM auth surface. Tenant, organization, user, session, and app scope come from dual-token JWT claims after authentication; do not inject fixed identity through bootstrap environment variables.
 
-- Account: `local-default@sdkwork-iam.local`
-- Email: `local-default@sdkwork-iam.local`
-- Phone: `13800000000`
-- Password: `dev123456`
-- Fixed local verify code in dev wrappers: `123456`
+Optional login-form prefill is explicit opt-in only:
+
+- Set `VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED=true`
+- Provide your own `VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL`, `VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE`, and/or `VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD`
+- Fixed local verify code in dev wrappers when enabled: `123456` via `SDKWORK_IAM_DEV_FIXED_VERIFY_CODE`
 
 Local startup also seeds one starter workspace project when the authority has no active projects. The project is written to a deterministic absolute directory beside the sqlite authority file:
 

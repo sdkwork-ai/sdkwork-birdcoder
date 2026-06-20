@@ -189,7 +189,7 @@ function normalizeContext(value: unknown): BirdCoderAppContext | undefined {
     userId,
     sessionId: sessionId ?? '',
     environment: (environment ?? 'dev') as IamAppContext['environment'],
-    deploymentMode: (deploymentMode ?? 'local') as IamAppContext['deploymentMode'],
+    deploymentMode: (deploymentMode ?? 'saas') as IamAppContext['deploymentMode'],
     authLevel: (authLevel ?? 'password') as IamAppContext['authLevel'],
     dataScope: normalizeStringArray(context.dataScope ?? record.data_scope),
     permissionScope: normalizeStringArray(context.permissionScope ?? record.permission_scope),

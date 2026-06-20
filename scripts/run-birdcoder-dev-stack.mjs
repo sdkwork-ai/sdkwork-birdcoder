@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 
 import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -10,9 +10,6 @@ import {
   resolveBirdcoderCommandEnv,
 } from './birdcoder-command-options.mjs';
 import {
-  DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT,
-  DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD,
-  DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE,
   resolveBirdcoderIamCommandEnv,
 } from './birdcoder-iam-env.mjs';
 import { createWorkspacePackageScriptPlan } from './run-workspace-package-script.mjs';
@@ -260,19 +257,16 @@ function printStackSummary({
   console.log(`[birdcoder-stack] client=${formatCommandPlan(clientPlan)}`);
 
   if (sdkworkIamMode !== 'cloud') {
-    const bootstrapAccount =
-      readTrimmedValue(clientResolvedIam.env.SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL)
-      || DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT;
-    const bootstrapPassword =
-      readTrimmedValue(clientResolvedIam.env.SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD)
-      || DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD;
-    const verifyCode =
-      readTrimmedValue(clientResolvedIam.env.SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED)
-      || DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE;
-
-    console.log(`[birdcoder-stack] sampleAccount=${bootstrapAccount}`);
-    console.log(`[birdcoder-stack] samplePassword=${bootstrapPassword}`);
-    console.log(`[birdcoder-stack] sampleVerifyCode=${verifyCode}`);
+    const quickLogin = clientResolvedIam.developerExperience?.quickLogin;
+    if (quickLogin?.account && quickLogin?.password) {
+      console.log(`[birdcoder-stack] devPrefillAccount=${quickLogin.account}`);
+      console.log('[birdcoder-stack] devPrefillPassword=***');
+      if (quickLogin.verifyCode) {
+        console.log(`[birdcoder-stack] devFixedVerifyCode=${quickLogin.verifyCode}`);
+      }
+    } else {
+      console.log('[birdcoder-stack] devIdentity=register-or-login via /app/v3/api/auth/*');
+    }
   }
 }
 

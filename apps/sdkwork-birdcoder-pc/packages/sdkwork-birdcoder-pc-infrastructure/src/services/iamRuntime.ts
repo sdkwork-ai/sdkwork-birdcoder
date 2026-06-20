@@ -23,6 +23,8 @@ import {
   setBirdCoderSdkTokenManager,
 } from './sdkClients.ts';
 
+const BIRDCODER_IAM_RUNTIME_APP_ID = 'sdkwork-birdcoder';
+
 let runtimeComposition: SdkworkAppbasePcAuthRuntimeComposition | null = null;
 let sessionChangeListenerRegistered = false;
 
@@ -60,7 +62,7 @@ export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRunt
 
   return createSdkworkAppbasePcAuthRuntime({
     app: {
-      appId: readBirdCoderRuntimeEnv('VITE_SDKWORK_APP_ID') ?? 'sdkwork-birdcoder',
+      appId: BIRDCODER_IAM_RUNTIME_APP_ID,
       deploymentMode: readIamDeploymentMode() ?? 'private',
       environment: readIamEnvironment() ?? 'dev',
       platform: 'pc',

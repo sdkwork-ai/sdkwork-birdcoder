@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -27,14 +27,10 @@ export const SDKWORK_IAM_MODES = Object.freeze([
   'cloud',
 ]);
 
-export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT =
-  'local-default@sdkwork-iam.local';
-export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE = '13800000000';
-export const DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD = 'dev123456';
-export const DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE = '123456';
 export const DEFAULT_BIRDCODER_REMOTE_API_BASE_URL = 'http://127.0.0.1:10240';
+export const DEFAULT_SDKWORK_IAM_DEV_FIXED_VERIFY_CODE = '123456';
 export const DEFAULT_SDKWORK_IAM_CLOUD_OAUTH_PROVIDERS = 'wechat,douyin,github';
-export const DEFAULT_SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS = 'wechat,douyin,github';
+export const DEFAULT_SDKWORK_IAM_OAUTH_PROVIDERS = 'wechat,douyin,github';
 
 const BIRDCODER_IAM_DEPLOYMENT_MODE_ENV =
   'BIRDCODER_IAM_DEPLOYMENT_MODE';
@@ -45,15 +41,11 @@ const SDKWORK_IAM_MODE_ENV = 'SDKWORK_IAM_MODE';
 const SDKWORK_IAM_APP_API_BASE_URL_ENV = 'SDKWORK_IAM_APP_API_BASE_URL';
 const SDKWORK_IAM_APP_API_OAUTH_PROVIDERS_ENV =
   'SDKWORK_IAM_APP_API_OAUTH_PROVIDERS';
-const SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS_ENV =
-  'SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS';
-const SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV = 'SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL';
-const SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV = 'SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE';
-const SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV =
-  'SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD';
-const SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV =
-  'SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED';
-const SDKWORK_IAM_LOCAL_OAUTH_ENV_PREFIX = 'SDKWORK_IAM_LOCAL_OAUTH_';
+const SDKWORK_IAM_OAUTH_PROVIDERS_ENV =
+  'SDKWORK_IAM_OAUTH_PROVIDERS';
+const SDKWORK_IAM_DEV_FIXED_VERIFY_CODE_ENV =
+  'SDKWORK_IAM_DEV_FIXED_VERIFY_CODE';
+const SDKWORK_IAM_OAUTH_ENV_PREFIX = 'SDKWORK_IAM_OAUTH_';
 const SDKWORK_IAM_APP_API_ENV_PREFIX = 'SDKWORK_IAM_APP_API_';
 const BIRDCODER_CODING_SERVER_SQLITE_FILE_ENV =
   'BIRDCODER_CODING_SERVER_SQLITE_FILE';
@@ -278,14 +270,14 @@ function applyIamModeScopedEnvDefaults(env, sdkworkIamMode) {
     clearEnvValuesByPrefix(env, SDKWORK_IAM_APP_API_ENV_PREFIX);
     setEnvDefault(
       env,
-      SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS_ENV,
-      DEFAULT_SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS,
+      SDKWORK_IAM_OAUTH_PROVIDERS_ENV,
+      DEFAULT_SDKWORK_IAM_OAUTH_PROVIDERS,
     );
     return;
   }
 
-  clearEnvValuesByPrefix(env, SDKWORK_IAM_LOCAL_OAUTH_ENV_PREFIX);
-  clearEnvValues(env, SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV);
+  clearEnvValuesByPrefix(env, SDKWORK_IAM_OAUTH_ENV_PREFIX);
+  clearEnvValues(env, SDKWORK_IAM_DEV_FIXED_VERIFY_CODE_ENV);
   setEnvDefault(
     env,
     SDKWORK_IAM_APP_API_OAUTH_PROVIDERS_ENV,
@@ -524,38 +516,20 @@ function applyClientApiBaseUrl({
 
 function applyDevelopmentPrefillDefaults({
   env,
-  iamMode,
   viteMode,
 }) {
   const isDevelopmentLike = viteMode === 'development' || viteMode === 'test';
-  const sdkworkIamMode =
-    normalizeSdkworkIamMode(readEnvValue(env, SDKWORK_IAM_MODE_ENV))
-    ?? resolveSdkworkIamMode(iamMode);
-  const isLocalAuthority = sdkworkIamMode === 'local' || sdkworkIamMode === 'private';
   const explicitEnabled = parseBoolean(
     readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED_ENV),
   );
-  const bootstrapAccount =
-    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV)
-    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT;
-  const bootstrapPhone =
-    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV)
-    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE;
-  const bootstrapPassword =
-    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV)
-    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD;
   const resolvedDefaultAccount =
-    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV)
-    ?? (isLocalAuthority ? bootstrapAccount : undefined);
+    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV);
   const resolvedDefaultEmail =
-    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL_ENV)
-    ?? (isLocalAuthority ? bootstrapAccount : undefined);
+    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL_ENV);
   const resolvedDefaultPhone =
-    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE_ENV)
-    ?? (isLocalAuthority ? bootstrapPhone : undefined);
+    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE_ENV);
   const resolvedDefaultPassword =
-    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD_ENV)
-    ?? (isLocalAuthority ? bootstrapPassword : undefined);
+    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD_ENV);
   const resolvedDefaultLoginMethod =
     readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD_ENV)
     ?? (
@@ -652,36 +626,39 @@ function applyReleaseDemoLoginDefaults({
     return;
   }
 
-  const bootstrapAccount =
-    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV)
-    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT;
-  const bootstrapPhone =
-    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV)
-    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE;
-  const bootstrapPassword =
-    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV)
-    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD;
+  const prefillAccount =
+    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV)
+    ?? readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL_ENV);
+  const prefillPhone =
+    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE_ENV);
+  const prefillPassword =
+    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD_ENV);
+  if (!prefillAccount || !prefillPassword) {
+    return;
+  }
 
   setEnvValue(env, VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED_ENV, 'true');
   setEnvDefault(
     env,
     VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV,
-    bootstrapAccount,
+    prefillAccount,
   );
   setEnvDefault(
     env,
     VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL_ENV,
-    bootstrapAccount,
+    prefillAccount,
   );
-  setEnvDefault(
-    env,
-    VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE_ENV,
-    bootstrapPhone,
-  );
+  if (prefillPhone) {
+    setEnvDefault(
+      env,
+      VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE_ENV,
+      prefillPhone,
+    );
+  }
   setEnvDefault(
     env,
     VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD_ENV,
-    bootstrapPassword,
+    prefillPassword,
   );
   setEnvDefault(
     env,
@@ -717,8 +694,8 @@ function applyLocalVerifyCodeDefaults({
 
   setEnvDefault(
     env,
-    SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV,
-    DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE,
+    SDKWORK_IAM_DEV_FIXED_VERIFY_CODE_ENV,
+    DEFAULT_SDKWORK_IAM_DEV_FIXED_VERIFY_CODE,
   );
 }
 
@@ -735,19 +712,9 @@ export function resolveBirdcoderIamDeveloperExperience({
     normalizeSdkworkIamMode(readEnvValue(env, SDKWORK_IAM_MODE_ENV))
     ?? resolveSdkworkIamMode(resolvedIamMode);
   const isDevelopmentLike = viteMode === 'development' || viteMode === 'test';
-  const bootstrapAccount =
-    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV)
-    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_ACCOUNT;
-  const bootstrapPhone =
-    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV)
-    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE;
-  const bootstrapPassword =
-    readEnvValue(env, SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV)
-    ?? DEFAULT_SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD;
   const verifyCode =
-    readEnvValue(env, SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV)
-    ?? DEFAULT_SDKWORK_IAM_LOCAL_VERIFY_CODE;
-  const localAuthorityEnabled = sdkworkIamMode !== 'cloud';
+    readEnvValue(env, SDKWORK_IAM_DEV_FIXED_VERIFY_CODE_ENV)
+    ?? DEFAULT_SDKWORK_IAM_DEV_FIXED_VERIFY_CODE;
   const configuredQuickLoginAccount = readEnvValue(
     env,
     VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT_ENV,
@@ -768,47 +735,31 @@ export function resolveBirdcoderIamDeveloperExperience({
     env,
     VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD_ENV,
   );
+  const prefillEnabled = parseBoolean(
+    readEnvValue(env, VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED_ENV),
+  );
   const explicitQuickLoginConfigured = Boolean(
-    configuredQuickLoginAccount
-    || configuredQuickLoginEmail
-    || configuredQuickLoginPhone
-    || configuredQuickLoginPassword
-    || configuredQuickLoginMethod,
+    prefillEnabled
+    && (
+      configuredQuickLoginAccount
+      || configuredQuickLoginEmail
+      || configuredQuickLoginPhone
+      || configuredQuickLoginPassword
+      || configuredQuickLoginMethod
+    ),
   );
 
   return {
-    bootstrapUser:
-      localAuthorityEnabled
-        ? {
-            account: bootstrapAccount,
-            email: bootstrapAccount,
-            phone: bootstrapPhone,
-          }
-        : null,
     iamMode: sdkworkIamMode,
     quickLogin:
-      isDevelopmentLike && (localAuthorityEnabled || explicitQuickLoginConfigured)
+      isDevelopmentLike && explicitQuickLoginConfigured
         ? {
-            account:
-              configuredQuickLoginAccount
-              ?? (localAuthorityEnabled ? bootstrapAccount : undefined),
-            email:
-              configuredQuickLoginEmail
-              ?? (localAuthorityEnabled ? bootstrapAccount : undefined),
-            phone:
-              configuredQuickLoginPhone
-              ?? (localAuthorityEnabled ? bootstrapPhone : undefined),
-            password:
-              configuredQuickLoginPassword
-              ?? (localAuthorityEnabled ? bootstrapPassword : undefined),
-            loginMethod:
-              configuredQuickLoginMethod
-              ?? 'password',
-            ...(localAuthorityEnabled
-              ? {
-                  verifyCode,
-                }
-              : {}),
+            account: configuredQuickLoginAccount ?? configuredQuickLoginEmail,
+            email: configuredQuickLoginEmail ?? configuredQuickLoginAccount,
+            phone: configuredQuickLoginPhone,
+            password: configuredQuickLoginPassword,
+            loginMethod: configuredQuickLoginMethod ?? 'password',
+            verifyCode,
           }
         : null,
   };
@@ -919,7 +870,6 @@ export function resolveBirdcoderIamCommandEnv({
 
   applyDevelopmentPrefillDefaults({
     env: nextEnv,
-    iamMode: resolvedIamMode,
     viteMode: resolvedViteMode,
   });
 
@@ -946,6 +896,11 @@ export function resolveBirdcoderIamCommandEnv({
     iamMode: resolvedIamMode,
     sdkworkIamMode: resolvedSdkworkIamMode,
     viteMode: resolvedViteMode,
+    developerExperience: resolveBirdcoderIamDeveloperExperience({
+      env: nextEnv,
+      iamMode: resolvedIamMode,
+      viteMode: resolvedViteMode,
+    }),
   };
 }
 

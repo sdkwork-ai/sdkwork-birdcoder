@@ -266,6 +266,16 @@ assertNoMatch(
   'BirdCoder IAM runtime must not use the retired clients.app/backend shape or product SDK as the appbase login authority.',
 );
 assertNoMatch(
+  iamRuntimeSource,
+  /VITE_SDKWORK_APP_ID|SDKWORK_IAM_BOOTSTRAP_|SDKWORK_APP_ID/u,
+  'BirdCoder IAM runtime must not read runtime identity scope from bootstrap env variables.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /BIRDCODER_IAM_RUNTIME_APP_ID\s*=\s*['"]sdkwork-birdcoder['"]/u,
+  'BirdCoder IAM runtime must use the compile-time manifest app identifier.',
+);
+assertNoMatch(
   defaultServicesSource,
   /createBirdCoderGeneratedUserCenterApiClient|resolveRuntimeUserCenterClient|userCenterRuntimeBridge/u,
   'Default IDE services must not bootstrap BirdCoder user-center clients after IAM runtime migration.',

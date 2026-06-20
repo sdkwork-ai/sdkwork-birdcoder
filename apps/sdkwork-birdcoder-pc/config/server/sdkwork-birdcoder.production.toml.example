@@ -1,12 +1,19 @@
 # BirdCoder Server Production Config
+# Unified workspace PostgreSQL profile. See sdkwork-specs/ENVIRONMENT_SPEC.md §7.1.
 
 [server]
 bind = "0.0.0.0:10240"
 environment = "production"
 
 [database]
-type = "postgresql"
-url = "${DATABASE_URL}"
+engine = "postgresql"
+host = "db.example.com"
+port = 5432
+database = "sdkwork"
+schema = "public"
+username = "sdkwork"
+password_file = "/etc/sdkwork/database.secret"
+ssl_mode = "require"
 
 [logging]
 level = "warn"

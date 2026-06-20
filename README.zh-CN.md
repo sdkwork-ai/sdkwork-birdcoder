@@ -55,13 +55,13 @@ pnpm check:iam:sample
 
 包装脚本会加载 `.env`、`.env.local`、`.env.development`、`.env.development.local`、`.env.production`、`.env.production.local`，然后按模式补齐 sqlite、远端 API base URL、`SDKWORK_IAM_MODE`、`VITE_SDKWORK_DEPLOYMENT_MODE`、OAuth 样板配置和开发登录预填值。
 
-本地开发默认账号：
+本地开发请通过标准 SDKWork IAM 登录/注册流程获取会话。`tenant_id`、`organization_id`、`user_id`、`session_id` 和 `app_id` 必须来自双 token JWT claims，不能通过 bootstrap 环境变量注入固定身份。
 
-- 账号：`local-default@sdkwork-iam.local`
-- 邮箱：`local-default@sdkwork-iam.local`
-- 手机：`13800000000`
-- 密码：`dev123456`
-- 固定验证码：`123456`
+可选登录表单预填需要显式开启：
+
+- 设置 `VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED=true`
+- 自行提供 `VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL`、`VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE` 和/或 `VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD`
+- 开发验证码固定值：`123456`（`SDKWORK_IAM_DEV_FIXED_VERIFY_CODE`）
 
 启动前检查最终环境：
 

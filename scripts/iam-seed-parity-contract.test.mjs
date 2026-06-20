@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -100,11 +100,6 @@ for (const forbiddenIamStoragePattern of [
 
 for (const requiredBirdCoderIamPattern of [
   /const SDKWORK_IAM_MODE_ENV: &str = "SDKWORK_IAM_MODE";/u,
-  /const SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV: &str = "SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL";/u,
-  /const SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV: &str = "SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE";/u,
-  /const SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV: &str = "SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD";/u,
-  /const SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV: &str = "SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED";/u,
-  /const DEFAULT_APP_ID: &str = "sdkwork-birdcoder";/u,
   /enum IamMode/u,
   /fn local_authority_enabled\(self\) -> bool/u,
   /!matches!\(self, Self::Cloud\)/u,
@@ -116,7 +111,18 @@ for (const requiredBirdCoderIamPattern of [
   assert.match(
     birdCoderIamAuthoritySource,
     requiredBirdCoderIamPattern,
-    'BirdCoder IAM authority must use the standard IAM bootstrap, runtime mode, and table contract.',
+    'BirdCoder legacy IAM authority archive must keep the standard IAM runtime mode and table contract.',
+  );
+}
+
+for (const forbiddenBirdCoderIamPattern of [
+  /SDKWORK_IAM_BOOTSTRAP_/u,
+  /SDKWORK_APP_ID/u,
+]) {
+  assert.doesNotMatch(
+    apiServerIamBootstrapSource,
+    forbiddenBirdCoderIamPattern,
+    'BirdCoder api-server IAM bootstrap must not publish bootstrap identity env injection.',
   );
 }
 

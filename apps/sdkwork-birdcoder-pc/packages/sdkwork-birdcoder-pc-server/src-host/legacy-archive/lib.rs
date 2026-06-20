@@ -1,4 +1,4 @@
-use std::{
+﻿use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path as FsPath, PathBuf},
@@ -31743,7 +31743,7 @@ exit 1\n"
         );
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
 
         let _ = build_app_from_sqlite_file(&sqlite_path).expect("load direct sqlite authority");
 
@@ -31780,7 +31780,7 @@ exit 1\n"
         fs::remove_file(sqlite_path).expect("remove direct sqlite authority fixture");
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
 
         assert_eq!(user_count, 1);
         assert_eq!(profile_count, 1);
@@ -31823,7 +31823,7 @@ exit 1\n"
         let _guard = ENV_LOCK.lock().expect("lock env");
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
         let response = build_app()
             .oneshot(
                 Request::builder()
@@ -31844,7 +31844,7 @@ exit 1\n"
 
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
 
         assert_eq!(json["data"]["leftRailMode"], "qr-only");
         assert_eq!(
@@ -31888,7 +31888,7 @@ exit 1\n"
         );
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
         let request_body = serde_json::json!({
             "email": "local-default@sdkwork-iam.local",
             "password": "dev123456"
@@ -31910,7 +31910,7 @@ exit 1\n"
         fs::remove_file(sqlite_path).expect("remove auth login sqlite fixture");
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
 
         assert_eq!(response.status(), StatusCode::OK);
 
@@ -31935,7 +31935,7 @@ exit 1\n"
         );
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
         let request_body = serde_json::json!({
             "email": "test2@sdkwork.com",
             "password": "dev123456"
@@ -31957,7 +31957,7 @@ exit 1\n"
         fs::remove_file(sqlite_path).expect("remove invalid auth login sqlite fixture");
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
 
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
@@ -31992,7 +31992,7 @@ exit 1\n"
         );
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
 
         let response = build_app_from_sqlite_file(&sqlite_path)
             .expect("load sqlite-backed qr auth app")
@@ -32010,7 +32010,7 @@ exit 1\n"
         fs::remove_file(sqlite_path).expect("remove qr auth sqlite fixture");
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
 
         assert_eq!(response.status(), StatusCode::OK);
 
@@ -32042,7 +32042,7 @@ exit 1\n"
         );
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
         let login_request = serde_json::json!({
             "email": "local-default@sdkwork-iam.local",
             "password": "dev123456"
@@ -32117,7 +32117,7 @@ exit 1\n"
         fs::remove_file(sqlite_path).expect("remove membership sqlite fixture");
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
 
         assert_eq!(
             current_json["data"]["ownerUserId"],
@@ -32180,7 +32180,7 @@ exit 1\n"
             sqlite_path.as_os_str(),
         );
         std::env::set_var("SDKWORK_IAM_MODE", "private");
-        std::env::set_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED", "123456");
+        std::env::set_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED", "123456");
 
         let app = build_app_from_env().expect("initialize missing private sqlite authority");
         let qr_response = app
@@ -32198,7 +32198,7 @@ exit 1\n"
         std::env::remove_var("BIRDCODER_CODING_SERVER_SQLITE_FILE");
         std::env::remove_var("SDKWORK_IAM_MODE");
         std::env::remove_var("SDKWORK_IAM_APP_API_BASE_URL");
-        std::env::remove_var("SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED");
+        std::env::remove_var("SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED");
 
         assert_eq!(qr_response.status(), StatusCode::OK);
         let qr_body = to_bytes(qr_response.into_body(), usize::MAX)

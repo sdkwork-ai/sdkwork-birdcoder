@@ -70,13 +70,13 @@ const defaultDryRun = await captureRunBirdcoderDevStack([
   );
   assert.match(
     stdout,
-    /\[birdcoder-stack\] sampleAccount=local-default@sdkwork-iam\.local/u,
-    'dry-run should expose the builtin-local bootstrap account for quick-login verification.',
+    /\[birdcoder-stack\] devPrefillAccount=/u,
+    'dry-run should expose whether optional dev auth prefill is configured.',
   );
   assert.match(
     stdout,
-    /\[birdcoder-stack\] samplePassword=dev123456/u,
-    'dry-run should expose the builtin-local bootstrap password for quick-login verification.',
+    /\[birdcoder-stack\] devPrefillPassword=\*\*\*/u,
+    'dry-run should mask optional dev auth prefill passwords.',
   );
   assert.match(
     stdout,

@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -244,13 +244,13 @@ for (const requiredExport of [
 assert.deepEqual(
   pickManagedEnv({
     BIRDCODER_IAM_DEPLOYMENT_MODE: 'desktop-local',
-    SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD: 'dev123456',
+    VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD: 'dev123456',
     SDKWORK_IAM_MODE: 'local',
     VITE_SDKWORK_DEPLOYMENT_MODE: 'local',
   }),
   {
     BIRDCODER_IAM_DEPLOYMENT_MODE: 'desktop-local',
-    SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD: '***',
+    VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD: '***',
     SDKWORK_IAM_MODE: 'local',
     VITE_SDKWORK_DEPLOYMENT_MODE: 'local',
   },

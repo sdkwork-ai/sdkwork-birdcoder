@@ -1,4 +1,4 @@
-# Environment
+﻿# Environment
 
 BirdCoder uses the SDKWork IAM environment model directly. The app does not define a second identity provider, user bridge, or compatibility mode.
 
@@ -20,13 +20,10 @@ Supported deployment modes:
 
 Public frontend mode uses `VITE_SDKWORK_DEPLOYMENT_MODE=local`, `private`, or `saas`. Server-side SDKWork IAM mode uses `SDKWORK_IAM_MODE=local`, `private`, or `cloud`.
 
-## Local Bootstrap And Developer Prefill
+## Local Developer Prefill
 
-- `SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL`
-- `SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE`
-- `SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD`
-- `SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED`
-- `SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS`
+- `SDKWORK_IAM_DEV_FIXED_VERIFY_CODE`
+- `SDKWORK_IAM_OAUTH_PROVIDERS`
 - `BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT`
 - `VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED`
 - `VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT`
@@ -36,7 +33,7 @@ Public frontend mode uses `VITE_SDKWORK_DEPLOYMENT_MODE=local`, `private`, or `s
 - `VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD`
 - `VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE`
 
-`desktop-local` and `server-private` default the local bootstrap account to `local-default@sdkwork-iam.local`, the local phone to `13800000000`, the development password to `dev123456`, and the fixed development verification code to `123456` unless the operator overrides them. These values are developer experience defaults only; production packaging must not depend on them.
+`desktop-local` and `server-private` may set `SDKWORK_IAM_DEV_FIXED_VERIFY_CODE` for deterministic verification-code flows during development. Optional auth-form prefill uses explicit `VITE_BIRDCODER_AUTH_DEV_*` values only; IAM identity still comes from register/login APIs and JWT dual tokens.
 
 ## Cloud IAM App API
 

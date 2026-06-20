@@ -1,4 +1,4 @@
-use argon2::{
+﻿use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
@@ -16,11 +16,11 @@ pub const IAM_AUTHORIZATION_SCHEME: &str = "Bearer";
 pub const IAM_SESSION_HEADER_NAME: &str = "x-sdkwork-iam-session-id";
 
 const SDKWORK_IAM_MODE_ENV: &str = "SDKWORK_IAM_MODE";
-const SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV: &str = "SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL";
-const SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV: &str = "SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE";
-const SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV: &str = "SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD";
-const SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV: &str = "SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED";
-const SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS_ENV: &str = "SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS";
+const SDKWORK_IAM_BOOTSTRAP_EMAIL_ENV: &str = "SDKWORK_IAM_BOOTSTRAP_EMAIL";
+const SDKWORK_IAM_BOOTSTRAP_PHONE_ENV: &str = "SDKWORK_IAM_BOOTSTRAP_PHONE";
+const SDKWORK_IAM_BOOTSTRAP_PASSWORD_ENV: &str = "SDKWORK_IAM_BOOTSTRAP_PASSWORD";
+const SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED_ENV: &str = "SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED";
+const SDKWORK_IAM_OAUTH_PROVIDERS_ENV: &str = "SDKWORK_IAM_OAUTH_PROVIDERS";
 
 const DEFAULT_APP_ID: &str = "sdkwork-birdcoder";
 const DEFAULT_TENANT_ID: &str = "0";
@@ -1192,7 +1192,7 @@ impl IamState {
         let target = normalize_required(&request.target, "target")?;
         let scene = normalize_required(&request.scene, "scene")?;
         let verify_type = normalize_required(&request.verify_type, "verifyType")?;
-        let code = read_env_trimmed(SDKWORK_IAM_LOCAL_VERIFY_CODE_FIXED_ENV)
+        let code = read_env_trimmed(SDKWORK_IAM_BOOTSTRAP_VERIFY_CODE_FIXED_ENV)
             .unwrap_or_else(|| DEFAULT_VERIFY_CODE.to_owned());
         insert_verify_code(connection, &target, &scene, &verify_type, &code)
     }
@@ -1450,11 +1450,11 @@ pub fn ensure_sqlite_iam_bootstrap_user(connection: &mut Connection) -> Result<(
         return Ok(());
     }
     ensure_sqlite_iam_schema(connection)?;
-    let email = read_env_trimmed(SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL_ENV)
+    let email = read_env_trimmed(SDKWORK_IAM_BOOTSTRAP_EMAIL_ENV)
         .filter(|value| value.contains('@'))
         .unwrap_or_else(|| DEFAULT_BOOTSTRAP_EMAIL.to_owned())
         .to_ascii_lowercase();
-    let phone = read_env_trimmed(SDKWORK_IAM_LOCAL_BOOTSTRAP_PHONE_ENV)
+    let phone = read_env_trimmed(SDKWORK_IAM_BOOTSTRAP_PHONE_ENV)
         .or_else(|| Some(DEFAULT_BOOTSTRAP_PHONE.to_owned()));
     let user = upsert_user(
         connection,
@@ -1467,7 +1467,7 @@ pub fn ensure_sqlite_iam_bootstrap_user(connection: &mut Connection) -> Result<(
     set_user_password(
         connection,
         &user.id,
-        &read_env_trimmed(SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD_ENV)
+        &read_env_trimmed(SDKWORK_IAM_BOOTSTRAP_PASSWORD_ENV)
             .unwrap_or_else(|| DEFAULT_BOOTSTRAP_PASSWORD.to_owned()),
     )?;
     Ok(())
@@ -1502,7 +1502,7 @@ fn build_runtime_settings() -> IamMetadataPayload {
 }
 
 fn resolve_oauth_providers() -> Vec<String> {
-    read_env_trimmed(SDKWORK_IAM_LOCAL_OAUTH_PROVIDERS_ENV)
+    read_env_trimmed(SDKWORK_IAM_OAUTH_PROVIDERS_ENV)
         .unwrap_or_else(|| "wechat,douyin,github".to_owned())
         .split([',', ';', '\n'])
         .filter_map(|entry| normalize_optional_text(Some(entry)))
