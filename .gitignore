@@ -28,8 +28,12 @@ claude-*.txt
 codex-*.txt
 console.log*
 packages/sdkwork-birdcoder-pc-desktop/.local/
+apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/.local/
+**/.local/
 apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/.local/
 packages/sdkwork-birdcoder-pc-server/.local/
+/NUL
+NUL
 .env*
 !.env.example
 
