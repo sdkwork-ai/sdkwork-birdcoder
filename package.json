@@ -321,7 +321,17 @@
     "release:candidate:dry-run": "node scripts/release/candidate-dry-run.mjs",
     "release:rehearsal:verify": "node scripts/release/rehearsal-verify.mjs",
     "release:rollback:plan": "node scripts/release/local-release-command.mjs rollback-plan --release-assets-dir artifacts/release",
-    "release:smoke:finalized": "node scripts/release/smoke-finalized-release-assets.mjs --release-assets-dir artifacts/release"
+    "release:smoke:finalized": "node scripts/release/smoke-finalized-release-assets.mjs --release-assets-dir artifacts/release",
+    "db:validate": "node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root .",
+    "db:plan": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . plan",
+    "db:init": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . init",
+    "db:migrate": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . migrate",
+    "db:seed": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . seed",
+    "db:status": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . status",
+    "db:drift": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . drift",
+    "db:drift:check": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . drift-check",
+    "db:bootstrap": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . bootstrap",
+    "test": "node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root ."
   },
   "dependencies": {
     "@babel/runtime": "catalog:",
