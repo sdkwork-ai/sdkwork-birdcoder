@@ -36,7 +36,9 @@ export default defineConfig(({ mode }) => {
         onwarn: onBirdcoderRollupWarning,
       },
     },
-    define: {},
+    define: {
+      'process.env.SDKWORK_ACCESS_TOKEN': JSON.stringify(env.SDKWORK_ACCESS_TOKEN ?? ''),
+    },
     resolve: {
       alias: [
         { find: '@', replacement: path.resolve(__dirname, './src') },
