@@ -61,6 +61,7 @@
     "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/utils-typescript": "workspace:*",
     "@sdkwork/terminal-pc-infrastructure": "workspace:*",
     "@sdkwork/terminal-pc-shell": "workspace:*",
     "lucide-react": "catalog:"

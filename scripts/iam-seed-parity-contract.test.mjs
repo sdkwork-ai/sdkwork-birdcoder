@@ -2,8 +2,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { LEGACY_ARCHIVE_RUST_PATHS } from './birdcoder-canonical-server-rust-sources.mjs';
-
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
 const appbaseRoot = path.resolve(workspaceRoot, '..', 'sdkwork-appbase');
 
@@ -13,10 +11,6 @@ function readText(rootDir, relativePath) {
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
-const birdCoderIamAuthoritySource = readText(
-  workspaceRoot,
-  LEGACY_ARCHIVE_RUST_PATHS.iamAuthority,
-);
 const birdCoderServerCargoSource = readText(
   workspaceRoot,
   'crates/sdkwork-birdcoder-api-server/Cargo.toml',
@@ -33,6 +27,11 @@ const appbaseIamDirectoryRepositorySource = readText(
   appbaseRoot,
   'crates/sdkwork-iam-directory-repository-sqlx/src/lib.rs',
 );
+const appbaseIamRouterSource = [
+  readText(appbaseRoot, 'crates/sdkwork-router-iam-app-api/src/handlers.rs'),
+  readText(appbaseRoot, 'crates/sdkwork-router-iam-app-api/src/directory.rs'),
+  readText(appbaseRoot, 'crates/sdkwork-router-iam-app-api/src/tokens.rs'),
+].join('\n');
 
 for (const [requiredDependencyName, pattern] of [
   [
@@ -76,6 +75,9 @@ for (const requiredIamStoragePattern of [
   /pub const TENANT_MEMBER: &'static str = "iam_tenant_member"/u,
   /pub const TENANT_SIGNING_KEY: &'static str = "iam_tenant_signing_key"/u,
   /pub const ORGANIZATION_MEMBERSHIP: &'static str = "iam_organization_membership"/u,
+  /pub const USER: &'static str = "iam_user"/u,
+  /pub const SESSION: &'static str = "iam_session"/u,
+  /pub const AUDIT_EVENT: &'static str = "iam_audit_event"/u,
   /pub fn iam_database_tables\(\) -> Vec<&'static str>/u,
   /pub fn iam_initial_migration_sql\(\) -> &'static str/u,
 ]) {
@@ -98,23 +100,6 @@ for (const forbiddenIamStoragePattern of [
   );
 }
 
-for (const requiredBirdCoderIamPattern of [
-  /const SDKWORK_IAM_MODE_ENV: &str = "SDKWORK_IAM_MODE";/u,
-  /enum IamMode/u,
-  /fn local_authority_enabled\(self\) -> bool/u,
-  /!matches!\(self, Self::Cloud\)/u,
-  /CREATE TABLE IF NOT EXISTS iam_tenant/u,
-  /CREATE TABLE IF NOT EXISTS iam_user/u,
-  /CREATE TABLE IF NOT EXISTS iam_session/u,
-  /CREATE TABLE IF NOT EXISTS iam_audit_event/u,
-]) {
-  assert.match(
-    birdCoderIamAuthoritySource,
-    requiredBirdCoderIamPattern,
-    'BirdCoder legacy IAM authority archive must keep the standard IAM runtime mode and table contract.',
-  );
-}
-
 for (const forbiddenBirdCoderIamPattern of [
   /SDKWORK_IAM_BOOTSTRAP_/u,
   /SDKWORK_APP_ID/u,
@@ -133,12 +118,24 @@ for (const forbiddenBirdCoderIamPattern of [
   /\bread_membership\b/u,
   /\bupdate_membership\b/u,
   /membership_level_id/u,
+  /SDKWORK_IAM_BOOTSTRAP_/u,
 ]) {
   assert.doesNotMatch(
-    birdCoderIamAuthoritySource,
+    appbaseIamRouterSource,
     forbiddenBirdCoderIamPattern,
-    `BirdCoder IAM authority must not own VIP, billing, or membership state ${forbiddenBirdCoderIamPattern}.`,
+    `Standard appbase IAM router must not own VIP, billing, membership, or bootstrap identity env injection ${forbiddenBirdCoderIamPattern}.`,
   );
 }
+
+assert.equal(
+  fs.existsSync(
+    path.join(
+      workspaceRoot,
+      'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive/iam_authority.rs',
+    ),
+  ),
+  false,
+  'Retired BirdCoder local IAM authority archive must be removed after appbase router migration.',
+);
 
 console.log('birdcoder IAM seed parity contract passed.');

@@ -1,5 +1,31 @@
 {
   "schemaVersion": 1,
   "kind": "sdkwork.database.prefix-registry",
-  "prefixes": []
+  "prefixes": [
+    {
+      "prefix": "ai_",
+      "owner": "birdcoder-platform",
+      "domain": "birdcoder"
+    },
+    {
+      "prefix": "commerce_",
+      "owner": "birdcoder-platform",
+      "domain": "birdcoder"
+    },
+    {
+      "prefix": "ops_",
+      "owner": "birdcoder-platform",
+      "domain": "birdcoder"
+    },
+    {
+      "prefix": "runtime_",
+      "owner": "birdcoder-platform",
+      "domain": "birdcoder"
+    },
+    {
+      "prefix": "studio_",
+      "owner": "birdcoder-platform",
+      "domain": "birdcoder"
+    }
+  ]
 }

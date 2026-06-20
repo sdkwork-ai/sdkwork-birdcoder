@@ -321,6 +321,11 @@ assert.equal(
 
 for (const engine of listWorkbenchCliEngines()) {
   assert.equal(
+    engine.defaultModelId,
+    engine.descriptor.defaultModelId,
+    `${engine.id} kernel defaultModelId must stay aligned with the shared descriptor`,
+  );
+  assert.equal(
     fs.existsSync(path.join(process.cwd(), String(engine.source.externalPath ?? ''))),
     true,
     `${engine.id} external mirror path must exist in this workspace`,

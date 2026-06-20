@@ -45,6 +45,7 @@ export interface WorkbenchCodeEngineKernel {
   id: WorkbenchCodeEngineId;
   label: string;
   aliases: readonly string[];
+  defaultModelId: string;
   terminalProfileId: WorkbenchCodeEngineId;
   cli: WorkbenchCodeEngineCliDefinition;
   source: WorkbenchCodeEngineSourceDefinition;
@@ -163,6 +164,7 @@ export const WORKBENCH_ENGINE_KERNELS: readonly WorkbenchCodeEngineKernel[] =
       id: engineId,
       label: workbenchDefinition?.label ?? descriptor.displayName,
       aliases: workbenchDefinition?.aliases ?? [engineId],
+      defaultModelId: descriptor.defaultModelId,
       terminalProfileId: engineId,
       descriptor,
       modelCatalog: BIRDCODER_CODE_ENGINE_MODELS.filter(

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { createHash } from 'node:crypto';
 import {
   existsSync,
   readFileSync,
@@ -11,6 +10,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
+
+import { sha256File } from '../sdkwork-utils-digest.mjs';
 
 import {
   RELEASE_ASSET_MANIFEST_FILE_NAME,
@@ -234,7 +235,7 @@ function resolveArtifactAbsolutePath(releaseAssetsDir, relativePath) {
 }
 
 function computeSha256(filePath) {
-  return createHash('sha256').update(readFileSync(filePath)).digest('hex');
+  return sha256File(filePath);
 }
 
 function assertArtifactIntegrity({

@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -13,6 +12,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
+
+import { sha256Value } from '../sdkwork-utils-digest.mjs';
 
 const rootDir = path.resolve(import.meta.dirname, '..', '..');
 const minimalReleaseProfile = Object.freeze({
@@ -46,7 +47,7 @@ function resolveMinimalReleaseProfile(profileId = 'sdkwork-birdcoder') {
 }
 
 function sha256(value) {
-  return createHash('sha256').update(value).digest('hex');
+  return sha256Value(value);
 }
 
 function writeManifestChecksumSidecar(releaseAssetsDir) {

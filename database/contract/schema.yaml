@@ -1,11 +1,122 @@
 schema_version: 1
 kind: sdkwork.database.schema
 module_id: birdcoder
-contract_version: 0.1.0
+contract_version: 1.0.0
 owner_team: birdcoder-platform
 compliance_level: L2
 engines:
-  - postgres
   - sqlite
-table_prefix: birdcoder_
-tables: []
+  - postgres
+table_prefix: ai_
+tables:
+  - name: ai_coding_session
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_coding_session_message
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_coding_session_runtime
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_coding_session_turn
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_coding_session_event
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_coding_session_artifact
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_coding_session_checkpoint
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_coding_session_operation
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_coding_session_prompt_entry
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_saved_prompt_entry
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_workspace
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_project
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_project_content
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_skill_package
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_skill_version
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_skill_capability
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ai_skill_installation
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_app_template
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_app_template_version
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_app_template_target_profile
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_app_template_preset
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_app_template_instantiation
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_project_document
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_deployment_target
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_deployment_record
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_team
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_team_member
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_workspace_member
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: studio_project_collaborator
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ops_release_record
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ops_audit_event
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: ops_governance_policy
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: runtime_model_config
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: commerce_membership
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: commerce_membership_benefit
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: commerce_membership_package_group
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: commerce_membership_package
+    lifecycle_status: active
+    owner: birdcoder-platform

@@ -1,6 +1,7 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { sha256File } from '../sdkwork-utils-digest.mjs';
 
 function walkFiles(directoryPath) {
   if (!fs.existsSync(directoryPath)) {
@@ -26,7 +27,7 @@ function walkFiles(directoryPath) {
 }
 
 function computeSha256(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  return sha256File(filePath);
 }
 
 function toRelativePath(baseDir, targetPath) {

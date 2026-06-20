@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+import { sha256Value } from '../sdkwork-utils-digest.mjs';
 
 import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression-report.mjs';
 import {
@@ -24,10 +25,7 @@ fs.mkdirSync(path.join(releaseAssetsDir, 'server', 'windows', 'x64'), { recursiv
 const publishArtifactRelativePath = 'server/windows/x64/server.tar.gz';
 const publishArtifactContent = Buffer.from('publishable server release archive\n', 'utf8');
 fs.writeFileSync(path.join(releaseAssetsDir, publishArtifactRelativePath), publishArtifactContent);
-const publishArtifactSha256 = crypto
-  .createHash('sha256')
-  .update(publishArtifactContent)
-  .digest('hex');
+const publishArtifactSha256 = sha256Value(publishArtifactContent);
 fs.writeFileSync(
   path.join(releaseAssetsDir, 'release-manifest.json'),
   JSON.stringify({

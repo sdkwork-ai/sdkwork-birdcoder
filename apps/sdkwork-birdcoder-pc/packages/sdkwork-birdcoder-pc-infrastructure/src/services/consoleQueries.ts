@@ -1,3 +1,4 @@
+import { isBlank } from '@sdkwork/utils-typescript/string';
 import type {
   BirdCoderCreateProjectRequest,
   BirdCoderCreateWorkspaceRequest,
@@ -170,7 +171,7 @@ function normalizeOptionalLongInteger(
     return undefined;
   }
 
-  if (typeof value === 'string' && value.trim().length === 0) {
+  if (typeof value === 'string' && isBlank(value)) {
     return undefined;
   }
 

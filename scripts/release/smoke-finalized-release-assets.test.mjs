@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+
+import { sha256File } from '../sdkwork-utils-digest.mjs';
 
 import { ENGINE_GOVERNANCE_REGRESSION_CHECK_IDS } from '../governance-regression-report.mjs';
 import { smokeFinalizedReleaseAssets } from './smoke-finalized-release-assets.mjs';
@@ -251,15 +252,9 @@ fs.writeFileSync(
     },
   }, null, 2),
 );
-const codingServerOpenApiSha256 = crypto
-  .createHash('sha256')
-  .update(fs.readFileSync(path.join(releaseAssetsDir, 'server', 'windows', 'x64', 'openapi', 'coding-server-v1.json')))
-  .digest('hex');
+const codingServerOpenApiSha256 = sha256File(path.join(releaseAssetsDir, 'server', 'windows', 'x64', 'openapi', 'coding-server-v1.json'));
 const desktopInstallerRelativePath = 'desktop/windows/x64/desktop-setup.exe';
-const desktopInstallerSha256 = crypto
-  .createHash('sha256')
-  .update(fs.readFileSync(path.join(releaseAssetsDir, desktopInstallerRelativePath)))
-  .digest('hex');
+const desktopInstallerSha256 = sha256File(path.join(releaseAssetsDir, desktopInstallerRelativePath));
 const publishArtifactRelativePath = 'server/windows/x64/openapi/coding-server-v1.json';
 fs.writeFileSync(
   path.join(releaseAssetsDir, 'release-manifest.json'),

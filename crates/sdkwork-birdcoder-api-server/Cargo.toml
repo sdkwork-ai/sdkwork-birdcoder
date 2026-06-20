@@ -37,6 +37,7 @@ sdkwork-web-contract = { workspace = true }
 sdkwork_iam_web_adapter.workspace = true
 sdkwork_database_sqlx = { workspace = true }
 sdkwork_database_config = { workspace = true }
+sdkwork-birdcoder-database-host = { workspace = true }
 sqlx = { workspace = true }
 sdkwork-birdcoder-document-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-codeengine = { workspace = true }

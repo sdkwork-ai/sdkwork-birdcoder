@@ -221,10 +221,11 @@ function createMockSdkBackedRuntime(
                           type: 'function',
                           function: {
                             name: 'run_command',
-                            arguments: JSON.stringify({
-                              command: 'pnpm lint',
-                              source: `${engine.id}-runtime-adapter-contract`,
-                            }),
+                      arguments: JSON.stringify({
+                        command: 'pnpm lint',
+                        source: `${engine.id}-runtime-adapter-contract`,
+                        status: 'completed',
+                      }),
                           },
                         },
                       ],
@@ -397,6 +398,7 @@ function createMockSdkBackedRuntime(
                               arguments: JSON.stringify({
                                 command: 'pnpm lint',
                                 source: 'opencode-runtime-adapter-contract',
+                                status: 'completed',
                               }),
                             },
                           },

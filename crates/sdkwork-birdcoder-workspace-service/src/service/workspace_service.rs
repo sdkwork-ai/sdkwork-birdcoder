@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use sdkwork_utils_rust::is_blank;
+
 use crate::context::WorkspaceContext;
 use crate::domain::commands::{CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest};
 use crate::domain::models::WorkspaceScopedQuery;
@@ -38,7 +40,7 @@ impl WorkspaceService {
         ctx: &WorkspaceContext,
         id: &str,
     ) -> Result<WorkspacePayload, WorkspaceError> {
-        if id.trim().is_empty() {
+        if is_blank(Some(id)) {
             return Err(WorkspaceError::InvalidInput(
                 "workspaceId is required.".to_owned(),
             ));
@@ -54,7 +56,7 @@ impl WorkspaceService {
         ctx: &WorkspaceContext,
         request: &CreateWorkspaceRequest,
     ) -> Result<WorkspacePayload, WorkspaceError> {
-        if request.name.trim().is_empty() {
+        if is_blank(Some(&request.name)) {
             return Err(WorkspaceError::InvalidInput(
                 "Workspace name is required.".to_owned(),
             ));
@@ -75,7 +77,7 @@ impl WorkspaceService {
         id: &str,
         request: &UpdateWorkspaceRequest,
     ) -> Result<WorkspacePayload, WorkspaceError> {
-        if id.trim().is_empty() {
+        if is_blank(Some(id)) {
             return Err(WorkspaceError::InvalidInput(
                 "workspaceId is required.".to_owned(),
             ));
@@ -102,7 +104,7 @@ impl WorkspaceService {
         ctx: &WorkspaceContext,
         id: &str,
     ) -> Result<DeleteEntityPayload, WorkspaceError> {
-        if id.trim().is_empty() {
+        if is_blank(Some(id)) {
             return Err(WorkspaceError::InvalidInput(
                 "workspaceId is required.".to_owned(),
             ));
@@ -122,7 +124,7 @@ impl WorkspaceService {
         ctx: &WorkspaceContext,
         workspace_id: &str,
     ) -> Result<Vec<WorkspaceMemberPayload>, WorkspaceError> {
-        if workspace_id.trim().is_empty() {
+        if is_blank(Some(workspace_id)) {
             return Err(WorkspaceError::InvalidInput(
                 "workspaceId is required.".to_owned(),
             ));
@@ -138,7 +140,7 @@ impl WorkspaceService {
         workspace_id: &str,
         request: &UpsertWorkspaceMemberRequest,
     ) -> Result<WorkspaceMemberPayload, WorkspaceError> {
-        if workspace_id.trim().is_empty() {
+        if is_blank(Some(workspace_id)) {
             return Err(WorkspaceError::InvalidInput(
                 "workspaceId is required.".to_owned(),
             ));
@@ -169,12 +171,12 @@ impl WorkspaceService {
         workspace_id: &str,
         user_id: &str,
     ) -> Result<(), WorkspaceError> {
-        if workspace_id.trim().is_empty() {
+        if is_blank(Some(workspace_id)) {
             return Err(WorkspaceError::InvalidInput(
                 "workspaceId is required.".to_owned(),
             ));
         }
-        if user_id.trim().is_empty() {
+        if is_blank(Some(user_id)) {
             return Err(WorkspaceError::InvalidInput(
                 "userId is required.".to_owned(),
             ));

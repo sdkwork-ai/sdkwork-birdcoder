@@ -29,6 +29,7 @@ members = [
     "crates/sdkwork-birdcoder-model-config-repository-sqlx",
     "crates/sdkwork-birdcoder-membership-repository-sqlx",
     "crates/sdkwork-birdcoder-document-repository-sqlx",
+    "crates/sdkwork-birdcoder-database-host",
     # Host/server crates
     "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri",
     "crates/sdkwork-birdcoder-api-server",
@@ -116,8 +117,12 @@ sdkwork-web-core = { path = "../sdkwork-web-framework/crates/sdkwork-web-core" }
 sdkwork-web-axum = { path = "../sdkwork-web-framework/crates/sdkwork-web-axum" }
 sdkwork-web-contract = { path = "../sdkwork-web-framework/crates/sdkwork-web-contract" }
 sdkwork_iam_web_adapter = { package = "sdkwork-iam-web-adapter", path = "../sdkwork-appbase/crates/sdkwork-iam-web-adapter" }
-sdkwork_database_sqlx = { package = "sdkwork-database-sqlx", path = "../sdkwork-database/crates/sdkwork-database-sqlx" }
 sdkwork_database_config = { package = "sdkwork-database-config", path = "../sdkwork-database/crates/sdkwork-database-config" }
+sdkwork_database_lifecycle = { package = "sdkwork-database-lifecycle", path = "../sdkwork-database/crates/sdkwork-database-lifecycle" }
+sdkwork_database_spi = { package = "sdkwork-database-spi", path = "../sdkwork-database/crates/sdkwork-database-spi" }
+sdkwork_database_sqlx = { package = "sdkwork-database-sqlx", path = "../sdkwork-database/crates/sdkwork-database-sqlx" }
+sdkwork-utils-rust = { path = "../sdkwork-utils/packages/sdkwork-utils-rust" }
+sdkwork-birdcoder-database-host = { path = "crates/sdkwork-birdcoder-database-host" }
 sdkwork-birdcoder-router-context = { path = "crates/sdkwork-birdcoder-router-context" }
 sdkwork_iam_directory_repository_sqlx = { package = "sdkwork-iam-directory-repository-sqlx", path = "../sdkwork-appbase/crates/sdkwork-iam-directory-repository-sqlx" }
 sdkwork_appbase_tauri_host = { package = "sdkwork-appbase-tauri-host", path = "../sdkwork-appbase/crates/sdkwork-appbase-tauri-host" }

@@ -1,5 +1,7 @@
 import {
   canonicalizeBirdCoderCodeEngineToolName,
+  flushBirdCoderCodeEngineToolCallDeltas,
+  mergeBirdCoderCodeEngineToolCallDelta,
   normalizeBirdCoderCodeEngineToolLifecycleStatus,
   parseBirdCoderApiJson,
   resolveBirdCoderCodeEngineArtifactKind,
@@ -9,6 +11,7 @@ import {
 } from '@sdkwork/birdcoder-pc-types';
 import type {
   BirdCoderCodeEngineKey,
+  BirdCoderCodeEnginePendingToolCallDelta,
   BirdCoderCodingSessionRuntimeStatus,
   BirdCoderEngineDescriptor,
 } from '@sdkwork/birdcoder-pc-types';
@@ -167,8 +170,178 @@ function resolveChunkContent(chunk: ChatStreamChunk): string {
     .join('');
 }
 
-function resolveChunkToolCalls(chunk: ChatStreamChunk): readonly ToolCall[] {
-  return chunk.choices.flatMap((choice) => choice.delta.tool_calls ?? []);
+function toolCallDeltaIsProjectable(
+  toolCall: BirdCoderCodeEnginePendingToolCallDelta,
+): boolean {
+  const toolName = toolCall.function.name.trim();
+  if (!toolName) {
+    return false;
+  }
+
+  const toolArguments = toolCall.function.arguments.trim();
+  if (!toolArguments) {
+    return false;
+  }
+
+  try {
+    parseBirdCoderApiJson(toolArguments);
+    return true;
+  } catch {
+    return !/^[{[]/u.test(toolArguments);
+  }
+}
+
+function drainProjectableToolCallDeltas(
+  pendingToolCallOrder: string[],
+  pendingToolCalls: Map<string, BirdCoderCodeEnginePendingToolCallDelta>,
+): BirdCoderCodeEnginePendingToolCallDelta[] {
+  const projectableToolCalls: BirdCoderCodeEnginePendingToolCallDelta[] = [];
+  const retainedOrder: string[] = [];
+
+  for (const key of pendingToolCallOrder) {
+    const toolCall = pendingToolCalls.get(key);
+    if (!toolCall) {
+      continue;
+    }
+
+    if (toolCallDeltaIsProjectable(toolCall)) {
+      projectableToolCalls.push(toolCall);
+      pendingToolCalls.delete(key);
+      continue;
+    }
+
+    retainedOrder.push(key);
+  }
+
+  pendingToolCallOrder.splice(0, pendingToolCallOrder.length, ...retainedOrder);
+  return projectableToolCalls;
+}
+
+function pendingToolCallToToolCall(
+  toolCall: BirdCoderCodeEnginePendingToolCallDelta,
+): ToolCall {
+  return {
+    id: toolCall.id,
+    type: 'function',
+    function: {
+      name: toolCall.function.name,
+      arguments: toolCall.function.arguments,
+    },
+  };
+}
+
+function toolCallSnapshotSignature(
+  toolCall: BirdCoderCodeEnginePendingToolCallDelta,
+): string {
+  return JSON.stringify({
+    id: toolCall.id,
+    name: toolCall.function.name,
+    arguments: toolCall.function.arguments,
+  });
+}
+
+function buildProjectableToolCallEvents(input: {
+  mergedToolCall: BirdCoderCodeEnginePendingToolCallDelta;
+  projectedToolSnapshots: Map<string, string>;
+  approvalEmittedToolIds: Set<string>;
+  terminalStatus: BirdCoderCodingSessionRuntimeStatus;
+  sequence: number;
+}): {
+  events: ChatCanonicalEvent[];
+  terminalStatus: BirdCoderCodingSessionRuntimeStatus;
+  sequence: number;
+} {
+  const signature = toolCallSnapshotSignature(input.mergedToolCall);
+  if (input.projectedToolSnapshots.get(input.mergedToolCall.id) === signature) {
+    return {
+      events: [],
+      terminalStatus: input.terminalStatus,
+      sequence: input.sequence,
+    };
+  }
+
+  input.projectedToolSnapshots.set(input.mergedToolCall.id, signature);
+
+  const toolCall = pendingToolCallToToolCall(input.mergedToolCall);
+  const toolArguments = toolCall.function.arguments;
+  const args = parseToolArguments(toolCall);
+  const toolName = canonicalizeBirdCoderCodeEngineToolName(toolCall.function.name);
+  const status = resolveLifecycleStatus(args);
+  const toolEventKind = eventKindForToolStatus(status);
+  const runtimeStatus = runtimeStatusForToolStatus(status);
+  const toolKind = resolveBirdCoderCodeEngineToolKind({
+    toolName,
+    toolArguments: args,
+  });
+  const riskLevel = resolveBirdCoderCodeEngineRiskLevel({
+    toolName,
+    toolKind,
+  });
+  let terminalStatus: BirdCoderCodingSessionRuntimeStatus =
+    runtimeStatus === 'streaming' ? input.terminalStatus : runtimeStatus;
+  const events: ChatCanonicalEvent[] = [];
+  let sequence = input.sequence;
+
+  const payload = {
+    toolCallId: toolCall.id,
+    toolName,
+    providerToolName: toolCall.function.name,
+    toolArguments,
+    arguments: args,
+    status: status ?? 'requested',
+    riskLevel,
+    requiresApproval: shouldRequireApproval({ toolName, status, args }),
+  };
+
+  events.push(createCanonicalEvent(++sequence, toolEventKind, runtimeStatus, payload));
+  events.push(
+    createCanonicalEvent(
+      ++sequence,
+      'artifact.upserted',
+      runtimeStatus,
+      {
+        toolCallId: toolCall.id,
+        toolName,
+        toolArguments,
+        arguments: args,
+      },
+      {
+        kind: resolveBirdCoderCodeEngineArtifactKind({
+          toolName,
+          toolKind,
+        }),
+        title: resolveToolTitle(toolName, args),
+        metadata: {
+          toolCallId: toolCall.id,
+          toolName,
+          status: status ?? 'requested',
+        },
+      },
+    ),
+  );
+
+  if (payload.requiresApproval && !input.approvalEmittedToolIds.has(toolCall.id)) {
+    input.approvalEmittedToolIds.add(toolCall.id);
+    terminalStatus = 'awaiting_approval';
+    events.push(
+      createCanonicalEvent(++sequence, 'approval.required', 'awaiting_approval', {
+        toolCallId: toolCall.id,
+        toolName,
+        riskLevel: resolveBirdCoderCodeEngineRiskLevel({
+          toolName,
+          toolKind,
+        }),
+        toolArguments,
+        arguments: args,
+      }),
+    );
+  }
+
+  return {
+    events,
+    terminalStatus,
+    sequence,
+  };
 }
 
 async function resolveHealth(runtime: IChatEngine): Promise<ChatEngineHealthReport | null> {
@@ -277,8 +450,10 @@ export function createWorkbenchCanonicalChatEngine(
         approvalPolicy: 'OnRequest',
         capabilityMatrix: descriptor.capabilityMatrix,
       };
-      const seenToolSnapshots = new Set<string>();
+      const projectedToolSnapshots = new Map<string, string>();
       const approvalEmittedToolIds = new Set<string>();
+      const pendingToolCalls = new Map<string, BirdCoderCodeEnginePendingToolCallDelta>();
+      const pendingToolCallOrder: string[] = [];
 
       yield createCanonicalEvent(++sequence, 'session.started', 'ready', {
         engineId: runtimeDescriptor.engineId,
@@ -290,117 +465,105 @@ export function createWorkbenchCanonicalChatEngine(
         messageCount: messages.length,
       });
 
-      for await (const chunk of stream) {
-        const contentDelta = resolveChunkContent(chunk);
-
-        if (contentDelta) {
-          combinedContent += contentDelta;
-          yield createCanonicalEvent(++sequence, 'message.delta', 'streaming', {
-            role: 'assistant',
-            contentDelta,
-            content: combinedContent,
-            chunkId: chunk.id,
-          });
-        }
-
-        for (const toolCall of resolveChunkToolCalls(chunk)) {
-          const args = parseToolArguments(toolCall);
-          const toolName = canonicalizeBirdCoderCodeEngineToolName(
-            toolCall.function.name,
-          );
-          const status = resolveLifecycleStatus(args);
-          const toolEventKind = eventKindForToolStatus(status);
-          const runtimeStatus = runtimeStatusForToolStatus(status);
-          const snapshotKey = JSON.stringify({
-            id: toolCall.id,
-            kind: toolEventKind,
-            args,
-          });
-
-          if (seenToolSnapshots.has(snapshotKey)) {
-            continue;
+      try {
+        const emitProjectableToolCalls = (
+          toolCalls: readonly BirdCoderCodeEnginePendingToolCallDelta[],
+        ) => {
+          const emittedEvents: ChatCanonicalEvent[] = [];
+          for (const mergedToolCall of toolCalls) {
+            const result = buildProjectableToolCallEvents({
+              mergedToolCall,
+              projectedToolSnapshots,
+              approvalEmittedToolIds,
+              terminalStatus,
+              sequence,
+            });
+            terminalStatus = result.terminalStatus as BirdCoderCodingSessionRuntimeStatus;
+            sequence = result.sequence;
+            emittedEvents.push(...result.events);
           }
+          return emittedEvents;
+        };
 
-          seenToolSnapshots.add(snapshotKey);
-          terminalStatus = runtimeStatus === 'streaming' ? terminalStatus : runtimeStatus;
+        for await (const chunk of stream) {
+          const contentDelta = resolveChunkContent(chunk);
 
-          const payload = {
-            toolCallId: toolCall.id,
-            toolName,
-            providerToolName: toolCall.function.name,
-            arguments: args,
-            status: status ?? 'requested',
-            requiresApproval: shouldRequireApproval({ toolName, status, args }),
-          };
-
-          yield createCanonicalEvent(++sequence, toolEventKind, runtimeStatus, payload);
-
-          yield createCanonicalEvent(
-            ++sequence,
-            'artifact.upserted',
-            runtimeStatus,
-            {
-              toolCallId: toolCall.id,
-              toolName,
-              arguments: args,
-            },
-            {
-              kind: resolveBirdCoderCodeEngineArtifactKind({
-                toolName,
-                toolKind: resolveBirdCoderCodeEngineToolKind({
-                  toolName,
-                  toolArguments: args,
-                }),
-              }),
-              title: resolveToolTitle(toolName, args),
-              metadata: {
-                toolCallId: toolCall.id,
-                status: status ?? 'requested',
-              },
-            },
-          );
-
-          if (
-            payload.requiresApproval &&
-            !approvalEmittedToolIds.has(toolCall.id)
-          ) {
-            approvalEmittedToolIds.add(toolCall.id);
-            terminalStatus = 'awaiting_approval';
-            yield createCanonicalEvent(++sequence, 'approval.required', 'awaiting_approval', {
-              toolCallId: toolCall.id,
-              toolName,
-              riskLevel: resolveBirdCoderCodeEngineRiskLevel({
-                toolName,
-                toolKind: resolveBirdCoderCodeEngineToolKind({
-                  toolName,
-                  toolArguments: args,
-                }),
-              }),
-              arguments: args,
+          if (contentDelta) {
+            combinedContent += contentDelta;
+            yield createCanonicalEvent(++sequence, 'message.delta', 'streaming', {
+              role: 'assistant',
+              contentDelta,
+              content: combinedContent,
+              chunkId: chunk.id,
             });
           }
+
+          for (const choice of chunk.choices) {
+            for (const toolCall of choice.delta.tool_calls ?? []) {
+              mergeBirdCoderCodeEngineToolCallDelta({
+                pendingToolCallOrder,
+                pendingToolCalls,
+                toolCall,
+              });
+            }
+          }
+
+          for (const event of emitProjectableToolCalls(
+            drainProjectableToolCallDeltas(pendingToolCallOrder, pendingToolCalls),
+          )) {
+            yield event;
+          }
+
+          if (chunk.choices.some((choice) => choice.finish_reason === 'tool_calls')) {
+            for (const event of emitProjectableToolCalls(
+              flushBirdCoderCodeEngineToolCallDeltas({
+                pendingToolCallOrder,
+                pendingToolCalls,
+              }),
+            )) {
+              yield event;
+            }
+          }
         }
-      }
 
-      if (combinedContent) {
-        yield createCanonicalEvent(++sequence, 'message.completed', 'streaming', {
-          role: 'assistant',
-          content: combinedContent,
-        });
-      }
+        for (const event of emitProjectableToolCalls(
+          flushBirdCoderCodeEngineToolCallDeltas({
+            pendingToolCallOrder,
+            pendingToolCalls,
+          }),
+        )) {
+          yield event;
+        }
 
-      const health = await resolveHealth(runtime);
-      yield createCanonicalEvent(++sequence, 'operation.updated', terminalStatus, {
-        engineId,
-        modelId: runtimeDescriptor.modelId,
-        healthStatus: health?.status ?? 'ready',
-      });
+        if (combinedContent) {
+          yield createCanonicalEvent(++sequence, 'message.completed', 'streaming', {
+            role: 'assistant',
+            content: combinedContent,
+          });
+        }
 
-      if (terminalStatus !== 'awaiting_approval' && terminalStatus !== 'awaiting_user') {
-        yield createCanonicalEvent(++sequence, 'turn.completed', 'completed', {
+        const health = await resolveHealth(runtime);
+        yield createCanonicalEvent(++sequence, 'operation.updated', terminalStatus, {
           engineId,
           modelId: runtimeDescriptor.modelId,
+          healthStatus: health?.status ?? 'ready',
         });
+
+        const turnTerminalStatus: BirdCoderCodingSessionRuntimeStatus = terminalStatus;
+        if (
+          turnTerminalStatus !== 'awaiting_approval' &&
+          turnTerminalStatus !== 'awaiting_user'
+        ) {
+          yield createCanonicalEvent(++sequence, 'turn.completed', 'completed', {
+            engineId,
+            modelId: runtimeDescriptor.modelId,
+          });
+        }
+      } catch (error) {
+        yield createCanonicalEvent(++sequence, 'turn.failed', 'failed', {
+          errorMessage: error instanceof Error ? String(error) : String(error),
+        });
+        throw error;
       }
     },
   };

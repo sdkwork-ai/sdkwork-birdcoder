@@ -4,7 +4,6 @@ import path from 'node:path';
 import process from 'node:process';
 import {
   CANONICAL_SERVER_RUST_PATHS,
-  LEGACY_ARCHIVE_RUST_PATHS,
   readCanonicalServerRustSource,
 } from './birdcoder-canonical-server-rust-sources.mjs';
 
@@ -55,7 +54,11 @@ const iamRuntimeSource = readText(
   'iamRuntime.ts',
 );
 const vitePluginSource = readText('scripts', 'create-birdcoder-vite-plugins.mjs');
-const iamAuthoritySource = readCanonicalServerRustSource(LEGACY_ARCHIVE_RUST_PATHS.iamAuthority);
+const appbaseIamOauthSource = [
+  readAppbaseText('crates/sdkwork-router-iam-app-api/src/directory.rs'),
+  readAppbaseText('crates/sdkwork-router-iam-app-api/src/ephemeral.rs'),
+  readAppbaseText('crates/sdkwork-router-iam-app-api/src/handlers.rs'),
+].join('\n');
 const apiServerIamSource = [
   readCanonicalServerRustSource(CANONICAL_SERVER_RUST_PATHS.apiServerAuth),
   readCanonicalServerRustSource('crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs'),
@@ -180,19 +183,19 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  iamAuthoritySource,
+  appbaseIamOauthSource,
   /format!\(["']\{\/\}\/app\/v3\/api\/open_platform\/qr_auth\/sessions\/\{session_key\}["']/u,
-  'BirdCoder local IAM must not return the JSON QR auth status endpoint as qrUrl; appbase treats qrUrl as an image source.',
+  'Appbase IAM must not return the JSON QR auth status endpoint as qrUrl; clients treat qrUrl as an image source.',
 );
 assert.doesNotMatch(
-  iamAuthoritySource,
+  appbaseIamOauthSource,
   /request_base_url/u,
-  'BirdCoder local IAM QR generation must not depend on request headers to synthesize a status API qrUrl.',
+  'Appbase IAM QR generation must not depend on request headers to synthesize a status API qrUrl.',
 );
 assert.match(
-  iamAuthoritySource,
-  /let qr_url:\s*Option<String>\s*=\s*None;/u,
-  'BirdCoder local IAM must store no qrUrl unless it is a real image URL; appbase will render qrContent with qrcode.',
+  appbaseIamOauthSource,
+  /"qrContent":\s*\{\s*"content":\s*s\.qr_content,\s*"mode":\s*s\.qr_content_mode\s*\}/u,
+  'Appbase IAM must expose structured qrContent payloads instead of legacy qrUrl status endpoints.',
 );
 assert.doesNotMatch(
   apiServerIamSource,

@@ -1,6 +1,7 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { sha256File } from '../sdkwork-utils-digest.mjs';
 
 export const CODING_SERVER_OPENAPI_SNAPSHOT_BASENAME = 'coding-server-v1.json';
 
@@ -17,7 +18,7 @@ function normalizeRelativePath(targetPath) {
 }
 
 function computeSha256(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  return sha256File(filePath);
 }
 
 function resolveServerTarget(asset = {}) {

@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use sdkwork_utils_rust::is_blank;
+
 use crate::context::CodingSessionContext;
 use crate::domain::commands::{
     CreateCodingSessionInput, CreateCodingSessionRequest, CreateCodingSessionTurnInput,
@@ -178,8 +180,8 @@ impl CodingSessionService {
 
         let source_session = self.repository.get_session(ctx, &session_id).await?;
 
-        if source_session.workspace_id.trim().is_empty()
-            || source_session.project_id.trim().is_empty()
+        if is_blank(Some(&source_session.workspace_id))
+            || is_blank(Some(&source_session.project_id))
         {
             return Err(CodingSessionError::InvalidInput(
                 "Only project-scoped coding sessions can be forked.".into(),

@@ -16,6 +16,7 @@ const expectedDependencyIds = [
   'sdkwork-sdk-generator',
   'sdkwork-web-framework',
   'sdkwork-database',
+  'sdkwork-utils',
   'sdkwork-app-topology',
   'sdkwork-models',
 ];

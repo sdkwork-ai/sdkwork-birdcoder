@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { sha256Value } from '../sdkwork-utils-digest.mjs';
 import {
   refreshReleaseChecksumsIfPresent,
   writeReleaseChecksums,
 } from './release-checksums.mjs';
 
 function sha256(buffer) {
-  return crypto.createHash('sha256').update(buffer).digest('hex');
+  return sha256Value(buffer);
 }
 
 const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-release-checksums-'));

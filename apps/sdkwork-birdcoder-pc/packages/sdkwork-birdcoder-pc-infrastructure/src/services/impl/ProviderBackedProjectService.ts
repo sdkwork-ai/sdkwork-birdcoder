@@ -1,3 +1,4 @@
+import { isBlank } from '@sdkwork/utils-typescript/string';
 import type {
   BirdCoderProjectSummary,
   BirdCoderChatMessage,
@@ -392,7 +393,7 @@ function buildCachedCodingSessionTranscript(
 }
 
 function parseOptionalTranscriptTimestamp(value: string | null | undefined): number {
-  if (typeof value !== 'string' || value.trim().length === 0) {
+  if (typeof value !== 'string' || isBlank(value)) {
     return Number.NaN;
   }
 

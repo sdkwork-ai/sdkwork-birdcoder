@@ -49,6 +49,7 @@ export const QUALITY_FAST_CHECK_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . check:api-transport-standard',
   'node scripts/run-workspace-package-script.mjs . check:web-framework-standard',
   'node scripts/run-workspace-package-script.mjs . check:database-framework-standard',
+  'node scripts/run-workspace-package-script.mjs . check:utils-standard',
   'node scripts/run-workspace-package-script.mjs . check:dependency-management',
   'node scripts/run-workspace-package-script.mjs . check:sdkwork-shared-package-boundary',
   'node scripts/run-workspace-package-script.mjs . check:iam-standard',

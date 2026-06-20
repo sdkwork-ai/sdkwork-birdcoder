@@ -57,8 +57,6 @@ export const LEGACY_ARCHIVE_RUST_PATHS = Object.freeze({
     'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive/lib.rs',
   nativeSessions:
     'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive/native_sessions.rs',
-  iamAuthority:
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive/iam_authority.rs',
 });
 
 export function readCanonicalServerRustSource(relativePath) {

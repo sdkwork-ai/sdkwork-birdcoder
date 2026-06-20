@@ -15,3 +15,4 @@ sdkwork-birdcoder-membership-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
 sdkwork-web-contract = { workspace = true }
 sdkwork-web-core = { workspace = true }
+sdkwork-utils-rust.workspace = true

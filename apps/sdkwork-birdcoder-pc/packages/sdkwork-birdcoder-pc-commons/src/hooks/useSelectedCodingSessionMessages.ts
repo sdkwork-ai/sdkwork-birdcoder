@@ -1,3 +1,4 @@
+import { isBlank } from '@sdkwork/utils-typescript/string';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { canSubscribeBirdCoderWorkspaceRealtime } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import {
@@ -99,7 +100,7 @@ function hasPendingVisibleReply(
 }
 
 function parseSelectedTranscriptTimestamp(value: string | null | undefined): number {
-  if (typeof value !== 'string' || value.trim().length === 0) {
+  if (typeof value !== 'string' || isBlank(value)) {
     return Number.NaN;
   }
 

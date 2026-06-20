@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { createHash } from 'node:crypto';
 import {
   existsSync,
   readFileSync,
@@ -9,6 +8,8 @@ import {
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+
+import { sha256File } from '../sdkwork-utils-digest.mjs';
 
 import {
   DEFAULT_RELEASE_PROFILE_ID,
@@ -65,7 +66,7 @@ function buildRequiredReleaseCoverage(profile) {
 }
 
 function computeSha256(filePath) {
-  return createHash('sha256').update(readFileSync(filePath)).digest('hex');
+  return sha256File(filePath);
 }
 
 function readJsonFile(filePath, contextLabel) {

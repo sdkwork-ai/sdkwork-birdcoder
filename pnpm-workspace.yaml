@@ -32,6 +32,7 @@ packages:
   - '../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript'
   - '../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi'
   - '../sdkwork-models/sdkwork-models-typescript'
+  - '../sdkwork-utils/packages/sdkwork-utils-typescript'
 
 catalog:
   '@anthropic-ai/claude-agent-sdk': ^0.2.87

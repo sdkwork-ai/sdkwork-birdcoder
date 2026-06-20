@@ -33,9 +33,18 @@ pub async fn bootstrap_database(
         std::fs::create_dir_all(parent)?;
     }
 
-    let pool = create_pool_from_config(resolve_birdcoder_database_config(config)).await?;
-    let sqlite = require_sqlite_pool(&pool)?;
-    ensure_schema(&sqlite).await?;
+    let db_config = resolve_birdcoder_database_config(config);
+    let pool = create_pool_from_config(db_config.clone()).await?;
+
+    if db_config.engine == DatabaseEngine::Postgres {
+        sdkwork_birdcoder_database_host::bootstrap_birdcoder_database(pool.clone())
+            .await
+            .map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
+    } else {
+        let sqlite = require_sqlite_pool(&pool)?;
+        ensure_schema(&sqlite).await?;
+    }
+
     tracing::info!("sdkwork-database pool ready for BIRDCODER");
     Ok(Arc::new(pool))
 }

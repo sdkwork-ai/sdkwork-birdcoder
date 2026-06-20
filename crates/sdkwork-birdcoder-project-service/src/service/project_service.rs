@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use sdkwork_utils_rust::is_blank;
+
 use crate::context::ProjectContext;
 use crate::domain::commands::{
     CommitProjectGitChangesRequest, CreateProjectGitBranchRequest, CreateProjectGitWorktreeRequest,
@@ -47,7 +49,7 @@ impl ProjectService {
         ctx: &ProjectContext,
         id: &str,
     ) -> Result<ProjectPayload, ProjectError> {
-        if id.trim().is_empty() {
+        if is_blank(Some(id)) {
             return Err(ProjectError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));
@@ -63,12 +65,12 @@ impl ProjectService {
         ctx: &ProjectContext,
         request: &CreateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError> {
-        if request.workspace_id.trim().is_empty() {
+        if is_blank(Some(&request.workspace_id)) {
             return Err(ProjectError::InvalidInput(
                 "workspaceId is required.".to_owned(),
             ));
         }
-        if request.name.trim().is_empty() {
+        if is_blank(Some(&request.name)) {
             return Err(ProjectError::InvalidInput(
                 "Project name is required.".to_owned(),
             ));
@@ -89,7 +91,7 @@ impl ProjectService {
         id: &str,
         request: &UpdateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError> {
-        if id.trim().is_empty() {
+        if is_blank(Some(id)) {
             return Err(ProjectError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));
@@ -116,7 +118,7 @@ impl ProjectService {
         ctx: &ProjectContext,
         id: &str,
     ) -> Result<DeleteEntityPayload, ProjectError> {
-        if id.trim().is_empty() {
+        if is_blank(Some(id)) {
             return Err(ProjectError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));
@@ -134,7 +136,7 @@ impl ProjectService {
         ctx: &ProjectContext,
         project_id: &str,
     ) -> Result<Vec<ProjectCollaboratorPayload>, ProjectError> {
-        if project_id.trim().is_empty() {
+        if is_blank(Some(project_id)) {
             return Err(ProjectError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));
@@ -150,7 +152,7 @@ impl ProjectService {
         project_id: &str,
         request: &UpsertProjectCollaboratorRequest,
     ) -> Result<ProjectCollaboratorPayload, ProjectError> {
-        if project_id.trim().is_empty() {
+        if is_blank(Some(project_id)) {
             return Err(ProjectError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));
@@ -181,12 +183,12 @@ impl ProjectService {
         project_id: &str,
         user_id: &str,
     ) -> Result<(), ProjectError> {
-        if project_id.trim().is_empty() {
+        if is_blank(Some(project_id)) {
             return Err(ProjectError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));
         }
-        if user_id.trim().is_empty() {
+        if is_blank(Some(user_id)) {
             return Err(ProjectError::InvalidInput(
                 "userId is required.".to_owned(),
             ));
@@ -314,7 +316,7 @@ impl ProjectService {
         ctx: &ProjectContext,
         project_id: &str,
     ) -> Result<String, ProjectError> {
-        if project_id.trim().is_empty() {
+        if is_blank(Some(project_id)) {
             return Err(ProjectError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));

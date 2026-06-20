@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use sdkwork_utils_rust::is_blank;
+
 use crate::context::DeploymentContext;
 use crate::domain::commands::PublishProjectCommand;
 use crate::domain::results::{
@@ -95,7 +97,7 @@ impl DeploymentService {
         ctx: &DeploymentContext,
         command: &PublishProjectCommand,
     ) -> Result<PublishProjectResultPayload, DeploymentError> {
-        if command.project_id.trim().is_empty() {
+        if is_blank(Some(&command.project_id)) {
             return Err(DeploymentError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));

@@ -20,6 +20,15 @@ BirdCoder currently materializes HTTP OpenAPI authority under the PC application
 
 BirdCoder is HTTP-first today. No first-party gRPC/RPC service catalog is published from this repository, so `sdkwork-discovery` registration is not required until RPC services are introduced.
 
+## Shared Utilities
+
+BirdCoder consumes `sdkwork-utils` through:
+
+- TypeScript release/digest helpers via `@sdkwork/utils-typescript`
+- Rust service validation via `sdkwork-utils-rust`
+
+Verification: `pnpm run check:utils-standard`
+
 ## Owner
 
 SDKWork Birdcoder team.

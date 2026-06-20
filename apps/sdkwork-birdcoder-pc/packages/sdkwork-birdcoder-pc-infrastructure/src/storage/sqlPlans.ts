@@ -1,3 +1,4 @@
+import { isBlank } from '@sdkwork/utils-typescript/string';
 import {
   getBirdCoderEntityDefinition,
   type BirdCoderDatabaseProviderId,
@@ -215,7 +216,7 @@ function normalizeLongIntegerSqlParamValue(columnName: string, value: unknown): 
     return null;
   }
 
-  if (typeof value === 'string' && value.trim().length === 0) {
+  if (typeof value === 'string' && isBlank(value)) {
     return null;
   }
 
@@ -285,7 +286,7 @@ function normalizeDefaultedLongScopeValue(columnName: string, value: unknown): s
     return '0';
   }
 
-  if (typeof value === 'string' && value.trim().length === 0) {
+  if (typeof value === 'string' && isBlank(value)) {
     return '0';
   }
 

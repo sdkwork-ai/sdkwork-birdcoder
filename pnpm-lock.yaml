@@ -363,6 +363,9 @@ importers:
         specifier: ^3.1.0
         version: 3.1.0
     devDependencies:
+      '@sdkwork/utils-typescript':
+        specifier: workspace:*
+        version: link:../sdkwork-utils/packages/sdkwork-utils-typescript
       '@tailwindcss/typography':
         specifier: ^0.5.19
         version: 0.5.19(tailwindcss@4.2.2)
@@ -1105,6 +1108,15 @@ importers:
         specifier: ^3.5.32
         version: 3.5.32(typescript@6.0.2)
 
+  ../sdkwork-utils/packages/sdkwork-utils-typescript:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.17
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
   apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-admin-core: {}
 
   apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-admin-shell: {}
@@ -1479,6 +1491,9 @@ importers:
       '@sdkwork/terminal-pc-shell':
         specifier: workspace:*
         version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell
+      '@sdkwork/utils-typescript':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       '@tauri-apps/api':
         specifier: 'catalog:'
         version: 2.11.0
@@ -1665,6 +1680,9 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
+      '@sdkwork/utils-typescript':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       '@tauri-apps/api':
         specifier: 'catalog:'
         version: 2.11.0

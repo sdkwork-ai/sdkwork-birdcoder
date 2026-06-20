@@ -1,8 +1,9 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+
+import { sha256File } from '../sdkwork-utils-digest.mjs';
 
 import {
   DESKTOP_INSTALLER_SMOKE_REPORT_FILENAME,
@@ -105,7 +106,7 @@ function walkFiles(directoryPath) {
 }
 
 function computeSha256(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  return sha256File(filePath);
 }
 
 function assertReleaseTopLevelFileName(fileName, label) {

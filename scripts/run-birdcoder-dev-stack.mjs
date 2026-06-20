@@ -265,6 +265,8 @@ function printStackSummary({
         console.log(`[birdcoder-stack] devFixedVerifyCode=${quickLogin.verifyCode}`);
       }
     } else {
+      console.log('[birdcoder-stack] devPrefillAccount=disabled');
+      console.log('[birdcoder-stack] devPrefillPassword=***');
       console.log('[birdcoder-stack] devIdentity=register-or-login via /app/v3/api/auth/*');
     }
   }

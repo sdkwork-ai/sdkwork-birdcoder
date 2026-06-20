@@ -1,8 +1,9 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+
+import { sha256Value } from './sdkwork-utils-digest.mjs';
 
 import {
   normalizeCodingServerOpenApiEvidenceSummary,
@@ -42,7 +43,7 @@ export function parseArgs(argv) {
 }
 
 function computeSha256(content) {
-  return crypto.createHash('sha256').update(content).digest('hex');
+  return sha256Value(content);
 }
 
 function normalizeRelativePath(value) {

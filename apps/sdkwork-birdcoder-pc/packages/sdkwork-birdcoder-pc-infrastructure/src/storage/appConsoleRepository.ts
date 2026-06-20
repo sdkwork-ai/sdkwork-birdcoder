@@ -1,3 +1,4 @@
+import { isBlank } from '@sdkwork/utils-typescript/string';
 import {
   createBirdCoderTableRecordRepository,
   type BirdCoderStorageAccess,
@@ -383,7 +384,7 @@ function normalizeOptionalLongIntegerValue(
     return undefined;
   }
 
-  if (typeof value === 'string' && value.trim().length === 0) {
+  if (typeof value === 'string' && isBlank(value)) {
     return undefined;
   }
 
@@ -428,7 +429,7 @@ function normalizeOptionalJsonRecord(value: unknown): Record<string, unknown> | 
     return value;
   }
 
-  if (typeof value !== 'string' || value.trim().length === 0) {
+  if (typeof value !== 'string' || isBlank(value)) {
     return undefined;
   }
 

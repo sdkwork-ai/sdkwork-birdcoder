@@ -4,6 +4,7 @@ use sqlx::SqlitePool;
 
 use sdkwork_birdcoder_membership_repository_sqlx::SqliteMembershipRepository;
 use sdkwork_birdcoder_membership_service::service::membership_service::MembershipService;
+use sdkwork_utils_rust::is_blank;
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 
 use crate::error;
@@ -32,7 +33,7 @@ pub async fn get_current_membership(
     let owner_user_id = query
         .owner_user_id
         .as_deref()
-        .filter(|value| !value.trim().is_empty())
+        .filter(|value| !is_blank(Some(*value)))
         .unwrap_or(iam.user_id.as_str());
     match state
         .service

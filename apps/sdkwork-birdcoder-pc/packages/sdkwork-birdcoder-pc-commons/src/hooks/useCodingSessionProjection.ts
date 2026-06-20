@@ -1,3 +1,4 @@
+import { isBlank } from '@sdkwork/utils-typescript/string';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   compareBirdCoderCodingSessionEventSequence,
@@ -255,7 +256,7 @@ function parseRecord(value: unknown): Record<string, unknown> | null {
     return value;
   }
 
-  if (typeof value !== 'string' || value.trim().length === 0) {
+  if (typeof value !== 'string' || isBlank(value)) {
     return null;
   }
 

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { sha256File } from './sdkwork-utils-digest.mjs';
 
 import {
   buildBirdCoderCodingServerOpenApiDocument,
@@ -12,7 +13,7 @@ function readJson(filePath: string) {
 }
 
 function computeSha256(filePath: string): string {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  return sha256File(filePath);
 }
 
 const rootDir = process.cwd();

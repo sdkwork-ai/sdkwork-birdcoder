@@ -19,6 +19,7 @@ use sdkwork_birdcoder_native_sessions_service::service::native_session_service::
     NativeSessionService, NativeSessionSummaryPayload, NativeSessionTurnPayload,
 };
 
+use sdkwork_utils_rust::is_blank;
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 
 use crate::error;
@@ -94,7 +95,7 @@ impl NativeSessionRepository for RealNativeSessionRepository {
         &self,
         query: &NativeSessionQuery,
     ) -> Result<Vec<NativeSessionSummaryPayload>, String> {
-        let engine_id = query.engine_id.as_deref().filter(|value| !value.trim().is_empty());
+        let engine_id = query.engine_id.as_deref().filter(|value| !is_blank(Some(*value)));
         let mut sessions = list_codeengine_native_session_summaries(engine_id)?
             .into_iter()
             .filter(|record| matches_native_session_query(record, query))
@@ -110,7 +111,7 @@ impl NativeSessionRepository for RealNativeSessionRepository {
         &self,
         lookup: &NativeSessionLookup,
     ) -> Result<Option<NativeSessionDetailPayload>, String> {
-        let engine_id = lookup.engine_id.as_deref().filter(|value| !value.trim().is_empty());
+        let engine_id = lookup.engine_id.as_deref().filter(|value| !is_blank(Some(*value)));
         let Some(detail) = get_codeengine_native_session_detail(&lookup.session_id, engine_id)? else {
             return Ok(None);
         };
@@ -124,7 +125,7 @@ impl NativeSessionRepository for RealNativeSessionRepository {
         &self,
         lookup: &NativeSessionLookup,
     ) -> Result<Option<NativeSessionSummaryPayload>, String> {
-        let engine_id = lookup.engine_id.as_deref().filter(|value| !value.trim().is_empty());
+        let engine_id = lookup.engine_id.as_deref().filter(|value| !is_blank(Some(*value)));
         let Some(summary) = get_codeengine_native_session_summary(&lookup.session_id, engine_id)? else {
             return Ok(None);
         };
@@ -139,7 +140,7 @@ fn matches_native_session_query(
     record: &CodeEngineSessionSummaryRecord,
     query: &NativeSessionQuery,
 ) -> bool {
-    if let Some(engine_id) = query.engine_id.as_deref().filter(|value| !value.trim().is_empty()) {
+    if let Some(engine_id) = query.engine_id.as_deref().filter(|value| !is_blank(Some(*value))) {
         if record.engine_id != engine_id {
             return false;
         }
@@ -151,7 +152,7 @@ fn matches_native_session_lookup(
     record: &CodeEngineSessionSummaryRecord,
     lookup: &NativeSessionLookup,
 ) -> bool {
-    if let Some(engine_id) = lookup.engine_id.as_deref().filter(|value| !value.trim().is_empty()) {
+    if let Some(engine_id) = lookup.engine_id.as_deref().filter(|value| !is_blank(Some(*value))) {
         if record.engine_id != engine_id {
             return false;
         }

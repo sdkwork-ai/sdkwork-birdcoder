@@ -211,6 +211,7 @@
       "pnpm check:sdkwork-birdcoder-structure",
       "pnpm check:web-framework-standard",
       "pnpm check:database-framework-standard",
+      "pnpm check:utils-standard",
       "pnpm check:dependency-management"
     ]
   },

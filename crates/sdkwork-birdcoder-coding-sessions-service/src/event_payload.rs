@@ -1,5 +1,6 @@
 ﻿use std::collections::BTreeMap;
 
+use sdkwork_utils_rust::is_blank;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::native_session_types::{
@@ -263,7 +264,7 @@ pub fn normalize_stream_event_payload_to_json_map(
 
     let mut normalized_payload = BTreeMap::new();
     for (key, value) in payload {
-        if key.trim().is_empty() || value.is_null() {
+        if is_blank(Some(key)) || value.is_null() {
             continue;
         }
 

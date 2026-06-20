@@ -3,6 +3,7 @@ use crate::domain::models::{
     CommerceMembershipPackageGroupPayload,
 };
 use crate::error::MembershipError;
+use sdkwork_utils_rust::is_blank;
 
 // ── Repository trait ─────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ impl<R: MembershipRepository> MembershipService<R> {
         organization_id: Option<String>,
         owner_user_id: &str,
     ) -> Result<CommerceMembershipCurrentPayload, MembershipError> {
-        if owner_user_id.trim().is_empty() {
+        if is_blank(Some(owner_user_id)) {
             return Err(MembershipError::InvalidInput(
                 "ownerUserId is required.".to_string(),
             ));
