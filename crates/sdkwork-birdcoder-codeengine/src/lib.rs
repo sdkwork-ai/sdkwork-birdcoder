@@ -74,9 +74,14 @@ pub use opencode::{
 pub use opencode_provider::OpencodeCodeEngineProvider;
 pub use provider::{
     extract_native_lookup_id_for_engine, session_id_targets_engine,
-    standard_codeengine_provider_registry, standard_native_session_provider_registry,
-    CodeEngineProviderPlugin, CodeEngineProviderRegistry, NativeSessionProviderPlugin,
+    standard_native_session_provider_registry, NativeSessionProviderPlugin,
     NativeSessionProviderRegistry,
+    #[deprecated(note = "Use standard_native_session_provider_registry()")]
+    standard_codeengine_provider_registry,
+    #[deprecated(note = "Use NativeSessionProviderPlugin")]
+    CodeEngineProviderPlugin,
+    #[deprecated(note = "Use NativeSessionProviderRegistry")]
+    CodeEngineProviderRegistry,
 };
 pub use sdk_bridge::{
     get_sdk_bridge_session_detail, list_sdk_bridge_session_summaries, CODEENGINE_HOME_ENV,
