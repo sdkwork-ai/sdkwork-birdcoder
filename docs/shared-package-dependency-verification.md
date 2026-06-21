@@ -22,7 +22,7 @@
 
 | PC 包 | 依赖的共享包 |
 |-------|-------------|
-| `sdkwork-birdcoder-pc-chat` | `@sdkwork/birdcoder-types` |
+| `sdkwork-birdcoder-pc-projection` | `@sdkwork/birdcoder-types` |
 | `sdkwork-birdcoder-pc-code` | `@sdkwork/birdcoder-commons`, `@sdkwork/birdcoder-types` |
 | `sdkwork-birdcoder-pc-codeengine` | `@sdkwork/birdcoder-types` |
 | `sdkwork-birdcoder-pc-desktop` | `@sdkwork/birdcoder-distribution`, `@sdkwork/birdcoder-shell` |

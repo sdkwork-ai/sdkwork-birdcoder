@@ -4,6 +4,14 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./hooks/*": "./src/hooks/*.ts"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
+    "@sdkwork/birdcoder-pc-types": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
   }
 }

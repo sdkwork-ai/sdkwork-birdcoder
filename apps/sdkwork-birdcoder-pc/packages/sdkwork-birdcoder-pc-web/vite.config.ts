@@ -418,6 +418,7 @@ export default defineConfig(({ mode }) => {
           if (
             isAnySourcePath([
               '/sdkwork-terminal/apps/desktop/src/',
+              '/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/',
               '/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-ai-cli/src/',
               '/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-diagnostics/src/',
               '/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-i18n/src/',

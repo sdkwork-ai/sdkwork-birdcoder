@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { BirdCoderIamAuditEventSummary } from '@sdkwork/birdcoder-pc-types';
 import type { IAuditService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
-import { useIDEServices } from '../context/ideServices.ts';
 
 export async function loadAuditEvents(
   auditService: Pick<IAuditService, 'getAuditEvents'>,
@@ -9,8 +8,9 @@ export async function loadAuditEvents(
   return auditService.getAuditEvents();
 }
 
-export function useAuditEvents() {
-  const { auditService } = useIDEServices();
+export function useAuditEvents(
+  auditService: IAuditService,
+) {
   const [auditEvents, setAuditEvents] = useState<BirdCoderIamAuditEventSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,4 +39,3 @@ export function useAuditEvents() {
     refreshAuditEvents,
   };
 }
-

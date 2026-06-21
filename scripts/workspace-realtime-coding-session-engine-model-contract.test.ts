@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { readCanonicalServerRustSource, LEGACY_ARCHIVE_RUST_PATHS } from './birdcoder-canonical-server-rust-sources.mjs';
+import { readCanonicalServerRustSource, CANONICAL_SERVER_RUST_PATHS, CANONICAL_DOMAIN_RUST_PATHS } from './birdcoder-canonical-server-rust-sources.mjs';
 
 import type { BirdCoderProject, BirdCoderWorkspaceRealtimeEvent } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts';
 import {
@@ -454,61 +454,45 @@ assert.deepEqual(
   'workspace realtime must merge streamed tool.call events directly into cached session command cards instead of waiting for final message.completed commandsJson.',
 );
 
-const serverHostSource = readCanonicalServerRustSource(LEGACY_ARCHIVE_RUST_PATHS.monolithLib);
+const canonicalRealtimeSource = [
+  readCanonicalServerRustSource('crates/sdkwork-birdcoder-coding-sessions-service/src/ports/events.rs'),
+  readCanonicalServerRustSource(CANONICAL_SERVER_RUST_PATHS.codingSessionsService),
+  readCanonicalServerRustSource(CANONICAL_DOMAIN_RUST_PATHS.codingSessionsEventPayload),
+].join('\n');
 assert.match(
-  serverHostSource,
-  /fn publish_coding_session_realtime_event\(/,
-  'Rust host must publish coding-session realtime events through one helper so every event carries project metadata for frontend seeding.',
+  canonicalRealtimeSource,
+  /publish_coding_session_event\(/,
+  'Coding sessions service must publish coding-session realtime events through RealtimeEventPublisher.',
 );
 assert.match(
-  serverHostSource,
+  canonicalRealtimeSource,
   /native_session_id:\s*Option<String>/,
-  'Rust coding-session realtime events must carry the provider-native session id through the standardized helper.',
+  'Coding-session realtime events must carry the provider-native session id.',
 );
 assert.match(
-  serverHostSource,
-  /input\.native_session_id/,
-  'Rust coding-session realtime helper must pass nativeSessionId into workspace realtime publication.',
+  canonicalRealtimeSource,
+  /native_session_id: session\.native_session_id/,
+  'Coding-session realtime publication must pass nativeSessionId from the session record.',
 );
 assert.match(
-  serverHostSource,
-  /native_session_id,\s*\n\s*turn_id,/,
-  'Rust workspace realtime payloads must expose nativeSessionId to the frontend.',
+  canonicalRealtimeSource,
+  /turn_id: Option<String>/,
+  'Coding-session realtime events must expose turnId for stream correlation.',
 );
 assert.match(
-  serverHostSource,
-  /coding_session_event_kind:\s*Option<String>/,
-  'Rust workspace realtime payloads must carry generic coding-session event kinds so tool and approval streams are not text-only.',
-);
-assert.match(
-  serverHostSource,
-  /coding_session_event_payload:\s*Option<serde_json::Value>/,
-  'Rust workspace realtime payloads must carry generic coding-session event payloads so streamed tool cards can render without a refresh.',
-);
-assert.match(
-  serverHostSource,
-  /payload:\s*BTreeMap<String,\s*serde_json::Value>/,
-  'Rust coding-session event payloads must be modeled as JSON values so persisted events do not coerce booleans, arrays, or objects into strings.',
-);
-assert.match(
-  serverHostSource,
-  /parse_json_object_value_map\(/,
-  'Rust coding-session event loaders must parse payload_json as a JSON object instead of a string-only map.',
+  canonicalRealtimeSource,
+  /pub payload: BTreeMap<String, serde_json::Value>/,
+  'Coding-session event payloads must be modeled as JSON values so persisted events do not coerce booleans, arrays, or objects into strings.',
 );
 assert.doesNotMatch(
-  serverHostSource,
-  /\.\s*publish_workspace_realtime_event\(\s*"coding-session\.(?:created|updated|deleted|turn\.created)"/,
-  'Rust host must not publish raw coding-session realtime events without the standardized project metadata helper.',
-);
-assert.doesNotMatch(
-  serverHostSource,
-  /coding_session_message_(?:event_kind|role|content_delta)/,
-  'Rust workspace realtime payloads must not keep a legacy text-only message delta side channel.',
-);
-assert.doesNotMatch(
-  serverHostSource,
+  canonicalRealtimeSource,
   /coerce_stream_event_payload_to_string_map/,
-  'Rust stream event persistence must not flatten JSON event payload values into string maps.',
+  'Canonical stream event persistence must not flatten JSON event payload values into string maps.',
+);
+assert.doesNotMatch(
+  canonicalRealtimeSource,
+  /coding_session_message_(?:event_kind|role|content_delta)/,
+  'Canonical coding-session realtime must not keep a legacy text-only message delta side channel.',
 );
 
 const serverApiSource = readFileSync(

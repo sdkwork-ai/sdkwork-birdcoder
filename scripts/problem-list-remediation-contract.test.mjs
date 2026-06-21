@@ -112,8 +112,13 @@ assert.doesNotMatch(
 );
 assert.match(
   vipSource,
-  /const section = normalizeOptionalText\(options\.section\);/,
-  'VIP route intent must resolve only the canonical section option.',
+  /function resolveVipRoutePath/,
+  'VIP route intent must resolve through canonical routePath/basePath options only.',
+);
+assert.match(
+  vipSource,
+  /options\.routePath \?\? options\.basePath \?\? BIRDCODER_VIP_ROUTE_PATH/,
+  'VIP route intent must not keep legacy section compatibility shims.',
 );
 
 assert.match(

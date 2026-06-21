@@ -20,7 +20,8 @@ pub trait CodeEngineProvider: Send + Sync {
     async fn submit_approval(
         &self,
         ctx: &CodingSessionContext,
-        session_id: &str,
+        engine_id: &str,
+        native_session_id: Option<&str>,
         checkpoint_id: &str,
         input: &SubmitApprovalDecisionInput,
     ) -> Result<(), CodingSessionError>;
@@ -28,7 +29,8 @@ pub trait CodeEngineProvider: Send + Sync {
     async fn submit_question_answer(
         &self,
         ctx: &CodingSessionContext,
-        session_id: &str,
+        engine_id: &str,
+        native_session_id: Option<&str>,
         question_id: &str,
         input: &SubmitUserQuestionAnswerInput,
     ) -> Result<(), CodingSessionError>;

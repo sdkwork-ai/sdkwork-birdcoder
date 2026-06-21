@@ -1,6 +1,16 @@
 use serde::Deserialize;
 use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
 
+pub const MAX_LIST_PAGE_SIZE: usize = 100;
+
+fn clamp_list_limit(limit: Option<usize>) -> Option<usize> {
+    limit.map(|value| value.clamp(1, MAX_LIST_PAGE_SIZE))
+}
+
+fn clamp_list_offset(offset: Option<usize>) -> Option<usize> {
+    offset.map(|value| value.min(10_000))
+}
+
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListSessionsQuery {
@@ -17,8 +27,8 @@ impl From<ListSessionsQuery> for CodingSessionListQuery {
             workspace_id: q.workspace_id,
             project_id: q.project_id,
             engine_id: q.engine_id,
-            limit: q.limit,
-            offset: q.offset,
+            limit: clamp_list_limit(q.limit),
+            offset: clamp_list_offset(q.offset),
         }
     }
 }

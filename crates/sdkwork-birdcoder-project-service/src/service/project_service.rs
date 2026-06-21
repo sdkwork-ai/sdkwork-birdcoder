@@ -79,7 +79,7 @@ impl ProjectService {
         let project = self.repository.create_project(ctx, request).await?;
 
         self.event_publisher
-            .publish_project_created(&project.id)
+            .publish_project_created(&project.workspace_id, &project.id)
             .await?;
 
         Ok(project)
@@ -107,7 +107,7 @@ impl ProjectService {
         let project = self.repository.update_project(ctx, id, request).await?;
 
         self.event_publisher
-            .publish_project_updated(&project.id)
+            .publish_project_updated(&project.workspace_id, &project.id)
             .await?;
 
         Ok(project)
@@ -124,9 +124,18 @@ impl ProjectService {
             ));
         }
 
+        let existing = self.repository.find_project_by_id(ctx, id).await?;
+        let workspace_id = existing
+            .as_ref()
+            .ok_or_else(|| ProjectError::NotFound("Project was not found.".to_owned()))?
+            .workspace_id
+            .clone();
+
         self.repository.delete_project(ctx, id).await?;
 
-        self.event_publisher.publish_project_deleted(id).await?;
+        self.event_publisher
+            .publish_project_deleted(&workspace_id, id)
+            .await?;
 
         Ok(DeleteEntityPayload { id: id.to_owned() })
     }
@@ -159,11 +168,11 @@ impl ProjectService {
         }
 
         let project = self.repository.find_project_by_id(ctx, project_id).await?;
-        if project.is_none() {
-            return Err(ProjectError::NotFound(
-                "Project was not found.".to_owned(),
-            ));
-        }
+        let workspace_id = project
+            .as_ref()
+            .ok_or_else(|| ProjectError::NotFound("Project was not found.".to_owned()))?
+            .workspace_id
+            .clone();
 
         let collaborator = self
             .repository
@@ -171,7 +180,7 @@ impl ProjectService {
             .await?;
 
         self.event_publisher
-            .publish_project_collaborator_added(project_id, &collaborator.user_id)
+            .publish_project_collaborator_added(&workspace_id, project_id, &collaborator.user_id)
             .await?;
 
         Ok(collaborator)
@@ -194,12 +203,19 @@ impl ProjectService {
             ));
         }
 
+        let project = self.repository.find_project_by_id(ctx, project_id).await?;
+        let workspace_id = project
+            .as_ref()
+            .ok_or_else(|| ProjectError::NotFound("Project was not found.".to_owned()))?
+            .workspace_id
+            .clone();
+
         self.repository
             .remove_project_collaborator(ctx, project_id, user_id)
             .await?;
 
         self.event_publisher
-            .publish_project_collaborator_removed(project_id, user_id)
+            .publish_project_collaborator_removed(&workspace_id, project_id, user_id)
             .await?;
 
         Ok(())

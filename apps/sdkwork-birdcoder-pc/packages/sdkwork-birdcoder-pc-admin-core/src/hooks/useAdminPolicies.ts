@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { BirdCoderIamPolicySummary } from '@sdkwork/birdcoder-pc-types';
 import type { IAdminPolicyService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
-import { useIDEServices } from '../context/ideServices.ts';
 
 export async function loadAdminPolicies(
   policyService: Pick<IAdminPolicyService, 'getPolicies'>,
@@ -9,8 +8,9 @@ export async function loadAdminPolicies(
   return policyService.getPolicies();
 }
 
-export function useAdminPolicies() {
-  const { adminPolicyService } = useIDEServices();
+export function useAdminPolicies(
+  adminPolicyService: IAdminPolicyService,
+) {
   const [policies, setPolicies] = useState<BirdCoderIamPolicySummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,4 +39,3 @@ export function useAdminPolicies() {
     refreshPolicies,
   };
 }
-

@@ -95,7 +95,6 @@ for (const relativePath of [
   'scripts/run-birdcoder-dev-stack.mjs',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/Cargo.toml',
-  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive/lib.rs',
   'Cargo.lock',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/server-api.ts',
   'deployments/server-windows/x64/openapi/coding-server-v1.json',

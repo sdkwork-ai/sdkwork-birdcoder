@@ -19,6 +19,8 @@ use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_coding_sessions_service::event_payload::build_succeeded_coding_session_turn_events;
 use sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator;
 use sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider;
+use sdkwork_birdcoder_codeengine::CodeEngineApprovalDecisionRecord;
+use sdkwork_birdcoder_codeengine::CodeEngineUserQuestionAnswerRecord;
 use sdkwork_birdcoder_kernel_bridge::BirdcoderKernelHost;
 
 use crate::bootstrap::config::BirdServerConfig;
@@ -119,27 +121,61 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
     async fn submit_approval(
         &self,
         _ctx: &CodingSessionContext,
-        _session_id: &str,
-        _checkpoint_id: &str,
+        engine_id: &str,
+        native_session_id: Option<&str>,
+        checkpoint_id: &str,
         input: &SubmitApprovalDecisionInput,
     ) -> Result<(), CodingSessionError> {
         if input.decision.is_empty() {
             return Err(CodingSessionError::InvalidInput("decision is required.".into()));
         }
-        Ok(())
+
+        let host = Arc::clone(&self.host);
+        let decision = CodeEngineApprovalDecisionRecord {
+            native_session_id: native_session_id.map(str::to_string),
+            approval_id: checkpoint_id.to_string(),
+            decision: input.decision.clone(),
+            reason: input.reason.clone(),
+        };
+        let engine_id = engine_id.to_string();
+
+        tokio::task::spawn_blocking(move || {
+            host.submit_approval_decision(engine_id.as_str(), &decision)
+        })
+        .await
+        .map_err(|error| CodingSessionError::Repository(error.to_string()))?
+        .map_err(CodingSessionError::Repository)
     }
 
     async fn submit_question_answer(
         &self,
         _ctx: &CodingSessionContext,
-        _session_id: &str,
-        _question_id: &str,
+        engine_id: &str,
+        native_session_id: Option<&str>,
+        question_id: &str,
         input: &SubmitUserQuestionAnswerInput,
     ) -> Result<(), CodingSessionError> {
         if input.answer.as_ref().is_none_or(|value| value.trim().is_empty()) && !input.rejected {
             return Err(CodingSessionError::InvalidInput("answer is required.".into()));
         }
-        Ok(())
+
+        let host = Arc::clone(&self.host);
+        let answer = CodeEngineUserQuestionAnswerRecord {
+            native_session_id: native_session_id.map(str::to_string),
+            question_id: question_id.to_string(),
+            answer: input.answer.clone().unwrap_or_default(),
+            option_id: input.option_id.clone(),
+            option_label: input.option_label.clone(),
+            rejected: input.rejected,
+        };
+        let engine_id = engine_id.to_string();
+
+        tokio::task::spawn_blocking(move || {
+            host.submit_user_question_answer(engine_id.as_str(), &answer)
+        })
+        .await
+        .map_err(|error| CodingSessionError::Repository(error.to_string()))?
+        .map_err(CodingSessionError::Repository)
     }
 }
 

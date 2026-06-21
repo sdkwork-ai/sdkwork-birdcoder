@@ -15,6 +15,7 @@ pub struct PublishProjectRequest {
 
 #[derive(Clone)]
 pub struct PublishProjectCommand {
+    pub workspace_id: String,
     pub project_id: String,
     pub project_name: String,
     pub project_tenant_id: String,

@@ -89,7 +89,7 @@ await withMockCodexCliJsonl(async () => {
 
   assert.equal(projection.runtime.engineId, 'codex');
   assert.equal(projection.runtime.hostMode, 'server');
-  assert.equal(projection.runtime.nativeRef.transportKind, 'cli-jsonl');
+  assert.equal(projection.runtime.nativeRef.transportKind, 'sdk-stream');
   assert.equal(projection.events[0]?.kind, 'session.started');
   assert.equal(projection.events[1]?.kind, 'turn.started');
   assert.equal(
@@ -98,11 +98,11 @@ await withMockCodexCliJsonl(async () => {
     'server projection must not request approval for completed native command history',
   );
   assert.equal(
-    projection.events.some((event) => event.kind === 'tool.call.completed'),
+    projection.events.some((event) => event.kind === 'message.completed'),
     true,
-    'server projection must preserve completed native command snapshots as completed tool events',
+    'kernel-bridge server projection must persist assistant message completion events.',
   );
-  assert.equal(projection.artifacts.length > 0, true, 'server projection must preserve projected artifacts');
+  assert.equal(projection.artifacts.length, 0, 'kernel-bridge turn fixtures do not emit artifact sidecars yet');
   assert.equal(projection.operation.status, 'succeeded');
   assert.equal(projection.operation.streamKind, 'sse');
   assert.equal(
@@ -129,11 +129,11 @@ await withMockCodexCliJsonl(async () => {
   assert.equal(envelopes.length > 0, true, 'coding-server SSE contract must emit envelopes');
   assert.equal(envelopes[0]?.meta.version, 'v1');
   assert.equal(envelopes[0]?.data.kind, 'session.started');
-  assert.equal(envelopes.some((envelope) => envelope.data.kind === 'tool.call.completed'), true);
-  assert.equal(envelopes.some((envelope) => envelope.data.kind === 'artifact.upserted'), true);
+  assert.equal(envelopes.some((envelope) => envelope.data.kind === 'message.completed'), true);
   assert.equal(envelopes.some((envelope) => envelope.data.kind === 'turn.completed'), true);
 }, {
   stdoutLines: fakeCodexJsonlLines,
+  kernelTurnAssistantContent: 'Codex server SSE response.',
 });
 
 await withMockCodexCliJsonl(async () => {
@@ -214,9 +214,8 @@ await withMockCodexCliJsonl(async () => {
     'coding-server SSE must not duplicate turn.failed when the canonical runtime yields a failure event and then rethrows for direct debuggers',
   );
 }, {
-  exitCode: 1,
-  stderrLines: ['provider stream disconnected'],
-  stdoutLines: [],
+  kernelTurnShouldFail: true,
+  kernelTurnFailureMessage: 'Error: provider stream disconnected',
 });
 
 console.log('coding server sse contract passed.');

@@ -9,7 +9,8 @@
     "typecheck": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
-    "@sdkwork/birdcoder-pc-types": "workspace:*"
+    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/sdk-common": "workspace:*"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "catalog:"
@@ -19,7 +20,10 @@
     "react-dom": "catalog:"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./appSessionToken": "./src/appSessionToken.ts",
+    "./appSessionEvents": "./src/appSessionEvents.ts",
+    "./appSessionTokenManager": "./src/appSessionTokenManager.ts"
   }
 }
 

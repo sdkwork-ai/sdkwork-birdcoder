@@ -61,6 +61,7 @@ export const QUALITY_FAST_CHECK_COMMANDS = [
   'node scripts/run-workspace-package-script.mjs . check:code-session-standard',
   'node scripts/run-workspace-package-script.mjs . check:multiwindow-standard',
   'node scripts/run-workspace-package-script.mjs . check:data-kernel',
+  'node scripts/run-workspace-package-script.mjs . check:kernel-birdcoder-alignment',
   'node scripts/run-workspace-package-script.mjs . check:sdk-family-standard',
   'node scripts/run-workspace-package-script.mjs . check:sdk-family-generated',
   'node scripts/run-workspace-package-script.mjs . check:local-store-browser-fallback',

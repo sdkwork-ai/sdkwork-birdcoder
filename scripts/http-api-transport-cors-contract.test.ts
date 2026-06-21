@@ -73,7 +73,7 @@ assert.match(
 );
 assert.match(
   apiServerAuthSource,
-  /allowed_origins: default_loopback_cors_origins\(\)/,
+  /allowed_origins: default_loopback_browser_origins\(\)/,
   'loopback api-server hosts must use explicit loopback CORS origins for browser shells.',
 );
 

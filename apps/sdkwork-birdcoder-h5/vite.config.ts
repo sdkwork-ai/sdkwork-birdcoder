@@ -9,10 +9,7 @@ const __dirname = path.dirname(__filename);
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
   return {
-    define: {
-      'process.env.SDKWORK_ACCESS_TOKEN': JSON.stringify(env.SDKWORK_ACCESS_TOKEN ?? ''),
-    },
-          plugins: [react()],
+    plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -87,6 +87,10 @@ const userLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sd
 const userSurfaceLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/user-surface.ts');
 const vipLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip.ts');
 const vipSurfaceLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip-surface.ts');
+const vipMembershipServiceSource = readText(
+  rootDir,
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedVipMembershipService.ts',
+);
 const iamIntegrationLocalSource = readText(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/src/iamIntegration.ts');
 const infrastructureIamRuntimeSource = readText(
   rootDir,
@@ -128,6 +132,26 @@ assert.equal(
   authPackageJson.dependencies?.['@sdkwork/birdcoder-pc-infrastructure-runtime'],
   undefined,
   'BirdCoder auth package must stay UI-only; IAM runtime binding belongs to @sdkwork/birdcoder-pc-iam.',
+);
+assert.equal(
+  authPackageJson.dependencies?.['@sdkwork/birdcoder-pc-core'],
+  undefined,
+  'BirdCoder auth package must not depend on pc-core; session ownership belongs to shell-runtime/bootstrap, not auth UI.',
+);
+
+const serviceContextSource = readText(
+  rootDir,
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ServiceContext.tsx',
+);
+assert.match(
+  serviceContextSource,
+  /vipMembershipService:\s*IVipMembershipService/u,
+  'ServiceContext must expose vipMembershipService on the canonical IDE service boundary.',
+);
+assert.match(
+  serviceContextSource,
+  /vipMembershipService:\s*defaultIdeServices\.vipMembershipService/u,
+  'ServiceContext must wire vipMembershipService from default IDE services.',
 );
 
 for (const [label, packageJson] of [
@@ -237,13 +261,23 @@ assert.doesNotMatch(
 );
 assert.match(
   vipSurfaceLocalSource,
-  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships\.current\.retrieve\(\)/u,
-  'birdcoder vip surface must read current membership through the generated commerce.memberships.current SDK surface.',
+  /vipMembershipService\.loadMembershipState\(\)/u,
+  'birdcoder vip surface must load membership state through the IDE VIP membership service boundary.',
+);
+assert.doesNotMatch(
+  vipSurfaceLocalSource,
+  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships/u,
+  'birdcoder vip surface must not call the generated commerce SDK directly.',
 );
 assert.match(
-  vipSurfaceLocalSource,
-  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships\.packageGroups\.list\(\)/u,
-  'birdcoder vip surface must read membership package groups through the generated commerce.memberships.packageGroups SDK surface.',
+  vipMembershipServiceSource,
+  /appClient\.commerce\.memberships\.current\.retrieve\(\)/u,
+  'birdcoder vip membership service must read current membership through the generated commerce.memberships.current SDK surface.',
+);
+assert.match(
+  vipMembershipServiceSource,
+  /appClient\.commerce\.memberships\.packageGroups\.list\(\)/u,
+  'birdcoder vip membership service must read membership package groups through the generated commerce.memberships.packageGroups SDK surface.',
 );
 assert.doesNotMatch(
   vipSurfaceLocalSource,

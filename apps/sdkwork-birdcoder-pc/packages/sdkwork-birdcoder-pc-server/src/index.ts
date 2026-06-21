@@ -6,13 +6,13 @@ import type {
 import {
   buildDefaultBirdCoderCodeEngineModelConfig,
   createBirdCoderCodeEngineModelConfigSyncPlan,
-  createWorkbenchServerSessionEngineBinding,
   getBirdCoderCodeEngineCapabilities,
   getBirdCoderCodeEngineDescriptor,
   listBirdCoderCodeEngineNativeSessionProviders,
   listBirdCoderCodeEngineDescriptors,
   listBirdCoderCodeEngineModels,
 } from '@sdkwork/birdcoder-pc-codeengine';
+import { createWorkbenchServerSessionEngineBinding } from '@sdkwork/birdcoder-pc-codeengine/serverRuntime';
 import {
   resolveTransportKindForRuntimeMode,
 } from '@sdkwork/birdcoder-pc-projection';

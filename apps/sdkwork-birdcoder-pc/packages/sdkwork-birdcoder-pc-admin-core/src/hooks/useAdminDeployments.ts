@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-pc-types';
 import type { IAdminDeploymentService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
-import { useIDEServices } from '../context/ideServices.ts';
 
 export async function loadAdminDeployments(
   deploymentService: Pick<IAdminDeploymentService, 'getDeployments'>,
@@ -9,8 +8,9 @@ export async function loadAdminDeployments(
   return deploymentService.getDeployments();
 }
 
-export function useAdminDeployments() {
-  const { adminDeploymentService } = useIDEServices();
+export function useAdminDeployments(
+  adminDeploymentService: IAdminDeploymentService,
+) {
   const [deployments, setDeployments] = useState<BirdCoderDeploymentRecordSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,4 +39,3 @@ export function useAdminDeployments() {
     refreshDeployments,
   };
 }
-

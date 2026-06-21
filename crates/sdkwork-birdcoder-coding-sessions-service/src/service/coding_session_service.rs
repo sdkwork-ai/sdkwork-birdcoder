@@ -380,8 +380,16 @@ impl CodingSessionService {
 
         let input = Self::validate_approval_decision_request(request)?;
 
+        let session = self.repository.get_session(ctx, &session_id).await?;
+
         self.provider
-            .submit_approval(ctx, &session_id, &checkpoint_id, &input)
+            .submit_approval(
+                ctx,
+                session.engine_id.as_str(),
+                session.native_session_id.as_deref(),
+                &checkpoint_id,
+                &input,
+            )
             .await?;
 
         let approval = self
@@ -430,8 +438,16 @@ impl CodingSessionService {
 
         let input = Self::validate_user_question_answer_request(request)?;
 
+        let session = self.repository.get_session(ctx, &session_id).await?;
+
         self.provider
-            .submit_question_answer(ctx, &session_id, &question_id, &input)
+            .submit_question_answer(
+                ctx,
+                session.engine_id.as_str(),
+                session.native_session_id.as_deref(),
+                &question_id,
+                &input,
+            )
             .await?;
 
         let answer = self

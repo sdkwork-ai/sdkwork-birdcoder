@@ -148,3 +148,25 @@ pub fn map_not_implemented(message: impl Into<String>) -> (StatusCode, Json<Prob
         }),
     )
 }
+
+pub fn map_validation_error(message: impl Into<String>) -> (StatusCode, Json<ProblemDetailsPayload>) {
+    (
+        StatusCode::BAD_REQUEST,
+        Json(ProblemDetailsPayload {
+            code: "invalid_input".into(),
+            message: message.into(),
+            retryable: false,
+        }),
+    )
+}
+
+pub fn map_not_found(message: impl Into<String>) -> (StatusCode, Json<ProblemDetailsPayload>) {
+    (
+        StatusCode::NOT_FOUND,
+        Json(ProblemDetailsPayload {
+            code: "not_found".into(),
+            message: message.into(),
+            retryable: false,
+        }),
+    )
+}

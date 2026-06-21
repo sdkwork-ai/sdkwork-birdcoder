@@ -29,7 +29,7 @@ Read `../../sdkwork.app.config.json` before changing application behavior.
 
 ## Local Dictionary Structure
 
-- `src/`: Root shell entry (main.tsx, App.tsx, AuthGate.tsx, bootstrap/)
+- `src/`: Root shell entry (main.tsx, App.tsx, BootstrapGate.tsx, bootstrap/)
 - `packages/`: All PC and shared packages
 - `sdks/`: SDK families and generation manifests
 - `specs/`: Component specs

@@ -9,6 +9,7 @@ mod agent_projection;
 mod boundaries;
 mod engine_registry;
 mod host;
+mod live_interaction;
 mod turn_executor;
 
 pub use agent_projection::{
@@ -23,4 +24,5 @@ pub use engine_registry::{
     KernelBootstrapError, KernelEngineSlot,
 };
 pub use host::BirdcoderKernelHost;
+pub use live_interaction::{submit_approval_decision, submit_user_question_answer};
 pub use turn_executor::execute_kernel_turn;

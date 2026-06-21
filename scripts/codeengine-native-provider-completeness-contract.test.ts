@@ -49,12 +49,34 @@ const kernelBridgeLib = readFileSync(
 );
 assert.match(kernelBridgeLib, /execute_kernel_turn|BirdcoderKernelHost/s);
 
-const providerSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.provider);
-assert.doesNotMatch(
-  providerSource,
-  /fn\s+execute_turn\s*\(/,
-  'Native session provider registry must not expose agent turn execution.',
-);
+for (const providerModule of [
+  'codex_provider',
+  'claude_code_provider',
+  'gemini_provider',
+  'opencode_provider',
+]) {
+  const source = readCanonicalServerRustSource(
+    CANONICAL_CODEENGINE_RUST_PATHS[
+      providerModule === 'codex_provider'
+        ? 'codexProvider'
+        : providerModule === 'claude_code_provider'
+          ? 'claudeCodeProvider'
+          : providerModule === 'gemini_provider'
+            ? 'geminiProvider'
+            : 'opencodeProvider'
+    ],
+  );
+  assert.doesNotMatch(
+    source,
+    /fn\s+execute_turn\s*\(/,
+    `${providerModule} must remain native-session inventory only.`,
+  );
+  assert.match(
+    source,
+    /NativeSessionProviderPlugin/,
+    `${providerModule} must implement NativeSessionProviderPlugin.`,
+  );
+}
 
 const libSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.lib);
 for (const moduleName of [

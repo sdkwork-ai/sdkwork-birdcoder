@@ -11,3 +11,7 @@ export function createDefaultAdminConfig(): AdminConfig {
     operatorId: '',
   };
 }
+
+export * from './hooks/useAdminDeployments.ts';
+export * from './hooks/useAdminPolicies.ts';
+export * from './hooks/useAuditEvents.ts';

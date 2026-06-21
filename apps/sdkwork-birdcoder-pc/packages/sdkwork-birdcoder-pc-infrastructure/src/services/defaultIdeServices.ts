@@ -15,6 +15,7 @@ import { ApiBackedGitService } from './impl/ApiBackedGitService.ts';
 import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
 import { ApiBackedReleaseService } from './impl/ApiBackedReleaseService.ts';
 import { ApiBackedTeamService } from './impl/ApiBackedTeamService.ts';
+import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
 import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
 import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
 import {
@@ -26,6 +27,7 @@ import { resolveRuntimeServerSessionHeaders } from './runtimeServerSession.ts';
 import {
   createBirdCoderAppSdkApiClient,
   createBirdCoderBackendSdkApiClient,
+  getBirdCoderGeneratedAppSdkClient,
   type BirdCoderAppSdkApiClient,
   type BirdCoderBackendSdkApiClient,
 } from './sdkClients.ts';
@@ -197,6 +199,9 @@ export function createDefaultBirdCoderIdeServices(
     teamService: new ApiBackedTeamService({
       appClient,
       currentUserProvider: runtime.authService,
+    }),
+    vipMembershipService: new ApiBackedVipMembershipService({
+      appClient: getBirdCoderGeneratedAppSdkClient(),
     }),
     workspaceService,
   };

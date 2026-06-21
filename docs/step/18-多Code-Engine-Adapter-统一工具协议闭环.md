@@ -104,7 +104,7 @@
 - 当前四个引擎已统一投影 `session.started -> turn.started -> message.delta|completed -> tool.call.requested -> artifact.upserted -> approval.required -> operation.updated -> turn.completed|failed`
 - `Codex / Claude Code / OpenCode` 的副作用型工具已统一进入 `approval.required`
 - `Gemini` 的只读型工具已统一落入无审批的只读工具路径
-- 已新增仓库级契约 `scripts/engine-runtime-adapter-contract.test.ts` 与根命令 `pnpm.cmd run test:engine-runtime-adapter`
+- 已新增仓库级契约 `scripts/kernel-runtime-adapter-contract.test.ts` 与根命令 `pnpm.cmd run test:engine-runtime-adapter`
 - 同一 canonical runtime 现已继续下沉到 `coding-server`：
   - `executeBirdCoderCoreSessionRun()` 直接消费 `describeRuntime()` 与 `sendCanonicalEvents()`
   - `streamBirdCoderCoreSessionEventEnvelopes()` 直通 canonical event envelope

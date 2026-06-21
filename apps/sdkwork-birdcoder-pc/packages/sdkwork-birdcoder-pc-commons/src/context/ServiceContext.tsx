@@ -13,6 +13,7 @@ import {
   IProjectService,
   IReleaseService,
   ITeamService,
+  IVipMembershipService,
   IWorkspaceService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { createLazyDefaultIdeServices } from './lazyDefaultIdeServices.ts';
@@ -29,6 +30,7 @@ export interface IServices {
   documentService: IDocumentService;
   releaseService: IReleaseService;
   teamService: ITeamService;
+  vipMembershipService: IVipMembershipService;
   fileSystemService: IFileSystemService;
   gitService: IGitService;
   promptService: IPromptService;
@@ -48,6 +50,7 @@ function createDefaultServicesValue(): IServices {
     documentService: defaultIdeServices.documentService,
     releaseService: defaultIdeServices.releaseService,
     teamService: defaultIdeServices.teamService,
+    vipMembershipService: defaultIdeServices.vipMembershipService,
     fileSystemService: defaultIdeServices.fileSystemService,
     gitService: defaultIdeServices.gitService,
     promptService: defaultIdeServices.promptService,

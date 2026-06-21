@@ -83,10 +83,7 @@ function resolveBirdCoderAuthDevelopmentPrefill(): SdkworkAuthDevelopmentPrefill
     "VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE",
     "VITE_SDKWORK_AUTH_DEV_DEFAULT_PHONE",
   );
-  const configuredPassword = readBirdCoderPublicEnvValue(
-    "VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD",
-    "VITE_SDKWORK_AUTH_DEV_DEFAULT_PASSWORD",
-  );
+  const configuredPassword = undefined;
   const configuredVerificationCode = readBirdCoderPublicEnvValue(
     "VITE_BIRDCODER_AUTH_DEV_VERIFICATION_CODE",
     "VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE",

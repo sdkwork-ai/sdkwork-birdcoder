@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync as nodeExecFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,17 +8,23 @@ import { stringifyBirdCoderLongInteger } from '@sdkwork/birdcoder-pc-types';
 import type {
   ChatCanonicalEvent,
   ChatCanonicalRuntimeDescriptor,
+  ChatEngineCapabilitySnapshot,
   ChatEngineHealthReport,
   ChatEngineIntegrationDescriptor,
+  ChatEngineRawExtensionDescriptor,
   ChatMessage,
   ChatOptions,
   IChatEngine,
 } from '@sdkwork/birdcoder-pc-projection';
 import {
   buildMessageTranscriptPrompt,
+  createCapabilitySnapshot,
   createDefaultChatCanonicalRuntimeDescriptor,
+  createDetectedHealthReport,
+  createRawExtensionDescriptor,
   createRuntimeIntegrationDescriptor,
-  createStaticHealthReport,
+  resolveExecutablePresence,
+  resolvePackagePresence,
   resolveTransportKindForRuntimeMode,
 } from '@sdkwork/birdcoder-pc-projection';
 
@@ -37,7 +43,18 @@ const ADAPTER_NAMES: Record<WorkbenchCodeEngineId, string> = {
   opencode: 'opencode-kernel-sdk-adapter',
 };
 
+function resolveExecFileSync(): typeof nodeExecFileSync {
+  const runtimeProcess = process as {
+    getBuiltinModule?: (id: string) => { execFileSync?: typeof nodeExecFileSync } | undefined;
+  };
+  return runtimeProcess.getBuiltinModule?.('node:child_process')?.execFileSync ?? nodeExecFileSync;
+}
+
 function resolveKernelTurnBinary(): string {
+  if (process.env.BIRDCODER_KERNEL_TURN_CONTRACT_MOCK === '1') {
+    return 'birdcoder-kernel-turn';
+  }
+
   const configured = process.env.BIRDCODER_KERNEL_TURN_BIN?.trim();
   if (configured && existsSync(configured)) {
     return configured;
@@ -83,7 +100,7 @@ function executeKernelTurn(input: {
     },
   };
 
-  const stdout = execFileSync(binary, [], {
+  const stdout = resolveExecFileSync()(binary, [], {
     encoding: 'utf8',
     input: JSON.stringify(payload),
     maxBuffer: 10 * 1024 * 1024,
@@ -100,23 +117,95 @@ function executeKernelTurn(input: {
   };
 }
 
+const CLI_EXECUTABLE_BY_ENGINE: Record<WorkbenchCodeEngineId, string> = {
+  codex: 'codex',
+  'claude-code': 'claude',
+  gemini: 'gemini',
+  opencode: 'opencode',
+};
+
+const ENGINE_RAW_EXTENSION_PROFILES: Record<
+  WorkbenchCodeEngineId,
+  {
+    nativeEventModel: readonly string[];
+    experimentalFeatures?: readonly string[];
+  }
+> = {
+  codex: {
+    nativeEventModel: ['thread', 'turn', 'item'],
+  },
+  'claude-code': {
+    nativeEventModel: ['agent-progress', 'tool-progress', 'approval'],
+    experimentalFeatures: ['preview-session-api'],
+  },
+  gemini: {
+    nativeEventModel: ['session', 'tool', 'skill', 'context'],
+  },
+  opencode: {
+    nativeEventModel: ['session', 'part', 'artifact', 'event'],
+  },
+};
+
+function createRawExtensionDescriptorForEngine(
+  engineId: WorkbenchCodeEngineId,
+  descriptor: BirdCoderEngineDescriptor,
+): ChatEngineRawExtensionDescriptor {
+  const officialEntry = descriptor.officialIntegration?.officialEntry;
+  const profile = ENGINE_RAW_EXTENSION_PROFILES[engineId];
+
+  return createRawExtensionDescriptor({
+    provider: engineId,
+    primaryLane: descriptor.accessPlan?.primaryLaneId ?? `${engineId}-sdk-stream`,
+    supplementalLanes: officialEntry?.supplementalLanes?.length
+      ? [...officialEntry.supplementalLanes]
+      : [...(descriptor.accessPlan?.fallbackLaneIds ?? [])],
+    nativeEventModel: [...profile.nativeEventModel],
+    experimentalFeatures: profile.experimentalFeatures
+      ? [...profile.experimentalFeatures]
+      : undefined,
+    notes: 'Provider-native semantics are exposed only through the extensions/raw lane.',
+  });
+}
+
+function resolveEnginePackagePresence(
+  engineId: WorkbenchCodeEngineId,
+  descriptor: BirdCoderEngineDescriptor,
+) {
+  const officialEntry = descriptor.officialIntegration?.officialEntry;
+  const packageName = officialEntry?.packageName ?? engineId;
+  const mirrorPackageJsonPath = officialEntry?.sdkPath
+    ? `${officialEntry.sdkPath}/package.json`
+    : officialEntry?.sourceMirrorPath
+      ? `${officialEntry.sourceMirrorPath}/package.json`
+      : undefined;
+
+  return resolvePackagePresence({
+    packageName,
+    mirrorPackageJsonPath,
+  });
+}
+
 function createIntegrationDescriptor(
   engineId: WorkbenchCodeEngineId,
   descriptor: BirdCoderEngineDescriptor,
+  packagePresence: ReturnType<typeof resolveEnginePackagePresence>,
 ): ChatEngineIntegrationDescriptor {
   const officialEntry = descriptor.officialIntegration?.officialEntry;
+  const packageName = officialEntry?.packageName ?? engineId;
+
   return createRuntimeIntegrationDescriptor({
     engineId,
     integrationClass: 'official-sdk',
     runtimeMode: 'sdk',
     officialEntry: {
-      packageName: officialEntry?.packageName ?? engineId,
+      packageName,
       sdkPath: officialEntry?.sdkPath,
       cliPackageName: officialEntry?.cliPackageName,
       sourceMirrorPath: officialEntry?.sourceMirrorPath,
     },
     transportKinds: descriptor.transportKinds,
     sourceMirrorPath: officialEntry?.sourceMirrorPath,
+    packagePresence,
     notes: 'Kernel bridge execution via sdkwork-birdcoder-kernel-bridge',
   });
 }
@@ -149,7 +238,8 @@ export function createKernelTurnRuntime(
   }
 
   const descriptor = input?.descriptor ?? kernel.descriptor;
-  const integration = createIntegrationDescriptor(kernel.id, descriptor);
+  const packagePresence = resolveEnginePackagePresence(kernel.id, descriptor);
+  const integration = createIntegrationDescriptor(kernel.id, descriptor, packagePresence);
   const adapterName = ADAPTER_NAMES[kernel.id];
 
   return {
@@ -169,24 +259,49 @@ export function createKernelTurnRuntime(
       return integration;
     },
     async getHealth(): Promise<ChatEngineHealthReport> {
+      const executable = CLI_EXECUTABLE_BY_ENGINE[kernel.id];
+      const cliAvailable = resolveExecutablePresence(executable);
+      const health = createDetectedHealthReport({
+        descriptor: integration,
+        packagePresence,
+        executable,
+        cliAvailable,
+        fallbackAvailable: cliAvailable || undefined,
+      });
+
       try {
         resolveKernelTurnBinary();
-        return createStaticHealthReport({
-          descriptor: integration,
-          status: 'ready',
-          sdkAvailable: true,
-          diagnostics: ['Kernel bridge binary is available.'],
-        });
+        return {
+          ...health,
+          diagnostics: [...health.diagnostics, 'Kernel bridge binary is available.'],
+        };
       } catch (error) {
-        return createStaticHealthReport({
-          descriptor: integration,
+        return {
+          ...health,
           status: 'missing',
-          sdkAvailable: false,
           diagnostics: [
+            ...health.diagnostics,
             error instanceof Error ? error.message : String(error),
           ],
-        });
+        };
       }
+    },
+    async getCapabilities(): Promise<ChatEngineCapabilitySnapshot> {
+      const health = await this.getHealth?.();
+      if (!health) {
+        throw new Error(`${adapterName} does not expose getHealth()`);
+      }
+
+      const rawExtensions = createRawExtensionDescriptorForEngine(kernel.id, descriptor);
+
+      return createCapabilitySnapshot({
+        capabilityMatrix: descriptor.capabilityMatrix,
+        health,
+        experimentalCapabilities: rawExtensions.experimentalFeatures,
+      });
+    },
+    describeRawExtensions(): ChatEngineRawExtensionDescriptor {
+      return createRawExtensionDescriptorForEngine(kernel.id, descriptor);
     },
     async sendMessage(messages: ChatMessage[], options?: ChatOptions): Promise<never> {
       void messages;

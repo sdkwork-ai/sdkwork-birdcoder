@@ -98,6 +98,7 @@ BirdCoder 的多引擎中间层目标是以 `L2` 为最低落地门槛，以 `L4
 
 ## 9. 验收标准
 
-- 新增 provider 时，只新增 adapter 与 registry，不改产品层主流程
+- 新增 provider 时，只新增 kernel adapter 与 registry，不改产品层主流程
 - 切换 provider 后，消息、Artifact、审批和审计语义保持稳定
 - 任何 provider 差异只能体现为 capability、feature gate、degrade 提示，而不能反向污染公共接口
+- Kernel 对齐 gate 任务见 `specs/kernel-birdcoder-alignment.spec.json`；运行 `pnpm run check:kernel-birdcoder-alignment`

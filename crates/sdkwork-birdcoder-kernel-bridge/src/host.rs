@@ -1,11 +1,16 @@
 use std::collections::HashMap;
 
 use sdkwork_birdcoder_codeengine::{
-    find_codeengine_descriptor, CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord,
+    find_codeengine_descriptor, CodeEngineApprovalDecisionRecord, CodeEngineTurnRequestRecord,
+    CodeEngineTurnResultRecord, CodeEngineUserQuestionAnswerRecord,
 };
 
 use crate::engine_registry::{
     bootstrap_kernel_slot, canonical_engine_keys, KernelBootstrapError, KernelEngineSlot,
+};
+use crate::live_interaction::{
+    submit_approval_decision as route_approval_decision,
+    submit_user_question_answer as route_user_question_answer,
 };
 use crate::turn_executor::execute_kernel_turn;
 
@@ -41,6 +46,24 @@ impl BirdcoderKernelHost {
             .get(request.engine_id.as_str())
             .ok_or_else(|| format!("unsupported engineId \"{}\".", request.engine_id))?;
         execute_kernel_turn(slot, request)
+    }
+
+    pub fn submit_approval_decision(
+        &self,
+        engine_id: &str,
+        decision: &CodeEngineApprovalDecisionRecord,
+    ) -> Result<(), String> {
+        self.validate_engine_id(engine_id)?;
+        route_approval_decision(engine_id, decision)
+    }
+
+    pub fn submit_user_question_answer(
+        &self,
+        engine_id: &str,
+        answer: &CodeEngineUserQuestionAnswerRecord,
+    ) -> Result<(), String> {
+        self.validate_engine_id(engine_id)?;
+        route_user_question_answer(engine_id, answer)
     }
 
     pub fn validate_engine_id(&self, engine_id: &str) -> Result<(), String> {

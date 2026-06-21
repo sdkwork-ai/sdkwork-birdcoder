@@ -2,6 +2,30 @@
 
 This document is the technical implementation reference for BirdCoder's multi-engine middle layer.
 
+## Kernel bridge execution path (current)
+
+As of the Kernel ↔ BirdCoder alignment (docs `架构/30–32`), **agent turn execution** no longer lives in BirdCoder per-engine adapter packages.
+
+| Layer | Owner | Responsibility |
+| --- | --- | --- |
+| `sdkwork-kernel` | kernel repo | Official SDK bindings, `ModelProvider`, adapter SPI |
+| `sdkwork-birdcoder-kernel-bridge` | BirdCoder | `BirdcoderKernelHost`, `execute_kernel_turn`, `birdcoder-kernel-turn` CLI |
+| `@sdkwork/birdcoder-pc-codeengine` → `kernelRuntime.ts` | BirdCoder | `sendCanonicalEvents()` via kernel-turn subprocess |
+| `@sdkwork/birdcoder-pc-projection` | BirdCoder | Transcript, dialect, canonical projection only |
+| `sdkwork-birdcoder-codeengine` (Rust) | BirdCoder | Dialect + **native session catalog** only (no agent turn) |
+| `sdkwork-birdcoder-api-server` | BirdCoder | `KernelBridgeCodeEngineProvider` for coding-server turns |
+
+Retired BirdCoder surfaces:
+
+- `@sdkwork/birdcoder-pc-chat*` per-engine TS adapters
+- `scripts/codeengine-official-sdk-bridge.ts`
+- `RegistryCodeEngineProvider` / `execute_official_sdk_bridge_turn*`
+- `execute_turn` on `codeengine` `*_provider.rs`
+
+Alignment tracker: `specs/kernel-birdcoder-alignment.spec.json`. Verification: `pnpm run check:kernel-birdcoder-alignment`.
+
+The sections below describing per-provider TS bridge loaders remain as **historical integration patterns** for dialect and health semantics; new turn work must go through kernel-bridge only.
+
 ## Scope
 
 It defines how BirdCoder should integrate Codex, Claude, Gemini, and OpenCode through official SDKs, normalize their runtime semantics, and expose one canonical runtime surface to product packages.
@@ -47,9 +71,9 @@ The current middle layer standardizes the provider runtime bridge through a smal
 - `streamWithOptionalOfficialSdk()`
 - `createModuleBackedOfficialSdkBridgeLoader()`
 
-This keeps runtime selection logic centralized in `sdkwork-birdcoder-chat`, while each provider package remains responsible for mapping its official SDK API into BirdCoder's canonical `ChatResponse` and `ChatStreamChunk`.
+This keeps runtime selection logic centralized in `@sdkwork/birdcoder-pc-projection` (`providerAdapter.ts`) for **transcript and dialect helpers**; agent turn execution is owned by `sdkwork-kernel` via `sdkwork-birdcoder-kernel-bridge`.
 
-`packages/sdkwork-birdcoder-chat/src/providerAdapter.ts` must also remain browser-safe:
+`apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/providerAdapter.ts` must remain browser-safe:
 
 - no static `node:*` imports
 - Node builtin access only through lazy `process.getBuiltinModule(...)`
@@ -98,7 +122,11 @@ BirdCoder should converge on the following package family:
 - `@sdkwork/birdcoder-engine-gemini`
 - `@sdkwork/birdcoder-engine-opencode`
 
-The existing `@sdkwork/birdcoder-chat*` packages are compatibility wrappers and must not remain the long-term production integration center.
+The legacy `@sdkwork/birdcoder-pc-chat*` packages are **retired**. Long-term integration center:
+
+- `@sdkwork/birdcoder-pc-projection` — projection and dialect
+- `@sdkwork/birdcoder-pc-codeengine` — catalog + `kernelRuntime.ts`
+- `sdkwork-birdcoder-kernel-bridge` — agent turn boundary
 
 ## Canonical runtime objects
 

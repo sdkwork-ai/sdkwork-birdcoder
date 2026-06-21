@@ -8,11 +8,13 @@ const pcPackagesDir = path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages');
 const pcPackagesRelativeDir = 'apps/sdkwork-birdcoder-pc/packages';
 
 const allowedInternalDependencies = new Map([
-  ['@sdkwork/birdcoder-pc-admin-core', new Set()],
+  ['@sdkwork/birdcoder-pc-admin-core', new Set([
+    '@sdkwork/birdcoder-pc-infrastructure-runtime',
+    '@sdkwork/birdcoder-pc-types',
+  ])],
   ['@sdkwork/birdcoder-pc-admin-shell', new Set()],
   ['@sdkwork/birdcoder-pc-auth', new Set([
     '@sdkwork/birdcoder-pc-commons',
-    '@sdkwork/birdcoder-pc-core',
     '@sdkwork/birdcoder-pc-types',
   ])],
   ['@sdkwork/birdcoder-pc-projection', new Set([

@@ -26,6 +26,7 @@ members = [
     "crates/sdkwork-birdcoder-coding-sessions-repository-sqlx",
     "crates/sdkwork-birdcoder-workspace-repository-sqlx",
     "crates/sdkwork-birdcoder-skill-packages-repository-sqlx",
+    "crates/sdkwork-birdcoder-app-templates-repository-sqlx",
     "crates/sdkwork-birdcoder-model-config-repository-sqlx",
     "crates/sdkwork-birdcoder-membership-repository-sqlx",
     "crates/sdkwork-birdcoder-document-repository-sqlx",
@@ -98,6 +99,7 @@ sdkwork-birdcoder-system-descriptor-service = { path = "crates/sdkwork-birdcoder
 sdkwork-birdcoder-coding-sessions-repository-sqlx = { path = "crates/sdkwork-birdcoder-coding-sessions-repository-sqlx" }
 sdkwork-birdcoder-workspace-repository-sqlx = { path = "crates/sdkwork-birdcoder-workspace-repository-sqlx" }
 sdkwork-birdcoder-skill-packages-repository-sqlx = { path = "crates/sdkwork-birdcoder-skill-packages-repository-sqlx" }
+sdkwork-birdcoder-app-templates-repository-sqlx = { path = "crates/sdkwork-birdcoder-app-templates-repository-sqlx" }
 sdkwork-birdcoder-model-config-repository-sqlx = { path = "crates/sdkwork-birdcoder-model-config-repository-sqlx" }
 sdkwork-birdcoder-membership-repository-sqlx = { path = "crates/sdkwork-birdcoder-membership-repository-sqlx" }
 sdkwork-birdcoder-document-repository-sqlx = { path = "crates/sdkwork-birdcoder-document-repository-sqlx" }

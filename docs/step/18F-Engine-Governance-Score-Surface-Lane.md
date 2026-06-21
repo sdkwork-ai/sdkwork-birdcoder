@@ -24,7 +24,7 @@ Promote the existing Step 18 engine runtime adapter, conformance, tool protocol,
 
 ## Checkpoints
 
-- `CP18F-1` governance regression must include `engine-runtime-adapter`.
+- `CP18F-1` governance regression must include `kernel-runtime-adapter`.
 - `CP18F-2` governance regression must include `engine-conformance`.
 - `CP18F-3` governance regression must include `tool-protocol`.
 - `CP18F-4` governance regression must include `engine-resume-recovery`.

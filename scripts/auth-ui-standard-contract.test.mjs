@@ -166,13 +166,13 @@ assert.match(
 );
 assert.match(
   vipSurfaceSource,
-  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships\.current\.retrieve\(\)/u,
-  'BirdCoder VIP surface must read current membership through the generated commerce.memberships.current SDK surface.',
+  /vipMembershipService\.loadMembershipState\(\)/u,
+  'BirdCoder VIP surface must load membership state through the IDE VIP membership service boundary.',
 );
-assert.match(
+assert.doesNotMatch(
   vipSurfaceSource,
-  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships\.packageGroups\.list\(\)/u,
-  'BirdCoder VIP surface must read membership package groups through the generated commerce.memberships.packageGroups SDK surface.',
+  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships/u,
+  'BirdCoder VIP surface must not call the generated commerce SDK directly.',
 );
 assert.doesNotMatch(
   vipSurfaceSource,

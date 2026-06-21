@@ -10,12 +10,11 @@ use crate::{
     list_opencode_session_status_map, list_opencode_sessions,
     lookup_standard_native_session_provider_registration, map_codeengine_session_runtime_status,
     map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
-    map_codeengine_tool_kind, map_codeengine_tool_runtime_status, reject_opencode_question_request,
-    reply_opencode_permission_request, reply_opencode_question_request,
+    map_codeengine_tool_kind, map_codeengine_tool_runtime_status,
     resolve_codeengine_command_interaction_state, resolve_codeengine_command_text,
-    session_id_targets_engine, CodeEngineApprovalDecisionRecord, NativeSessionProviderPlugin,
+    session_id_targets_engine, NativeSessionProviderPlugin,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionSummaryRecord, CodeEngineUserQuestionAnswerRecord,
+    CodeEngineSessionSummaryRecord,
     NativeSessionProviderRegistration,
 };
 
@@ -113,52 +112,6 @@ impl NativeSessionProviderPlugin for OpencodeCodeEngineProvider {
             &session_status_map,
             model_id,
         ))
-    }
-
-    fn supports_live_approval_decision_replies(&self) -> bool {
-        true
-    }
-
-    fn supports_live_user_question_replies(&self) -> bool {
-        true
-    }
-
-    fn submit_approval_decision(
-        &self,
-        decision: &CodeEngineApprovalDecisionRecord,
-    ) -> Result<(), String> {
-        if !is_opencode_transport_available() {
-            return Err(
-                "OpenCode native transport is unavailable. Install `opencode` or set `OPENCODE_SERVER_URL` to an existing OpenCode server.".to_owned(),
-            );
-        }
-
-        reply_opencode_permission_request(
-            decision.approval_id.as_str(),
-            decision.decision.as_str(),
-            decision.reason.as_deref(),
-        )
-    }
-
-    fn submit_user_question_answer(
-        &self,
-        answer: &CodeEngineUserQuestionAnswerRecord,
-    ) -> Result<(), String> {
-        if !is_opencode_transport_available() {
-            return Err(
-                "OpenCode native transport is unavailable. Install `opencode` or set `OPENCODE_SERVER_URL` to an existing OpenCode server.".to_owned(),
-            );
-        }
-
-        if answer.rejected {
-            return reject_opencode_question_request(answer.question_id.as_str());
-        }
-
-        reply_opencode_question_request(
-            answer.question_id.as_str(),
-            answer.answer.as_str(),
-            answer.option_label.as_deref(),
-        )
     }
 }
 

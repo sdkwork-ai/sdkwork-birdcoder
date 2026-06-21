@@ -330,13 +330,27 @@ impl DeploymentService {
         self.repository.create_audit_event(ctx, &audit).await?;
 
         self.event_publisher
-            .publish_deployment_created(&deployment.id)
+            .publish_deployment_created(
+                &command.workspace_id,
+                &command.project_id,
+                &deployment.id,
+            )
             .await?;
         self.event_publisher
-            .publish_release_created(&release.id)
+            .publish_release_created(
+                &command.workspace_id,
+                &command.project_id,
+                &release.id,
+            )
             .await?;
         self.event_publisher
-            .publish_audit_event("project", &command.project_id, "project.publish.created")
+            .publish_audit_event(
+                &command.workspace_id,
+                &command.project_id,
+                "project",
+                &command.project_id,
+                "project.publish.created",
+            )
             .await?;
 
         Ok(PublishProjectResultPayload {

@@ -50,6 +50,7 @@ sdkwork-birdcoder-project-service = { workspace = true }
 sdkwork-birdcoder-deployment-service = { workspace = true }
 sdkwork-birdcoder-engine-catalog-service = { workspace = true }
 sdkwork-birdcoder-native-sessions-service = { workspace = true }
+sdkwork-birdcoder-git = { workspace = true }
 sdkwork-birdcoder-skill-packages-service = { workspace = true }
 sdkwork-birdcoder-app-templates-service = { workspace = true }
 sdkwork-birdcoder-document-service = { workspace = true }

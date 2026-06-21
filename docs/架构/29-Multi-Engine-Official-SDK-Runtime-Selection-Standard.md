@@ -112,7 +112,7 @@ The minimum verification set for this runtime-selection architecture is:
 - `scripts/provider-adapter-browser-safety-contract.test.mjs`
 - `scripts/engine-experimental-capability-gating-contract.test.ts`
 - `scripts/engine-canonical-registry-governance-contract.test.ts`
-- `scripts/engine-runtime-adapter-contract.test.ts`
+- `scripts/kernel-runtime-adapter-contract.test.ts`
 - `scripts/engine-kernel-contract.test.ts`
 - `scripts/engine-environment-health-contract.test.ts`
 - `scripts/engine-capability-extension-contract.test.ts`

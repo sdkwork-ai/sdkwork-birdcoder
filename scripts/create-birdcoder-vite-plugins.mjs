@@ -52,6 +52,48 @@ const BIRDCODER_VITE_DEV_WATCH_IGNORED = [
 const BIRDCODER_PUBLIC_RUNTIME_ENV_KEY = '__SDKWORK_PC_REACT_ENV__';
 const BIRDCODER_PUBLIC_RUNTIME_ENV_PREFIXES = ['SDKWORK_', 'VITE_'];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS = ['DEV', 'MODE', 'NODE_ENV', 'PROD'];
+const BIRDCODER_PUBLIC_RUNTIME_ENV_DENYLIST = new Set([
+  'SDKWORK_ACCESS_TOKEN',
+  'SDKWORK_AUTH_TOKEN',
+  'SDKWORK_REFRESH_TOKEN',
+  'SDKWORK_API_KEY',
+]);
+const BIRDCODER_PUBLIC_RUNTIME_ENV_DENY_SUFFIXES = [
+  '_SECRET',
+  '_PASSWORD',
+  '_DATABASE_URL',
+  '_DATABASE_PASSWORD',
+  '_REDIS_PASSWORD',
+  '_REDIS_URL',
+];
+const BIRDCODER_PUBLIC_RUNTIME_ENV_DENY_SUBSTRINGS = [
+  '_AUTH_DEV_DEFAULT_PASSWORD',
+  '_DEV_DEFAULT_PASSWORD',
+];
+
+export function isBirdcoderPublicRuntimeEnvKey(key) {
+  if (typeof key !== 'string' || key.length === 0) {
+    return false;
+  }
+
+  if (BIRDCODER_PUBLIC_RUNTIME_ENV_DENYLIST.has(key)) {
+    return false;
+  }
+
+  if (BIRDCODER_PUBLIC_RUNTIME_ENV_DENY_SUFFIXES.some((suffix) => key.endsWith(suffix))) {
+    return false;
+  }
+
+  if (BIRDCODER_PUBLIC_RUNTIME_ENV_DENY_SUBSTRINGS.some((fragment) => key.includes(fragment))) {
+    return false;
+  }
+
+  if (BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS.includes(key)) {
+    return true;
+  }
+
+  return BIRDCODER_PUBLIC_RUNTIME_ENV_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
 
 function resolveBirdcoderTerminalInfrastructureRuntimePath(
   appRootDir = defaultBirdcoderAppRootDir,
@@ -591,11 +633,7 @@ function resolveBirdcoderPublicRuntimeEnv(runtimeEnvSource = {}, mode = 'develop
         return false;
       }
 
-      if (BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS.includes(key)) {
-        return true;
-      }
-
-      return BIRDCODER_PUBLIC_RUNTIME_ENV_PREFIXES.some((prefix) => key.startsWith(prefix));
+      return isBirdcoderPublicRuntimeEnvKey(key);
     }),
   );
 
@@ -1451,6 +1489,7 @@ export {
   createBirdcoderTypeScriptTransformPlugin,
   createBirdcoderVitePlugins,
   onBirdcoderRollupWarning,
+  resolveBirdcoderPublicRuntimeEnv,
   resolveBirdcoderTerminalInfrastructureRuntimePath,
   resolveSdkworkTerminalDesktopEntryPath,
   resolveSdkworkTerminalDesktopHostEntryPath,

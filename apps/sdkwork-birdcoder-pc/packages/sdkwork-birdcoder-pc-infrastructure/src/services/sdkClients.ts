@@ -23,7 +23,11 @@ import {
   type BirdcoderBackendSdkClient,
   type IamTeamsListQuery as BackendIamTeamsListQuery,
 } from '@sdkwork/birdcoder-backend-sdk';
-import { createTokenManager, type AuthTokenManager } from '@sdkwork/sdk-common';
+import { type AuthTokenManager } from '@sdkwork/sdk-common';
+import {
+  getBirdCoderGlobalTokenManager as getCoreBirdCoderGlobalTokenManager,
+  setBirdCoderGlobalTokenManager,
+} from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 import type {
   BirdCoderApiRouteCatalogEntry,
   BirdCoderApiTransport,
@@ -92,7 +96,7 @@ import type {
   BirdCoderWorkspaceMemberSummary,
   BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-pc-types';
-import { clearStoredAppSessionToken, loadStoredAppSessionToken } from './appSessionToken.ts';
+import { clearStoredAppSessionToken } from './appSessionToken.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
 
@@ -487,7 +491,6 @@ interface BirdCoderSdkTokenManagerRef {
   current?: AuthTokenManager;
 }
 
-let defaultBirdCoderSdkTokenManager: AuthTokenManager | undefined;
 let generatedAppClient: BirdCoderTokenManagerAwareAppSdkClient | null = null;
 let generatedBackendClient: BirdCoderTokenManagerAwareBackendSdkClient | null = null;
 let sessionAuthRedirectTarget: string | null = null;
@@ -512,7 +515,7 @@ export function createBirdCoderGeneratedAppSdkClient(
   options: BirdCoderGeneratedAppSdkClientOptions = {},
 ): BirdCoderTokenManagerAwareAppSdkClient {
   const tokenManagerRef: BirdCoderSdkTokenManagerRef = {
-    current: options.tokenManager ?? defaultBirdCoderSdkTokenManager,
+    current: options.tokenManager ?? getCoreBirdCoderGlobalTokenManager(),
   };
   const client = createBirdcoderAppSdkClient({
     accessToken: options.accessToken,
@@ -528,7 +531,7 @@ export function createBirdCoderGeneratedBackendSdkClient(
   options: BirdCoderGeneratedBackendSdkClientOptions = {},
 ): BirdCoderTokenManagerAwareBackendSdkClient {
   const tokenManagerRef: BirdCoderSdkTokenManagerRef = {
-    current: options.tokenManager ?? defaultBirdCoderSdkTokenManager,
+    current: options.tokenManager ?? getCoreBirdCoderGlobalTokenManager(),
   };
   const client = createBirdcoderBackendSdkClient({
     accessToken: options.accessToken,
@@ -552,7 +555,7 @@ export function getBirdCoderGeneratedAppSdkClient(
 
   if (!generatedAppClient) {
     generatedAppClient = createBirdCoderGeneratedAppSdkClient({
-      tokenManager: defaultBirdCoderSdkTokenManager,
+      tokenManager: getCoreBirdCoderGlobalTokenManager(),
     });
   }
   return generatedAppClient;
@@ -570,39 +573,18 @@ export function getBirdCoderGeneratedBackendSdkClient(
 
   if (!generatedBackendClient) {
     generatedBackendClient = createBirdCoderGeneratedBackendSdkClient({
-      tokenManager: defaultBirdCoderSdkTokenManager,
+      tokenManager: getCoreBirdCoderGlobalTokenManager(),
     });
   }
   return generatedBackendClient;
 }
 
 export function getBirdCoderGlobalTokenManager(): AuthTokenManager {
-  if (!defaultBirdCoderSdkTokenManager) {
-    defaultBirdCoderSdkTokenManager = createTokenManager();
-    hydrateBirdCoderTokenManagerFromStoredSession(defaultBirdCoderSdkTokenManager);
-  }
-  return defaultBirdCoderSdkTokenManager;
-}
-
-function hydrateBirdCoderTokenManagerFromStoredSession(tokenManager: AuthTokenManager): void {
-  const stored = loadStoredAppSessionToken();
-  if (!stored?.authToken || !stored.accessToken) {
-    return;
-  }
-
-  tokenManager.setTokens({
-    authToken: stored.authToken,
-    accessToken: stored.accessToken,
-    ...(stored.refreshToken ? { refreshToken: stored.refreshToken } : {}),
-    ...(typeof stored.expiresAt === 'number'
-      ? { expiresAt: stored.expiresAt * 1000 }
-      : {}),
-  });
+  return getCoreBirdCoderGlobalTokenManager();
 }
 
 export function setBirdCoderSdkTokenManager(tokenManager: AuthTokenManager): void {
-  hydrateBirdCoderTokenManagerFromStoredSession(tokenManager);
-  defaultBirdCoderSdkTokenManager = tokenManager;
+  setBirdCoderGlobalTokenManager(tokenManager);
   generatedAppClient?.setTokenManager(tokenManager);
   generatedBackendClient?.setTokenManager(tokenManager);
 }

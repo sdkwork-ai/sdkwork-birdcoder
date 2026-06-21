@@ -19,6 +19,7 @@ const expectedDependencyIds = [
   'sdkwork-utils',
   'sdkwork-app-topology',
   'sdkwork-models',
+  'sdkwork-kernel',
 ];
 const sourceDependencyFiles = [
   'package.json',

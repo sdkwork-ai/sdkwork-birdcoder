@@ -19,6 +19,8 @@ export const CANONICAL_SERVER_RUST_PATHS = Object.freeze({
   sqlxSkillPackagesSchema: 'crates/sdkwork-birdcoder-skill-packages-repository-sqlx/src/db/schema.rs',
   sqlxModelConfigSchema: 'crates/sdkwork-birdcoder-model-config-repository-sqlx/src/db/schema.rs',
   sqlxMembershipSchema: 'crates/sdkwork-birdcoder-membership-repository-sqlx/src/db/schema.rs',
+  skillPackagesHandlers: 'crates/sdkwork-router-skill-packages-app-api/src/handlers.rs',
+  appTemplatesRepository: 'crates/sdkwork-birdcoder-app-templates-repository-sqlx/src/lib.rs',
 });
 
 export const CANONICAL_DOMAIN_RUST_PATHS = Object.freeze({
@@ -52,12 +54,24 @@ const ENGINE_CATALOG_PATHS = [
   CANONICAL_SERVER_RUST_PATHS.engineCatalogHandlers,
 ];
 
-export const LEGACY_ARCHIVE_RUST_PATHS = Object.freeze({
-  monolithLib:
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive/lib.rs',
-  nativeSessions:
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive/native_sessions.rs',
+const APP_TEMPLATES_PATHS = [
+  CANONICAL_SERVER_RUST_PATHS.skillPackagesHandlers,
+  CANONICAL_SERVER_RUST_PATHS.appTemplatesRepository,
+];
+
+export const CANONICAL_CODING_SESSIONS_REALTIME_PATHS = Object.freeze({
+  eventsPort: 'crates/sdkwork-birdcoder-coding-sessions-service/src/ports/events.rs',
+  service: CANONICAL_SERVER_RUST_PATHS.codingSessionsService,
+  eventPayload: CANONICAL_DOMAIN_RUST_PATHS.codingSessionsEventPayload,
 });
+
+export function readCanonicalCodingSessionsRealtimeBundle() {
+  return readCanonicalServerRustBundle([
+    CANONICAL_CODING_SESSIONS_REALTIME_PATHS.eventsPort,
+    CANONICAL_CODING_SESSIONS_REALTIME_PATHS.service,
+    CANONICAL_CODING_SESSIONS_REALTIME_PATHS.eventPayload,
+  ]);
+}
 
 export function readCanonicalServerRustSource(relativePath) {
   const absolutePath = path.join(workspaceRoot, relativePath);
@@ -98,15 +112,14 @@ export const CANONICAL_CODEENGINE_ARTIFACT_PATHS = Object.freeze({
   engineCatalogJson: 'crates/sdkwork-birdcoder-codeengine/generated/engine-catalog.json',
 });
 
-export const CODEENGINE_LEGACY_ARCHIVE_RUST_PATHS = Object.freeze({
-  srcRoot:
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/legacy-archive/src',
-});
-
 export function readCanonicalCodeengineRustBundle(relativePaths) {
   return readCanonicalServerRustBundle(relativePaths);
 }
 
 export function readCanonicalEngineCatalogBundle() {
   return readCanonicalServerRustBundle(ENGINE_CATALOG_PATHS);
+}
+
+export function readCanonicalAppTemplatesBundle() {
+  return readCanonicalServerRustBundle(APP_TEMPLATES_PATHS);
 }

@@ -59,18 +59,18 @@ assert.match(
 );
 assert.match(
   vipPageSource,
-  /createBirdCoderVipController\(\{\s*user,[\s\S]*\}\)/u,
-  'BirdCoder VIP page must derive membership UI from the authenticated SDKWork IAM user context.',
+  /createBirdCoderVipController\(\{\s*user,[\s\S]*vipMembershipService,[\s\S]*\}\)/u,
+  'BirdCoder VIP page must derive membership UI from the authenticated SDKWork IAM user context and IDE VIP membership service.',
 );
 assert.match(
   vipSurfaceSource,
-  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships\.current\.retrieve\(\)/u,
-  'BirdCoder VIP service must read current membership through the generated SDKWork commerce app SDK.',
+  /vipMembershipService\.loadMembershipState\(\)/u,
+  'BirdCoder VIP surface must load membership state through the IDE VIP membership service boundary.',
 );
-assert.match(
+assert.doesNotMatch(
   vipSurfaceSource,
-  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships\.packageGroups\.list/u,
-  'BirdCoder VIP service must read membership package groups through the generated SDKWork commerce app SDK.',
+  /getBirdCoderGeneratedAppSdkClient\(\)\.commerce\.memberships/u,
+  'BirdCoder VIP surface must not call the generated commerce SDK directly.',
 );
 assert.doesNotMatch(
   vipSurfaceSource,

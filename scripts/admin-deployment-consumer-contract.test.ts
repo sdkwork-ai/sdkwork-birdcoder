@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-pc-types';
 import type { IAdminDeploymentService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IAdminDeploymentService.ts';
-import { loadAdminDeployments } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useAdminDeployments.ts';
+import { loadAdminDeployments } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core/src/hooks/useAdminDeployments.ts';
 
 const deploymentFixtures: BirdCoderDeploymentRecordSummary[] = [
   {

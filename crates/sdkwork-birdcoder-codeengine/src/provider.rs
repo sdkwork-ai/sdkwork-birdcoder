@@ -124,17 +124,6 @@ pub fn standard_native_session_provider_registry() -> &'static NativeSessionProv
         .get_or_init(NativeSessionProviderRegistry::new_standard)
 }
 
-#[deprecated(
-    since = "0.2.0",
-    note = "Use standard_native_session_provider_registry(); turn execution moved to sdkwork-birdcoder-kernel-bridge."
-)]
-pub fn standard_codeengine_provider_registry() -> &'static NativeSessionProviderRegistry {
-    standard_native_session_provider_registry()
-}
-
-pub use NativeSessionProviderPlugin as CodeEngineProviderPlugin;
-pub use NativeSessionProviderRegistry as CodeEngineProviderRegistry;
-
 pub fn session_id_targets_engine(session_id: &str, engine_id: &str) -> bool {
     resolve_native_session_engine_id(session_id)
         .map(|resolved_engine_id| resolved_engine_id == engine_id.trim().to_ascii_lowercase())

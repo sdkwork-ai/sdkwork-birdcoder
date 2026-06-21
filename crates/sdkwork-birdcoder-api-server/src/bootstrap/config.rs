@@ -61,16 +61,32 @@ pub fn sqlite_database_url(path: &Path) -> String {
 }
 
 pub fn default_allowed_origins_for_host(host: &str) -> Vec<String> {
-    if host == "127.0.0.1" || host.eq_ignore_ascii_case("localhost") {
-        vec![
-            "http://127.0.0.1:5173".to_string(),
-            "http://localhost:5173".to_string(),
-            "http://127.0.0.1:4173".to_string(),
-            "http://localhost:4173".to_string(),
-            "tauri://localhost".to_string(),
-            "https://tauri.localhost".to_string(),
-        ]
+    if is_loopback_bind_host(host) {
+        default_loopback_browser_origins()
     } else {
-        vec!["*".to_string()]
+        Vec::new()
     }
+}
+
+pub fn is_loopback_bind_host(host: &str) -> bool {
+    host == "127.0.0.1"
+        || host.eq_ignore_ascii_case("localhost")
+        || host == "0.0.0.0"
+        || host == "::1"
+        || host == "[::1]"
+}
+
+pub fn default_loopback_browser_origins() -> Vec<String> {
+    vec![
+        "http://127.0.0.1:5173".to_string(),
+        "http://localhost:5173".to_string(),
+        "http://127.0.0.1:3000".to_string(),
+        "http://localhost:3000".to_string(),
+        "http://127.0.0.1:4173".to_string(),
+        "http://localhost:4173".to_string(),
+        "http://127.0.0.1:10240".to_string(),
+        "http://localhost:10240".to_string(),
+        "tauri://localhost".to_string(),
+        "https://tauri.localhost".to_string(),
+    ]
 }

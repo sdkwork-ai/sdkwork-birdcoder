@@ -31,6 +31,7 @@ pub async fn build_router(
             workspace_service: state.services.workspace.clone(),
             project_service: state.services.project.clone(),
             deployment_service: state.services.deployment.clone(),
+            realtime_hub: state.services.realtime_hub.clone(),
         });
 
     let engine_catalog_router = sdkwork_router_engine_catalog_app_api::build_engine_catalog_app_router()

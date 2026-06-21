@@ -1,5 +1,9 @@
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, Query, State};
+use axum::response::IntoResponse;
 use axum::Json;
+use futures_util::{SinkExt, StreamExt};
+use serde::Deserialize;
 
 use sdkwork_birdcoder_router_context::{
     deployment_context, project_context, workspace_context, RequiredIamContext, WebRequestContext,
@@ -30,12 +34,20 @@ use crate::mapper::request::{
     UpdateWorkspaceBody, UpsertProjectCollaboratorBody, UpsertWorkspaceMemberBody,
     WorkspacePathParams,
 };
+use crate::realtime_hub::{build_workspace_ready_message, WorkspaceRealtimeHub};
 
 #[derive(Clone)]
 pub struct WorkspaceAppState {
     pub workspace_service: WorkspaceService,
     pub project_service: ProjectService,
     pub deployment_service: DeploymentService,
+    pub realtime_hub: WorkspaceRealtimeHub,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WorkspaceRealtimeQuery {
+    session_id: String,
 }
 
 // ── Workspace handlers ───────────────────────────────────────────────
@@ -160,13 +172,83 @@ pub async fn delete_workspace(
 }
 
 pub async fn subscribe_workspace_realtime(
-    RequiredIamContext(_iam): RequiredIamContext,
+    ws: WebSocketUpgrade,
+    RequiredIamContext(iam): RequiredIamContext,
     Path(params): Path<WorkspacePathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
-    Err(error::map_not_implemented(format!(
-        "Workspace realtime subscription is not implemented yet (workspaceId={}).",
-        params.workspace_id
-    )))
+    Query(query): Query<WorkspaceRealtimeQuery>,
+    State(state): State<WorkspaceAppState>,
+) -> Result<impl IntoResponse, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+    let session_id = query.session_id.trim();
+    if session_id.is_empty() || session_id != iam.session_id {
+        return Err(error::map_validation_error(
+            "A valid SDKWork IAM session id is required for workspace realtime subscription.",
+        ));
+    }
+
+    let workspace_id = params.workspace_id.clone();
+    let ctx = workspace_context(&iam);
+    if state
+        .workspace_service
+        .get_workspace(&ctx, &workspace_id)
+        .await
+        .is_err()
+    {
+        return Err(error::map_not_found(format!(
+            "Workspace '{workspace_id}' was not found."
+        )));
+    }
+
+    let user_id = iam.user_id.clone();
+    let hub = state.realtime_hub.clone();
+    Ok(ws.on_upgrade(move |socket| handle_workspace_realtime(socket, hub, workspace_id, user_id)))
+}
+
+async fn handle_workspace_realtime(
+    socket: WebSocket,
+    hub: WorkspaceRealtimeHub,
+    workspace_id: String,
+    user_id: String,
+) {
+    let mut receiver = hub.subscribe(&workspace_id).await;
+    let (mut sender, mut inbound) = socket.split();
+
+    if sender
+        .send(Message::Text(
+            build_workspace_ready_message(&workspace_id, &user_id).into(),
+        ))
+        .await
+        .is_err()
+    {
+        return;
+    }
+
+    loop {
+        tokio::select! {
+            event = receiver.recv() => {
+                match event {
+                    Ok(message) => {
+                        if sender.send(Message::Text(message.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(_) => break,
+                }
+            }
+            inbound_message = inbound.next() => {
+                match inbound_message {
+                    Some(Ok(Message::Close(_))) | None => break,
+                    Some(Ok(Message::Ping(payload))) => {
+                        if sender.send(Message::Pong(payload)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Some(Err(_)) => break,
+                    _ => {}
+                }
+            }
+        }
+    }
 }
 
 pub async fn list_workspace_members(
@@ -525,10 +607,16 @@ pub async fn publish_project(
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<PublishProjectBody>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
-    let ctx = deployment_context(&iam);
+    let project_ctx = project_context(&iam);
+    let deployment_ctx = deployment_context(&iam);
+    let project = match state.project_service.get_project(&project_ctx, &params.project_id).await {
+        Ok(project) => project,
+        Err(error) => return Err(error::map_project_error(error)),
+    };
     let command = PublishProjectCommand {
+        workspace_id: project.workspace_id,
         project_id: params.project_id,
-        project_name: String::new(),
+        project_name: project.name,
         project_tenant_id: iam.tenant_id.clone(),
         project_organization_id: iam.organization_id.clone(),
         project_owner_id: Some(iam.user_id.clone()),
@@ -545,7 +633,11 @@ pub async fn publish_project(
             target_name: body.target_name,
         },
     };
-    match state.deployment_service.publish_project(&ctx, &command).await {
+    match state
+        .deployment_service
+        .publish_project(&deployment_ctx, &command)
+        .await
+    {
         Ok(result) => Ok(Json(serde_json::json!(result))),
         Err(e) => Err(error::map_deployment_error(e)),
     }

@@ -30,8 +30,8 @@ try {
   const birdcoderPackageSubpathAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/birdcoder-([^/]+)\\/(.+)$/u');
   const birdcoderPackageRootAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/birdcoder-([^/]+)$/u');
   const terminalDesktopAliasIndex = aliasFinders.indexOf('@sdkwork/terminal-pc-desktop');
-  const terminalPackageSubpathAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/terminal-(?!local-runtime-app-sdk$)([^/]+)\\/(.+)$/u');
-  const terminalPackageRootAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/terminal-(?!local-runtime-app-sdk$)([^/]+)$/u');
+  const terminalPackageSubpathAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/terminal-(?!local-runtime-app-sdk$|pc-desktop$)([^/]+)\\/(.+)$/u');
+  const terminalPackageRootAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/terminal-(?!local-runtime-app-sdk$|pc-desktop$)([^/]+)$/u');
 
   assert.notEqual(
     aliasFinders.indexOf('/^qrcode$/u'),

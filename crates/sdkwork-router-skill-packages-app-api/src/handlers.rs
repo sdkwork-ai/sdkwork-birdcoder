@@ -1,5 +1,7 @@
 use sqlx::SqlitePool;
 
+use sdkwork_birdcoder_app_templates_repository_sqlx::SqliteAppTemplateRepository;
+use sdkwork_birdcoder_app_templates_service::service::app_template_service::AppTemplateService;
 use sdkwork_birdcoder_skill_packages_repository_sqlx::SqliteSkillPackageRepository;
 use sdkwork_birdcoder_skill_packages_service::domain::commands::InstallSkillPackageInput;
 use sdkwork_birdcoder_skill_packages_service::service::skill_package_service::SkillPackageService;
@@ -14,12 +16,14 @@ use crate::mapper::request::{InstallSkillPackageBody, SkillPackageListQuery, Ski
 #[derive(Clone)]
 pub struct SkillPackagesAppState {
     pub service: SkillPackageService<SqliteSkillPackageRepository>,
+    pub app_template_service: AppTemplateService<SqliteAppTemplateRepository>,
 }
 
 impl SkillPackagesAppState {
     pub fn new(pool: SqlitePool) -> Self {
         Self {
-            service: SkillPackageService::new(SqliteSkillPackageRepository::new(pool)),
+            service: SkillPackageService::new(SqliteSkillPackageRepository::new(pool.clone())),
+            app_template_service: AppTemplateService::new(SqliteAppTemplateRepository::new(pool)),
         }
     }
 }
@@ -66,14 +70,11 @@ pub async fn install_skill_package(
 pub async fn list_app_templates(
     _web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
+    State(state): State<SkillPackagesAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
-    Err((
-        axum::http::StatusCode::NOT_IMPLEMENTED,
-        Json(error::ProblemDetailsPayload {
-            code: "not_implemented".into(),
-            message: "App template listing is not implemented yet.".into(),
-            retryable: false,
-        }),
-    ))
+    match state.app_template_service.list_templates().await {
+        Ok(items) => Ok(Json(serde_json::json!({ "items": items }))),
+        Err(error) => Err(error::map_app_template_error(error)),
+    }
 }

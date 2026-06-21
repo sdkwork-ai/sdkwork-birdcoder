@@ -189,9 +189,10 @@ await withMockCodexCliJsonl(async () => {
     sqliteSnapshot.runtime?.nativeRef.transportKind,
     sqliteProjection.runtime.nativeRef.transportKind,
   );
-  assert.ok(
+  assert.equal(
     ['cli-jsonl', 'sdk-stream'].includes(sqliteSnapshot.runtime?.nativeRef.transportKind ?? ''),
-    'provider projection repository must preserve the selected Codex runtime transport in CLI fallback and official SDK release environments.',
+    true,
+    'provider projection repository must preserve the kernel-selected Codex runtime transport.',
   );
   assert.equal(sqliteSnapshot.runtime?.nativeRef.nativeSessionId, 'coding-session-provider-1');
   assert.deepEqual(sqliteSnapshot.runtime?.capabilitySnapshot, sqliteProjection.runtime.capabilitySnapshot);
@@ -200,7 +201,11 @@ await withMockCodexCliJsonl(async () => {
     sqliteSnapshot.events.map((event) => event.kind),
     sqliteProjection.events.map((event) => event.kind),
   );
-  assert.equal(sqliteSnapshot.events.some((event) => event.kind === 'approval.required'), true);
+  assert.equal(
+    sqliteSnapshot.events.some((event) => event.kind === 'approval.required'),
+    false,
+    'kernel-bridge server runtime must not synthesize approval.required from retired Codex CLI JSONL fixtures.',
+  );
   assert.equal(sqliteSnapshot.artifacts.length, sqliteProjection.artifacts.length);
   assert.deepEqual(
     sqliteSnapshot.artifacts.map((artifact) => artifact.kind),
@@ -293,6 +298,7 @@ await withMockCodexCliJsonl(async () => {
   );
 }, {
   stdoutLines: fakeCodexJsonlLines,
+  kernelTurnAssistantContent: 'Codex provider projection response.',
 });
 
 console.log('coding server provider projection repository contract passed.');

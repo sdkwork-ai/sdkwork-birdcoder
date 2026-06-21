@@ -245,7 +245,7 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:api-transport-standard'],
-  'node --experimental-strip-types scripts/http-api-transport-cors-contract.test.ts && node scripts/frontend-request-id-ownership-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/in-process-app-runtime-api-descriptor-contract.test.ts && node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
+  'node --experimental-strip-types scripts/http-api-transport-cors-contract.test.ts && node scripts/birdcoder-public-runtime-env-contract.test.mjs && node scripts/frontend-request-id-ownership-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/in-process-app-runtime-api-descriptor-contract.test.ts && node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
   'Root quality scripts must expose API transport/CORS behavior, frontend requestId ownership, in-process app/backend descriptor parity, and canonical API_SPEC path governance as a first-class standard.',
 );
 assert.match(
@@ -267,6 +267,16 @@ for (const plusEntityContract of [
     `Root quality scripts must expose ${plusEntityContract} so DATABASE_SPEC-aligned Plus entity contracts cannot drift outside the data-kernel gate.`,
   );
 }
+assert.match(
+  rootPackageJson.scripts['check:data-kernel'] ?? '',
+  /app-templates-list-contract\.test\.mjs/,
+  'Root quality scripts must cover canonical app template listing instead of leaving /app/v3/api/app_templates on a 501 placeholder.',
+);
+assert.match(
+  rootPackageJson.scripts['check:data-kernel'] ?? '',
+  /canonical-server-realtime-event-publishers-contract\.test\.mjs/,
+  'Root quality scripts must forbid retired noop project/deployment event publishers on the canonical api-server.',
+);
 assert.match(
   rootPackageJson.scripts['check:data-kernel'] ?? '',
   /coding-session-repository-batch-loading-contract\.test\.ts/,
@@ -351,6 +361,7 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:code-session-standard',
   'node scripts/run-workspace-package-script.mjs . check:multiwindow-standard',
   'node scripts/run-workspace-package-script.mjs . check:data-kernel',
+  'node scripts/run-workspace-package-script.mjs . check:kernel-birdcoder-alignment',
   'node scripts/run-workspace-package-script.mjs . check:sdk-family-standard',
   'node scripts/run-workspace-package-script.mjs . check:sdk-family-generated',
   'node scripts/run-workspace-package-script.mjs . check:local-store-browser-fallback',

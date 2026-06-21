@@ -18,8 +18,10 @@ import { ApiBackedGitService } from './impl/ApiBackedGitService.ts';
 import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
 import { ApiBackedReleaseService } from './impl/ApiBackedReleaseService.ts';
 import { ApiBackedTeamService } from './impl/ApiBackedTeamService.ts';
+import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
 import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
 import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
+import { getBirdCoderGeneratedAppSdkClient } from './sdkClients.ts';
 
 let sharedRuntimePromise: Promise<BirdCoderDefaultIdeSharedRuntime> | null = null;
 const servicePromiseByKey = new Map<
@@ -156,6 +158,11 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
         return new ApiBackedTeamService({
           appClient: runtime.appClient,
           currentUserProvider: runtime.authService,
+        });
+      }
+      case 'vipMembershipService': {
+        return new ApiBackedVipMembershipService({
+          appClient: getBirdCoderGeneratedAppSdkClient(),
         });
       }
       case 'workspaceService':

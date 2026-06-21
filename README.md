@@ -50,7 +50,7 @@ All PC-specific packages are under `apps/sdkwork-birdcoder-pc/packages/` with th
 **Product Modules:**
 - `@sdkwork/birdcoder-pc-code` — Code editor
 - `@sdkwork/birdcoder-pc-studio` — Studio
-- `@sdkwork/birdcoder-pc-chat` — Chat module
+- `@sdkwork/birdcoder-pc-projection` — Kernel event → coding_session projection
 - `@sdkwork/birdcoder-pc-skills` — Skills
 - `@sdkwork/birdcoder-pc-templates` — Templates
 - ... (38 total PC packages)
@@ -103,7 +103,7 @@ Flutter-specific packages are under `apps/sdkwork-birdcoder-flutter-mobile/packa
 
 - `@sdkwork/birdcoder-pc-code` — Code editor
 - `@sdkwork/birdcoder-pc-studio` — Studio
-- `@sdkwork/birdcoder-pc-chat` — Chat module
+- `@sdkwork/birdcoder-pc-projection` — Kernel event → coding_session projection
 - `@sdkwork/birdcoder-settings` — Settings
 - `@sdkwork/birdcoder-skills` — Skills
 - `@sdkwork/birdcoder-templates` — Templates

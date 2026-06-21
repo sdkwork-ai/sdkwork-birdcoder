@@ -14,6 +14,7 @@
     "./modelConfig": "./src/modelConfig.ts",
     "./preferences": "./src/preferences.ts",
     "./runtime": "./src/runtime.ts",
+    "./serverRuntime": "./src/serverRuntime.ts",
     "./serverSupport": "./src/serverSupport.ts"
   },
   "dependencies": {

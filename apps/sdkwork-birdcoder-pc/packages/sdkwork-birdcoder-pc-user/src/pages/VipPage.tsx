@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   useAuth,
+  useIDEServices,
 } from '@sdkwork/birdcoder-pc-commons';
 import {
   createBirdCoderVipController,
@@ -32,14 +33,16 @@ export function VipPage({
   onAuthenticationRequired,
 }: VipPageProps = {}) {
   const { user } = useAuth();
+  const { vipMembershipService } = useIDEServices();
   const [state, setState] = useState<BirdCoderVipState>(() => createInitialState());
   const [status, setStatus] = useState<LoadStatus>('idle');
   const controller = useMemo(
     () =>
       createBirdCoderVipController({
         user,
+        vipMembershipService,
       }),
-    [user],
+    [user, vipMembershipService],
   );
 
   useEffect(() => {

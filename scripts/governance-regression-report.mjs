@@ -437,6 +437,12 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     command: 'pnpm run test:template-instantiation-contract',
   },
   {
+    id: 'app-templates-list',
+    label: 'App templates list contract',
+    scriptPath: 'scripts/app-templates-list-contract.test.mjs',
+    command: 'pnpm run test:app-templates-list-contract',
+  },
+  {
     id: 'prompt-skill-template-runtime-assembly',
     label: 'Prompt, skill, and template runtime assembly contract',
     scriptPath: 'scripts/prompt-skill-template-runtime-assembly-contract.test.ts',
@@ -682,6 +688,18 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     label: 'BirdCoder IAM no legacy identity contract',
     scriptPath: 'scripts/birdcoder-iam-no-legacy-identity-contract.test.mjs',
     command: 'node scripts/birdcoder-iam-no-legacy-identity-contract.test.mjs',
+  },
+  {
+    id: 'birdcoder-public-runtime-env',
+    label: 'BirdCoder public runtime env contract',
+    scriptPath: 'scripts/birdcoder-public-runtime-env-contract.test.mjs',
+    command: 'node scripts/birdcoder-public-runtime-env-contract.test.mjs',
+  },
+  {
+    id: 'kernel-birdcoder-alignment',
+    label: 'Kernel BirdCoder alignment contract',
+    scriptPath: 'scripts/kernel-birdcoder-alignment-contract.test.mjs',
+    command: 'pnpm run test:kernel-birdcoder-alignment-contract',
   },
   {
     id: 'release-closure',

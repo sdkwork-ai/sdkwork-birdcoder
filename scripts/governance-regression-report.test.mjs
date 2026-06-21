@@ -289,6 +289,7 @@ assert.deepEqual(
     'step-loop-prompt-governance',
     'skill-binding',
     'template-instantiation',
+    'app-templates-list',
     'prompt-skill-template-runtime-assembly',
     'prompt-skill-template-evidence-repository',
     'prompt-skill-template-evidence-consumer',
@@ -330,14 +331,16 @@ assert.deepEqual(
     'sdkwork-birdcoder-architecture',
     'birdcoder-iam-standard',
     'birdcoder-iam-no-legacy-identity',
+    'birdcoder-public-runtime-env',
+    'kernel-birdcoder-alignment',
     'release-closure',
   ],
 );
 assert.deepEqual(executedChecks, GOVERNANCE_REGRESSION_CHECKS.map((check) => check.id));
 assert.equal(passedReport.status, 'passed');
 assert.equal(passedReport.generatedAt, '2026-04-08T15:30:00.000Z');
-assert.equal(passedReport.summary.totalChecks, 109);
-assert.equal(passedReport.summary.passedCount, 109);
+assert.equal(passedReport.summary.totalChecks, 112);
+assert.equal(passedReport.summary.passedCount, 112);
 assert.equal(passedReport.summary.blockedCount, 0);
 assert.equal(passedReport.summary.failedCount, 0);
 assert.deepEqual(passedReport.summary.blockedCheckIds, []);
@@ -416,6 +419,7 @@ assert.deepEqual(
     'node scripts/prompt-governance-contract.test.mjs',
     'pnpm run test:skill-binding-contract',
     'pnpm run test:template-instantiation-contract',
+    'pnpm run test:app-templates-list-contract',
     'pnpm run test:prompt-skill-template-runtime-assembly-contract',
     'pnpm run test:prompt-skill-template-evidence-repository-contract',
     'pnpm run test:prompt-skill-template-evidence-consumer-contract',
@@ -457,6 +461,8 @@ assert.deepEqual(
     'node scripts/sdkwork-birdcoder-architecture-contract.test.mjs',
     'node scripts/birdcoder-iam-standard-contract.test.mjs',
     'node scripts/birdcoder-iam-no-legacy-identity-contract.test.mjs',
+    'node scripts/birdcoder-public-runtime-env-contract.test.mjs',
+    'pnpm run test:kernel-birdcoder-alignment-contract',
     'node scripts/check-release-closure.mjs',
   ],
 );
@@ -512,7 +518,7 @@ const blockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(blockedReport.status, 'blocked');
-assert.equal(blockedReport.summary.passedCount, 108);
+assert.equal(blockedReport.summary.passedCount, 111);
 assert.equal(blockedReport.summary.blockedCount, 1);
 assert.equal(blockedReport.summary.failedCount, 0);
 assert.deepEqual(blockedReport.summary.blockedCheckIds, ['web-bundle-budget']);
@@ -571,7 +577,7 @@ const runnerBlockedReport = await runGovernanceRegressionReport({
 });
 
 assert.equal(runnerBlockedReport.status, 'blocked');
-assert.equal(runnerBlockedReport.summary.passedCount, 108);
+assert.equal(runnerBlockedReport.summary.passedCount, 111);
 assert.equal(runnerBlockedReport.summary.blockedCount, 1);
 assert.equal(runnerBlockedReport.summary.failedCount, 0);
 assert.deepEqual(runnerBlockedReport.summary.blockedCheckIds, ['web-bundle-budget']);

@@ -43,10 +43,23 @@ assert.doesNotMatch(
   'check:server must not run cargo test against the retired src-host monolith manifest.',
 );
 
+const legacyArchiveRoots = [
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src-host/legacy-archive',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src-host/legacy-archive',
+];
+
+for (const relativePath of legacyArchiveRoots) {
+  assert.equal(
+    fs.existsSync(path.join(workspaceRoot, relativePath)),
+    false,
+    `Retired src-host legacy-archive must be removed; canonical logic lives under crates/: ${relativePath}`,
+  );
+}
+
 assert.equal(
   fs.existsSync(srcHostLibPath),
   false,
-  'src-host must not compile the legacy monolithic lib.rs; archived sources belong under src-host/legacy-archive/.',
+  'src-host must not compile the legacy monolithic lib.rs.',
 );
 assert.doesNotMatch(
   srcHostCargo,

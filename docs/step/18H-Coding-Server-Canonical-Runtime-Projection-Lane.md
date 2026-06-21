@@ -52,7 +52,7 @@ Close the remaining Step 18 server-side sink by projecting the shared workbench 
 - `node --experimental-strip-types scripts/coding-server-sse-contract.test.ts`
 - `node --experimental-strip-types scripts/coding-server-provider-projection-repository-contract.test.ts`
 - `node --experimental-strip-types scripts/coding-server-engine-truth-contract.test.ts`
-- `node --experimental-strip-types scripts/engine-runtime-adapter-contract.test.ts`
+- `node --experimental-strip-types scripts/kernel-runtime-adapter-contract.test.ts`
 - `node scripts/live-docs-governance-baseline.test.mjs`
 - `node scripts/release-flow-contract.test.mjs`
 

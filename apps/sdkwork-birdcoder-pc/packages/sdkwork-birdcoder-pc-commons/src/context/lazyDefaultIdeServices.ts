@@ -165,6 +165,9 @@ export function createLazyDefaultIdeServices(): BirdCoderDefaultIdeServices {
     projectService: createLazyServiceProxy(async () => loadDefaultIdeService('projectService')),
     releaseService: createLazyServiceProxy(async () => loadDefaultIdeService('releaseService')),
     teamService: createLazyServiceProxy(async () => loadDefaultIdeService('teamService')),
+    vipMembershipService: createLazyServiceProxy(
+      async () => loadDefaultIdeService('vipMembershipService'),
+    ),
     workspaceService: createLazyServiceProxy(
       async () => loadDefaultIdeService('workspaceService'),
     ),

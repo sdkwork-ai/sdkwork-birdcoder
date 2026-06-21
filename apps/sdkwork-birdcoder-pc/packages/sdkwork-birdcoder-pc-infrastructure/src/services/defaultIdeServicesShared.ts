@@ -30,6 +30,7 @@ import type { IPromptService } from './interfaces/IPromptService.ts';
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import type { IReleaseService } from './interfaces/IReleaseService.ts';
 import type { ITeamService } from './interfaces/ITeamService.ts';
+import type { IVipMembershipService } from './interfaces/IVipMembershipService.ts';
 import type { IWorkspaceService } from './interfaces/IWorkspaceService.ts';
 import { resolveRuntimeServerSessionHeaders } from './runtimeServerSession.ts';
 import {
@@ -60,6 +61,7 @@ export interface BirdCoderDefaultIdeServices {
   projectService: IProjectService;
   releaseService: IReleaseService;
   teamService: ITeamService;
+  vipMembershipService: IVipMembershipService;
   workspaceService: IWorkspaceService;
 }
 

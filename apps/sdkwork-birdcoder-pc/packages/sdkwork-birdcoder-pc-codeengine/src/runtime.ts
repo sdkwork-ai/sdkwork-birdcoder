@@ -401,10 +401,7 @@ export function createWorkbenchCanonicalChatEngine(
   const descriptor = input.descriptor ?? kernel.descriptor;
   const defaultModelId = input.defaultModelId ?? descriptor.defaultModelId;
 
-  if (
-    runtime.sendCanonicalEvents &&
-    typeof runtime.sendMessageStream !== 'function'
-  ) {
+  if (runtime.sendCanonicalEvents) {
     return {
       name: runtime.name,
       version: runtime.version,

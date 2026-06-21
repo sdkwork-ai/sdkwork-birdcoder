@@ -16,6 +16,7 @@ import type {
   IProjectService,
   IReleaseService,
   ITeamService,
+  IVipMembershipService,
   IWorkspaceService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import {
@@ -40,6 +41,7 @@ export interface IDEProviderProps {
   documentService?: IDocumentService;
   releaseService?: IReleaseService;
   teamService?: ITeamService;
+  vipMembershipService?: IVipMembershipService;
   fileSystemService?: IFileSystemService;
   gitService?: IGitService;
   authService?: IAuthService;
@@ -61,6 +63,7 @@ export const IDEProvider = ({
   documentService,
   releaseService,
   teamService,
+  vipMembershipService,
   fileSystemService,
   gitService,
   authService,
@@ -87,6 +90,7 @@ export const IDEProvider = ({
         documentService: documentService ?? defaultContext.documentService,
         releaseService: releaseService ?? defaultContext.releaseService,
         teamService: teamService ?? defaultContext.teamService,
+        vipMembershipService: vipMembershipService ?? defaultContext.vipMembershipService,
         fileSystemService: fileSystemService ?? defaultContext.fileSystemService,
         gitService: gitService ?? defaultContext.gitService,
         authService: authService ?? defaultContext.authService,

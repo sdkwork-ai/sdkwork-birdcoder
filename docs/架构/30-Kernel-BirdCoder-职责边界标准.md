@@ -37,12 +37,20 @@
 ## 6. 保留的过渡能力
 
 - `sdkwork-birdcoder-codeengine` 内 **native session inventory**（Codex CLI sessions、SDK-bridge 持久化会话目录、OpenCode HTTP catalog）
-- OpenCode native provider 的 **approval / user-question reply** hook（直至 kernel bridge 接管 live interaction）
+- OpenCode approval / user-question **reply 路由** 已迁入 `sdkwork-birdcoder-kernel-bridge`（`live_interaction.rs`）；`opencode_provider` 仅保留 session catalog
 
 ## 7. 验收
 
+- `pnpm run check:kernel-birdcoder-alignment`
 - `cargo test -p sdkwork-birdcoder-kernel-bridge`
 - `node scripts/birdcoder-kernel-integration-contract.test.mjs`
 - `node --experimental-strip-types scripts/kernel-runtime-adapter-contract.test.ts`
 - `node --experimental-strip-types scripts/codeengine-native-provider-completeness-contract.test.ts`
 - provider 源码不得再出现 `execute_turn(`
+
+## 8. 延伸阅读
+
+- [31-集成实施方案](./31-Kernel-BirdCoder-集成实施方案.md)
+- [32-对齐验收与核对清单](./32-Kernel-BirdCoder-对齐验收与核对清单.md)
+- [反复执行Kernel对齐指令](../prompts/反复执行Kernel对齐指令.md)
+- 机器可读任务：`specs/kernel-birdcoder-alignment.spec.json`

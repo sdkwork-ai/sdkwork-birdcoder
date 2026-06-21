@@ -84,6 +84,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node scripts/run-local-tsx.mjs scripts/default-ide-services-deployment-service-contract.test.ts',
   'node scripts/run-local-tsx.mjs scripts/default-ide-services-admin-deployment-service-contract.test.ts',
   'node scripts/run-local-tsx.mjs scripts/default-ide-services-admin-policy-service-contract.test.ts',
+  'node scripts/run-local-tsx.mjs scripts/default-ide-services-vip-membership-service-contract.test.ts',
   'node scripts/run-local-tsx.mjs scripts/default-ide-services-audit-service-contract.test.ts',
   'node scripts/run-local-tsx.mjs scripts/default-ide-services-release-service-contract.test.ts',
   'node --experimental-strip-types scripts/no-mixed-app-transport-client-wrapper-contract.test.ts',

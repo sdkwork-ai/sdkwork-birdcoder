@@ -1,1 +1,1 @@
-export const APP_SESSION_CHANGE_EVENT_NAME = 'sdkwork:birdcoder:app-session-change';
+export { APP_SESSION_CHANGE_EVENT_NAME } from '@sdkwork/birdcoder-pc-core/appSessionEvents';
