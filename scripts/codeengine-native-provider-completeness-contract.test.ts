@@ -49,14 +49,11 @@ const kernelBridgeLib = readFileSync(
 );
 assert.match(kernelBridgeLib, /execute_kernel_turn|BirdcoderKernelHost/s);
 
-const boundaries = readFileSync(
-  path.join(root, 'crates/sdkwork-birdcoder-kernel-bridge/src/boundaries.rs'),
-  'utf8',
-);
-assert.match(
-  boundaries,
-  /sdkwork-birdcoder-codeengine provider turn execution \(agent lane\)/,
-  'Legacy agent-lane turn execution must remain explicitly listed until native-session migration completes.',
+const providerSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.provider);
+assert.doesNotMatch(
+  providerSource,
+  /fn\s+execute_turn\s*\(/,
+  'Native session provider registry must not expose agent turn execution.',
 );
 
 const libSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.lib);

@@ -132,8 +132,8 @@ pub fn standard_codeengine_provider_registry() -> &'static NativeSessionProvider
     standard_native_session_provider_registry()
 }
 
-pub type CodeEngineProviderPlugin = NativeSessionProviderPlugin;
-pub type CodeEngineProviderRegistry = NativeSessionProviderRegistry;
+pub use NativeSessionProviderPlugin as CodeEngineProviderPlugin;
+pub use NativeSessionProviderRegistry as CodeEngineProviderRegistry;
 
 pub fn session_id_targets_engine(session_id: &str, engine_id: &str) -> bool {
     resolve_native_session_engine_id(session_id)

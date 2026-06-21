@@ -8,8 +8,8 @@ BirdCoder 的产品中心必须是统一 Kernel，而不是某一家具体引擎
 
 - 当前仓库已冻结 canonical engine id：`codex / claude-code / gemini / opencode`
 - 当前仓库已在 `packages/sdkwork-birdcoder-types/src/engine.ts` 冻结统一 `engineKey / transportKinds / capabilityMatrix / modelCatalog` 类型标准
-- 当前仓库已在 `packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts` 冻结 descriptor 与 model catalog 输出
-- 当前仓库中的 `@sdkwork/birdcoder-chat` 与四个 `@sdkwork/birdcoder-chat-*` 包仍处于兼容层定位，不应继续承担完整多引擎生产级接入职责
+- 当前仓库已在 `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine` 冻结 workbench engine kernel 与 model catalog
+- 当前仓库已通过 `sdkwork-birdcoder-kernel-bridge` + `@sdkwork/birdcoder-pc-projection` 完成 agent turn 与 canonical 投影分离；细则见《30-Kernel-BirdCoder-职责边界标准》
 - 多引擎接入细则以下一篇《21-多Code-Engine协议-SDK-适配标准》为准，本文只冻结 Kernel 主骨架与责任边界
 
 ## 3. Kernel 标准职责
@@ -75,8 +75,8 @@ BirdCoder 的长期包边界应演进为：
 
 ### 6.1 过渡要求
 
-- 现有 `chat-*` 包只保留兼容 facade 职责
-- 新的 provider 实现不再继续沉淀到 `chat-*`
+- 已退役 `@sdkwork/birdcoder-pc-chat*`；agent turn 仅经 `sdkwork-birdcoder-kernel-bridge`
+- `@sdkwork/birdcoder-pc-projection` 只承担 canonical 投影与 dialect 消费
 - 页面层、Server 层、Studio 层禁止直接依赖第三方 engine SDK
 
 ## 7. 与 Coding Server 的关系

@@ -38,7 +38,5 @@ pub const BIRDCODER_OWNED_CAPABILITIES: &[&str] = &[
     "native-session.catalog",
 ];
 
-/// Legacy BirdCoder surfaces scheduled for retirement after kernel bridge rollout.
-pub const LEGACY_CODEENGINE_SURFACES: &[&str] = &[
-    "sdkwork-birdcoder-codeengine provider turn execution (agent lane)",
-];
+/// Legacy BirdCoder surfaces retired after kernel bridge rollout.
+pub const LEGACY_CODEENGINE_SURFACES: &[&str] = &[];

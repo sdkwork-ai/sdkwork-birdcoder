@@ -74,13 +74,13 @@ pub use opencode::{
 pub use opencode_provider::OpencodeCodeEngineProvider;
 pub use provider::{
     extract_native_lookup_id_for_engine, session_id_targets_engine,
-    standard_codeengine_provider_registry, CodeEngineProviderPlugin, CodeEngineProviderRegistry,
+    standard_codeengine_provider_registry, standard_native_session_provider_registry,
+    CodeEngineProviderPlugin, CodeEngineProviderRegistry, NativeSessionProviderPlugin,
+    NativeSessionProviderRegistry,
 };
 pub use sdk_bridge::{
-    execute_official_sdk_bridge_turn, execute_official_sdk_bridge_turn_with_events,
-    get_sdk_bridge_session_detail, list_sdk_bridge_session_summaries, persist_sdk_bridge_turn,
-    OfficialSdkBridgeTurnRequest, CODEENGINE_HOME_ENV, CODEENGINE_SDK_BRIDGE_HOME_ENV,
-    CODEENGINE_SDK_BRIDGE_NODE_ENV, CODEENGINE_SDK_BRIDGE_SCRIPT_ENV,
+    get_sdk_bridge_session_detail, list_sdk_bridge_session_summaries, CODEENGINE_HOME_ENV,
+    CODEENGINE_SDK_BRIDGE_HOME_ENV,
 };
 pub use session_records::{
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,

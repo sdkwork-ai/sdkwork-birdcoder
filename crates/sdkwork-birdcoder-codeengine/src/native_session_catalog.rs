@@ -1,12 +1,12 @@
 use crate::{
-    session_id_targets_engine, standard_codeengine_provider_registry, CodeEngineSessionDetailRecord,
+    session_id_targets_engine, standard_native_session_provider_registry, CodeEngineSessionDetailRecord,
     CodeEngineSessionSummaryRecord,
 };
 
 pub fn list_codeengine_native_session_summaries(
     engine_id: Option<&str>,
 ) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {
-    let registry = standard_codeengine_provider_registry();
+    let registry = standard_native_session_provider_registry();
     let providers = registry.resolve_provider(engine_id)?;
     let mut sessions = Vec::new();
     for provider in providers {
@@ -19,7 +19,7 @@ pub fn get_codeengine_native_session_detail(
     session_id: &str,
     engine_id: Option<&str>,
 ) -> Result<Option<CodeEngineSessionDetailRecord>, String> {
-    let registry = standard_codeengine_provider_registry();
+    let registry = standard_native_session_provider_registry();
     if let Some(engine_id) = engine_id.filter(|value| !value.trim().is_empty()) {
         let providers = registry.resolve_provider(Some(engine_id))?;
         if let Some(provider) = providers.first() {
