@@ -25,7 +25,8 @@
     "grantMode": "current",
     "platform": "WEB",
     "appId": null,
-    "organizationId": null
+    "organizationId": "0",
+    "tenantId": "100001"
   },
   "runtime": {
     "family": "mobile",

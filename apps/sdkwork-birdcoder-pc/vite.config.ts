@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
 
   return {
+    define: {
+      'process.env.SDKWORK_ACCESS_TOKEN': JSON.stringify(env.SDKWORK_ACCESS_TOKEN ?? ''),
+    },
     esbuild: false,
     plugins: createBirdcoderVitePlugins({
       appRootDir: rootHostAppRootDir,

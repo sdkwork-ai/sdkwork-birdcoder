@@ -20,6 +20,15 @@
       "containerImage": "registry.sdkwork.com/apps/sdkwork-birdcoder"
     }
   },
+  "backend": {
+    "profileKey": "backend-root-admin",
+    "ownerMode": "tenant",
+    "grantMode": "current",
+    "platform": "WEB",
+    "appId": null,
+    "tenantId": "100001",
+    "organizationId": "0"
+  },
   "runtime": {
     "family": "desktop",
     "framework": "react-tauri",
