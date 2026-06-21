@@ -372,7 +372,7 @@
     "@types/react-dom": "catalog:",
     "autoprefixer": "^10.4.21",
     "pg": "catalog:",
-    "@sdkwork/utils-typescript": "workspace:*",
+    "@sdkwork/utils": "workspace:*",
     "tailwindcss": "catalog:",
     "tsx": "^4.21.0",
     "typescript": "catalog:",

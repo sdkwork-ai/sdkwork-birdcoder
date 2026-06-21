@@ -100,7 +100,7 @@
     "@sdkwork/iam-sdk-ports": "workspace:*",
     "@sdkwork/messaging-app-sdk": "workspace:*",
     "@sdkwork/sdk-common": "workspace:*",
-    "@sdkwork/utils-typescript": "workspace:*",
+    "@sdkwork/utils": "workspace:*",
     "@tauri-apps/api": "catalog:"
   }
 }

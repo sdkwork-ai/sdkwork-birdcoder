@@ -251,6 +251,13 @@ export default defineConfig(({ mode }) => {
           }
 
           if (
+            id.includes('/node_modules/@xterm/addon-web-links/') ||
+            id.includes('sdkwork-birdcoder-pc-web-xterm-addon-web-links')
+          ) {
+            return 'vendor-terminal-xterm-addon-web-links';
+          }
+
+          if (
             id.includes('/node_modules/@tauri-apps/api/window') ||
             id.includes('/node_modules/@tauri-apps/api/dpi')
           ) {

@@ -1,4 +1,4 @@
-import { isBlank } from '@sdkwork/utils-typescript/string';
+import { isBlank } from '@sdkwork/utils/string';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   compareBirdCoderCodingSessionEventSequence,

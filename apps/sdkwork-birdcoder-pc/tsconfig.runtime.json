@@ -87,8 +87,14 @@
       "@sdkwork/birdcoder-*": [
         "packages/sdkwork-birdcoder-*/src"
       ],
+      "@sdkwork/terminal-pc-desktop/surface": [
+        "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/surface/App.tsx"
+      ],
+      "@sdkwork/terminal-pc-desktop/surface/*": [
+        "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/surface/*"
+      ],
       "@sdkwork/terminal-pc-desktop": [
-        "../../../sdkwork-terminal/apps/desktop/src/index.ts"
+        "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/index.ts"
       ],
       "lucide-react": [
         "node_modules/lucide-react"

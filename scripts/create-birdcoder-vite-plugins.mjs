@@ -70,8 +70,23 @@ function resolveDependencyPath(dependencyId, ...relativePathParts) {
   return path.resolve(resolveDependencyRootDir(dependencyId), ...relativePathParts);
 }
 
+function resolveSdkworkTerminalDesktopRootPath(appRootDir = defaultBirdcoderAppRootDir) {
+  return resolveDependencyPath(
+    'sdkwork-terminal',
+    'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src',
+  );
+}
+
 function resolveSdkworkTerminalDesktopEntryPath(appRootDir = defaultBirdcoderAppRootDir) {
-  return resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/apps/desktop/src/index.ts');
+  return path.join(resolveSdkworkTerminalDesktopRootPath(appRootDir), 'index.ts');
+}
+
+function resolveSdkworkTerminalDesktopSurfaceEntryPath(appRootDir = defaultBirdcoderAppRootDir) {
+  return path.join(resolveSdkworkTerminalDesktopRootPath(appRootDir), 'surface/App.tsx');
+}
+
+function resolveSdkworkTerminalDesktopHostEntryPath(appRootDir = defaultBirdcoderAppRootDir) {
+  return path.join(resolveSdkworkTerminalDesktopRootPath(appRootDir), 'host/index.ts');
 }
 
 function resolveSdkworkTerminalInfrastructureEntryPath(
@@ -222,6 +237,20 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: resolveDependencyPath('sdkwork-sdk-commons', 'sdkwork-sdk-common-typescript/src/index.ts'),
     },
     {
+      find: /^@sdkwork\/utils\/(.+)$/u,
+      replacement: resolveDependencyPath(
+        'sdkwork-utils',
+        'packages/sdkwork-utils-typescript/dist/$1.js',
+      ),
+    },
+    {
+      find: '@sdkwork/utils',
+      replacement: resolveDependencyPath(
+        'sdkwork-utils',
+        'packages/sdkwork-utils-typescript/dist/index.js',
+      ),
+    },
+    {
       find: '@sdkwork/appbase-app-sdk',
       replacement: resolveDependencyPath('sdkwork-appbase', 'sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts'),
     },
@@ -328,15 +357,27 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: resolveSdkworkTerminalLocalRuntimeAppSdkEntryPath(),
     },
     {
+      find: /^@sdkwork\/terminal-pc-desktop\/surface\/(.+)$/u,
+      replacement: `${resolveSdkworkTerminalDesktopRootPath(appRootDir)}/surface/$1`,
+    },
+    {
+      find: '@sdkwork/terminal-pc-desktop/surface',
+      replacement: resolveSdkworkTerminalDesktopSurfaceEntryPath(appRootDir),
+    },
+    {
+      find: '@sdkwork/terminal-pc-desktop/host',
+      replacement: resolveSdkworkTerminalDesktopHostEntryPath(appRootDir),
+    },
+    {
       find: '@sdkwork/terminal-pc-desktop',
       replacement: resolveSdkworkTerminalDesktopEntryPath(appRootDir),
     },
     {
-      find: /^@sdkwork\/terminal-(?!local-runtime-app-sdk$)([^/]+)\/(.+)$/u,
+      find: /^@sdkwork\/terminal-(?!local-runtime-app-sdk$|pc-desktop$)([^/]+)\/(.+)$/u,
       replacement: resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src/$2'),
     },
     {
-      find: /^@sdkwork\/terminal-(?!local-runtime-app-sdk$)([^/]+)$/u,
+      find: /^@sdkwork\/terminal-(?!local-runtime-app-sdk$|pc-desktop$)([^/]+)$/u,
       replacement: resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
     },
   ];
@@ -1412,6 +1453,9 @@ export {
   onBirdcoderRollupWarning,
   resolveBirdcoderTerminalInfrastructureRuntimePath,
   resolveSdkworkTerminalDesktopEntryPath,
+  resolveSdkworkTerminalDesktopHostEntryPath,
+  resolveSdkworkTerminalDesktopRootPath,
+  resolveSdkworkTerminalDesktopSurfaceEntryPath,
   resolveSdkworkTerminalInfrastructureEntryPath,
   shouldIgnoreBirdcoderRollupWarning,
 };

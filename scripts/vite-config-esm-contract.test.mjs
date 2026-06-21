@@ -523,8 +523,8 @@ assert.equal(
   'Web Vite config must keep bootstrap storage catalog helpers in the storage chunk so provider-backed services do not depend back on platform orchestration.',
 );
 for (const terminalDesktopModuleId of [
-  '/repo/sdkwork-terminal/apps/desktop/src/index.ts',
-  '/repo/sdkwork-terminal/apps/desktop/src/App.tsx',
+  '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/index.ts',
+  '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/surface/App.tsx',
   '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/index.tsx',
   '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-workbench/src/index.tsx',
 ]) {
@@ -582,6 +582,13 @@ for (const terminalVendorModule of [
     moduleIds: [
       '/repo/node_modules/@xterm/addon-unicode11/lib/addon-unicode11.js',
       '\0sdkwork-birdcoder-pc-web-xterm-addon-unicode11',
+    ],
+  },
+  {
+    chunkName: 'vendor-terminal-xterm-addon-web-links',
+    moduleIds: [
+      '/repo/node_modules/@xterm/addon-web-links/lib/addon-web-links.js',
+      '\0sdkwork-birdcoder-pc-web-xterm-addon-web-links',
     ],
   },
 ]) {

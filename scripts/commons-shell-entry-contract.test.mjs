@@ -48,24 +48,24 @@ assert.match(
 );
 assert.match(
   defaultIdeServicesLoaderSource,
-  /from ['"]@sdkwork\/birdcoder-infrastructure['"]/u,
+  /from ['"]@sdkwork\/birdcoder-pc-infrastructure['"]/u,
   '@sdkwork/birdcoder-pc-commons defaultIdeServicesLoader must resolve BirdCoder IDE services from the infrastructure root entry.',
 );
 
 for (const relativePath of [
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx',
-  'src/main.tsx',
+  'apps/sdkwork-birdcoder-pc/src/main.tsx',
 ]) {
   const source = readText(relativePath);
   assert.match(
     source,
-    /from ['"]@sdkwork\/birdcoder-shell-runtime['"]/u,
+    /from ['"]@sdkwork\/birdcoder-pc-shell-runtime['"]/u,
     `${relativePath} must consume startup runtime helpers from the dedicated @sdkwork/birdcoder-pc-shell-runtime entry.`,
   );
   assert.doesNotMatch(
     source,
-    /from ['"]@sdkwork\/birdcoder-shell-runtime\/.+['"]/u,
+    /from ['"]@sdkwork\/birdcoder-pc-shell-runtime\/.+['"]/u,
     `${relativePath} must not import @sdkwork/birdcoder-pc-shell-runtime package subpaths.`,
   );
 }
@@ -73,19 +73,19 @@ for (const relativePath of [
 for (const relativePath of [
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/loadAppRoot.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx',
-  'src/App.tsx',
+  'apps/sdkwork-birdcoder-pc/src/App.tsx',
 ]) {
   const source = readText(relativePath);
   const usesShellRootEntry =
-    /from ['"]@sdkwork\/birdcoder-shell['"]/u.test(source) ||
-    /import\(['"]@sdkwork\/birdcoder-shell['"]\)/u.test(source);
+    /from ['"]@sdkwork\/birdcoder-pc-shell['"]/u.test(source) ||
+    /import\(['"]@sdkwork\/birdcoder-pc-shell['"]\)/u.test(source);
   assert.ok(
     usesShellRootEntry,
     `${relativePath} must consume application shell surfaces from the root @sdkwork/birdcoder-pc-shell entry.`,
   );
   assert.doesNotMatch(
     source,
-    /from ['"]@sdkwork\/birdcoder-shell\/.+['"]/u,
+    /from ['"]@sdkwork\/birdcoder-pc-shell\/.+['"]/u,
     `${relativePath} must not import @sdkwork/birdcoder-pc-shell package subpaths.`,
   );
 }
@@ -93,17 +93,17 @@ for (const relativePath of [
 for (const relativePath of [
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/App.tsx',
-  'src/main.tsx',
+  'apps/sdkwork-birdcoder-pc/src/main.tsx',
 ]) {
   const source = readText(relativePath);
   assert.doesNotMatch(
     source,
-    /from ['"]@sdkwork\/birdcoder-shell\/.+['"]/u,
+    /from ['"]@sdkwork\/birdcoder-pc-shell\/.+['"]/u,
     `${relativePath} must not import @sdkwork/birdcoder-pc-shell package subpaths.`,
   );
   assert.doesNotMatch(
     source,
-    /from ['"]@sdkwork\/birdcoder-shell-runtime\/.+['"]/u,
+    /from ['"]@sdkwork\/birdcoder-pc-shell-runtime\/.+['"]/u,
     `${relativePath} must not import @sdkwork/birdcoder-pc-shell-runtime package subpaths.`,
   );
 }

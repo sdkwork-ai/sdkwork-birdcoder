@@ -1,4 +1,4 @@
-import { isBlank } from '@sdkwork/utils-typescript/string';
+import { isBlank } from '@sdkwork/utils/string';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { canSubscribeBirdCoderWorkspaceRealtime } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import {

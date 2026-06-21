@@ -10,7 +10,7 @@ import {
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/catalog.ts';
 
 const outputUrl = new URL(
-  '../../../crates/sdkwork-birdcoder-codeengine/generated/engine-catalog.json',
+  '../crates/sdkwork-birdcoder-codeengine/generated/engine-catalog.json',
   import.meta.url,
 );
 

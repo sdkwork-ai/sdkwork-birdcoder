@@ -93,6 +93,12 @@ function eventKindForToolStatus(
   return 'tool.call.requested';
 }
 
+function shouldEmitTurnCompleted(
+  status: BirdCoderCodingSessionRuntimeStatus,
+): boolean {
+  return status !== 'awaiting_approval' && status !== 'awaiting_user';
+}
+
 function runtimeStatusForToolStatus(
   status: ReturnType<typeof normalizeBirdCoderCodeEngineToolLifecycleStatus>,
 ): BirdCoderCodingSessionRuntimeStatus {
@@ -549,11 +555,7 @@ export function createWorkbenchCanonicalChatEngine(
           healthStatus: health?.status ?? 'ready',
         });
 
-        const turnTerminalStatus: BirdCoderCodingSessionRuntimeStatus = terminalStatus;
-        if (
-          turnTerminalStatus !== 'awaiting_approval' &&
-          turnTerminalStatus !== 'awaiting_user'
-        ) {
+        if (shouldEmitTurnCompleted(terminalStatus)) {
           yield createCanonicalEvent(++sequence, 'turn.completed', 'completed', {
             engineId,
             modelId: runtimeDescriptor.modelId,

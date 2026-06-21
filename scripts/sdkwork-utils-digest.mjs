@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-import { sha256Hash } from '@sdkwork/utils-typescript/crypto';
+import { sha256Hash } from '@sdkwork/utils/crypto';
 
 export function sha256Value(value) {
   return sha256Hash(value);

@@ -1,4 +1,4 @@
-import { isBlank } from '@sdkwork/utils-typescript/string';
+import { isBlank } from '@sdkwork/utils/string';
 import type {
   BirdCoderProjectSummary,
   BirdCoderChatMessage,

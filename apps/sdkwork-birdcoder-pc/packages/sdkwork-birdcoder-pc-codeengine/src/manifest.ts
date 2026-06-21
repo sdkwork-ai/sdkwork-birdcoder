@@ -6,10 +6,18 @@ import type {
 import type { BirdCoderCodeEngineNativeSessionProvider, WorkbenchCodeEngineId } from './catalog.ts';
 import {
   listBirdCoderCodeEngineNativeSessionProviders,
+  WORKBENCH_CODE_ENGINE_IDS,
 } from './catalog.ts';
 import { WORKBENCH_ENGINE_KERNELS } from './kernel.ts';
 
 const ENGINE_CATALOG_DEFAULT_TENANT_ID = '0';
+
+export const BIRDCODER_STANDARD_ENGINE_IDS = WORKBENCH_CODE_ENGINE_IDS;
+
+export interface BirdCoderCodeEngineNativeSessionManifest {
+  provider: BirdCoderCodeEngineNativeSessionProvider | null;
+  authorityBacked: boolean;
+}
 
 export interface BirdCoderCodeEngineManifest {
   id: WorkbenchCodeEngineId;
@@ -19,6 +27,7 @@ export interface BirdCoderCodeEngineManifest {
   defaultModelId: string;
   modelCatalog: readonly BirdCoderModelCatalogEntry[];
   nativeSessionProvider: BirdCoderCodeEngineNativeSessionProvider | null;
+  nativeSession: BirdCoderCodeEngineNativeSessionManifest;
 }
 
 export function listBirdCoderCodeEngineManifests():
@@ -32,6 +41,9 @@ export function listBirdCoderCodeEngineManifests():
       throw new Error(`Missing default model for code engine manifest: ${kernel.id}`);
     }
 
+    const nativeSessionProvider =
+      providers.find((provider) => provider.engineKey === kernel.id) ?? null;
+
     return {
       id: kernel.id,
       label: kernel.label,
@@ -42,8 +54,11 @@ export function listBirdCoderCodeEngineManifests():
       },
       defaultModelId: defaultModel.modelId,
       modelCatalog: kernel.modelCatalog,
-      nativeSessionProvider:
-        providers.find((provider) => provider.engineKey === kernel.id) ?? null,
+      nativeSessionProvider,
+      nativeSession: {
+        provider: nativeSessionProvider,
+        authorityBacked: nativeSessionProvider !== null,
+      },
     };
   });
 }

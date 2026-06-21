@@ -60,13 +60,13 @@ if (!dependencyIds.has('sdkwork-utils')) {
 }
 
 const packageJson = JSON.parse(read('package.json'));
-if (!packageJson.devDependencies?.['@sdkwork/utils-typescript']) {
-  fail('root package.json must declare @sdkwork/utils-typescript devDependency');
+if (!packageJson.devDependencies?.['@sdkwork/utils']) {
+  fail('root package.json must declare @sdkwork/utils devDependency');
 }
 
 const digestHelper = read('scripts/sdkwork-utils-digest.mjs');
-if (!digestHelper.includes('@sdkwork/utils-typescript/crypto')) {
-  fail('sdkwork-utils-digest.mjs must re-export digests from @sdkwork/utils-typescript/crypto');
+if (!digestHelper.includes('@sdkwork/utils/crypto')) {
+  fail('sdkwork-utils-digest.mjs must re-export digests from @sdkwork/utils/crypto');
 }
 
 const rustServiceCrates = [
@@ -109,8 +109,8 @@ const typescriptPackages = [
 ];
 for (const packageManifestPath of typescriptPackages) {
   const manifest = JSON.parse(read(packageManifestPath));
-  if (!manifest.dependencies?.['@sdkwork/utils-typescript']) {
-    fail(`${packageManifestPath} must declare @sdkwork/utils-typescript dependency`);
+  if (!manifest.dependencies?.['@sdkwork/utils']) {
+    fail(`${packageManifestPath} must declare @sdkwork/utils dependency`);
   }
 }
 
@@ -126,10 +126,10 @@ for (const sourceRoot of typescriptSourceRoots) {
   for (const sourceFile of sourceFiles) {
     const source = fs.readFileSync(sourceFile, 'utf8');
     if (source.includes('.trim().length === 0')) {
-      fail(`${relativeFromRoot(sourceFile)} must use @sdkwork/utils-typescript/string isBlank instead of local blank checks`);
+      fail(`${relativeFromRoot(sourceFile)} must use @sdkwork/utils/string isBlank instead of local blank checks`);
     }
-    if (source.includes("from '@sdkwork/utils-typescript'") || source.includes('from "@sdkwork/utils-typescript"')) {
-      fail(`${relativeFromRoot(sourceFile)} must import browser-safe utils through @sdkwork/utils-typescript/* subpaths`);
+    if (source.includes("from '@sdkwork/utils'") || source.includes('from "@sdkwork/utils"')) {
+      fail(`${relativeFromRoot(sourceFile)} must import browser-safe utils through @sdkwork/utils/* subpaths`);
     }
   }
 }

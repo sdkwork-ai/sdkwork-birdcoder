@@ -24,7 +24,7 @@ BirdCoder is HTTP-first today. No first-party gRPC/RPC service catalog is publis
 
 BirdCoder consumes `sdkwork-utils` through:
 
-- TypeScript release/digest helpers via `@sdkwork/utils-typescript`
+- TypeScript release/digest helpers via `@sdkwork/utils`
 - Rust service validation via `sdkwork-utils-rust`
 
 Verification: `pnpm run check:utils-standard`

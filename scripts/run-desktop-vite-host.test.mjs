@@ -258,7 +258,22 @@ const terminalDesktopAlias = findAlias(
 );
 assert.equal(
   terminalDesktopAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/apps/desktop/src/index.ts'),
+  dependencyPath(
+    'sdkwork-terminal',
+    'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/index.ts',
+  ),
+);
+
+const terminalDesktopSurfaceAlias = findAlias(
+  (entry) => entry.find === '@sdkwork/terminal-pc-desktop/surface',
+  'Desktop host config must keep the terminal desktop surface alias.',
+);
+assert.equal(
+  terminalDesktopSurfaceAlias.replacement,
+  dependencyPath(
+    'sdkwork-terminal',
+    'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/surface/App.tsx',
+  ),
 );
 
 const terminalPackageSubpathAlias = findAlias(

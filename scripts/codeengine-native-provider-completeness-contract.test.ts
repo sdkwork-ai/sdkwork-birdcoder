@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import {
   BIRDCODER_STANDARD_ENGINE_IDS,
   listBirdCoderCodeEngineManifests,
-  listBirdCoderCodeEngineNativeSessionProviders,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/manifest.ts';
+import { listBirdCoderCodeEngineNativeSessionProviders } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/catalog.ts';
 
 import {
   readCanonicalServerRustSource,
@@ -15,7 +15,7 @@ import {
 } from './birdcoder-canonical-server-rust-sources.mjs';
 
 const codeengineHostSourceDirectory = fileURLToPath(
-  new URL('../../../crates/sdkwork-birdcoder-codeengine/src/', import.meta.url),
+  new URL('../crates/sdkwork-birdcoder-codeengine/src/', import.meta.url),
 );
 
 const providerSource = readCanonicalServerRustSource(CANONICAL_CODEENGINE_RUST_PATHS.provider);
