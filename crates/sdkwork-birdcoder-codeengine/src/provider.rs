@@ -3,13 +3,15 @@ use std::{collections::BTreeMap, sync::OnceLock};
 use crate::{
     format_missing_native_session_provider_error, native_session_prefix_for_engine,
     resolve_native_session_engine_id, CodeEngineApprovalDecisionRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord, CodeEngineTurnRequestRecord,
-    CodeEngineTurnResultRecord, CodeEngineTurnStreamEventRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord,
     CodeEngineUserQuestionAnswerRecord, NativeSessionDiscoveryMode,
     NativeSessionProviderRegistration,
 };
 
-pub trait CodeEngineProviderPlugin: Send + Sync {
+/// BirdCoder-owned native session inventory provider.
+///
+/// Agent turn execution belongs to `sdkwork-birdcoder-kernel-bridge`, not this trait.
+pub trait NativeSessionProviderPlugin: Send + Sync {
     fn registration(&self) -> &'static NativeSessionProviderRegistration;
 
     fn list_sessions(&self) -> Result<Vec<CodeEngineSessionSummaryRecord>, String>;
@@ -24,29 +26,6 @@ pub trait CodeEngineProviderPlugin: Send + Sync {
         session_id: &str,
     ) -> Result<Option<CodeEngineSessionSummaryRecord>, String> {
         Ok(self.get_session(session_id)?.map(|detail| detail.summary))
-    }
-
-    fn execute_turn(
-        &self,
-        request: &CodeEngineTurnRequestRecord,
-    ) -> Result<CodeEngineTurnResultRecord, String>;
-
-    fn execute_turn_with_events(
-        &self,
-        request: &CodeEngineTurnRequestRecord,
-        on_event: &mut dyn FnMut(CodeEngineTurnStreamEventRecord) -> Result<(), String>,
-    ) -> Result<CodeEngineTurnResultRecord, String> {
-        let result = self.execute_turn(request)?;
-        if !result.assistant_content.trim().is_empty() {
-            on_event(CodeEngineTurnStreamEventRecord {
-                kind: "message.delta".to_owned(),
-                role: "assistant".to_owned(),
-                content_delta: result.assistant_content.clone(),
-                payload: None,
-                native_session_id: result.native_session_id.clone(),
-            })?;
-        }
-        Ok(result)
     }
 
     fn supports_live_approval_decision_replies(&self) -> bool {
@@ -80,13 +59,13 @@ pub trait CodeEngineProviderPlugin: Send + Sync {
     }
 }
 
-pub struct CodeEngineProviderRegistry {
-    providers: BTreeMap<String, Box<dyn CodeEngineProviderPlugin>>,
+pub struct NativeSessionProviderRegistry {
+    providers: BTreeMap<String, Box<dyn NativeSessionProviderPlugin>>,
 }
 
-impl CodeEngineProviderRegistry {
+impl NativeSessionProviderRegistry {
     pub fn new_standard() -> Self {
-        let mut providers: BTreeMap<String, Box<dyn CodeEngineProviderPlugin>> = BTreeMap::new();
+        let mut providers: BTreeMap<String, Box<dyn NativeSessionProviderPlugin>> = BTreeMap::new();
 
         let codex_provider = Box::new(crate::codex_provider::CodexCodeEngineProvider);
         providers.insert(
@@ -118,7 +97,7 @@ impl CodeEngineProviderRegistry {
     pub fn resolve_provider(
         &self,
         engine_id: Option<&str>,
-    ) -> Result<Vec<&dyn CodeEngineProviderPlugin>, String> {
+    ) -> Result<Vec<&dyn NativeSessionProviderPlugin>, String> {
         if let Some(engine_id) = normalize_non_empty_string(engine_id) {
             let provider = self
                 .providers
@@ -138,11 +117,23 @@ impl CodeEngineProviderRegistry {
     }
 }
 
-pub fn standard_codeengine_provider_registry() -> &'static CodeEngineProviderRegistry {
-    static STANDARD_CODEENGINE_PROVIDER_REGISTRY: OnceLock<CodeEngineProviderRegistry> =
+pub fn standard_native_session_provider_registry() -> &'static NativeSessionProviderRegistry {
+    static STANDARD_NATIVE_SESSION_PROVIDER_REGISTRY: OnceLock<NativeSessionProviderRegistry> =
         OnceLock::new();
-    STANDARD_CODEENGINE_PROVIDER_REGISTRY.get_or_init(CodeEngineProviderRegistry::new_standard)
+    STANDARD_NATIVE_SESSION_PROVIDER_REGISTRY
+        .get_or_init(NativeSessionProviderRegistry::new_standard)
 }
+
+#[deprecated(
+    since = "0.2.0",
+    note = "Use standard_native_session_provider_registry(); turn execution moved to sdkwork-birdcoder-kernel-bridge."
+)]
+pub fn standard_codeengine_provider_registry() -> &'static NativeSessionProviderRegistry {
+    standard_native_session_provider_registry()
+}
+
+pub type CodeEngineProviderPlugin = NativeSessionProviderPlugin;
+pub type CodeEngineProviderRegistry = NativeSessionProviderRegistry;
 
 pub fn session_id_targets_engine(session_id: &str, engine_id: &str) -> bool {
     resolve_native_session_engine_id(session_id)

@@ -104,18 +104,19 @@ function createIntegrationDescriptor(
   engineId: WorkbenchCodeEngineId,
   descriptor: BirdCoderEngineDescriptor,
 ): ChatEngineIntegrationDescriptor {
+  const officialEntry = descriptor.officialIntegration?.officialEntry;
   return createRuntimeIntegrationDescriptor({
     engineId,
     integrationClass: 'official-sdk',
     runtimeMode: 'sdk',
     officialEntry: {
-      packageName: descriptor.officialIntegration.packageName,
-      sdkPath: descriptor.officialIntegration.sdkPath,
-      cliPackageName: descriptor.officialIntegration.cliPackageName,
-      sourceMirrorPath: descriptor.officialIntegration.sourceMirrorPath,
+      packageName: officialEntry?.packageName ?? engineId,
+      sdkPath: officialEntry?.sdkPath,
+      cliPackageName: officialEntry?.cliPackageName,
+      sourceMirrorPath: officialEntry?.sourceMirrorPath,
     },
     transportKinds: descriptor.transportKinds,
-    sourceMirrorPath: descriptor.officialIntegration.sourceMirrorPath,
+    sourceMirrorPath: officialEntry?.sourceMirrorPath,
     notes: 'Kernel bridge execution via sdkwork-birdcoder-kernel-bridge',
   });
 }
@@ -188,6 +189,14 @@ export function createKernelTurnRuntime(
       }
     },
     async sendMessage(messages: ChatMessage[], options?: ChatOptions): Promise<never> {
+      void messages;
+      void options;
+      throw new Error(`${adapterName} requires sendCanonicalEvents() streaming execution.`);
+    },
+    async *sendMessageStream(
+      messages: ChatMessage[],
+      options?: ChatOptions,
+    ): AsyncGenerator<never, void, unknown> {
       void messages;
       void options;
       throw new Error(`${adapterName} requires sendCanonicalEvents() streaming execution.`);

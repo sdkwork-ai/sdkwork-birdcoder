@@ -15,17 +15,16 @@ use crate::{
     prompt_opencode_session_async, reject_opencode_question_request,
     reply_opencode_permission_request, reply_opencode_question_request,
     resolve_codeengine_command_interaction_state, resolve_codeengine_command_text,
-    session_id_targets_engine, stream_opencode_session_events, CodeEngineApprovalDecisionRecord,
-    CodeEngineProviderPlugin, CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord,
-    CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord, CodeEngineTurnRequestRecord,
-    CodeEngineTurnResultRecord, CodeEngineTurnStreamEventRecord,
-    CodeEngineUserQuestionAnswerRecord, NativeSessionProviderRegistration,
+    session_id_targets_engine, CodeEngineApprovalDecisionRecord, NativeSessionProviderPlugin,
+    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    CodeEngineSessionSummaryRecord, CodeEngineUserQuestionAnswerRecord,
+    NativeSessionProviderRegistration,
 };
 
 pub struct OpencodeCodeEngineProvider;
 const OPENCODE_ENGINE_ID: &str = "opencode";
 
-impl CodeEngineProviderPlugin for OpencodeCodeEngineProvider {
+impl NativeSessionProviderPlugin for OpencodeCodeEngineProvider {
     fn registration(&self) -> &'static NativeSessionProviderRegistration {
         lookup_standard_native_session_provider_registration(OPENCODE_ENGINE_ID).unwrap_or_else(
             || {

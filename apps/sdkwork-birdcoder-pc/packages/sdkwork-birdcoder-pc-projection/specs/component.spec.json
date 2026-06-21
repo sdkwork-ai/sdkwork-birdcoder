@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "kind": "sdkwork.component.spec",
   "component": {
-    "name": "@sdkwork/birdcoder-pc-chat",
-    "displayName": "SDKWork Birdcoder Chat",
+    "name": "@sdkwork/birdcoder-pc-projection",
+    "displayName": "SDKWork Birdcoder Projection",
     "version": "1.0.0",
     "type": "node-package",
-    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection",
     "domain": "communication",
     "declaredDomain": null,
-    "capability": "chat",
+    "capability": "coding-session-projection",
     "status": "standardizing",
     "languages": [
       "typescript"
