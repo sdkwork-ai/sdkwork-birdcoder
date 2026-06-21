@@ -9,6 +9,7 @@
     "./catalog": "./src/catalog.ts",
     "./engines": "./src/engines.ts",
     "./kernel": "./src/kernel.ts",
+    "./kernelRuntime": "./src/kernelRuntime.ts",
     "./manifest": "./src/manifest.ts",
     "./modelConfig": "./src/modelConfig.ts",
     "./preferences": "./src/preferences.ts",
@@ -16,11 +17,7 @@
     "./serverSupport": "./src/serverSupport.ts"
   },
   "dependencies": {
-    "@sdkwork/birdcoder-pc-chat": "workspace:*",
-    "@sdkwork/birdcoder-pc-chat-claude": "workspace:*",
-    "@sdkwork/birdcoder-pc-chat-codex": "workspace:*",
-    "@sdkwork/birdcoder-pc-chat-gemini": "workspace:*",
-    "@sdkwork/birdcoder-pc-chat-opencode": "workspace:*",
+    "@sdkwork/birdcoder-pc-projection": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*"
   },
   "devDependencies": {

@@ -15,20 +15,8 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-core',
     '@sdkwork/birdcoder-pc-types',
   ])],
-  ['@sdkwork/birdcoder-pc-chat', new Set([
+  ['@sdkwork/birdcoder-pc-projection', new Set([
     '@sdkwork/birdcoder-pc-types',
-  ])],
-  ['@sdkwork/birdcoder-pc-chat-claude', new Set([
-    '@sdkwork/birdcoder-pc-chat',
-  ])],
-  ['@sdkwork/birdcoder-pc-chat-codex', new Set([
-    '@sdkwork/birdcoder-pc-chat',
-  ])],
-  ['@sdkwork/birdcoder-pc-chat-gemini', new Set([
-    '@sdkwork/birdcoder-pc-chat',
-  ])],
-  ['@sdkwork/birdcoder-pc-chat-opencode', new Set([
-    '@sdkwork/birdcoder-pc-chat',
   ])],
   ['@sdkwork/birdcoder-pc-code', new Set([
     '@sdkwork/birdcoder-pc-codeengine',
@@ -38,15 +26,11 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-ui-shell',
   ])],
   ['@sdkwork/birdcoder-pc-codeengine', new Set([
-    '@sdkwork/birdcoder-pc-chat',
-    '@sdkwork/birdcoder-pc-chat-claude',
-    '@sdkwork/birdcoder-pc-chat-codex',
-    '@sdkwork/birdcoder-pc-chat-gemini',
-    '@sdkwork/birdcoder-pc-chat-opencode',
+    '@sdkwork/birdcoder-pc-projection',
     '@sdkwork/birdcoder-pc-types',
   ])],
   ['@sdkwork/birdcoder-pc-commons', new Set([
-    '@sdkwork/birdcoder-pc-chat',
+    '@sdkwork/birdcoder-pc-projection',
     '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-i18n',
     '@sdkwork/birdcoder-pc-infrastructure',
@@ -93,7 +77,7 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-ui-shell',
   ])],
   ['@sdkwork/birdcoder-pc-server', new Set([
-    '@sdkwork/birdcoder-pc-chat',
+    '@sdkwork/birdcoder-pc-projection',
     '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-commons',
     '@sdkwork/birdcoder-pc-host-core',

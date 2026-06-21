@@ -1,16 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import process from 'node:process';
 
 const rootDir = process.cwd();
 const packagesDir = path.join(rootDir, 'packages');
-const allowedAdapterDirs = new Set([
-  'sdkwork-birdcoder-pc-chat-claude',
-  'sdkwork-birdcoder-pc-chat-codex',
-  'sdkwork-birdcoder-pc-chat-gemini',
-  'sdkwork-birdcoder-pc-chat-opencode',
-]);
 const officialSdkPackages = [
   '@anthropic-ai/claude-agent-sdk',
   '@google/gemini-cli-sdk',
@@ -103,10 +96,6 @@ assert.ok(fs.existsSync(packagesDir), 'packages directory must exist');
 
 for (const entry of fs.readdirSync(packagesDir, { withFileTypes: true })) {
   if (!entry.isDirectory() || !entry.name.startsWith('sdkwork-birdcoder-')) {
-    continue;
-  }
-
-  if (allowedAdapterDirs.has(entry.name)) {
     continue;
   }
 

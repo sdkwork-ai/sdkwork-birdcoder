@@ -41,6 +41,7 @@ sdkwork-birdcoder-database-host = { workspace = true }
 sqlx = { workspace = true }
 sdkwork-birdcoder-document-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-codeengine = { workspace = true }
+sdkwork-birdcoder-kernel-bridge = { workspace = true }
 
 # Service crates
 sdkwork-birdcoder-coding-sessions-service = { workspace = true }

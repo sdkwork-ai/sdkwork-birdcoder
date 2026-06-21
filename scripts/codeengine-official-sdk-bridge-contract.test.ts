@@ -5,7 +5,7 @@ import * as officialSdkBridge from './codeengine-official-sdk-bridge.ts';
 
 import type {
   ChatStreamChunk,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/types.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/types.ts';
 
 const {
   collectOfficialSdkBridgeStreamResult,

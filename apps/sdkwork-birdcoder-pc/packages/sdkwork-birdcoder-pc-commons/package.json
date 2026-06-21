@@ -56,7 +56,7 @@
   "dependencies": {
     "@tauri-apps/api": "catalog:",
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
-    "@sdkwork/birdcoder-pc-chat": "workspace:*",
+    "@sdkwork/birdcoder-pc-projection": "workspace:*",
     "@sdkwork/birdcoder-pc-i18n": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",

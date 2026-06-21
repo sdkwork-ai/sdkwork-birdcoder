@@ -10,7 +10,7 @@ import {
   resolveExecutablePresence,
   resolveFallbackRuntimeMode,
   resolvePackagePresence,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/index.ts';
 
 const codexPackage = resolvePackagePresence({
   packageName: '@openai/codex-sdk',

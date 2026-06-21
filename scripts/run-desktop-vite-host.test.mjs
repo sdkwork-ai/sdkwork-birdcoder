@@ -87,7 +87,7 @@ assert.equal(
 );
 
 const birdcoderPackageRootAlias = findAlias(
-  (entry) => entry.find instanceof RegExp && entry.find.test('@sdkwork/birdcoder-pc-chat'),
+  (entry) => entry.find instanceof RegExp && entry.find.test('@sdkwork/birdcoder-pc-projection'),
   'Desktop host config must define a BirdCoder package-root alias.',
 );
 assert.equal(

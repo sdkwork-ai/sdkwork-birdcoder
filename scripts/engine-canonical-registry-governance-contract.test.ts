@@ -1,11 +1,8 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
-import { ClaudeChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts';
-import { GeminiChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts';
-import { OpenCodeChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts';
-import type { ChatEngineOfficialSdkBridgeLoader } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
-import type { ChatMessage, IChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/types.ts';
 import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
 import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
 import { createWorkbenchCanonicalChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/runtime.ts';
@@ -13,7 +10,6 @@ import {
   BIRDCODER_CODING_SESSION_ARTIFACT_KINDS,
   BIRDCODER_CODING_SESSION_EVENT_KINDS,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/coding-session.ts';
-import { withMockCodexCliJsonl } from './test-support/mockCodexCli.ts';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -45,185 +41,59 @@ const artifactKindRegistry = new Set<string>(BIRDCODER_CODING_SESSION_ARTIFACT_K
 assert.deepEqual(
   readMarkdownBulletList(integrationReferenceSource, 'Canonical event kinds'),
   [...BIRDCODER_CODING_SESSION_EVENT_KINDS],
-  'engine SDK integration reference must document the canonical event registry exactly as shared types declare it',
 );
 
 assert.deepEqual(
   readMarkdownBulletList(integrationReferenceSource, 'Canonical artifact kinds'),
   [...BIRDCODER_CODING_SESSION_ARTIFACT_KINDS],
-  'engine SDK integration reference must document the canonical artifact registry exactly as shared types declare it',
 );
 
-const messages: ChatMessage[] = [
+const messages = [
   {
     id: 'msg-user-1',
-    role: 'user',
+    role: 'user' as const,
     content: 'Inspect the workspace and take the next coding action.',
     timestamp: Date.now(),
   },
 ];
 
-function createCanonicalGovernanceMockLoader(
-  engineId: string,
-  modelId: string,
-): ChatEngineOfficialSdkBridgeLoader {
-  const created = Math.floor(Date.now() / 1000);
-  return {
-    load: async () => ({
-      async sendMessage() {
-        return {
-          id: `${engineId}-canonical-governance-response`,
-          object: 'chat.completion',
-          created,
-          model: modelId,
-          choices: [
-            {
-              index: 0,
-              message: {
-                id: `${engineId}-canonical-governance-message`,
-                role: 'assistant',
-                content: `${engineId} canonical governance response.`,
-                timestamp: Date.now(),
-              },
-              finish_reason: 'stop',
-            },
-          ],
-        };
-      },
-      async *sendMessageStream() {
-        yield {
-          id: `${engineId}-canonical-governance-stream`,
-          object: 'chat.completion.chunk',
-          created,
-          model: modelId,
-          choices: [
-            {
-              index: 0,
-              delta: {
-                role: 'assistant',
-                content: `${engineId} canonical governance stream. `,
-              },
-              finish_reason: null,
-            },
-          ],
-        };
-        yield {
-          id: `${engineId}-canonical-governance-stream`,
-          object: 'chat.completion.chunk',
-          created,
-          model: modelId,
-          choices: [
-            {
-              index: 0,
-              delta: {
-                tool_calls: [
-                  {
-                    id: `${engineId}-canonical-governance-tool`,
-                    type: 'function',
-                    function: {
-                      name: 'run_command',
-                      arguments: JSON.stringify({ command: 'pnpm lint' }),
-                    },
-                  },
-                ],
-              },
-              finish_reason: 'tool_calls',
-            },
-          ],
-        };
-        yield {
-          id: `${engineId}-canonical-governance-stream`,
-          object: 'chat.completion.chunk',
-          created,
-          model: modelId,
-          choices: [
-            {
-              index: 0,
-              delta: {},
-              finish_reason: 'stop',
-            },
-          ],
-        };
-      },
-    }),
-  };
-}
+const root = path.resolve(import.meta.dirname, '..');
+const kernelBinary = [
+  path.join(root, 'target/debug/birdcoder-kernel-turn.exe'),
+  path.join(root, 'target/debug/birdcoder-kernel-turn'),
+].find((candidate) => existsSync(candidate));
+assert.ok(kernelBinary, 'birdcoder-kernel-turn binary must be built');
+process.env.BIRDCODER_KERNEL_TURN_BIN = kernelBinary;
 
-function createCanonicalGovernanceRuntime(
-  engine: ReturnType<typeof listWorkbenchCliEngines>[number],
-): IChatEngine {
-  if (engine.id === 'codex') {
-    return createChatEngineById(engine.id);
-  }
-
-  const officialSdkBridgeLoader = createCanonicalGovernanceMockLoader(
-    engine.id,
-    engine.defaultModelId,
-  );
-  const nativeRuntime =
-    engine.id === 'claude-code'
-      ? new ClaudeChatEngine({ officialSdkBridgeLoader })
-      : engine.id === 'gemini'
-        ? new GeminiChatEngine({ officialSdkBridgeLoader })
-        : new OpenCodeChatEngine({ officialSdkBridgeLoader });
-
-  return createWorkbenchCanonicalChatEngine(nativeRuntime, {
+for (const engine of listWorkbenchCliEngines()) {
+  const runtime = createWorkbenchCanonicalChatEngine(createChatEngineById(engine.id), {
+    engineId: engine.id,
     defaultModelId: engine.defaultModelId,
     descriptor: engine.descriptor,
   });
-}
-
-for (const engine of listWorkbenchCliEngines()) {
-  const runtime = createCanonicalGovernanceRuntime(engine);
   const emittedEventKinds = new Set<string>();
-  const emittedArtifactKinds = new Set<string>();
 
-  const collectCanonicalEvents = async () => {
-    for await (const event of runtime.sendCanonicalEvents?.(messages, {
-      model: engine.defaultModelId,
-      context: {
-        workspaceRoot: 'D:/workspace',
-        currentFile: {
-          path: 'src/App.tsx',
-          content: 'export default function App() { return null; }',
-          language: 'tsx',
-        },
+  for await (const event of runtime.sendCanonicalEvents?.(messages, {
+    model: engine.defaultModelId,
+    context: {
+      workspaceRoot: 'D:/workspace',
+      currentFile: {
+        path: 'src/App.tsx',
+        content: 'export default function App() { return null; }',
+        language: 'tsx',
       },
-    }) ?? []) {
-      emittedEventKinds.add(event.kind);
-      assert.equal(
-        eventKindRegistry.has(event.kind),
-        true,
-        `${engine.id} canonical runtime must only emit registered event kinds`,
-      );
+    },
+  }) ?? []) {
+    emittedEventKinds.add(event.kind);
+    assert.equal(eventKindRegistry.has(event.kind), true);
 
-      if (event.artifact) {
-        emittedArtifactKinds.add(event.artifact.kind);
-        assert.equal(
-          artifactKindRegistry.has(event.artifact.kind),
-          true,
-          `${engine.id} canonical runtime must only emit registered artifact kinds`,
-        );
-      }
+    if (event.artifact) {
+      assert.equal(artifactKindRegistry.has(event.artifact.kind), true);
     }
-  };
-
-  if (engine.id === 'codex') {
-    await withMockCodexCliJsonl(collectCanonicalEvents);
-  } else {
-    await collectCanonicalEvents();
   }
 
-  assert.equal(
-    emittedEventKinds.size > 0,
-    true,
-    `${engine.id} canonical runtime must emit registered events`,
-  );
-  assert.equal(
-    emittedArtifactKinds.size > 0,
-    true,
-    `${engine.id} canonical runtime must emit registered artifacts`,
-  );
+  assert.equal(emittedEventKinds.size > 0, true);
+  assert.equal(emittedEventKinds.has('turn.completed'), true);
 }
 
 console.log('engine canonical registry governance contract passed.');

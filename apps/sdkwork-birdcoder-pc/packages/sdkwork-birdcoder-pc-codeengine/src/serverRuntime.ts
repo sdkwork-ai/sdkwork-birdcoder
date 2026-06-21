@@ -1,4 +1,4 @@
-import type { IChatEngine } from '@sdkwork/birdcoder-pc-chat';
+import type { IChatEngine } from '@sdkwork/birdcoder-pc-projection';
 
 import { createChatEngineById } from './engines.ts';
 import {

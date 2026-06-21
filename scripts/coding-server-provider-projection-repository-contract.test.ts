@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-import type { ChatMessage } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/types.ts';
+import type { ChatMessage } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/types.ts';
 import {
   buildProviderScopedStorageKey,
   createBirdCoderStorageProvider,

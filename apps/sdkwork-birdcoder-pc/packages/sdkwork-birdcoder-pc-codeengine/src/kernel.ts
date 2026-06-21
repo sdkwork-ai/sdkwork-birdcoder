@@ -4,6 +4,14 @@ import type {
   BirdCoderModelCatalogEntry,
 } from '@sdkwork/birdcoder-pc-types';
 
+/**
+ * Workbench engine kernel metadata for BirdCoder programming-tool surfaces.
+ *
+ * Agent runtime execution is migrating to `sdkwork-kernel` via
+ * `sdkwork-birdcoder-kernel-bridge`. This module keeps BirdCoder-owned
+ * CLI topology, terminal resume commands, and descriptor assembly only.
+ */
+
 import {
   BIRDCODER_CODE_ENGINE_DESCRIPTORS,
   BIRDCODER_CODE_ENGINE_MODELS,

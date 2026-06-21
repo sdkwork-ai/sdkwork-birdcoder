@@ -39,6 +39,7 @@ members = [
     "crates/sdkwork-birdcoder-errors",
     # Relocated crates
     "crates/sdkwork-birdcoder-codeengine",
+    "crates/sdkwork-birdcoder-kernel-bridge",
     "crates/sdkwork-birdcoder-git",
 ]
 exclude = [
@@ -67,6 +68,7 @@ sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-r
 
 # Relocated crates
 sdkwork-birdcoder-codeengine = { package = "sdkwork-birdcoder-codeengine", path = "crates/sdkwork-birdcoder-codeengine" }
+sdkwork-birdcoder-kernel-bridge = { package = "sdkwork-birdcoder-kernel-bridge", path = "crates/sdkwork-birdcoder-kernel-bridge" }
 sdkwork-birdcoder-git = { package = "sdkwork-birdcoder-git", path = "crates/sdkwork-birdcoder-git" }
 
 # Route crates
@@ -131,4 +133,13 @@ sdkwork-terminal-pty-runtime = { path = "../sdkwork-terminal/apps/sdkwork-termin
 sdkwork-terminal-protocol = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-protocol" }
 sdkwork-terminal-replay-store = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-replay-store" }
 sdkwork-terminal-session-runtime = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-session-runtime" }
+
+# sdkwork-kernel agent SPI (sibling checkout)
+sdkwork-agent-kernel = { path = "../sdkwork-kernel/sdkwork-agent-kernel" }
+sdkwork-code-kernel = { path = "../sdkwork-kernel/sdkwork-code-kernel" }
+sdkwork-agent-adapter-core = { path = "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-core" }
+sdkwork-agent-adapter-codex = { path = "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-codex" }
+sdkwork-agent-adapter-claude-code = { path = "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-claude-code" }
+sdkwork-agent-adapter-gemini-cli = { path = "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-gemini-cli" }
+sdkwork-agent-adapter-opencode = { path = "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-opencode" }
 

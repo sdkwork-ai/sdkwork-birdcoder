@@ -2,7 +2,7 @@ import type {
   ChatCanonicalEvent,
   ChatMessage,
   ChatOptions,
-} from '@sdkwork/birdcoder-pc-chat';
+} from '@sdkwork/birdcoder-pc-projection';
 import {
   buildDefaultBirdCoderCodeEngineModelConfig,
   createBirdCoderCodeEngineModelConfigSyncPlan,
@@ -15,7 +15,7 @@ import {
 } from '@sdkwork/birdcoder-pc-codeengine';
 import {
   resolveTransportKindForRuntimeMode,
-} from '@sdkwork/birdcoder-pc-chat';
+} from '@sdkwork/birdcoder-pc-projection';
 import {
   BIRDCODER_DEFAULT_LOCAL_API_BASE_URL,
   BIRDCODER_DEFAULT_LOCAL_API_HOST,

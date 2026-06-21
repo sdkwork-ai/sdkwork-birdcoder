@@ -1,21 +1,14 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
-import { createCodexOfficialSdkBridge } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts';
-
-const bridge = createCodexOfficialSdkBridge({
-  Codex: class BrokenCodex {
-    constructor() {
-      throw new Error(
-        'Unable to locate Codex CLI binaries. Ensure @openai/codex is installed with optional dependencies.',
-      );
-    }
-  },
-});
-
-assert.equal(
-  bridge,
-  null,
-  'Codex official SDK bridge must not activate when the mirrored SDK source cannot construct a runnable Codex client.',
+const root = path.resolve(import.meta.dirname, '..');
+const kernelRuntimeSource = readFileSync(
+  path.join(root, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernelRuntime.ts'),
+  'utf8',
 );
+
+assert.match(kernelRuntimeSource, /resolveKernelTurnBinary/);
+assert.match(kernelRuntimeSource, /BIRDCODER_KERNEL_TURN_BIN/);
 
 console.log('codex official sdk binary probe contract passed.');

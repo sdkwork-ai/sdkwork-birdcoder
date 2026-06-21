@@ -15,10 +15,7 @@ const [
   chatIndexSource,
   chatTypesSource,
   chatProviderAdapterSource,
-  codexSource,
-  claudeSource,
-  geminiSource,
-  openCodeSource,
+  kernelRuntimeSource,
 ] = await Promise.all([
   readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/auth-surface.ts'),
   readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeFileSearch.ts'),
@@ -27,13 +24,10 @@ const [
   readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts'),
   readSource('replace-colors.cjs'),
   readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip.ts'),
-  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts'),
-  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/types.ts'),
-  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/providerAdapter.ts'),
-  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex/src/index.ts'),
-  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude/src/index.ts'),
-  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini/src/index.ts'),
-  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode/src/index.ts'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/index.ts'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/types.ts'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/providerAdapter.ts'),
+  readSource('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernelRuntime.ts'),
 ]);
 
 assert.doesNotMatch(
@@ -154,132 +148,22 @@ assert.match(
 );
 
 assert.match(
-  codexSource,
-  /invokeWithOptionalOfficialSdk/,
-  'Codex must import and use the shared optional official SDK invocation helper.',
+  kernelRuntimeSource,
+  /birdcoder-kernel-turn/,
+  'Kernel runtime must delegate turn execution to sdkwork-birdcoder-kernel-bridge.',
 );
 assert.match(
-  codexSource,
-  /streamWithOptionalOfficialSdk/,
-  'Codex must import and use the shared optional official SDK stream helper.',
+  kernelRuntimeSource,
+  /createRuntimeIntegrationDescriptor/,
+  'Kernel runtime must build integration descriptors from runtime package/source discovery.',
 );
+assert.match(kernelRuntimeSource, /describeRuntime\(/);
+assert.match(kernelRuntimeSource, /getHealth\(/);
+assert.match(kernelRuntimeSource, /sendCanonicalEvents\(/);
 assert.doesNotMatch(
-  codexSource,
-  /const bridge = await this\.officialSdkBridgeLoader\?\.load\(\);/,
-  'Codex must not directly load the official SDK bridge in sendMessage/sendMessageStream.',
+  kernelRuntimeSource,
+  /officialSdkBridgeLoader/,
+  'Kernel runtime must not keep per-engine official SDK bridge loaders in BirdCoder.',
 );
-assert.doesNotMatch(
-  codexSource,
-  /toLegacyNativeCodexSessionId|context\?\.(?:sessionId|codingSessionId)\)/,
-  'Codex native resume must not keep legacy context.sessionId/context.codingSessionId compatibility; only context.nativeSessionId may enter the provider resume lane.',
-);
-assert.match(
-  codexSource,
-  /return normalizeCodexNativeSessionId\(options\?\.context\?\.nativeSessionId\);/,
-  'Codex native resume must resolve exclusively from the canonical context.nativeSessionId field.',
-);
-
-for (const [engineName, source] of [
-  ['Claude', claudeSource],
-  ['Codex', codexSource],
-]) {
-  assert.doesNotMatch(
-    source,
-    /addEventListener\('abort', handleAbort, \{ once: true \}\)/,
-    `${engineName} CLI abort cleanup must not combine once listeners with explicit removeEventListener cleanup.`,
-  );
-}
-
-assert.match(
-  claudeSource,
-  /streamClaudeCliJsonlTurn/,
-  'Claude must implement a real default CLI JSONL fallback streamer.',
-);
-assert.match(
-  claudeSource,
-  /claudeCliTurnEventStreamer/,
-  'Claude stream fallback must consume the default CLI JSONL event streamer directly.',
-);
-assert.doesNotMatch(
-  claudeSource,
-  /yield\*\s*streamResponseAsChunks\(\s*await sendMessageViaClaudeCli\(streamOptions\),\s*\)/,
-  'Claude default sendMessageStream fallback must not wait for a complete non-streaming CLI turn before yielding chunks.',
-);
-
-for (const [engineName, source] of [
-  ['Claude', claudeSource],
-  ['Codex', codexSource],
-  ['Gemini', geminiSource],
-  ['OpenCode', openCodeSource],
-]) {
-  assert.match(
-    source,
-    /createRuntimeIntegrationDescriptor/,
-    `${engineName} must build integration descriptors from runtime package/source discovery instead of frozen module-load constants.`,
-  );
-  assert.doesNotMatch(
-    source,
-    /describeIntegration\(\)\s*\{\s*return\s+[A-Z_]+_INTEGRATION;\s*\}/,
-    `${engineName} describeIntegration() must not return a stale static descriptor.`,
-  );
-}
-
-for (const [engineName, source] of [
-  ['Gemini', geminiSource],
-  ['OpenCode', openCodeSource],
-]) {
-  assert.doesNotMatch(
-    source,
-    /fallbackRuntimeMode:\s*null,[\s\S]*fallbackAvailable:\s*false/,
-    `${engineName} must not hard-disable CLI/protocol fallback in health checks.`,
-  );
-  assert.match(
-    source,
-    /fallbackRuntimeMode:\s*'headless'/,
-    `${engineName} health checks must expose the executable CLI fallback lane when SDK is unavailable.`,
-  );
-  assert.match(
-    source,
-    /createUnavailable.*SdkError/,
-    `${engineName} must keep explicit unavailable-SDK/CLI error construction for unsupported fallback execution.`,
-  );
-  assert.match(
-    source,
-    engineName === 'Gemini'
-      ? /geminiCliJsonlTurnExecutor/
-      : /openCodeCliJsonlTurnExecutor/,
-    `${engineName} must expose an injectable CLI JSONL executor for fallback testing and runtime bridging.`,
-  );
-  assert.match(
-    source,
-    engineName === 'Gemini'
-      ? /streamGeminiCliJsonlTurn/
-      : /streamOpenCodeCliJsonlTurn/,
-    `${engineName} must implement a real default CLI JSONL fallback streamer.`,
-  );
-  assert.doesNotMatch(
-    source,
-    /fallback:\s*async\s*\(\)\s*=>\s*\{\s*throw createUnavailable.*SdkError\(\);\s*\}/,
-    `${engineName} sendMessage fallback must execute the real CLI JSONL lane instead of immediately throwing.`,
-  );
-}
-
-for (const [engineName, source] of [
-  ['Claude', claudeSource],
-  ['Codex', codexSource],
-  ['Gemini', geminiSource],
-  ['OpenCode', openCodeSource],
-]) {
-  assert.match(source, /describeRuntime\(/, `${engineName} must expose describeRuntime().`);
-  assert.match(source, /getCapabilities\(/, `${engineName} must expose getCapabilities().`);
-  assert.match(source, /sendCanonicalEvents\(/, `${engineName} must expose sendCanonicalEvents().`);
-  assert.match(source, /createSession\(/, `${engineName} must expose local session management.`);
-  assert.match(source, /getSession\(/, `${engineName} must expose local session lookup.`);
-  assert.match(source, /createCodingSession\(/, `${engineName} must expose local coding-session management.`);
-  assert.match(source, /getCodingSession\(/, `${engineName} must expose local coding-session lookup.`);
-  assert.match(source, /addMessageToCodingSession\(/, `${engineName} must expose local coding-session append.`);
-  assert.match(source, /updateContext\(/, `${engineName} must expose context update.`);
-  assert.match(source, /onToolCall\(/, `${engineName} must expose tool-call callback.`);
-}
 
 console.log('problem list remediation contract passed.');

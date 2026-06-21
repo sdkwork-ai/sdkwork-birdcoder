@@ -4,7 +4,7 @@ import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkw
 import {
   resolveFallbackRuntimeMode,
   resolvePackagePresence,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/index.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/index.ts';
 import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
 
 const EXPECTED_OFFICIAL_PACKAGES = {

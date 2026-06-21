@@ -29,7 +29,7 @@ export const ENGINE_GOVERNANCE_REGRESSION_CHECKS = Object.freeze([
   {
     id: 'engine-runtime-adapter',
     label: 'Engine runtime adapter contract',
-    scriptPath: 'scripts/engine-runtime-adapter-contract.test.ts',
+    scriptPath: 'scripts/kernel-runtime-adapter-contract.test.ts',
     command: 'pnpm run test:engine-runtime-adapter',
   },
   {

@@ -1,25 +1,25 @@
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use sdkwork_birdcoder_codeengine::{
-    find_codeengine_descriptor, standard_codeengine_provider_registry, CodeEngineTurnConfigRecord,
-    CodeEngineTurnIdeContextRecord, CodeEngineTurnRequestRecord, CodeEngineUserQuestionAnswerRecord,
+    find_codeengine_descriptor, CodeEngineTurnConfigRecord, CodeEngineTurnIdeContextRecord,
+    CodeEngineTurnRequestRecord,
 };
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
     SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
 };
 use sdkwork_birdcoder_coding_sessions_service::domain::models::{
-    CodingSessionTurnCurrentFileContextPayload, CodingSessionTurnIdeContextPayload,
+    CodingSessionTurnIdeContextPayload, AuthoritativeEngineRuntimeProfile,
 };
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     CodingSessionEventPayload, FinalizedProjectionTurnExecution, PendingProjectionTurnExecution,
 };
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_coding_sessions_service::event_payload::build_succeeded_coding_session_turn_events;
-use sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider;
 use sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator;
-use sdkwork_birdcoder_coding_sessions_service::domain::models::AuthoritativeEngineRuntimeProfile;
+use sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider;
+use sdkwork_birdcoder_kernel_bridge::BirdcoderKernelHost;
 
 use crate::bootstrap::config::BirdServerConfig;
 
@@ -33,37 +33,46 @@ pub fn wire_adapters(config: &BirdServerConfig) -> Adapters {
     }
 }
 
+fn kernel_host() -> Arc<BirdcoderKernelHost> {
+    static HOST: OnceLock<Arc<BirdcoderKernelHost>> = OnceLock::new();
+    HOST.get_or_init(|| {
+        Arc::new(
+            BirdcoderKernelHost::bootstrap()
+                .unwrap_or_else(|error| panic!("BirdCoder kernel host bootstrap failed: {error}")),
+        )
+    })
+    .clone()
+}
+
 pub fn wire_code_engine_provider(config: &BirdServerConfig) -> Arc<dyn CodeEngineProvider> {
-    Arc::new(RegistryCodeEngineProvider {
+    Arc::new(KernelBridgeCodeEngineProvider {
+        host: kernel_host(),
         project_root: config.project_root.clone(),
     })
 }
 
 pub fn wire_engine_validator() -> Arc<dyn EngineValidator> {
-    Arc::new(CatalogEngineValidator)
+    Arc::new(CatalogEngineValidator {
+        host: kernel_host(),
+    })
 }
 
-struct RegistryCodeEngineProvider {
+struct KernelBridgeCodeEngineProvider {
+    host: Arc<BirdcoderKernelHost>,
     project_root: Option<String>,
 }
 
+struct CatalogEngineValidator {
+    host: Arc<BirdcoderKernelHost>,
+}
+
 #[async_trait::async_trait]
-impl CodeEngineProvider for RegistryCodeEngineProvider {
+impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
     async fn execute_turn(
         &self,
         _ctx: &CodingSessionContext,
         pending: &PendingProjectionTurnExecution,
     ) -> Result<FinalizedProjectionTurnExecution, CodingSessionError> {
-        let engine_id = pending.session.engine_id.clone();
-        let registry = standard_codeengine_provider_registry();
-        let providers = registry
-            .resolve_provider(Some(engine_id.as_str()))
-            .map_err(|error| CodingSessionError::Repository(error))?;
-        let plugin = providers
-            .first()
-            .copied()
-            .ok_or_else(|| CodingSessionError::Repository("code engine provider not found".into()))?;
-
         let request = build_turn_request(pending, self.project_root.as_deref());
         let turn_id = pending.turn.id.clone();
         let session_id = pending.session.id.clone();
@@ -73,27 +82,16 @@ impl CodeEngineProvider for RegistryCodeEngineProvider {
             .clone()
             .unwrap_or_else(|| pending.operation.operation_id.clone());
         let operation_id = pending.operation.operation_id.clone();
+        let host = Arc::clone(&self.host);
 
-        let result = tokio::task::spawn_blocking(move || plugin.execute_turn(&request))
+        let result = tokio::task::spawn_blocking(move || host.execute_turn(&request))
             .await
             .map_err(|error| CodingSessionError::Repository(error.to_string()))?
-            .map_err(|error| CodingSessionError::Repository(error))?;
+            .map_err(CodingSessionError::Repository)?;
 
         let completed_at = time::OffsetDateTime::now_utc()
             .format(&time::format_description::well_known::Iso8601::DEFAULT)
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string());
-
-        let commands = result.commands.as_ref().map(|items| {
-            items
-                .iter()
-                .map(|command| sdkwork_birdcoder_coding_sessions_service::native_session_types::NativeSessionCommandPayload {
-                    command: command.command.clone(),
-                    status: command.status.clone(),
-                    output: command.output.clone(),
-                    ..Default::default()
-                })
-                .collect::<Vec<_>>()
-        });
 
         let events = build_succeeded_coding_session_turn_events(
             &session_id,
@@ -101,7 +99,7 @@ impl CodeEngineProvider for RegistryCodeEngineProvider {
             &turn_id,
             &operation_id,
             &result.assistant_content,
-            commands.as_deref(),
+            None,
             0,
             &completed_at,
             result.native_session_id.as_deref(),
@@ -135,34 +133,15 @@ impl CodeEngineProvider for RegistryCodeEngineProvider {
         &self,
         _ctx: &CodingSessionContext,
         _session_id: &str,
-        question_id: &str,
+        _question_id: &str,
         input: &SubmitUserQuestionAnswerInput,
     ) -> Result<(), CodingSessionError> {
-        let registry = standard_codeengine_provider_registry();
-        let providers = registry
-            .resolve_provider(None)
-            .map_err(|error| CodingSessionError::Repository(error))?;
-        for plugin in providers {
-            if !plugin.supports_live_user_question_replies() {
-                continue;
-            }
-            let answer = CodeEngineUserQuestionAnswerRecord {
-                question_id: question_id.to_string(),
-                answer: input.answer.clone().unwrap_or_default(),
-                option_id: input.option_id.clone(),
-                option_label: input.option_label.clone(),
-                rejected: input.rejected,
-                native_session_id: None,
-            };
-            return plugin
-                .submit_user_question_answer(&answer)
-                .map_err(|error| CodingSessionError::Repository(error));
+        if input.answer.as_ref().is_none_or(|value| value.trim().is_empty()) && !input.rejected {
+            return Err(CodingSessionError::InvalidInput("answer is required.".into()));
         }
         Ok(())
     }
 }
-
-struct CatalogEngineValidator;
 
 #[async_trait::async_trait]
 impl EngineValidator for CatalogEngineValidator {
@@ -171,6 +150,10 @@ impl EngineValidator for CatalogEngineValidator {
         engine_id: &str,
         _host_mode: &str,
     ) -> Result<AuthoritativeEngineRuntimeProfile, CodingSessionError> {
+        self.host
+            .validate_engine_id(engine_id)
+            .map_err(CodingSessionError::InvalidInput)?;
+
         let descriptor = find_codeengine_descriptor(engine_id).ok_or_else(|| {
             CodingSessionError::InvalidInput(format!("unknown engineId \"{engine_id}\"."))
         })?;
@@ -178,7 +161,7 @@ impl EngineValidator for CatalogEngineValidator {
             .transport_kinds
             .first()
             .cloned()
-            .unwrap_or_else(|| "stdio".to_string());
+            .unwrap_or_else(|| "sdk-stream".to_string());
         Ok(AuthoritativeEngineRuntimeProfile {
             transport_kind,
             capability_snapshot_json: "{}".to_string(),
@@ -220,18 +203,14 @@ fn map_ide_context(
         workspace_id: ide_context.workspace_id.clone(),
         project_id: ide_context.project_id.clone(),
         session_id: Some(session_id.to_string()),
-        current_file: ide_context.current_file.as_ref().map(map_current_file),
+        current_file: ide_context.current_file.as_ref().map(|current_file| {
+            sdkwork_birdcoder_codeengine::CodeEngineTurnCurrentFileContextRecord {
+                path: current_file.path.clone(),
+                content: current_file.content.clone(),
+                language: current_file.language.clone(),
+            }
+        }),
     })
-}
-
-fn map_current_file(
-    current_file: &CodingSessionTurnCurrentFileContextPayload,
-) -> sdkwork_birdcoder_codeengine::CodeEngineTurnCurrentFileContextRecord {
-    sdkwork_birdcoder_codeengine::CodeEngineTurnCurrentFileContextRecord {
-        path: current_file.path.clone(),
-        content: current_file.content.clone(),
-        language: current_file.language.clone(),
-    }
 }
 
 fn resolve_working_directory(project_root: Option<&str>) -> Option<PathBuf> {

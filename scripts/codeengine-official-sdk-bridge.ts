@@ -9,7 +9,7 @@ import type {
   ChatResponse,
   ChatStreamChunk,
   ToolCall,
-} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat/src/types.ts';
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/types.ts';
 import type {
   BirdCoderCodeEnginePendingToolCallDelta,
   BirdCoderCodeEngineToolKind,

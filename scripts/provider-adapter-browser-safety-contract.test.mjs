@@ -10,16 +10,11 @@ const providerAdapterPath = path.join(
     'sdkwork-birdcoder-pc',
     'packages',
   
-  'sdkwork-birdcoder-pc-chat',
+  'sdkwork-birdcoder-pc-projection',
   'src',
   'providerAdapter.ts',
 );
 const source = fs.readFileSync(providerAdapterPath, 'utf8');
-const browserFacingAdapterPaths = [
-  path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-chat-codex', 'src', 'index.ts'),
-  path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-chat-gemini', 'src', 'index.ts'),
-  path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-chat-opencode', 'src', 'index.ts'),
-];
 
 assert.doesNotMatch(
   source,
@@ -67,19 +62,5 @@ assert.match(
   /\/\*\s*@vite-ignore\s*\*\/\s*specifier/u,
   'providerAdapter.ts must preserve @vite-ignore on dynamic provider SDK imports so Vite does not prebundle candidate specifiers',
 );
-
-for (const adapterPath of browserFacingAdapterPaths) {
-  const adapterSource = fs.readFileSync(adapterPath, 'utf8');
-  assert.doesNotMatch(
-    adapterSource,
-    /\bprocess\.env\.[A-Z0-9_]+\b/u,
-    `${path.relative(rootDir, adapterPath)} must not read process.env directly because browser-facing adapters must stay Vite define safe`,
-  );
-  assert.doesNotMatch(
-    adapterSource,
-    /\bprocess\.cwd\(\)/u,
-    `${path.relative(rootDir, adapterPath)} must not call process.cwd() directly because browser-facing adapters must stay runtime-gated`,
-  );
-}
 
 console.log('provider adapter browser safety contract passed.');

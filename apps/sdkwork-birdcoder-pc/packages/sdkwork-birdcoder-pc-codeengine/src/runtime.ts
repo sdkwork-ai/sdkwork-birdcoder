@@ -24,11 +24,11 @@ import type {
   ChatStreamChunk,
   IChatEngine,
   ToolCall,
-} from '@sdkwork/birdcoder-pc-chat';
+} from '@sdkwork/birdcoder-pc-projection';
 import {
   createDefaultChatCanonicalRuntimeDescriptor,
   resolveTransportKindForRuntimeMode,
-} from '@sdkwork/birdcoder-pc-chat';
+} from '@sdkwork/birdcoder-pc-projection';
 
 import { getWorkbenchCodeEngineKernel } from './kernel.ts';
 
@@ -379,6 +379,18 @@ function createFallbackIntegrationDescriptor(input: {
   };
 }
 
+function createUnsupportedMessageStream(engineName: string) {
+  return async function* unsupportedMessageStream(): AsyncGenerator<
+    ChatStreamChunk,
+    void,
+    unknown
+  > {
+    throw new Error(
+      `${engineName} uses kernel-backed sendCanonicalEvents() instead of sendMessageStream().`,
+    );
+  };
+}
+
 export function createWorkbenchCanonicalChatEngine(
   runtime: IChatEngine,
   input: WorkbenchCanonicalChatEngineInput = {},
@@ -388,6 +400,56 @@ export function createWorkbenchCanonicalChatEngine(
   const kernel = getWorkbenchCodeEngineKernel(engineId);
   const descriptor = input.descriptor ?? kernel.descriptor;
   const defaultModelId = input.defaultModelId ?? descriptor.defaultModelId;
+
+  if (
+    runtime.sendCanonicalEvents &&
+    typeof runtime.sendMessageStream !== 'function'
+  ) {
+    return {
+      name: runtime.name,
+      version: runtime.version,
+      initialize: proxyMethod(runtime.initialize, runtime),
+      sendMessage: runtime.sendMessage.bind(runtime),
+      sendMessageStream: createUnsupportedMessageStream(runtime.name),
+      createSession: proxyMethod(runtime.createSession, runtime),
+      getSession: proxyMethod(runtime.getSession, runtime),
+      createCodingSession: proxyMethod(runtime.createCodingSession, runtime),
+      getCodingSession: proxyMethod(runtime.getCodingSession, runtime),
+      addMessageToCodingSession: proxyMethod(
+        runtime.addMessageToCodingSession,
+        runtime,
+      ),
+      updateContext: proxyMethod(runtime.updateContext, runtime),
+      onToolCall: proxyMethod(runtime.onToolCall, runtime),
+      describeIntegration: runtime.describeIntegration
+        ? runtime.describeIntegration.bind(runtime)
+        : () => createFallbackIntegrationDescriptor({ descriptor, engineId, kernel }),
+      getHealth: runtime.getHealth?.bind(runtime),
+      getCapabilities: runtime.getCapabilities?.bind(runtime),
+      describeRawExtensions: runtime.describeRawExtensions?.bind(runtime),
+      describeRuntime:
+        runtime.describeRuntime?.bind(runtime) ??
+        ((options?: ChatOptions): ChatCanonicalRuntimeDescriptor => ({
+          ...createDefaultChatCanonicalRuntimeDescriptor({
+            descriptor: createFallbackIntegrationDescriptor({
+              descriptor,
+              engineId,
+              kernel,
+            }),
+            capabilityMatrix: descriptor.capabilityMatrix,
+            options,
+          }),
+          engineId,
+          modelId: options?.model?.trim() || defaultModelId,
+          transportKind: resolveTransportKindForRuntimeMode(
+            descriptor.transportKinds,
+            'sdk',
+          ),
+          capabilityMatrix: descriptor.capabilityMatrix,
+        })),
+      sendCanonicalEvents: runtime.sendCanonicalEvents.bind(runtime),
+    };
+  }
 
   return {
     name: runtime.name,

@@ -3857,6 +3857,113 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "sdkwork-agent-adapter-claude-code"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-adapter-core",
+ "sdkwork-agent-kernel",
+ "sdkwork-agent-sdk-backend-core",
+ "sdkwork-agent-sdk-backend-node",
+ "sdkwork-agent-sdk-spi",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-agent-adapter-codex"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-adapter-core",
+ "sdkwork-agent-kernel",
+ "sdkwork-agent-sdk-backend-core",
+ "sdkwork-agent-sdk-backend-rust",
+ "sdkwork-agent-sdk-spi",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-agent-adapter-core"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-kernel",
+]
+
+[[package]]
+name = "sdkwork-agent-adapter-gemini-cli"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-adapter-core",
+ "sdkwork-agent-kernel",
+ "sdkwork-agent-sdk-backend-core",
+ "sdkwork-agent-sdk-backend-node",
+ "sdkwork-agent-sdk-spi",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-agent-adapter-opencode"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-adapter-core",
+ "sdkwork-agent-kernel",
+ "sdkwork-agent-sdk-backend-core",
+ "sdkwork-agent-sdk-backend-node",
+ "sdkwork-agent-sdk-spi",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-agent-kernel"
+version = "0.1.0"
+
+[[package]]
+name = "sdkwork-agent-sdk-backend-core"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-sdk-spi",
+ "serde",
+]
+
+[[package]]
+name = "sdkwork-agent-sdk-backend-ipc"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-agent-sdk-backend-node"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-sdk-backend-ipc",
+ "sdkwork-agent-sdk-spi",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-agent-sdk-backend-rust"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-kernel",
+ "sdkwork-agent-sdk-spi",
+ "serde_json",
+]
+
+[[package]]
+name = "sdkwork-agent-sdk-spi"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-adapter-core",
+ "sdkwork-agent-kernel",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "sdkwork-appbase-database-host"
 version = "0.1.0"
 dependencies = [
@@ -3867,6 +3974,15 @@ dependencies = [
  "sdkwork-iam-web-adapter",
  "sqlx",
  "tracing",
+]
+
+[[package]]
+name = "sdkwork-appbase-iam-bootstrap"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "sdkwork-iam-context-service",
+ "sqlx",
 ]
 
 [[package]]
@@ -3885,6 +4001,7 @@ dependencies = [
  "sdkwork-birdcoder-document-repository-sqlx",
  "sdkwork-birdcoder-document-service",
  "sdkwork-birdcoder-engine-catalog-service",
+ "sdkwork-birdcoder-kernel-bridge",
  "sdkwork-birdcoder-membership-repository-sqlx",
  "sdkwork-birdcoder-membership-service",
  "sdkwork-birdcoder-model-config-repository-sqlx",
@@ -4025,6 +4142,23 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "sdkwork-birdcoder-kernel-bridge"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-adapter-claude-code",
+ "sdkwork-agent-adapter-codex",
+ "sdkwork-agent-adapter-core",
+ "sdkwork-agent-adapter-gemini-cli",
+ "sdkwork-agent-adapter-opencode",
+ "sdkwork-agent-kernel",
+ "sdkwork-birdcoder-codeengine",
+ "sdkwork-code-kernel",
+ "serde",
+ "serde_json",
+ "uuid",
 ]
 
 [[package]]
@@ -4189,6 +4323,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-code-kernel"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-agent-kernel",
+]
+
+[[package]]
 name = "sdkwork-database-config"
 version = "0.1.0"
 dependencies = [
@@ -4255,6 +4396,9 @@ dependencies = [
 [[package]]
 name = "sdkwork-iam-context-service"
 version = "0.1.0"
+dependencies = [
+ "sdkwork-utils-rust",
+]
 
 [[package]]
 name = "sdkwork-iam-directory-repository-sqlx"
@@ -4269,15 +4413,18 @@ name = "sdkwork-iam-web-adapter"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
+ "argon2",
  "async-trait",
  "axum",
  "base64 0.22.1",
  "chrono",
  "hmac",
+ "password-hash",
  "rand_core 0.6.4",
  "reqwest 0.12.28",
  "sdkwork-database-sqlx",
  "sdkwork-iam-context-service",
+ "sdkwork-utils-rust",
  "sdkwork-web-axum",
  "sdkwork-web-core",
  "serde",
@@ -4361,11 +4508,13 @@ dependencies = [
  "password-hash",
  "rand_core 0.6.4",
  "sdkwork-appbase-database-host",
+ "sdkwork-appbase-iam-bootstrap",
  "sdkwork-database-config",
  "sdkwork-database-sqlx",
  "sdkwork-iam-context-service",
  "sdkwork-iam-directory-repository-sqlx",
  "sdkwork-iam-web-adapter",
+ "sdkwork-utils-rust",
  "sdkwork-web-axum",
  "sdkwork-web-contract",
  "sdkwork-web-core",

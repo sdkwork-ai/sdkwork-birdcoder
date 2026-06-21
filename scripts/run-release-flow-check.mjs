@@ -91,7 +91,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node --experimental-strip-types scripts/engine-official-sdk-runtime-selection-contract.test.ts',
   'node --experimental-strip-types scripts/engine-kernel-contract.test.ts',
   'node --experimental-strip-types scripts/engine-source-mirror-contract.test.ts',
-  'node --experimental-strip-types scripts/engine-runtime-adapter-contract.test.ts',
+  'node --experimental-strip-types scripts/kernel-runtime-adapter-contract.test.ts',
   'node --experimental-strip-types scripts/engine-environment-health-contract.test.ts',
   'node --experimental-strip-types scripts/engine-capability-extension-contract.test.ts',
   'node --experimental-strip-types scripts/engine-experimental-capability-gating-contract.test.ts',

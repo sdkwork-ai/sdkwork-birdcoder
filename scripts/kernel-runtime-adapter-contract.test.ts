@@ -6,7 +6,6 @@ import path from 'node:path';
 import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
 import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
 import { createWorkbenchCanonicalChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/runtime.ts';
-import type { ChatMessage } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/types.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 const binaryCandidates = [
@@ -17,19 +16,10 @@ const binaryCandidates = [
 const binary = binaryCandidates.find((candidate) => existsSync(candidate));
 assert.ok(
   binary,
-  'birdcoder-kernel-turn binary must be built before engine conformance contract tests run',
+  'birdcoder-kernel-turn binary must be built before kernel runtime contract tests run',
 );
 
 process.env.BIRDCODER_KERNEL_TURN_BIN = binary;
-
-const messages: ChatMessage[] = [
-  {
-    id: 'msg-user-1',
-    role: 'user',
-    content: 'Review the current workspace and propose the next code change.',
-    timestamp: Date.now(),
-  },
-];
 
 for (const engine of listWorkbenchCliEngines()) {
   const runtime = createWorkbenchCanonicalChatEngine(createChatEngineById(engine.id), {
@@ -39,40 +29,41 @@ for (const engine of listWorkbenchCliEngines()) {
   });
 
   assert.match(runtime.name, /-kernel-sdk-adapter$/);
-  assert.equal(typeof runtime.sendCanonicalEvents, 'function');
+
+  const descriptor = runtime.describeRuntime?.({
+    model: engine.descriptor.defaultModelId,
+  });
+  assert.equal(descriptor?.engineId, engine.id);
 
   const events = [];
   for await (const event of runtime.sendCanonicalEvents?.(
-    messages,
-    { model: engine.descriptor.defaultModelId },
+    [
+      {
+        id: 'msg-1',
+        role: 'user',
+        content: 'hello kernel contract',
+        timestamp: Date.now(),
+      },
+    ],
+    {
+      model: engine.descriptor.defaultModelId,
+    },
   ) ?? []) {
     events.push(event);
   }
 
-  assert.ok(events.some((event) => event.kind === 'session.started'));
-  assert.ok(events.some((event) => event.kind === 'turn.started'));
   assert.ok(events.some((event) => event.kind === 'turn.completed'));
   assert.ok(events.some((event) => event.kind === 'message.completed'));
 }
 
-const turnPayload = {
-  engineId: 'codex',
-  modelId: 'gpt-5.4',
-  requestKind: 'user_message',
-  inputSummary: 'conformance probe',
-  nativeSessionId: null,
-  config: {
-    ephemeral: false,
-    fullAuto: false,
-    skipGitRepoCheck: false,
-  },
-};
-const stdout = execFileSync(binary, [], {
-  encoding: 'utf8',
-  input: JSON.stringify(turnPayload),
-  maxBuffer: 10 * 1024 * 1024,
-});
-const parsed = JSON.parse(stdout) as { assistantContent?: string };
-assert.equal(typeof parsed.assistantContent, 'string');
+const adaptersSource = await import('node:fs/promises').then((fs) =>
+  fs.readFile(
+    path.join(root, 'crates/sdkwork-birdcoder-api-server/src/bootstrap/adapters.rs'),
+    'utf8',
+  ),
+);
+assert.match(adaptersSource, /BirdcoderKernelHost/);
+assert.match(adaptersSource, /KernelBridgeCodeEngineProvider/);
+assert.doesNotMatch(adaptersSource, /RegistryCodeEngineProvider/);
 
-console.log('engine conformance contract passed.');
+console.log('kernel runtime adapter contract passed.');

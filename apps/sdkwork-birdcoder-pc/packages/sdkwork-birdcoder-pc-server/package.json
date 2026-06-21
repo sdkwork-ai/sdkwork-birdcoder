@@ -15,7 +15,7 @@
     "lint": "node ../../../../scripts/run-local-typescript.mjs --noEmit"
   },
   "dependencies": {
-    "@sdkwork/birdcoder-pc-chat": "workspace:*",
+    "@sdkwork/birdcoder-pc-projection": "workspace:*",
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",

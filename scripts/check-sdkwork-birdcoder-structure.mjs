@@ -9,11 +9,7 @@ const workspaceConfigPath = path.join(rootDir, 'pnpm-workspace.yaml');
 
 const requiredPackages = [
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth', '@sdkwork/birdcoder-pc-auth'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat', '@sdkwork/birdcoder-pc-chat'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude', '@sdkwork/birdcoder-pc-chat-claude'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex', '@sdkwork/birdcoder-pc-chat-codex'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini', '@sdkwork/birdcoder-pc-chat-gemini'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode', '@sdkwork/birdcoder-pc-chat-opencode'],
+  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection', '@sdkwork/birdcoder-pc-projection'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code', '@sdkwork/birdcoder-pc-code'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons', '@sdkwork/birdcoder-pc-commons'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core', '@sdkwork/birdcoder-pc-core'],

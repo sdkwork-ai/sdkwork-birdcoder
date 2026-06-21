@@ -363,7 +363,7 @@ importers:
         specifier: ^3.1.0
         version: 3.1.0
     devDependencies:
-      '@sdkwork/utils-typescript':
+      '@sdkwork/utils':
         specifier: workspace:*
         version: link:../sdkwork-utils/packages/sdkwork-utils-typescript
       '@tailwindcss/typography':
@@ -521,6 +521,9 @@ importers:
       '@sdkwork/runtime-bootstrap':
         specifier: workspace:*
         version: link:../../../common/foundation/sdkwork-runtime-bootstrap
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       lucide-react:
         specifier: 'catalog:'
         version: 0.546.0(react@19.2.4)
@@ -565,6 +568,9 @@ importers:
       '@sdkwork/search-pc-react':
         specifier: workspace:*
         version: link:../../../../../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
     devDependencies:
       '@sdkwork/core-pc-react':
         specifier: workspace:*
@@ -701,27 +707,29 @@ importers:
         specifier: ^8.0.10
         version: 8.0.16(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
 
-  ../sdkwork-search/packages/common/search/sdkwork-search-contracts: {}
+  ../sdkwork-search/packages/common/search/sdkwork-search-contracts:
+    dependencies:
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
-  ../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react: {}
+  ../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react:
+    dependencies:
+      '@sdkwork/search-contracts':
+        specifier: workspace:*
+        version: link:../../../common/search/sdkwork-search-contracts
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc:
     dependencies:
       '@sdkwork/appbase-app-sdk':
         specifier: workspace:*
         version: link:../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi
-      '@sdkwork/appbase-backend-sdk':
-        specifier: workspace:*
-        version: link:../../../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi
       '@sdkwork/auth-runtime-pc-react':
         specifier: workspace:*
         version: link:../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react
       '@sdkwork/iam-contracts':
         specifier: workspace:*
         version: link:../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts
-      '@sdkwork/iam-runtime':
-        specifier: workspace:*
-        version: link:../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-runtime
       '@sdkwork/sdk-common':
         specifier: ^1.0.2
         version: link:../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
@@ -769,7 +777,11 @@ importers:
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-ui
 
-  ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-commons: {}
+  ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-commons:
+    dependencies:
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-contracts:
     dependencies:
@@ -785,9 +797,33 @@ importers:
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop:
     dependencies:
+      '@sdkwork/terminal-pc-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-commons
+      '@sdkwork/terminal-pc-infrastructure':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-infrastructure
+      '@sdkwork/terminal-pc-resources':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-resources
+      '@sdkwork/terminal-pc-sessions':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-sessions
+      '@sdkwork/terminal-pc-shell':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-shell
+      '@sdkwork/terminal-pc-types':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-types
       '@tauri-apps/api':
         specifier: ^2.0.0
         version: 2.11.0
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2.0.0
@@ -795,6 +831,12 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.43
+      '@types/react':
+        specifier: ^18.3.3
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.31)
       typescript:
         specifier: ^5.8.2
         version: 5.8.3
@@ -845,6 +887,9 @@ importers:
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-resources:
     dependencies:
+      '@sdkwork/terminal-pc-commons':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-commons
       '@sdkwork/terminal-pc-contracts':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-contracts
@@ -1173,71 +1218,6 @@ importers:
         specifier: 'catalog:'
         version: 5.8.3
 
-  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat:
-    dependencies:
-      '@sdkwork/birdcoder-pc-types':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
-    devDependencies:
-      typescript:
-        specifier: 'catalog:'
-        version: 5.8.3
-      vite:
-        specifier: 'catalog:'
-        version: 6.4.2(@types/node@25.7.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
-
-  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-claude:
-    dependencies:
-      '@sdkwork/birdcoder-pc-chat':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat
-    devDependencies:
-      typescript:
-        specifier: 'catalog:'
-        version: 5.8.3
-      vite:
-        specifier: 'catalog:'
-        version: 6.4.2(@types/node@25.7.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
-
-  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-codex:
-    dependencies:
-      '@sdkwork/birdcoder-pc-chat':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat
-    devDependencies:
-      typescript:
-        specifier: 'catalog:'
-        version: 5.8.3
-      vite:
-        specifier: 'catalog:'
-        version: 6.4.2(@types/node@25.7.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
-
-  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-gemini:
-    dependencies:
-      '@sdkwork/birdcoder-pc-chat':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat
-    devDependencies:
-      typescript:
-        specifier: 'catalog:'
-        version: 5.8.3
-      vite:
-        specifier: 'catalog:'
-        version: 6.4.2(@types/node@25.7.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
-
-  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-chat-opencode:
-    dependencies:
-      '@sdkwork/birdcoder-pc-chat':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat
-    devDependencies:
-      typescript:
-        specifier: 'catalog:'
-        version: 5.8.3
-      vite:
-        specifier: 'catalog:'
-        version: 6.4.2(@types/node@25.7.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
-
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code:
     dependencies:
       '@sdkwork/birdcoder-pc-codeengine':
@@ -1439,21 +1419,9 @@ importers:
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine:
     dependencies:
-      '@sdkwork/birdcoder-pc-chat':
+      '@sdkwork/birdcoder-pc-projection':
         specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat
-      '@sdkwork/birdcoder-pc-chat-claude':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat-claude
-      '@sdkwork/birdcoder-pc-chat-codex':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat-codex
-      '@sdkwork/birdcoder-pc-chat-gemini':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat-gemini
-      '@sdkwork/birdcoder-pc-chat-opencode':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat-opencode
+        version: link:../sdkwork-birdcoder-pc-projection
       '@sdkwork/birdcoder-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-types
@@ -1467,9 +1435,6 @@ importers:
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons:
     dependencies:
-      '@sdkwork/birdcoder-pc-chat':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat
       '@sdkwork/birdcoder-pc-codeengine':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-codeengine
@@ -1482,6 +1447,9 @@ importers:
       '@sdkwork/birdcoder-pc-infrastructure-runtime':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-infrastructure-runtime
+      '@sdkwork/birdcoder-pc-projection':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-projection
       '@sdkwork/birdcoder-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-types
@@ -1491,7 +1459,7 @@ importers:
       '@sdkwork/terminal-pc-shell':
         specifier: workspace:*
         version: link:../../../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell
-      '@sdkwork/utils-typescript':
+      '@sdkwork/utils':
         specifier: workspace:*
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       '@tauri-apps/api':
@@ -1680,7 +1648,7 @@ importers:
       '@sdkwork/sdk-common':
         specifier: workspace:*
         version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
-      '@sdkwork/utils-typescript':
+      '@sdkwork/utils':
         specifier: workspace:*
         version: link:../../../../../sdkwork-utils/packages/sdkwork-utils-typescript
       '@tauri-apps/api':
@@ -1733,11 +1701,21 @@ importers:
         specifier: 'catalog:'
         version: 5.8.3
 
+  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection:
+    dependencies:
+      '@sdkwork/birdcoder-pc-types':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-types
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.3
+      vite:
+        specifier: 'catalog:'
+        version: 6.4.2(@types/node@25.7.0)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3)
+
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server:
     dependencies:
-      '@sdkwork/birdcoder-pc-chat':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-chat
       '@sdkwork/birdcoder-pc-codeengine':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-codeengine
@@ -1750,6 +1728,9 @@ importers:
       '@sdkwork/birdcoder-pc-infrastructure':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-infrastructure
+      '@sdkwork/birdcoder-pc-projection':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-projection
       '@sdkwork/birdcoder-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-types

@@ -1,5 +1,5 @@
 {
-  "name": "@sdkwork/birdcoder-pc-chat",
+  "name": "@sdkwork/birdcoder-pc-projection",
   "version": "1.0.0",
   "type": "module",
   "main": "src/index.ts",
