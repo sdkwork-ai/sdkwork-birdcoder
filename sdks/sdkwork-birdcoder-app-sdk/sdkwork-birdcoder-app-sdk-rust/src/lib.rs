@@ -564,6 +564,42 @@ pub mod intelligence {
             tenant_scope: "tenant",
         };
 
+        pub mod messages {
+            pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "user",
+                deployment: "all",
+                domain: "intelligence",
+                key: "intelligence.codingSessions.messages.delete",
+                method: "DELETE",
+                operation_id: "codingSessions.messages.delete",
+                path: "/app/v3/api/intelligence/coding_sessions/{sessionId}/messages/{messageId}",
+                path_param_names: &["sessionId", "messageId"],
+                permission: Some("intelligence.codingSessions.messages.delete"),
+                public: false,
+                resource: "intelligence.codingSessions.messages",
+                summary: "Delete coding session message",
+                tag: "intelligence",
+                tenant_scope: "tenant",
+            };
+
+            pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "user",
+                deployment: "all",
+                domain: "intelligence",
+                key: "intelligence.codingSessions.messages.update",
+                method: "PATCH",
+                operation_id: "codingSessions.messages.update",
+                path: "/app/v3/api/intelligence/coding_sessions/{sessionId}/messages/{messageId}",
+                path_param_names: &["sessionId", "messageId"],
+                permission: Some("intelligence.codingSessions.messages.update"),
+                public: false,
+                resource: "intelligence.codingSessions.messages",
+                summary: "Edit coding session message",
+                tag: "intelligence",
+                tenant_scope: "tenant",
+            };
+        }
+
         pub mod questions {
             pub mod answers {
                 pub const CREATE: crate::SdkOperation = crate::SdkOperation {
@@ -1537,6 +1573,8 @@ pub const OPERATIONS: &[SdkOperation] = &[
     intelligence::coding_sessions::events::LIST,
     intelligence::coding_sessions::forks::CREATE,
     intelligence::coding_sessions::LIST,
+    intelligence::coding_sessions::messages::DELETE,
+    intelligence::coding_sessions::messages::UPDATE,
     intelligence::coding_sessions::questions::answers::CREATE,
     intelligence::coding_sessions::RETRIEVE,
     intelligence::coding_sessions::turns::CREATE,

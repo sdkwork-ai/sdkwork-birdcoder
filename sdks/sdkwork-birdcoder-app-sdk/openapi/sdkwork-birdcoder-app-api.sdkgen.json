@@ -1991,6 +1991,206 @@
         "x-sdkwork-api-surface": "app-api"
       }
     },
+    "/app/v3/api/intelligence/coding_sessions/{sessionId}/messages/{messageId}": {
+      "patch": {
+        "operationId": "codingSessions.messages.update",
+        "summary": "Edit coding session message",
+        "description": "Edit coding session message. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "intelligence"
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder coding session identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder coding session message identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderEditCodingSessionMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Coding session message edited successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderEditCodingSessionMessageResultEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Coding session message edit request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Coding session message was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Coding session message could not be edited.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "user",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "intelligence.codingSessions.messages.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "intelligence.codingSessions.messages",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      },
+      "delete": {
+        "operationId": "codingSessions.messages.delete",
+        "summary": "Delete coding session message",
+        "description": "Delete coding session message. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "intelligence"
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder coding session identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder coding session message identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Coding session message deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeleteCodingSessionMessageResultEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Coding session message was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Coding session message could not be deleted.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "user",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "intelligence.codingSessions.messages.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "intelligence.codingSessions.messages",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
     "/app/v3/api/system/iam/runtime": {
       "get": {
         "operationId": "iam.runtime.retrieve",
@@ -3300,6 +3500,24 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of items to return.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based starting offset used for incremental loading.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         ],
         "responses": {
@@ -3601,6 +3819,24 @@
             "description": "Filter resources to a single user principal.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of items to return.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based starting offset used for incremental loading.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
             }
           }
         ],
@@ -7795,6 +8031,49 @@
         ],
         "additionalProperties": false
       },
+      "BirdCoderDeleteCodingSessionMessageResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "codingSessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "codingSessionId"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeleteCodingSessionMessageResultEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderDeleteCodingSessionMessageResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderDeletedResourceEnvelope": {
         "type": "object",
         "properties": {
@@ -7978,6 +8257,65 @@
           "environmentKey",
           "runtime",
           "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderEditCodingSessionMessageRequest": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderEditCodingSessionMessageResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "codingSessionId": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "codingSessionId",
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderEditCodingSessionMessageResultEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BirdCoderEditCodingSessionMessageResult"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "data",
+          "meta"
         ],
         "additionalProperties": false
       },

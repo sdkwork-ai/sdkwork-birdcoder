@@ -14,6 +14,8 @@ type IntelligenceCodingSessionsDeletePathParams = Types.IntelligenceCodingSessio
 type IntelligenceCodingSessionsEventsListPathParams = Types.IntelligenceCodingSessionsEventsListPathParams;
 type IntelligenceCodingSessionsForksCreatePathParams = Types.IntelligenceCodingSessionsForksCreatePathParams;
 type IntelligenceCodingSessionsListQuery = Types.IntelligenceCodingSessionsListQuery;
+type IntelligenceCodingSessionsMessagesDeletePathParams = Types.IntelligenceCodingSessionsMessagesDeletePathParams;
+type IntelligenceCodingSessionsMessagesUpdatePathParams = Types.IntelligenceCodingSessionsMessagesUpdatePathParams;
 type IntelligenceCodingSessionsQuestionsAnswersCreatePathParams = Types.IntelligenceCodingSessionsQuestionsAnswersCreatePathParams;
 type IntelligenceCodingSessionsRetrievePathParams = Types.IntelligenceCodingSessionsRetrievePathParams;
 type IntelligenceCodingSessionsTurnsCreatePathParams = Types.IntelligenceCodingSessionsTurnsCreatePathParams;
@@ -39,6 +41,10 @@ export interface IntelligenceApi {
       create(pathParams: IntelligenceCodingSessionsForksCreatePathParams, body: Types.BirdCoderForkCodingSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryEnvelope>;
     };
     list(query?: IntelligenceCodingSessionsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryListEnvelope>;
+    messages: {
+      delete(pathParams: IntelligenceCodingSessionsMessagesDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeleteCodingSessionMessageResultEnvelope>;
+      update(pathParams: IntelligenceCodingSessionsMessagesUpdatePathParams, body: Types.BirdCoderEditCodingSessionMessageRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderEditCodingSessionMessageResultEnvelope>;
+    };
     questions: {
       answers: {
         create(pathParams: IntelligenceCodingSessionsQuestionsAnswersCreatePathParams, body: Types.BirdCoderSubmitUserQuestionAnswerRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderUserQuestionAnswerResultEnvelope>;
@@ -88,6 +94,14 @@ export function createIntelligenceApi(requestOperation: BirdcoderSdkRequestOpera
       },
       list(query: IntelligenceCodingSessionsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderCodingSessionSummaryListEnvelope>("intelligence.codingSessions.list", { query }, options);
+      },
+      messages: {
+        delete(pathParams: IntelligenceCodingSessionsMessagesDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderDeleteCodingSessionMessageResultEnvelope>("intelligence.codingSessions.messages.delete", { pathParams }, options);
+        },
+        update(pathParams: IntelligenceCodingSessionsMessagesUpdatePathParams, body: Types.BirdCoderEditCodingSessionMessageRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderEditCodingSessionMessageResultEnvelope>("intelligence.codingSessions.messages.update", { pathParams, body }, options);
+        }
       },
       questions: {
         answers: {

@@ -2335,9 +2335,6 @@ importers:
       '@sdkwork/birdcoder-pc-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-commons
-      '@sdkwork/birdcoder-pc-types':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-types
       '@sdkwork/birdcoder-pc-ui-shell':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-ui-shell

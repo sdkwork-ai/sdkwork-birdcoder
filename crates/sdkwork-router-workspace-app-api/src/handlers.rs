@@ -17,7 +17,7 @@ use sdkwork_birdcoder_workspace_service::domain::commands::{
     CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest,
 };
 use sdkwork_birdcoder_workspace_service::domain::models::WorkspaceScopedQuery;
-use sdkwork_birdcoder_workspace_service::domain::results::WorkspacePayload;
+use sdkwork_birdcoder_workspace_service::domain::results::{DeleteEntityPayload, WorkspacePayload};
 use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService;
 
 use sdkwork_birdcoder_project_service::domain::commands::{
@@ -189,7 +189,7 @@ pub async fn delete_workspace(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
-) -> Result<Json<ApiDataEnvelope<serde_json::Value>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<DeleteEntityPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = workspace_context(&iam);
     match state.workspace_service.delete_workspace(&ctx, &params.workspace_id).await {
         Ok(result) => Ok(Json(build_data_envelope(result, request_id(&web)))),

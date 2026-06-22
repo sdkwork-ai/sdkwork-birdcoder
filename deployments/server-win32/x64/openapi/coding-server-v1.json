@@ -9865,6 +9865,198 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
+    "/app/v3/api/intelligence/coding_sessions/{sessionId}/messages/{messageId}": {
+      "patch": {
+        "operationId": "codingSessions.messages.update",
+        "summary": "Edit coding session message",
+        "description": "Edit coding session message. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "intelligence"
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder coding session identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder coding session message identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderEditCodingSessionMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Coding session message edited successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderEditCodingSessionMessageResultEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Coding session message edit request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Coding session message was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Coding session message could not be edited.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "user",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "intelligence.codingSessions.messages.update",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "intelligence.codingSessions.messages",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "delete": {
+        "operationId": "codingSessions.messages.delete",
+        "summary": "Delete coding session message",
+        "description": "Delete coding session message. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "intelligence"
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder coding session identifier.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder coding session message identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Coding session message deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeleteCodingSessionMessageResultEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Coding session message was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Coding session message could not be deleted.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "user",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "intelligence",
+        "x-sdkwork-permission": "intelligence.codingSessions.messages.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "intelligence.codingSessions.messages",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
     "/app/v3/api/system/iam/runtime": {
       "get": {
         "operationId": "iam.runtime.retrieve",
@@ -11094,6 +11286,24 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of items to return.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based starting offset used for incremental loading.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         ],
         "responses": {
@@ -11379,6 +11589,24 @@
             "description": "Filter resources to a single user principal.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of items to return.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based starting offset used for incremental loading.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
             }
           }
         ],
@@ -16701,9 +16929,9 @@
     "docsPath": "/docs",
     "liveOpenApiPath": "/openapi.json",
     "routeCatalogPath": "/app/v3/api/system/routes",
-    "routeCount": 127,
+    "routeCount": 129,
     "routesBySurface": {
-      "app": 78,
+      "app": 80,
       "backend": 49
     },
     "surfaces": [
@@ -16712,7 +16940,7 @@
         "basePath": "/app/v3/api",
         "description": "Application-facing coding runtime, workspace, project, collaboration, and IAM routes.",
         "name": "app",
-        "routeCount": 78
+        "routeCount": 80
       },
       {
         "authMode": "admin",

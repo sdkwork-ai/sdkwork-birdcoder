@@ -518,6 +518,18 @@ export interface BirdCoderCreateWorkspaceRequest {
   isTemplate?: boolean;
 }
 
+export interface BirdCoderDeleteCodingSessionMessageResult {
+  id: string;
+  codingSessionId: string;
+}
+
+export interface BirdCoderDeleteCodingSessionMessageResultEnvelope {
+  data: BirdCoderDeleteCodingSessionMessageResult;
+  meta: BirdCoderApiMeta;
+  requestId: string;
+  timestamp: string;
+}
+
 export interface BirdCoderDeletedResourceEnvelope {
   data: BirdCoderDeletedResourceResult;
   meta: BirdCoderApiMeta;
@@ -564,6 +576,23 @@ export interface BirdCoderDeploymentTargetSummary {
   environmentKey: string;
   runtime: string;
   status: "active" | "archived";
+}
+
+export interface BirdCoderEditCodingSessionMessageRequest {
+  content: string;
+}
+
+export interface BirdCoderEditCodingSessionMessageResult {
+  id: string;
+  codingSessionId: string;
+  content: string;
+}
+
+export interface BirdCoderEditCodingSessionMessageResultEnvelope {
+  data: BirdCoderEditCodingSessionMessageResult;
+  meta: BirdCoderApiMeta;
+  requestId: string;
+  timestamp: string;
 }
 
 export interface BirdCoderEngineAccessLane {
@@ -1574,6 +1603,16 @@ export interface IntelligenceCodingSessionsListQuery extends Record<string, Bird
   offset?: number;
 }
 
+export interface IntelligenceCodingSessionsMessagesDeletePathParams {
+  sessionId: string;
+  messageId: string;
+}
+
+export interface IntelligenceCodingSessionsMessagesUpdatePathParams {
+  sessionId: string;
+  messageId: string;
+}
+
 export interface IntelligenceCodingSessionsQuestionsAnswersCreatePathParams {
   sessionId: string;
   questionId: string;
@@ -1651,6 +1690,8 @@ export interface PlatformProjectsListQuery extends Record<string, BirdcoderSdkQu
   userId?: string;
   workspaceId?: string;
   rootPath?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface PlatformProjectsPublishCreatePathParams {
@@ -1671,6 +1712,8 @@ export interface PlatformWorkspacesDeletePathParams {
 
 export interface PlatformWorkspacesListQuery extends Record<string, BirdcoderSdkQueryValue> {
   userId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface PlatformWorkspacesRealtimeSubscribePathParams {
@@ -2178,6 +2221,44 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "public": false,
     "resource": "intelligence.codingSessions",
     "summary": "List coding sessions",
+    "tag": "intelligence",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "intelligence.codingSessions.messages.delete",
+    "method": "DELETE",
+    "operationId": "codingSessions.messages.delete",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/messages/{messageId}",
+    "pathParamNames": [
+      "sessionId",
+      "messageId"
+    ],
+    "dataScope": "user",
+    "deployment": "all",
+    "domain": "intelligence",
+    "permission": "intelligence.codingSessions.messages.delete",
+    "public": false,
+    "resource": "intelligence.codingSessions.messages",
+    "summary": "Delete coding session message",
+    "tag": "intelligence",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "intelligence.codingSessions.messages.update",
+    "method": "PATCH",
+    "operationId": "codingSessions.messages.update",
+    "path": "/app/v3/api/intelligence/coding_sessions/{sessionId}/messages/{messageId}",
+    "pathParamNames": [
+      "sessionId",
+      "messageId"
+    ],
+    "dataScope": "user",
+    "deployment": "all",
+    "domain": "intelligence",
+    "permission": "intelligence.codingSessions.messages.update",
+    "public": false,
+    "resource": "intelligence.codingSessions.messages",
+    "summary": "Edit coding session message",
     "tag": "intelligence",
     "tenantScope": "tenant"
   },
