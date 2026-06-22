@@ -203,13 +203,13 @@ assert.match(
 );
 assert.match(
   sdkClientsSource,
-  /BirdCoder app API does not expose coding session message edit over HTTP/u,
-  'app SDK wrapper must not call removed HTTP message edit routes.',
+  /client\.intelligence\.codingSessions\.messages\.update/u,
+  'app SDK wrapper must route coding session message edits through nested intelligence coding session messages.',
 );
-assert.doesNotMatch(
+assert.match(
   sdkClientsSource,
-  /client\.intelligence\.codingSessions\.messages/u,
-  'app SDK wrapper must not depend on removed intelligence message HTTP routes.',
+  /client\.intelligence\.codingSessions\.messages\.delete/u,
+  'app SDK wrapper must route coding session message deletes through nested intelligence coding session messages.',
 );
 assert.match(
   sdkClientsSource,

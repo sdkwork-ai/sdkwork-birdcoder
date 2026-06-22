@@ -6,7 +6,8 @@ use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 
 use sdkwork_birdcoder_errors::{
-    build_offset_list_envelope, trace_id_from_request_id, ApiListEnvelope,
+    build_data_envelope, build_offset_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    ApiListEnvelope,
 };
 use sdkwork_birdcoder_project_service::pagination::paginate_vec;
 use sdkwork_birdcoder_router_context::{
@@ -100,10 +101,10 @@ pub async fn get_workspace(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<WorkspacePayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = workspace_context(&iam);
     match state.workspace_service.get_workspace(&ctx, &params.workspace_id).await {
-        Ok(workspace) => Ok(Json(serde_json::json!(workspace))),
+        Ok(workspace) => Ok(Json(build_data_envelope(workspace, request_id(&web)))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
@@ -113,7 +114,7 @@ pub async fn create_workspace(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Json(body): Json<CreateWorkspaceBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<WorkspacePayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = workspace_context(&iam);
     let request = CreateWorkspaceRequest {
         name: body.name,
@@ -141,7 +142,7 @@ pub async fn create_workspace(
         is_template: None,
     };
     match state.workspace_service.create_workspace(&ctx, &request).await {
-        Ok(workspace) => Ok(Json(serde_json::json!(workspace))),
+        Ok(workspace) => Ok(Json(build_data_envelope(workspace, request_id(&web)))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
@@ -152,7 +153,7 @@ pub async fn update_workspace(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
     Json(body): Json<UpdateWorkspaceBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<WorkspacePayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = workspace_context(&iam);
     let request = UpdateWorkspaceRequest {
         name: body.name,
@@ -178,7 +179,7 @@ pub async fn update_workspace(
         status: None,
     };
     match state.workspace_service.update_workspace(&ctx, &params.workspace_id, &request).await {
-        Ok(workspace) => Ok(Json(serde_json::json!(workspace))),
+        Ok(workspace) => Ok(Json(build_data_envelope(workspace, request_id(&web)))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
@@ -188,10 +189,10 @@ pub async fn delete_workspace(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<serde_json::Value>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = workspace_context(&iam);
     match state.workspace_service.delete_workspace(&ctx, &params.workspace_id).await {
-        Ok(result) => Ok(Json(serde_json::json!(result))),
+        Ok(result) => Ok(Json(build_data_envelope(result, request_id(&web)))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }

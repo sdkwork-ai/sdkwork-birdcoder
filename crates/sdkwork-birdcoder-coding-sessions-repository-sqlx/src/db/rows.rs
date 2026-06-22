@@ -73,6 +73,31 @@ pub struct MessageRow {
     pub task_progress_json: Option<String>,
 }
 
+impl MessageRow {
+    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            uuid: row.try_get("uuid")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            version: row.try_get("version")?,
+            is_deleted: row.try_get("is_deleted")?,
+            coding_session_id: row.try_get("coding_session_id")?,
+            turn_id: row.try_get("turn_id")?,
+            role: row.try_get("role")?,
+            content: row.try_get("content")?,
+            metadata_json: row.try_get("metadata_json")?,
+            timestamp_ms: row.try_get("timestamp_ms")?,
+            name: row.try_get("name")?,
+            tool_calls_json: row.try_get("tool_calls_json")?,
+            tool_call_id: row.try_get("tool_call_id")?,
+            file_changes_json: row.try_get("file_changes_json")?,
+            commands_json: row.try_get("commands_json")?,
+            task_progress_json: row.try_get("task_progress_json")?,
+        })
+    }
+}
+
 pub struct RuntimeRow {
     pub id: String,
     pub created_at: String,

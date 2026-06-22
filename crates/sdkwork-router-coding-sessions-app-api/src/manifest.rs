@@ -47,6 +47,18 @@ pub const CODING_SESSIONS_APP_API_ROUTES: &[HttpRoute] = &[
         "createCodingSessionTurn",
     ),
     HttpRoute::dual_token(
+        HttpMethod::Patch,
+        paths::SESSION_MESSAGE,
+        "intelligence",
+        "editCodingSessionMessage",
+    ),
+    HttpRoute::dual_token(
+        HttpMethod::Delete,
+        paths::SESSION_MESSAGE,
+        "intelligence",
+        "deleteCodingSessionMessage",
+    ),
+    HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SESSION_EVENTS,
         "intelligence",

@@ -11,6 +11,7 @@ use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionList
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
     CodingSessionEventPayload, CodingSessionListPage, CodingSessionPayload, CodingSessionTurnPayload,
+    DeleteCodingSessionMessagePayload, EditCodingSessionMessagePayload,
     FinalizedProjectionTurnExecution, OperationPayload, UserQuestionAnswerPayload,
 };
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
@@ -52,6 +53,122 @@ impl SqliteCodingSessionRepository {
         if query.workspace_id.is_some() {
             sql.push_str(&format!(" AND s.{} = ?", columns::session::WORKSPACE_ID));
         }
+    }
+
+    async fn load_message_row(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        message_id: &str,
+    ) -> Result<MessageRow, CodingSessionError> {
+        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+
+        let row = map_sqlx_error(
+            sqlx::query(&format!(
+                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
+                columns::message::TABLE,
+                columns::message::ID,
+                columns::message::CODING_SESSION_ID,
+                columns::message::IS_DELETED,
+            ))
+            .bind(message_id)
+            .bind(session_id)
+            .fetch_optional(&self.pool)
+            .await,
+        )?
+        .ok_or_else(|| {
+            RepositoryError::NotFound(format!("message {message_id} not found"))
+        })?;
+
+        Ok(map_sqlx_error(MessageRow::from_row(&row))?)
+    }
+
+    async fn next_event_sequence(&self, session_id: &str) -> Result<usize, CodingSessionError> {
+        let max_sequence = map_sqlx_error(
+            sqlx::query_scalar::<_, i64>(&format!(
+                "SELECT COALESCE(MAX({}), 0) FROM {} WHERE {} = ? AND {} = 0",
+                columns::event::SEQUENCE_NO,
+                columns::event::TABLE,
+                columns::event::CODING_SESSION_ID,
+                columns::event::IS_DELETED,
+            ))
+            .bind(session_id)
+            .fetch_one(&self.pool)
+            .await,
+        )?;
+
+        Ok((max_sequence + 1) as usize)
+    }
+
+    async fn insert_coding_session_event(
+        &self,
+        session_id: &str,
+        turn_id: Option<String>,
+        runtime_id: Option<String>,
+        kind: &str,
+        payload: BTreeMap<String, serde_json::Value>,
+    ) -> Result<(), CodingSessionError> {
+        let event_id = Uuid::new_v4().to_string();
+        let now = Self::now_iso();
+        let sequence = self.next_event_sequence(session_id).await?;
+        let payload_json = serde_json::to_string(&payload)
+            .map_err(|error| RepositoryError::Insert(error.to_string()))?;
+
+        sqlx::query(&format!(
+            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            columns::event::TABLE,
+            columns::event::ID,
+            columns::event::CREATED_AT,
+            columns::event::UPDATED_AT,
+            columns::event::VERSION,
+            columns::event::IS_DELETED,
+            columns::event::CODING_SESSION_ID,
+            columns::event::TURN_ID,
+            columns::event::RUNTIME_ID,
+            columns::event::EVENT_KIND,
+            columns::event::SEQUENCE_NO,
+            columns::event::PAYLOAD_JSON,
+        ))
+        .bind(&event_id)
+        .bind(&now)
+        .bind(&now)
+        .bind(0i64)
+        .bind(0i64)
+        .bind(session_id)
+        .bind(&turn_id)
+        .bind(&runtime_id)
+        .bind(kind)
+        .bind(sequence as i64)
+        .bind(&payload_json)
+        .execute(&self.pool)
+        .await
+        .map_err(|error| RepositoryError::Insert(error.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn touch_session_transcript(&self, session_id: &str) -> Result<(), CodingSessionError> {
+        let now = Self::now_iso();
+
+        sqlx::query(&format!(
+            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = 0",
+            columns::session::TABLE,
+            columns::session::TRANSCRIPT_UPDATED_AT,
+            columns::session::UPDATED_AT,
+            columns::session::VERSION,
+            columns::session::VERSION,
+            columns::session::ID,
+            columns::session::IS_DELETED,
+        ))
+        .bind(&now)
+        .bind(&now)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|error| RepositoryError::Update(error.to_string()))?;
+
+        Ok(())
     }
 }
 
@@ -576,13 +693,12 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-        turn_id: &str,
+        message_id: &str,
         input: &EditCodingSessionMessageInput,
-    ) -> Result<CodingSessionTurnPayload, CodingSessionError> {
+    ) -> Result<EditCodingSessionMessagePayload, CodingSessionError> {
+        let message = self.load_message_row(ctx, session_id, message_id).await?;
         let content = input.content.clone();
         let now = Self::now_iso();
-
-        ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
         sqlx::query(&format!(
             "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = ? AND {} = 0",
@@ -591,34 +707,100 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::message::UPDATED_AT,
             columns::message::VERSION,
             columns::message::VERSION,
+            columns::message::ID,
             columns::message::CODING_SESSION_ID,
-            columns::message::TURN_ID,
             columns::message::IS_DELETED,
         ))
         .bind(&content)
         .bind(&now)
+        .bind(message_id)
         .bind(session_id)
-        .bind(turn_id)
         .execute(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        .map_err(|error| RepositoryError::Update(error.to_string()))?;
 
-        let row = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
-                columns::turn::TABLE,
-                columns::turn::ID,
-                columns::turn::CODING_SESSION_ID,
-                columns::turn::IS_DELETED,
-            ))
-            .bind(turn_id)
-            .bind(session_id)
-            .fetch_optional(&self.pool)
-            .await,
-        )?
-        .ok_or_else(|| RepositoryError::NotFound(format!("turn {turn_id} not found")))?;
+        let mut payload = BTreeMap::new();
+        payload.insert(
+            "editedMessageId".to_string(),
+            serde_json::Value::String(message_id.to_string()),
+        );
+        payload.insert(
+            "content".to_string(),
+            serde_json::Value::String(content.clone()),
+        );
+        payload.insert(
+            "role".to_string(),
+            serde_json::Value::String(message.role.clone()),
+        );
 
-        Ok(row_mapper::turn_row_to_payload(map_sqlx_error(TurnRow::from_row(&row))?))
+        self.insert_coding_session_event(
+            session_id,
+            message.turn_id.clone(),
+            None,
+            "message.edited",
+            payload,
+        )
+        .await?;
+        self.touch_session_transcript(session_id).await?;
+
+        Ok(EditCodingSessionMessagePayload {
+            id: message_id.to_string(),
+            coding_session_id: session_id.to_string(),
+            content,
+        })
+    }
+
+    async fn delete_message(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        message_id: &str,
+    ) -> Result<DeleteCodingSessionMessagePayload, CodingSessionError> {
+        let message = self.load_message_row(ctx, session_id, message_id).await?;
+        let now = Self::now_iso();
+
+        sqlx::query(&format!(
+            "UPDATE {} SET {} = 1, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = ? AND {} = 0",
+            columns::message::TABLE,
+            columns::message::IS_DELETED,
+            columns::message::UPDATED_AT,
+            columns::message::VERSION,
+            columns::message::VERSION,
+            columns::message::ID,
+            columns::message::CODING_SESSION_ID,
+            columns::message::IS_DELETED,
+        ))
+        .bind(&now)
+        .bind(message_id)
+        .bind(session_id)
+        .execute(&self.pool)
+        .await
+        .map_err(|error| RepositoryError::Update(error.to_string()))?;
+
+        let mut payload = BTreeMap::new();
+        payload.insert(
+            "deletedMessageId".to_string(),
+            serde_json::Value::String(message_id.to_string()),
+        );
+        payload.insert(
+            "role".to_string(),
+            serde_json::Value::String(message.role.clone()),
+        );
+
+        self.insert_coding_session_event(
+            session_id,
+            message.turn_id.clone(),
+            None,
+            "message.deleted",
+            payload,
+        )
+        .await?;
+        self.touch_session_transcript(session_id).await?;
+
+        Ok(DeleteCodingSessionMessagePayload {
+            id: message_id.to_string(),
+            coding_session_id: session_id.to_string(),
+        })
     }
 
     async fn list_events(

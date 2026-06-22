@@ -102,6 +102,20 @@ impl From<ForkCodingSessionRequest>
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct EditCodingSessionMessageRequest {
+    pub content: String,
+}
+
+impl From<EditCodingSessionMessageRequest>
+    for sdkwork_birdcoder_coding_sessions_service::domain::commands::EditCodingSessionMessageRequest
+{
+    fn from(r: EditCodingSessionMessageRequest) -> Self {
+        Self { content: r.content }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateCodingSessionTurnRequest {
     pub runtime_id: Option<String>,
     pub engine_id: Option<String>,

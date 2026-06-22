@@ -50,7 +50,7 @@ async fn health_endpoint_returns_healthy_status() {
 }
 
 #[tokio::test]
-async fn build_app_creates_valid_router_with_public_system_health() {
+async fn build_app_requires_authentication_for_system_health() {
     let config = smoke_config("bootstrap-smoke-full.db");
 
     let app = sdkwork_birdcoder_api_server::bootstrap::build_app(&config)
@@ -67,7 +67,7 @@ async fn build_app_creates_valid_router_with_public_system_health() {
         .await
         .expect("serve system health request");
 
-    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
     let _ = std::fs::remove_file(&config.sqlite_file);
 }

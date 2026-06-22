@@ -3399,6 +3399,10 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'sessionId',
     'BirdCoder coding session identifier.',
   );
+  const messageIdPathParameter = createOpenApiPathParameter(
+    'messageId',
+    'BirdCoder coding session message identifier.',
+  );
   const checkpointIdPathParameter = createOpenApiPathParameter(
     'checkpointId',
     'Approval checkpoint identifier.',
@@ -3602,6 +3606,34 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
           '400': createProblemResponse('Coding session turn request is invalid.'),
           '404': createProblemResponse('Coding session was not found.'),
           '500': createProblemResponse('Coding session turn could not be created.'),
+        },
+      }),
+    },
+    'codingSessions.messages.update': {
+      parameters: [codingSessionIdPathParameter, messageIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderEditCodingSessionMessageRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Coding session message edited successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderEditCodingSessionMessageResultEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('Coding session message edit request is invalid.'),
+          '404': createProblemResponse('Coding session message was not found.'),
+          '500': createProblemResponse('Coding session message could not be edited.'),
+        },
+      }),
+    },
+    'codingSessions.messages.delete': {
+      parameters: [codingSessionIdPathParameter, messageIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Coding session message deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderDeleteCodingSessionMessageResultEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Coding session message was not found.'),
+          '500': createProblemResponse('Coding session message could not be deleted.'),
         },
       }),
     },
@@ -5200,6 +5232,14 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['DELETE /app/v3/api/intelligence/coding_sessions/:sessionId', 'codingSessions.delete'],
     ['POST /app/v3/api/intelligence/coding_sessions/:sessionId/fork', 'codingSessions.forks.create'],
     ['POST /app/v3/api/intelligence/coding_sessions/:sessionId/turns', 'codingSessions.turns.create'],
+    [
+      'PATCH /app/v3/api/intelligence/coding_sessions/:sessionId/messages/:messageId',
+      'codingSessions.messages.update',
+    ],
+    [
+      'DELETE /app/v3/api/intelligence/coding_sessions/:sessionId/messages/:messageId',
+      'codingSessions.messages.delete',
+    ],
     ['GET /app/v3/api/intelligence/coding_sessions/:sessionId/events', 'codingSessions.events.list'],
     ['GET /app/v3/api/intelligence/coding_sessions/:sessionId/artifacts', 'codingSessions.artifacts.list'],
     ['GET /app/v3/api/intelligence/coding_sessions/:sessionId/checkpoints', 'codingSessions.checkpoints.list'],
@@ -5590,6 +5630,16 @@ const APP_RUNTIME_API_CONTRACT: BirdCoderAppRuntimeApiContract = {
     'POST',
     '/app/v3/api/intelligence/coding_sessions/:sessionId/turns',
     'Create coding session turn',
+  ),
+  editCodingSessionMessage: createRoute('app', 'user',
+    'PATCH',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId/messages/:messageId',
+    'Edit coding session message',
+  ),
+  deleteCodingSessionMessage: createRoute('app', 'user',
+    'DELETE',
+    '/app/v3/api/intelligence/coding_sessions/:sessionId/messages/:messageId',
+    'Delete coding session message',
   ),
   syncModelConfig: createRoute('app', 'user',
     'PUT',

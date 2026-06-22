@@ -5,7 +5,8 @@ use sdkwork_utils_rust::is_blank;
 use crate::context::CodingSessionContext;
 use crate::domain::commands::{
     CreateCodingSessionInput, CreateCodingSessionRequest, CreateCodingSessionTurnInput,
-    CreateCodingSessionTurnRequest, ForkCodingSessionInput, ForkCodingSessionRequest,
+    CreateCodingSessionTurnRequest, EditCodingSessionMessageInput, EditCodingSessionMessageRequest,
+    ForkCodingSessionInput, ForkCodingSessionRequest,
     SubmitApprovalDecisionInput, SubmitApprovalDecisionRequest, SubmitUserQuestionAnswerInput,
     SubmitUserQuestionAnswerRequest, UpdateCodingSessionInput, UpdateCodingSessionRequest,
 };
@@ -15,7 +16,8 @@ use crate::domain::models::{
 };
 use crate::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
-    CodingSessionEventPayload, CodingSessionListPage, CodingSessionPayload, DeleteEntityPayload, OperationPayload,
+    CodingSessionEventPayload, CodingSessionListPage, CodingSessionPayload, DeleteEntityPayload,
+    DeleteCodingSessionMessagePayload, EditCodingSessionMessagePayload, OperationPayload,
     PendingProjectionTurnExecution, PendingTurnResult, UserQuestionAnswerPayload,
 };
 use crate::error::CodingSessionError;
@@ -209,6 +211,83 @@ impl CodingSessionService {
         let _ = source_events;
 
         Ok(session)
+    }
+
+    // ── Edit coding session message ──────────────────────────────────────
+
+    pub async fn edit_coding_session_message(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        message_id: &str,
+        request: EditCodingSessionMessageRequest,
+    ) -> Result<EditCodingSessionMessagePayload, CodingSessionError> {
+        let session_id = normalize_required_string(session_id)
+            .ok_or_else(|| CodingSessionError::InvalidInput("session_id is required.".into()))?;
+        let message_id = normalize_required_string(message_id)
+            .ok_or_else(|| CodingSessionError::InvalidInput("message_id is required.".into()))?;
+
+        let content = normalize_required_string(&request.content)
+            .ok_or_else(|| CodingSessionError::InvalidInput("content is required.".into()))?;
+
+        let session = self.repository.get_session(ctx, &session_id).await?;
+        let result = self
+            .repository
+            .edit_message(
+                ctx,
+                &session_id,
+                &message_id,
+                &EditCodingSessionMessageInput { content: content.clone() },
+            )
+            .await?;
+
+        self.event_publisher
+            .publish_coding_session_event(
+                ctx,
+                &build_session_realtime_event(
+                    "coding-session.message.edited",
+                    "core",
+                    &session,
+                    None,
+                ),
+            )
+            .await?;
+
+        Ok(result)
+    }
+
+    // ── Delete coding session message ────────────────────────────────────
+
+    pub async fn delete_coding_session_message(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        message_id: &str,
+    ) -> Result<DeleteCodingSessionMessagePayload, CodingSessionError> {
+        let session_id = normalize_required_string(session_id)
+            .ok_or_else(|| CodingSessionError::InvalidInput("session_id is required.".into()))?;
+        let message_id = normalize_required_string(message_id)
+            .ok_or_else(|| CodingSessionError::InvalidInput("message_id is required.".into()))?;
+
+        let session = self.repository.get_session(ctx, &session_id).await?;
+        let result = self
+            .repository
+            .delete_message(ctx, &session_id, &message_id)
+            .await?;
+
+        self.event_publisher
+            .publish_coding_session_event(
+                ctx,
+                &build_session_realtime_event(
+                    "coding-session.message.deleted",
+                    "core",
+                    &session,
+                    None,
+                ),
+            )
+            .await?;
+
+        Ok(result)
     }
 
     // ── Create turn ──────────────────────────────────────────────────────

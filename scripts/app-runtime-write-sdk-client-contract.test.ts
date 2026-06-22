@@ -159,6 +159,27 @@ const client = createBirdCoderAppSdkApiClient({
             },
             'req.app.reject-user-question',
           ) as TResponse;
+        case '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/messages/message-generated-write':
+          if (request.method === 'PATCH') {
+            return createEnvelope(
+              {
+                id: 'message-generated-write',
+                codingSessionId: 'coding-session-generated-write',
+                content: 'Edited generated write message',
+              },
+              'req.app.edit-session-message',
+            ) as TResponse;
+          }
+          if (request.method === 'DELETE') {
+            return createEnvelope(
+              {
+                id: 'message-generated-write',
+                codingSessionId: 'coding-session-generated-write',
+              },
+              'req.app.delete-session-message',
+            ) as TResponse;
+          }
+          break;
         default:
           throw new Error(`Unhandled request: ${request.method} ${request.path}`);
       }
@@ -197,18 +218,25 @@ assert.equal(updatedSession.title, 'Renamed Generated App Runtime Write Session'
 assert.equal(updatedSession.status, 'paused');
 assert.equal(updatedSession.modelId, 'gpt-5-codex');
 
-await assert.rejects(
-  () =>
-    client.editCodingSessionMessage('coding-session-generated-write', 'message-generated-write', {
-      content: 'Edited generated write message',
-    }),
-  /does not expose coding session message edit over HTTP/,
+const editedMessage = await client.editCodingSessionMessage(
+  'coding-session-generated-write',
+  'message-generated-write',
+  {
+    content: 'Edited generated write message',
+  },
 );
 
-await assert.rejects(
-  () => client.deleteCodingSessionMessage('coding-session-generated-write', 'message-generated-write'),
-  /does not expose coding session message delete over HTTP/,
+assert.equal(editedMessage.id, 'message-generated-write');
+assert.equal(editedMessage.codingSessionId, 'coding-session-generated-write');
+assert.equal(editedMessage.content, 'Edited generated write message');
+
+const deletedMessage = await client.deleteCodingSessionMessage(
+  'coding-session-generated-write',
+  'message-generated-write',
 );
+
+assert.equal(deletedMessage.id, 'message-generated-write');
+assert.equal(deletedMessage.codingSessionId, 'coding-session-generated-write');
 
 const deletedSession = await client.deleteCodingSession('coding-session-generated-write');
 
@@ -297,6 +325,17 @@ assert.deepEqual(observedRequests, [
       title: 'Renamed Generated App Runtime Write Session',
       status: 'paused',
     },
+  },
+  {
+    method: 'PATCH',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/messages/message-generated-write',
+    body: {
+      content: 'Edited generated write message',
+    },
+  },
+  {
+    method: 'DELETE',
+    path: '/app/v3/api/intelligence/coding_sessions/coding-session-generated-write/messages/message-generated-write',
   },
   {
     method: 'DELETE',

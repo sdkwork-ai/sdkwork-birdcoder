@@ -14,6 +14,8 @@ pub fn build_coding_sessions_app_api_router() -> Router<CodingSessionsAppState> 
         .route(paths::SESSION, delete(handlers::delete_session))
         .route(paths::SESSION_FORK, post(handlers::fork_session))
         .route(paths::SESSION_TURNS, post(handlers::create_turn))
+        .route(paths::SESSION_MESSAGE, patch(handlers::edit_coding_session_message))
+        .route(paths::SESSION_MESSAGE, delete(handlers::delete_coding_session_message))
         .route(paths::SESSION_EVENTS, get(handlers::list_events))
         .route(paths::SESSION_ARTIFACTS, get(handlers::list_artifacts))
         .route(paths::SESSION_CHECKPOINTS, get(handlers::list_checkpoints))

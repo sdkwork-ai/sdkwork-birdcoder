@@ -17,6 +17,8 @@ use crate::domain::results::{
     CodingSessionPayload,
     CodingSessionListPage,
     CodingSessionTurnPayload,
+    DeleteCodingSessionMessagePayload,
+    EditCodingSessionMessagePayload,
     OperationPayload,
     UserQuestionAnswerPayload,
 };
@@ -86,9 +88,16 @@ pub trait CodingSessionRepository: Send + Sync {
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-        turn_id: &str,
+        message_id: &str,
         input: &EditCodingSessionMessageInput,
-    ) -> Result<CodingSessionTurnPayload, CodingSessionError>;
+    ) -> Result<EditCodingSessionMessagePayload, CodingSessionError>;
+
+    async fn delete_message(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        message_id: &str,
+    ) -> Result<DeleteCodingSessionMessagePayload, CodingSessionError>;
 
     async fn list_events(
         &self,

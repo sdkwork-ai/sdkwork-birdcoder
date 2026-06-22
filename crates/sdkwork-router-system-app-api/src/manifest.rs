@@ -4,13 +4,13 @@ use sdkwork_web_core::HttpRouteManifest;
 use crate::paths;
 
 pub const SYSTEM_APP_API_ROUTES: &[HttpRoute] = &[
-    HttpRoute::public(
+    HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SYSTEM_DESCRIPTOR_PATH,
         "system",
         "descriptor.retrieve",
     ),
-    HttpRoute::public(
+    HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SYSTEM_ROUTES_PATH,
         "system",
@@ -22,7 +22,7 @@ pub const SYSTEM_APP_API_ROUTES: &[HttpRoute] = &[
         "system",
         "runtime.retrieve",
     ),
-    HttpRoute::public(
+    HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SYSTEM_HEALTH_PATH,
         "system",

@@ -999,14 +999,20 @@ export function createBirdCoderAppSdkApiClient({
         await client.intelligence.codingSessions.delete({ sessionId: codingSessionId }),
       );
     },
-    async editCodingSessionMessage() {
-      throw new Error(
-        'BirdCoder app API does not expose coding session message edit over HTTP.',
+    async editCodingSessionMessage(codingSessionId, messageId, request) {
+      return readCanonicalData<BirdCoderEditCodingSessionMessageResult>(
+        await client.intelligence.codingSessions.messages.update(
+          { sessionId: codingSessionId, messageId },
+          request,
+        ),
       );
     },
-    async deleteCodingSessionMessage() {
-      throw new Error(
-        'BirdCoder app API does not expose coding session message delete over HTTP.',
+    async deleteCodingSessionMessage(codingSessionId, messageId) {
+      return readCanonicalData<BirdCoderDeleteCodingSessionMessageResult>(
+        await client.intelligence.codingSessions.messages.delete({
+          sessionId: codingSessionId,
+          messageId,
+        }),
       );
     },
     async createCodingSessionTurn(codingSessionId, request) {

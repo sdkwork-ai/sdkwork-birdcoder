@@ -248,6 +248,21 @@ pub struct DeleteEntityPayload {
     pub id: String,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EditCodingSessionMessagePayload {
+    pub id: String,
+    pub coding_session_id: String,
+    pub content: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteCodingSessionMessagePayload {
+    pub id: String,
+    pub coding_session_id: String,
+}
+
 // 鈹€鈹€ Pending turn result 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug)]

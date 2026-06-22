@@ -5,7 +5,7 @@ use axum::Json;
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
     CodingSessionEventPayload, CodingSessionPayload, CodingSessionTurnPayload,
-    UserQuestionAnswerPayload,
+    DeleteCodingSessionMessagePayload, EditCodingSessionMessagePayload, UserQuestionAnswerPayload,
 };
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
 use sdkwork_birdcoder_errors::{
@@ -17,7 +17,8 @@ use sdkwork_birdcoder_router_context::{coding_session_context, RequiredIamContex
 
 use crate::error::{trace_service_error, AppError};
 use crate::mapper::request::{
-    CreateCodingSessionRequest, CreateCodingSessionTurnRequest, ForkCodingSessionRequest,
+    CreateCodingSessionRequest, CreateCodingSessionTurnRequest, EditCodingSessionMessageRequest,
+    ForkCodingSessionRequest,
     ListSessionsQuery, SubmitApprovalDecisionRequest, SubmitUserQuestionAnswerRequest,
     UpdateCodingSessionRequest,
 };
@@ -246,4 +247,39 @@ pub async fn submit_user_question_answer(
         request_trace_id(&web),
     )?;
     Ok(Json(build_data_envelope(answer, request_id(&web))))
+}
+
+pub async fn edit_coding_session_message(
+    web: WebRequestContext,
+    RequiredIamContext(iam): RequiredIamContext,
+    State(state): State<CodingSessionsAppState>,
+    Path((sessionId, messageId)): Path<(String, String)>,
+    Json(request): Json<EditCodingSessionMessageRequest>,
+) -> Result<Json<ApiDataEnvelope<EditCodingSessionMessagePayload>>, AppError> {
+    let ctx = coding_session_context(&iam);
+    let result = trace_service_error(
+        state
+            .service
+            .edit_coding_session_message(&ctx, &sessionId, &messageId, request.into())
+            .await,
+        request_trace_id(&web),
+    )?;
+    Ok(Json(build_data_envelope(result, request_id(&web))))
+}
+
+pub async fn delete_coding_session_message(
+    web: WebRequestContext,
+    RequiredIamContext(iam): RequiredIamContext,
+    State(state): State<CodingSessionsAppState>,
+    Path((sessionId, messageId)): Path<(String, String)>,
+) -> Result<Json<ApiDataEnvelope<DeleteCodingSessionMessagePayload>>, AppError> {
+    let ctx = coding_session_context(&iam);
+    let result = trace_service_error(
+        state
+            .service
+            .delete_coding_session_message(&ctx, &sessionId, &messageId)
+            .await,
+        request_trace_id(&web),
+    )?;
+    Ok(Json(build_data_envelope(result, request_id(&web))))
 }

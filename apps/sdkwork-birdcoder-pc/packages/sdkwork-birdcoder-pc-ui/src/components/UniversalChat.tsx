@@ -621,7 +621,8 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     previousProps.isActive !== nextProps.isActive ||
     previousProps.layout !== nextProps.layout ||
     previousProps.localeKey !== nextProps.localeKey ||
-    previousProps.sessionId !== nextProps.sessionId
+    previousProps.sessionId !== nextProps.sessionId ||
+    previousProps.engineId !== nextProps.engineId
   ) {
     return false;
   }
