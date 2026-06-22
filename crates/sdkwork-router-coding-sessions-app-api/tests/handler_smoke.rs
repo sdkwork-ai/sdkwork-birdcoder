@@ -1,5 +1,200 @@
-use sdkwork_router_coding_sessions_app_api::handlers::CodingSessionsAppState;
+use std::sync::Arc;
+
+use axum::body::Body;
+use axum::http::{Request, StatusCode};
+use async_trait::async_trait;
+use sdkwork_birdcoder_coding_sessions_repository_sqlx::db::schema::SCHEMA_SQL;
+use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::coding_session_repository::SqliteCodingSessionRepository;
+use sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL as WORKSPACE_TABLES_DDL;
+use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
+use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
+    SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
+};
+use sdkwork_birdcoder_coding_sessions_service::domain::models::AuthoritativeEngineRuntimeProfile;
+use sdkwork_birdcoder_coding_sessions_service::domain::results::{
+    FinalizedProjectionTurnExecution, PendingProjectionTurnExecution,
+};
+use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
+use sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator;
+use sdkwork_birdcoder_coding_sessions_service::ports::events::{
+    CodingSessionRealtimeEventInput, RealtimeEventPublisher,
+};
+use sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider;
+use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
+use sdkwork_iam_context_service::{AuthLevel, DeploymentMode, Environment, IamAppContext};
 use sdkwork_router_coding_sessions_app_api::build_coding_sessions_app_api_router;
+use sdkwork_router_coding_sessions_app_api::handlers::CodingSessionsAppState;
+use sdkwork_web_core::{
+    ServerRequestId, WebApiSurface, WebAuthMode, WebRequestContext, WebTransportFacts,
+};
+use sqlx::SqlitePool;
+use tower::ServiceExt;
+
+struct NoopRealtimePublisher;
+
+#[async_trait]
+impl RealtimeEventPublisher for NoopRealtimePublisher {
+    async fn publish_workspace_event(
+        &self,
+        _ctx: &CodingSessionContext,
+        _workspace_id: &str,
+        _event_kind: &str,
+        _payload_json: &str,
+    ) -> Result<(), CodingSessionError> {
+        Ok(())
+    }
+
+    async fn publish_coding_session_event(
+        &self,
+        _ctx: &CodingSessionContext,
+        _event: &CodingSessionRealtimeEventInput,
+    ) -> Result<(), CodingSessionError> {
+        Ok(())
+    }
+}
+
+struct StubEngineValidator;
+
+#[async_trait]
+impl EngineValidator for StubEngineValidator {
+    fn validate_engine_runtime_profile(
+        &self,
+        _engine_id: &str,
+        _host_mode: &str,
+    ) -> Result<AuthoritativeEngineRuntimeProfile, CodingSessionError> {
+        Ok(AuthoritativeEngineRuntimeProfile {
+            transport_kind: "stub".to_owned(),
+            capability_snapshot_json: "{}".to_owned(),
+        })
+    }
+}
+
+struct StubCodeEngineProvider;
+
+#[async_trait]
+impl CodeEngineProvider for StubCodeEngineProvider {
+    async fn execute_turn(
+        &self,
+        _ctx: &CodingSessionContext,
+        _pending: &PendingProjectionTurnExecution,
+    ) -> Result<FinalizedProjectionTurnExecution, CodingSessionError> {
+        Err(CodingSessionError::Internal(
+            "stub code engine provider".into(),
+        ))
+    }
+
+    async fn submit_approval(
+        &self,
+        _ctx: &CodingSessionContext,
+        _engine_id: &str,
+        _native_session_id: Option<&str>,
+        _checkpoint_id: &str,
+        _input: &SubmitApprovalDecisionInput,
+    ) -> Result<(), CodingSessionError> {
+        Ok(())
+    }
+
+    async fn submit_question_answer(
+        &self,
+        _ctx: &CodingSessionContext,
+        _engine_id: &str,
+        _native_session_id: Option<&str>,
+        _question_id: &str,
+        _input: &SubmitUserQuestionAnswerInput,
+    ) -> Result<(), CodingSessionError> {
+        Ok(())
+    }
+}
+
+fn test_iam_context() -> IamAppContext {
+    IamAppContext::new(
+        "1",
+        None,
+        "handler-smoke-user",
+        "handler-smoke-session",
+        "birdcoder",
+        Environment::Dev,
+        DeploymentMode::Local,
+        AuthLevel::Password,
+        vec![],
+        vec![],
+    )
+}
+
+async fn execute_sql_batch(pool: &SqlitePool, sql: &str) -> Result<(), sqlx::Error> {
+    for statement in sql.split(';').map(str::trim).filter(|part| !part.is_empty()) {
+        sqlx::query(statement).execute(pool).await?;
+    }
+    Ok(())
+}
+async fn test_state_with_seeded_workspace(workspace_id: i64) -> CodingSessionsAppState {
+    let pool = SqlitePool::connect("sqlite::memory:")
+        .await
+        .expect("open in-memory sqlite");
+    execute_sql_batch(&pool, SCHEMA_SQL)
+        .await
+        .expect("apply coding sessions schema");
+    execute_sql_batch(&pool, WORKSPACE_TABLES_DDL)
+        .await
+        .expect("apply workspace schema");
+    if workspace_id > 0 {
+        seed_workspace(&pool, workspace_id).await;
+    }
+
+    let repository = Arc::new(SqliteCodingSessionRepository::new(pool));
+    let service = CodingSessionService::new(
+        repository,
+        Arc::new(StubCodeEngineProvider),
+        Arc::new(NoopRealtimePublisher),
+        Arc::new(StubEngineValidator),
+    );
+
+    CodingSessionsAppState { service }
+}
+
+async fn test_state() -> CodingSessionsAppState {
+    test_state_with_seeded_workspace(0).await
+}
+
+fn with_request_context(mut request: Request<Body>, iam: Option<IamAppContext>) -> Request<Body> {
+    let path = request.uri().path().to_owned();
+    let method = request.method().as_str().to_owned();
+    request.extensions_mut().insert(WebRequestContext {
+        request_id: ServerRequestId("handler-smoke-request".to_owned()),
+        api_surface: WebApiSurface::AppApi,
+        auth_mode: WebAuthMode::DualToken,
+        transport: WebTransportFacts {
+            path,
+            method,
+            auth_token_present: true,
+            access_token_present: true,
+            api_key_present: false,
+            oauth_bearer_present: false,
+        },
+        principal: None,
+        locale: None,
+        client_kind: None,
+        operation: None,
+    });
+    if let Some(iam) = iam {
+        request.extensions_mut().insert(iam);
+    }
+    request
+}
+
+async fn seed_workspace(pool: &SqlitePool, workspace_id: i64) {
+    sqlx::query(
+        "INSERT INTO studio_workspace (
+            id, tenant_id, organization_id, data_scope, created_at, updated_at,
+            version, is_deleted, name, owner_id, is_public, is_template, status
+        ) VALUES (?, 1, 0, 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', 0, 0, ?, 1, 0, 0, 'active')",
+    )
+    .bind(workspace_id)
+    .bind(format!("workspace-{workspace_id}"))
+    .execute(pool)
+    .await
+    .expect("seed workspace");
+}
 
 #[test]
 fn intelligence_router_builds_without_error() {
@@ -13,85 +208,106 @@ fn intelligence_router_state_struct_is_cloneable() {
 }
 
 #[tokio::test]
-#[ignore]
-async fn list_sessions_returns_ok_with_paginated_structure() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
+async fn list_sessions_requires_authentication() {
+    let response = build_coding_sessions_app_api_router()
+        .with_state(test_state().await)
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri("/app/v3/api/intelligence/coding_sessions")
+                .body(Body::empty())
+                .expect("build list sessions request"),
+            None,
+        ))
+        .await
+        .expect("serve list sessions request");
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 
 #[tokio::test]
-#[ignore]
-async fn create_session_returns_201_with_session_payload() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
+async fn list_sessions_returns_ok_with_empty_inventory() {
+    let response = build_coding_sessions_app_api_router()
+        .with_state(test_state().await)
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri("/app/v3/api/intelligence/coding_sessions")
+                .body(Body::empty())
+                .expect("build list sessions request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve list sessions request");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read list sessions body");
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("parse list sessions JSON");
+    assert_eq!(json["items"].as_array().map(Vec::len), Some(0));
+    assert_eq!(json["meta"]["total"], 0);
+    assert_eq!(json["meta"]["pageSize"], 20);
+    assert_eq!(json["meta"]["page"], 1);
+    assert_eq!(json["meta"]["version"], "v1");
+    assert_eq!(json["requestId"], "handler-smoke-request");
+    assert!(json["timestamp"].is_string());
 }
 
 #[tokio::test]
-#[ignore]
 async fn get_session_returns_404_for_nonexistent_id() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
+    let response = build_coding_sessions_app_api_router()
+        .with_state(test_state().await)
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri("/app/v3/api/intelligence/coding_sessions/missing-session")
+                .body(Body::empty())
+                .expect("build get session request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve get session request");
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
-#[ignore]
-async fn update_session_returns_updated_payload() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
-}
+async fn create_session_returns_201_with_session_payload() {
+    let state = test_state_with_seeded_workspace(101).await;
 
-#[tokio::test]
-#[ignore]
-async fn delete_session_returns_success_payload() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
-}
+    let response = build_coding_sessions_app_api_router()
+        .with_state(state)
+        .oneshot(with_request_context(
+            Request::builder()
+                .method("POST")
+                .uri("/app/v3/api/intelligence/coding_sessions")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "workspaceId": "101",
+                        "projectId": "project-smoke",
+                        "title": "Handler smoke session",
+                        "hostMode": "server",
+                        "engineId": "codex",
+                        "modelId": "gpt-5-codex",
+                    })
+                    .to_string(),
+                ))
+                .expect("build create session request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve create session request");
 
-#[tokio::test]
-#[ignore]
-async fn fork_session_returns_201_with_forked_session() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
-}
+    assert_eq!(response.status(), StatusCode::CREATED);
 
-#[tokio::test]
-#[ignore]
-async fn create_turn_returns_201_with_turn_payload() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
-}
-
-#[tokio::test]
-#[ignore]
-async fn list_events_returns_event_list_for_session() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
-}
-
-#[tokio::test]
-#[ignore]
-async fn list_artifacts_returns_artifact_list_for_session() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
-}
-
-#[tokio::test]
-#[ignore]
-async fn list_checkpoints_returns_checkpoint_list_for_session() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
-}
-
-#[tokio::test]
-#[ignore]
-async fn submit_approval_decision_returns_approval_payload() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
-}
-
-#[tokio::test]
-#[ignore]
-async fn submit_user_question_answer_returns_answer_payload() {
-    // Requires: real SQLite + repository wiring
-    todo!("wire CodingSessionsAppState with in-memory SQLite repository")
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read create session body");
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("parse create session JSON");
+    assert_eq!(json["data"]["workspaceId"], "101");
+    assert_eq!(json["data"]["projectId"], "project-smoke");
+    assert_eq!(json["data"]["title"], "Handler smoke session");
+    assert_eq!(json["meta"]["version"], "v1");
+    assert_eq!(json["requestId"], "handler-smoke-request");
+    assert!(json["timestamp"].is_string());
 }

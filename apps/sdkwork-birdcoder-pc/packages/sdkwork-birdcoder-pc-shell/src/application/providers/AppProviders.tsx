@@ -1,6 +1,5 @@
 import type { PropsWithChildren } from 'react';
 import i18n from '@sdkwork/birdcoder-pc-i18n';
-import { AuthStateBridge } from './AuthStateBridge';
 import { ThemeManager } from './ThemeManager';
 
 export function AppProviders({ children }: PropsWithChildren) {
@@ -9,7 +8,7 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <>
       <ThemeManager />
-      <AuthStateBridge>{children}</AuthStateBridge>
+      {children}
     </>
   );
 }

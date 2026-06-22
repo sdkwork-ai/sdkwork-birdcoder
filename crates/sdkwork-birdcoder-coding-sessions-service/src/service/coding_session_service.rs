@@ -15,7 +15,7 @@ use crate::domain::models::{
 };
 use crate::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
-    CodingSessionEventPayload, CodingSessionPayload, DeleteEntityPayload, OperationPayload,
+    CodingSessionEventPayload, CodingSessionListPage, CodingSessionPayload, DeleteEntityPayload, OperationPayload,
     PendingProjectionTurnExecution, PendingTurnResult, UserQuestionAnswerPayload,
 };
 use crate::error::CodingSessionError;
@@ -60,9 +60,8 @@ impl CodingSessionService {
         &self,
         ctx: &CodingSessionContext,
         query: &CodingSessionListQuery,
-    ) -> Result<Vec<CodingSessionPayload>, CodingSessionError> {
-        let sessions = self.repository.list_sessions(ctx, query).await?;
-        Ok(sessions)
+    ) -> Result<CodingSessionListPage, CodingSessionError> {
+        self.repository.list_sessions(ctx, query).await
     }
 
     // ── Get session ──────────────────────────────────────────────────────

@@ -1,5 +1,7 @@
 import { Suspense, lazy } from 'react';
+import { BirdCoderAuthGate } from '@sdkwork/birdcoder-pc-iam';
 import { AppProviders } from '../providers/AppProviders';
+import { ShellRuntimeProviders } from '../providers/ShellRuntimeProviders';
 
 const LazyBirdcoderApp = lazy(async () => {
   const module = await import('./loadBirdcoderApp');
@@ -20,9 +22,13 @@ function AppRootLoadingFallback() {
 export default function AppRoot() {
   return (
     <AppProviders>
-      <Suspense fallback={<AppRootLoadingFallback />}>
-        <LazyBirdcoderApp />
-      </Suspense>
+      <ShellRuntimeProviders>
+        <BirdCoderAuthGate>
+          <Suspense fallback={<AppRootLoadingFallback />}>
+            <LazyBirdcoderApp />
+          </Suspense>
+        </BirdCoderAuthGate>
+      </ShellRuntimeProviders>
     </AppProviders>
   );
 }

@@ -2,202 +2,248 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 
+use sdkwork_birdcoder_coding_sessions_service::domain::results::{
+    ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
+    CodingSessionEventPayload, CodingSessionPayload, CodingSessionTurnPayload,
+    UserQuestionAnswerPayload,
+};
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
+use sdkwork_birdcoder_errors::{
+    build_data_envelope, build_list_envelope, build_offset_list_envelope, trace_id_from_request_id,
+    ApiDataEnvelope, ApiListEnvelope,
+};
+use sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE;
 use sdkwork_birdcoder_router_context::{coding_session_context, RequiredIamContext, WebRequestContext};
 
-use crate::error::AppError;
+use crate::error::{trace_service_error, AppError};
 use crate::mapper::request::{
     CreateCodingSessionRequest, CreateCodingSessionTurnRequest, ForkCodingSessionRequest,
     ListSessionsQuery, SubmitApprovalDecisionRequest, SubmitUserQuestionAnswerRequest,
     UpdateCodingSessionRequest,
 };
-use crate::mapper::response::{ApiListResponse, ApiResponse, DeleteResponse};
+use crate::mapper::response::DeleteResponse;
 
 #[derive(Clone)]
 pub struct CodingSessionsAppState {
     pub service: CodingSessionService,
 }
 
+fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
+    trace_id_from_request_id(web.request_id.0.as_str())
+}
+
+fn request_id(web: &WebRequestContext) -> &str {
+    web.request_id.0.as_str()
+}
+
 pub async fn list_sessions(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Query(query): Query<ListSessionsQuery>,
-) -> Result<Json<ApiListResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload>>, AppError>
-{
-    let ctx = coding_session_context(&iam);
+) -> Result<Json<ApiListEnvelope<CodingSessionPayload>>, AppError> {
+    let offset = query.offset.unwrap_or(0);
+    let page_size = query.limit.unwrap_or(DEFAULT_LIST_PAGE_SIZE);
     let service_query = query.into();
-    let sessions = state.service.list_sessions(&ctx, &service_query).await?;
-    Ok(Json(ApiListResponse::new(sessions)))
+    let ctx = coding_session_context(&iam);
+    let page = trace_service_error(
+        state.service.list_sessions(&ctx, &service_query).await,
+        request_trace_id(&web),
+    )?;
+    Ok(Json(build_offset_list_envelope(
+        page.items,
+        offset,
+        page_size,
+        page.total,
+        request_id(&web),
+    )))
 }
 
 pub async fn get_session(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
-) -> Result<
-    Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload>>,
-    AppError,
-> {
+) -> Result<Json<ApiDataEnvelope<CodingSessionPayload>>, AppError> {
     let ctx = coding_session_context(&iam);
-    let session = state.service.get_session(&ctx, &sessionId).await?;
-    Ok(Json(ApiResponse::new(session)))
+    let session = trace_service_error(
+        state.service.get_session(&ctx, &sessionId).await,
+        request_trace_id(&web),
+    )?;
+    Ok(Json(build_data_envelope(session, request_id(&web))))
 }
 
 pub async fn create_session(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Json(request): Json<CreateCodingSessionRequest>,
-) -> Result<
-    (StatusCode, Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload>>),
-    AppError,
-> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionPayload>>), AppError> {
     let ctx = coding_session_context(&iam);
-    let session = state.service.create_session(&ctx, request.into()).await?;
-    Ok((StatusCode::CREATED, Json(ApiResponse::new(session))))
+    let session = trace_service_error(
+        state.service.create_session(&ctx, request.into()).await,
+        request_trace_id(&web),
+    )?;
+    Ok((
+        StatusCode::CREATED,
+        Json(build_data_envelope(session, request_id(&web))),
+    ))
 }
 
 pub async fn update_session(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
     Json(request): Json<UpdateCodingSessionRequest>,
-) -> Result<
-    Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload>>,
-    AppError,
-> {
+) -> Result<Json<ApiDataEnvelope<CodingSessionPayload>>, AppError> {
     let ctx = coding_session_context(&iam);
-    let session = state
-        .service
-        .update_session(&ctx, &sessionId, request.into())
-        .await?;
-    Ok(Json(ApiResponse::new(session)))
+    let session = trace_service_error(
+        state
+            .service
+            .update_session(&ctx, &sessionId, request.into())
+            .await,
+        request_trace_id(&web),
+    )?;
+    Ok(Json(build_data_envelope(session, request_id(&web))))
 }
 
 pub async fn delete_session(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
-) -> Result<Json<ApiResponse<DeleteResponse>>, AppError> {
+) -> Result<Json<ApiDataEnvelope<DeleteResponse>>, AppError> {
     let ctx = coding_session_context(&iam);
-    let result = state.service.delete_session(&ctx, &sessionId).await?;
-    Ok(Json(ApiResponse::new(result.into())))
+    let result = trace_service_error(
+        state.service.delete_session(&ctx, &sessionId).await,
+        request_trace_id(&web),
+    )?;
+    Ok(Json(build_data_envelope(
+        result.into(),
+        request_id(&web),
+    )))
 }
 
 pub async fn fork_session(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
     Json(request): Json<ForkCodingSessionRequest>,
-) -> Result<
-    (StatusCode, Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload>>),
-    AppError,
-> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionPayload>>), AppError> {
     let ctx = coding_session_context(&iam);
-    let session = state
-        .service
-        .fork_session(&ctx, &sessionId, request.into())
-        .await?;
-    Ok((StatusCode::CREATED, Json(ApiResponse::new(session))))
+    let session = trace_service_error(
+        state
+            .service
+            .fork_session(&ctx, &sessionId, request.into())
+            .await,
+        request_trace_id(&web),
+    )?;
+    Ok((
+        StatusCode::CREATED,
+        Json(build_data_envelope(session, request_id(&web))),
+    ))
 }
 
 pub async fn create_turn(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
     Json(request): Json<CreateCodingSessionTurnRequest>,
-) -> Result<
-    (StatusCode, Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionTurnPayload>>),
-    AppError,
-> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionTurnPayload>>), AppError> {
     let ctx = coding_session_context(&iam);
-    let pending = state
-        .service
-        .create_turn(&ctx, &sessionId, request.into())
-        .await?;
-    Ok((StatusCode::CREATED, Json(ApiResponse::new(pending.turn))))
+    let pending = trace_service_error(
+        state
+            .service
+            .create_turn(&ctx, &sessionId, request.into())
+            .await,
+        request_trace_id(&web),
+    )?;
+    Ok((
+        StatusCode::CREATED,
+        Json(build_data_envelope(pending.turn, request_id(&web))),
+    ))
 }
 
 pub async fn list_events(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
-) -> Result<
-    Json<ApiListResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionEventPayload>>,
-    AppError,
-> {
+) -> Result<Json<ApiListEnvelope<CodingSessionEventPayload>>, AppError> {
     let ctx = coding_session_context(&iam);
-    let events = state.service.list_events(&ctx, &sessionId).await?;
-    Ok(Json(ApiListResponse::new(events)))
+    let events = trace_service_error(
+        state.service.list_events(&ctx, &sessionId).await,
+        request_trace_id(&web),
+    )?;
+    let total = events.len();
+    Ok(Json(build_list_envelope(events, total, request_id(&web))))
 }
 
 pub async fn list_artifacts(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
-) -> Result<
-    Json<ApiListResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionArtifactPayload>>,
-    AppError,
-> {
+) -> Result<Json<ApiListEnvelope<CodingSessionArtifactPayload>>, AppError> {
     let ctx = coding_session_context(&iam);
-    let artifacts = state.service.list_artifacts(&ctx, &sessionId).await?;
-    Ok(Json(ApiListResponse::new(artifacts)))
+    let artifacts = trace_service_error(
+        state.service.list_artifacts(&ctx, &sessionId).await,
+        request_trace_id(&web),
+    )?;
+    let total = artifacts.len();
+    Ok(Json(build_list_envelope(artifacts, total, request_id(&web))))
 }
 
 pub async fn list_checkpoints(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
-) -> Result<
-    Json<ApiListResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionCheckpointPayload>>,
-    AppError,
-> {
+) -> Result<Json<ApiListEnvelope<CodingSessionCheckpointPayload>>, AppError> {
     let ctx = coding_session_context(&iam);
-    let checkpoints = state.service.list_checkpoints(&ctx, &sessionId).await?;
-    Ok(Json(ApiListResponse::new(checkpoints)))
+    let checkpoints = trace_service_error(
+        state.service.list_checkpoints(&ctx, &sessionId).await,
+        request_trace_id(&web),
+    )?;
+    let total = checkpoints.len();
+    Ok(Json(build_list_envelope(checkpoints, total, request_id(&web))))
 }
 
 pub async fn submit_approval_decision(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path((sessionId, checkpointId)): Path<(String, String)>,
     Json(request): Json<SubmitApprovalDecisionRequest>,
-) -> Result<
-    Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::ApprovalDecisionPayload>>,
-    AppError,
-> {
+) -> Result<Json<ApiDataEnvelope<ApprovalDecisionPayload>>, AppError> {
     let ctx = coding_session_context(&iam);
-    let approval = state
-        .service
-        .submit_approval_decision(&ctx, &sessionId, &checkpointId, request.into())
-        .await?;
-    Ok(Json(ApiResponse::new(approval)))
+    let approval = trace_service_error(
+        state
+            .service
+            .submit_approval_decision(&ctx, &sessionId, &checkpointId, request.into())
+            .await,
+        request_trace_id(&web),
+    )?;
+    Ok(Json(build_data_envelope(approval, request_id(&web))))
 }
 
 pub async fn submit_user_question_answer(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path((sessionId, questionId)): Path<(String, String)>,
     Json(request): Json<SubmitUserQuestionAnswerRequest>,
-) -> Result<
-    Json<ApiResponse<sdkwork_birdcoder_coding_sessions_service::domain::results::UserQuestionAnswerPayload>>,
-    AppError,
-> {
+) -> Result<Json<ApiDataEnvelope<UserQuestionAnswerPayload>>, AppError> {
     let ctx = coding_session_context(&iam);
-    let answer = state
-        .service
-        .submit_user_question_answer(&ctx, &sessionId, &questionId, request.into())
-        .await?;
-    Ok(Json(ApiResponse::new(answer)))
+    let answer = trace_service_error(
+        state
+            .service
+            .submit_user_question_answer(&ctx, &sessionId, &questionId, request.into())
+            .await,
+        request_trace_id(&web),
+    )?;
+    Ok(Json(build_data_envelope(answer, request_id(&web))))
 }

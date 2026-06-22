@@ -46,3 +46,10 @@ pub fn is_codex_cli_authentication_error(message: &str) -> bool {
         || normalized.contains("api key")
         || normalized.contains("authentication")
 }
+
+pub fn build_codex_cli_resume_args(session_id: &str) -> Vec<String> {
+    vec![
+        "resume".to_owned(),
+        session_id.trim().to_owned(),
+    ]
+}

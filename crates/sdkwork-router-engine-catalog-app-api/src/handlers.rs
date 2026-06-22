@@ -18,15 +18,21 @@ use sdkwork_birdcoder_native_sessions_service::service::native_session_service::
     NativeSessionDetailPayload, NativeSessionLookup, NativeSessionQuery, NativeSessionRepository,
     NativeSessionService, NativeSessionSummaryPayload, NativeSessionTurnPayload,
 };
+use sdkwork_birdcoder_native_sessions_service::error::NativeSessionError;
 
 use sdkwork_utils_rust::is_blank;
+use sdkwork_birdcoder_errors::trace_id_from_request_id;
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 
 use crate::error;
 use crate::mapper::request::{
     EngineKeyPathParams, NativeSessionPathParams, NativeSessionQueryParams,
-    SyncModelConfigRequest,
+    NativeSessionScopeQuery, SyncModelConfigRequest,
 };
+
+fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
+    trace_id_from_request_id(web.request_id.0.as_str())
+}
 
 // ── Real Engine Catalog Provider ─────────────────────────────────────
 
@@ -136,28 +142,64 @@ impl NativeSessionRepository for RealNativeSessionRepository {
     }
 }
 
+fn native_session_query_is_scoped(query: &NativeSessionQuery) -> bool {
+    let workspace_id = query
+        .workspace_id
+        .as_deref()
+        .filter(|value| !is_blank(Some(*value)));
+    let project_id = query
+        .project_id
+        .as_deref()
+        .filter(|value| !is_blank(Some(*value)));
+    workspace_id.is_some() && project_id.is_some()
+}
+
+fn native_session_lookup_is_scoped(lookup: &NativeSessionLookup) -> bool {
+    let workspace_id = lookup
+        .workspace_id
+        .as_deref()
+        .filter(|value| !is_blank(Some(*value)));
+    let project_id = lookup
+        .project_id
+        .as_deref()
+        .filter(|value| !is_blank(Some(*value)));
+    workspace_id.is_some() && project_id.is_some()
+}
+
 fn matches_native_session_query(
     record: &CodeEngineSessionSummaryRecord,
     query: &NativeSessionQuery,
 ) -> bool {
+    if !native_session_query_is_scoped(query) {
+        return false;
+    }
+
     if let Some(engine_id) = query.engine_id.as_deref().filter(|value| !is_blank(Some(*value))) {
         if record.engine_id != engine_id {
             return false;
         }
     }
-    true
+
+    // Native CLI session files do not yet carry workspace/project ownership metadata.
+    // Fail closed until codeengine session records are enriched with scoped ownership.
+    false
 }
 
 fn matches_native_session_lookup(
     record: &CodeEngineSessionSummaryRecord,
     lookup: &NativeSessionLookup,
 ) -> bool {
+    if !native_session_lookup_is_scoped(lookup) {
+        return false;
+    }
+
     if let Some(engine_id) = lookup.engine_id.as_deref().filter(|value| !is_blank(Some(*value))) {
         if record.engine_id != engine_id {
             return false;
         }
     }
-    true
+
+    false
 }
 
 fn map_native_session_summary(record: CodeEngineSessionSummaryRecord) -> NativeSessionSummaryPayload {
@@ -214,55 +256,73 @@ impl Default for EngineCatalogAppState {
 // ── Handlers ─────────────────────────────────────────────────────────
 
 pub async fn list_engines(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
+    let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.list_engines() {
         Ok(engines) => Ok(Json(serde_json::json!({ "items": engines }))),
-        Err(e) => Err(error::map_engine_catalog_error(e)),
+        Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
 
 pub async fn get_engine_capabilities(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Path(params): Path<EngineKeyPathParams>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
+    let trace_id = request_trace_id(&web);
     match state
         .engine_catalog_service
         .get_engine_capabilities(&params.engine_key)
     {
         Ok(matrix) => Ok(Json(serde_json::json!(matrix))),
-        Err(e) => Err(error::map_engine_catalog_error(e)),
+        Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
 
 pub async fn list_native_session_providers(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
+    let trace_id = request_trace_id(&web);
     match state
         .engine_catalog_service
         .list_native_session_providers()
     {
         Ok(providers) => Ok(Json(serde_json::json!({ "items": providers }))),
-        Err(e) => Err(error::map_engine_catalog_error(e)),
+        Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
 
 pub async fn list_native_sessions(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Query(params): Query<NativeSessionQueryParams>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
+    let trace_id = request_trace_id(&web);
+    if !native_session_query_is_scoped(&NativeSessionQuery {
+        workspace_id: params.workspace_id.clone(),
+        project_id: params.project_id.clone(),
+        engine_id: params.engine_id.clone(),
+        limit: params.limit,
+    }) {
+        return Err(error::map_native_session_error(
+            NativeSessionError::InvalidInput(
+                "workspaceId and projectId are required to list native sessions.".into(),
+            ),
+            trace_id,
+        ));
+    }
+
     let query = NativeSessionQuery {
         workspace_id: params.workspace_id,
         project_id: params.project_id,
@@ -271,65 +331,79 @@ pub async fn list_native_sessions(
     };
     match state.native_session_service.list_sessions(&query) {
         Ok(sessions) => Ok(Json(serde_json::json!({ "items": sessions }))),
-        Err(e) => Err(error::map_native_session_error(e)),
+        Err(e) => Err(error::map_native_session_error(e, trace_id)),
     }
 }
 
 pub async fn get_native_session(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Path(params): Path<NativeSessionPathParams>,
+    Query(scope): Query<NativeSessionScopeQuery>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
+    let trace_id = request_trace_id(&web);
+    if is_blank(Some(scope.workspace_id.as_str())) || is_blank(Some(scope.project_id.as_str())) {
+        return Err(error::map_native_session_error(
+            NativeSessionError::InvalidInput(
+                "workspaceId and projectId are required to retrieve native sessions.".into(),
+            ),
+            trace_id,
+        ));
+    }
+
     let lookup = NativeSessionLookup {
         session_id: params.id,
-        engine_id: None,
-        workspace_id: None,
-        project_id: None,
+        engine_id: scope.engine_id,
+        workspace_id: Some(scope.workspace_id),
+        project_id: Some(scope.project_id),
     };
     match state.native_session_service.get_session_detail(&lookup) {
         Ok(session) => Ok(Json(serde_json::json!(session))),
-        Err(e) => Err(error::map_native_session_error(e)),
+        Err(e) => Err(error::map_native_session_error(e, trace_id)),
     }
 }
 
 pub async fn list_models(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
+    let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.list_models() {
         Ok(models) => Ok(Json(serde_json::json!({ "items": models }))),
-        Err(e) => Err(error::map_engine_catalog_error(e)),
+        Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
 
 pub async fn get_model_config(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
+    let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.get_model_config() {
         Ok(config) => Ok(Json(serde_json::json!(config))),
-        Err(e) => Err(error::map_engine_catalog_error(e)),
+        Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
 
 pub async fn sync_model_config(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Json(body): Json<SyncModelConfigRequest>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
+    let trace_id = request_trace_id(&web);
     match state
         .engine_catalog_service
         .sync_model_config(body.local_config)
     {
         Ok(result) => Ok(Json(serde_json::json!(result))),
-        Err(e) => Err(error::map_engine_catalog_error(e)),
+        Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }

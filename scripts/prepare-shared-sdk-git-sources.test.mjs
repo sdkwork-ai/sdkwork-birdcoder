@@ -309,7 +309,7 @@ function createTempWorkspace() {
 }
 
 function createReleaseConfig(workspaceRootDir, sourceEntries) {
-  const configDir = path.join(workspaceRootDir, 'config');
+  const configDir = path.join(workspaceRootDir, 'configs');
   fs.mkdirSync(configDir, { recursive: true });
   const configPath = path.join(configDir, 'shared-sdk-release-sources.json');
   fs.writeFileSync(
@@ -392,7 +392,7 @@ test('release config and source specs cover the governed BirdCoder sibling repos
 
   assert.equal(
     configPath,
-    path.join(workspaceRootDir, 'config', 'shared-sdk-release-sources.json'),
+    path.join(workspaceRootDir, 'configs', 'shared-sdk-release-sources.json'),
   );
   assert.deepEqual(
     Object.keys(config.sources).sort(),

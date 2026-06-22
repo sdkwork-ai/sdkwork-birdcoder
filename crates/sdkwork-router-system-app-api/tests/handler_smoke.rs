@@ -3,6 +3,9 @@ use axum::http::{Request, StatusCode};
 use tower::ServiceExt;
 
 use sdkwork_router_system_app_api::{build_system_app_router, SystemAppState};
+use sdkwork_web_core::{
+    ServerRequestId, WebApiSurface, WebAuthMode, WebRequestContext, WebTransportFacts,
+};
 
 fn test_app() -> axum::Router<SystemAppState> {
     build_system_app_router()
@@ -10,6 +13,29 @@ fn test_app() -> axum::Router<SystemAppState> {
 
 fn test_state() -> SystemAppState {
     SystemAppState::new()
+}
+
+fn with_request_context(mut request: Request<Body>) -> Request<Body> {
+    let path = request.uri().path().to_owned();
+    let method = request.method().as_str().to_owned();
+    request.extensions_mut().insert(WebRequestContext {
+        request_id: ServerRequestId("test-request-id".to_owned()),
+        api_surface: WebApiSurface::AppApi,
+        auth_mode: WebAuthMode::DualToken,
+        transport: WebTransportFacts {
+            path,
+            method,
+            auth_token_present: false,
+            access_token_present: false,
+            api_key_present: false,
+            oauth_bearer_present: false,
+        },
+        principal: None,
+        locale: None,
+        client_kind: None,
+        operation: None,
+    });
+    request
 }
 
 #[test]
@@ -85,12 +111,12 @@ async fn system_health_returns_healthy() {
 async fn get_operation_returns_ok() {
     let response = test_app()
         .with_state(test_state())
-        .oneshot(
+        .oneshot(with_request_context(
             Request::builder()
                 .uri("/app/v3/api/operations/op-123")
                 .body(Body::empty())
                 .expect("build operation request"),
-        )
+        ))
         .await
         .expect("serve operation request");
 

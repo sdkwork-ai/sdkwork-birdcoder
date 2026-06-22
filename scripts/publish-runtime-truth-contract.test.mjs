@@ -11,6 +11,7 @@ function read(relativePath) {
 
 const topBarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx');
 const studioPageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx');
+const studioExecutionActionsSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioExecutionActions.ts');
 const studioDialogsSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPageDialogs.tsx');
 const appCollaborationLocaleSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/app/collaboration.ts');
 const studioDialogsLocaleSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-i18n/src/locales/en/studio/dialogs.ts');
@@ -43,8 +44,13 @@ assert.doesNotMatch(
   /addToast\(t\('studio\.debugConfigurationSaved'\), 'success'\)/,
   'Studio debug flow must not claim a debug configuration was saved while the runtime-backed debugger host is unavailable.',
 );
+assert.doesNotMatch(
+  studioExecutionActionsSource,
+  /addToast\(t\('studio\.debugConfigurationSaved'\), 'success'\)/,
+  'Studio debug execution actions must not claim a debug configuration was saved while the runtime-backed debugger host is unavailable.',
+);
 assert.match(
-  studioPageSource,
+  studioExecutionActionsSource,
   /addToast\(t\('studio\.debugConfigurationUnavailable'\), 'error'\)/,
   'Studio debug flow must raise an explicit unavailable error until the runtime-backed debugger host is wired.',
 );

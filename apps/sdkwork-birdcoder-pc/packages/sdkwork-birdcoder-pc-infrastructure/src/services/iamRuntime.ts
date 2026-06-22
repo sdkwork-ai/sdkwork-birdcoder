@@ -17,7 +17,6 @@ import {
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import {
   getBirdCoderGeneratedAppSdkClient,
-  getBirdCoderGeneratedBackendSdkClient,
   getBirdCoderGlobalTokenManager,
   resetBirdCoderSdkClients,
   setBirdCoderSdkTokenManager,
@@ -41,10 +40,6 @@ export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRunt
 
   const birdcoderApp = getBirdCoderGeneratedAppSdkClient({
     apiBaseUrl: sdkBaseUrls.birdcoderAppApiBaseUrl,
-    tokenManager,
-  });
-  const birdcoderBackend = getBirdCoderGeneratedBackendSdkClient({
-    apiBaseUrl: sdkBaseUrls.birdcoderBackendApiBaseUrl,
     tokenManager,
   });
   const driveApp = createDriveAppClient({
@@ -83,7 +78,6 @@ export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRunt
     },
     sdkClients: [
       birdcoderApp,
-      birdcoderBackend,
       driveApp,
       messagingApp,
     ] as SdkworkAppbasePcAuthRuntimeSdkClient[],
@@ -99,7 +93,6 @@ export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRunt
 interface BirdCoderRuntimeSdkBaseUrls {
   appbaseAppApiBaseUrl: string;
   birdcoderAppApiBaseUrl: string;
-  birdcoderBackendApiBaseUrl: string;
   driveAppApiBaseUrl: string;
   messagingAppApiBaseUrl: string;
 }
@@ -115,11 +108,6 @@ function resolveBirdCoderRuntimeSdkBaseUrls(): BirdCoderRuntimeSdkBaseUrls {
       'VITE_BIRDCODER_APP_API_BASE_URL',
       'VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL',
       'VITE_SDKWORK_APP_API_BASE_URL',
-    ]),
-    birdcoderBackendApiBaseUrl: resolveBirdCoderRuntimeSdkBaseUrl([
-      'VITE_BIRDCODER_BACKEND_API_BASE_URL',
-      'VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL',
-      'VITE_SDKWORK_BACKEND_API_BASE_URL',
     ]),
     driveAppApiBaseUrl: resolveBirdCoderRuntimeSdkBaseUrl([
       'VITE_SDKWORK_DRIVE_APP_API_BASE_URL',

@@ -27,9 +27,13 @@ pub struct Repositories {
     pub membership: Arc<SqliteMembershipRepository>,
 }
 
-pub fn wire_repositories(pool: Arc<DatabasePool>) -> Repositories {
-    let sqlite = require_sqlite_pool(&pool).expect("birdcoder repositories require sqlite pool");
-    Repositories {
+pub fn wire_repositories(pool: Arc<DatabasePool>) -> Result<Repositories, String> {
+    let sqlite = require_sqlite_pool(&pool).map_err(|_| {
+        "BirdCoder product repositories require SQLite. \
+         Configure SDKWORK_BIRDCODER_DATABASE_ENGINE=sqlite or omit PostgreSQL until postgres repository support is available."
+            .to_string()
+    })?;
+    Ok(Repositories {
         sqlite_pool: sqlite.clone(),
         coding_session: Arc::new(SqliteCodingSessionRepository::new(sqlite.clone())),
         workspace: Arc::new(SqliteWorkspaceRepository::new(sqlite.clone())),
@@ -39,5 +43,5 @@ pub fn wire_repositories(pool: Arc<DatabasePool>) -> Repositories {
         document: Arc::new(SqliteDocumentRepository::new(sqlite.clone())),
         skill_package: Arc::new(SqliteSkillPackageRepository::new(sqlite.clone())),
         membership: Arc::new(SqliteMembershipRepository::new(sqlite)),
-    }
+    })
 }

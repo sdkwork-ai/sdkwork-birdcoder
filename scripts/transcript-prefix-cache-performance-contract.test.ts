@@ -58,7 +58,7 @@ assert.equal(
 
 assert.deepEqual(
   updatedCache.prefixHeights,
-  [0, 102, 502],
+  [0, 116, 516],
   'transcript prefix cache should only recompute the affected suffix while keeping the accumulated prefix correct.',
 );
 

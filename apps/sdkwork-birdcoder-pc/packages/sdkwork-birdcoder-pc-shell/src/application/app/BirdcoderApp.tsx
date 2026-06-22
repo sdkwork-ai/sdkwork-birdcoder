@@ -6,7 +6,6 @@
 import React, { Component, lazy, Suspense, startTransition, type ErrorInfo, useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Code2, Sparkles, PanelsTopLeft, Terminal, Settings, UserCircle, Shield, Zap, LayoutTemplate, X, AlertTriangle } from 'lucide-react';
 import {
-  AuthProvider,
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   buildDefaultTerminalCommandRequest,
   buildCodingSessionProjectScopedKey,
@@ -16,7 +15,6 @@ import {
   emitOpenTerminalRequest,
   globalEventBus,
   hydrateImportedProjectFromAuthority,
-  IDEProvider,
   importLocalFolderProject,
   isWorkbenchRecoverySelectionResolutionReady,
   normalizeWorkbenchRecoverySnapshot,
@@ -128,6 +126,7 @@ const AUTH_REQUIRED_APP_TABS = new Set<AppTab>([
   'terminal',
   'user',
   'vip',
+  'settings',
 ]);
 
 function requiresAuthenticatedSession(tab: AppTab): boolean {
@@ -776,11 +775,7 @@ export default function App() {
   return (
     <ErrorBoundaryWithTranslation>
       <ToastProvider>
-        <IDEProvider>
-          <AuthProvider>
-            <AppContent />
-          </AuthProvider>
-        </IDEProvider>
+        <AppContent />
       </ToastProvider>
     </ErrorBoundaryWithTranslation>
   );
@@ -2951,23 +2946,6 @@ function AppContent() {
   const handleCloseProjectDeleteDialog = useCallback(() => {
     setProjectToDelete(null);
   }, []);
-
-  if (isAuthLoading) {
-    return (
-      <div className="flex h-full w-full bg-[#0e0e11] text-white items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-      </div>
-    );
-  }
-
-  // Render auth surface at top level when not authenticated
-  if (!user) {
-    return (
-      <AuthShell>
-        <AuthPage />
-      </AuthShell>
-    );
-  }
 
   return (
       <div

@@ -15,6 +15,7 @@ use crate::domain::results::{
     CodingSessionCheckpointPayload,
     CodingSessionEventPayload,
     CodingSessionPayload,
+    CodingSessionListPage,
     CodingSessionTurnPayload,
     OperationPayload,
     UserQuestionAnswerPayload,
@@ -27,7 +28,7 @@ pub trait CodingSessionRepository: Send + Sync {
         &self,
         ctx: &CodingSessionContext,
         query: &CodingSessionListQuery,
-    ) -> Result<Vec<CodingSessionPayload>, CodingSessionError>;
+    ) -> Result<CodingSessionListPage, CodingSessionError>;
 
     async fn get_session(
         &self,

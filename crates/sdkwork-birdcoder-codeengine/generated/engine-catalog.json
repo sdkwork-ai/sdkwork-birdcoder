@@ -208,7 +208,7 @@
       "displayName": "Gemini",
       "vendor": "Google",
       "installationKind": "external-cli",
-      "defaultModelId": "gemini",
+      "defaultModelId": "auto-gemini-3",
       "homepage": "https://github.com/google-gemini/gemini-cli",
       "supportedHostModes": [
         "web",
@@ -548,8 +548,8 @@
       "createdAt": "2026-04-28T00:00:00.000Z",
       "updatedAt": "2026-04-28T00:00:00.000Z",
       "engineKey": "gemini",
-      "modelId": "gemini",
-      "displayName": "Gemini",
+      "modelId": "auto-gemini-3",
+      "displayName": "Auto Gemini 3",
       "providerId": "google",
       "status": "active",
       "defaultForEngine": true,
@@ -566,8 +566,8 @@
       "createdAt": "2026-04-28T00:00:00.000Z",
       "updatedAt": "2026-04-28T00:00:00.000Z",
       "engineKey": "gemini",
-      "modelId": "auto-gemini-3",
-      "displayName": "Auto Gemini 3",
+      "modelId": "auto-gemini-2.5",
+      "displayName": "Auto Gemini 2.5",
       "providerId": "google",
       "status": "active",
       "defaultForEngine": false,
@@ -602,8 +602,8 @@
       "createdAt": "2026-04-28T00:00:00.000Z",
       "updatedAt": "2026-04-28T00:00:00.000Z",
       "engineKey": "gemini",
-      "modelId": "gemini-1.5-pro",
-      "displayName": "Gemini 1.5 Pro",
+      "modelId": "gemini-3.1-pro-preview-customtools",
+      "displayName": "Gemini 3.1 Pro Preview Custom Tools",
       "providerId": "google",
       "status": "active",
       "defaultForEngine": false,
@@ -615,6 +615,114 @@
     },
     {
       "id": "2000000000000000013",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-3.1-flash-lite-preview",
+      "displayName": "Gemini 3.1 Flash Lite Preview",
+      "providerId": "google",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000014",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-3-pro-preview",
+      "displayName": "Gemini 3 Pro Preview",
+      "providerId": "google",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000015",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-3-flash-preview",
+      "displayName": "Gemini 3 Flash Preview",
+      "providerId": "google",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000016",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-2.5-pro",
+      "displayName": "Gemini 2.5 Pro",
+      "providerId": "google",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000017",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-2.5-flash",
+      "displayName": "Gemini 2.5 Flash",
+      "providerId": "google",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000018",
+      "uuid": "00000000-0000-4000-8000-200000000000",
+      "tenantId": "0",
+      "createdAt": "2026-04-28T00:00:00.000Z",
+      "updatedAt": "2026-04-28T00:00:00.000Z",
+      "engineKey": "gemini",
+      "modelId": "gemini-2.5-flash-lite",
+      "displayName": "Gemini 2.5 Flash Lite",
+      "providerId": "google",
+      "status": "active",
+      "defaultForEngine": false,
+      "transportKinds": [
+        "sdk-stream",
+        "cli-jsonl"
+      ],
+      "capabilityMatrix": {}
+    },
+    {
+      "id": "2000000000000000019",
       "uuid": "00000000-0000-4000-8000-200000000000",
       "tenantId": "0",
       "createdAt": "2026-04-28T00:00:00.000Z",
@@ -633,7 +741,7 @@
       "capabilityMatrix": {}
     },
     {
-      "id": "2000000000000000014",
+      "id": "2000000000000000020",
       "uuid": "00000000-0000-4000-8000-200000000000",
       "tenantId": "0",
       "createdAt": "2026-04-28T00:00:00.000Z",
@@ -652,7 +760,7 @@
       "capabilityMatrix": {}
     },
     {
-      "id": "2000000000000000015",
+      "id": "2000000000000000021",
       "uuid": "00000000-0000-4000-8000-200000000000",
       "tenantId": "0",
       "createdAt": "2026-04-28T00:00:00.000Z",

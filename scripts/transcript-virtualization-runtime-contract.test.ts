@@ -21,6 +21,27 @@ const virtualizationSource = readFileSync(
   ),
   'utf8',
 );
+const transcriptVirtualizationSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/transcriptVirtualization.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const activitySummarySource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatActivitySummary.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const contentBlockRenderersSource = readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ContentBlockRenderers.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
 const universalChatSource = readFileSync(
   new URL(
     '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx',
@@ -54,7 +75,7 @@ const prefixHeights = buildTranscriptPrefixHeights(
 
 assert.deepEqual(
   prefixHeights,
-  [0, 102, 502],
+  [0, 116, 516],
   'transcript height prefixes should respect measured heights without recalculating visible scroll state',
 );
 
@@ -76,7 +97,7 @@ assert.deepEqual(
   ['assistant-1'],
   'scroll windowing should slice against precomputed height prefixes',
 );
-assert.equal(windowedTranscript.paddingTop, 102);
+assert.equal(windowedTranscript.paddingTop, 116);
 assert.equal(windowedTranscript.paddingBottom, 0);
 
 const initialPrefixCache = reconcileTranscriptPrefixHeightsCache({
@@ -148,7 +169,7 @@ const taskProgressMessages: BirdCoderChatMessage[] = [
 ];
 assert.deepEqual(
   buildTranscriptPrefixHeights(taskProgressMessages, new Map<string, number>()),
-  [0, 194],
+  [0, 208],
   'transcript height estimates must reserve vertical space for taskProgress rows so virtualized engine sessions do not overlap progress UI.',
 );
 
@@ -207,27 +228,39 @@ assert.match(
 );
 
 assert.match(
-  universalChatSource,
-  /msg\.taskProgress/,
-  'UniversalChat must render taskProgress payloads so cross-engine planner and reviewer progress survives all the way to the transcript UI.',
+  transcriptVirtualizationSource,
+  /estimateTranscriptMessageHeight\(/,
+  'transcript virtualization must estimate row heights from resolved chat message views instead of role-only heuristics.',
 );
 
 assert.match(
-  universalChatSource,
+  virtualizationSource,
+  /options: \{ layout, engineId \}/,
+  'useVirtualizedTranscriptWindow must pass layout and engine context into transcript height reconciliation.',
+);
+
+assert.match(
+  contentBlockRenderersSource,
+  /<ChatTaskProgress taskProgress=\{block\.progress\} \/>/,
+  'Task progress payloads must render through the shared ChatTaskProgress block renderer so cross-engine planner and reviewer progress survives all the way to the transcript UI.',
+);
+
+assert.match(
+  activitySummarySource,
   /const commandKey = `\$\{cmdIdx\}\\u0001\$\{cmd\.toolCallId \?\? cmd\.command\}`;[\s\S]*renderCommandExecutionCard\(\{[\s\S]*commandKey,/,
-  'UniversalChat command cards must derive the delegated command key from row position plus provider identity so repeated toolCallId snapshots cannot collide.',
+  'Command cards must derive the delegated command key from row position plus provider identity so repeated toolCallId snapshots cannot collide.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /function renderCommandExecutionCard\([\s\S]*<div key=\{commandKey\}/,
-  'UniversalChat command cards must apply the delegated command key to the helper root element.',
+  'Command cards must apply the delegated command key to the helper root element.',
 );
 
 assert.doesNotMatch(
-  universalChatSource,
+  activitySummarySource,
   /key=\{cmd\.toolCallId \?\?/,
-  'UniversalChat command cards must not use provider toolCallId alone as a React key because providers may repeat it across progress snapshots.',
+  'Command cards must not use provider toolCallId alone as a React key because providers may repeat it across progress snapshots.',
 );
 
 assert.match(

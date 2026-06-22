@@ -374,15 +374,15 @@ try {
     [
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/workspaces',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/workspaces?limit=20',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/projects?workspaceId=workspace-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/projects?workspaceId=workspace-runtime-contract&limit=20',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/intelligence/coding_sessions?workspaceId=workspace-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/intelligence/coding_sessions?limit=20&workspaceId=workspace-runtime-contract',
       },
     ],
     'shell runtime defaults must normalize the host apiBaseUrl and route app/core authority HTTP transport without duplicating the /api prefix.',

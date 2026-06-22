@@ -1,11 +1,18 @@
-export function createRuntime() {
-  return {
-    apiBaseUrl: resolveApiBaseUrl(),
-  };
-}
+import {
+  normalizeBirdCoderServerBaseUrl,
+  resolveBirdCoderBootstrapServerBaseUrl,
+} from '@sdkwork/birdcoder-pc-shell-runtime';
 
-function resolveApiBaseUrl(): string {
-  return import.meta.env.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL
-    || import.meta.env.VITE_BIRDCODER_API_BASE_URL
-    || 'http://localhost:3000';
+export function createRuntime(options: {
+  configuredApiBaseUrl?: string;
+  storedApiBaseUrl?: string;
+} = {}) {
+  const apiBaseUrl = resolveBirdCoderBootstrapServerBaseUrl({
+    configuredApiBaseUrl: normalizeBirdCoderServerBaseUrl(options.configuredApiBaseUrl),
+    storedApiBaseUrl: normalizeBirdCoderServerBaseUrl(options.storedApiBaseUrl),
+  });
+
+  return {
+    apiBaseUrl,
+  };
 }

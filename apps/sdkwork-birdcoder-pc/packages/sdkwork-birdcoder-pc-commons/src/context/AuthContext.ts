@@ -33,13 +33,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const refreshCurrentUser = useCallback(async () => {
     const refreshAuthMutationVersion = authMutationVersionRef.current;
     try {
-      const currentUser = await authService.getCurrentUser();
+      const [currentUser, sessionPresent] = await Promise.all([
+        authService.getCurrentUser(),
+        authService.hasStoredSession(),
+      ]);
       if (authMutationVersionRef.current !== refreshAuthMutationVersion) {
         return null;
       }
 
-      setUser((previousUser) =>
-        resolveFallbackAwareCurrentUser(currentUser, previousUser ?? undefined));
+      setUser((previousUser) => {
+        if (currentUser === null && !sessionPresent) {
+          return null;
+        }
+
+        return resolveFallbackAwareCurrentUser(currentUser, previousUser ?? undefined);
+      });
       return currentUser;
     } catch (error) {
       if (authMutationVersionRef.current === refreshAuthMutationVersion) {

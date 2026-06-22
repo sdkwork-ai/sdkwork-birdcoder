@@ -677,7 +677,7 @@ importers:
         specifier: ^5.3.0
         version: 5.8.3
 
-  ../sdkwork-models/sdkwork-models-typescript:
+  ../sdkwork-models/sdks/sdkwork-models-sdk/sdkwork-models-sdk-typescript:
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -752,18 +752,27 @@ importers:
       '@sdkwork/terminal-pc-types':
         specifier: workspace:*
         version: link:packages/sdkwork-terminal-pc-types
+      '@sdkwork/utils':
+        specifier: workspace:*
+        version: link:../../../sdkwork-utils/packages/sdkwork-utils-typescript
       '@types/react':
         specifier: ^18.3.3
         version: 18.3.31
       '@types/react-dom':
         specifier: ^18.3.0
         version: 18.3.7(@types/react@18.3.31)
+      '@vitejs/plugin-react':
+        specifier: ^4.3.0
+        version: 4.7.0(vite@5.4.21(@types/node@25.7.0)(lightningcss@1.32.0))
       react:
         specifier: ^18.3.1
         version: 18.3.1
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
       vite:
         specifier: ^5.4.0
         version: 5.4.21(@types/node@25.7.0)(lightningcss@1.32.0)
@@ -791,15 +800,33 @@ importers:
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-core:
     dependencies:
+      '@sdkwork/appbase-app-sdk':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi
+      '@sdkwork/auth-runtime-pc-react':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react
+      '@sdkwork/iam-contracts':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts
+      '@sdkwork/sdk-common':
+        specifier: ^1.0.2
+        version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
       '@sdkwork/terminal-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-types
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop:
     dependencies:
       '@sdkwork/terminal-pc-commons':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-commons
+      '@sdkwork/terminal-pc-core':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-core
       '@sdkwork/terminal-pc-infrastructure':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-infrastructure
@@ -1180,7 +1207,14 @@ importers:
 
   apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-shell: {}
 
-  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core: {}
+  apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core:
+    dependencies:
+      '@sdkwork/birdcoder-pc-infrastructure-runtime':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-infrastructure-runtime
+      '@sdkwork/birdcoder-pc-types':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-types
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-shell: {}
 
@@ -1195,9 +1229,6 @@ importers:
       '@sdkwork/birdcoder-pc-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-commons
-      '@sdkwork/birdcoder-pc-core':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-core
       '@sdkwork/birdcoder-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-types
@@ -1491,6 +1522,9 @@ importers:
       '@sdkwork/birdcoder-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-types
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
     devDependencies:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
@@ -2301,6 +2335,9 @@ importers:
       '@sdkwork/birdcoder-pc-commons':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-commons
+      '@sdkwork/birdcoder-pc-types':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-types
       '@sdkwork/birdcoder-pc-ui-shell':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-ui-shell
@@ -4198,6 +4235,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@rolldown/pluginutils@1.0.0-beta.27':
+    resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}
+
   '@rolldown/pluginutils@1.0.0-rc.12':
     resolution: {integrity: sha512-HHMwmarRKvoFsJorqYlFeFRzXZqCt2ETQlEDOb9aqssrnVBB1/+xgTGtuTrIk5vzLNX1MjMtTf7W9z3tsSbrxw==}
 
@@ -4834,6 +4874,12 @@ packages:
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
     deprecated: Potential CWE-502 - Update to 1.3.1 or higher
+
+  '@vitejs/plugin-react@4.7.0':
+    resolution: {integrity: sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA==}
+    engines: {node: ^14.18.0 || >=16.0.0}
+    peerDependencies:
+      vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
 
   '@vitejs/plugin-react@5.2.0':
     resolution: {integrity: sha512-YmKkfhOAi3wsB1PhJq5Scj3GXMn3WvtQ/JC0xoopuHoXSdmtdStOpFrYaT1kie2YgFBcIe64ROzMYRjCrYOdYw==}
@@ -6160,6 +6206,10 @@ packages:
     peerDependencies:
       '@types/react': '>=18'
       react: '>=18'
+
+  react-refresh@0.17.0:
+    resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
+    engines: {node: '>=0.10.0'}
 
   react-refresh@0.18.0:
     resolution: {integrity: sha512-QgT5//D3jfjJb6Gsjxv0Slpj23ip+HtOpnNgnb2S5zU3CB26G/IDPGoy4RJB42wzFE46DRsstbW6tKHoKbhAxw==}
@@ -8252,6 +8302,8 @@ snapshots:
   '@rolldown/binding-win32-x64-msvc@1.0.3':
     optional: true
 
+  '@rolldown/pluginutils@1.0.0-beta.27': {}
+
   '@rolldown/pluginutils@1.0.0-rc.12': {}
 
   '@rolldown/pluginutils@1.0.0-rc.3': {}
@@ -8843,6 +8895,18 @@ snapshots:
       eslint-visitor-keys: 5.0.1
 
   '@ungap/structured-clone@1.3.0': {}
+
+  '@vitejs/plugin-react@4.7.0(vite@5.4.21(@types/node@25.7.0)(lightningcss@1.32.0))':
+    dependencies:
+      '@babel/core': 7.29.0
+      '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
+      '@babel/plugin-transform-react-jsx-source': 7.27.1(@babel/core@7.29.0)
+      '@rolldown/pluginutils': 1.0.0-beta.27
+      '@types/babel__core': 7.20.5
+      react-refresh: 0.17.0
+      vite: 5.4.21(@types/node@25.7.0)(lightningcss@1.32.0)
+    transitivePeerDependencies:
+      - supports-color
 
   '@vitejs/plugin-react@5.2.0(vite@6.4.2(@types/node@22.19.17)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.3))':
     dependencies:
@@ -10447,6 +10511,8 @@ snapshots:
       vfile: 6.0.3
     transitivePeerDependencies:
       - supports-color
+
+  react-refresh@0.17.0: {}
 
   react-refresh@0.18.0: {}
 

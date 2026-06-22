@@ -19,7 +19,7 @@ pub async fn build_router(
     config: &BirdServerConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let system_router = sdkwork_router_system_app_api::build_system_app_router()
-        .with_state(SystemAppState::new());
+        .with_state(SystemAppState::with_sqlite_pool(state.repositories.sqlite_pool.clone()));
 
     let intelligence_router = sdkwork_router_coding_sessions_app_api::build_coding_sessions_app_api_router()
         .with_state(CodingSessionsAppState {

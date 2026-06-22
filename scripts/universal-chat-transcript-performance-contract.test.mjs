@@ -10,11 +10,25 @@ const universalChatSource = fs.readFileSync(
     'apps',
     'sdkwork-birdcoder-pc',
     'packages',
-    
     'sdkwork-birdcoder-pc-ui',
     'src',
     'components',
     'UniversalChat.tsx',
+  ),
+  'utf8',
+);
+const messageActionsSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'packages',
+    'sdkwork-birdcoder-pc-ui',
+    'src',
+    'components',
+    'chat',
+    'messages',
+    'messageActions.ts',
   ),
   'utf8',
 );
@@ -55,12 +69,18 @@ assert.match(
   'UniversalChat transcript must precompute grouped reply action targets only for the virtualized visible message window so large progressively loaded transcripts do not rescan every loaded row.',
 );
 
-const messageActionTargetsBody = universalChatSource.match(
-  /function buildVisibleMessageActionTargets\([\s\S]*?\n\}/,
+assert.match(
+  universalChatSource,
+  /buildVisibleMessageActionTargets,/,
+  'UniversalChat must import grouped reply action target generation from the chat message module.',
+);
+
+const messageActionTargetsBody = messageActionsSource.match(
+  /export function buildVisibleMessageActionTargets\([\s\S]*?\n\}/,
 )?.[0];
 assert.ok(
   messageActionTargetsBody,
-  'UniversalChat must keep visible grouped message action target generation in a dedicated helper.',
+  'Chat message action helpers must keep visible grouped message action target generation in a dedicated helper.',
 );
 assert.doesNotMatch(
   messageActionTargetsBody,

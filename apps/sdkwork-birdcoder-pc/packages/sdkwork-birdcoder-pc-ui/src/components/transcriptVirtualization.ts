@@ -1,7 +1,13 @@
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderChatMessage, BirdCoderCodeEngineKey } from '../../../sdkwork-birdcoder-pc-types/src/index.ts';
+import { estimateTranscriptMessageHeight } from '../../../sdkwork-birdcoder-pc-types/src/chat-message-view.ts';
 
 export const MIN_VIRTUALIZED_MESSAGE_COUNT = 96;
 export const VIRTUALIZED_OVERSCAN_PX = 720;
+
+export interface TranscriptHeightEstimateOptions {
+  engineId?: BirdCoderCodeEngineKey;
+  layout?: 'sidebar' | 'main';
+}
 
 interface TranscriptPrefixHeightCacheEntry {
   height: number;
@@ -53,44 +59,30 @@ export function hasTranscriptMessageKey(
   return resolveTranscriptMessageKey(messages[index], index) === messageKey;
 }
 
-function countTranscriptContentLines(content: string): number {
-  if (content.length === 0) {
-    return 1;
-  }
-
-  let lineCount = 1;
-  for (let index = 0; index < content.length; index += 1) {
-    if (content.charCodeAt(index) === 10) {
-      lineCount += 1;
-    }
-  }
-  return lineCount;
-}
-
-function estimateTranscriptMessageHeight(message: BirdCoderChatMessage): number {
-  const lineCount = countTranscriptContentLines(message.content);
-  const wrappedLineCount = Math.ceil(message.content.length / 96);
-  const contentLineEstimate = Math.max(lineCount, wrappedLineCount);
-  const baseHeight = message.role === 'user' ? 84 : 132;
-  const contentHeight = Math.min(720, contentLineEstimate * (message.role === 'user' ? 18 : 22));
-  const fileChangeHeight = (message.fileChanges?.length ?? 0) * 36;
-  const commandHeight = (message.commands?.length ?? 0) * 44;
-  const taskProgressHeight = message.taskProgress ? 40 : 0;
-  return baseHeight + contentHeight + fileChangeHeight + commandHeight + taskProgressHeight;
+function estimateTranscriptMessageHeightForLayout(
+  message: BirdCoderChatMessage,
+  options: TranscriptHeightEstimateOptions = {},
+): number {
+  return estimateTranscriptMessageHeight(message, {
+    engineId: options.engineId,
+    layout: options.layout ?? 'main',
+  });
 }
 
 function resolveTranscriptMessageHeight(
   message: BirdCoderChatMessage,
   index: number,
   measuredHeights: ReadonlyMap<string, number>,
+  options: TranscriptHeightEstimateOptions = {},
 ): number {
   const measuredHeight = measuredHeights.get(resolveTranscriptMessageKey(message, index));
-  return measuredHeight ?? estimateTranscriptMessageHeight(message);
+  return measuredHeight ?? estimateTranscriptMessageHeightForLayout(message, options);
 }
 
 function buildTranscriptPrefixHeightsCache(
   messages: readonly BirdCoderChatMessage[],
   measuredHeights: ReadonlyMap<string, number>,
+  options: TranscriptHeightEstimateOptions = {},
 ): TranscriptPrefixHeightsCache {
   const entries: TranscriptPrefixHeightCacheEntry[] = new Array(messages.length);
   const messageIndexesByKey = new Map<string, number>();
@@ -99,7 +91,7 @@ function buildTranscriptPrefixHeightsCache(
   for (let index = 0; index < messages.length; index += 1) {
     const message = messages[index]!;
     const key = resolveTranscriptMessageKey(message, index);
-    const height = resolveTranscriptMessageHeight(message, index, measuredHeights);
+    const height = resolveTranscriptMessageHeight(message, index, measuredHeights, options);
     entries[index] = {
       height,
       key,
@@ -121,6 +113,7 @@ function reconcileMeasuredTranscriptPrefixHeightsCache(
   previousCache: TranscriptPrefixHeightsCache,
   measuredHeights: ReadonlyMap<string, number>,
   invalidatedMessageIds: readonly string[],
+  options: TranscriptHeightEstimateOptions = {},
 ): TranscriptPrefixHeightsCache {
   if (invalidatedMessageIds.length === 0) {
     return previousCache;
@@ -146,7 +139,12 @@ function reconcileMeasuredTranscriptPrefixHeightsCache(
       continue;
     }
 
-    const nextHeight = resolveTranscriptMessageHeight(message, messageIndex, measuredHeights);
+    const nextHeight = resolveTranscriptMessageHeight(
+      message,
+      messageIndex,
+      measuredHeights,
+      options,
+    );
     if (previousEntry.height === nextHeight) {
       continue;
     }
@@ -185,6 +183,7 @@ function reconcileAppendOnlyTranscriptPrefixHeightsCache(
   measuredHeights: ReadonlyMap<string, number>,
   messages: readonly BirdCoderChatMessage[],
   invalidatedMessageIds: readonly string[],
+  options: TranscriptHeightEstimateOptions = {},
 ): TranscriptPrefixHeightsCache | null {
   if (
     invalidatedMessageIds.length > 0 ||
@@ -207,7 +206,7 @@ function reconcileAppendOnlyTranscriptPrefixHeightsCache(
   for (let index = previousMessages.length; index < messages.length; index += 1) {
     const message = messages[index]!;
     const key = resolveTranscriptMessageKey(message, index);
-    const height = resolveTranscriptMessageHeight(message, index, measuredHeights);
+    const height = resolveTranscriptMessageHeight(message, index, measuredHeights, options);
     nextEntries.push({
       height,
       key,
@@ -268,23 +267,26 @@ function resolveVisibleEndIndex(prefixHeights: readonly number[], offset: number
 export function buildTranscriptPrefixHeights(
   messages: readonly BirdCoderChatMessage[],
   measuredHeights: ReadonlyMap<string, number>,
+  options: TranscriptHeightEstimateOptions = {},
 ): number[] {
-  return buildTranscriptPrefixHeightsCache(messages, measuredHeights).prefixHeights as number[];
+  return buildTranscriptPrefixHeightsCache(messages, measuredHeights, options).prefixHeights as number[];
 }
 
 export function reconcileTranscriptPrefixHeightsCache({
   invalidatedMessageIds = [],
   measuredHeights,
   messages,
+  options = {},
   previousCache,
 }: {
   invalidatedMessageIds?: readonly string[];
   measuredHeights: ReadonlyMap<string, number>;
   messages: readonly BirdCoderChatMessage[];
+  options?: TranscriptHeightEstimateOptions;
   previousCache?: TranscriptPrefixHeightsCache | null;
 }): TranscriptPrefixHeightsCache {
   if (!previousCache) {
-    return buildTranscriptPrefixHeightsCache(messages, measuredHeights);
+    return buildTranscriptPrefixHeightsCache(messages, measuredHeights, options);
   }
 
   if (previousCache.messages === messages) {
@@ -292,6 +294,7 @@ export function reconcileTranscriptPrefixHeightsCache({
       previousCache,
       measuredHeights,
       invalidatedMessageIds,
+      options,
     );
   }
 
@@ -300,6 +303,7 @@ export function reconcileTranscriptPrefixHeightsCache({
     measuredHeights,
     messages,
     invalidatedMessageIds,
+    options,
   );
   if (appendOnlyCache) {
     return appendOnlyCache;
@@ -331,7 +335,7 @@ export function reconcileTranscriptPrefixHeightsCache({
       continue;
     }
 
-    const nextHeight = resolveTranscriptMessageHeight(message, index, measuredHeights);
+    const nextHeight = resolveTranscriptMessageHeight(message, index, measuredHeights, options);
     if (
       firstChangedIndex === messages.length &&
       (

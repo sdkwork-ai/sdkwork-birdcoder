@@ -1,6 +1,6 @@
 use crate::{
     get_sdk_bridge_session_detail, list_sdk_bridge_session_summaries,
-    lookup_standard_native_session_provider_registration, session_id_targets_engine,
+    resolved_native_session_provider_registration, session_id_targets_engine,
     CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord, NativeSessionProviderPlugin,
     NativeSessionProviderRegistration,
 };
@@ -10,11 +10,8 @@ const GEMINI_ENGINE_ID: &str = "gemini";
 
 impl NativeSessionProviderPlugin for GeminiCodeEngineProvider {
     fn registration(&self) -> &'static NativeSessionProviderRegistration {
-        lookup_standard_native_session_provider_registration(GEMINI_ENGINE_ID).unwrap_or_else(|| {
-            panic!(
-                "standard native session provider registration missing for engine {}",
-                GEMINI_ENGINE_ID
-            )
+        resolved_native_session_provider_registration(GEMINI_ENGINE_ID).unwrap_or_else(|error| {
+            panic!("{error}")
         })
     }
 

@@ -247,8 +247,13 @@ assertMatch(
 );
 assertMatch(
   iamRuntimeSource,
-  /createSdkworkAppbasePcAuthRuntime\(\{[\s\S]*createAppbaseAppClient[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*birdcoderBackend[\s\S]*driveApp[\s\S]*messagingApp[\s\S]*tokenManager/u,
-  'BirdCoder IAM runtime must pass the appbase app factory and BirdCoder, Drive, and Messaging downstream SDK clients to the high-level appbase runtime.',
+  /createSdkworkAppbasePcAuthRuntime\(\{[\s\S]*createAppbaseAppClient[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*driveApp[\s\S]*messagingApp[\s\S]*tokenManager/u,
+  'BirdCoder IAM runtime must pass the appbase app factory and BirdCoder app, Drive, and Messaging downstream SDK clients to the high-level appbase runtime.',
+);
+assertNoMatch(
+  iamRuntimeSource,
+  /getBirdCoderGeneratedBackendSdkClient/u,
+  'BirdCoder app IAM runtime must not construct backend SDK clients for the user-facing renderer.',
 );
 assertNoMatch(
   iamRuntimeSource,

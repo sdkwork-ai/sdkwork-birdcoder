@@ -8,10 +8,11 @@ use crate::{
     build_native_session_id, canonicalize_codeengine_tool_name, extract_native_lookup_id_for_engine, get_opencode_session,
     get_opencode_session_messages, is_opencode_transport_available,
     list_opencode_session_status_map, list_opencode_sessions,
-    lookup_standard_native_session_provider_registration, map_codeengine_session_runtime_status,
+    map_codeengine_session_runtime_status,
     map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
     map_codeengine_tool_kind, map_codeengine_tool_runtime_status,
     resolve_codeengine_command_interaction_state, resolve_codeengine_command_text,
+    resolved_native_session_provider_registration,
     session_id_targets_engine, NativeSessionProviderPlugin,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionSummaryRecord,
@@ -23,14 +24,9 @@ const OPENCODE_ENGINE_ID: &str = "opencode";
 
 impl NativeSessionProviderPlugin for OpencodeCodeEngineProvider {
     fn registration(&self) -> &'static NativeSessionProviderRegistration {
-        lookup_standard_native_session_provider_registration(OPENCODE_ENGINE_ID).unwrap_or_else(
-            || {
-                panic!(
-                    "standard native session provider registration missing for engine {}",
-                    OPENCODE_ENGINE_ID
-                )
-            },
-        )
+        resolved_native_session_provider_registration(OPENCODE_ENGINE_ID).unwrap_or_else(|error| {
+            panic!("{error}")
+        })
     }
 
     fn list_sessions(&self) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {

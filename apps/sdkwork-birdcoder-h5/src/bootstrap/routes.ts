@@ -1,29 +1,39 @@
+import {
+  BIRDCODER_AUTH_BASE_PATH,
+  createBirdCoderAuthRouteCatalog,
+  type BirdCoderAuthRouteDefinition,
+} from '@sdkwork/birdcoder-auth';
+
 export interface RouteDefinition {
   id: string;
   path: string;
   component: string;
   auth: 'required' | 'optional' | 'public';
-  titleKey: string;
+  titleKey?: string;
 }
 
-export function createRoutes(): RouteDefinition[] {
-  // Route assembly follows APP_H5_ARCHITECTURE_SPEC.md
-  // Route id format: <surface>.<domain>.<capability>.<screen>
-  // Route ids align with PC via APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md
+const BIRDCODER_H5_ROUTE_CATALOG: RouteDefinition[] = [
+  {
+    id: 'app.chat.index',
+    path: '/',
+    component: 'ChatPage',
+    auth: 'required',
+    titleKey: 'route.chat',
+  },
+];
+
+function mapAuthRoute(route: BirdCoderAuthRouteDefinition): RouteDefinition {
+  return {
+    id: route.id,
+    path: route.path,
+    component: route.id,
+    auth: 'public',
+  };
+}
+
+export function createRoutes(basePath: string = BIRDCODER_AUTH_BASE_PATH): RouteDefinition[] {
   return [
-    {
-      id: 'app.iam.login.index',
-      path: '/login',
-      component: 'LoginPage',
-      auth: 'public',
-      titleKey: 'route.login',
-    },
-    {
-      id: 'app.chat.index',
-      path: '/',
-      component: 'ChatPage',
-      auth: 'required',
-      titleKey: 'route.chat',
-    },
+    ...createBirdCoderAuthRouteCatalog(basePath).map(mapAuthRoute),
+    ...BIRDCODER_H5_ROUTE_CATALOG,
   ];
 }

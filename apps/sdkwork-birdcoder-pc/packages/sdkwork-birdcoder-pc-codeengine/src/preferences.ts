@@ -51,6 +51,7 @@ export interface WorkbenchCodeEngineDefinition {
   monogram: string;
   models: readonly WorkbenchCodeEngineModelDefinition[];
   modelCatalog: readonly WorkbenchCodeEngineModelDefinition[];
+  modelIds: readonly string[];
   terminalProfileId: WorkbenchCodeEngineId;
   theme: WorkbenchCodeEngineThemeId;
 }
@@ -167,6 +168,7 @@ export const WORKBENCH_CODE_ENGINES: readonly WorkbenchCodeEngineDefinition[] =
       monogram: ENGINE_MONOGRAMS[engineId],
       models,
       modelCatalog: models,
+      modelIds: models.map((model) => model.id),
       terminalProfileId: engineId,
       theme: ENGINE_THEMES[engineId],
     };
@@ -218,6 +220,7 @@ function withCarrierModelCatalog(
   return {
     ...engine,
     modelCatalog,
+    modelIds: modelCatalog.map((model) => model.id),
   };
 }
 

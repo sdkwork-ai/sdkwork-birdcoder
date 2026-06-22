@@ -4008,7 +4008,7 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'workspaces.list': {
-      parameters: [userIdParameter],
+      parameters: [userIdParameter, limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Workspace inventory returned successfully.',
@@ -4068,7 +4068,13 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
       },
     },
     'projects.list': {
-      parameters: [userIdParameter, workspaceIdParameter, rootPathParameter],
+      parameters: [
+        userIdParameter,
+        workspaceIdParameter,
+        rootPathParameter,
+        limitParameter,
+        offsetParameter,
+      ],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Project inventory returned successfully.',

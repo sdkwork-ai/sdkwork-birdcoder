@@ -10,6 +10,7 @@ axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sdkwork-birdcoder-codeengine = { workspace = true }
+sdkwork-birdcoder-errors = { workspace = true }
 sdkwork-birdcoder-engine-catalog-service = { workspace = true }
 sdkwork-birdcoder-native-sessions-service = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }

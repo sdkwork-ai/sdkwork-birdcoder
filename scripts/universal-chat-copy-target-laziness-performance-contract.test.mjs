@@ -6,12 +6,22 @@ const universalChatSource = fs.readFileSync(
   'utf8',
 );
 
-const actionTargetInterface = universalChatSource.match(
+const messageTypesSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/types.ts', import.meta.url),
+  'utf8',
+);
+
+const messageActionsSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/messageActions.ts', import.meta.url),
+  'utf8',
+);
+
+const actionTargetInterface = messageTypesSource.match(
   /interface ChatMessageActionTarget \{[\s\S]*?\n\}/,
 )?.[0];
 assert.ok(
   actionTargetInterface,
-  'UniversalChat must define an explicit ChatMessageActionTarget shape.',
+  'Chat transcript message types must define an explicit ChatMessageActionTarget shape.',
 );
 assert.doesNotMatch(
   actionTargetInterface,
@@ -24,28 +34,29 @@ assert.match(
   'ChatMessageActionTarget must keep a start index so copy text can be resolved lazily from the current rendered message window.',
 );
 
-const actionTargetBuilder = universalChatSource.match(
+const actionTargetBuilder = messageActionsSource.match(
   /function buildVisibleMessageActionTargets\([\s\S]*?\n\}/,
 )?.[0];
 assert.ok(
   actionTargetBuilder,
-  'UniversalChat must keep visible grouped message action target generation in a dedicated helper.',
+  'Chat transcript message actions must keep visible grouped message action target generation in a dedicated helper.',
 );
 assert.doesNotMatch(
   actionTargetBuilder,
   /\bcopyText\b/,
-  'buildMessageActionTargets must not allocate copy strings while rendering the transcript; it should only collect index and id metadata.',
-);
-assert.doesNotMatch(
-  actionTargetBuilder,
-  /\$\{copyText\}\\n\\n\$\{content\}/,
-  'UniversalChat must not concatenate grouped reply content during action target construction.',
+  'buildVisibleMessageActionTargets must not allocate copy strings while rendering the transcript; it should only collect index and id metadata.',
 );
 
 assert.match(
-  universalChatSource,
+  messageActionsSource,
   /function resolveMessageActionTargetCopyText\(/,
-  'UniversalChat must resolve grouped copy text through an explicit lazy helper called only from copy actions.',
+  'Chat transcript copy actions must resolve grouped copy text through an explicit lazy helper called only from copy actions.',
+);
+
+assert.match(
+  messageActionsSource,
+  /resolveMessageCopyContent\(message\)/,
+  'Lazy copy resolution must use pc-types message copy projection instead of raw message.content for assistant replies.',
 );
 
 const eagerCopyHandlerPattern = /copyMessageToClipboard\(actionTarget\?\.copyText \?\? msg\.content\)/;

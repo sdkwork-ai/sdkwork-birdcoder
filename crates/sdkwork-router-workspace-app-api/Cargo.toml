@@ -13,6 +13,7 @@ sdkwork-birdcoder-workspace-service = { workspace = true }
 sdkwork-birdcoder-project-service = { workspace = true }
 sdkwork-birdcoder-deployment-service = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
+sdkwork-birdcoder-errors = { workspace = true }
 sdkwork-web-contract = { workspace = true }
 sdkwork-web-core = { workspace = true }
 futures-util = "0.3"
@@ -23,6 +24,12 @@ tokio = { workspace = true }
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 tokio = { workspace = true }
+sqlx = { workspace = true, features = ["sqlite"] }
+async-trait = { workspace = true }
+serde_json = { workspace = true }
+sdkwork-birdcoder-workspace-repository-sqlx = { workspace = true }
+sdkwork_iam_context_service = { workspace = true }
+sdkwork-web-core = { workspace = true }
 
 
 

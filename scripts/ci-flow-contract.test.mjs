@@ -176,8 +176,8 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:auth-session-standard'],
-  'node scripts/auth-bootstrap-gating-contract.test.mjs && node scripts/auth-required-tab-navigation-contract.test.mjs && node scripts/auth-workspace-loading-gating-contract.test.mjs && node scripts/auth-bootstrap-stale-current-user-guard-contract.test.mjs && node --experimental-strip-types scripts/auth-user-identity-contract.test.ts && node scripts/auth-surface-successful-login-adoption-contract.test.mjs && node scripts/run-local-tsx-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/runtime-server-session-persistence-contract.test.ts && node scripts/run-local-tsx.mjs scripts/runtime-auth-unbound-profile-preserves-session-contract.test.ts',
-  'Root quality scripts must expose non-blocking SDKWork IAM auth bootstrap, urgent auth-required navigation, authenticated workspace loading gates, stale current-user guards, canonical auth user identity matching, IAM auth surface adoption, and durable runtime session persistence as one first-class standard.',
+  'node scripts/auth-bootstrap-gating-contract.test.mjs && node scripts/auth-gate-provider-order-contract.test.mjs && node scripts/auth-required-tab-navigation-contract.test.mjs && node scripts/auth-workspace-loading-gating-contract.test.mjs && node scripts/auth-bootstrap-stale-current-user-guard-contract.test.mjs && node --experimental-strip-types scripts/auth-user-identity-contract.test.ts && node scripts/auth-surface-successful-login-adoption-contract.test.mjs && node scripts/run-local-tsx-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/runtime-server-session-persistence-contract.test.ts && node scripts/run-local-tsx.mjs scripts/runtime-auth-unbound-profile-preserves-session-contract.test.ts && node scripts/pc-root-bootstrap-contract.test.mjs && node scripts/h5-root-bootstrap-contract.test.mjs',
+  'Root quality scripts must expose non-blocking SDKWork IAM auth bootstrap, urgent auth-required navigation, authenticated workspace loading gates, stale current-user guards, canonical auth user identity matching, IAM auth surface adoption, durable runtime session persistence, and PC/H5 root bootstrap delegation as one first-class standard.',
 );
 assert.equal(
   rootPackageJson.scripts['check:terminal-surface-standard'],
@@ -196,7 +196,7 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:universal-chat-rendering-performance'],
-  'node scripts/universal-chat-inactive-gating-performance-contract.test.mjs && node scripts/universal-chat-row-animation-performance-contract.test.mjs && node scripts/transcript-inactive-measurement-gating-contract.test.mjs && node scripts/universal-chat-folder-upload-performance-contract.test.mjs && node --experimental-strip-types scripts/chat-markdown-rendering-performance-contract.test.ts && node --experimental-strip-types scripts/universal-chat-capability-message-display-contract.test.ts && node scripts/universal-chat-activity-summary-contract.test.mjs && node scripts/universal-chat-task-progress-contract.test.mjs',
+  'node scripts/universal-chat-inactive-gating-performance-contract.test.mjs && node scripts/universal-chat-row-animation-performance-contract.test.mjs && node scripts/transcript-inactive-measurement-gating-contract.test.mjs && node scripts/universal-chat-folder-upload-performance-contract.test.mjs && node --experimental-strip-types scripts/chat-markdown-rendering-performance-contract.test.ts && node --experimental-strip-types scripts/universal-chat-capability-message-display-contract.test.ts && node scripts/universal-chat-activity-summary-contract.test.mjs && node scripts/universal-chat-task-progress-contract.test.mjs && node --experimental-strip-types scripts/chat-message-view-contract.test.ts && node --experimental-strip-types scripts/chat-message-projection-contract.test.ts && node --experimental-strip-types scripts/chat-message-renderer-registry-contract.test.ts && node --experimental-strip-types scripts/chat-message-renderer-contract.test.ts && node scripts/universal-chat-copy-target-laziness-performance-contract.test.mjs',
   'Root quality scripts must expose UniversalChat inactive gating, no per-row animation churn, inactive transcript measurement gating, bounded attachment uploads, oversized markdown rendering avoidance, capability message display, and professional activity summaries as one first-class rendering standard.',
 );
 assert.equal(
@@ -245,8 +245,8 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:api-transport-standard'],
-  'node --experimental-strip-types scripts/http-api-transport-cors-contract.test.ts && node scripts/birdcoder-public-runtime-env-contract.test.mjs && node scripts/frontend-request-id-ownership-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/in-process-app-runtime-api-descriptor-contract.test.ts && node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
-  'Root quality scripts must expose API transport/CORS behavior, frontend requestId ownership, in-process app/backend descriptor parity, and canonical API_SPEC path governance as a first-class standard.',
+  'node --experimental-strip-types scripts/http-api-transport-cors-contract.test.ts && node scripts/birdcoder-public-runtime-env-contract.test.mjs && node scripts/frontend-request-id-ownership-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/in-process-app-runtime-api-descriptor-contract.test.ts && node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts && node --experimental-strip-types scripts/api-observability-pagination-contract.test.ts',
+  'Root quality scripts must expose API transport/CORS behavior, frontend requestId ownership, in-process app/backend descriptor parity, canonical API_SPEC path governance, and list pagination defaults as a first-class standard.',
 );
 assert.match(
   rootPackageJson.scripts['check:data-kernel'] ?? '',

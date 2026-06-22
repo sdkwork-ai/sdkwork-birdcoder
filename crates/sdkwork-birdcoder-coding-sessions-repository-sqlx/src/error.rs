@@ -47,7 +47,10 @@ impl From<serde_json::Error> for RepositoryError {
 
 impl From<RepositoryError> for sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError {
     fn from(err: RepositoryError) -> Self {
-        Self::Repository(err.to_string())
+        match err {
+            RepositoryError::NotFound(msg) => Self::NotFound(msg),
+            other => Self::Repository(other.to_string()),
+        }
     }
 }
 

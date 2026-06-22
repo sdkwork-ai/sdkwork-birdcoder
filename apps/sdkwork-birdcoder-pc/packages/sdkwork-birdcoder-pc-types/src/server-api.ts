@@ -1000,6 +1000,8 @@ export interface BirdCoderUpdateCurrentUserProfileRequest {
 export interface BirdCoderWorkspaceScopedListRequest {
   userId?: string;
   workspaceId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface BirdCoderProjectListRequest extends BirdCoderWorkspaceScopedListRequest {

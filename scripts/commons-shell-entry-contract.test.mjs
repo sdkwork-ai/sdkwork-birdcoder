@@ -110,6 +110,7 @@ for (const relativePath of [
 
 assert.ok(
   shellRootSource.includes("from './app';") &&
+    shellRootSource.includes('ShellRuntimeProviders') &&
     !shellRootSource.includes('bootstrapShellRuntime') &&
     !shellRootSource.includes('waitForBirdCoderApiReady'),
   '@sdkwork/birdcoder-pc-shell root entry must expose only the application shell surface.',

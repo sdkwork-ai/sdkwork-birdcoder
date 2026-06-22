@@ -115,7 +115,7 @@ const explicitCwdPlan = createViteHostPlan({
 });
 assert.equal(
   explicitCwdPlan.cwd,
-  path.join(resolveWorkspaceRootDir(), 'packages', 'sdkwork-birdcoder-pc-web'),
+  path.join(resolveWorkspaceRootDir(), 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-web'),
 );
 
 const workspaceRootPackageJsonPath = path.resolve('package.json');

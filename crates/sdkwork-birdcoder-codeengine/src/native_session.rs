@@ -12,6 +12,14 @@ pub fn lookup_standard_native_session_provider_registration(
     crate::find_native_session_provider_catalog_entry(engine_id)
 }
 
+pub fn resolved_native_session_provider_registration(
+    engine_id: &str,
+) -> Result<&'static NativeSessionProviderRegistration, String> {
+    lookup_standard_native_session_provider_registration(engine_id).ok_or_else(|| {
+        format_missing_native_session_provider_error(engine_id)
+    })
+}
+
 pub fn format_missing_native_session_provider_error(engine_id: &str) -> String {
     format!(
         "Native session provider for engine \"{engine_id}\" is not registered in the standard code engine provider registry."

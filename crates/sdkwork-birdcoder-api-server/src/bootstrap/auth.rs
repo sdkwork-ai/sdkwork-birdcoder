@@ -9,15 +9,18 @@ use crate::bootstrap::route_manifest::birdcoder_product_app_api_route_manifest;
 pub fn birdcoder_public_path_prefixes() -> Vec<String> {
     vec![
         "/app/v3/api/system/iam".to_string(),
+        "/app/v3/api/system/health".to_string(),
+        "/app/v3/api/system/descriptor".to_string(),
+        "/app/v3/api/system/routes".to_string(),
     ]
 }
 
 pub async fn build_protected_app_router(router: Router, config: &BirdServerConfig) -> Router {
     let resolver = iam_database_resolver_from_env().await;
     let manifest = birdcoder_product_app_api_route_manifest();
-    if let Err(error) = manifest.validate_public_path_prefixes(&birdcoder_public_path_prefixes()) {
-        tracing::warn!("route manifest public prefix validation: {error}");
-    }
+    manifest
+        .validate_public_path_prefixes(&birdcoder_public_path_prefixes())
+        .expect("route manifest public prefix validation failed");
 
     let layer = build_web_framework_layer(
         resolver,

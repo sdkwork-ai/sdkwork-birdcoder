@@ -29,6 +29,14 @@ pub struct NativeSessionQueryParams {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct NativeSessionScopeQuery {
+    pub workspace_id: String,
+    pub project_id: String,
+    pub engine_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SyncModelConfigRequest {
     pub local_config: CodeEngineModelConfigPayload,
 }

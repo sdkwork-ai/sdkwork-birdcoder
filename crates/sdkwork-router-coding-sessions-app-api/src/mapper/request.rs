@@ -1,10 +1,13 @@
 use serde::Deserialize;
 use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
+use sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE;
 
 pub const MAX_LIST_PAGE_SIZE: usize = 100;
 
-fn clamp_list_limit(limit: Option<usize>) -> Option<usize> {
-    limit.map(|value| value.clamp(1, MAX_LIST_PAGE_SIZE))
+fn clamp_list_limit(limit: Option<usize>) -> usize {
+    limit
+        .unwrap_or(DEFAULT_LIST_PAGE_SIZE)
+        .clamp(1, MAX_LIST_PAGE_SIZE)
 }
 
 fn clamp_list_offset(offset: Option<usize>) -> Option<usize> {
@@ -27,7 +30,7 @@ impl From<ListSessionsQuery> for CodingSessionListQuery {
             workspace_id: q.workspace_id,
             project_id: q.project_id,
             engine_id: q.engine_id,
-            limit: clamp_list_limit(q.limit),
+            limit: Some(clamp_list_limit(q.limit)),
             offset: clamp_list_offset(q.offset),
         }
     }

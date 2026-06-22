@@ -4,11 +4,16 @@ use sqlx::SqlitePool;
 
 use sdkwork_birdcoder_membership_repository_sqlx::SqliteMembershipRepository;
 use sdkwork_birdcoder_membership_service::service::membership_service::MembershipService;
+use sdkwork_birdcoder_errors::trace_id_from_request_id;
 use sdkwork_utils_rust::is_blank;
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 
 use crate::error;
 use crate::mapper::request::MembershipQuery;
+
+fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
+    trace_id_from_request_id(web.request_id.0.as_str())
+}
 
 #[derive(Clone)]
 pub struct MembershipAppState {
@@ -24,17 +29,27 @@ impl MembershipAppState {
 }
 
 pub async fn get_current_membership(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<MembershipAppState>,
     Query(query): Query<MembershipQuery>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
-    let owner_user_id = query
+    let trace_id = request_trace_id(&web);
+    if let Some(requested_owner_id) = query
         .owner_user_id
         .as_deref()
         .filter(|value| !is_blank(Some(*value)))
-        .unwrap_or(iam.user_id.as_str());
+    {
+        if requested_owner_id != iam.user_id {
+            return Err(error::forbidden(
+                "Membership lookup is limited to the authenticated user.",
+                trace_id,
+            ));
+        }
+    }
+
+    let owner_user_id = iam.user_id.as_str();
     match state
         .service
         .get_current_membership(
@@ -45,18 +60,19 @@ pub async fn get_current_membership(
         .await
     {
         Ok(membership) => Ok(Json(serde_json::json!(membership))),
-        Err(e) => Err(error::map_service_error(e)),
+        Err(e) => Err(error::map_service_error(e, trace_id)),
     }
 }
 
 pub async fn list_membership_package_groups(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<MembershipAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
 {
+    let trace_id = request_trace_id(&web);
     match state.service.list_package_groups().await {
         Ok(groups) => Ok(Json(serde_json::json!({ "items": groups }))),
-        Err(e) => Err(error::map_service_error(e)),
+        Err(e) => Err(error::map_service_error(e, trace_id)),
     }
 }

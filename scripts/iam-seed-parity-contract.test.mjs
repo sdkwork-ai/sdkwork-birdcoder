@@ -79,7 +79,7 @@ for (const requiredIamStoragePattern of [
   /pub const SESSION: &'static str = "iam_session"/u,
   /pub const AUDIT_EVENT: &'static str = "iam_audit_event"/u,
   /pub fn iam_database_tables\(\) -> Vec<&'static str>/u,
-  /pub fn iam_initial_migration_sql\(\) -> &'static str/u,
+  /pub fn iam_database_baseline_sql\(\) -> &'static str/u,
 ]) {
   assert.match(
     appbaseIamDirectoryRepositorySource,

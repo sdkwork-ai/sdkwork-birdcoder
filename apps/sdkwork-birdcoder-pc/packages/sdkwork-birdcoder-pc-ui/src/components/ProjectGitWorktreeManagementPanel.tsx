@@ -5,7 +5,7 @@ import {
   useProjectGitOverview,
   useToast,
 } from '@sdkwork/birdcoder-pc-commons';
-import type { BirdCoderGitWorktreeSummary } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderGitWorktreeSummary } from '@sdkwork/birdcoder-pc-commons/chat/types';
 import { useTranslation } from 'react-i18next';
 
 interface ProjectGitWorktreeManagementPanelProps {

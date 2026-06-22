@@ -390,6 +390,7 @@ assert.deepEqual(observedRequests, [
     path: '/app/v3/api/native_sessions',
     query: {
       engineId: 'codex',
+      limit: 20,
       projectId: 'project-generated-contract',
       workspaceId: 'workspace-generated-contract',
     },

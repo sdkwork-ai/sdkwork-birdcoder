@@ -109,6 +109,13 @@ pub struct CodingSessionPayload {
     pub transcript_updated_at: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodingSessionListPage {
+    pub items: Vec<CodingSessionPayload>,
+    pub total: usize,
+}
+
 // 鈹€鈹€ Coding session turn payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

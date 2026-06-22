@@ -35,6 +35,35 @@ export type {
   UniversalChatComposerSelection,
   UniversalChatProps,
 } from './components/UniversalChat';
+
+export {
+  ChatTranscriptMessage,
+  createChatMessageRendererRegistry,
+  createDefaultChatMessageRendererRegistry,
+  defaultChatMessageRendererRegistry,
+  estimateRendererHeight,
+} from './components/chat/messages/index.ts';
+export {
+  resolveChatMessageView,
+  resolveChatMessageViews,
+  buildChatMessageViewSynchronizationSignature,
+} from '@sdkwork/birdcoder-pc-commons/chat/types';
+export type {
+  BirdCoderChatMessageView,
+  BirdCoderChatMessageViewKind,
+  ChatMessageContentBlock,
+  ChatMessageLayoutHints,
+  ChatMessageViewSource,
+  ResolveChatMessageViewOptions,
+} from '@sdkwork/birdcoder-pc-commons/chat/types';
+export type {
+  ChatMessageEnvironment,
+  ChatMessageLayout,
+  ChatMessageRenderContext,
+  ChatMessageRendererEntry,
+  ChatMessageRendererRegistry,
+  ChatTranscriptMessageProps,
+} from './components/chat/messages/index.ts';
 export { UniversalChatComposerChrome } from './components/UniversalChatComposerChrome';
 export type { UniversalChatComposerChromeProps } from './components/UniversalChatComposerChrome';
 

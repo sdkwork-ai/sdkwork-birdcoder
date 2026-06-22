@@ -103,6 +103,8 @@ import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
 export interface BirdCoderWorkspaceScopedListRequest {
   userId?: string;
   workspaceId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface BirdCoderProjectListRequest extends BirdCoderWorkspaceScopedListRequest {
@@ -353,6 +355,12 @@ function readCanonicalItems<TItem>(envelope: ListEnvelope<unknown>): TItem[] {
   return envelope.items as TItem[];
 }
 
+const DEFAULT_SDK_LIST_LIMIT = 20;
+
+function withDefaultListLimit<T extends { limit?: number }>(query: T): T {
+  return typeof query.limit === 'number' ? query : { ...query, limit: DEFAULT_SDK_LIST_LIMIT };
+}
+
 function toGeneratedCodeEngineKey(value: string | undefined): GeneratedCodeEngineKey | undefined {
   return value ? (value as GeneratedCodeEngineKey) : undefined;
 }
@@ -411,51 +419,62 @@ function toGeneratedUpdateProjectRequest(
 function toGeneratedWorkspaceQuery(
   options: BirdCoderWorkspaceScopedListRequest,
 ): PlatformWorkspacesListQuery {
+  const scoped = withDefaultListLimit(options);
   return {
-    ...(options.userId ? { userId: options.userId } : {}),
+    ...(scoped.userId ? { userId: scoped.userId } : {}),
+    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
+    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
   };
 }
 
 function toGeneratedProjectQuery(
   options: BirdCoderProjectListRequest,
 ): PlatformProjectsListQuery {
+  const scoped = withDefaultListLimit(options);
   return {
-    ...(options.rootPath ? { rootPath: options.rootPath } : {}),
-    ...(options.userId ? { userId: options.userId } : {}),
-    ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+    ...(scoped.rootPath ? { rootPath: scoped.rootPath } : {}),
+    ...(scoped.userId ? { userId: scoped.userId } : {}),
+    ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
+    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
+    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
   };
 }
 
 function toGeneratedWorkspaceTeamQuery(
   options: BirdCoderWorkspaceScopedListRequest,
 ): CollaborationWorkspaceTeamsListQuery {
+  const scoped = withDefaultListLimit(options);
   return {
-    ...(options.userId ? { userId: options.userId } : {}),
-    ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+    ...(scoped.userId ? { userId: scoped.userId } : {}),
+    ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
+    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
+    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
   };
 }
 
 function toGeneratedCodingSessionQuery(
   request: BirdCoderListCodingSessionsRequest,
 ): IntelligenceCodingSessionsListQuery {
+  const scoped = withDefaultListLimit(request);
   return {
-    ...(request.engineId ? { engineId: toGeneratedCodeEngineKey(request.engineId) } : {}),
-    ...(typeof request.limit === 'number' ? { limit: request.limit } : {}),
-    ...(typeof request.offset === 'number' ? { offset: request.offset } : {}),
-    ...(request.projectId ? { projectId: request.projectId } : {}),
-    ...(request.workspaceId ? { workspaceId: request.workspaceId } : {}),
+    ...(scoped.engineId ? { engineId: toGeneratedCodeEngineKey(scoped.engineId) } : {}),
+    limit: scoped.limit,
+    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+    ...(scoped.projectId ? { projectId: scoped.projectId } : {}),
+    ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
   };
 }
 
 function toGeneratedNativeSessionListQuery(
   request: BirdCoderListNativeSessionsRequest,
 ): RuntimeNativeSessionsListQuery {
+  const scoped = withDefaultListLimit(request);
   return {
-    ...(request.engineId ? { engineId: toGeneratedCodeEngineKey(request.engineId) } : {}),
-    ...(typeof request.limit === 'number' ? { limit: request.limit } : {}),
-    ...(typeof request.offset === 'number' ? { offset: request.offset } : {}),
-    ...(request.projectId ? { projectId: request.projectId } : {}),
-    ...(request.workspaceId ? { workspaceId: request.workspaceId } : {}),
+    ...(scoped.engineId ? { engineId: toGeneratedCodeEngineKey(scoped.engineId) } : {}),
+    limit: scoped.limit,
+    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+    ...(scoped.projectId ? { projectId: scoped.projectId } : {}),
+    ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
   };
 }
 
@@ -472,18 +491,24 @@ function toGeneratedNativeSessionRetrieveQuery(
 function toGeneratedSkillPackageQuery(
   options: BirdCoderWorkspaceScopedListRequest,
 ): SkillsSkillPackagesListQuery {
+  const scoped = withDefaultListLimit(options);
   return {
-    ...(options.userId ? { userId: options.userId } : {}),
-    ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+    ...(scoped.userId ? { userId: scoped.userId } : {}),
+    ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
+    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
+    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
   };
 }
 
 function toGeneratedBackendTeamQuery(
   options: BirdCoderWorkspaceScopedListRequest,
 ): BackendIamTeamsListQuery {
+  const scoped = withDefaultListLimit(options);
   return {
-    ...(options.userId ? { userId: options.userId } : {}),
-    ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
+    ...(scoped.userId ? { userId: scoped.userId } : {}),
+    ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
+    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
+    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
   };
 }
 

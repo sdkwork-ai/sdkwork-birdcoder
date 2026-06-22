@@ -18,6 +18,7 @@ mod native_session_catalog;
 
 pub use native_session::{
     build_native_session_id, format_missing_native_session_provider_error,
+    resolved_native_session_provider_registration,
     is_authority_backed_native_session_id, lookup_standard_native_session_provider_registration,
     native_session_prefix_for_engine, resolve_native_session_engine_id,
     standard_native_session_provider_registrations,

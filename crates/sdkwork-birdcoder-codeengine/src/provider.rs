@@ -2,7 +2,8 @@ use std::{collections::BTreeMap, sync::OnceLock};
 
 use crate::{
     format_missing_native_session_provider_error, native_session_prefix_for_engine,
-    resolve_native_session_engine_id, CodeEngineApprovalDecisionRecord,
+    resolve_native_session_engine_id, resolved_native_session_provider_registration,
+    CodeEngineApprovalDecisionRecord,
     CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord,
     CodeEngineUserQuestionAnswerRecord, NativeSessionDiscoveryMode,
     NativeSessionProviderRegistration,
@@ -67,28 +68,21 @@ impl NativeSessionProviderRegistry {
     pub fn new_standard() -> Self {
         let mut providers: BTreeMap<String, Box<dyn NativeSessionProviderPlugin>> = BTreeMap::new();
 
-        let codex_provider = Box::new(crate::codex_provider::CodexCodeEngineProvider);
-        providers.insert(
-            codex_provider.registration().engine_id.clone(),
-            codex_provider,
+        register_catalog_provider(&mut providers, "codex", Box::new(crate::codex_provider::CodexCodeEngineProvider));
+        register_catalog_provider(
+            &mut providers,
+            "claude-code",
+            Box::new(crate::claude_code_provider::ClaudeCodeEngineProvider),
         );
-
-        let claude_code_provider = Box::new(crate::claude_code_provider::ClaudeCodeEngineProvider);
-        providers.insert(
-            claude_code_provider.registration().engine_id.clone(),
-            claude_code_provider,
+        register_catalog_provider(
+            &mut providers,
+            "gemini",
+            Box::new(crate::gemini_provider::GeminiCodeEngineProvider),
         );
-
-        let gemini_provider = Box::new(crate::gemini_provider::GeminiCodeEngineProvider);
-        providers.insert(
-            gemini_provider.registration().engine_id.clone(),
-            gemini_provider,
-        );
-
-        let opencode_provider = Box::new(crate::opencode_provider::OpencodeCodeEngineProvider);
-        providers.insert(
-            opencode_provider.registration().engine_id.clone(),
-            opencode_provider,
+        register_catalog_provider(
+            &mut providers,
+            "opencode",
+            Box::new(crate::opencode_provider::OpencodeCodeEngineProvider),
         );
 
         Self { providers }
@@ -164,5 +158,15 @@ fn normalize_non_empty_string(value: Option<&str>) -> Option<String> {
         None
     } else {
         Some(trimmed.to_owned())
+    }
+}
+
+fn register_catalog_provider(
+    providers: &mut BTreeMap<String, Box<dyn NativeSessionProviderPlugin>>,
+    engine_id: &'static str,
+    provider: Box<dyn NativeSessionProviderPlugin>,
+) {
+    if resolved_native_session_provider_registration(engine_id).is_ok() {
+        providers.insert(engine_id.to_owned(), provider);
     }
 }

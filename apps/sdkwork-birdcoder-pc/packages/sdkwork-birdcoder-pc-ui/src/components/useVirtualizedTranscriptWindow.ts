@@ -1,4 +1,4 @@
-import type { BirdCoderChatMessage } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderChatMessage, BirdCoderCodeEngineKey } from '@sdkwork/birdcoder-pc-commons/chat/types';
 import type { RefObject } from 'react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -30,6 +30,8 @@ export function useVirtualizedTranscriptWindow(
   scrollContainerRef: RefObject<HTMLDivElement | null>,
   isActive = true,
   measurementScopeKey = '',
+  layout: 'sidebar' | 'main' = 'main',
+  engineId?: BirdCoderCodeEngineKey,
 ): VirtualizedTranscriptWindowResult {
   const normalizedMeasurementScopeKey = measurementScopeKey.trim();
   const [viewport, setViewport] = useState<TranscriptViewport>({
@@ -254,9 +256,10 @@ export function useVirtualizedTranscriptWindow(
         invalidatedMessageIds: measurementState.changedMessageIds,
         measuredHeights: measuredHeightsRef.current,
         messages,
+        options: { layout, engineId },
         previousCache: prefixHeightsCacheRef.current,
       }),
-    [measurementState, messages, normalizedMeasurementScopeKey],
+    [engineId, layout, measurementState, messages, normalizedMeasurementScopeKey],
   );
   useEffect(() => {
     prefixHeightsCacheRef.current = prefixHeightsCache;

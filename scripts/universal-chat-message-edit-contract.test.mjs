@@ -6,6 +6,10 @@ const universalChatSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
   'utf8',
 );
+const userMessageRendererSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/renderers/ReplyMessageRenderers.tsx'),
+  'utf8',
+);
 const codePageSource = await readFile(
   resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx'),
   'utf8',
@@ -84,8 +88,8 @@ assert.match(
 );
 
 assert.match(
-  universalChatSource,
-  /environment\.beginEditingMessage\?\.\(msg\.id, msg\.content\)/,
+  userMessageRendererSource,
+  /environment\.beginEditingMessage\?\.\(message\.id, message\.content\)/,
   'Transcript edit buttons must start UniversalChat edit mode with the actual message content.',
 );
 

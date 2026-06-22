@@ -10,7 +10,7 @@ import type {
 import type {
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
-} from '@sdkwork/birdcoder-pc-types';
+} from '@sdkwork/birdcoder-pc-commons/chat/types';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 
 export interface UniversalChatPendingInteractionsProps {

@@ -2,8 +2,28 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const universalChatSource = await readFile(
-  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx'),
+const activitySummarySource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/activity/ChatActivitySummary.tsx'),
+  'utf8',
+);
+
+const activityProjectionSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-activity-projection.ts'),
+  'utf8',
+);
+
+const chatMessageViewSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/chat-message-view.ts'),
+  'utf8',
+);
+
+const messageActivitySource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/messageActivity.ts'),
+  'utf8',
+);
+
+const contentBlockRenderersSource = await readFile(
+  resolve('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/chat/messages/contentBlocks/ContentBlockRenderers.tsx'),
   'utf8',
 );
 
@@ -18,129 +38,153 @@ const chineseChatSource = await readFile(
 );
 
 assert.match(
-  universalChatSource,
-  /function UniversalChatActivitySummary\(/,
-  'UniversalChat must render file changes and command executions through one professional activity summary component.',
+  activitySummarySource,
+  /export const ChatActivitySummary = memo\(function ChatActivitySummary\(/,
+  'Chat activity summary must render file changes and command executions through one professional activity summary component.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /const editedFilesLabel = environment\?\.t\('chat\.editedFilesSummary'[\s\S]*const ranCommandsLabel = environment\?\.t\('chat\.ranCommandsSummary'/,
   'The activity summary header must report edited-file and command counts with localized copy.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /const totalAdditions = fileChangesWithKnownLineImpact\.reduce\(/,
   'The activity summary must aggregate additions so the transcript can show total changed lines.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /const totalDeletions = fileChangesWithKnownLineImpact\.reduce\(/,
   'The activity summary must aggregate deletions so the transcript can show total removed lines.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /function buildFileChangeDiffPreview\(/,
   'File rows must be expandable and able to show professional plus/minus diff details.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /data-chat-activity-summary="inline"/,
   'The activity summary must render as an inline transcript block instead of a bordered card.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /data-chat-file-change-row="inline"/,
   'Each file change must render as a flat clickable inline row inside the message stream.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /data-chat-file-inline-diff="true"/,
   'Clicking an edited-file row must reveal the diff inline below that row.',
 );
 
 assert.doesNotMatch(
-  universalChatSource,
+  activitySummarySource,
   /data-chat-activity-summary="inline"[\s\S]{0,160}border border-white\/10/,
   'The inline activity summary must not use an outer border because the transcript should keep a flat no-frame style.',
 );
 
 assert.doesNotMatch(
-  universalChatSource,
+  activitySummarySource,
   /data-chat-file-change-row="inline"[\s\S]{0,180}border border-white\/10/,
   'Inline file rows must not be rendered as bordered nested cards.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /expandedFileKeys\.has\(fileKey\)/,
   'Each edited-file row must have independent expansion state for inspecting its details.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /environment\?\.onViewChanges\?\.\(fileChange\)/,
   'Edited-file rows must still be connected to the existing full diff viewer action.',
 );
 
 assert.match(
-  universalChatSource,
-  /function parseFileUpdateSummaryContent\(/,
-  'UniversalChat must parse tool-style "Updated the following files" content into structured file rows instead of rendering it as raw text.',
+  activityProjectionSource,
+  /export function parseFileUpdateSummaryContent\(/,
+  'Activity projection must parse tool-style "Updated the following files" content into structured file rows instead of rendering it as raw text.',
 );
 
 assert.match(
-  universalChatSource,
+  activityProjectionSource,
   /FILE_UPDATE_SUMMARY_HEADER_PATTERN = \/\^\(\?:Success\\\.\\s\+\)\?Updated the following files:/,
   'The file update summary parser must recognize successful apply-patch output headers.',
 );
 
 assert.match(
-  universalChatSource,
-  /function resolveMessageActivityFileChanges\(/,
-  'UniversalChat must merge parsed file update summaries with structured fileChanges so line-count and diff metadata are preserved.',
+  activityProjectionSource,
+  /export function resolveProjectedActivityFileChanges\(/,
+  'Activity projection must merge parsed file update summaries with structured fileChanges so line-count and diff metadata are preserved.',
 );
 
 assert.match(
-  universalChatSource,
-  /shouldHideMessageContentAsFileUpdateSummary/,
-  'UniversalChat must suppress raw "Updated the following files" markdown when the same content is represented by the expandable activity summary.',
+  activityProjectionSource,
+  /export function shouldHideMessageContentAsFileUpdateSummary/,
+  'Activity projection must suppress raw "Updated the following files" markdown when the same content is represented by the expandable activity summary.',
 );
 
 assert.match(
-  universalChatSource,
-  /stripFileUpdateSummaryContent\(msg\.content\) \|\| msg\.content/,
-  'UniversalChat must remove embedded tool update summaries while preserving surrounding assistant prose.',
+  chatMessageViewSource,
+  /resolveVisibleMarkdownBlockContent\(message\)/,
+  'Chat message view projection must strip embedded tool update summaries before building markdown blocks.',
 );
 
 assert.match(
-  universalChatSource,
+  chatMessageViewSource,
+  /resolveProjectedActivityFileChanges\(message\)/,
+  'Chat message view projection must include parsed and structured file changes in activity blocks.',
+);
+
+assert.match(
+  contentBlockRenderersSource,
+  /block\.content/,
+  'Markdown block rendering must consume pre-projected markdown content from the view model.',
+);
+
+assert.match(
+  messageActivitySource,
+  /resolveProjectedActivityFileChanges/,
+  'UI activity helpers must delegate file-change projection to pc-types instead of duplicating parser logic.',
+);
+
+assert.match(
+  activityProjectionSource,
   /lineImpactKnown: false/,
   'Parsed raw file update summaries must not fake +0/-0 line impact when the tool output did not include diff metadata.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /function countDiffLineImpacts\(/,
   'The activity summary must derive + and - line impact from inline diff metadata when explicit line counts are missing.',
 );
 
 assert.match(
-  universalChatSource,
+  activitySummarySource,
   /chat\.changedLinesUnknown/,
   'File rows without diff metadata must use localized unknown line-impact copy instead of misleading +0/-0 counts.',
 );
 
 assert.doesNotMatch(
-  universalChatSource,
+  activitySummarySource,
   /Modified Files/,
-  'UniversalChat must not keep the legacy generic "Modified Files" file card copy once the professional activity summary is in place.',
+  'The activity summary must not keep the legacy generic "Modified Files" file card copy once the professional activity summary is in place.',
+);
+
+assert.match(
+  contentBlockRenderersSource,
+  /<ChatActivitySummary/,
+  'Content block renderers must delegate activity rendering to ChatActivitySummary instead of UniversalChat injection hooks.',
 );
 
 assert.match(

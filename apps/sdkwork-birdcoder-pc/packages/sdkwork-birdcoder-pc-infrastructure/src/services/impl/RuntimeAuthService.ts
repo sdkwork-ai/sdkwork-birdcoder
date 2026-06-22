@@ -74,6 +74,10 @@ export function createBirdCoderRuntimeAuthService(
       return mapIamUser(await runtime.service.iam.users.current.retrieve());
     },
 
+    async hasStoredSession() {
+      return hasStoredIamSession(readRuntime());
+    },
+
     async logout() {
       const runtime = readRuntime();
       try {
@@ -96,6 +100,10 @@ export class RuntimeAuthService implements IAuthService {
 
   getCurrentUser(): Promise<User | null> {
     return this.authority.getCurrentUser();
+  }
+
+  hasStoredSession(): Promise<boolean> {
+    return this.authority.hasStoredSession();
   }
 
   logout(): Promise<void> {

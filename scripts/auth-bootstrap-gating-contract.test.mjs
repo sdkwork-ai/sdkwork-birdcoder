@@ -36,8 +36,14 @@ assert.match(
 
 assert.match(
   authServiceSource,
-  /export interface IAuthService \{\s*getCurrentUser\(\): Promise<User \| null>;\s*logout\(\): Promise<void>;\s*\}/u,
-  'BirdCoder auth service must expose only current-user and logout methods; sign-in is owned by SdkworkIamAuthRoutes over @sdkwork/iam-runtime.',
+  /export interface IAuthService \{\s*getCurrentUser\(\): Promise<User \| null>;\s*hasStoredSession\(\): Promise<boolean>;\s*logout\(\): Promise<void>;\s*\}/u,
+  'BirdCoder auth service must expose current-user, stored-session, and logout methods; sign-in is owned by SdkworkIamAuthRoutes over @sdkwork/iam-runtime.',
+);
+
+assert.match(
+  authContextSource,
+  /authService\.hasStoredSession\(\)/u,
+  'Auth refresh must fail closed when no persisted IAM session remains.',
 );
 
 assert.doesNotMatch(

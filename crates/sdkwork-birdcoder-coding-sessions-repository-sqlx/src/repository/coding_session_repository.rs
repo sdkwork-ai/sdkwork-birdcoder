@@ -10,7 +10,7 @@ use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
 use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
-    CodingSessionEventPayload, CodingSessionPayload, CodingSessionTurnPayload,
+    CodingSessionEventPayload, CodingSessionListPage, CodingSessionPayload, CodingSessionTurnPayload,
     FinalizedProjectionTurnExecution, OperationPayload, UserQuestionAnswerPayload,
 };
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
@@ -41,24 +41,8 @@ impl SqliteCodingSessionRepository {
             .format(&time::format_description::well_known::Iso8601::DEFAULT)
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
     }
-}
 
-#[async_trait::async_trait]
-impl CodingSessionRepository for SqliteCodingSessionRepository {
-    async fn list_sessions(
-        &self,
-        ctx: &CodingSessionContext,
-        query: &CodingSessionListQuery,
-    ) -> Result<Vec<CodingSessionPayload>, CodingSessionError> {
-        let mut sql = String::from(
-            "SELECT s.*, r.status AS runtime_status FROM ai_coding_session s \
-             LEFT JOIN (SELECT coding_session_id, status FROM ai_coding_session_runtime \
-             WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT 1) r \
-             ON r.coding_session_id = s.id \
-             WHERE s.is_deleted = 0",
-        );
-        let tenant_id = append_session_tenant_scope_sql(ctx, "s", &mut sql);
-
+    fn append_session_list_filters(sql: &mut String, query: &CodingSessionListQuery) {
         if query.engine_id.is_some() {
             sql.push_str(&format!(" AND s.{} = ?", columns::session::ENGINE_ID));
         }
@@ -68,39 +52,75 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         if query.workspace_id.is_some() {
             sql.push_str(&format!(" AND s.{} = ?", columns::session::WORKSPACE_ID));
         }
+    }
+}
 
-        sql.push_str(" ORDER BY s.sort_timestamp DESC");
+#[async_trait::async_trait]
+impl CodingSessionRepository for SqliteCodingSessionRepository {
+    async fn list_sessions(
+        &self,
+        ctx: &CodingSessionContext,
+        query: &CodingSessionListQuery,
+    ) -> Result<CodingSessionListPage, CodingSessionError> {
+        let mut filter_sql = String::from(" WHERE s.is_deleted = 0");
+        let tenant_id = append_session_tenant_scope_sql(ctx, "s", &mut filter_sql);
+        Self::append_session_list_filters(&mut filter_sql, query);
 
-        if let Some(limit) = query.limit {
-            sql.push_str(&format!(" LIMIT {limit}"));
-        }
-        if let Some(offset) = query.offset {
-            sql.push_str(&format!(" OFFSET {offset}"));
-        }
-
-        let mut q = sqlx::query(&sql);
+        let count_sql = format!("SELECT COUNT(*) AS total FROM ai_coding_session s{filter_sql}");
+        let mut count_query = sqlx::query_scalar::<_, i64>(&count_sql);
         if let Some(ref engine_id) = query.engine_id {
-            q = q.bind(engine_id);
+            count_query = count_query.bind(engine_id);
         }
         if let Some(ref project_id) = query.project_id {
-            q = q.bind(project_id);
+            count_query = count_query.bind(project_id);
         }
         if let Some(ref workspace_id) = query.workspace_id {
-            q = q.bind(workspace_id);
+            count_query = count_query.bind(workspace_id);
         }
         if let Some(tenant_id) = tenant_id {
-            q = q.bind(tenant_id);
+            count_query = count_query.bind(tenant_id);
+        }
+        let total = map_sqlx_error(count_query.fetch_one(&self.pool).await)? as usize;
+
+        let mut select_sql = String::from(
+            "SELECT s.*, r.status AS runtime_status FROM ai_coding_session s \
+             LEFT JOIN (SELECT coding_session_id, status FROM ai_coding_session_runtime \
+             WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT 1) r \
+             ON r.coding_session_id = s.id",
+        );
+        select_sql.push_str(&filter_sql);
+        select_sql.push_str(" ORDER BY s.sort_timestamp DESC");
+
+        if let Some(limit) = query.limit {
+            select_sql.push_str(&format!(" LIMIT {limit}"));
+        }
+        if let Some(offset) = query.offset {
+            select_sql.push_str(&format!(" OFFSET {offset}"));
         }
 
-        let rows = map_sqlx_error(q.fetch_all(&self.pool).await)?;
+        let mut list_query = sqlx::query(&select_sql);
+        if let Some(ref engine_id) = query.engine_id {
+            list_query = list_query.bind(engine_id);
+        }
+        if let Some(ref project_id) = query.project_id {
+            list_query = list_query.bind(project_id);
+        }
+        if let Some(ref workspace_id) = query.workspace_id {
+            list_query = list_query.bind(workspace_id);
+        }
+        if let Some(tenant_id) = tenant_id {
+            list_query = list_query.bind(tenant_id);
+        }
+        let rows = map_sqlx_error(list_query.fetch_all(&self.pool).await)?;
 
-        let mut result = Vec::new();
+        let mut items = Vec::new();
         for row in rows {
             let session = map_sqlx_error(SessionRow::from_row(&row))?;
             let runtime_status: Option<String> = None;
-            result.push(row_mapper::session_row_to_payload(session, runtime_status));
+            items.push(row_mapper::session_row_to_payload(session, runtime_status));
         }
-        Ok(result)
+
+        Ok(CodingSessionListPage { items, total })
     }
 
     async fn get_session(

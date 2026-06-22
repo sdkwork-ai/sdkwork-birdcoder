@@ -5,6 +5,10 @@ use axum::Json;
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 
+use sdkwork_birdcoder_errors::{
+    build_offset_list_envelope, trace_id_from_request_id, ApiListEnvelope,
+};
+use sdkwork_birdcoder_project_service::pagination::paginate_vec;
 use sdkwork_birdcoder_router_context::{
     deployment_context, project_context, workspace_context, RequiredIamContext, WebRequestContext,
 };
@@ -12,6 +16,7 @@ use sdkwork_birdcoder_workspace_service::domain::commands::{
     CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest,
 };
 use sdkwork_birdcoder_workspace_service::domain::models::WorkspaceScopedQuery;
+use sdkwork_birdcoder_workspace_service::domain::results::WorkspacePayload;
 use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService;
 
 use sdkwork_birdcoder_project_service::domain::commands::{
@@ -32,7 +37,7 @@ use crate::mapper::request::{
     CommitGitChangesBody, ProjectListQuery, ProjectPathParams, PublishProjectBody,
     PushGitBranchBody, RemoveGitWorktreeBody, SwitchGitBranchBody, UpdateProjectBody,
     UpdateWorkspaceBody, UpsertProjectCollaboratorBody, UpsertWorkspaceMemberBody,
-    WorkspacePathParams,
+    WorkspaceListQuery, WorkspacePathParams,
 };
 use crate::realtime_hub::{build_workspace_ready_message, WorkspaceRealtimeHub};
 
@@ -44,6 +49,14 @@ pub struct WorkspaceAppState {
     pub realtime_hub: WorkspaceRealtimeHub,
 }
 
+fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
+    trace_id_from_request_id(web.request_id.0.as_str())
+}
+
+fn request_id(web: &WebRequestContext) -> &str {
+    web.request_id.0.as_str()
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct WorkspaceRealtimeQuery {
@@ -53,25 +66,37 @@ pub(crate) struct WorkspaceRealtimeQuery {
 // ── Workspace handlers ───────────────────────────────────────────────
 
 pub async fn list_workspaces(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
-    Query(_query): Query<serde_json::Value>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+    Query(query): Query<WorkspaceListQuery>,
+) -> Result<Json<ApiListEnvelope<WorkspacePayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = workspace_context(&iam);
-    let query = WorkspaceScopedQuery {
+    let scoped = WorkspaceScopedQuery {
         root_path: None,
-        user_id: None,
+        user_id: query.user_id.clone(),
         workspace_id: None,
     };
-    match state.workspace_service.list_workspaces(&ctx, &query).await {
-        Ok(workspaces) => Ok(Json(serde_json::json!({ "items": workspaces }))),
-        Err(e) => Err(error::map_workspace_error(e)),
+    let trace_id = request_trace_id(&web);
+    match state.workspace_service.list_workspaces(&ctx, &scoped).await {
+        Ok(workspaces) => {
+            let (items, offset, limit, total) =
+                paginate_vec(workspaces, query.offset, query.limit);
+            let page_size = limit.unwrap_or(sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE);
+            Ok(Json(build_offset_list_envelope(
+                items,
+                offset,
+                page_size,
+                total,
+                request_id(&web),
+            )))
+        }
+        Err(e) => Err(error::map_workspace_error(e, trace_id)),
     }
 }
 
 pub async fn get_workspace(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
@@ -79,12 +104,12 @@ pub async fn get_workspace(
     let ctx = workspace_context(&iam);
     match state.workspace_service.get_workspace(&ctx, &params.workspace_id).await {
         Ok(workspace) => Ok(Json(serde_json::json!(workspace))),
-        Err(e) => Err(error::map_workspace_error(e)),
+        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn create_workspace(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Json(body): Json<CreateWorkspaceBody>,
@@ -117,12 +142,12 @@ pub async fn create_workspace(
     };
     match state.workspace_service.create_workspace(&ctx, &request).await {
         Ok(workspace) => Ok(Json(serde_json::json!(workspace))),
-        Err(e) => Err(error::map_workspace_error(e)),
+        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn update_workspace(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
@@ -154,12 +179,12 @@ pub async fn update_workspace(
     };
     match state.workspace_service.update_workspace(&ctx, &params.workspace_id, &request).await {
         Ok(workspace) => Ok(Json(serde_json::json!(workspace))),
-        Err(e) => Err(error::map_workspace_error(e)),
+        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn delete_workspace(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
@@ -167,21 +192,24 @@ pub async fn delete_workspace(
     let ctx = workspace_context(&iam);
     match state.workspace_service.delete_workspace(&ctx, &params.workspace_id).await {
         Ok(result) => Ok(Json(serde_json::json!(result))),
-        Err(e) => Err(error::map_workspace_error(e)),
+        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn subscribe_workspace_realtime(
     ws: WebSocketUpgrade,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     Path(params): Path<WorkspacePathParams>,
     Query(query): Query<WorkspaceRealtimeQuery>,
     State(state): State<WorkspaceAppState>,
 ) -> Result<impl IntoResponse, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+    let trace_id = request_trace_id(&web);
     let session_id = query.session_id.trim();
     if session_id.is_empty() || session_id != iam.session_id {
         return Err(error::map_validation_error(
             "A valid SDKWork IAM session id is required for workspace realtime subscription.",
+            trace_id,
         ));
     }
 
@@ -193,9 +221,10 @@ pub async fn subscribe_workspace_realtime(
         .await
         .is_err()
     {
-        return Err(error::map_not_found(format!(
-            "Workspace '{workspace_id}' was not found."
-        )));
+        return Err(error::map_not_found(
+            format!("Workspace '{workspace_id}' was not found."),
+            trace_id,
+        ));
     }
 
     let user_id = iam.user_id.clone();
@@ -252,7 +281,7 @@ async fn handle_workspace_realtime(
 }
 
 pub async fn list_workspace_members(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
@@ -260,12 +289,12 @@ pub async fn list_workspace_members(
     let ctx = workspace_context(&iam);
     match state.workspace_service.list_workspace_members(&ctx, &params.workspace_id).await {
         Ok(members) => Ok(Json(serde_json::json!({ "items": members }))),
-        Err(e) => Err(error::map_workspace_error(e)),
+        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn upsert_workspace_member(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
@@ -283,28 +312,46 @@ pub async fn upsert_workspace_member(
     };
     match state.workspace_service.upsert_workspace_member(&ctx, &params.workspace_id, &request).await {
         Ok(member) => Ok(Json(serde_json::json!(member))),
-        Err(e) => Err(error::map_workspace_error(e)),
+        Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
 
 // ── Project handlers ─────────────────────────────────────────────────
 
 pub async fn list_projects(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Query(query): Query<ProjectListQuery>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiListEnvelope<sdkwork_birdcoder_project_service::domain::results::ProjectPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     let workspace_id = query.workspace_id.as_deref().unwrap_or("default");
+    let trace_id = request_trace_id(&web);
     match state.project_service.list_projects(&ctx, workspace_id).await {
-        Ok(projects) => Ok(Json(serde_json::json!({ "items": projects }))),
-        Err(e) => Err(error::map_project_error(e)),
+        Ok(mut projects) => {
+            if let Some(root_path) = query.root_path.as_deref() {
+                projects.retain(|project| project.root_path.as_deref() == Some(root_path));
+            }
+            if let Some(user_id) = query.user_id.as_deref() {
+                projects.retain(|project| project.user_id.as_deref() == Some(user_id));
+            }
+            let (items, offset, limit, total) =
+                paginate_vec(projects, query.offset, query.limit);
+            let page_size = limit.unwrap_or(sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE);
+            Ok(Json(build_offset_list_envelope(
+                items,
+                offset,
+                page_size,
+                total,
+                request_id(&web),
+            )))
+        }
+        Err(e) => Err(error::map_project_error(e, trace_id)),
     }
 }
 
 pub async fn get_project(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -312,12 +359,12 @@ pub async fn get_project(
     let ctx = project_context(&iam);
     match state.project_service.get_project(&ctx, &params.project_id).await {
         Ok(project) => Ok(Json(serde_json::json!(project))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn create_project(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Json(body): Json<CreateProjectBody>,
@@ -358,12 +405,12 @@ pub async fn create_project(
     };
     match state.project_service.create_project(&ctx, &request).await {
         Ok(project) => Ok(Json(serde_json::json!(project))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn update_project(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -398,12 +445,12 @@ pub async fn update_project(
     };
     match state.project_service.update_project(&ctx, &params.project_id, &request).await {
         Ok(project) => Ok(Json(serde_json::json!(project))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn delete_project(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -411,14 +458,14 @@ pub async fn delete_project(
     let ctx = project_context(&iam);
     match state.project_service.delete_project(&ctx, &params.project_id).await {
         Ok(result) => Ok(Json(serde_json::json!(result))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 // ── Git handlers ─────────────────────────────────────────────────────
 
 pub async fn get_project_git_overview(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -426,12 +473,12 @@ pub async fn get_project_git_overview(
     let ctx = project_context(&iam);
     match state.project_service.get_project_git_overview(&ctx, &params.project_id).await {
         Ok(overview) => Ok(Json(serde_json::json!(overview))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn create_project_git_branch(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -443,12 +490,12 @@ pub async fn create_project_git_branch(
     };
     match state.project_service.create_project_git_branch(&ctx, &params.project_id, &request).await {
         Ok(overview) => Ok(Json(serde_json::json!(overview))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn switch_project_git_branch(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -460,12 +507,12 @@ pub async fn switch_project_git_branch(
     };
     match state.project_service.switch_project_git_branch(&ctx, &params.project_id, &request).await {
         Ok(overview) => Ok(Json(serde_json::json!(overview))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn commit_project_git_changes(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -477,12 +524,12 @@ pub async fn commit_project_git_changes(
     };
     match state.project_service.commit_project_git_changes(&ctx, &params.project_id, &request).await {
         Ok(overview) => Ok(Json(serde_json::json!(overview))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn push_project_git_branch(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -495,12 +542,12 @@ pub async fn push_project_git_branch(
     };
     match state.project_service.push_project_git_branch(&ctx, &params.project_id, &request).await {
         Ok(overview) => Ok(Json(serde_json::json!(overview))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn create_project_git_worktree(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -513,12 +560,12 @@ pub async fn create_project_git_worktree(
     };
     match state.project_service.create_project_git_worktree(&ctx, &params.project_id, &request).await {
         Ok(overview) => Ok(Json(serde_json::json!(overview))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn remove_project_git_worktree(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -531,12 +578,12 @@ pub async fn remove_project_git_worktree(
     };
     match state.project_service.remove_project_git_worktree(&ctx, &params.project_id, &request).await {
         Ok(overview) => Ok(Json(serde_json::json!(overview))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn prune_project_git_worktrees(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -544,14 +591,14 @@ pub async fn prune_project_git_worktrees(
     let ctx = project_context(&iam);
     match state.project_service.prune_project_git_worktrees(&ctx, &params.project_id).await {
         Ok(overview) => Ok(Json(serde_json::json!(overview))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 // ── Collaborator handlers ────────────────────────────────────────────
 
 pub async fn list_project_collaborators(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -559,12 +606,12 @@ pub async fn list_project_collaborators(
     let ctx = project_context(&iam);
     match state.project_service.list_project_collaborators(&ctx, &params.project_id).await {
         Ok(collaborators) => Ok(Json(serde_json::json!({ "items": collaborators }))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn upsert_project_collaborator(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -582,26 +629,26 @@ pub async fn upsert_project_collaborator(
     };
     match state.project_service.upsert_project_collaborator(&ctx, &params.project_id, &request).await {
         Ok(collaborator) => Ok(Json(serde_json::json!(collaborator))),
-        Err(e) => Err(error::map_project_error(e)),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
 
 // ── Deployment handlers ──────────────────────────────────────────────
 
 pub async fn list_deployments(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = deployment_context(&iam);
     match state.deployment_service.list_deployments(&ctx).await {
         Ok(deployments) => Ok(Json(serde_json::json!({ "items": deployments }))),
-        Err(e) => Err(error::map_deployment_error(e)),
+        Err(e) => Err(error::map_deployment_error(e, request_trace_id(&web))),
     }
 }
 
 pub async fn publish_project(
-    _web: WebRequestContext,
+    web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
@@ -611,7 +658,7 @@ pub async fn publish_project(
     let deployment_ctx = deployment_context(&iam);
     let project = match state.project_service.get_project(&project_ctx, &params.project_id).await {
         Ok(project) => project,
-        Err(error) => return Err(error::map_project_error(error)),
+        Err(error) => return Err(error::map_project_error(error, request_trace_id(&web))),
     };
     let command = PublishProjectCommand {
         workspace_id: project.workspace_id,
@@ -639,6 +686,6 @@ pub async fn publish_project(
         .await
     {
         Ok(result) => Ok(Json(serde_json::json!(result))),
-        Err(e) => Err(error::map_deployment_error(e)),
+        Err(e) => Err(error::map_deployment_error(e, request_trace_id(&web))),
     }
 }

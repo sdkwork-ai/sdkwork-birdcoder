@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use axum::extract::{Path, State};
 use axum::Json;
+use sqlx::SqlitePool;
 
 use sdkwork_birdcoder_system_descriptor_service::domain::models::{
     DescriptorPayload, HealthPayload, OperationPayload, RouteCatalogEntryPayload, RuntimePayload,
@@ -9,9 +10,15 @@ use sdkwork_birdcoder_system_descriptor_service::domain::models::{
 use sdkwork_birdcoder_system_descriptor_service::service::system_service::{
     OperationProvider, RouteCatalogProvider, SystemService,
 };
+use sdkwork_birdcoder_errors::trace_id_from_request_id;
+use sdkwork_birdcoder_router_context::WebRequestContext;
 
 use crate::error;
 use crate::mapper::request::OperationPathParams;
+
+fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
+    trace_id_from_request_id(web.request_id.0.as_str())
+}
 
 // ── Concrete provider implementations ────────────────────────────────
 
@@ -81,12 +88,21 @@ pub type ConcreteSystemService = SystemService<StaticRouteCatalogProvider, Stati
 #[derive(Clone)]
 pub struct SystemAppState {
     pub service: Arc<ConcreteSystemService>,
+    pub sqlite_pool: Option<SqlitePool>,
 }
 
 impl SystemAppState {
     pub fn new() -> Self {
         Self {
             service: Arc::new(SystemService::new(StaticRouteCatalogProvider, StaticOperationProvider)),
+            sqlite_pool: None,
+        }
+    }
+
+    pub fn with_sqlite_pool(sqlite_pool: SqlitePool) -> Self {
+        Self {
+            service: Arc::new(SystemService::new(StaticRouteCatalogProvider, StaticOperationProvider)),
+            sqlite_pool: Some(sqlite_pool),
         }
     }
 }
@@ -121,16 +137,44 @@ pub async fn get_runtime(
     Json(serde_json::json!(runtime))
 }
 
-pub async fn get_health() -> Json<serde_json::Value> {
+pub async fn get_health(State(state): State<SystemAppState>) -> Json<serde_json::Value> {
+    if let Some(pool) = state.sqlite_pool.as_ref() {
+        return Json(build_sqlite_health_payload(pool).await);
+    }
+
     Json(serde_json::json!({ "status": "healthy" }))
 }
 
+async fn build_sqlite_health_payload(pool: &SqlitePool) -> serde_json::Value {
+    let sqlite = match sqlx::query("SELECT 1").fetch_one(pool).await {
+        Ok(_) => serde_json::json!({
+            "ok": true,
+            "engine": "sqlite",
+        }),
+        Err(error) => serde_json::json!({
+            "ok": false,
+            "engine": "sqlite",
+            "error": error.to_string(),
+        }),
+    };
+    let healthy = sqlite["ok"].as_bool().unwrap_or(false);
+
+    serde_json::json!({
+        "status": if healthy { "healthy" } else { "degraded" },
+        "checks": {
+            "sqlite": sqlite,
+        }
+    })
+}
+
 pub async fn get_operation(
+    web: WebRequestContext,
     State(state): State<SystemAppState>,
     Path(params): Path<OperationPathParams>,
 ) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+    let trace_id = request_trace_id(&web);
     match state.service.get_operation(&params.operation_id) {
         Ok(operation) => Ok(Json(serde_json::json!(operation))),
-        Err(e) => Err(error::map_system_error(e)),
+        Err(e) => Err(error::map_system_error(e, trace_id)),
     }
 }

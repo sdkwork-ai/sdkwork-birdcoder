@@ -1,0 +1,11 @@
+import type { ReactNode } from 'react';
+import { AuthGate } from '@sdkwork/birdcoder-auth';
+import { getBirdCoderIamRuntime } from '@sdkwork/birdcoder-pc-infrastructure';
+
+interface BirdCoderAuthGateProps {
+  children: ReactNode;
+}
+
+export function BirdCoderAuthGate({ children }: BirdCoderAuthGateProps) {
+  return <AuthGate getRuntime={getBirdCoderIamRuntime}>{children}</AuthGate>;
+}

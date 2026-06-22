@@ -1,6 +1,6 @@
 use crate::{
     get_sdk_bridge_session_detail, list_sdk_bridge_session_summaries,
-    lookup_standard_native_session_provider_registration, session_id_targets_engine,
+    resolved_native_session_provider_registration, session_id_targets_engine,
     CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord, NativeSessionProviderPlugin,
     NativeSessionProviderRegistration,
 };
@@ -10,14 +10,9 @@ const CLAUDE_CODE_ENGINE_ID: &str = "claude-code";
 
 impl NativeSessionProviderPlugin for ClaudeCodeEngineProvider {
     fn registration(&self) -> &'static NativeSessionProviderRegistration {
-        lookup_standard_native_session_provider_registration(CLAUDE_CODE_ENGINE_ID).unwrap_or_else(
-            || {
-                panic!(
-                    "standard native session provider registration missing for engine {}",
-                    CLAUDE_CODE_ENGINE_ID
-                )
-            },
-        )
+        resolved_native_session_provider_registration(CLAUDE_CODE_ENGINE_ID).unwrap_or_else(|error| {
+            panic!("{error}")
+        })
     }
 
     fn list_sessions(&self) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {

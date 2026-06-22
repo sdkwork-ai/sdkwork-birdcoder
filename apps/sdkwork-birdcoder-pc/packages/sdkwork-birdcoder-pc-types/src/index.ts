@@ -93,14 +93,8 @@ export interface IWorkspace {
   viewerRole?: 'owner' | 'admin' | 'member' | 'viewer';
 }
 
-export interface FileChange {
-  path: string;
-  additions: number;
-  deletions: number;
-  diff?: string;
-  content?: string;
-  originalContent?: string;
-}
+export type { FileChange } from './file-change.ts';
+import type { FileChange } from './file-change.ts';
 
 export interface CommandExecution {
   command: string;
@@ -1611,3 +1605,6 @@ export * from './json.ts';
 export * from './prompt-skill-template.ts';
 export * from './server-api.ts';
 export * from './storageBindings.ts';
+export * from './chat-message-view.ts';
+export * from './chat-message-activity-projection.ts';
+export * from './chat-message-task-progress.ts';
