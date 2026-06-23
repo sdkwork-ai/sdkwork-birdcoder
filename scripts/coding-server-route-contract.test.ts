@@ -17,9 +17,9 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/app/v3/api/system/routes',
-    routeCount: 127,
+    routeCount: 130,
     routesBySurface: {
-      app: 78,
+      app: 81,
       backend: 49,
     },
     surfaces: [
@@ -28,7 +28,7 @@ assert.deepEqual(descriptor, {
         basePath: '/app/v3/api',
         description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
         name: 'app',
-        routeCount: 78,
+        routeCount: 81,
       },
       {
         authMode: 'admin',
@@ -147,6 +147,11 @@ assert.equal(
   app.oauthDeviceAuthorizationPasswordCompletion.path,
   '/app/v3/api/oauth/device_authorizations/:deviceAuthorizationId/password_completions',
 );
+assert.equal(app.oauthDeviceAuthorizationSessionExchange.method, 'POST');
+assert.equal(
+  app.oauthDeviceAuthorizationSessionExchange.path,
+  '/app/v3/api/oauth/device_authorizations/:deviceAuthorizationId/session_exchanges',
+);
 assert.equal(app.currentIamUser.method, 'GET');
 assert.equal(app.currentIamUser.path, '/app/v3/api/iam/users/current');
 assert.equal(app.updateCurrentUserProfile.method, 'PATCH');
@@ -217,7 +222,7 @@ assert.equal(admin.releases.path, '/backend/v3/api/releases');
 assert.equal(admin.deployments.path, '/backend/v3/api/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 127, 'coding-server should expose the full app/backend route matrix');
+assert.equal(routes.length, 130, 'coding-server should expose the full app/backend route matrix');
 assert.equal(
   routes.every((route) => route.path.startsWith('/app/v3/api') || route.path.startsWith('/backend/v3/api')),
   true,
@@ -472,6 +477,19 @@ assert.equal(
   routeCatalog.some((route) => route.operationId.startsWith('qrAuth.sessions.')),
   false,
   'BirdCoder route catalog must not publish retired appbase QR auth operation ids.',
+);
+assert.deepEqual(
+  routeCatalog.find((route) => route.operationId === 'oauth.deviceAuthorizations.sessionExchanges.create'),
+  {
+    authMode: 'user',
+    method: 'POST',
+    openApiPath:
+      '/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/session_exchanges',
+    operationId: 'oauth.deviceAuthorizations.sessionExchanges.create',
+    path: '/app/v3/api/oauth/device_authorizations/:deviceAuthorizationId/session_exchanges',
+    surface: 'app',
+    summary: 'Exchange SDKWork IAM OAuth device authorization for a session',
+  },
 );
 assert.deepEqual(
   routeCatalog.find((route) => route.operationId === 'users.current.retrieve'),

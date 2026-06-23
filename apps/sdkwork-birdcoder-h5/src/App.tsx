@@ -1,8 +1,25 @@
+import {
+  BirdCoderAuthGate,
+  ShellRuntimeProviders,
+} from '@sdkwork/birdcoder-h5-shell';
+import { AppProvider } from '@sdkwork/birdcoder-h5-commons';
+import { MobileShell } from './shell/MobileShell.tsx';
+
 export default function App() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <h1>SDKWork Birdcoder H5</h1>
-      <p>H5 mobile web application - Coming soon</p>
-    </div>
+    <ShellRuntimeProviders>
+      <BirdCoderAuthGate>
+        <AppProvider>
+          <MobileShell>
+            <div className="px-4 py-6">
+              <h2 className="text-base font-medium">SDKWork BirdCoder H5</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Mobile shell bootstrap, IAM runtime, and auth gate are active.
+              </p>
+            </div>
+          </MobileShell>
+        </AppProvider>
+      </BirdCoderAuthGate>
+    </ShellRuntimeProviders>
   );
 }

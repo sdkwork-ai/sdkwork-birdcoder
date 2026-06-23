@@ -1,6 +1,7 @@
 use crate::domain::commands::InstallSkillPackageInput;
 use crate::domain::models::{SkillInstallationPayload, SkillPackagePayload};
 use crate::error::SkillPackageError;
+use sdkwork_birdcoder_errors::require_scoped_tenant_id;
 
 #[async_trait::async_trait]
 pub trait SkillPackageRepository: Send + Sync {
@@ -29,7 +30,12 @@ pub trait SkillPackageRepository: Send + Sync {
         scope_id: &str,
     ) -> Result<SkillInstallationPayload, String>;
 
-    async fn scope_exists(&self, scope_type: &str, scope_id: &str) -> Result<bool, String>;
+    async fn scope_exists(
+        &self,
+        scope_type: &str,
+        scope_id: &str,
+        tenant_id: i64,
+    ) -> Result<bool, String>;
 }
 
 #[derive(Clone)]
@@ -73,9 +79,13 @@ impl<R: SkillPackageRepository> SkillPackageService<R> {
             ));
         }
 
+        let tenant_id = require_scoped_tenant_id(&input.tenant_id).map_err(|_| {
+            SkillPackageError::InvalidInput("A valid tenant scope is required.".to_string())
+        })?;
+
         let scope_exists = self
             .repository
-            .scope_exists(&normalized_scope_type, &normalized_scope_id)
+            .scope_exists(&normalized_scope_type, &normalized_scope_id, tenant_id)
             .await
             .map_err(SkillPackageError::Repository)?;
         if !scope_exists {

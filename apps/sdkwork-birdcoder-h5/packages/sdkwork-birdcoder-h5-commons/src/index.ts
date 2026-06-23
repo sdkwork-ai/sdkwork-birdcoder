@@ -11,3 +11,5 @@ export function createCommonsUtils(): H5CommonsUtils {
     formatNumber: (num: number) => num.toLocaleString(),
   };
 }
+
+export { AppProvider, useAppContext } from './providers/AppProvider.tsx';

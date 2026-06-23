@@ -11,3 +11,8 @@ export function createDefaultShellConfig(): H5ShellConfig {
     theme: 'system',
   };
 }
+
+export { BootstrapGate, type BootstrapGateProps } from './bootstrap/BootstrapGate.ts';
+export { createBirdCoderH5BootstrapRuntime } from './bootstrap/createBootstrapRuntime.ts';
+export { ShellRuntimeProviders } from './providers/ShellRuntimeProviders.ts';
+export { BirdCoderAuthGate } from './auth/BirdCoderAuthGate.tsx';

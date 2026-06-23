@@ -53,8 +53,13 @@ const replyRenderersSource = readFileSync(
 
 assert.match(
   chatMessageViewSource,
-  /export type BirdCoderChatMessageViewKind/,
-  'pc-types must define BirdCoderChatMessageViewKind for transcript message views.',
+  /BirdCoderChatMessageViewKind/,
+  'pc-types must export BirdCoderChatMessageViewKind for transcript message views.',
+);
+assert.match(
+  chatMessageViewSource,
+  /@sdkwork\/birdcoder-chat-contracts/,
+  'pc-types chat message view kinds must align with shared chat contracts.',
 );
 assert.match(
   chatMessageViewSource,
@@ -90,6 +95,11 @@ assert.match(
   contentBlockRenderersSource,
   /<ChatActivitySummary/,
   'activity block rendering must delegate to ChatActivitySummary.',
+);
+assert.match(
+  contentBlockRenderersSource,
+  /<ToolCallCard/,
+  'tool-calls block rendering must delegate to structured ToolCallCard components.',
 );
 assert.match(
   replyRenderersSource,

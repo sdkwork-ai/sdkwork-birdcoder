@@ -5,5 +5,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-h5-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
   }
 }

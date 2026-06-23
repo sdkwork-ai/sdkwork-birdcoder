@@ -7,6 +7,7 @@ import {
 } from '../activity/activityBlockSupport.ts';
 import { ChatTaskProgress } from '../blocks/ChatTaskProgress.tsx';
 import type { ChatMessageContentBlockRendererProps } from './registry.ts';
+import { ToolCallCard } from './ToolCallCard.tsx';
 
 function ActivitySummaryBlock({
   block,
@@ -133,17 +134,6 @@ export const TaskProgressContentBlockRenderer = memo(function TaskProgressConten
   );
 });
 
-function formatToolCall(toolCall: unknown): string {
-  if (typeof toolCall === 'string') {
-    return toolCall;
-  }
-  try {
-    return JSON.stringify(toolCall, null, 2);
-  } catch {
-    return String(toolCall);
-  }
-}
-
 export const ToolCallsContentBlockRenderer = memo(function ToolCallsContentBlockRenderer({
   block,
   context,
@@ -156,16 +146,12 @@ export const ToolCallsContentBlockRenderer = memo(function ToolCallsContentBlock
 
   return (
     <div className={`flex flex-col gap-2 ${compact ? 'mt-1.5' : 'mt-2'}`}>
-      {block.calls.map((toolCall, index) => (
-        <div
-          key={`tool-call:${index}`}
-          className="rounded-lg border border-white/10 bg-[#141417] px-3 py-2"
-        >
-          <div className="mb-1 text-[11px] uppercase tracking-wide text-gray-500">Tool call</div>
-          <pre className={`text-[11px] text-gray-300 whitespace-pre-wrap overflow-auto ${compact ? 'max-h-40' : 'max-h-56'}`}>
-            {formatToolCall(toolCall)}
-          </pre>
-        </div>
+      {block.calls.map((toolCall) => (
+        <ToolCallCard
+          key={toolCall.id}
+          call={toolCall}
+          compact={compact}
+        />
       ))}
     </div>
   );

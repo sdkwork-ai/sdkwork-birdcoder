@@ -333,7 +333,7 @@ assertActiveDocsUseCanonicalApiAndSdkLanguage();
 assertNoRetiredAdminApiSurfaceNaming();
 assertNoRetiredOpenApiSeedBuilder();
 assertNoRetiredBillingVipServerTypes();
-assert.equal(descriptor.gateway.routesBySurface.app, 78);
+assert.equal(descriptor.gateway.routesBySurface.app, 80);
 assert.equal(descriptor.gateway.routesBySurface.backend, 49);
 assert.deepEqual(descriptor.surfaces, ['app', 'backend']);
 assert.equal(
@@ -425,7 +425,7 @@ assert.deepEqual(openApiDocument.tags.map((tag) => tag.name), [
   'system',
   'templates',
 ]);
-assert.equal(openApiDocument['x-sdkwork-api-gateway'].routesBySurface.app, 78);
+assert.equal(openApiDocument['x-sdkwork-api-gateway'].routesBySurface.app, 80);
 assert.equal(openApiDocument['x-sdkwork-api-gateway'].routesBySurface.backend, 49);
 assert.equal(
   'basePath' in openApiDocument['x-sdkwork-api-gateway'],

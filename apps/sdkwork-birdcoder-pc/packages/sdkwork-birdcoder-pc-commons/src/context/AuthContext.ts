@@ -42,11 +42,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       setUser((previousUser) => {
-        if (currentUser === null && !sessionPresent) {
+        if (currentUser !== null) {
+          return currentUser;
+        }
+
+        if (!sessionPresent) {
           return null;
         }
 
-        return resolveFallbackAwareCurrentUser(currentUser, previousUser ?? undefined);
+        return resolveFallbackAwareCurrentUser(null, previousUser ?? undefined);
       });
       return currentUser;
     } catch (error) {

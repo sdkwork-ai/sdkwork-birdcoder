@@ -1,30 +1,25 @@
 # SDKWork BirdCoder H5 SDKs
 
-This directory contains SDK family workspaces and generation manifests for the H5 application.
+H5 consumes the canonical BirdCoder SDK families generated under the PC application root. This workspace declares consumer-surface ownership for H5 app and backend-admin boundaries.
 
-## SDK Families
+## Assembly
 
-No SDK families have been generated yet. SDK families will be created here following `SDK_WORKSPACE_GENERATION_SPEC.md`.
+- `sdks/.sdkwork-assembly.json` — H5 consumer assembly (`dependencyMode: consumer-sdk`)
+- App SDK consumer boundary: `@sdkwork/birdcoder-h5-core`
+- Backend-admin SDK consumer boundary: `@sdkwork/birdcoder-h5-admin-core`
 
-## Expected Structure
+## Canonical Generation Authority
+
+Generated OpenAPI SDK artifacts remain owned by:
 
 ```
-sdks/
-  .sdkwork-assembly.json
-  README.md
-  specs/
-    component.spec.json
-    domain-catalog.json
-    openapi/
-  sdkwork-birdcoder-h5-app-sdk/
-    sdkwork-birdcoder-h5-app-sdk-typescript/
-  sdkwork-birdcoder-h5-backend-sdk/
-    sdkwork-birdcoder-h5-backend-sdk-typescript/
+apps/sdkwork-birdcoder-pc/sdks/
 ```
 
-## Generation
+Regenerate with:
 
-To generate SDK families, run:
 ```bash
 pnpm generate:sdk:birdcoder
 ```
+
+H5 must not fork generated SDK output. Runtime code composes generated clients through `h5-core` and `h5-admin-core`.

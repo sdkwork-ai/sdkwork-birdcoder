@@ -1,7 +1,7 @@
 import {
   normalizeBirdCoderServerBaseUrl,
   resolveBirdCoderBootstrapServerBaseUrl,
-} from '@sdkwork/birdcoder-pc-shell-runtime';
+} from '@sdkwork/birdcoder-h5-core';
 
 export function createRuntime(options: {
   configuredApiBaseUrl?: string;
@@ -16,3 +16,8 @@ export function createRuntime(options: {
     apiBaseUrl,
   };
 }
+
+export {
+  normalizeBirdCoderServerBaseUrl,
+  resolveBirdCoderBootstrapServerBaseUrl,
+};

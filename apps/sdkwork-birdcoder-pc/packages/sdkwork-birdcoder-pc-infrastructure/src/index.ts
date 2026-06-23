@@ -25,9 +25,11 @@ export * from './services/sdkTransportShared.ts';
 export * from './services/codingSessionMessageProjection.ts';
 export * from './services/projectContentConfigData.ts';
 export * from './services/workspaceRealtimeClient.ts';
-export * from './services/interfaces/IAuditService.ts';
-export * from './services/interfaces/IAdminDeploymentService.ts';
-export * from './services/interfaces/IAdminPolicyService.ts';
+export type {
+  IAdminDeploymentService,
+  IAdminPolicyService,
+  IAuditService,
+} from '@sdkwork/birdcoder-pc-admin-core';
 export * from './services/interfaces/ICatalogService.ts';
 export * from './services/interfaces/ICollaborationService.ts';
 export * from './services/interfaces/IDeploymentService.ts';

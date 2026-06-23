@@ -2,6 +2,11 @@ use axum::http::StatusCode;
 use axum::Json;
 use sdkwork_birdcoder_deployment_service::error::DeploymentError;
 
+use sdkwork_birdcoder_errors::{
+    client_safe_data_access_problem, client_safe_event_publish_problem,
+    client_safe_internal_problem,
+};
+
 pub use sdkwork_birdcoder_errors::ProblemDetailsPayload;
 
 fn with_trace_id(
@@ -23,6 +28,13 @@ pub fn map_service_error(
                 trace_id,
             )),
         ),
+        DeploymentError::Forbidden(msg) => (
+            StatusCode::FORBIDDEN,
+            Json(with_trace_id(
+                ProblemDetailsPayload::new("forbidden", msg, false),
+                trace_id,
+            )),
+        ),
         DeploymentError::InvalidInput(msg) => (
             StatusCode::BAD_REQUEST,
             Json(with_trace_id(
@@ -37,14 +49,17 @@ pub fn map_service_error(
                 trace_id,
             )),
         ),
-        DeploymentError::Repository(msg)
-        | DeploymentError::EventPublish(msg)
-        | DeploymentError::Internal(msg) => (
+        DeploymentError::Repository(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("internal", msg, true),
-                trace_id,
-            )),
+            Json(with_trace_id(client_safe_data_access_problem(), trace_id)),
+        ),
+        DeploymentError::EventPublish(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(with_trace_id(client_safe_event_publish_problem(), trace_id)),
+        ),
+        DeploymentError::Internal(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(with_trace_id(client_safe_internal_problem(), trace_id)),
         ),
     }
 }

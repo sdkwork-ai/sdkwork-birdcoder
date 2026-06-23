@@ -45,10 +45,21 @@ impl WorkspaceService {
                 "workspaceId is required.".to_owned(),
             ));
         }
+        self.repository.ensure_workspace_access(ctx, id).await?;
         self.repository
             .find_workspace_by_id(ctx, id)
             .await?
             .ok_or_else(|| WorkspaceError::NotFound("Workspace was not found.".to_owned()))
+    }
+
+    pub async fn ensure_workspace_access(
+        &self,
+        ctx: &WorkspaceContext,
+        workspace_id: &str,
+    ) -> Result<(), WorkspaceError> {
+        self.repository
+            .ensure_workspace_access(ctx, workspace_id)
+            .await
     }
 
     pub async fn create_workspace(

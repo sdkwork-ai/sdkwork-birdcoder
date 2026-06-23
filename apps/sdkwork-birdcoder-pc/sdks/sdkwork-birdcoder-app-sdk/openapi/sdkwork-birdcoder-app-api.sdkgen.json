@@ -2714,6 +2714,112 @@
         "x-sdkwork-api-surface": "app-api"
       }
     },
+    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/session_exchanges": {
+      "post": {
+        "operationId": "oauth.deviceAuthorizations.sessionExchanges.create",
+        "summary": "Exchange SDKWork IAM OAuth device authorization for a session",
+        "description": "Exchange SDKWork IAM OAuth device authorization for a session. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "deviceAuthorizationId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM OAuth device authorization identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationSessionExchangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM OAuth device authorization session exchanged successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth device authorization session exchange is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "OAuth device authorization poll secret was rejected.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "OAuth device authorization was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OAuth device authorization session is not ready for exchange.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "system.oauth.deviceAuthorizations.sessionExchanges",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
     "/app/v3/api/auth/password_reset_requests": {
       "post": {
         "operationId": "passwordResetRequests.create",
@@ -9001,6 +9107,18 @@
         },
         "additionalProperties": false
       },
+      "BirdCoderIamDeviceAuthorizationSessionExchangeRequest": {
+        "type": "object",
+        "properties": {
+          "pollSecret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pollSecret"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderIamDeviceAuthorizationSummary": {
         "type": "object",
         "properties": {
@@ -9011,11 +9129,17 @@
             "type": "string",
             "format": "date-time"
           },
+          "pollSecret": {
+            "type": "string"
+          },
           "qrContent": {
             "type": "string"
           },
           "qrUrl": {
             "type": "string"
+          },
+          "sessionReady": {
+            "type": "boolean"
           },
           "status": {
             "type": "string",
@@ -9023,7 +9147,10 @@
               "pending",
               "scanned",
               "confirmed",
-              "expired"
+              "completed",
+              "expired",
+              "cancelled",
+              "failed"
             ]
           }
         },

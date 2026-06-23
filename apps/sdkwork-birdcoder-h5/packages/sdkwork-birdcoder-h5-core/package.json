@@ -5,5 +5,13 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-pc-auth": "workspace:*",
+    "@sdkwork/birdcoder-pc-core": "workspace:*",
+    "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
+    "@sdkwork/birdcoder-pc-types": "workspace:*",
+    "@sdkwork/sdk-common": "workspace:*"
   }
 }

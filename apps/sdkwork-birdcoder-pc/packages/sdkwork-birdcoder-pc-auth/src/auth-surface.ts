@@ -1,14 +1,6 @@
 import {
   createSdkworkIamRuntimeAuthController,
-  isSdkworkAuthLeftRailMode,
-  isSdkworkAuthLoginMethod,
   resolveSdkworkAuthDevelopmentPrefill,
-  resolveSdkworkAuthLoginMethods,
-  resolveSdkworkAuthOAuthProviderRegion,
-  resolveSdkworkAuthOAuthProviders,
-  resolveSdkworkAuthRecoveryMethods,
-  resolveSdkworkAuthRegisterMethods,
-  resolveSdkworkAuthVerificationPolicy,
   type CreateSdkworkIamRuntimeAuthControllerOptions,
   type SdkworkAuthAppearanceConfig,
   type SdkworkAuthController,
@@ -136,8 +128,6 @@ export function resolveBirdCoderAuthRuntimeConfig(): SdkworkAuthRuntimeConfig {
   return {
     leftRailMode: 'qr-only',
     loginMethods: ['password'],
-    oauthLoginEnabled: false,
-    oauthProviders: [],
     qrLoginEnabled: true,
     recoveryMethods: [],
     registerMethods: ['email', 'phone'],

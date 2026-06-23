@@ -1,8 +1,12 @@
 import { APP_SESSION_CHANGE_EVENT_NAME } from './appSessionEvents.ts';
+import {
+  APP_SESSION_STORAGE_KEY,
+  getAppSessionPersistencePort,
+} from './appSessionPersistence.ts';
 
 export { APP_SESSION_CHANGE_EVENT_NAME } from './appSessionEvents.ts';
+export { APP_SESSION_STORAGE_KEY } from './appSessionPersistence.ts';
 
-const APP_SESSION_STORAGE_KEY = 'sdkwork.birdcoder.appSession.v1';
 const LEGACY_LOCAL_SESSION_KEY = 'sdkwork-birdcoder-pc:session:v1';
 const EXPIRY_SKEW_SECONDS = 30;
 
@@ -134,9 +138,14 @@ export function loadStoredAppSessionToken(): StoredAppSessionToken | null {
 export function clearStoredAppSessionToken(): void {
   memoryToken = null;
   storageLoaded = true;
-  removeSessionStorage();
+  getAppSessionPersistencePort().remove();
   removeLegacyLocalSessionStorage();
   dispatchAppSessionChange();
+}
+
+export function resetAppSessionTokenStorageCache(): void {
+  memoryToken = null;
+  storageLoaded = false;
 }
 
 function readAppSessionPayload(result: unknown): Record<string, unknown> {
@@ -225,27 +234,15 @@ function currentUnixSeconds(): number {
 }
 
 function readSessionStorage(): string | null {
-  try {
-    return globalThis.sessionStorage?.getItem(APP_SESSION_STORAGE_KEY) ?? null;
-  } catch {
-    return null;
-  }
+  return getAppSessionPersistencePort().read();
 }
 
 function writeSessionStorage(token: StoredAppSessionToken): void {
-  try {
-    globalThis.sessionStorage?.setItem(APP_SESSION_STORAGE_KEY, JSON.stringify(token));
-  } catch {
-    // Memory storage remains available for restrictive browser contexts.
-  }
+  getAppSessionPersistencePort().write(JSON.stringify(token));
 }
 
 function removeSessionStorage(): void {
-  try {
-    globalThis.sessionStorage?.removeItem(APP_SESSION_STORAGE_KEY);
-  } catch {
-    // Nothing to clear when storage is unavailable.
-  }
+  getAppSessionPersistencePort().remove();
 }
 
 function readLegacyLocalSessionStorage(): string | null {

@@ -2,9 +2,11 @@ import { createBirdCoderConsoleQueries } from './consoleQueries.ts';
 import { createBirdCoderInProcessAppSdkTransport } from './appSdkTransport.ts';
 import { createBirdCoderInProcessBackendSdkTransport } from './backendSdkTransport.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
-import { ApiBackedAdminDeploymentService } from './impl/ApiBackedAdminDeploymentService.ts';
-import { ApiBackedAdminPolicyService } from './impl/ApiBackedAdminPolicyService.ts';
-import { ApiBackedAuditService } from './impl/ApiBackedAuditService.ts';
+import {
+  ApiBackedAdminDeploymentService,
+  ApiBackedAdminPolicyService,
+  ApiBackedAuditService,
+} from '@sdkwork/birdcoder-pc-admin-core';
 import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
 import { ApiBackedCollaborationService } from './impl/ApiBackedCollaborationService.ts';
 import { ApiBackedAppRuntimeReadService } from './impl/ApiBackedAppRuntimeReadService.ts';

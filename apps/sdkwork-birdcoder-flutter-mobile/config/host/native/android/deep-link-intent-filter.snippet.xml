@@ -1,0 +1,17 @@
+<!-- Merge into android/app/src/main/AndroidManifest.xml inside the main activity. -->
+<intent-filter>
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data
+    android:scheme="birdcoder"
+    android:host="auth"
+    android:pathPrefix="/oauth/callback" />
+</intent-filter>
+<intent-filter android:autoVerify="true">
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data android:scheme="https" android:host="birdcoder.sdkwork.com" android:pathPrefix="/auth/oauth/callback" />
+  <data android:scheme="https" android:host="api.sdkwork.com" android:pathPrefix="/auth/oauth/callback" />
+</intent-filter>

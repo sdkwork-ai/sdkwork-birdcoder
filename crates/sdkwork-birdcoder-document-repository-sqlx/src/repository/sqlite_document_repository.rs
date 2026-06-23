@@ -2,6 +2,7 @@ use sqlx::{Row, SqlitePool};
 
 use sdkwork_birdcoder_document_service::domain::models::DocumentPayload;
 use sdkwork_birdcoder_document_service::service::document_service::DocumentRepository;
+use sdkwork_birdcoder_errors::require_scoped_tenant_id;
 
 #[derive(Clone)]
 pub struct SqliteDocumentRepository {
@@ -11,6 +12,14 @@ pub struct SqliteDocumentRepository {
 impl SqliteDocumentRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
+    }
+
+    fn require_tenant_id(tenant_id: Option<&str>) -> Result<i64, String> {
+        let Some(value) = tenant_id else {
+            return Err("a valid tenant scope is required".to_owned());
+        };
+        require_scoped_tenant_id(value)
+            .map_err(|_| "a valid tenant scope is required".to_owned())
     }
 
     fn map_row(row: &sqlx::sqlite::SqliteRow) -> Result<DocumentPayload, sqlx::Error> {
@@ -42,31 +51,17 @@ impl DocumentRepository for SqliteDocumentRepository {
         project_id: Option<&str>,
         tenant_id: Option<&str>,
     ) -> Result<Vec<DocumentPayload>, String> {
-        let tenant_id = tenant_id
-            .and_then(|value| value.parse::<i64>().ok())
-            .filter(|value| *value > 0);
-        let mut sql = String::from(
-            "SELECT id, uuid, tenant_id, organization_id, created_at, updated_at, project_id, document_kind, title, slug, body_ref, status \
-             FROM studio_project_document WHERE (?1 IS NULL OR project_id = ?1) AND is_deleted = 0",
-        );
-        if tenant_id.is_some() {
-            sql.push_str(" AND tenant_id = ?2");
-        }
-        sql.push_str(" ORDER BY created_at DESC");
+        let tenant_id = Self::require_tenant_id(tenant_id)?;
+        let sql = "SELECT id, uuid, tenant_id, organization_id, created_at, updated_at, project_id, document_kind, title, slug, body_ref, status \
+             FROM studio_project_document WHERE (?1 IS NULL OR project_id = ?1) AND is_deleted = 0 AND tenant_id = ?2 \
+             ORDER BY created_at DESC";
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(project_id)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(project_id)
-                .fetch_all(&self.pool)
-                .await
-        }
-        .map_err(|e| e.to_string())?;
+        let rows = sqlx::query(sql)
+            .bind(project_id)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
         rows.iter()
             .map(Self::map_row)
@@ -79,30 +74,16 @@ impl DocumentRepository for SqliteDocumentRepository {
         document_id: &str,
         tenant_id: Option<&str>,
     ) -> Result<Option<DocumentPayload>, String> {
-        let tenant_id = tenant_id
-            .and_then(|value| value.parse::<i64>().ok())
-            .filter(|value| *value > 0);
-        let mut sql = String::from(
-            "SELECT id, uuid, tenant_id, organization_id, created_at, updated_at, project_id, document_kind, title, slug, body_ref, status \
-             FROM studio_project_document WHERE id = ?1 AND is_deleted = 0",
-        );
-        if tenant_id.is_some() {
-            sql.push_str(" AND tenant_id = ?2");
-        }
+        let tenant_id = Self::require_tenant_id(tenant_id)?;
+        let sql = "SELECT id, uuid, tenant_id, organization_id, created_at, updated_at, project_id, document_kind, title, slug, body_ref, status \
+             FROM studio_project_document WHERE id = ?1 AND is_deleted = 0 AND tenant_id = ?2";
 
-        let row = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(document_id)
-                .bind(tenant_id)
-                .fetch_optional(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(document_id)
-                .fetch_optional(&self.pool)
-                .await
-        }
-        .map_err(|e| e.to_string())?;
+        let row = sqlx::query(sql)
+            .bind(document_id)
+            .bind(tenant_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
         row.as_ref()
             .map(Self::map_row)

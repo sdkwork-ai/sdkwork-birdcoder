@@ -6,6 +6,7 @@ use crate::db::columns::project as col;
 use crate::db::columns::project_collaborator as collab_col;
 use crate::db::rows::{ProjectCollaboratorRow, ProjectRow};
 use crate::mapper::row_mapper;
+use crate::repository::scope::project_scoped_tenant_id;
 use sdkwork_birdcoder_project_service::domain::commands::{
     CreateProjectRequest, UpdateProjectRequest, UpsertProjectCollaboratorRequest,
 };
@@ -41,29 +42,20 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let id_num: i64 = id
             .parse()
             .map_err(|_| ProjectError::InvalidInput(format!("invalid id: {id}")))?;
-        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+        let tenant_id = project_scoped_tenant_id(ctx)?;
+        let sql = format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
             col::TABLE,
             col::ID,
             col::IS_DELETED,
+            col::TENANT_ID,
         );
-        if tenant_id.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
-        }
 
-        let row = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(id_num)
-                .bind(tenant_id)
-                .fetch_optional(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(id_num)
-                .fetch_optional(&self.pool)
-                .await
-        }
+        let row = sqlx::query(&sql)
+            .bind(id_num)
+            .bind(tenant_id)
+            .fetch_optional(&self.pool)
+            .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
         match row {
@@ -84,26 +76,20 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let wid: i64 = workspace_id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
-        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+        let tenant_id = project_scoped_tenant_id(ctx)?;
+        let sql = format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
             col::TABLE,
             col::WORKSPACE_ID,
             col::IS_DELETED,
+            col::TENANT_ID,
         );
-        if tenant_id.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
-        }
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(wid)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql).bind(wid).fetch_all(&self.pool).await
-        }
+        let rows = sqlx::query(&sql)
+            .bind(wid)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
         rows.iter()
@@ -122,12 +108,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
     ) -> Result<ProjectPayload, ProjectError> {
         let now = Self::now_iso();
         let uuid = Uuid::new_v4().to_string();
-        let tenant_id: i64 = req
-            .tenant_id
-            .as_deref()
-            .unwrap_or(&ctx.tenant_id)
-            .parse()
-            .unwrap_or(0);
+        let tenant_id = project_scoped_tenant_id(ctx)?;
         let organization_id: i64 = req
             .organization_id
             .as_deref()
@@ -140,7 +121,9 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .unwrap_or("1")
             .parse()
             .unwrap_or(1);
-        let workspace_id: i64 = req.workspace_id.parse().unwrap_or(0);
+        let workspace_id: i64 = req.workspace_id.parse().map_err(|_| {
+            ProjectError::InvalidInput(format!("invalid workspace_id: {}", req.workspace_id))
+        })?;
         let entity_type: i64 = req
             .entity_type
             .as_deref()
@@ -223,7 +206,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let id_num: i64 = id
             .parse()
             .map_err(|_| ProjectError::InvalidInput(format!("invalid id: {id}")))?;
-        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
+        let tenant_id = project_scoped_tenant_id(ctx)?;
         let now = Self::now_iso();
 
         let mut builder: QueryBuilder<Sqlite> =
@@ -320,10 +303,8 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 
         builder.push(format!(" WHERE {} = ", col::ID));
         builder.push_bind(id_num);
-        if let Some(tenant_id) = tenant_id {
-            builder.push(format!(" AND {} = ", col::TENANT_ID));
-            builder.push_bind(tenant_id);
-        }
+        builder.push(format!(" AND {} = ", col::TENANT_ID));
+        builder.push_bind(tenant_id);
 
         let result = builder
             .build()
@@ -351,33 +332,23 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let id_num: i64 = id
             .parse()
             .map_err(|_| ProjectError::InvalidInput(format!("invalid id: {id}")))?;
-        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
+        let tenant_id = project_scoped_tenant_id(ctx)?;
         let now = Self::now_iso();
-        let mut sql = format!(
-            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ?",
+        let sql = format!(
+            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ? AND {} = ?",
             col::TABLE,
             col::IS_DELETED,
             col::UPDATED_AT,
             col::ID,
+            col::TENANT_ID,
         );
-        if tenant_id.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
-        }
 
-        let result = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(&now)
-                .bind(id_num)
-                .bind(tenant_id)
-                .execute(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(&now)
-                .bind(id_num)
-                .execute(&self.pool)
-                .await
-        }
+        let result = sqlx::query(&sql)
+            .bind(&now)
+            .bind(id_num)
+            .bind(tenant_id)
+            .execute(&self.pool)
+            .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
         if result.rows_affected() == 0 {
             return Err(ProjectError::NotFound(format!("project {id} not found")));
@@ -440,7 +411,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .map_err(|_| ProjectError::InvalidInput("invalid user_id".into()))?;
         let now = Self::now_iso();
         let uuid = Uuid::new_v4().to_string();
-        let tenant_id: i64 = ctx.tenant_id.parse().unwrap_or(0);
+        let tenant_id = project_scoped_tenant_id(ctx)?;
         let role = req.role.as_deref().unwrap_or("member");
         let status = req.status.as_deref().unwrap_or("active");
 

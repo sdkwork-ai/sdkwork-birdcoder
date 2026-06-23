@@ -15,9 +15,11 @@ import { ProviderBackedPromptService } from './impl/ProviderBackedPromptService.
 import { ProviderBackedWorkspaceService } from './impl/ProviderBackedWorkspaceService.ts';
 import { createBirdCoderRuntimeAuthService } from './impl/RuntimeAuthService.ts';
 import type { IAuthService } from './interfaces/IAuthService.ts';
-import type { IAdminDeploymentService } from './interfaces/IAdminDeploymentService.ts';
-import type { IAdminPolicyService } from './interfaces/IAdminPolicyService.ts';
-import type { IAuditService } from './interfaces/IAuditService.ts';
+import type {
+  IAdminDeploymentService,
+  IAdminPolicyService,
+  IAuditService,
+} from '@sdkwork/birdcoder-pc-admin-core';
 import type { ICatalogService } from './interfaces/ICatalogService.ts';
 import type { ICollaborationService } from './interfaces/ICollaborationService.ts';
 import type { IAppRuntimeReadService } from './interfaces/IAppRuntimeReadService.ts';
@@ -132,7 +134,10 @@ function assertRuntimeAuthorityConfigured(
   if (!hasConfiguredRemoteAppAccess(runtimeConfig, options)) {
     missingBoundaries.push('app SDK');
   }
-  if (!hasConfiguredRemoteBackendAccess(runtimeConfig, options)) {
+  if (
+    !isBrowserRuntime()
+    && !hasConfiguredRemoteBackendAccess(runtimeConfig, options)
+  ) {
     missingBoundaries.push('backend SDK');
   }
   if (missingBoundaries.length === 0) {

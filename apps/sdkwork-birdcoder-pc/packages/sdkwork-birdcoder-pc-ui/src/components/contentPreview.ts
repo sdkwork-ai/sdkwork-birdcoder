@@ -127,7 +127,6 @@ const CONTENT_PREVIEW_SANDBOX_TOKENS_BY_POLICY: Record<
     'allow-popups-to-escape-sandbox',
     'allow-presentation',
     'allow-same-origin',
-    'allow-scripts',
   ],
 };
 
@@ -203,9 +202,33 @@ function looksLikeHtmlDocument(value: string | null | undefined): boolean {
     normalizedValue.startsWith('<!doctype html') ||
     normalizedValue.startsWith('<html') ||
     normalizedValue.startsWith('<body') ||
-    normalizedValue.startsWith('<head') ||
-    /<([a-z][\w-]*)(?:\s[^>]*)?>/u.test(normalizedValue)
+    normalizedValue.startsWith('<head')
   );
+}
+
+function looksLikeHtmlFragment(value: string | null | undefined): boolean {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const normalizedValue = value.trim();
+  if (!normalizedValue) {
+    return false;
+  }
+
+  return /<([a-z][\w-]*)(?:\s[^>]*)?>/u.test(normalizedValue);
+}
+
+function containsUnsafeHtmlPreviewMarkup(value: string): boolean {
+  if (/<(script|iframe|object|embed|link|meta|base|form|svg)\b/iu.test(value)) {
+    return true;
+  }
+
+  if (/\son[a-z0-9-]+\s*=/iu.test(value)) {
+    return true;
+  }
+
+  return /\b(?:href|src|xlink:href)\s*=\s*["']?\s*javascript:/iu.test(value);
 }
 
 function looksLikeSvgDocument(value: string | null | undefined): boolean {
@@ -696,10 +719,33 @@ function injectHeadMarkup(documentSource: string, headMarkup: string): string {
   return `<!DOCTYPE html><html><head>${headMarkup}</head><body>${documentSource}</body></html>`;
 }
 
+function normalizePreviewBaseUrl(baseUrl: string | undefined): string | null {
+  const trimmed = baseUrl?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+    return trimmed;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return trimmed;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 function buildSharedPreviewHeadMarkup(options: BuildContentPreviewDocumentOptions): string {
   const title = escapeHtml(options.title?.trim() || 'Content Preview');
-  const baseMarkup = options.baseUrl?.trim()
-    ? `<base href="${escapeHtml(options.baseUrl.trim())}">`
+  const normalizedBaseUrl = normalizePreviewBaseUrl(options.baseUrl);
+  const baseMarkup = normalizedBaseUrl
+    ? `<base href="${escapeHtml(normalizedBaseUrl)}">`
     : '';
 
   return `${baseMarkup}<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title>`;
@@ -1079,7 +1125,11 @@ export function buildHtmlPreviewDocument(
     return injectHeadMarkup(normalizedValue, headMarkup);
   }
 
-  return `<!DOCTYPE html><html><head>${headMarkup}<style>body{margin:0;padding:24px;font-family:ui-sans-serif,system-ui,sans-serif;background:#ffffff;color:#111827;}</style></head><body>${value}</body></html>`;
+  if (looksLikeHtmlFragment(normalizedValue) && !containsUnsafeHtmlPreviewMarkup(normalizedValue)) {
+    return `<!DOCTYPE html><html><head>${headMarkup}<style>body{margin:0;padding:24px;font-family:ui-sans-serif,system-ui,sans-serif;background:#ffffff;color:#111827;}</style></head><body>${normalizedValue}</body></html>`;
+  }
+
+  return `<!DOCTYPE html><html><head>${headMarkup}<style>body{margin:0;padding:24px;font-family:ui-sans-serif,system-ui,sans-serif;background:#ffffff;color:#111827;white-space:pre-wrap;}</style></head><body>${escapeHtml(value)}</body></html>`;
 }
 
 export function buildSvgPreviewDocument(

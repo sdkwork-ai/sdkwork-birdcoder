@@ -5,5 +5,14 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sdkwork/birdcoder-h5-core": "workspace:*",
+    "@sdkwork/birdcoder-pc-auth": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
   }
 }

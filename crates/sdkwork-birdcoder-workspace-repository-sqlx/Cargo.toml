@@ -16,6 +16,7 @@ tokio = { workspace = true }
 sdkwork-birdcoder-workspace-service = { path = "../sdkwork-birdcoder-workspace-service" }
 sdkwork-birdcoder-project-service = { path = "../sdkwork-birdcoder-project-service" }
 sdkwork-birdcoder-deployment-service = { path = "../sdkwork-birdcoder-deployment-service" }
+sdkwork-birdcoder-errors = { path = "../sdkwork-birdcoder-errors" }
 
 
 

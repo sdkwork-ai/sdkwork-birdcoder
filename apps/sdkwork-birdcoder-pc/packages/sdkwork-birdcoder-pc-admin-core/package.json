@@ -8,7 +8,6 @@
     "./hooks/*": "./src/hooks/*.ts"
   },
   "dependencies": {
-    "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*"
   },
   "peerDependencies": {

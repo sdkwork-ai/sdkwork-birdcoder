@@ -1,5 +1,26 @@
 library sdkwork_birdcoder_flutter_mobile_chat;
 
+/// Canonical chat message view kinds shared across BirdCoder client surfaces.
+const List<String> birdcoderChatMessageViewKinds = [
+  'user.text',
+  'assistant.text',
+  'assistant.activity',
+  'tool.result',
+  'system.notice',
+  'planner.plan',
+  'reviewer.feedback',
+];
+
+/// Canonical chat message content block types shared across BirdCoder client surfaces.
+const List<String> birdcoderChatMessageContentBlockTypes = [
+  'markdown',
+  'activity',
+  'file-changes',
+  'commands',
+  'task-progress',
+  'tool-calls',
+];
+
 const String kFlutterMobileChatVersion = '0.1.0';
 
 class ChatMessage {

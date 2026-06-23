@@ -24,10 +24,9 @@ async fn check_sqlite_pool_health(pool: &SqlitePool) -> Value {
             "ok": true,
             "engine": "sqlite",
         }),
-        Err(error) => json!({
+        Err(_error) => json!({
             "ok": false,
             "engine": "sqlite",
-            "error": error.to_string(),
         }),
     }
 }

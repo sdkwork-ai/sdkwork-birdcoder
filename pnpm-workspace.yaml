@@ -37,6 +37,10 @@ packages:
 catalog:
   '@anthropic-ai/claude-agent-sdk': ^0.2.87
   '@babel/runtime': ^7.29.2
+  '@capacitor/cli': ^6.0.0
+  '@capacitor/core': ^6.0.0
+  '@capacitor/app': ^6.0.0
+  '@capacitor/preferences': ^6.0.0
   '@google/gemini-cli-sdk': 0.39.0-nightly.20260408.e77b22e63
   '@openai/codex-sdk': 0.0.0-dev
   '@opencode-ai/sdk': ^1.4.1

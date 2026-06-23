@@ -12,4 +12,5 @@ pub struct InstallSkillPackageRequest {
 pub struct InstallSkillPackageInput {
     pub scope_id: String,
     pub scope_type: String,
+    pub tenant_id: String,
 }

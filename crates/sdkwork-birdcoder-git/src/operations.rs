@@ -1,6 +1,9 @@
-use std::{fs, path::Path, process::Command};
+use std::{path::Path, process::Command};
 
 use crate::types::*;
+use crate::validation::{
+    validate_git_branch_name, validate_git_remote_name, validate_git_worktree_path,
+};
 
 pub fn inspect_project_git_overview(
     project_root_path: &str,
@@ -48,6 +51,7 @@ pub fn create_project_git_branch(
 ) -> Result<GitProjectOverview, GitMutationError> {
     let root = Path::new(project_root_path);
     validate_git_repo(root)?;
+    validate_git_branch_name(branch_name)?;
     run_git(&["checkout", "-b", branch_name], root)
         .map_err(|e| GitMutationError::Mutate(e.message))?;
     inspect_project_git_overview(project_root_path)
@@ -60,6 +64,7 @@ pub fn switch_project_git_branch(
 ) -> Result<GitProjectOverview, GitMutationError> {
     let root = Path::new(project_root_path);
     validate_git_repo(root)?;
+    validate_git_branch_name(branch_name)?;
     run_git(&["checkout", branch_name], root)
         .map_err(|e| GitMutationError::Mutate(e.message))?;
     inspect_project_git_overview(project_root_path)
@@ -87,7 +92,11 @@ pub fn push_project_git_branch(
     let root = Path::new(project_root_path);
     validate_git_repo(root)?;
     let remote = remote_name.unwrap_or("origin");
+    validate_git_remote_name(remote)?;
     let branch = branch_name.unwrap_or("HEAD");
+    if branch != "HEAD" {
+        validate_git_branch_name(branch)?;
+    }
     run_git(&["push", remote, branch], root)
         .map_err(|e| GitMutationError::Mutate(e.message))?;
     inspect_project_git_overview(project_root_path)
@@ -101,7 +110,17 @@ pub fn create_project_git_worktree(
 ) -> Result<GitProjectOverview, GitMutationError> {
     let root = Path::new(project_root_path);
     validate_git_repo(root)?;
-    run_git(&["worktree", "add", worktree_path, branch_name], root)
+    validate_git_branch_name(branch_name)?;
+    let worktree = validate_git_worktree_path(root, worktree_path)?;
+    run_git(
+        &[
+            "worktree",
+            "add",
+            &worktree.to_string_lossy(),
+            branch_name,
+        ],
+        root,
+    )
         .map_err(|e| GitMutationError::Mutate(e.message))?;
     inspect_project_git_overview(project_root_path)
         .map_err(|e| GitMutationError::Mutate(e.to_string()))

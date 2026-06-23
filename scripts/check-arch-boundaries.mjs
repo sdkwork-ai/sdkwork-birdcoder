@@ -9,7 +9,6 @@ const pcPackagesRelativeDir = 'apps/sdkwork-birdcoder-pc/packages';
 
 const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-pc-admin-core', new Set([
-    '@sdkwork/birdcoder-pc-infrastructure-runtime',
     '@sdkwork/birdcoder-pc-types',
   ])],
   ['@sdkwork/birdcoder-pc-admin-shell', new Set()],
@@ -63,6 +62,7 @@ const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-pc-infrastructure', new Set([
     '@sdkwork/birdcoder-app-sdk',
     '@sdkwork/birdcoder-backend-sdk',
+    '@sdkwork/birdcoder-pc-admin-core',
     '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-core',
     '@sdkwork/birdcoder-pc-host-core',
@@ -131,7 +131,9 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-types',
     '@sdkwork/birdcoder-pc-ui',
   ])],
-  ['@sdkwork/birdcoder-pc-types', new Set()],
+  ['@sdkwork/birdcoder-pc-types', new Set([
+    '@sdkwork/birdcoder-chat-contracts',
+  ])],
   ['@sdkwork/birdcoder-pc-ui', new Set([
     '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-commons',

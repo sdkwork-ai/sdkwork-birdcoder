@@ -1,3 +1,5 @@
+import 'package:sdkwork_birdcoder_flutter_mobile_host/sdkwork_birdcoder_flutter_mobile_host.dart';
+
 class HostAdapters {
   final bool cameraAvailable;
   final bool qrScannerAvailable;
@@ -20,8 +22,9 @@ class HostAdapters {
   });
 
   static HostAdapters create() {
-    // Typed platform adapters for camera, QR, push, deep links, secure storage, biometric, etc.
-    // Platform channels and plugin calls stay behind typed platform adapters
-    return HostAdapters();
+    final platform = HostPlatform.detect();
+    return HostAdapters(
+      secureStorageAvailable: platform.secureStorageAvailable,
+    );
   }
 }

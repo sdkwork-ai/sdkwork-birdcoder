@@ -1,12 +1,14 @@
 import {
   clearStoredAppSessionToken,
-  getStoredAppSessionAccessToken,
   getStoredAppSessionAuthToken,
   getStoredAppSessionId,
-  getStoredAppSessionRefreshToken,
   loadStoredAppSessionToken,
   storeAppSessionFromResult,
 } from './appSessionToken.ts';
+import {
+  getBirdCoderGlobalTokenManager,
+  syncBirdCoderGlobalTokenManagerFromStorage,
+} from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
 
 export interface RuntimeServerTokenBundle {
   accessToken?: string;
@@ -126,9 +128,9 @@ export function writeRuntimeServerSessionId(sessionId: string): string {
     throw new Error('Runtime server session token must not be empty.');
   }
 
+  const currentBundle = readCurrentTokenBundle();
   runtimeServerTokenStore.persistTokenBundle({
-    accessToken: normalizedSessionId,
-    authToken: normalizedSessionId,
+    ...currentBundle,
     sessionToken: normalizedSessionId,
   });
   return normalizedSessionId;
@@ -146,16 +148,15 @@ export function clearRuntimeServerSessionId(): void {
 }
 
 export function resolveRuntimeServerSessionHeaders(): Record<string, string | undefined> {
-  const authToken = getStoredAppSessionAuthToken();
-  const accessToken = getStoredAppSessionAccessToken();
-  const refreshToken = getStoredAppSessionRefreshToken();
+  syncBirdCoderGlobalTokenManagerFromStorage();
+  const tokens = getBirdCoderGlobalTokenManager().getTokens();
   const sessionId = getStoredAppSessionId();
 
   return {
-    [RUNTIME_SERVER_ACCESS_TOKEN_HEADER_NAME]: accessToken,
+    [RUNTIME_SERVER_ACCESS_TOKEN_HEADER_NAME]: tokens?.accessToken,
     [RUNTIME_SERVER_AUTHORIZATION_HEADER_NAME]:
-      authToken ? `${RUNTIME_SERVER_DEFAULT_TOKEN_TYPE} ${authToken}` : undefined,
+      tokens?.authToken ? `${RUNTIME_SERVER_DEFAULT_TOKEN_TYPE} ${tokens.authToken}` : undefined,
     [RUNTIME_SERVER_SESSION_HEADER_NAME]: sessionId,
-    'Refresh-Token': refreshToken,
+    'Refresh-Token': tokens?.refreshToken,
   };
 }

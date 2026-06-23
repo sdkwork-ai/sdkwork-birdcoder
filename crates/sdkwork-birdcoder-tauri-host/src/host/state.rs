@@ -154,6 +154,9 @@ pub fn start_embedded_coding_server(app: &AppHandle) -> Result<DesktopRuntimeCon
             DEFAULT_EMBEDDED_API_HOST,
         ),
         project_root: std::env::var("BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT").ok(),
+        rate_limit_enabled: sdkwork_birdcoder_api_server::bootstrap::config::DEFAULT_RATE_LIMIT_ENABLED,
+        rate_limit_max_requests: sdkwork_birdcoder_api_server::bootstrap::config::DEFAULT_RATE_LIMIT_MAX_REQUESTS,
+        rate_limit_window_secs: sdkwork_birdcoder_api_server::bootstrap::config::DEFAULT_RATE_LIMIT_WINDOW_SECS,
     };
     let router = tauri::async_runtime::block_on(sdkwork_birdcoder_api_server::bootstrap::build_app(
         &config,

@@ -12,6 +12,7 @@ use sdkwork_birdcoder_workspace_service::domain::commands::{
 use sdkwork_birdcoder_workspace_service::domain::models::WorkspaceScopedQuery;
 use sdkwork_birdcoder_workspace_service::domain::results::{WorkspaceMemberPayload, WorkspacePayload};
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
+use sdkwork_birdcoder_errors::{require_scoped_tenant_id, require_scoped_user_id};
 
 #[derive(Clone)]
 pub struct SqliteWorkspaceRepository {
@@ -28,6 +29,40 @@ impl SqliteWorkspaceRepository {
             .format(&time::format_description::well_known::Iso8601::DEFAULT)
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
     }
+
+    fn scoped_tenant_id(ctx: &WorkspaceContext) -> Result<i64, WorkspaceError> {
+        require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
+            WorkspaceError::Forbidden("A valid tenant scope is required.".to_owned())
+        })
+    }
+
+    fn scoped_user_id(ctx: &WorkspaceContext) -> Result<i64, WorkspaceError> {
+        require_scoped_user_id(&ctx.user_id).map_err(|_| {
+            WorkspaceError::Forbidden("A valid user scope is required.".to_owned())
+        })
+    }
+
+    fn workspace_access_predicate(table_alias: Option<&str>) -> String {
+        let owner = match table_alias {
+            Some(alias) => format!("{alias}.{}", col::OWNER_ID),
+            None => col::OWNER_ID.to_string(),
+        };
+        let is_public = match table_alias {
+            Some(alias) => format!("{alias}.{}", col::IS_PUBLIC),
+            None => col::IS_PUBLIC.to_string(),
+        };
+        let workspace_key = match table_alias {
+            Some(alias) => format!("{alias}.{}", col::ID),
+            None => col::ID.to_string(),
+        };
+        format!(
+            "({owner} = ? OR {is_public} = 1 OR EXISTS (SELECT 1 FROM {} m WHERE m.{} = {workspace_key} AND m.{} = ? AND m.{} = 0))",
+            member_col::TABLE,
+            member_col::WORKSPACE_ID,
+            member_col::USER_ID,
+            member_col::IS_DELETED,
+        )
+    }
 }
 
 #[async_trait::async_trait]
@@ -42,29 +77,20 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         let id_num: i64 = id
             .parse()
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
-        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+        let tenant_id = Self::scoped_tenant_id(ctx)?;
+        let sql = format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
             col::TABLE,
             col::ID,
             col::IS_DELETED,
+            col::TENANT_ID,
         );
-        if tenant_id.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
-        }
 
-        let row = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(id_num)
-                .bind(tenant_id)
-                .fetch_optional(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(id_num)
-                .fetch_optional(&self.pool)
-                .await
-        }
+        let row = sqlx::query(&sql)
+            .bind(id_num)
+            .bind(tenant_id)
+            .fetch_optional(&self.pool)
+            .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
         match row {
@@ -82,29 +108,33 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         ctx: &WorkspaceContext,
         query: &WorkspaceScopedQuery,
     ) -> Result<Vec<WorkspacePayload>, WorkspaceError> {
+        let tenant_id = Self::scoped_tenant_id(ctx)?;
+        let access_user_id = if let Some(requested_user_id) = query.user_id.as_deref() {
+            if requested_user_id != ctx.user_id {
+                return Err(WorkspaceError::Forbidden(
+                    "Workspace listing is limited to the authenticated user.".to_owned(),
+                ));
+            }
+            Self::scoped_user_id(ctx)?
+        } else {
+            Self::scoped_user_id(ctx)?
+        };
+
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = 0",
+            "SELECT * FROM {} WHERE {} = 0 AND {} = ? AND {}",
             col::TABLE,
             col::IS_DELETED,
+            col::TENANT_ID,
+            Self::workspace_access_predicate(None),
         );
-        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
-        if tenant_id.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
-        }
-        if query.user_id.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::OWNER_ID));
-        }
         if query.workspace_id.is_some() {
             sql.push_str(&format!(" AND {} = ?", col::ID));
         }
 
-        let mut q = sqlx::query(&sql);
-        if let Some(tenant_id) = tenant_id {
-            q = q.bind(tenant_id);
-        }
-        if let Some(ref uid) = query.user_id {
-            q = q.bind(uid.as_str());
-        }
+        let mut q = sqlx::query(&sql)
+            .bind(tenant_id)
+            .bind(access_user_id)
+            .bind(access_user_id);
         if let Some(ref wid) = query.workspace_id {
             q = q.bind(wid.as_str());
         }
@@ -130,12 +160,14 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
     ) -> Result<WorkspacePayload, WorkspaceError> {
         let now = Self::now_iso();
         let uuid = Uuid::new_v4().to_string();
-        let tenant_id: i64 = req
-            .tenant_id
-            .as_deref()
-            .unwrap_or(&ctx.tenant_id)
-            .parse()
-            .unwrap_or(0);
+        let tenant_id = Self::scoped_tenant_id(ctx)?;
+        let owner_id = if let Some(ref value) = req.owner_id {
+            value.parse::<i64>().map_err(|_| {
+                WorkspaceError::InvalidInput("invalid owner_id".to_owned())
+            })?
+        } else {
+            Self::scoped_user_id(ctx)?
+        };
         let organization_id: i64 = req
             .organization_id
             .as_deref()
@@ -148,12 +180,6 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             .unwrap_or("1")
             .parse()
             .unwrap_or(1);
-        let owner_id: i64 = req
-            .owner_id
-            .as_deref()
-            .unwrap_or(&ctx.user_id)
-            .parse()
-            .unwrap_or(0);
         let settings_json = req
             .settings
             .as_ref()
@@ -223,9 +249,9 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         let id_num: i64 = id
             .parse()
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
-        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
+        self.ensure_workspace_access(ctx, id).await?;
+        let tenant_id = Self::scoped_tenant_id(ctx)?;
         let now = Self::now_iso();
-
         let mut builder: QueryBuilder<Sqlite> =
             QueryBuilder::new(format!("UPDATE {} SET ", col::TABLE));
         {
@@ -302,10 +328,8 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
 
         builder.push(format!(" WHERE {} = ", col::ID));
         builder.push_bind(id_num);
-        if let Some(tenant_id) = tenant_id {
-            builder.push(format!(" AND {} = ", col::TENANT_ID));
-            builder.push_bind(tenant_id);
-        }
+        builder.push(format!(" AND {} = ", col::TENANT_ID));
+        builder.push_bind(tenant_id);
 
         let result = builder
             .build()
@@ -338,34 +362,26 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         let id_num: i64 = id
             .parse()
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
-        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
+        self.ensure_workspace_access(ctx, id).await?;
+        let tenant_id = Self::scoped_tenant_id(ctx)?;
         let now = Self::now_iso();
-        let mut sql = format!(
-            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ?",
+        let sql = format!(
+            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ? AND {} = ? AND {} = 0",
             col::TABLE,
             col::IS_DELETED,
             col::UPDATED_AT,
             col::ID,
+            col::TENANT_ID,
+            col::IS_DELETED,
         );
-        if tenant_id.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
-        }
 
-        let result = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(&now)
-                .bind(id_num)
-                .bind(tenant_id)
-                .execute(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(&now)
-                .bind(id_num)
-                .execute(&self.pool)
-                .await
-        }
-        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let result = sqlx::query(&sql)
+            .bind(&now)
+            .bind(id_num)
+            .bind(tenant_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         if result.rows_affected() == 0 {
             return Err(WorkspaceError::NotFound(format!("workspace {id} not found")));
         }
@@ -377,11 +393,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         ctx: &WorkspaceContext,
         workspace_id: &str,
     ) -> Result<Vec<WorkspaceMemberPayload>, WorkspaceError> {
-        if self.find_workspace_by_id(ctx, workspace_id).await?.is_none() {
-            return Err(WorkspaceError::NotFound(format!(
-                "workspace {workspace_id} not found"
-            )));
-        }
+        self.ensure_workspace_access(ctx, workspace_id).await?;
         let wid: i64 = workspace_id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
@@ -411,11 +423,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         workspace_id: &str,
         req: &UpsertWorkspaceMemberRequest,
     ) -> Result<WorkspaceMemberPayload, WorkspaceError> {
-        if self.find_workspace_by_id(ctx, workspace_id).await?.is_none() {
-            return Err(WorkspaceError::NotFound(format!(
-                "workspace {workspace_id} not found"
-            )));
-        }
+        self.ensure_workspace_access(ctx, workspace_id).await?;
         let wid: i64 = workspace_id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
@@ -427,7 +435,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             .map_err(|_| WorkspaceError::InvalidInput("invalid user_id".into()))?;
         let now = Self::now_iso();
         let uuid = Uuid::new_v4().to_string();
-        let tenant_id: i64 = ctx.tenant_id.parse().unwrap_or(0);
+        let tenant_id = Self::scoped_tenant_id(ctx)?;
         let role = req.role.as_deref().unwrap_or("member");
         let status = req.status.as_deref().unwrap_or("active");
 
@@ -549,6 +557,42 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         .execute(&self.pool)
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        Ok(())
+    }
+
+    async fn ensure_workspace_access(
+        &self,
+        ctx: &WorkspaceContext,
+        workspace_id: &str,
+    ) -> Result<(), WorkspaceError> {
+        let workspace_id = workspace_id.trim();
+        if workspace_id.is_empty() {
+            return Err(WorkspaceError::NotFound("Workspace was not found.".to_owned()));
+        }
+        let id_num: i64 = workspace_id.parse().map_err(|_| {
+            WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
+        })?;
+        let tenant_id = Self::scoped_tenant_id(ctx)?;
+        let user_id = Self::scoped_user_id(ctx)?;
+        let sql = format!(
+            "SELECT 1 FROM {} WHERE {} = ? AND {} = ? AND {} = 0 AND {}",
+            col::TABLE,
+            col::ID,
+            col::TENANT_ID,
+            col::IS_DELETED,
+            Self::workspace_access_predicate(None),
+        );
+        let row = sqlx::query_scalar::<_, i64>(&sql)
+            .bind(id_num)
+            .bind(tenant_id)
+            .bind(user_id)
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        if row.is_none() {
+            return Err(WorkspaceError::NotFound("Workspace was not found.".to_owned()));
+        }
         Ok(())
     }
 }

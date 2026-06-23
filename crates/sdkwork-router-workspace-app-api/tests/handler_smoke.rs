@@ -222,9 +222,9 @@ impl GitOperations for UnavailableGitOperations {
 
 fn test_iam_context() -> IamAppContext {
     IamAppContext::new(
-        "1",
+        "100001",
         None,
-        "handler-smoke-user",
+        "100001",
         "handler-smoke-session",
         "birdcoder",
         Environment::Dev,
@@ -292,6 +292,7 @@ fn with_request_context(mut request: Request<Body>, iam: Option<IamAppContext>) 
         locale: None,
         client_kind: None,
         operation: None,
+        trace_id: None,
     });
     if let Some(iam) = iam {
         request.extensions_mut().insert(iam);

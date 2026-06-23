@@ -14,17 +14,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@sdkwork/birdcoder-h5-*": ["packages/sdkwork-birdcoder-h5-*/src"],
-      "@sdkwork/birdcoder-pc-infrastructure": ["../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/index.ts"],
-      "@sdkwork/birdcoder-pc-shell-runtime": ["../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime/src/index.ts"],
-      "@sdkwork/birdcoder-commons/*": ["../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/*"],
-      "@sdkwork/birdcoder-infrastructure/*": ["../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/*"],
-      "@sdkwork/birdcoder-shell/*": ["../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/*"],
-      "@sdkwork/birdcoder-types/*": ["../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/*"],
-      "@sdkwork/birdcoder-core": ["packages/sdkwork-birdcoder-h5-core/src/index.ts"],
-      "@sdkwork/birdcoder-iam": ["../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-iam/src/index.ts"],
-      "@sdkwork/birdcoder-auth": ["../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/index.ts"],
-      "@sdkwork/birdcoder-user": ["../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/index.ts"]
+      "@sdkwork/birdcoder-h5-*": ["packages/sdkwork-birdcoder-h5-*/src"]
     }
   },
   "include": ["src", "packages"],

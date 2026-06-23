@@ -3,6 +3,9 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 10240;
 pub const DEFAULT_SQLITE_FILE: &str = ".local/sdkwork-birdcoder-pc-server-private.sqlite3";
+pub const DEFAULT_RATE_LIMIT_ENABLED: bool = true;
+pub const DEFAULT_RATE_LIMIT_MAX_REQUESTS: u32 = 120;
+pub const DEFAULT_RATE_LIMIT_WINDOW_SECS: u64 = 60;
 const BIRDCODER_DATABASE_SERVICE: &str = "BIRDCODER";
 
 pub struct BirdServerConfig {
@@ -11,6 +14,9 @@ pub struct BirdServerConfig {
     pub sqlite_file: PathBuf,
     pub allowed_origins: Vec<String>,
     pub project_root: Option<String>,
+    pub rate_limit_enabled: bool,
+    pub rate_limit_max_requests: u32,
+    pub rate_limit_window_secs: u64,
 }
 
 impl BirdServerConfig {
@@ -28,6 +34,18 @@ impl BirdServerConfig {
             .map(|v| v.split(',').map(|s| s.trim().to_string()).collect())
             .unwrap_or_else(|| default_allowed_origins_for_host(&host));
         let project_root = std::env::var("BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT").ok();
+        let rate_limit_enabled = std::env::var("BIRDCODER_RATE_LIMIT_ENABLED")
+            .ok()
+            .map(|value| matches!(value.trim(), "1" | "true" | "TRUE" | "yes" | "YES"))
+            .unwrap_or(DEFAULT_RATE_LIMIT_ENABLED);
+        let rate_limit_max_requests: u32 = std::env::var("BIRDCODER_RATE_LIMIT_MAX_REQUESTS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_RATE_LIMIT_MAX_REQUESTS);
+        let rate_limit_window_secs: u64 = std::env::var("BIRDCODER_RATE_LIMIT_WINDOW_SECONDS")
+            .ok()
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_RATE_LIMIT_WINDOW_SECS);
 
         Self {
             host,
@@ -35,6 +53,9 @@ impl BirdServerConfig {
             sqlite_file,
             allowed_origins,
             project_root,
+            rate_limit_enabled,
+            rate_limit_max_requests,
+            rate_limit_window_secs,
         }
     }
 

@@ -6,8 +6,8 @@ use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_offset_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
-    ApiListEnvelope,
+    build_data_envelope, build_list_envelope, build_offset_list_envelope, trace_id_from_request_id,
+    ApiDataEnvelope, ApiListEnvelope,
 };
 use sdkwork_birdcoder_project_service::pagination::paginate_vec;
 use sdkwork_birdcoder_router_context::{
@@ -17,7 +17,9 @@ use sdkwork_birdcoder_workspace_service::domain::commands::{
     CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest,
 };
 use sdkwork_birdcoder_workspace_service::domain::models::WorkspaceScopedQuery;
-use sdkwork_birdcoder_workspace_service::domain::results::{DeleteEntityPayload, WorkspacePayload};
+use sdkwork_birdcoder_workspace_service::domain::results::{
+    DeleteEntityPayload as WorkspaceDeleteEntityPayload, WorkspaceMemberPayload, WorkspacePayload,
+};
 use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService;
 
 use sdkwork_birdcoder_project_service::domain::commands::{
@@ -26,10 +28,17 @@ use sdkwork_birdcoder_project_service::domain::commands::{
     CommitProjectGitChangesRequest, PushProjectGitBranchRequest,
     CreateProjectGitWorktreeRequest, RemoveProjectGitWorktreeRequest,
 };
+use sdkwork_birdcoder_project_service::domain::results::{
+    DeleteEntityPayload, ProjectCollaboratorPayload, ProjectPayload,
+};
+use sdkwork_birdcoder_project_service::ports::git::GitProjectOverview;
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 
 use sdkwork_birdcoder_deployment_service::domain::commands::PublishProjectCommand;
 use sdkwork_birdcoder_deployment_service::domain::commands::PublishProjectRequest as DeployPublishRequest;
+use sdkwork_birdcoder_deployment_service::domain::results::{
+    DeploymentPayload, PublishProjectResultPayload,
+};
 use sdkwork_birdcoder_deployment_service::service::deployment_service::DeploymentService;
 
 use crate::error;
@@ -40,7 +49,9 @@ use crate::mapper::request::{
     UpdateWorkspaceBody, UpsertProjectCollaboratorBody, UpsertWorkspaceMemberBody,
     WorkspaceListQuery, WorkspacePathParams,
 };
-use crate::realtime_hub::{build_workspace_ready_message, WorkspaceRealtimeHub};
+use crate::realtime_hub::{
+    build_workspace_ready_message, RealtimeSubscriberLimitExceeded, WorkspaceRealtimeHub,
+};
 
 #[derive(Clone)]
 pub struct WorkspaceAppState {
@@ -73,9 +84,17 @@ pub async fn list_workspaces(
     Query(query): Query<WorkspaceListQuery>,
 ) -> Result<Json<ApiListEnvelope<WorkspacePayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = workspace_context(&iam);
+    if let Some(requested_user_id) = query.user_id.as_deref() {
+        if requested_user_id != iam.user_id {
+            return Err(error::forbidden(
+                "Workspace listing is limited to the authenticated user.",
+                request_trace_id(&web),
+            ));
+        }
+    }
     let scoped = WorkspaceScopedQuery {
         root_path: None,
-        user_id: query.user_id.clone(),
+        user_id: Some(iam.user_id.clone()),
         workspace_id: None,
     };
     let trace_id = request_trace_id(&web);
@@ -189,7 +208,7 @@ pub async fn delete_workspace(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
-) -> Result<Json<ApiDataEnvelope<DeleteEntityPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<WorkspaceDeleteEntityPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = workspace_context(&iam);
     match state.workspace_service.delete_workspace(&ctx, &params.workspace_id).await {
         Ok(result) => Ok(Json(build_data_envelope(result, request_id(&web)))),
@@ -218,7 +237,7 @@ pub async fn subscribe_workspace_realtime(
     let ctx = workspace_context(&iam);
     if state
         .workspace_service
-        .get_workspace(&ctx, &workspace_id)
+        .ensure_workspace_access(&ctx, &workspace_id)
         .await
         .is_err()
     {
@@ -230,16 +249,26 @@ pub async fn subscribe_workspace_realtime(
 
     let user_id = iam.user_id.clone();
     let hub = state.realtime_hub.clone();
-    Ok(ws.on_upgrade(move |socket| handle_workspace_realtime(socket, hub, workspace_id, user_id)))
+    let receiver = match hub.subscribe(&workspace_id).await {
+        Ok(receiver) => receiver,
+        Err(RealtimeSubscriberLimitExceeded) => {
+            return Err(error::map_rate_limited(
+                "Workspace realtime subscription limit reached. Try again later.",
+                request_trace_id(&web),
+            ));
+        }
+    };
+    Ok(ws.on_upgrade(move |socket| {
+        handle_workspace_realtime(socket, receiver, workspace_id, user_id)
+    }))
 }
 
 async fn handle_workspace_realtime(
     socket: WebSocket,
-    hub: WorkspaceRealtimeHub,
+    mut receiver: tokio::sync::broadcast::Receiver<String>,
     workspace_id: String,
     user_id: String,
 ) {
-    let mut receiver = hub.subscribe(&workspace_id).await;
     let (mut sender, mut inbound) = socket.split();
 
     if sender
@@ -286,10 +315,13 @@ pub async fn list_workspace_members(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiListEnvelope<WorkspaceMemberPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = workspace_context(&iam);
     match state.workspace_service.list_workspace_members(&ctx, &params.workspace_id).await {
-        Ok(members) => Ok(Json(serde_json::json!({ "items": members }))),
+        Ok(members) => {
+            let total = members.len();
+            Ok(Json(build_list_envelope(members, total, request_id(&web))))
+        }
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
@@ -300,7 +332,7 @@ pub async fn upsert_workspace_member(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
     Json(body): Json<UpsertWorkspaceMemberBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<WorkspaceMemberPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = workspace_context(&iam);
     let request = UpsertWorkspaceMemberRequest {
         user_id: body.user_id,
@@ -312,7 +344,7 @@ pub async fn upsert_workspace_member(
         granted_by_user_id: None,
     };
     match state.workspace_service.upsert_workspace_member(&ctx, &params.workspace_id, &request).await {
-        Ok(member) => Ok(Json(serde_json::json!(member))),
+        Ok(member) => Ok(Json(build_data_envelope(member, request_id(&web)))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
@@ -324,16 +356,33 @@ pub async fn list_projects(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Query(query): Query<ProjectListQuery>,
-) -> Result<Json<ApiListEnvelope<sdkwork_birdcoder_project_service::domain::results::ProjectPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
-    let ctx = project_context(&iam);
-    let workspace_id = query.workspace_id.as_deref().unwrap_or("default");
+) -> Result<Json<ApiListEnvelope<ProjectPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let trace_id = request_trace_id(&web);
+    let ctx = project_context(&iam);
+    let workspace_id = query.workspace_id.as_deref().filter(|value| !value.trim().is_empty()).ok_or_else(|| {
+        error::map_validation_error(
+            "workspaceId is required to list projects.",
+            trace_id,
+        )
+    })?;
+    let workspace_ctx = workspace_context(&iam);
+    state
+        .workspace_service
+        .ensure_workspace_access(&workspace_ctx, workspace_id)
+        .await
+        .map_err(|error| error::map_workspace_error(error, trace_id))?;
     match state.project_service.list_projects(&ctx, workspace_id).await {
         Ok(mut projects) => {
             if let Some(root_path) = query.root_path.as_deref() {
                 projects.retain(|project| project.root_path.as_deref() == Some(root_path));
             }
             if let Some(user_id) = query.user_id.as_deref() {
+                if user_id != iam.user_id {
+                    return Err(error::forbidden(
+                        "Project listing is limited to the authenticated user.",
+                        trace_id,
+                    ));
+                }
                 projects.retain(|project| project.user_id.as_deref() == Some(user_id));
             }
             let (items, offset, limit, total) =
@@ -356,10 +405,10 @@ pub async fn get_project(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<ProjectPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     match state.project_service.get_project(&ctx, &params.project_id).await {
-        Ok(project) => Ok(Json(serde_json::json!(project))),
+        Ok(project) => Ok(Json(build_data_envelope(project, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -369,7 +418,7 @@ pub async fn create_project(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Json(body): Json<CreateProjectBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<ProjectPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     let request = CreateProjectRequest {
         workspace_id: body.workspace_id,
@@ -405,7 +454,7 @@ pub async fn create_project(
         status: None,
     };
     match state.project_service.create_project(&ctx, &request).await {
-        Ok(project) => Ok(Json(serde_json::json!(project))),
+        Ok(project) => Ok(Json(build_data_envelope(project, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -416,7 +465,7 @@ pub async fn update_project(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<UpdateProjectBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<ProjectPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     let request = UpdateProjectRequest {
         name: body.name,
@@ -445,7 +494,7 @@ pub async fn update_project(
         status: None,
     };
     match state.project_service.update_project(&ctx, &params.project_id, &request).await {
-        Ok(project) => Ok(Json(serde_json::json!(project))),
+        Ok(project) => Ok(Json(build_data_envelope(project, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -455,10 +504,10 @@ pub async fn delete_project(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<DeleteEntityPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     match state.project_service.delete_project(&ctx, &params.project_id).await {
-        Ok(result) => Ok(Json(serde_json::json!(result))),
+        Ok(result) => Ok(Json(build_data_envelope(result, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -470,10 +519,10 @@ pub async fn get_project_git_overview(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     match state.project_service.get_project_git_overview(&ctx, &params.project_id).await {
-        Ok(overview) => Ok(Json(serde_json::json!(overview))),
+        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -484,13 +533,13 @@ pub async fn create_project_git_branch(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<CreateGitBranchBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     let request = CreateProjectGitBranchRequest {
         branch_name: body.branch_name,
     };
     match state.project_service.create_project_git_branch(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(serde_json::json!(overview))),
+        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -501,13 +550,13 @@ pub async fn switch_project_git_branch(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<SwitchGitBranchBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     let request = SwitchProjectGitBranchRequest {
         branch_name: body.branch_name,
     };
     match state.project_service.switch_project_git_branch(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(serde_json::json!(overview))),
+        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -518,13 +567,13 @@ pub async fn commit_project_git_changes(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<CommitGitChangesBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     let request = CommitProjectGitChangesRequest {
         message: body.message,
     };
     match state.project_service.commit_project_git_changes(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(serde_json::json!(overview))),
+        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -535,14 +584,14 @@ pub async fn push_project_git_branch(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<PushGitBranchBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     let request = PushProjectGitBranchRequest {
         branch_name: body.branch_name,
         remote_name: body.remote_name,
     };
     match state.project_service.push_project_git_branch(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(serde_json::json!(overview))),
+        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -553,14 +602,14 @@ pub async fn create_project_git_worktree(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<CreateGitWorktreeBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     let request = CreateProjectGitWorktreeRequest {
         branch_name: body.branch_name,
         path: body.path,
     };
     match state.project_service.create_project_git_worktree(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(serde_json::json!(overview))),
+        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -571,14 +620,14 @@ pub async fn remove_project_git_worktree(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<RemoveGitWorktreeBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     let request = RemoveProjectGitWorktreeRequest {
         path: body.path,
         force: body.force,
     };
     match state.project_service.remove_project_git_worktree(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(serde_json::json!(overview))),
+        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -588,10 +637,10 @@ pub async fn prune_project_git_worktrees(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let ctx = project_context(&iam);
     match state.project_service.prune_project_git_worktrees(&ctx, &params.project_id).await {
-        Ok(overview) => Ok(Json(serde_json::json!(overview))),
+        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -603,10 +652,16 @@ pub async fn list_project_collaborators(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<
+    Json<ApiListEnvelope<ProjectCollaboratorPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+> {
     let ctx = project_context(&iam);
     match state.project_service.list_project_collaborators(&ctx, &params.project_id).await {
-        Ok(collaborators) => Ok(Json(serde_json::json!({ "items": collaborators }))),
+        Ok(collaborators) => {
+            let total = collaborators.len();
+            Ok(Json(build_list_envelope(collaborators, total, request_id(&web))))
+        }
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -617,7 +672,10 @@ pub async fn upsert_project_collaborator(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<UpsertProjectCollaboratorBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<
+    Json<ApiDataEnvelope<ProjectCollaboratorPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+> {
     let ctx = project_context(&iam);
     let request = UpsertProjectCollaboratorRequest {
         user_id: body.user_id,
@@ -629,7 +687,7 @@ pub async fn upsert_project_collaborator(
         granted_by_user_id: None,
     };
     match state.project_service.upsert_project_collaborator(&ctx, &params.project_id, &request).await {
-        Ok(collaborator) => Ok(Json(serde_json::json!(collaborator))),
+        Ok(collaborator) => Ok(Json(build_data_envelope(collaborator, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -640,10 +698,16 @@ pub async fn list_deployments(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<
+    Json<ApiListEnvelope<DeploymentPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+> {
     let ctx = deployment_context(&iam);
     match state.deployment_service.list_deployments(&ctx).await {
-        Ok(deployments) => Ok(Json(serde_json::json!({ "items": deployments }))),
+        Ok(deployments) => {
+            let total = deployments.len();
+            Ok(Json(build_list_envelope(deployments, total, request_id(&web))))
+        }
         Err(e) => Err(error::map_deployment_error(e, request_trace_id(&web))),
     }
 }
@@ -654,7 +718,10 @@ pub async fn publish_project(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<PublishProjectBody>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<
+    Json<ApiDataEnvelope<PublishProjectResultPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+> {
     let project_ctx = project_context(&iam);
     let deployment_ctx = deployment_context(&iam);
     let project = match state.project_service.get_project(&project_ctx, &params.project_id).await {
@@ -686,7 +753,7 @@ pub async fn publish_project(
         .publish_project(&deployment_ctx, &command)
         .await
     {
-        Ok(result) => Ok(Json(serde_json::json!(result))),
+        Ok(result) => Ok(Json(build_data_envelope(result, request_id(&web)))),
         Err(e) => Err(error::map_deployment_error(e, request_trace_id(&web))),
     }
 }

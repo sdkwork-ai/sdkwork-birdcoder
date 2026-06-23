@@ -8,3 +8,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  sdkwork_birdcoder_flutter_mobile_app_sdk_consumer:
+    path: ../../sdks/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer
+  sdkwork_birdcoder_flutter_mobile_host:
+    path: ../sdkwork_birdcoder_flutter_mobile_host

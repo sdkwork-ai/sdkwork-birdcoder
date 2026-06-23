@@ -139,8 +139,13 @@ impl SkillPackageRepository for SqliteSkillPackageRepository {
         Ok(Self::map_installation(row, package_id.to_string()))
     }
 
-    async fn scope_exists(&self, scope_type: &str, scope_id: &str) -> Result<bool, String> {
-        skill_package_repository::scope_exists(&self.pool, scope_type, scope_id)
+    async fn scope_exists(
+        &self,
+        scope_type: &str,
+        scope_id: &str,
+        tenant_id: i64,
+    ) -> Result<bool, String> {
+        skill_package_repository::scope_exists(&self.pool, scope_type, scope_id, tenant_id)
             .await
             .map_err(|e| e.to_string())
     }

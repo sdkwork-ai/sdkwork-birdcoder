@@ -1,4 +1,6 @@
 use sdkwork_birdcoder_deployment_service::context::DeploymentContext;
+use sdkwork_birdcoder_deployment_service::error::DeploymentError;
+use sdkwork_birdcoder_errors::require_scoped_tenant_id;
 use sqlx::SqlitePool;
 
 use crate::db::columns::audit_event;
@@ -13,7 +15,6 @@ use crate::mapper::row_mapper;
 use sdkwork_birdcoder_deployment_service::domain::results::{
     AuditPayload, DeploymentPayload, DeploymentTargetPayload, PolicyPayload, ReleasePayload,
 };
-use sdkwork_birdcoder_deployment_service::error::DeploymentError;
 
 #[derive(Clone)]
 pub struct SqliteDeploymentRepository {
@@ -26,16 +27,16 @@ impl SqliteDeploymentRepository {
     }
 }
 
-fn maybe_append_tenant_filter(
+fn append_required_tenant_filter(
     ctx: &DeploymentContext,
     tenant_column: &str,
     sql: &mut String,
-) -> Option<i64> {
-    let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|id| *id > 0);
-    if tenant_id.is_some() {
-        sql.push_str(&format!(" AND {tenant_column} = ?"));
-    }
-    tenant_id
+) -> Result<i64, DeploymentError> {
+    let tenant_id = require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
+        DeploymentError::Forbidden("A valid tenant scope is required.".to_owned())
+    })?;
+    sql.push_str(&format!(" AND {tenant_column} = ?"));
+    Ok(tenant_id)
 }
 
 #[async_trait::async_trait]
@@ -53,18 +54,14 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             deployment_record::ID,
             deployment_record::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(ctx, deployment_record::TENANT_ID, &mut sql);
+        let tenant_id = append_required_tenant_filter(ctx, deployment_record::TENANT_ID, &mut sql)?;
 
-        let row = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(id)
-                .bind(tenant_id)
-                .fetch_optional(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql).bind(id).fetch_optional(&self.pool).await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let row = sqlx::query(&sql)
+            .bind(id)
+            .bind(tenant_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         match row {
             Some(row) => {
@@ -87,21 +84,14 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             deployment_record::PROJECT_ID,
             deployment_record::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(ctx, deployment_record::TENANT_ID, &mut sql);
+        let tenant_id = append_required_tenant_filter(ctx, deployment_record::TENANT_ID, &mut sql)?;
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(project_id)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(project_id)
-                .fetch_all(&self.pool)
-                .await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let rows = sqlx::query(&sql)
+            .bind(project_id)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         rows.iter()
             .map(|row| {
@@ -123,18 +113,14 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             deployment_target::ID,
             deployment_target::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(ctx, deployment_target::TENANT_ID, &mut sql);
+        let tenant_id = append_required_tenant_filter(ctx, deployment_target::TENANT_ID, &mut sql)?;
 
-        let row = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(id)
-                .bind(tenant_id)
-                .fetch_optional(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql).bind(id).fetch_optional(&self.pool).await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let row = sqlx::query(&sql)
+            .bind(id)
+            .bind(tenant_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         match row {
             Some(row) => {
@@ -157,21 +143,14 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             deployment_target::PROJECT_ID,
             deployment_target::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(ctx, deployment_target::TENANT_ID, &mut sql);
+        let tenant_id = append_required_tenant_filter(ctx, deployment_target::TENANT_ID, &mut sql)?;
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(project_id)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(project_id)
-                .fetch_all(&self.pool)
-                .await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let rows = sqlx::query(&sql)
+            .bind(project_id)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         rows.iter()
             .map(|row| {
@@ -193,18 +172,14 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             release_record::ID,
             release_record::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(ctx, release_record::TENANT_ID, &mut sql);
+        let tenant_id = append_required_tenant_filter(ctx, release_record::TENANT_ID, &mut sql)?;
 
-        let row = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(id)
-                .bind(tenant_id)
-                .fetch_optional(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql).bind(id).fetch_optional(&self.pool).await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let row = sqlx::query(&sql)
+            .bind(id)
+            .bind(tenant_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         match row {
             Some(row) => {
@@ -231,25 +206,18 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             release_record::IS_DELETED,
             deployment_record::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(
+        let tenant_id = append_required_tenant_filter(
             ctx,
             &format!("d.{}", deployment_record::TENANT_ID),
             &mut sql,
-        );
+        )?;
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(project_id)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(project_id)
-                .fetch_all(&self.pool)
-                .await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let rows = sqlx::query(&sql)
+            .bind(project_id)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         rows.iter()
             .map(|row| {
@@ -273,23 +241,15 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             audit_event::SCOPE_ID,
             audit_event::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(ctx, audit_event::TENANT_ID, &mut sql);
+        let tenant_id = append_required_tenant_filter(ctx, audit_event::TENANT_ID, &mut sql)?;
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(scope_type)
-                .bind(scope_id)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(scope_type)
-                .bind(scope_id)
-                .fetch_all(&self.pool)
-                .await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let rows = sqlx::query(&sql)
+            .bind(scope_type)
+            .bind(scope_id)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         rows.iter()
             .map(|row| {
@@ -313,23 +273,15 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             governance_policy::SCOPE_ID,
             governance_policy::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(ctx, governance_policy::TENANT_ID, &mut sql);
+        let tenant_id = append_required_tenant_filter(ctx, governance_policy::TENANT_ID, &mut sql)?;
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(scope_type)
-                .bind(scope_id)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(scope_type)
-                .bind(scope_id)
-                .fetch_all(&self.pool)
-                .await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let rows = sqlx::query(&sql)
+            .bind(scope_type)
+            .bind(scope_id)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         rows.iter()
             .map(|row| {
@@ -349,17 +301,13 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             deployment_record::TABLE,
             deployment_record::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(ctx, deployment_record::TENANT_ID, &mut sql);
+        let tenant_id = append_required_tenant_filter(ctx, deployment_record::TENANT_ID, &mut sql)?;
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql).fetch_all(&self.pool).await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let rows = sqlx::query(&sql)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         rows.iter()
             .map(|row| {
@@ -379,17 +327,13 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             deployment_target::TABLE,
             deployment_target::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(ctx, deployment_target::TENANT_ID, &mut sql);
+        let tenant_id = append_required_tenant_filter(ctx, deployment_target::TENANT_ID, &mut sql)?;
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql).fetch_all(&self.pool).await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let rows = sqlx::query(&sql)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         rows.iter()
             .map(|row| {
@@ -409,17 +353,13 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             release_record::TABLE,
             release_record::IS_DELETED,
         );
-        let tenant_id = maybe_append_tenant_filter(ctx, release_record::TENANT_ID, &mut sql);
+        let tenant_id = append_required_tenant_filter(ctx, release_record::TENANT_ID, &mut sql)?;
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql).fetch_all(&self.pool).await
-        }
-        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        let rows = sqlx::query(&sql)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
         rows.iter()
             .map(|row| {

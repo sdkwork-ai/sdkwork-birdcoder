@@ -1,12 +1,7 @@
-class SdkClients {
-  final dynamic appSdk;
-  final dynamic backendSdk;
+import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_mobile_core.dart';
 
-  SdkClients({this.appSdk, this.backendSdk});
+typedef SdkClients = BirdCoderFlutterSdkClients;
 
-  static SdkClients create() {
-    // SDK clients are constructed here per APP_SDK_INTEGRATION_SPEC.md
-    // Generated Dart/Flutter app SDK clients are injected through service/runtime boundaries
-    return SdkClients();
-  }
+BirdCoderFlutterSdkClients createSdkClients({required String apiBaseUrl}) {
+  return createBirdCoderFlutterSdkClients(apiBaseUrl: apiBaseUrl);
 }

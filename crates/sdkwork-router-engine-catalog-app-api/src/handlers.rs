@@ -11,8 +11,10 @@ use sdkwork_birdcoder_codeengine::{
     CodeEngineSessionSummaryRecord,
 };
 use sdkwork_birdcoder_engine_catalog_service::service::engine_catalog_service::{
-    EngineCapabilityMatrixPayload, EngineCatalogProvider, EngineCatalogService,
-    EngineDescriptorPayload, ModelCatalogEntryPayload, NativeSessionProviderPayload as EngineNativeSessionProviderPayload,
+    CodeEngineModelConfigPayload, EngineCapabilityMatrixPayload, EngineCatalogProvider,
+    EngineCatalogService, EngineDescriptorPayload, ModelCatalogEntryPayload,
+    NativeSessionProviderPayload as EngineNativeSessionProviderPayload,
+    SyncModelConfigResultPayload,
 };
 use sdkwork_birdcoder_native_sessions_service::service::native_session_service::{
     NativeSessionDetailPayload, NativeSessionLookup, NativeSessionQuery, NativeSessionRepository,
@@ -21,7 +23,10 @@ use sdkwork_birdcoder_native_sessions_service::service::native_session_service::
 use sdkwork_birdcoder_native_sessions_service::error::NativeSessionError;
 
 use sdkwork_utils_rust::is_blank;
-use sdkwork_birdcoder_errors::trace_id_from_request_id;
+use sdkwork_birdcoder_errors::{
+    build_data_envelope, build_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    ApiListEnvelope,
+};
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 
 use crate::error;
@@ -32,6 +37,10 @@ use crate::mapper::request::{
 
 fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
     trace_id_from_request_id(web.request_id.0.as_str())
+}
+
+fn request_id(web: &WebRequestContext) -> &str {
+    web.request_id.0.as_str()
 }
 
 // ── Real Engine Catalog Provider ─────────────────────────────────────
@@ -259,11 +268,17 @@ pub async fn list_engines(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
+) -> Result<
+    Json<ApiListEnvelope<EngineDescriptorPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+>
 {
     let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.list_engines() {
-        Ok(engines) => Ok(Json(serde_json::json!({ "items": engines }))),
+        Ok(engines) => {
+            let total = engines.len();
+            Ok(Json(build_list_envelope(engines, total, request_id(&web))))
+        }
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
@@ -273,14 +288,17 @@ pub async fn get_engine_capabilities(
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Path(params): Path<EngineKeyPathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
+) -> Result<
+    Json<ApiDataEnvelope<EngineCapabilityMatrixPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+>
 {
     let trace_id = request_trace_id(&web);
     match state
         .engine_catalog_service
         .get_engine_capabilities(&params.engine_key)
     {
-        Ok(matrix) => Ok(Json(serde_json::json!(matrix))),
+        Ok(matrix) => Ok(Json(build_data_envelope(matrix, request_id(&web)))),
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
@@ -289,14 +307,20 @@ pub async fn list_native_session_providers(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
+) -> Result<
+    Json<ApiListEnvelope<EngineNativeSessionProviderPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+>
 {
     let trace_id = request_trace_id(&web);
     match state
         .engine_catalog_service
         .list_native_session_providers()
     {
-        Ok(providers) => Ok(Json(serde_json::json!({ "items": providers }))),
+        Ok(providers) => {
+            let total = providers.len();
+            Ok(Json(build_list_envelope(providers, total, request_id(&web))))
+        }
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
@@ -306,7 +330,10 @@ pub async fn list_native_sessions(
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Query(params): Query<NativeSessionQueryParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
+) -> Result<
+    Json<ApiListEnvelope<NativeSessionSummaryPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+>
 {
     let trace_id = request_trace_id(&web);
     if !native_session_query_is_scoped(&NativeSessionQuery {
@@ -330,7 +357,10 @@ pub async fn list_native_sessions(
         limit: params.limit,
     };
     match state.native_session_service.list_sessions(&query) {
-        Ok(sessions) => Ok(Json(serde_json::json!({ "items": sessions }))),
+        Ok(sessions) => {
+            let total = sessions.len();
+            Ok(Json(build_list_envelope(sessions, total, request_id(&web))))
+        }
         Err(e) => Err(error::map_native_session_error(e, trace_id)),
     }
 }
@@ -341,7 +371,10 @@ pub async fn get_native_session(
     State(state): State<EngineCatalogAppState>,
     Path(params): Path<NativeSessionPathParams>,
     Query(scope): Query<NativeSessionScopeQuery>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
+) -> Result<
+    Json<ApiDataEnvelope<NativeSessionDetailPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+>
 {
     let trace_id = request_trace_id(&web);
     if is_blank(Some(scope.workspace_id.as_str())) || is_blank(Some(scope.project_id.as_str())) {
@@ -360,7 +393,7 @@ pub async fn get_native_session(
         project_id: Some(scope.project_id),
     };
     match state.native_session_service.get_session_detail(&lookup) {
-        Ok(session) => Ok(Json(serde_json::json!(session))),
+        Ok(session) => Ok(Json(build_data_envelope(session, request_id(&web)))),
         Err(e) => Err(error::map_native_session_error(e, trace_id)),
     }
 }
@@ -369,11 +402,17 @@ pub async fn list_models(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
+) -> Result<
+    Json<ApiListEnvelope<ModelCatalogEntryPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+>
 {
     let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.list_models() {
-        Ok(models) => Ok(Json(serde_json::json!({ "items": models }))),
+        Ok(models) => {
+            let total = models.len();
+            Ok(Json(build_list_envelope(models, total, request_id(&web))))
+        }
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
@@ -382,11 +421,14 @@ pub async fn get_model_config(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
+) -> Result<
+    Json<ApiDataEnvelope<CodeEngineModelConfigPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+>
 {
     let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.get_model_config() {
-        Ok(config) => Ok(Json(serde_json::json!(config))),
+        Ok(config) => Ok(Json(build_data_envelope(config, request_id(&web)))),
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
@@ -396,14 +438,17 @@ pub async fn sync_model_config(
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Json(body): Json<SyncModelConfigRequest>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
+) -> Result<
+    Json<ApiDataEnvelope<SyncModelConfigResultPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+>
 {
     let trace_id = request_trace_id(&web);
     match state
         .engine_catalog_service
         .sync_model_config(body.local_config)
     {
-        Ok(result) => Ok(Json(serde_json::json!(result))),
+        Ok(result) => Ok(Json(build_data_envelope(result, request_id(&web)))),
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }

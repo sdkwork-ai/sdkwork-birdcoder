@@ -320,7 +320,10 @@ const BIRDCODER_IAM_QR_AUTH_STATUSES = [
   'pending',
   'scanned',
   'confirmed',
+  'completed',
   'expired',
+  'cancelled',
+  'failed',
 ] as const;
 
 const BIRDCODER_DEPLOYMENT_RECORD_STATUSES = [
@@ -1924,12 +1927,22 @@ function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdCoderOpe
       {
         deviceAuthorizationId: createOpenApiStringSchema(),
         expiresAt: createOpenApiDateTimeSchema(),
+        pollSecret: createOpenApiStringSchema(),
         qrContent: createOpenApiStringSchema(),
         qrUrl: createOpenApiStringSchema(),
+        sessionReady: createOpenApiBooleanSchema(),
         status: createOpenApiStringEnumSchema(BIRDCODER_IAM_QR_AUTH_STATUSES),
       },
       {
         required: ['deviceAuthorizationId', 'status'],
+      },
+    ),
+    BirdCoderIamDeviceAuthorizationSessionExchangeRequest: createOpenApiObjectSchema(
+      {
+        pollSecret: createOpenApiStringSchema(),
+      },
+      {
+        required: ['pollSecret'],
       },
     ),
     BirdCoderIamDeviceAuthorizationScanRequest: createOpenApiObjectSchema({
@@ -3931,6 +3944,24 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
+    'oauth.deviceAuthorizations.sessionExchanges.create': {
+      parameters: [deviceAuthorizationIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderIamDeviceAuthorizationSessionExchangeRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription:
+          'SDKWork IAM OAuth device authorization session exchanged successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('OAuth device authorization session exchange is invalid.'),
+          '401': createProblemResponse('OAuth device authorization poll secret was rejected.'),
+          '404': createProblemResponse('OAuth device authorization was not found.'),
+          '409': createProblemResponse('OAuth device authorization session is not ready for exchange.'),
+        },
+      }),
+    },
     'sessions.create': {
       requestBody: createOpenApiRequestBody(
         createOpenApiSchemaReference('BirdCoderIamCreateSessionRequest'),
@@ -5052,7 +5083,7 @@ function isPublicOpenApiOperation(
     return sdkworkIamOperation.security !== 'dualToken';
   }
 
-  return /^(?:oauth\.(?:authorizationUrls\.create|sessions\.create|deviceAuthorizations\.(?:create|retrieve|scans\.create|passwordCompletions\.create))|registrations\.create|sessions\.(?:create|refresh)|passwordResetRequests\.create|passwordResets\.create|iam\.(?:runtime|verificationPolicy)\.retrieve)$/u.test(
+  return /^(?:oauth\.(?:authorizationUrls\.create|sessions\.create|deviceAuthorizations\.(?:create|retrieve|scans\.create|passwordCompletions\.create|sessionExchanges\.create))|registrations\.create|sessions\.(?:create|refresh)|passwordResetRequests\.create|passwordResets\.create|iam\.(?:runtime|verificationPolicy)\.retrieve)$/u.test(
     operationId,
   );
 }
@@ -5683,6 +5714,10 @@ function getResolvedBirdCoderAppApiContract(): BirdCoderAppApiContract {
     oauthDeviceAuthorizationPasswordCompletion: createIamRoute(
       'oauth.deviceAuthorizations.passwordCompletions.create',
       'Complete SDKWork IAM OAuth device authorization with password',
+    ),
+    oauthDeviceAuthorizationSessionExchange: createIamRoute(
+      'oauth.deviceAuthorizations.sessionExchanges.create',
+      'Exchange SDKWork IAM OAuth device authorization for a session',
     ),
     authPasswordResetRequest: createIamRoute(
       'passwordResetRequests.create',

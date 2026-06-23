@@ -1,14 +1,15 @@
-class AppRuntime {
-  final String apiBaseUrl;
+import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_mobile_core.dart'
+    as core;
 
-  AppRuntime({required this.apiBaseUrl});
-
-  static AppRuntime create() {
-    return AppRuntime(
-      apiBaseUrl: const String.fromEnvironment(
-        'API_BASE_URL',
-        defaultValue: 'http://localhost:3000',
-      ),
-    );
-  }
+String resolveBirdCoderBootstrapServerBaseUrl({
+  String? configuredApiBaseUrl,
+  String? runtimeApiBaseUrl,
+  String? storedApiBaseUrl,
+}) {
+  return core.resolveBirdCoderBootstrapServerBaseUrl(
+        configuredApiBaseUrl: configuredApiBaseUrl,
+        runtimeApiBaseUrl: runtimeApiBaseUrl,
+        storedApiBaseUrl: storedApiBaseUrl,
+      ) ??
+      'http://localhost:3000';
 }

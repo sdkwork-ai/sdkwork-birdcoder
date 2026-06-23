@@ -50,8 +50,20 @@ assert.doesNotMatch(
 
 assert.match(
   runtimeAuthServiceSource,
+  /runtime\.service\.auth\.sessions\.current\.retrieve\(\)/u,
+  'RuntimeAuthService must validate the current SDKWork IAM session before hydrating users.',
+);
+
+assert.match(
+  runtimeAuthServiceSource,
   /runtime\.service\.iam\.users\.current\.retrieve\(\)/u,
   'RuntimeAuthService must hydrate current users from the SDKWork IAM generated app SDK surface.',
+);
+
+assert.match(
+  runtimeAuthServiceSource,
+  /runtime\.service\.auth\.sessions\.current\.retrieve\(\)/u,
+  'RuntimeAuthService must validate the current SDKWork IAM session before hydrating users.',
 );
 
 assert.match(

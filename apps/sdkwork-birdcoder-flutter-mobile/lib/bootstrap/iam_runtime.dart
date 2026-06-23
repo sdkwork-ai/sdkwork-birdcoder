@@ -1,15 +1,5 @@
-class IamRuntime {
-  final bool initialized;
+import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_mobile_core.dart';
 
-  IamRuntime({required this.initialized});
+typedef IamRuntime = BirdCoderIamRuntime;
 
-  static IamRuntime create() {
-    // IAM runtime wiring follows APP_SDK_INTEGRATION_SPEC.md and IAM_LOGIN_INTEGRATION_SPEC.md
-    // Appbase IAM runtime owns login/session/refresh/logout
-    return IamRuntime(initialized: true);
-  }
-
-  Future<void> login() async {}
-  Future<void> logout() async {}
-  Future<void> refreshToken() async {}
-}
+BirdCoderIamRuntime createIamRuntime() => createBirdCoderIamRuntime();

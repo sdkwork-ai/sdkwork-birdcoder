@@ -3,6 +3,22 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "dependencies": {
+    "@sdkwork/birdcoder-h5-admin-core": "workspace:*",
+    "@sdkwork/birdcoder-h5-capacitor": "workspace:*",
+    "@sdkwork/birdcoder-h5-commons": "workspace:*",
+    "@sdkwork/birdcoder-h5-core": "workspace:*",
+    "@sdkwork/birdcoder-h5-shell": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  },
   "scripts": {
     "dev": "vite",
     "dev:cap:ios": "cap sync && cap open ios",

@@ -34,6 +34,10 @@ function createRuntimeFixture({
             delete: async () => {
               sessionDeleteCalls += 1;
             },
+            retrieve: async () => ({
+              accessToken: tokenSession.accessToken,
+              authToken: tokenSession.authToken,
+            }),
           },
         },
       },
@@ -169,6 +173,33 @@ function createRuntimeFixture({
       tokenSession: {},
     },
     'logout must revoke the SDKWork IAM app session and clear token/context stores.',
+  );
+}
+
+{
+  const fixture = createRuntimeFixture({
+    storedSession: {
+      accessToken: 'access-token',
+      authToken: 'auth-token',
+    },
+  });
+  fixture.runtime.service.auth.sessions.current.retrieve = async () => {
+    throw new Error('session revoked');
+  };
+  const authService = runtimeAuthModule.createBirdCoderRuntimeAuthService({
+    getRuntime: () => fixture.runtime,
+  });
+  assert.equal(await authService.getCurrentUser(), null);
+  assert.equal(await authService.hasStoredSession(), false);
+  assert.equal(
+    fixture.readStats().clearCalls,
+    1,
+    'invalid SDKWork IAM sessions must clear token storage before reporting anonymous state.',
+  );
+  assert.equal(
+    fixture.readStats().contextClearCalls,
+    1,
+    'invalid SDKWork IAM sessions must clear context storage before reporting anonymous state.',
   );
 }
 

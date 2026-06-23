@@ -181,11 +181,45 @@ for (const crate of alignedRouterCrates) {
     /request_trace_id\(&web\)/,
     `${crate} handlers must attach request trace IDs to error responses.`,
   );
+  assert.match(
+    handlersSource,
+    /build_(data|list|offset_list)_envelope\(/,
+    `${crate} handlers must return canonical BirdCoder API envelopes.`,
+  );
+  assert.doesNotMatch(
+    handlersSource,
+    /json!\(\{\s*"items":/,
+    `${crate} handlers must not return legacy bare { items } list payloads.`,
+  );
   assert.doesNotMatch(
     errorSource,
     /#\[derive\(Serialize\)\][\s\S]*pub struct ProblemDetailsPayload/,
     `${crate} must not define a local ProblemDetailsPayload struct.`,
   );
 }
+
+const systemHandlersSource = readFileSync(
+  new URL('../crates/sdkwork-router-system-app-api/src/handlers.rs', import.meta.url),
+  'utf8',
+);
+const systemManifestSource = readFileSync(
+  new URL('../crates/sdkwork-router-system-app-api/src/manifest.rs', import.meta.url),
+  'utf8',
+);
+assert.match(
+  systemHandlersSource,
+  /RequiredIamContext/,
+  'System handlers must require authenticated IAM context.',
+);
+assert.match(
+  systemManifestSource,
+  /HttpRoute::dual_token/,
+  'System route manifest must declare dual_token auth instead of legacy public routes.',
+);
+assert.doesNotMatch(
+  systemManifestSource,
+  /HttpRoute::public\(/,
+  'System route manifest must not expose legacy public HttpRoute entries.',
+);
 
 console.log('api observability and pagination contract passed.');

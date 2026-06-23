@@ -2,6 +2,8 @@ use axum::http::StatusCode;
 use axum::Json;
 use sdkwork_birdcoder_document_service::error::DocumentError;
 
+use sdkwork_birdcoder_errors::{client_safe_data_access_problem, client_safe_internal_problem};
+
 pub use sdkwork_birdcoder_errors::ProblemDetailsPayload;
 
 fn with_trace_id(
@@ -37,12 +39,13 @@ pub fn map_service_error(
                 trace_id,
             )),
         ),
-        DocumentError::Repository(msg) | DocumentError::Internal(msg) => (
+        DocumentError::Repository(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("internal", msg, true),
-                trace_id,
-            )),
+            Json(with_trace_id(client_safe_data_access_problem(), trace_id)),
+        ),
+        DocumentError::Internal(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(with_trace_id(client_safe_internal_problem(), trace_id)),
         ),
     }
 }

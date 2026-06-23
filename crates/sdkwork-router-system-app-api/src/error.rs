@@ -2,6 +2,8 @@ use axum::http::StatusCode;
 use axum::Json;
 use sdkwork_birdcoder_system_descriptor_service::error::SystemDescriptorError;
 
+use sdkwork_birdcoder_errors::client_safe_internal_problem;
+
 pub use sdkwork_birdcoder_errors::ProblemDetailsPayload;
 
 fn with_trace_id(
@@ -30,12 +32,9 @@ pub fn map_system_error(
                 trace_id,
             )),
         ),
-        SystemDescriptorError::Internal(msg) => (
+        SystemDescriptorError::Internal(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("internal", msg, true),
-                trace_id,
-            )),
+            Json(with_trace_id(client_safe_internal_problem(), trace_id)),
         ),
     }
 }

@@ -325,6 +325,7 @@ interface UniversalChatTranscriptEnvironment {
 interface UniversalChatTranscriptProps {
   emptyState?: React.ReactNode;
   engineId?: string;
+  environmentSignature: string;
   environmentRef: React.MutableRefObject<UniversalChatTranscriptEnvironment | null>;
   isActive: boolean;
   isUserControllingScrollRef: React.MutableRefObject<boolean>;
@@ -411,6 +412,7 @@ function readTranscriptScrollClock(): number {
 const UniversalChatTranscript = memo(function UniversalChatTranscript({
   emptyState,
   engineId,
+  environmentSignature,
   environmentRef,
   isActive,
   isUserControllingScrollRef,
@@ -622,7 +624,8 @@ const UniversalChatTranscript = memo(function UniversalChatTranscript({
     previousProps.layout !== nextProps.layout ||
     previousProps.localeKey !== nextProps.localeKey ||
     previousProps.sessionId !== nextProps.sessionId ||
-    previousProps.engineId !== nextProps.engineId
+    previousProps.engineId !== nextProps.engineId ||
+    previousProps.environmentSignature !== nextProps.environmentSignature
   ) {
     return false;
   }
@@ -688,6 +691,10 @@ export const UniversalChat = memo(function UniversalChat({
     useState<ComposerModelSelectionOverride | null>(null);
   const normalizedSessionId = sessionId?.trim() || '';
   const normalizedTranscriptScopeKey = sessionScopeKey?.trim() || normalizedSessionId;
+  const transcriptEnvironmentSignature = useMemo(
+    () => skills.map((skill) => skill.id).join('\u0001'),
+    [skills],
+  );
   const normalizedQueueScopeKey = normalizedTranscriptScopeKey;
   const normalizedComposerSelectionScopeKey = normalizedTranscriptScopeKey || 'ephemeral';
   const normalizedSessionStateScopeKey = normalizedSessionId ? normalizedTranscriptScopeKey : '';
@@ -2476,6 +2483,7 @@ export const UniversalChat = memo(function UniversalChat({
         <UniversalChatTranscript
           emptyState={emptyState}
           engineId={resolvedSelectedEngineId}
+          environmentSignature={transcriptEnvironmentSignature}
           environmentRef={transcriptEnvironmentRef}
           isActive={isActive}
           isUserControllingScrollRef={isUserControllingTranscriptScrollRef}

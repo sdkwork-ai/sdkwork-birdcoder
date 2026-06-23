@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { BirdCoderDeploymentRecordSummary } from '@sdkwork/birdcoder-pc-types';
-import type { IAdminDeploymentService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import type { IAdminDeploymentService } from '../services/interfaces/IAdminDeploymentService.ts';
 
 export async function loadAdminDeployments(
   deploymentService: Pick<IAdminDeploymentService, 'getDeployments'>,

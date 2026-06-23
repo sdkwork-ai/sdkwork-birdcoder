@@ -3,6 +3,7 @@ use std::fmt;
 #[derive(Clone, Debug)]
 pub enum ProjectError {
     NotFound(String),
+    Forbidden(String),
     InvalidInput(String),
     Conflict(String),
     Repository(String),
@@ -15,6 +16,7 @@ impl fmt::Display for ProjectError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NotFound(msg) => write!(f, "not found: {msg}"),
+            Self::Forbidden(msg) => write!(f, "forbidden: {msg}"),
             Self::InvalidInput(msg) => write!(f, "invalid input: {msg}"),
             Self::Conflict(msg) => write!(f, "conflict: {msg}"),
             Self::Repository(msg) => write!(f, "repository error: {msg}"),

@@ -4,6 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./host-adapters": "./src/hostAdapters.ts",
+    "./config": "./capacitor.config.ts"
+  },
+  "dependencies": {
+    "@capacitor/app": "catalog:",
+    "@capacitor/core": "catalog:",
+    "@capacitor/preferences": "catalog:",
+    "@sdkwork/birdcoder-h5-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "catalog:"
   }
 }

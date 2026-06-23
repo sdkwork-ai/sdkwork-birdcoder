@@ -2,7 +2,10 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
-use sdkwork_birdcoder_errors::ProblemDetailsPayload;
+use sdkwork_birdcoder_errors::{
+    client_safe_data_access_problem, client_safe_event_publish_problem,
+    client_safe_internal_problem, client_safe_provider_problem, ProblemDetailsPayload,
+};
 
 #[derive(Debug)]
 pub struct AppError {
@@ -58,12 +61,22 @@ impl From<CodingSessionError> for AppError {
             CodingSessionError::NotFound(msg) => Self::not_found(msg),
             CodingSessionError::InvalidInput(msg) => Self::bad_request(msg),
             CodingSessionError::Conflict(msg) => Self::conflict(msg),
-            CodingSessionError::Repository(msg) => Self::internal(format!("Repository: {msg}")),
-            CodingSessionError::Provider(msg) => Self::bad_gateway(msg),
-            CodingSessionError::EventPublish(msg) => {
-                Self::internal(format!("Event publish: {msg}"))
-            }
-            CodingSessionError::Internal(msg) => Self::internal(msg),
+            CodingSessionError::Repository(_) => Self {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: client_safe_data_access_problem(),
+            },
+            CodingSessionError::Provider(_) => Self {
+                status: StatusCode::BAD_GATEWAY,
+                body: client_safe_provider_problem(),
+            },
+            CodingSessionError::EventPublish(_) => Self {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: client_safe_event_publish_problem(),
+            },
+            CodingSessionError::Internal(_) => Self {
+                status: StatusCode::INTERNAL_SERVER_ERROR,
+                body: client_safe_internal_problem(),
+            },
         }
     }
 }

@@ -1,5 +1,15 @@
 {
   "iosBundleId": "com.sdkwork.birdcoder.mobile",
   "androidPackageName": "com.sdkwork.birdcoder.mobile",
-  "environment": "production"
+  "environment": "production",
+  "deepLinks": {
+    "customScheme": "birdcoder",
+    "oauthCallbackAuthority": "auth",
+    "oauthCallbackPath": "/oauth/callback",
+    "universalLinkHosts": [
+      "birdcoder.sdkwork.com",
+      "api.sdkwork.com"
+    ],
+    "androidAutoVerify": true
+  }
 }

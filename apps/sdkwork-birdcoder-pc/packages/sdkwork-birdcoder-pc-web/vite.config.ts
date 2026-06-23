@@ -735,9 +735,9 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAdminDeploymentService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAdminPolicyService.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAuditService.ts',
+              '/packages/sdkwork-birdcoder-pc-admin-core/src/services/impl/ApiBackedAdminDeploymentService.ts',
+              '/packages/sdkwork-birdcoder-pc-admin-core/src/services/impl/ApiBackedAdminPolicyService.ts',
+              '/packages/sdkwork-birdcoder-pc-admin-core/src/services/impl/ApiBackedAuditService.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedCatalogService.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedCollaborationService.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts',

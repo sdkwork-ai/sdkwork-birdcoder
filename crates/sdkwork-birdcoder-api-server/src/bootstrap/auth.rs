@@ -1,7 +1,7 @@
 use axum::Router;
 use sdkwork_iam_web_adapter::{build_web_framework_layer, iam_database_resolver_from_env};
 use sdkwork_web_axum::with_web_request_context;
-use sdkwork_web_core::{CorsPolicy, SecurityPolicy};
+use sdkwork_web_core::{CorsPolicy, RateLimitPolicy, SecurityPolicy};
 
 use crate::bootstrap::config::{default_loopback_browser_origins, is_loopback_bind_host, BirdServerConfig};
 use crate::bootstrap::route_manifest::birdcoder_product_app_api_route_manifest;
@@ -61,6 +61,13 @@ fn build_security_policy(config: &BirdServerConfig) -> SecurityPolicy {
 
     SecurityPolicy {
         cors,
+        rate_limit: RateLimitPolicy {
+            enabled: config.rate_limit_enabled,
+            max_requests_per_window: config.rate_limit_max_requests,
+            window_secs: config.rate_limit_window_secs,
+            pre_auth_rate_limit: true,
+            tenant_limit_after_auth: true,
+        },
         ..SecurityPolicy::default()
     }
 }

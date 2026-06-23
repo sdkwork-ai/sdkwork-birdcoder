@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { BirdCoderIamPolicySummary } from '@sdkwork/birdcoder-pc-types';
-import type { IAdminPolicyService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IAdminPolicyService.ts';
+import type { IAdminPolicyService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core/src/services/interfaces/IAdminPolicyService.ts';
 import { loadAdminPolicies } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core/src/hooks/useAdminPolicies.ts';
 
 const policyFixtures: BirdCoderIamPolicySummary[] = [

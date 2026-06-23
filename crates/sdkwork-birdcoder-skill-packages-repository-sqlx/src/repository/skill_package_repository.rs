@@ -178,6 +178,7 @@ pub async fn scope_exists(
     pool: &SqlitePool,
     scope_type: &str,
     scope_id: &str,
+    tenant_id: i64,
 ) -> Result<bool, RepositoryError> {
     let table = if scope_type == "workspace" {
         "studio_workspace"
@@ -186,7 +187,13 @@ pub async fn scope_exists(
     } else {
         return Ok(false);
     };
-    let sql = format!("SELECT 1 FROM {table} WHERE id = ?1 AND is_deleted = 0 LIMIT 1");
-    let row = sqlx::query(&sql).bind(scope_id).fetch_optional(pool).await?;
+    let sql = format!(
+        "SELECT 1 FROM {table} WHERE id = ?1 AND tenant_id = ?2 AND is_deleted = 0 LIMIT 1"
+    );
+    let row = sqlx::query(&sql)
+        .bind(scope_id)
+        .bind(tenant_id)
+        .fetch_optional(pool)
+        .await?;
     Ok(row.is_some())
 }

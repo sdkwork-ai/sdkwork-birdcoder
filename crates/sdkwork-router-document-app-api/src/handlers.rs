@@ -3,8 +3,11 @@ use axum::Json;
 use sqlx::SqlitePool;
 
 use sdkwork_birdcoder_document_repository_sqlx::SqliteDocumentRepository;
+use sdkwork_birdcoder_document_service::domain::models::DocumentPayload;
 use sdkwork_birdcoder_document_service::service::document_service::DocumentService;
-use sdkwork_birdcoder_errors::trace_id_from_request_id;
+use sdkwork_birdcoder_errors::{
+    build_list_envelope, trace_id_from_request_id, ApiListEnvelope,
+};
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 
 use crate::error;
@@ -12,6 +15,10 @@ use crate::mapper::request::DocumentListQuery;
 
 fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
     trace_id_from_request_id(web.request_id.0.as_str())
+}
+
+fn request_id(web: &WebRequestContext) -> &str {
+    web.request_id.0.as_str()
 }
 
 #[derive(Clone)]
@@ -32,7 +39,10 @@ pub async fn list_documents(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<DocumentAppState>,
     Query(query): Query<DocumentListQuery>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)>
+) -> Result<
+    Json<ApiListEnvelope<DocumentPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+>
 {
     let trace_id = request_trace_id(&web);
     match state
@@ -43,7 +53,10 @@ pub async fn list_documents(
         )
         .await
     {
-        Ok(items) => Ok(Json(serde_json::json!({ "items": items }))),
+        Ok(items) => {
+            let total = items.len();
+            Ok(Json(build_list_envelope(items, total, request_id(&web))))
+        }
         Err(e) => Err(error::map_service_error(e, trace_id)),
     }
 }

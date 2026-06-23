@@ -1,7 +1,6 @@
 use crate::context::ProjectContext;
 use crate::domain::commands::{
-    CreateProjectGitBranchRequest, CreateProjectRequest, SwitchProjectGitBranchRequest,
-    UpdateProjectRequest, UpsertProjectCollaboratorRequest,
+    CreateProjectRequest, UpdateProjectRequest, UpsertProjectCollaboratorRequest,
 };
 use crate::domain::results::{ProjectCollaboratorPayload, ProjectPayload};
 use crate::error::ProjectError;

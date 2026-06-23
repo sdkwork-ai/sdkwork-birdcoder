@@ -11,6 +11,7 @@ use sdkwork_router_workspace_app_api::WorkspaceAppState;
 
 use crate::bootstrap::auth::build_protected_app_router;
 use crate::bootstrap::config::BirdServerConfig;
+use crate::bootstrap::route_manifest::birdcoder_product_app_api_routes;
 use crate::bootstrap::state::AppState;
 use crate::health;
 
@@ -18,8 +19,12 @@ pub async fn build_router(
     state: AppState,
     config: &BirdServerConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
+    let product_routes = birdcoder_product_app_api_routes();
     let system_router = sdkwork_router_system_app_api::build_system_app_router()
-        .with_state(SystemAppState::with_sqlite_pool(state.repositories.sqlite_pool.clone()));
+        .with_state(SystemAppState::with_sqlite_pool(
+            state.repositories.sqlite_pool.clone(),
+            product_routes,
+        ));
 
     let intelligence_router = sdkwork_router_coding_sessions_app_api::build_coding_sessions_app_api_router()
         .with_state(CodingSessionsAppState {
@@ -41,7 +46,11 @@ pub async fn build_router(
         .with_state(DocumentAppState::new(state.repositories.sqlite_pool.clone()));
 
     let skill_packages_router = sdkwork_router_skill_packages_app_api::build_skill_packages_app_router()
-        .with_state(SkillPackagesAppState::new(state.repositories.sqlite_pool.clone()));
+        .with_state(SkillPackagesAppState::new(
+            state.repositories.sqlite_pool.clone(),
+            state.services.workspace.clone(),
+            state.services.project.clone(),
+        ));
 
     let membership_router = sdkwork_router_membership_app_api::build_membership_app_router()
         .with_state(MembershipAppState::new(state.repositories.sqlite_pool.clone()));

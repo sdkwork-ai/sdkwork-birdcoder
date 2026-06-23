@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sdk.consumer-family",
+  "workspace": "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer",
+  "sdkOwner": "sdkwork-birdcoder",
+  "apiAuthority": "sdkwork-birdcoder-app-api",
+  "dependencyMode": "consumer-sdk",
+  "generationInputSpec": "../../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.sdkgen.json",
+  "generationScript": "scripts/generate-birdcoder-flutter-mobile-sdk-family.mjs --surface app --language flutter",
+  "languages": [
+    {
+      "language": "flutter",
+      "name": "sdkwork_birdcoder_app_sdk",
+      "version": "0.1.0",
+      "generatedPath": "generated/server-openapi"
+    }
+  ]
+}

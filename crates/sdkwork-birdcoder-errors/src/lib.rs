@@ -4,6 +4,14 @@ use axum::Json;
 use serde::Serialize;
 
 pub mod envelope;
+pub mod tenant_scope;
+pub mod client_safe;
+pub use tenant_scope::{require_scoped_tenant_id, require_scoped_user_id, TenantScopeViolation};
+pub use client_safe::{
+    client_safe_data_access_problem, client_safe_event_publish_problem,
+    client_safe_internal_problem, client_safe_provider_problem, CLIENT_SAFE_DATA_ACCESS_MESSAGE,
+    CLIENT_SAFE_EVENT_PUBLISH_MESSAGE, CLIENT_SAFE_INTERNAL_MESSAGE, CLIENT_SAFE_PROVIDER_MESSAGE,
+};
 pub use envelope::{
     build_data_envelope, build_list_envelope, build_offset_list_envelope, ApiDataEnvelope,
     ApiListEnvelope, ApiListMeta, ApiMeta, BIRDCODER_CODING_SERVER_API_VERSION,
@@ -131,5 +139,14 @@ mod tests {
             ProblemDetailsPayload::new("internal", "failed", true).with_trace_id(Some("req-123"));
         let json = serde_json::to_value(payload).expect("serialize payload");
         assert_eq!(json.get("traceId").and_then(|value| value.as_str()), Some("req-123"));
+    }
+
+    #[test]
+    fn client_safe_messages_are_stable() {
+        assert_eq!(
+            client_safe_data_access_problem().message,
+            CLIENT_SAFE_DATA_ACCESS_MESSAGE
+        );
+        assert_eq!(client_safe_provider_problem().code, "provider_error");
     }
 }

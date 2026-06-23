@@ -768,6 +768,25 @@ pub mod oauth {
                 tenant_scope: "platform",
             };
         }
+
+        pub mod session_exchanges {
+            pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "platform",
+                deployment: "all",
+                domain: "system",
+                key: "oauth.deviceAuthorizations.sessionExchanges.create",
+                method: "POST",
+                operation_id: "oauth.deviceAuthorizations.sessionExchanges.create",
+                path: "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/session_exchanges",
+                path_param_names: &["deviceAuthorizationId"],
+                permission: None,
+                public: true,
+                resource: "system.oauth.deviceAuthorizations.sessionExchanges",
+                summary: "Exchange SDKWork IAM OAuth device authorization for a session",
+                tag: "oauth",
+                tenant_scope: "platform",
+            };
+        }
     }
 
     pub mod sessions {
@@ -1584,6 +1603,7 @@ pub const OPERATIONS: &[SdkOperation] = &[
     oauth::device_authorizations::password_completions::CREATE,
     oauth::device_authorizations::RETRIEVE,
     oauth::device_authorizations::scans::CREATE,
+    oauth::device_authorizations::session_exchanges::CREATE,
     oauth::sessions::CREATE,
     platform::deployments::LIST,
     platform::projects::collaborators::LIST,

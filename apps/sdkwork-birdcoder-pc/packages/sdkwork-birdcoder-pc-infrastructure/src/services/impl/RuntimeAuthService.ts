@@ -51,12 +51,31 @@ function mapIamUser(user: IamUser): User {
   };
 }
 
-async function hasStoredIamSession(runtime: IamRuntime): Promise<boolean> {
+async function readStoredIamSessionTokens(runtime: IamRuntime): Promise<boolean> {
   const storedSession = await runtime.tokenStore.get();
   return Boolean(
     normalizeText(storedSession.authToken)
       || normalizeText(storedSession.accessToken),
   );
+}
+
+async function clearInvalidIamSession(runtime: IamRuntime): Promise<void> {
+  await runtime.tokenStore.clear();
+  await runtime.contextStore.clear();
+}
+
+async function validateStoredIamSession(runtime: IamRuntime): Promise<boolean> {
+  if (!(await readStoredIamSessionTokens(runtime))) {
+    return false;
+  }
+
+  try {
+    await runtime.service.auth.sessions.current.retrieve();
+    return true;
+  } catch {
+    await clearInvalidIamSession(runtime);
+    return false;
+  }
 }
 
 export function createBirdCoderRuntimeAuthService(
@@ -67,7 +86,7 @@ export function createBirdCoderRuntimeAuthService(
   return {
     async getCurrentUser() {
       const runtime = readRuntime();
-      if (!(await hasStoredIamSession(runtime))) {
+      if (!(await validateStoredIamSession(runtime))) {
         return null;
       }
 
@@ -75,7 +94,7 @@ export function createBirdCoderRuntimeAuthService(
     },
 
     async hasStoredSession() {
-      return hasStoredIamSession(readRuntime());
+      return validateStoredIamSession(readRuntime());
     },
 
     async logout() {

@@ -4,7 +4,7 @@ This directory contains SDK family workspaces and generation manifests for the F
 
 ## SDK Families
 
-No SDK families have been generated yet. SDK families will be created here following `SDK_WORKSPACE_GENERATION_SPEC.md`.
+Consumer SDK assembly is declared in `.sdkwork-assembly.json`. Dart consumer packages live under `sdks/sdkwork_birdcoder_flutter_mobile_*_sdk_consumer/` until OpenAPI Dart generation replaces the explicit pending markers.
 
 ## Expected Structure
 

@@ -11,3 +11,8 @@ export function createDefaultAdminConfig(): AdminConfig {
     operatorId: '',
   };
 }
+
+export {
+  createBirdCoderH5BackendSdkClient,
+  type BirdCoderH5BackendSdkClient,
+} from './sdk/backendSdkClient.ts';

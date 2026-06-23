@@ -375,6 +375,14 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       ),
     },
     {
+      find: /^@sdkwork\/birdcoder-chat-contracts\/(.+)$/u,
+      replacement: path.resolve(workspaceRootDir, 'packages/sdkwork-birdcoder-chat-contracts/src/$1'),
+    },
+    {
+      find: '@sdkwork/birdcoder-chat-contracts',
+      replacement: path.resolve(workspaceRootDir, 'packages/sdkwork-birdcoder-chat-contracts/src/index.ts'),
+    },
+    {
       find: '@sdkwork/drive-app-sdk',
       replacement: resolveDependencyPath('sdkwork-drive', 'sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts'),
     },

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "componentId": "sdkwork-birdcoder-h5-sdks",
+  "displayName": "SDKWork BirdCoder H5 SDK Workspace",
+  "description": "H5 surface SDK consumer assembly for BirdCoder app and backend-admin boundaries.",
+  "ownerPackage": "@sdkwork/birdcoder-h5-core",
+  "adminOwnerPackage": "@sdkwork/birdcoder-h5-admin-core"
+}

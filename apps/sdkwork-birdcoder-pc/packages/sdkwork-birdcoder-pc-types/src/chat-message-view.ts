@@ -3,38 +3,29 @@ import type {
 } from './coding-session.ts';
 import type { BirdCoderCodeEngineKey } from './engine.ts';
 import {
+  BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES,
+  BIRDCODER_CHAT_MESSAGE_VIEW_KINDS,
+  type BirdCoderChatMessageContentBlockType,
+  type BirdCoderChatMessageViewKind,
+} from '@sdkwork/birdcoder-chat-contracts';
+export {
+  BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES,
+  BIRDCODER_CHAT_MESSAGE_VIEW_KINDS,
+  type BirdCoderChatMessageContentBlockType,
+  type BirdCoderChatMessageViewKind,
+};
+import {
   hasParsedFileUpdateSummary,
   resolveProjectedActivityFileChanges,
   resolveVisibleMarkdownBlockContent,
 } from './chat-message-activity-projection.ts';
 import { resolveTaskProgressDisplayState } from './chat-message-task-progress.ts';
+import {
+  projectChatMessageToolCalls,
+  type ChatMessageToolCall,
+} from './chat-message-tool-calls.ts';
 
 export type ChatMessageViewSource = BirdCoderComparableChatMessageLike;
-
-export const BIRDCODER_CHAT_MESSAGE_VIEW_KINDS = [
-  'user.text',
-  'assistant.text',
-  'assistant.activity',
-  'tool.result',
-  'system.notice',
-  'planner.plan',
-  'reviewer.feedback',
-] as const;
-
-export type BirdCoderChatMessageViewKind =
-  (typeof BIRDCODER_CHAT_MESSAGE_VIEW_KINDS)[number];
-
-export const BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES = [
-  'markdown',
-  'activity',
-  'file-changes',
-  'commands',
-  'task-progress',
-  'tool-calls',
-] as const;
-
-export type BirdCoderChatMessageContentBlockType =
-  (typeof BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES)[number];
 
 export interface ChatMessageMarkdownBlock {
   type: 'markdown';
@@ -69,9 +60,15 @@ export interface ChatMessageTaskProgressBlock {
   progress: ChatMessageTaskProgressValue;
 }
 
+export type { ChatMessageToolCall } from './chat-message-tool-calls.ts';
+export {
+  projectChatMessageToolCall,
+  projectChatMessageToolCalls,
+} from './chat-message-tool-calls.ts';
+
 export interface ChatMessageToolCallsBlock {
   type: 'tool-calls';
-  calls: readonly unknown[];
+  calls: readonly ChatMessageToolCall[];
 }
 
 export type ChatMessageContentBlock =
@@ -237,10 +234,11 @@ function buildChatMessageContentBlocks(
     });
   }
 
-  if (message.tool_calls && message.tool_calls.length > 0) {
+  const toolCalls = projectChatMessageToolCalls(message.tool_calls);
+  if (toolCalls.length > 0) {
     blocks.push({
       type: 'tool-calls',
-      calls: message.tool_calls,
+      calls: toolCalls,
     });
   }
 
@@ -290,7 +288,12 @@ export function estimateChatMessageViewHeight(
         extraHeight += 40;
         break;
       case 'tool-calls':
-        extraHeight += block.calls.length * 80;
+        extraHeight += block.calls.reduce((total, call) => {
+          const argumentLines = call.arguments.trim()
+            ? Math.ceil(call.arguments.length / 72)
+            : 1;
+          return total + 56 + Math.min(240, argumentLines * 16);
+        }, 0);
         break;
       default:
         break;

@@ -3,4 +3,4 @@ export {
   createBirdCoderIamRuntimeComposition as createIamRuntimeComposition,
   getBirdCoderIamRuntime as getIamRuntime,
   resetBirdCoderIamRuntime as resetIamRuntime,
-} from '@sdkwork/birdcoder-pc-infrastructure';
+} from '@sdkwork/birdcoder-h5-core';

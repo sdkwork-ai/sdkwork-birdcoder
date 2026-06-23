@@ -10,6 +10,7 @@ type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 type OauthDeviceAuthorizationsPasswordCompletionsCreatePathParams = Types.OauthDeviceAuthorizationsPasswordCompletionsCreatePathParams;
 type OauthDeviceAuthorizationsRetrievePathParams = Types.OauthDeviceAuthorizationsRetrievePathParams;
 type OauthDeviceAuthorizationsScansCreatePathParams = Types.OauthDeviceAuthorizationsScansCreatePathParams;
+type OauthDeviceAuthorizationsSessionExchangesCreatePathParams = Types.OauthDeviceAuthorizationsSessionExchangesCreatePathParams;
 
 export interface OauthApi {
   oauth: {
@@ -24,6 +25,9 @@ export interface OauthApi {
       retrieve(pathParams: OauthDeviceAuthorizationsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamDeviceAuthorizationEnvelope>;
       scans: {
         create(pathParams: OauthDeviceAuthorizationsScansCreatePathParams, body: Types.BirdCoderIamDeviceAuthorizationScanRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
+      };
+      sessionExchanges: {
+        create(pathParams: OauthDeviceAuthorizationsSessionExchangesCreatePathParams, body: Types.BirdCoderIamDeviceAuthorizationSessionExchangeRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
       };
     };
     sessions: {
@@ -55,6 +59,11 @@ export function createOauthApi(requestOperation: BirdcoderSdkRequestOperation): 
         scans: {
           create(pathParams: OauthDeviceAuthorizationsScansCreatePathParams, body: Types.BirdCoderIamDeviceAuthorizationScanRequest, options: BirdcoderSdkRequestOptions = {}) {
             return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("oauth.deviceAuthorizations.scans.create", { pathParams, body }, options);
+          }
+        },
+        sessionExchanges: {
+          create(pathParams: OauthDeviceAuthorizationsSessionExchangesCreatePathParams, body: Types.BirdCoderIamDeviceAuthorizationSessionExchangeRequest, options: BirdcoderSdkRequestOptions = {}) {
+            return requestOperation<Types.BirdCoderIamSessionEnvelope>("oauth.deviceAuthorizations.sessionExchanges.create", { pathParams, body }, options);
           }
         }
       },

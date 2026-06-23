@@ -175,6 +175,7 @@ fn with_request_context(mut request: Request<Body>, iam: Option<IamAppContext>) 
         locale: None,
         client_kind: None,
         operation: None,
+        trace_id: None,
     });
     if let Some(iam) = iam {
         request.extensions_mut().insert(iam);

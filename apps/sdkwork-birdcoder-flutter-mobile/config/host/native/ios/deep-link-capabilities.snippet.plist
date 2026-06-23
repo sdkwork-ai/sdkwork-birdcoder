@@ -1,0 +1,17 @@
+<!-- Merge into ios/Runner/Info.plist -->
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>birdcoder</string>
+    </array>
+  </dict>
+</array>
+
+<!-- Merge into ios/Runner/Runner.entitlements -->
+<key>com.apple.developer.associated-domains</key>
+<array>
+  <string>applinks:birdcoder.sdkwork.com</string>
+  <string>applinks:api.sdkwork.com</string>
+</array>

@@ -636,14 +636,19 @@ assert.equal(
 
 assert.equal(
   resolveContentPreviewSandbox('trusted', 'allow-scripts allow-same-origin allow-popups made-up-token'),
-  'allow-popups allow-same-origin allow-scripts',
-  'Trusted sandbox overrides may request powerful iframe capabilities but must still drop unknown sandbox tokens.',
+  'allow-popups allow-same-origin',
+  'Trusted sandbox overrides must not re-enable scripts even when callers request them.',
 );
 
 assert.match(
   resolveContentPreviewSandbox('trusted'),
   /allow-same-origin/,
-  'Trusted sandbox policy must allow same-origin rendering for trusted content.',
+  'Trusted sandbox policy may allow same-origin rendering but must not enable scripts by default.',
+);
+assert.doesNotMatch(
+  resolveContentPreviewSandbox('trusted'),
+  /allow-scripts/,
+  'Trusted sandbox policy must not enable scripts by default.',
 );
 
 const htmlDocument = buildHtmlPreviewDocument('<main>Preview</main>', {
@@ -658,6 +663,33 @@ assert.match(
   htmlDocument,
   /<body><main>Preview<\/main><\/body>/,
   'HTML fragments must be wrapped into a preview document body.',
+);
+
+const escapedHtmlDocument = buildHtmlPreviewDocument('<script>alert(1)</script>', {
+  title: 'Escaped Preview',
+});
+assert.match(
+  escapedHtmlDocument,
+  /&lt;script&gt;alert\(1\)&lt;\/script&gt;/,
+  'HTML text fragments must be escaped before preview rendering.',
+);
+
+const unsafeEventHandlerDocument = buildHtmlPreviewDocument('<img src=x onerror=alert(1)>', {
+  title: 'Unsafe Event Handler Preview',
+});
+assert.match(
+  unsafeEventHandlerDocument,
+  /&lt;img src=x onerror=alert\(1\)&gt;/,
+  'HTML fragments with inline event handlers must be escaped instead of injected raw.',
+);
+
+const unsafeBaseDocument = buildHtmlPreviewDocument('safe', {
+  baseUrl: 'javascript:alert(1)',
+});
+assert.doesNotMatch(
+  unsafeBaseDocument,
+  /<base href="javascript:/,
+  'Preview base URLs must reject non-http(s) protocols.',
 );
 
 const svgDocument = buildSvgPreviewDocument('<svg viewBox="0 0 10 10"></svg>');

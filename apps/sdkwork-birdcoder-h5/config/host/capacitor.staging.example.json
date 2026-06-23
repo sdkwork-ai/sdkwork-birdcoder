@@ -1,5 +1,15 @@
 {
   "iosBundleId": "com.sdkwork.birdcoder.h5",
   "androidPackageName": "com.sdkwork.birdcoder.h5",
-  "environment": "staging"
+  "environment": "staging",
+  "deepLinks": {
+    "customScheme": "birdcoderh5",
+    "oauthCallbackAuthority": "auth",
+    "oauthCallbackPath": "/oauth/callback",
+    "universalLinkHosts": [
+      "birdcoder-staging.sdkwork.com",
+      "api-staging.sdkwork.com"
+    ],
+    "androidAutoVerify": true
+  }
 }

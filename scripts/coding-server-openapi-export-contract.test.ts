@@ -34,9 +34,9 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCatalogPath, '/app/v3/api/system/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 127);
+  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 130);
   assert.deepEqual(writtenDocument['x-sdkwork-api-gateway']?.routesBySurface, {
-    app: 78,
+    app: 81,
     backend: 49,
   });
   const publishedOperationIds = Object.values(writtenDocument.paths).flatMap((methods) =>
@@ -224,6 +224,12 @@ try {
     writtenDocument.paths['/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/password_completions']?.post
       ?.operationId,
     'oauth.deviceAuthorizations.passwordCompletions.create',
+  );
+  assert.equal(
+    writtenDocument.paths[
+      '/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/session_exchanges'
+    ]?.post?.operationId,
+    'oauth.deviceAuthorizations.sessionExchanges.create',
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/open_platform/qr_auth/sessions'],

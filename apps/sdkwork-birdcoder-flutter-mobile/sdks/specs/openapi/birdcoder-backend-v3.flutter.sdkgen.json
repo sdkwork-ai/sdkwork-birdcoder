@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "apiAuthority": "sdkwork-birdcoder-backend-api",
+  "dependencyMode": "consumer-sdk",
+  "composedFrom": "../../../sdkwork-birdcoder-pc/sdks/specs/openapi/birdcoder-backend-v3.openapi.json",
+  "dartOutputPath": "sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer",
+  "standardProfile": "sdkwork-v3"
+}

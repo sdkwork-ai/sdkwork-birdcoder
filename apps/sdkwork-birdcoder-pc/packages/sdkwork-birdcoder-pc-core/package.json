@@ -23,7 +23,8 @@
     ".": "./src/index.ts",
     "./appSessionToken": "./src/appSessionToken.ts",
     "./appSessionEvents": "./src/appSessionEvents.ts",
-    "./appSessionTokenManager": "./src/appSessionTokenManager.ts"
+    "./appSessionTokenManager": "./src/appSessionTokenManager.ts",
+    "./appSessionPersistence": "./src/appSessionPersistence.ts"
   }
 }
 

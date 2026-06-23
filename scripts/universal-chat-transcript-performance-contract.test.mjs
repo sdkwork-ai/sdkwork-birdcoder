@@ -75,6 +75,23 @@ assert.match(
   'UniversalChat must import grouped reply action target generation from the chat message module.',
 );
 
+assert.match(
+  universalChatSource,
+  /environmentSignature=\{transcriptEnvironmentSignature\}/,
+  'UniversalChat must pass transcript environment signature so skill changes refresh memoized transcript rendering.',
+);
+
+assert.match(
+  universalChatSource,
+  /previousProps\.engineId !== nextProps\.engineId/,
+  'UniversalChat transcript memo comparator must invalidate when engineId changes.',
+);
+assert.match(
+  universalChatSource,
+  /previousProps\.environmentSignature !== nextProps\.environmentSignature/,
+  'UniversalChat transcript memo comparator must invalidate when environment signature changes.',
+);
+
 const messageActionTargetsBody = messageActionsSource.match(
   /export function buildVisibleMessageActionTargets\([\s\S]*?\n\}/,
 )?.[0];

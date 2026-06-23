@@ -754,12 +754,18 @@ export interface BirdCoderIamDeviceAuthorizationScanRequest {
   scanSource?: string;
 }
 
+export interface BirdCoderIamDeviceAuthorizationSessionExchangeRequest {
+  pollSecret: string;
+}
+
 export interface BirdCoderIamDeviceAuthorizationSummary {
   deviceAuthorizationId: string;
   expiresAt?: string;
+  pollSecret?: string;
   qrContent?: string;
   qrUrl?: string;
-  status: "pending" | "scanned" | "confirmed" | "expired";
+  sessionReady?: boolean;
+  status: "pending" | "scanned" | "confirmed" | "completed" | "expired" | "cancelled" | "failed";
 }
 
 export interface BirdCoderIamOAuthAuthorizationCreateRequest {
@@ -1642,6 +1648,10 @@ export interface OauthDeviceAuthorizationsScansCreatePathParams {
   deviceAuthorizationId: string;
 }
 
+export interface OauthDeviceAuthorizationsSessionExchangesCreatePathParams {
+  deviceAuthorizationId: string;
+}
+
 export interface PlatformProjectsCollaboratorsListPathParams {
   projectId: string;
 }
@@ -2413,6 +2423,23 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "public": true,
     "resource": "system.oauth.deviceAuthorizations.scans",
     "summary": "Create SDKWork IAM OAuth device authorization scan",
+    "tag": "oauth",
+    "tenantScope": "platform"
+  },
+  {
+    "key": "oauth.deviceAuthorizations.sessionExchanges.create",
+    "method": "POST",
+    "operationId": "oauth.deviceAuthorizations.sessionExchanges.create",
+    "path": "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/session_exchanges",
+    "pathParamNames": [
+      "deviceAuthorizationId"
+    ],
+    "dataScope": "platform",
+    "deployment": "all",
+    "domain": "system",
+    "public": true,
+    "resource": "system.oauth.deviceAuthorizations.sessionExchanges",
+    "summary": "Exchange SDKWork IAM OAuth device authorization for a session",
     "tag": "oauth",
     "tenantScope": "platform"
   },

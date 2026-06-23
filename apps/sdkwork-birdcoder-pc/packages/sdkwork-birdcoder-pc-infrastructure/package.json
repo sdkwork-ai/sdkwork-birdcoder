@@ -89,6 +89,7 @@
     "@sdkwork/appbase-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-app-sdk": "workspace:*",
     "@sdkwork/birdcoder-backend-sdk": "workspace:*",
+    "@sdkwork/birdcoder-pc-admin-core": "workspace:*",
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",

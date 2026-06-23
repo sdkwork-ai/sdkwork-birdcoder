@@ -80,6 +80,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node --experimental-strip-types scripts/admin-deployment-consumer-contract.test.ts',
   'node --experimental-strip-types scripts/admin-policy-consumer-contract.test.ts',
   'node --experimental-strip-types scripts/audit-admin-consumer-contract.test.ts',
+  'node scripts/admin-service-ownership-contract.test.mjs',
   'node scripts/run-local-tsx.mjs scripts/default-ide-services-document-service-contract.test.ts',
   'node scripts/run-local-tsx.mjs scripts/default-ide-services-deployment-service-contract.test.ts',
   'node scripts/run-local-tsx.mjs scripts/default-ide-services-admin-deployment-service-contract.test.ts',

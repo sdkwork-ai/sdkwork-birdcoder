@@ -2,6 +2,10 @@ use axum::http::StatusCode;
 use axum::Json;
 use sdkwork_birdcoder_membership_service::error::MembershipError;
 
+use sdkwork_birdcoder_errors::{
+    client_safe_data_access_problem, client_safe_internal_problem, client_safe_provider_problem,
+};
+
 pub use sdkwork_birdcoder_errors::ProblemDetailsPayload;
 
 fn with_trace_id(
@@ -50,19 +54,17 @@ pub fn map_service_error(
                 trace_id,
             )),
         ),
-        MembershipError::Provider(msg) => (
+        MembershipError::Provider(_) => (
             StatusCode::BAD_GATEWAY,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("provider", msg, true),
-                trace_id,
-            )),
+            Json(with_trace_id(client_safe_provider_problem(), trace_id)),
         ),
-        MembershipError::Repository(msg) | MembershipError::Internal(msg) => (
+        MembershipError::Repository(_) => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("internal", msg, true),
-                trace_id,
-            )),
+            Json(with_trace_id(client_safe_data_access_problem(), trace_id)),
+        ),
+        MembershipError::Internal(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(with_trace_id(client_safe_internal_problem(), trace_id)),
         ),
     }
 }

@@ -5,6 +5,7 @@ use crate::db::columns::team as col;
 use crate::db::columns::team_member as member_col;
 use crate::db::rows::{TeamMemberRow, TeamRow};
 use crate::mapper::row_mapper;
+use crate::repository::scope::{scoped_tenant_id, scoped_user_id};
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_birdcoder_workspace_service::domain::results::{TeamMemberPayload, TeamPayload};
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
@@ -33,29 +34,20 @@ impl SqliteTeamRepository {
         let id_num: i64 = id
             .parse()
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
-        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+        let tenant_id = scoped_tenant_id(ctx)?;
+        let sql = format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
             col::TABLE,
             col::ID,
             col::IS_DELETED,
+            col::TENANT_ID,
         );
-        if tenant_id.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
-        }
 
-        let row = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(id_num)
-                .bind(tenant_id)
-                .fetch_optional(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql)
-                .bind(id_num)
-                .fetch_optional(&self.pool)
-                .await
-        }
+        let row = sqlx::query(&sql)
+            .bind(id_num)
+            .bind(tenant_id)
+            .fetch_optional(&self.pool)
+            .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
         match row {
@@ -76,26 +68,20 @@ impl SqliteTeamRepository {
         let wid: i64 = workspace_id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
-        let tenant_id = ctx.tenant_id.parse::<i64>().ok().filter(|value| *value > 0);
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+        let tenant_id = scoped_tenant_id(ctx)?;
+        let sql = format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
             col::TABLE,
             col::WORKSPACE_ID,
             col::IS_DELETED,
+            col::TENANT_ID,
         );
-        if tenant_id.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::TENANT_ID));
-        }
 
-        let rows = if let Some(tenant_id) = tenant_id {
-            sqlx::query(&sql)
-                .bind(wid)
-                .bind(tenant_id)
-                .fetch_all(&self.pool)
-                .await
-        } else {
-            sqlx::query(&sql).bind(wid).fetch_all(&self.pool).await
-        }
+        let rows = sqlx::query(&sql)
+            .bind(wid)
+            .bind(tenant_id)
+            .fetch_all(&self.pool)
+            .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
         rows.iter()
@@ -116,11 +102,11 @@ impl SqliteTeamRepository {
     ) -> Result<TeamPayload, WorkspaceError> {
         let now = Self::now_iso();
         let uuid = Uuid::new_v4().to_string();
-        let tenant_id: i64 = ctx.tenant_id.parse().unwrap_or(0);
+        let tenant_id = scoped_tenant_id(ctx)?;
         let wid: i64 = workspace_id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
-        let owner_id: i64 = ctx.user_id.parse().unwrap_or(0);
+        let owner_id = scoped_user_id(ctx)?;
 
         let result = sqlx::query(&format!(
             "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, workspace_id, name, description, owner_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -156,10 +142,13 @@ impl SqliteTeamRepository {
         Ok(row_mapper::team_row_to_payload(&r))
     }
 
-    pub async fn delete_team(&self, _ctx: &WorkspaceContext, id: &str) -> Result<(), WorkspaceError> {
+    pub async fn delete_team(&self, ctx: &WorkspaceContext, id: &str) -> Result<(), WorkspaceError> {
         let id_num: i64 = id
             .parse()
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
+        if self.find_team_by_id(ctx, id).await?.is_none() {
+            return Err(WorkspaceError::NotFound(format!("team {id} not found")));
+        }
         let now = Self::now_iso();
         sqlx::query(&format!(
             "UPDATE {} SET {} = 1, {} = ? WHERE {} = ?",
@@ -178,9 +167,12 @@ impl SqliteTeamRepository {
 
     pub async fn list_team_members(
         &self,
-        _ctx: &WorkspaceContext,
+        ctx: &WorkspaceContext,
         team_id: &str,
     ) -> Result<Vec<TeamMemberPayload>, WorkspaceError> {
+        if self.find_team_by_id(ctx, team_id).await?.is_none() {
+            return Err(WorkspaceError::NotFound(format!("team {team_id} not found")));
+        }
         let tid: i64 = team_id
             .parse()
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid team_id: {team_id}")))?;
@@ -211,6 +203,9 @@ impl SqliteTeamRepository {
         user_id: &str,
         role: &str,
     ) -> Result<TeamMemberPayload, WorkspaceError> {
+        if self.find_team_by_id(ctx, team_id).await?.is_none() {
+            return Err(WorkspaceError::NotFound(format!("team {team_id} not found")));
+        }
         let tid: i64 = team_id
             .parse()
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid team_id: {team_id}")))?;
@@ -219,8 +214,8 @@ impl SqliteTeamRepository {
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid user_id: {user_id}")))?;
         let now = Self::now_iso();
         let uuid = Uuid::new_v4().to_string();
-        let tenant_id: i64 = ctx.tenant_id.parse().unwrap_or(0);
-        let created_by: i64 = ctx.user_id.parse().unwrap_or(0);
+        let tenant_id = scoped_tenant_id(ctx)?;
+        let created_by = scoped_user_id(ctx)?;
 
         let result = sqlx::query(&format!(
             "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, team_id, user_id, role, created_by_user_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
@@ -259,10 +254,13 @@ impl SqliteTeamRepository {
 
     pub async fn remove_team_member(
         &self,
-        _ctx: &WorkspaceContext,
+        ctx: &WorkspaceContext,
         team_id: &str,
         user_id: &str,
     ) -> Result<(), WorkspaceError> {
+        if self.find_team_by_id(ctx, team_id).await?.is_none() {
+            return Err(WorkspaceError::NotFound(format!("team {team_id} not found")));
+        }
         let tid: i64 = team_id
             .parse()
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid team_id: {team_id}")))?;

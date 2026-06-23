@@ -20,5 +20,6 @@ sqlx = { workspace = true }
 tower = { version = "0.5", features = ["util"] }
 tokio = { workspace = true }
 sdkwork-web-core = { workspace = true }
+sdkwork_iam_context_service = { workspace = true }
 
 

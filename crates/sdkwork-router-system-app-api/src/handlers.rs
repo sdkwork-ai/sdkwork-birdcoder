@@ -8,10 +8,14 @@ use sdkwork_birdcoder_system_descriptor_service::domain::models::{
     DescriptorPayload, HealthPayload, OperationPayload, RouteCatalogEntryPayload, RuntimePayload,
 };
 use sdkwork_birdcoder_system_descriptor_service::service::system_service::{
-    OperationProvider, RouteCatalogProvider, SystemService,
+    ManifestRouteCatalogProvider, OperationProvider, SystemService,
 };
-use sdkwork_birdcoder_errors::trace_id_from_request_id;
-use sdkwork_birdcoder_router_context::WebRequestContext;
+use sdkwork_birdcoder_errors::{
+    build_data_envelope, build_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    ApiListEnvelope,
+};
+use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
+use sdkwork_web_contract::HttpRoute;
 
 use crate::error;
 use crate::mapper::request::OperationPathParams;
@@ -20,89 +24,52 @@ fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
     trace_id_from_request_id(web.request_id.0.as_str())
 }
 
-// ── Concrete provider implementations ────────────────────────────────
-
-pub struct StaticRouteCatalogProvider;
-
-impl RouteCatalogProvider for StaticRouteCatalogProvider {
-    fn list_route_specs(&self) -> Vec<RouteCatalogEntryPayload> {
-        vec![
-            RouteCatalogEntryPayload {
-                auth_mode: "none".to_string(),
-                method: "GET".to_string(),
-                open_api_path: "/app/v3/api/system/health".to_string(),
-                operation_id: "system.health".to_string(),
-                path: "/app/v3/api/system/health".to_string(),
-                surface: "app".to_string(),
-                summary: "Health check".to_string(),
-            },
-            RouteCatalogEntryPayload {
-                auth_mode: "none".to_string(),
-                method: "GET".to_string(),
-                open_api_path: "/app/v3/api/system/descriptor".to_string(),
-                operation_id: "system.descriptor".to_string(),
-                path: "/app/v3/api/system/descriptor".to_string(),
-                surface: "app".to_string(),
-                summary: "System descriptor".to_string(),
-            },
-            RouteCatalogEntryPayload {
-                auth_mode: "none".to_string(),
-                method: "GET".to_string(),
-                open_api_path: "/app/v3/api/system/routes".to_string(),
-                operation_id: "system.routes".to_string(),
-                path: "/app/v3/api/system/routes".to_string(),
-                surface: "app".to_string(),
-                summary: "Route catalog".to_string(),
-            },
-            RouteCatalogEntryPayload {
-                auth_mode: "none".to_string(),
-                method: "GET".to_string(),
-                open_api_path: "/app/v3/api/system/runtime".to_string(),
-                operation_id: "system.runtime".to_string(),
-                path: "/app/v3/api/system/runtime".to_string(),
-                surface: "app".to_string(),
-                summary: "Runtime metadata".to_string(),
-            },
-        ]
-    }
+fn request_id(web: &WebRequestContext) -> &str {
+    web.request_id.0.as_str()
 }
+
+// ── Concrete provider implementations ────────────────────────────────
 
 pub struct StaticOperationProvider;
 
 impl OperationProvider for StaticOperationProvider {
-    fn find_operation(&self, operation_id: &str) -> Option<OperationPayload> {
-        Some(OperationPayload {
-            id: operation_id.to_string(),
-            status: "active".to_string(),
-            kind: "query".to_string(),
-            created_at: "2025-01-01T00:00:00Z".to_string(),
-            updated_at: "2025-01-01T00:00:00Z".to_string(),
-        })
+    fn find_operation(&self, _operation_id: &str) -> Option<OperationPayload> {
+        None
     }
 }
 
 // ── State ────────────────────────────────────────────────────────────
 
-pub type ConcreteSystemService = SystemService<StaticRouteCatalogProvider, StaticOperationProvider>;
+pub type ConcreteSystemService =
+    SystemService<ManifestRouteCatalogProvider, StaticOperationProvider>;
 
 #[derive(Clone)]
 pub struct SystemAppState {
     pub service: Arc<ConcreteSystemService>,
     pub sqlite_pool: Option<SqlitePool>,
+    pub routes: &'static [HttpRoute],
 }
 
 impl SystemAppState {
-    pub fn new() -> Self {
+    pub fn new(routes: &'static [HttpRoute]) -> Self {
         Self {
-            service: Arc::new(SystemService::new(StaticRouteCatalogProvider, StaticOperationProvider)),
+            service: Arc::new(SystemService::new(
+                ManifestRouteCatalogProvider::new(routes),
+                StaticOperationProvider,
+            )),
             sqlite_pool: None,
+            routes,
         }
     }
 
-    pub fn with_sqlite_pool(sqlite_pool: SqlitePool) -> Self {
+    pub fn with_sqlite_pool(sqlite_pool: SqlitePool, routes: &'static [HttpRoute]) -> Self {
         Self {
-            service: Arc::new(SystemService::new(StaticRouteCatalogProvider, StaticOperationProvider)),
+            service: Arc::new(SystemService::new(
+                ManifestRouteCatalogProvider::new(routes),
+                StaticOperationProvider,
+            )),
             sqlite_pool: Some(sqlite_pool),
+            routes,
         }
     }
 }
@@ -110,71 +77,80 @@ impl SystemAppState {
 // ── Handlers ─────────────────────────────────────────────────────────
 
 pub async fn get_descriptor(
+    web: WebRequestContext,
+    RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<SystemAppState>,
-) -> Json<serde_json::Value> {
-    let descriptor = state.service.descriptor(
+) -> Json<ApiDataEnvelope<DescriptorPayload>> {
+    let descriptor = state.service.descriptor_from_routes(
         "server",
         "sdkwork-birdcoder",
         "v1",
-        50,  // app route count
-        10,  // backend route count
+        state.routes,
         "/openapi.json",
     );
-    Json(serde_json::json!(descriptor))
+    Json(build_data_envelope(descriptor, request_id(&web)))
 }
 
 pub async fn list_routes(
+    web: WebRequestContext,
+    RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<SystemAppState>,
-) -> Json<serde_json::Value> {
+) -> Json<ApiListEnvelope<RouteCatalogEntryPayload>> {
     let routes = state.service.route_catalog();
-    Json(serde_json::json!({ "items": routes }))
+    let total = routes.len();
+    Json(build_list_envelope(routes, total, request_id(&web)))
 }
 
 pub async fn get_runtime(
+    web: WebRequestContext,
+    RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<SystemAppState>,
-) -> Json<serde_json::Value> {
+) -> Json<ApiDataEnvelope<RuntimePayload>> {
     let runtime = state.service.runtime("127.0.0.1", 10240, "bird-server.config.json");
-    Json(serde_json::json!(runtime))
+    Json(build_data_envelope(runtime, request_id(&web)))
 }
 
-pub async fn get_health(State(state): State<SystemAppState>) -> Json<serde_json::Value> {
+pub async fn get_health(
+    web: WebRequestContext,
+    RequiredIamContext(_iam): RequiredIamContext,
+    State(state): State<SystemAppState>,
+) -> Json<ApiDataEnvelope<HealthPayload>> {
     if let Some(pool) = state.sqlite_pool.as_ref() {
-        return Json(build_sqlite_health_payload(pool).await);
+        return Json(build_data_envelope(
+            build_sqlite_health_payload(pool).await,
+            request_id(&web),
+        ));
     }
 
-    Json(serde_json::json!({ "status": "healthy" }))
+    Json(build_data_envelope(
+        HealthPayload {
+            status: "healthy".to_string(),
+        },
+        request_id(&web),
+    ))
 }
 
-async fn build_sqlite_health_payload(pool: &SqlitePool) -> serde_json::Value {
-    let sqlite = match sqlx::query("SELECT 1").fetch_one(pool).await {
-        Ok(_) => serde_json::json!({
-            "ok": true,
-            "engine": "sqlite",
-        }),
-        Err(error) => serde_json::json!({
-            "ok": false,
-            "engine": "sqlite",
-            "error": error.to_string(),
-        }),
-    };
-    let healthy = sqlite["ok"].as_bool().unwrap_or(false);
+async fn build_sqlite_health_payload(pool: &SqlitePool) -> HealthPayload {
+    let healthy = sqlx::query("SELECT 1").fetch_one(pool).await.is_ok();
 
-    serde_json::json!({
-        "status": if healthy { "healthy" } else { "degraded" },
-        "checks": {
-            "sqlite": sqlite,
-        }
-    })
+    HealthPayload {
+        status: if healthy {
+            "healthy".to_string()
+        } else {
+            "degraded".to_string()
+        },
+    }
 }
 
 pub async fn get_operation(
     web: WebRequestContext,
+    RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<SystemAppState>,
     Path(params): Path<OperationPathParams>,
-) -> Result<Json<serde_json::Value>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<OperationPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
     let trace_id = request_trace_id(&web);
     match state.service.get_operation(&params.operation_id) {
-        Ok(operation) => Ok(Json(serde_json::json!(operation))),
+        Ok(operation) => Ok(Json(build_data_envelope(operation, request_id(&web)))),
         Err(e) => Err(error::map_system_error(e, trace_id)),
     }
 }

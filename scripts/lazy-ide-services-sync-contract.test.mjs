@@ -40,10 +40,19 @@ assert.doesNotMatch(
   '@sdkwork/birdcoder-pc-infrastructure lazyDefaultIdeServices must not dynamically import platform service implementations after platform runtime chunk consolidation.',
 );
 
+assert.match(
+  infrastructureLazyServicesSource,
+  /from ['"]@sdkwork\/birdcoder-pc-admin-core['"];/u,
+  '@sdkwork/birdcoder-pc-infrastructure lazyDefaultIdeServices must import admin governance services from pc-admin-core.',
+);
+
+assert.doesNotMatch(
+  infrastructureLazyServicesSource,
+  /from ['"]\.\/impl\/ApiBackedAdmin/u,
+  '@sdkwork/birdcoder-pc-infrastructure lazyDefaultIdeServices must not keep local admin service implementations.',
+);
+
 for (const serviceImport of [
-  './impl/ApiBackedAdminDeploymentService.ts',
-  './impl/ApiBackedAdminPolicyService.ts',
-  './impl/ApiBackedAuditService.ts',
   './impl/ApiBackedCatalogService.ts',
   './impl/ApiBackedCollaborationService.ts',
   './impl/ApiBackedAppRuntimeReadService.ts',

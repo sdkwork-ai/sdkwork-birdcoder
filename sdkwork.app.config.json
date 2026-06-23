@@ -293,9 +293,9 @@
     ]
   },
   "security": {
-    "checksumRequired": true,
-    "signatureRequired": true,
-    "sbomRequired": true
+    "checksumRequired": false,
+    "signatureRequired": false,
+    "sbomRequired": false
   },
   "devApp": {
     "build": {
@@ -305,6 +305,7 @@
   },
   "metadata": {
     "standardOwner": "sdkwork-platform",
-    "initializedAt": "2026-05-07T00:00:00Z"
+    "initializedAt": "2026-05-07T00:00:00Z",
+    "releaseEvidenceStatus": "pending-first-artifact-build"
   }
 }

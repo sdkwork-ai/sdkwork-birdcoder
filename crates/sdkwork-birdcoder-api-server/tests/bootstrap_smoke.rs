@@ -3,12 +3,20 @@ use axum::http::{Request, StatusCode};
 use tower::ServiceExt;
 
 fn smoke_config(sqlite_name: &str) -> sdkwork_birdcoder_api_server::bootstrap::config::BirdServerConfig {
-    sdkwork_birdcoder_api_server::bootstrap::config::BirdServerConfig {
+    use sdkwork_birdcoder_api_server::bootstrap::config::{
+        BirdServerConfig, DEFAULT_RATE_LIMIT_ENABLED, DEFAULT_RATE_LIMIT_MAX_REQUESTS,
+        DEFAULT_RATE_LIMIT_WINDOW_SECS,
+    };
+
+    BirdServerConfig {
         host: "127.0.0.1".to_string(),
         port: 0,
         sqlite_file: std::env::temp_dir().join(sqlite_name),
         allowed_origins: vec!["http://127.0.0.1:5173".to_string()],
         project_root: None,
+        rate_limit_enabled: DEFAULT_RATE_LIMIT_ENABLED,
+        rate_limit_max_requests: DEFAULT_RATE_LIMIT_MAX_REQUESTS,
+        rate_limit_window_secs: DEFAULT_RATE_LIMIT_WINDOW_SECS,
     }
 }
 
@@ -105,12 +113,10 @@ async fn build_app_with_invalid_sqlite_target_fails_gracefully() {
     let _ = std::fs::remove_dir_all(&sqlite_dir);
     std::fs::create_dir_all(&sqlite_dir).expect("create invalid sqlite target directory");
 
+    let config = smoke_config("bootstrap-smoke-invalid-sqlite-target-unused");
     let config = sdkwork_birdcoder_api_server::bootstrap::config::BirdServerConfig {
-        host: "127.0.0.1".to_string(),
-        port: 0,
         sqlite_file: sqlite_dir.clone(),
-        allowed_origins: vec!["http://127.0.0.1:5173".to_string()],
-        project_root: None,
+        ..config
     };
 
     let result = sdkwork_birdcoder_api_server::bootstrap::build_app(&config).await;

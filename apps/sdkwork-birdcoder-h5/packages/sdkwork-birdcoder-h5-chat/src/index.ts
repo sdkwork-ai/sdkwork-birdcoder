@@ -1,17 +1,24 @@
+export {
+  BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES,
+  BIRDCODER_CHAT_MESSAGE_ROLES,
+  BIRDCODER_CHAT_MESSAGE_VIEW_KINDS,
+  type BirdCoderChatMessageContentBlockType,
+  type BirdCoderChatMessageRecord,
+  type BirdCoderChatMessageRole,
+  type BirdCoderChatMessageToolCall,
+  type BirdCoderChatMessageViewKind,
+} from '@sdkwork/birdcoder-chat-contracts';
+
 export const H5_CHAT_VERSION = '0.1.0';
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-export function createChatMessage(role: 'user' | 'assistant', content: string): ChatMessage {
+export function createChatMessage(
+  role: 'user' | 'assistant',
+  content: string,
+): import('@sdkwork/birdcoder-chat-contracts').BirdCoderChatMessageRecord {
   return {
     id: crypto.randomUUID(),
     role,
     content,
-    timestamp: new Date(),
+    createdAt: new Date().toISOString(),
   };
 }

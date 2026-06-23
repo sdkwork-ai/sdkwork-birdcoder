@@ -3,9 +3,9 @@ use std::sync::OnceLock;
 use sdkwork_web_contract::HttpRoute;
 use sdkwork_web_core::HttpRouteManifest;
 
-pub fn birdcoder_product_app_api_route_manifest() -> HttpRouteManifest {
-    static MANIFEST: OnceLock<HttpRouteManifest> = OnceLock::new();
-    *MANIFEST.get_or_init(|| {
+fn birdcoder_product_app_api_routes_slice() -> &'static [HttpRoute] {
+    static ROUTES: OnceLock<&'static [HttpRoute]> = OnceLock::new();
+    *ROUTES.get_or_init(|| {
         let routes: Vec<HttpRoute> = [
             sdkwork_router_system_app_api::manifest::SYSTEM_APP_API_ROUTES,
             sdkwork_router_engine_catalog_app_api::manifest::ENGINE_CATALOG_APP_API_ROUTES,
@@ -19,7 +19,15 @@ pub fn birdcoder_product_app_api_route_manifest() -> HttpRouteManifest {
         .into_iter()
         .flat_map(|slice| slice.iter().copied())
         .collect();
-        let leaked: &'static [HttpRoute] = Box::leak(routes.into_boxed_slice());
-        HttpRouteManifest::new(leaked)
+        Box::leak(routes.into_boxed_slice())
     })
+}
+
+pub fn birdcoder_product_app_api_routes() -> &'static [HttpRoute] {
+    birdcoder_product_app_api_routes_slice()
+}
+
+pub fn birdcoder_product_app_api_route_manifest() -> HttpRouteManifest {
+    static MANIFEST: OnceLock<HttpRouteManifest> = OnceLock::new();
+    *MANIFEST.get_or_init(|| HttpRouteManifest::new(birdcoder_product_app_api_routes_slice()))
 }

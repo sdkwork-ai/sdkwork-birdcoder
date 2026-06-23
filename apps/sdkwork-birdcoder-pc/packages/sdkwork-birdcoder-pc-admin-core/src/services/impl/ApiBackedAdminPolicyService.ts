@@ -1,21 +1,18 @@
-import type {
-  BirdCoderIamPolicySummary,
-} from '@sdkwork/birdcoder-pc-types';
 import type { IAdminPolicyService } from '../interfaces/IAdminPolicyService.ts';
-import type { BirdCoderBackendSdkApiClient } from '../sdkClients.ts';
+import type { BirdCoderAdminBackendClient } from '../ports/BirdCoderAdminBackendClient.ts';
 
 export interface ApiBackedAdminPolicyServiceOptions {
-  backendClient: BirdCoderBackendSdkApiClient;
+  backendClient: BirdCoderAdminBackendClient;
 }
 
 export class ApiBackedAdminPolicyService implements IAdminPolicyService {
-  private readonly backendClient: BirdCoderBackendSdkApiClient;
+  private readonly backendClient: BirdCoderAdminBackendClient;
 
   constructor({ backendClient }: ApiBackedAdminPolicyServiceOptions) {
     this.backendClient = backendClient;
   }
 
-  async getPolicies(): Promise<BirdCoderIamPolicySummary[]> {
+  async getPolicies() {
     return this.backendClient.listPolicies();
   }
 }

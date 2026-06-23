@@ -9,6 +9,12 @@ catalogs:
     '@babel/runtime':
       specifier: ^7.29.2
       version: 7.29.2
+    '@capacitor/core':
+      specifier: ^6.0.0
+      version: 6.2.1
+    '@capacitor/preferences':
+      specifier: ^6.0.0
+      version: 6.0.4
     '@radix-ui/react-slot':
       specifier: ^1.2.4
       version: 1.2.4
@@ -1189,29 +1195,80 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-admin-core: {}
+  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-admin-core:
+    dependencies:
+      '@sdkwork/birdcoder-pc-infrastructure':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure
 
   apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-admin-shell: {}
 
-  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-capacitor: {}
+  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-capacitor:
+    dependencies:
+      '@capacitor/core':
+        specifier: 'catalog:'
+        version: 6.2.1
+      '@capacitor/preferences':
+        specifier: 'catalog:'
+        version: 6.0.4(@capacitor/core@6.2.1)
+      '@sdkwork/birdcoder-h5-core':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-h5-core
 
-  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-chat: {}
+  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-chat:
+    dependencies:
+      '@sdkwork/birdcoder-chat-contracts':
+        specifier: workspace:*
+        version: link:../../../../packages/sdkwork-birdcoder-chat-contracts
 
-  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-commons: {}
+  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-commons:
+    dependencies:
+      '@sdkwork/birdcoder-h5-core':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-h5-core
 
   apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-console-core: {}
 
   apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-console-shell: {}
 
-  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core: {}
+  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core:
+    dependencies:
+      '@sdkwork/birdcoder-pc-auth':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth
+      '@sdkwork/birdcoder-pc-core':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core
+      '@sdkwork/birdcoder-pc-infrastructure':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure
+      '@sdkwork/birdcoder-pc-shell-runtime':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime
+      '@sdkwork/birdcoder-pc-types':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types
+      '@sdkwork/sdk-common':
+        specifier: workspace:*
+        version: link:../../../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript
 
-  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-shell: {}
+  apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-shell:
+    dependencies:
+      '@sdkwork/birdcoder-h5-core':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-h5-core
+      '@sdkwork/birdcoder-pc-auth':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth
+      '@sdkwork/birdcoder-pc-shell':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell
+      '@sdkwork/birdcoder-pc-shell-runtime':
+        specifier: workspace:*
+        version: link:../../../sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core:
     dependencies:
-      '@sdkwork/birdcoder-pc-infrastructure-runtime':
-        specifier: workspace:*
-        version: link:../sdkwork-birdcoder-pc-infrastructure-runtime
       '@sdkwork/birdcoder-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-types
@@ -1652,6 +1709,9 @@ importers:
       '@sdkwork/birdcoder-backend-sdk':
         specifier: workspace:*
         version: link:../../sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript
+      '@sdkwork/birdcoder-pc-admin-core':
+        specifier: workspace:*
+        version: link:../sdkwork-birdcoder-pc-admin-core
       '@sdkwork/birdcoder-pc-codeengine':
         specifier: workspace:*
         version: link:../sdkwork-birdcoder-pc-codeengine
@@ -2313,6 +2373,10 @@ importers:
         version: 5.8.3
 
   apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types:
+    dependencies:
+      '@sdkwork/birdcoder-chat-contracts':
+        specifier: workspace:*
+        version: link:../../../../packages/sdkwork-birdcoder-chat-contracts
     devDependencies:
       '@vitejs/plugin-react':
         specifier: 'catalog:'
@@ -2677,6 +2741,8 @@ importers:
 
   apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript: {}
 
+  packages/sdkwork-birdcoder-chat-contracts: {}
+
 packages:
 
   '@adobe/css-tools@4.5.0':
@@ -2863,6 +2929,14 @@ packages:
   '@bramus/specificity@2.4.2':
     resolution: {integrity: sha512-ctxtJ/eA+t+6q2++vj5j7FYX3nRu311q1wfYH3xjlLOsczhlhxAg2FWNUXhpGvAw3BWo1xBcvOV6/YLc2r5FJw==}
     hasBin: true
+
+  '@capacitor/core@6.2.1':
+    resolution: {integrity: sha512-urZwxa7hVE/BnA18oCFAdizXPse6fCKanQyEqpmz6cBJ2vObwMpyJDG5jBeoSsgocS9+Ax+9vb4ducWJn0y2qQ==}
+
+  '@capacitor/preferences@6.0.4':
+    resolution: {integrity: sha512-ziauSI1pgdyl+gduvvf8lInvzF3Wdyu/ok+u7NlnhKp8XOj9plJgtnXZWFiR8CiCK5wMvo+gFaNh3zhMyEUwpA==}
+    peerDependencies:
+      '@capacitor/core': ^6.0.0
 
   '@csstools/color-helpers@6.0.2':
     resolution: {integrity: sha512-LMGQLS9EuADloEFkcTBR3BwV/CGHV7zyDxVRtVDTwdI2Ca4it0CCVTT9wCkxSgokjE5Ho41hEPgb8OEUwoXr6Q==}
@@ -7209,6 +7283,14 @@ snapshots:
   '@bramus/specificity@2.4.2':
     dependencies:
       css-tree: 3.2.1
+
+  '@capacitor/core@6.2.1':
+    dependencies:
+      tslib: 2.8.1
+
+  '@capacitor/preferences@6.0.4(@capacitor/core@6.2.1)':
+    dependencies:
+      '@capacitor/core': 6.2.1
 
   '@csstools/color-helpers@6.0.2': {}
 

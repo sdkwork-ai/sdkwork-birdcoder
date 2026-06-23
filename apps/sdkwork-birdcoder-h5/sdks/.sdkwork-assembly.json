@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.sdk.assembly",
+  "name": "sdkwork-birdcoder-h5-sdk-family",
+  "displayName": "SDKWork BirdCoder H5 SDK Family",
+  "version": "0.1.0",
+  "standardProfile": "sdkwork-v3",
+  "sourceOfTruth": {
+    "canonicalOpenApi": "../../deployments/server-windows/x64/openapi/coding-server-v1.json",
+    "composedFrom": "../sdkwork-birdcoder-pc/sdks/.sdkwork-assembly.json"
+  },
+  "surfaces": [
+    {
+      "id": "birdcoder-h5-app",
+      "surface": "app",
+      "sdkOwner": "sdkwork-birdcoder",
+      "apiAuthority": "sdkwork-birdcoder-app-api",
+      "sdkFamily": "sdkwork-birdcoder-app-sdk",
+      "dependencyMode": "consumer-sdk",
+      "consumerApplicationRoot": "apps/sdkwork-birdcoder-h5",
+      "composedPackageName": "@sdkwork/birdcoder-h5-core",
+      "packageName": "@sdkwork/birdcoder-app-sdk",
+      "typescriptConsumerPath": "../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript"
+    },
+    {
+      "id": "birdcoder-h5-backend-admin",
+      "surface": "backend-admin",
+      "sdkOwner": "sdkwork-birdcoder",
+      "apiAuthority": "sdkwork-birdcoder-backend-api",
+      "sdkFamily": "sdkwork-birdcoder-backend-sdk",
+      "dependencyMode": "consumer-sdk",
+      "consumerApplicationRoot": "apps/sdkwork-birdcoder-h5",
+      "composedPackageName": "@sdkwork/birdcoder-h5-admin-core",
+      "packageName": "@sdkwork/birdcoder-backend-sdk",
+      "typescriptConsumerPath": "../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript"
+    }
+  ]
+}

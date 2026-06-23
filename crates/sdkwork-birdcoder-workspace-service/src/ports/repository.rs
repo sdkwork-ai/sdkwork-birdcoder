@@ -14,4 +14,9 @@ pub trait WorkspaceRepository: Send + Sync {
     async fn list_workspace_members(&self, ctx: &WorkspaceContext, workspace_id: &str) -> Result<Vec<WorkspaceMemberPayload>, WorkspaceError>;
     async fn upsert_workspace_member(&self, ctx: &WorkspaceContext, workspace_id: &str, req: &UpsertWorkspaceMemberRequest) -> Result<WorkspaceMemberPayload, WorkspaceError>;
     async fn remove_workspace_member(&self, ctx: &WorkspaceContext, workspace_id: &str, user_id: &str) -> Result<(), WorkspaceError>;
+    async fn ensure_workspace_access(
+        &self,
+        ctx: &WorkspaceContext,
+        workspace_id: &str,
+    ) -> Result<(), WorkspaceError>;
 }

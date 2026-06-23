@@ -24,6 +24,34 @@ import {
 
 const BIRDCODER_IAM_RUNTIME_APP_ID = 'sdkwork-birdcoder';
 
+function readIamPlatform(): string {
+  const target = (
+    readBirdCoderRuntimeEnv('VITE_SDKWORK_RUNTIME_TARGET') ??
+    readBirdCoderRuntimeEnv('SDKWORK_RUNTIME_TARGET') ??
+    readDefaultRuntimeTargetFromSurfaceEnv()
+  )?.trim().toLowerCase();
+
+  if (target === 'h5' || target === 'h5-browser' || target === 'capacitor') {
+    return 'h5';
+  }
+  if (target === 'flutter-mobile' || target === 'mobile') {
+    return 'mobile';
+  }
+  return 'pc';
+}
+
+function readDefaultRuntimeTargetFromSurfaceEnv(): string | undefined {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  const runtimeWindow = window as Window & {
+    __SDKWORK_H5_REACT_ENV__?: Record<string, unknown>;
+  };
+
+  return runtimeWindow.__SDKWORK_H5_REACT_ENV__ ? 'h5' : undefined;
+}
+
 let runtimeComposition: SdkworkAppbasePcAuthRuntimeComposition | null = null;
 let sessionChangeListenerRegistered = false;
 
@@ -42,16 +70,17 @@ export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRunt
     apiBaseUrl: sdkBaseUrls.birdcoderAppApiBaseUrl,
     tokenManager,
   });
+  const iamPlatform = readIamPlatform();
   const driveApp = createDriveAppClient({
     authMode: 'dual-token',
     baseUrl: sdkBaseUrls.driveAppApiBaseUrl,
-    platform: 'pc',
+    platform: iamPlatform,
     tokenManager,
   });
   const messagingApp = createMessagingAppSdkClient({
     authMode: 'dual-token',
     baseUrl: sdkBaseUrls.messagingAppApiBaseUrl,
-    platform: 'pc',
+    platform: iamPlatform,
     tokenManager,
   });
 
@@ -60,7 +89,7 @@ export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRunt
       appId: BIRDCODER_IAM_RUNTIME_APP_ID,
       deploymentMode: readIamDeploymentMode() ?? 'private',
       environment: readIamEnvironment() ?? 'dev',
-      platform: 'pc',
+      platform: iamPlatform,
     },
     baseUrls: {
       appbaseAppApiBaseUrl: sdkBaseUrls.appbaseAppApiBaseUrl,
@@ -68,7 +97,7 @@ export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRunt
     createAppbaseAppClient: () => createAppbaseAppSdkClient({
       authMode: 'dual-token',
       baseUrl: sdkBaseUrls.appbaseAppApiBaseUrl,
-      platform: 'pc',
+      platform: iamPlatform,
       tokenManager,
     }),
     hooks: {
@@ -195,10 +224,12 @@ function readRuntimeEnvFromWindow(name: string): string | undefined {
 
   const runtimeWindow = window as Window & {
     __SDKWORK_PC_REACT_ENV__?: Record<string, unknown>;
+    __SDKWORK_H5_REACT_ENV__?: Record<string, unknown>;
     __BIRDCODER_ENV__?: Record<string, unknown>;
   };
   const value =
     runtimeWindow.__BIRDCODER_ENV__?.[name] ??
+    runtimeWindow.__SDKWORK_H5_REACT_ENV__?.[name] ??
     runtimeWindow.__SDKWORK_PC_REACT_ENV__?.[name];
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }

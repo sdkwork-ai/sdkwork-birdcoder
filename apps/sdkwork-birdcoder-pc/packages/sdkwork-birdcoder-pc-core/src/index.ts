@@ -4,3 +4,4 @@ export * from './desktopEnvironment.ts';
 export * from './appSessionEvents.ts';
 export * from './appSessionToken.ts';
 export * from './appSessionTokenManager.ts';
+export * from './appSessionPersistence.ts';

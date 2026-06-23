@@ -9,3 +9,4 @@ authors.workspace = true
 async-trait = { workspace = true }
 sqlx = { workspace = true }
 sdkwork-birdcoder-document-service = { workspace = true }
+sdkwork-birdcoder-errors = { path = "../sdkwork-birdcoder-errors" }

@@ -9,10 +9,6 @@ fn i64_to_string(v: i64) -> String {
     v.to_string()
 }
 
-fn i64_to_bool(v: i64) -> bool {
-    v != 0
-}
-
 pub fn skill_package_row_to_payload(
     row: &SkillPackageRow,
     versions: Vec<SkillVersionRow>,
@@ -56,7 +52,7 @@ pub fn skill_version_row_to_catalog_entry(
     version: &SkillVersionRow,
     capabilities: &[SkillCapabilityRow],
     package: &SkillPackageRow,
-    installed: bool,
+    _installed: bool,
 ) -> Vec<SkillCatalogEntryPayload> {
     capabilities
         .iter()

@@ -1,20 +1,5 @@
-class Environment {
-  final String mode;
-  final bool isDevelopment;
-  final bool isProduction;
+import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_mobile_core.dart';
 
-  Environment({
-    required this.mode,
-    required this.isDevelopment,
-    required this.isProduction,
-  });
+typedef Environment = BirdCoderFlutterEnvironment;
 
-  static Environment resolve() {
-    const mode = String.fromEnvironment('FLUTTER_ENV', defaultValue: 'development');
-    return Environment(
-      mode: mode,
-      isDevelopment: mode == 'development',
-      isProduction: mode == 'production',
-    );
-  }
-}
+Environment resolveEnvironment() => BirdCoderFlutterEnvironment.resolve();

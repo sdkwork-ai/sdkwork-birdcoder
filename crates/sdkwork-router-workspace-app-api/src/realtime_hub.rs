@@ -6,6 +6,10 @@ use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
 const REALTIME_CHANNEL_CAPACITY: usize = 256;
+pub const MAX_WORKSPACE_REALTIME_SUBSCRIBERS: usize = 64;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RealtimeSubscriberLimitExceeded;
 
 #[derive(Clone)]
 pub struct WorkspaceRealtimeHub {
@@ -19,15 +23,21 @@ impl WorkspaceRealtimeHub {
         }
     }
 
-    pub async fn subscribe(&self, workspace_id: &str) -> broadcast::Receiver<String> {
+    pub async fn subscribe(
+        &self,
+        workspace_id: &str,
+    ) -> Result<broadcast::Receiver<String>, RealtimeSubscriberLimitExceeded> {
         let mut channels = self.channels.write().await;
         if let Some(sender) = channels.get(workspace_id) {
-            return sender.subscribe();
+            if sender.receiver_count() >= MAX_WORKSPACE_REALTIME_SUBSCRIBERS {
+                return Err(RealtimeSubscriberLimitExceeded);
+            }
+            return Ok(sender.subscribe());
         }
 
         let (sender, receiver) = broadcast::channel(REALTIME_CHANNEL_CAPACITY);
         channels.insert(workspace_id.to_string(), sender);
-        receiver
+        Ok(receiver)
     }
 
     pub async fn publish(&self, workspace_id: &str, message: &str) {
@@ -56,4 +66,28 @@ pub fn current_rfc3339_timestamp() -> String {
 
 pub fn new_workspace_realtime_event_id() -> String {
     Uuid::new_v4().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn rejects_subscribers_above_workspace_limit() {
+        let hub = WorkspaceRealtimeHub::new();
+        let workspace_id = "workspace-subscriber-limit";
+        let mut receivers = Vec::new();
+        for _ in 0..MAX_WORKSPACE_REALTIME_SUBSCRIBERS {
+            receivers.push(
+                hub.subscribe(workspace_id)
+                    .await
+                    .expect("subscribe within limit"),
+            );
+        }
+
+        assert!(matches!(
+            hub.subscribe(workspace_id).await,
+            Err(RealtimeSubscriberLimitExceeded)
+        ));
+    }
 }

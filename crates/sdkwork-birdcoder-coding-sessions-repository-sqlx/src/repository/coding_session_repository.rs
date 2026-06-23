@@ -180,7 +180,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         query: &CodingSessionListQuery,
     ) -> Result<CodingSessionListPage, CodingSessionError> {
         let mut filter_sql = String::from(" WHERE s.is_deleted = 0");
-        let tenant_id = append_session_tenant_scope_sql(ctx, "s", &mut filter_sql);
+        let tenant_id = append_session_tenant_scope_sql(ctx, "s", &mut filter_sql)?;
         Self::append_session_list_filters(&mut filter_sql, query);
 
         let count_sql = format!("SELECT COUNT(*) AS total FROM ai_coding_session s{filter_sql}");
@@ -194,9 +194,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         if let Some(ref workspace_id) = query.workspace_id {
             count_query = count_query.bind(workspace_id);
         }
-        if let Some(tenant_id) = tenant_id {
-            count_query = count_query.bind(tenant_id);
-        }
+        count_query = count_query.bind(tenant_id);
         let total = map_sqlx_error(count_query.fetch_one(&self.pool).await)? as usize;
 
         let mut select_sql = String::from(
@@ -225,9 +223,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         if let Some(ref workspace_id) = query.workspace_id {
             list_query = list_query.bind(workspace_id);
         }
-        if let Some(tenant_id) = tenant_id {
-            list_query = list_query.bind(tenant_id);
-        }
+        list_query = list_query.bind(tenant_id);
         let rows = map_sqlx_error(list_query.fetch_all(&self.pool).await)?;
 
         let mut items = Vec::new();
@@ -251,15 +247,13 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             columns::session::ID,
             columns::session::IS_DELETED,
         );
-        let tenant_id = append_session_tenant_scope_sql(ctx, columns::session::TABLE, &mut sql);
-
-        let mut q = sqlx::query(&sql).bind(session_id);
-        if let Some(tenant_id) = tenant_id {
-            q = q.bind(tenant_id);
-        }
+        let tenant_id = append_session_tenant_scope_sql(ctx, columns::session::TABLE, &mut sql)?;
 
         let row = map_sqlx_error(
-            q.fetch_optional(&self.pool)
+            sqlx::query(&sql)
+                .bind(session_id)
+                .bind(tenant_id)
+                .fetch_optional(&self.pool)
                 .await,
         )?
             .ok_or_else(|| RepositoryError::NotFound(format!("session {session_id} not found")))?;

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "componentId": "sdkwork-birdcoder-flutter-mobile-sdks",
+  "displayName": "SDKWork BirdCoder Flutter Mobile SDK Workspace",
+  "description": "Flutter mobile surface SDK consumer assembly for BirdCoder app and backend-admin boundaries.",
+  "ownerPackage": "sdkwork_birdcoder_flutter_mobile_core",
+  "adminOwnerPackage": "sdkwork_birdcoder_flutter_mobile_admin_core"
+}

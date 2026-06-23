@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "generator": "@sdkwork/sdk-generator",
+  "sdk": {
+    "name": "sdkwork-birdcoder-app-sdk",
+    "version": "0.1.0",
+    "language": "flutter",
+    "sdkType": "app",
+    "protocol": "http",
+    "packageName": "sdkwork_birdcoder_app_sdk"
+  },
+  "generatedFiles": [
+    {
+      "path": "bin/publish-core.mjs",
+      "sha256": "98ad0918a78bfbe22bf8f12fec709b0bed545b9e01edd40f5e4abf31a23378a5"
+    },
+    {
+      "path": "bin/publish.ps1",
+      "sha256": "d33098ab9fb4a03ff09c5ae72fdde57d21f0e1ffa17a6c02155ce0600f3c7c9a"
+    },
+    {
+      "path": "bin/publish.sh",
+      "sha256": "fffdc9107c6db283c0b4ffc651ce55c3b266242edb0ac980d7fff6eee9ec31ca"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "fb941a0806986a54fc192f98a98f6d9c282b8d350b2b19a3e71dda404e92d545"
+    },
+    {
+      "path": "lib/app_client.dart",
+      "sha256": "6940f5692ced80702c7ab6c620b6ded0bb859984b1b1564dcb2050cd566aca83"
+    },
+    {
+      "path": "lib/sdkwork_birdcoder_app_sdk.dart",
+      "sha256": "96b99f6712df9c7603abf748d9a9e438acc510adfa574ba1c32b5ef3d0685c56"
+    },
+    {
+      "path": "lib/src/api/api.dart",
+      "sha256": "2793d60d69f9ae7910da64af1d8cd9ea6b0bf4cd78a7c5905ce8669adb6fac7c"
+    },
+    {
+      "path": "lib/src/api/auth.dart",
+      "sha256": "2720abc43c49c5e83d5a85bb0b4e093cb6a3127029bc35f886fa3a539f2c56e5"
+    },
+    {
+      "path": "lib/src/api/collaboration.dart",
+      "sha256": "3887b385c90a5f9be3701b058e17cf81d8b0feddd620aa935515be52d27f0ebc"
+    },
+    {
+      "path": "lib/src/api/commerce.dart",
+      "sha256": "ac0a0da4ab4f4be9601d89fe2a1a090dd0c83b3ea625ecb63d4effae64d48a8e"
+    },
+    {
+      "path": "lib/src/api/content.dart",
+      "sha256": "1c6bc6982802a4735b503e811d44347afc0e37661e2fe654dfb90c7779b0898a"
+    },
+    {
+      "path": "lib/src/api/iam.dart",
+      "sha256": "e0944eebaf7cb94e3081aac8e016424cff48d9cb60f025e5a78e8a00e963485e"
+    },
+    {
+      "path": "lib/src/api/intelligence.dart",
+      "sha256": "267215a139a92624901430ee01474979e87d588fa8de3916e57211e91f392fb0"
+    },
+    {
+      "path": "lib/src/api/oauth.dart",
+      "sha256": "4ea5f2250b0e347043841721c338eed46f8f5a567c51a96ef70b33cf3bc7d375"
+    },
+    {
+      "path": "lib/src/api/paths.dart",
+      "sha256": "fc74022b8530edc3908245114ac0c9bf5268bba34f1852dcb4ffbde5cef81be1"
+    },
+    {
+      "path": "lib/src/api/platform.dart",
+      "sha256": "e5ef12e1b28f37fffa206aa6218cd401964ede14dccde236f789a5851889e1eb"
+    },
+    {
+      "path": "lib/src/api/response_helpers.dart",
+      "sha256": "8295b6cc4e67bb9d54a1b0a98c4282dcf8ea0cb126835a32797dd4d2c91a4214"
+    },
+    {
+      "path": "lib/src/api/runtime.dart",
+      "sha256": "681f8dc87fa70c8653068644625864e7ecf83209922c14726f4ef0ced17f7300"
+    },
+    {
+      "path": "lib/src/api/skills.dart",
+      "sha256": "ca6f9bba8a85fb757d34fd4b6acbfefce9218b736a4d36eeeaba87d98eba822f"
+    },
+    {
+      "path": "lib/src/api/system.dart",
+      "sha256": "eb5e611beb51aaea90c2bfde1793b393757c90e56d9a5f50256159c269f634e6"
+    },
+    {
+      "path": "lib/src/api/templates.dart",
+      "sha256": "ef64ccc5ba7ed2368d1cb7e144ed7a8146cc79c29ad85243b51f3e9b82483ac9"
+    },
+    {
+      "path": "lib/src/http/client.dart",
+      "sha256": "c28278decf2c7456a2332dd12d708c8fc4f2bcf2b5843631d983d0dca581fcf9"
+    },
+    {
+      "path": "lib/src/models.dart",
+      "sha256": "3de1c1008f804f6304ae085f2f2db0892ed540a8b916e4887220dbb907d4719d"
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "7840cc7d2b36ff364ac16c2fc5ec15b861bfe96854eecf81fb59b00edb8b1447"
+    },
+    {
+      "path": "pubspec_overrides.yaml",
+      "sha256": "904de351fd885b73619251ff36a0618d200ac911e42cd325bf2d4c3ace2b95a3"
+    },
+    {
+      "path": "pubspec.yaml",
+      "sha256": "7f978db60d6bde0a52b08b79853ad41323aadf488ef26016a978597e20ad603e"
+    },
+    {
+      "path": "README.md",
+      "sha256": "53408772caef1d123d132ba5dfb746d643fdd0d9ed530ed6cb8c0e4e84490188"
+    },
+    {
+      "path": "sdkwork-sdk.json",
+      "sha256": "284937f61825d3e2682b16b8f9de43db8b6966d4bd59c9f2fa093c44a545bd1e"
+    }
+  ],
+  "scaffoldFiles": [
+    "custom/README.md"
+  ],
+  "customRoots": [
+    "custom/"
+  ]
+}

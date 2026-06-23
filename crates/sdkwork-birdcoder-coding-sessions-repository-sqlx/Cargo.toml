@@ -14,6 +14,7 @@ uuid = { workspace = true }
 time = { workspace = true }
 tokio = { version = "1", features = ["full"] }
 sdkwork-birdcoder-coding-sessions-service = { workspace = true }
+sdkwork-birdcoder-errors = { path = "../sdkwork-birdcoder-errors" }
 
 
 
