@@ -2,6 +2,7 @@ import {
   bindBirdCoderH5AppSessionPersistence,
   bindBirdCoderSecureStorageAdapter,
   createBrowserSecureStorageAdapter,
+  createDefaultHostAdapters,
   createHostAdapters,
   type HostAdapters,
   type SecureStorageHostAdapter,
