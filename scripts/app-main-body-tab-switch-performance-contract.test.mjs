@@ -1,7 +1,12 @@
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const appSource = fs.readFileSync(new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx', import.meta.url), 'utf8');
+const appSource = readBirdcoderAppShellSource();
+const authRoutingSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/authAppTabRouting.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   appSource,
@@ -28,9 +33,15 @@ assert.match(
 );
 
 assert.match(
-  appSource,
+  authRoutingSource,
   /const handleActiveTabChange = useCallback\(\(nextTab: AppTab\) => \{[\s\S]*if \(!user && requiresAuthenticatedSession\(nextTab\)\) \{[\s\S]*openAuthenticationSurface\(nextTab\);[\s\S]*return;[\s\S]*startTransition\(\(\) => \{[\s\S]*setActiveTab\(nextTab\);/s,
-  'App must route unauthenticated protected tabs through auth, while still transitioning ordinary top-level tab switches so heavy panels stay responsive.',
+  'Auth app tab routing must route unauthenticated protected tabs through auth, while still transitioning ordinary top-level tab switches so heavy panels stay responsive.',
+);
+
+assert.match(
+  appSource,
+  /useBirdCoderAuthAppTabRouting/u,
+  'App shell must compose tab routing through authAppTabRouting instead of inlining auth callbacks.',
 );
 
 assert.match(

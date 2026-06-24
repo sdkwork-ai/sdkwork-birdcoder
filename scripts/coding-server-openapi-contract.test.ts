@@ -35,25 +35,25 @@ assert.equal(document.components.securitySchemes.bearerAuth.type, 'http');
 assert.equal(document.components.securitySchemes.sdkworkAccessToken.type, 'apiKey');
 assert.equal(document.components.securitySchemes.sdkworkAccessToken.in, 'header');
 assert.equal(document.components.securitySchemes.sdkworkAccessToken.name, 'Access-Token');
-assert.equal(document['x-sdkwork-api-gateway'].liveOpenApiPath, '/openapi.json');
-assert.equal(document['x-sdkwork-api-gateway'].docsPath, '/docs');
-assert.equal(document['x-sdkwork-api-gateway'].routeCatalogPath, '/app/v3/api/system/routes');
+assert.equal(document['x-sdkwork-api-cloud-gateway'].liveOpenApiPath, '/openapi.json');
+assert.equal(document['x-sdkwork-api-cloud-gateway'].docsPath, '/docs');
+assert.equal(document['x-sdkwork-api-cloud-gateway'].routeCatalogPath, '/app/v3/api/system/routes');
 assert.equal(
-  document['x-sdkwork-api-gateway'].routeCount,
-  Object.values(document['x-sdkwork-api-gateway'].routesBySurface).reduce(
+  document['x-sdkwork-api-cloud-gateway'].routeCount,
+  Object.values(document['x-sdkwork-api-cloud-gateway'].routesBySurface).reduce(
     (total, routeCount) => total + routeCount,
     0,
   ),
 );
 assert.deepEqual(
-  document['x-sdkwork-api-gateway'].surfaces.map((surface) => surface.name),
+  document['x-sdkwork-api-cloud-gateway'].surfaces.map((surface) => surface.name),
   ['app', 'backend'],
 );
 assert.deepEqual(
-  document['x-sdkwork-api-gateway'].surfaces.map((surface) => surface.routeCount),
+  document['x-sdkwork-api-cloud-gateway'].surfaces.map((surface) => surface.routeCount),
   [
-    document['x-sdkwork-api-gateway'].routesBySurface.app,
-    document['x-sdkwork-api-gateway'].routesBySurface.backend,
+    document['x-sdkwork-api-cloud-gateway'].routesBySurface.app,
+    document['x-sdkwork-api-cloud-gateway'].routesBySurface.backend,
   ],
 );
 const operationsWithoutSuccessSchema = Object.entries(document.paths).flatMap(([pathKey, methods]) =>

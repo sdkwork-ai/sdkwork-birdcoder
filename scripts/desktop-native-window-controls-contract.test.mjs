@@ -1,27 +1,15 @@
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
 const rootDir = process.cwd();
-const appPath = path.join(
-  rootDir,
-  'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
-  'sdkwork-birdcoder-pc-shell',
-  'src',
-  'application',
-  'app',
-  'BirdcoderApp.tsx',
-);
 const bridgePath = path.join(
   rootDir,
   'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
+  'sdkwork-birdcoder-pc',
+  'packages',
   'sdkwork-birdcoder-pc-shell',
   'src',
   'application',
@@ -31,9 +19,8 @@ const bridgePath = path.join(
 const desktopLibRsPath = path.join(
   rootDir,
   'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
+  'sdkwork-birdcoder-pc',
+  'packages',
   'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'src',
@@ -50,9 +37,8 @@ const desktopBridgePath = path.join(
 const desktopCargoTomlPath = path.join(
   rootDir,
   'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
+  'sdkwork-birdcoder-pc',
+  'packages',
   'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'Cargo.toml',
@@ -60,16 +46,15 @@ const desktopCargoTomlPath = path.join(
 const desktopPermissionsPath = path.join(
   rootDir,
   'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
+  'sdkwork-birdcoder-pc',
+  'packages',
   'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'permissions',
   'default.toml',
 );
 
-const appSource = fs.readFileSync(appPath, 'utf8');
+const appSource = readBirdcoderAppShellSource();
 const bridgeSource = fs.readFileSync(bridgePath, 'utf8');
 const desktopLibRsSource = fs.readFileSync(desktopLibRsPath, 'utf8');
 const desktopBridgeSource = fs.readFileSync(desktopBridgePath, 'utf8');
@@ -78,7 +63,7 @@ const desktopPermissionsSource = fs.readFileSync(desktopPermissionsPath, 'utf8')
 
 assert.match(
   appSource,
-  /import\s*\{\s*performNativeWindowControlAction,\s*useNativeWindowControlsBridge\s*\}\s*from '\.\/nativeWindowControlsBridge\.ts';/,
+  /performNativeWindowControlAction[\s\S]*useNativeWindowControlsBridge[\s\S]*from '\.\/nativeWindowControlsBridge\.ts'/,
   'BirdcoderApp must consume the dedicated native window-controls bridge module instead of hard-wiring the window control buttons directly to browser-side Tauri APIs.',
 );
 

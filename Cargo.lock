@@ -4131,6 +4131,7 @@ dependencies = [
  "sdkwork-birdcoder-project-service",
  "sdkwork-birdcoder-skill-packages-repository-sqlx",
  "sdkwork-birdcoder-skill-packages-service",
+ "sdkwork-birdcoder-sqlx-repository-pool",
  "sdkwork-birdcoder-system-descriptor-service",
  "sdkwork-birdcoder-workspace-repository-sqlx",
  "sdkwork-birdcoder-workspace-service",
@@ -4147,6 +4148,7 @@ dependencies = [
  "sdkwork-router-system-app-api",
  "sdkwork-router-workspace-app-api",
  "sdkwork-web-axum",
+ "sdkwork-web-bootstrap",
  "sdkwork-web-contract",
  "sdkwork-web-core",
  "serde",
@@ -4198,6 +4200,8 @@ dependencies = [
  "async-trait",
  "sdkwork-birdcoder-coding-sessions-service",
  "sdkwork-birdcoder-errors",
+ "sdkwork-database-config",
+ "sdkwork-database-sqlx",
  "serde",
  "serde_json",
  "sqlx",
@@ -4417,6 +4421,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-birdcoder-sqlx-repository-pool"
+version = "0.1.0"
+dependencies = [
+ "sdkwork-database-config",
+ "sdkwork-database-sqlx",
+ "sqlx",
+]
+
+[[package]]
 name = "sdkwork-birdcoder-system-descriptor-service"
 version = "0.1.0"
 dependencies = [
@@ -4537,6 +4550,7 @@ dependencies = [
  "sdkwork-database-sqlx",
  "serde",
  "serde_json",
+ "sqlx",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -4823,6 +4837,23 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+]
+
+[[package]]
+name = "sdkwork-web-bootstrap"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "http",
+ "sdkwork-web-axum",
+ "sdkwork-web-contract",
+ "sdkwork-web-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

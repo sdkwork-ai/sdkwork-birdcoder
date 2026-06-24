@@ -12450,6 +12450,74 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
+    "/app/v3/api/projects/{projectId}/deployment_targets": {
+      "get": {
+        "operationId": "projects.deploymentTargets.list",
+        "summary": "List project deployment targets",
+        "description": "List project deployment targets. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deployment targets returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeploymentTargetSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.projects.deploymentTargets.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.projects.deploymentTargets",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
     "/app/v3/api/documents": {
       "get": {
         "operationId": "documents.list",
@@ -17048,16 +17116,16 @@
       }
     }
   },
-  "x-sdkwork-api-gateway": {
+  "x-sdkwork-api-cloud-gateway": {
     "versionedOpenApiPaths": [
       "/openapi/coding-server-v1.json"
     ],
     "docsPath": "/docs",
     "liveOpenApiPath": "/openapi.json",
     "routeCatalogPath": "/app/v3/api/system/routes",
-    "routeCount": 130,
+    "routeCount": 131,
     "routesBySurface": {
-      "app": 81,
+      "app": 82,
       "backend": 49
     },
     "surfaces": [
@@ -17066,7 +17134,7 @@
         "basePath": "/app/v3/api",
         "description": "Application-facing coding runtime, workspace, project, collaboration, and IAM routes.",
         "name": "app",
-        "routeCount": 81
+        "routeCount": 82
       },
       {
         "authMode": "admin",

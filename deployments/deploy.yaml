@@ -1,0 +1,34 @@
+version: 1
+defaultProfile: cloud-hosted.split-services.production
+
+profiles:
+  cloud-hosted.split-services.production:
+    install:
+      layout: binary-package
+    expose:
+      - domain: api.sdkwork.com
+        tls: sdkwork.com
+        mode: web+api
+        web: adaptive
+    packages:
+      - web-universal-cloud-browser-zip
+      - windows-x64-standalone-desktop-zip
+      - macos-universal-standalone-desktop-dmg
+      - linux-x64-standalone-desktop-appimage
+
+  self-hosted.split-services.development:
+    expose:
+      - domain: localhost
+        tls: off
+        mode: web+api
+        web: adaptive
+    packages: []
+
+  self-hosted.unified-process.development:
+    expose:
+      - domain: localhost
+        tls: off
+        mode: web+api
+        web: desktop
+    packages:
+      - windows-x64-standalone-desktop-zip

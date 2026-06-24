@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::extract::{Path, State};
 use axum::Json;
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 
 use sdkwork_birdcoder_system_descriptor_service::domain::models::{
     DescriptorPayload, HealthPayload, OperationPayload, RouteCatalogEntryPayload, RuntimePayload,
@@ -46,7 +46,7 @@ pub type ConcreteSystemService =
 #[derive(Clone)]
 pub struct SystemAppState {
     pub service: Arc<ConcreteSystemService>,
-    pub sqlite_pool: Option<SqlitePool>,
+    pub repository_pool: Option<AnyPool>,
     pub routes: &'static [HttpRoute],
 }
 
@@ -57,18 +57,18 @@ impl SystemAppState {
                 ManifestRouteCatalogProvider::new(routes),
                 StaticOperationProvider,
             )),
-            sqlite_pool: None,
+            repository_pool: None,
             routes,
         }
     }
 
-    pub fn with_sqlite_pool(sqlite_pool: SqlitePool, routes: &'static [HttpRoute]) -> Self {
+    pub fn with_repository_pool(repository_pool: AnyPool, routes: &'static [HttpRoute]) -> Self {
         Self {
             service: Arc::new(SystemService::new(
                 ManifestRouteCatalogProvider::new(routes),
                 StaticOperationProvider,
             )),
-            sqlite_pool: Some(sqlite_pool),
+            repository_pool: Some(repository_pool),
             routes,
         }
     }
@@ -115,9 +115,9 @@ pub async fn get_health(
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<SystemAppState>,
 ) -> Json<ApiDataEnvelope<HealthPayload>> {
-    if let Some(pool) = state.sqlite_pool.as_ref() {
+    if let Some(pool) = state.repository_pool.as_ref() {
         return Json(build_data_envelope(
-            build_sqlite_health_payload(pool).await,
+            build_repository_health_payload(pool).await,
             request_id(&web),
         ));
     }
@@ -130,7 +130,7 @@ pub async fn get_health(
     ))
 }
 
-async fn build_sqlite_health_payload(pool: &SqlitePool) -> HealthPayload {
+async fn build_repository_health_payload(pool: &AnyPool) -> HealthPayload {
     let healthy = sqlx::query("SELECT 1").fetch_one(pool).await.is_ok();
 
     HealthPayload {

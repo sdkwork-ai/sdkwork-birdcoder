@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 use uuid::Uuid;
 
 use crate::db::columns::team as col;
@@ -12,11 +12,11 @@ use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
 
 #[derive(Clone)]
 pub struct SqliteTeamRepository {
-    pool: SqlitePool,
+    pool: AnyPool,
 }
 
 impl SqliteTeamRepository {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: AnyPool) -> Self {
         Self { pool }
     }
 
@@ -128,7 +128,7 @@ impl SqliteTeamRepository {
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
-        let id = result.last_insert_rowid();
+        let id = result.last_insert_id();
         let row = sqlx::query(&format!(
             "SELECT * FROM {} WHERE {} = ?",
             col::TABLE,
@@ -237,7 +237,7 @@ impl SqliteTeamRepository {
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
-        let new_id = result.last_insert_rowid();
+        let new_id = result.last_insert_id();
         let row = sqlx::query(&format!(
             "SELECT * FROM {} WHERE {} = ?",
             member_col::TABLE,

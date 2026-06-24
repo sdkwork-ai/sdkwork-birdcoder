@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use sqlx::{Row, SqlitePool};
+use sqlx::{AnyPool, Row};
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
     CreateCodingSessionInput, CreateCodingSessionTurnInput, EditCodingSessionMessageInput,
@@ -29,11 +29,11 @@ use crate::repository::sqlx_helpers::{
 
 #[derive(Clone)]
 pub struct SqliteCodingSessionRepository {
-    pool: SqlitePool,
+    pool: AnyPool,
 }
 
 impl SqliteCodingSessionRepository {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: AnyPool) -> Self {
         Self { pool }
     }
 

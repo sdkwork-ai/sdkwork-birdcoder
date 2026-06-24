@@ -2,6 +2,12 @@ export interface BirdCoderH5CapacitorConfig {
   appId: string;
   appName: string;
   webDir: string;
+  android?: {
+    path?: string;
+  };
+  ios?: {
+    path?: string;
+  };
   server?: {
     androidScheme?: string;
   };
@@ -19,8 +25,14 @@ export function createBirdCoderH5CapacitorConfig(
 ): BirdCoderH5CapacitorConfig {
   return {
     appId: options.appId ?? 'com.sdkwork.birdcoder.h5',
-    appName: options.appName ?? 'SDKWork BirdCoder',
-    webDir: options.webDir ?? 'dist',
+    appName: options.appName ?? 'BirdCoder',
+    webDir: options.webDir ?? '../../dist',
+    android: {
+      path: 'android',
+    },
+    ios: {
+      path: 'ios',
+    },
     server: {
       androidScheme: 'https',
     },

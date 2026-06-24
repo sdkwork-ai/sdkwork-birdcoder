@@ -23,6 +23,12 @@ export default defineLocaleModule('settings', {
     "turnCompletionNotification": "Turn completion notification",
     "turnCompletionNotificationDesc": "Set alerts for when Codex finishes a task",
     "enablePermissionNotifications": "Enable permission notifications",
-    "enablePermissionNotificationsDesc": "Show alerts when permissions are needed"
+    "enablePermissionNotificationsDesc": "Show alerts when permissions are needed",
+    "legalCompliance": "Legal & privacy",
+    "legalComplianceDesc": "Review SDKWork BirdCoder legal disclosures and support resources.",
+    "privacyPolicy": "Privacy policy",
+    "termsOfService": "Terms of service",
+    "support": "Support",
+    "officialWebsite": "Official website"
   }
 });

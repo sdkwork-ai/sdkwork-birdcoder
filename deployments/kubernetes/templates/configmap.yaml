@@ -4,3 +4,8 @@ metadata:
   name: {{ include "sdkwork-birdcoder.fullname" . }}
 data:
   SDKWORK_BIRD_ACCELERATOR: {{ .Values.runtime.accelerator | quote }}
+  SDKWORK_DEPLOYMENT_PROFILE: {{ .Values.runtime.deploymentProfile | quote }}
+  SDKWORK_RUNTIME_TARGET: {{ .Values.runtime.runtimeTarget | quote }}
+  SDKWORK_ENVIRONMENT: {{ .Values.runtime.environment | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.runtime.otelServiceName | quote }}
+  SDKWORK_BIRDCODER_DATABASE_ENGINE: {{ .Values.database.engine | quote }}

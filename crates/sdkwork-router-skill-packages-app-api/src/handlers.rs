@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 
 use sdkwork_birdcoder_app_templates_repository_sqlx::SqliteAppTemplateRepository;
 use sdkwork_birdcoder_app_templates_service::domain::models::AppTemplatePayload;
@@ -43,7 +43,7 @@ pub struct SkillPackagesAppState {
 
 impl SkillPackagesAppState {
     pub fn new(
-        pool: SqlitePool,
+        pool: AnyPool,
         workspace_service: WorkspaceService,
         project_service: ProjectService,
     ) -> Self {

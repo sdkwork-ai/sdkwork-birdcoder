@@ -1,0 +1,54 @@
+> Migrated from `docs/release/release-2026-04-11-12.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Turns `engines.capabilities.retrieve` and `models.list` into real Rust-host routes backed by one canonical engine/model catalog.
+- Promotes both operations into the typed app-runtime read facade while keeping only `approvals.decisions.create` blocked.
+- Wires the first overview consumer path through `loadCodingServerOverview()` and `useCodingServerOverview()` on top of `appRuntimeReadService`.
+
+## Scope
+
+- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `packages/sdkwork-birdcoder-types/src/server-api.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeReadService.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeReadService.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts`
+- `packages/sdkwork-birdcoder-commons/src/hooks/useCodingServerOverview.ts`
+- `scripts/app-runtime-read-sdk-client-contract.test.ts`
+- `scripts/app-runtime-sdk-facade-governance-contract.test.ts`
+- `scripts/default-ide-services-app-runtime-read-service-contract.test.ts`
+- `scripts/coding-server-overview-engine-model-consumer-contract.test.ts`
+- `package.json`
+- `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`
+- `docs/架构/09-安装-部署-发布标准.md`
+- `docs/step/17V-App-Runtime-Engine-Capability-And-Model-Catalog-Lane.md`
+- `docs/step/17W-App-Runtime-Approval-Decision-Lane.md`
+- `docs/prompts/反复执行Step指令.md`
+- `docs/release/releases.json`
+
+## Verification
+
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml core_engine_`
+- `pnpm.cmd run test:app-runtime-read-sdk-client-contract`
+- `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
+- `pnpm.cmd run test:default-ide-services-app-runtime-read-service-contract`
+- `pnpm.cmd run test:coding-server-overview-engine-model-consumer-contract`
+- `pnpm.cmd run typecheck`
+- `pnpm.cmd run docs:build`
+- `pnpm.cmd run check:release-flow`
+- `pnpm.cmd run release:smoke:postgresql-live` -> `blocked (reasonCode=missing_postgresql_dsn)`
+
+## Post-release operations
+
+- Observation window: `0` minutes on `pending`.
+- Stop-ship signals: engine catalog drift between `/engines`, `/engines/:engineKey/capabilities`, and `/models`; app-runtime SDK governance re-blocking promoted engine/model reads; or overview consumers rebuilding request paths outside `appRuntimeReadService`.
+- Rollback entry: `pnpm release:rollback:plan -- --release-tag release-2026-04-11-12 --release-assets-dir artifacts/release`.
+- Re-issue path: `pnpm release:plan` -> engine/model catalog repair -> docs/release backwrite -> `pnpm release:finalize`.
+- Writeback targets: `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`, `docs/架构/09-安装-部署-发布标准.md`, `docs/step/17V-App-Runtime-Engine-Capability-And-Model-Catalog-Lane.md`, `docs/step/17W-App-Runtime-Approval-Decision-Lane.md`, `docs/prompts/反复执行Step指令.md`, `docs/release/releases.json`, and `docs/release/release-2026-04-11-12.md`.
+
+## Notes
+
+- PostgreSQL live smoke remains environment-blocked and was not claimed as passed.
+- The next serial non-environmental lane is `17W`, which targets real `approvals.decisions.create` plus approval authority truth and first consumer adoption.
+

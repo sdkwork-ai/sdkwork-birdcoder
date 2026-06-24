@@ -1,0 +1,41 @@
+> Migrated from `docs/release/release-2026-04-11-07.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Adds explicit promoted/excluded operation catalogs for the shared high-level core facade in `@sdkwork/birdcoder-types`.
+- Keeps placeholder app-runtime writes and still-unimplemented app-runtime reads available only in the low-level generated client while preventing them from silently re-entering the shared high-level facade.
+- Locks this governance rule into `check:release-flow` with a dedicated contract test.
+
+## Scope
+
+- `packages/sdkwork-birdcoder-types/src/server-api.ts`
+- `scripts/app-runtime-sdk-facade-governance-contract.test.ts`
+- `package.json`
+- `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`
+- `docs/架构/09-安装-部署-发布标准.md`
+- `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md`
+- `docs/step/17R-App-Runtime-SDK-Governance-Lane.md`
+- `docs/prompts/反复执行Step指令.md`
+
+## Verification
+
+- `node --experimental-strip-types scripts/app-runtime-sdk-facade-governance-contract.test.ts`
+- `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
+- `pnpm.cmd run typecheck`
+- `pnpm.cmd run docs:build`
+- `pnpm.cmd run check:release-flow`
+
+## Post-release operations
+
+- Observation window: `0` minutes on `pending`.
+- Stop-ship signals: blocked core operations disappearing from the low-level generated client; blocked core operations reappearing in the shared high-level facade; promoted/excluded catalogs drifting from real facade behavior; or any `check:release-flow` regression on the new governance contract.
+- Rollback entry: `pnpm release:rollback:plan -- --release-tag release-2026-04-11-07 --release-assets-dir artifacts/release`.
+- Re-issue path: `pnpm release:plan` -> app-runtime SDK-facade governance fix -> docs/release backwrite -> `pnpm release:finalize`.
+- Writeback targets: `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`, `docs/架构/09-安装-部署-发布标准.md`, `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md`, `docs/step/17R-App-Runtime-SDK-Governance-Lane.md`, `docs/prompts/反复执行Step指令.md`, `docs/release/releases.json`, and `docs/release/release-2026-04-11-07.md`.
+
+## Notes
+
+- This loop does not promote any blocked core write or unimplemented read into the shared high-level facade.
+- A blocked operation may move into the promoted catalog only after the corresponding server route has real behavior and the new facade surface is verified end-to-end.
+

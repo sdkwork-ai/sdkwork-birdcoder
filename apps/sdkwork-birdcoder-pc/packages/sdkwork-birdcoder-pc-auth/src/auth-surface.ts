@@ -14,10 +14,10 @@ const BIRDCODER_AUTH_METHOD_UNAVAILABLE_MESSAGE =
   "This BirdCoder sign-in method is temporarily unavailable.";
 
 const BIRDCODER_VERIFICATION_POLICY = {
-  emailCodeLoginEnabled: false,
-  emailRegistrationVerificationRequired: false,
-  phoneCodeLoginEnabled: false,
-  phoneRegistrationVerificationRequired: false,
+  emailCodeLoginEnabled: true,
+  emailRegistrationVerificationRequired: true,
+  phoneCodeLoginEnabled: true,
+  phoneRegistrationVerificationRequired: true,
 } as const;
 
 function readBirdCoderPublicEnvValue(...keys: string[]): string | undefined {
@@ -127,9 +127,9 @@ export function resolveBirdCoderAuthRuntimeConfig(): SdkworkAuthRuntimeConfig {
 
   return {
     leftRailMode: 'qr-only',
-    loginMethods: ['password'],
+    loginMethods: ['password', 'emailCode', 'phoneCode'],
     qrLoginEnabled: true,
-    recoveryMethods: [],
+    recoveryMethods: ['email', 'phone'],
     registerMethods: ['email', 'phone'],
     verificationPolicy: BIRDCODER_VERIFICATION_POLICY,
     ...(developmentPrefill ? { developmentPrefill } : {}),

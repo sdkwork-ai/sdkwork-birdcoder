@@ -4,6 +4,7 @@ import path from 'node:path';
 
 const rootDir = process.cwd();
 const corePrefix = 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core/src';
+const shellPrefix = 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-shell/src';
 const adminPrefix = 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-admin-core/src';
 const rootPrefix = 'apps/sdkwork-birdcoder-h5/src';
 
@@ -16,7 +17,7 @@ const appSdkSource = readText(`${corePrefix}/sdk/appSdkClient.ts`);
 const backendSdkSource = readText(`${adminPrefix}/sdk/backendSdkClient.ts`);
 const environmentSource = readText(`${corePrefix}/bootstrap/environment.ts`);
 const runtimeSource = readText(`${rootPrefix}/bootstrap/runtime.ts`);
-const routesSource = readText(`${corePrefix}/routes/routeCatalog.ts`);
+const routesSource = readText(`${shellPrefix}/routes/routeCatalog.ts`);
 const sdkClientsSource = readText(`${rootPrefix}/bootstrap/sdkClients.ts`);
 const mainSource = readText(`${rootPrefix}/main.tsx`);
 const appSource = readText(`${rootPrefix}/App.tsx`);
@@ -73,7 +74,7 @@ assert.match(
 assert.match(
   routesSource,
   /createBirdCoderAuthRouteCatalog/u,
-  'H5 route bootstrap must include canonical IAM auth routes.',
+  'H5 route catalog must include canonical IAM auth routes in h5-shell.',
 );
 
 assert.match(

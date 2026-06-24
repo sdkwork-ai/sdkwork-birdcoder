@@ -10,7 +10,7 @@
     "domain": "iam",
     "declaredDomain": null,
     "capability": "auth",
-    "status": "standardizing",
+    "status": "ready",
     "languages": [
       "typescript",
       "react"

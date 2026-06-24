@@ -1,0 +1,36 @@
+> Migrated from `docs/release/release-2026-04-10-12.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Adds the first executable `coding-server` contract layer in the BirdCoder server package, covering descriptor, app/backend route matrices, OpenAPI seed generation, and app-runtime session SSE projection.
+- Connects the Step 18 canonical multi-engine runtime into Step 17 server-side session, event, artifact, and operation projection so Codex, Claude Code, Gemini, and OpenCode can flow through one server contract.
+- Hardens the direct contract execution chain by replacing alias-only imports with source-relative imports on the tested path, so contract tests run under `node --experimental-strip-types` without workspace-resolution drift.
+
+## Scope
+
+- [package.json](/<workspace-root>/sdkwork-birdcoder/package.json)
+- [types.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-chat/src/types.ts)
+- [runtime.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-commons/src/workbench/runtime.ts)
+- [kernel.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts)
+- [engines.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-commons/src/workbench/engines.ts)
+- [index.ts](/<workspace-root>/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts)
+- [coding-server-route-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/coding-server-route-contract.test.ts)
+- [coding-server-openapi-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/coding-server-openapi-contract.test.ts)
+- [coding-server-sse-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/coding-server-sse-contract.test.ts)
+- [20-统一Rust-Coding-Server-API-协议标准.md](/<workspace-root>/sdkwork-birdcoder/docs/架构/20-统一Rust-Coding-Server-API-协议标准.md)
+- [17-Coding-Server-App-Backend-SDK与控制台实现.md](/<workspace-root>/sdkwork-birdcoder/docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md)
+
+## Verification
+
+- `pnpm.cmd run typecheck`
+- `pnpm.cmd run test:engine-runtime-adapter`
+- `pnpm.cmd run test:coding-server-route-contract`
+- `pnpm.cmd run test:coding-server-openapi-contract`
+- `pnpm.cmd run test:coding-server-sse-contract`
+- `pnpm.cmd run docs:build`
+
+## Notes
+
+- This loop closes the TS-side contract foundation for Step 17, but Rust handlers, persistence, SDK generation, and App/Backend Console integration remain open and should follow next on the serial path.
+

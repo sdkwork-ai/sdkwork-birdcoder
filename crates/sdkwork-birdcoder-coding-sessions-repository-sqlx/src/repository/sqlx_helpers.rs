@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_errors::require_scoped_tenant_id;
@@ -25,7 +25,7 @@ pub fn append_session_tenant_scope_sql(
 }
 
 pub async fn ensure_workspace_in_tenant_scope(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     ctx: &CodingSessionContext,
     workspace_id: &str,
 ) -> Result<(), RepositoryError> {
@@ -50,7 +50,7 @@ pub async fn ensure_workspace_in_tenant_scope(
 }
 
 pub async fn ensure_session_in_tenant_scope(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     ctx: &CodingSessionContext,
     session_id: &str,
 ) -> Result<(), RepositoryError> {

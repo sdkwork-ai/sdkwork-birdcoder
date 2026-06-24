@@ -8,9 +8,11 @@ import {
   waitForBirdCoderApiReady,
 } from '@sdkwork/birdcoder-pc-shell-runtime';
 import { ErrorBoundary } from '@sdkwork/birdcoder-pc-commons';
+import { hydrateBirdCoderDesktopAppSessionPersistence } from '@sdkwork/birdcoder-pc-infrastructure/bootstrap/appSessionPersistenceBinding';
 import { resolveDesktopRuntime } from './desktop/resolveDesktopRuntime';
 
 async function bootstrapRuntime() {
+  await hydrateBirdCoderDesktopAppSessionPersistence();
   const { apiBaseUrl } = await readDesktopEmbeddedRuntimeConfig();
   publishBirdCoderEmbeddedSdkRuntimeEnv(apiBaseUrl);
   await waitForBirdCoderApiReady(apiBaseUrl);

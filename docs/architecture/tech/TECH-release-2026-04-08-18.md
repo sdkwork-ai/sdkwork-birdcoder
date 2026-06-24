@@ -1,0 +1,37 @@
+> Migrated from `docs/release/release-2026-04-08-18.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Adds a project-scoped Preview Evidence Store for Studio preview execution.
+- Persists `StudioPreviewExecutionEvidence` after successful preview launch.
+- Extends the release-flow gate with `scripts/studio-preview-evidence-store-contract.test.ts`.
+- Advances Step 07 from “request and evidence only” to “request, evidence, and local replay entry”.
+
+## Scope
+
+- `packages/sdkwork-birdcoder-studio/src/preview/evidenceStore.ts`
+- `packages/sdkwork-birdcoder-studio/src/pages/StudioPage.tsx`
+- `packages/sdkwork-birdcoder-studio/src/index.ts`
+- `scripts/studio-preview-evidence-store-contract.test.ts`
+- `scripts/release-flow-contract.test.mjs`
+- `scripts/sdkwork-birdcoder-architecture-contract.test.mjs`
+- `package.json`
+- `docs/step/07-studio视图-预览-模拟器-编译环境体系.md`
+- `docs/架构/06-编译环境-预览-模拟器-测试体系.md`
+- `docs/架构/07-数据模型-状态模型-接口契约.md`
+- `docs/架构/14-现状基线-差距-演进路线.md`
+- `docs/release/releases.json`
+
+## Verification
+
+- `node scripts/studio-preview-evidence-store-contract.test.ts`
+- `node scripts/studio-preview-execution-contract.test.ts`
+- `pnpm.cmd -s exec tsc --noEmit`
+- `pnpm.cmd run lint`
+
+## Notes
+
+- This store is intentionally local and lightweight. It is the bridge into future diagnostics and release-smoke evidence collection, not the final archive system.
+- The next Step 07 gap remains simulator/build parity and release-level preview evidence ingestion.
+

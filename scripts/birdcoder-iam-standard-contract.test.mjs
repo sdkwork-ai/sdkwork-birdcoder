@@ -1,3 +1,4 @@
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 ﻿import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -74,6 +75,8 @@ const authSurfaceSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-b
 const userDefinitionSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/user.ts');
 const vipDefinitionSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip.ts');
 const authPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx');
+const birdcoderAppSource = readBirdcoderAppShellSource();
+const authAppTabRoutingSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/authAppTabRouting.ts');
 const userPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/UserPage.tsx');
 const vipPageSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/VipPage.tsx');
 const commonsAuthContextSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/AuthContext.ts');
@@ -150,6 +153,26 @@ assert.equal(
   shellPackageJson.dependencies?.['@sdkwork/birdcoder-pc-iam'],
   'workspace:*',
   'BirdCoder shell must consume the standard IAM integration package.',
+);
+assert.doesNotMatch(
+  birdcoderAppSource,
+  /from ['"]@sdkwork\/birdcoder-pc-auth['"]/u,
+  'BirdCoder shell app must consume auth routing helpers through @sdkwork/birdcoder-pc-iam.',
+);
+assert.match(
+  authAppTabRoutingSource,
+  /shouldBootIntoAuthSurface/u,
+  'Auth app tab routing must use the shared auth surface boot helper.',
+);
+assert.match(
+  birdcoderAppSource,
+  /useBirdCoderAuthAppTabRouting/u,
+  'BirdCoder shell app must compose auth tab routing through authAppTabRouting.',
+);
+assert.match(
+  iamIndexSource,
+  /shouldBootIntoAuthSurface/u,
+  'BirdCoder IAM package must re-export auth surface routing helpers for shell consumption.',
 );
 
 assert.match(iamIndexSource, /export \* from ['"]\.\/iamIntegration\.ts['"];/u);

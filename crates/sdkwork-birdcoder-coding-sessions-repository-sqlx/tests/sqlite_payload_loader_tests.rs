@@ -1,4 +1,6 @@
-use sqlx::SqlitePool;
+use sdkwork_database_config::{DatabaseConfig, DatabaseEngine, DeploymentMode};
+use sdkwork_database_sqlx::create_any_pool_from_config;
+use sqlx::AnyPool;
 
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::db::schema::PROVIDER_AUTHORITY_SCHEMA;
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::provider::constants::*;
@@ -11,9 +13,16 @@ use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::provider::str
 
 #[tokio::test]
 async fn sqlite_provider_payload_loaders_normalize_integer_java_long_columns() {
-    let pool = SqlitePool::connect("sqlite::memory:")
-        .await
-        .expect("open in-memory provider authority");
+    sqlx::any::install_default_drivers();
+    let pool = create_any_pool_from_config(DatabaseConfig {
+        engine: DatabaseEngine::Sqlite,
+        url: "sqlite::memory:".to_string(),
+        mode: DeploymentMode::Standalone,
+        max_connections: 1,
+        ..DatabaseConfig::default()
+    })
+    .await
+    .expect("open in-memory provider authority");
     sqlx::raw_sql(PROVIDER_AUTHORITY_SCHEMA)
         .execute(&pool)
         .await

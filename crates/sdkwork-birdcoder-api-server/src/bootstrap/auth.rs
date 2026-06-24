@@ -1,7 +1,8 @@
 use axum::Router;
 use sdkwork_iam_web_adapter::{build_web_framework_layer, iam_database_resolver_from_env};
 use sdkwork_web_axum::with_web_request_context;
-use sdkwork_web_core::{CorsPolicy, RateLimitPolicy, SecurityPolicy};
+use sdkwork_web_core::{CorsPolicy, HttpMetricsRegistry, RateLimitPolicy, SecurityPolicy};
+use std::sync::Arc;
 
 use crate::bootstrap::config::{default_loopback_browser_origins, is_loopback_bind_host, BirdServerConfig};
 use crate::bootstrap::route_manifest::birdcoder_product_app_api_route_manifest;
@@ -10,7 +11,11 @@ pub fn birdcoder_public_path_prefixes() -> Vec<String> {
     vec!["/app/v3/api/system/iam".to_string()]
 }
 
-pub async fn build_protected_app_router(router: Router, config: &BirdServerConfig) -> Router {
+pub async fn build_protected_app_router(
+    router: Router,
+    config: &BirdServerConfig,
+    metrics: Arc<HttpMetricsRegistry>,
+) -> Router {
     let resolver = iam_database_resolver_from_env().await;
     let manifest = birdcoder_product_app_api_route_manifest();
     manifest
@@ -22,7 +27,8 @@ pub async fn build_protected_app_router(router: Router, config: &BirdServerConfi
         manifest,
         birdcoder_public_path_prefixes(),
     )
-    .with_security_policy(build_security_policy(config));
+    .with_security_policy(build_security_policy(config))
+    .with_metrics(metrics);
 
     with_web_request_context(router, layer)
 }

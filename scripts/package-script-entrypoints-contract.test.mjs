@@ -11,7 +11,8 @@ const rootPackageJson = JSON.parse(
 const entrypointContracts = [
   {
     scriptName: 'check:arch',
-    command: 'node scripts/check-arch-boundaries.mjs',
+    command:
+      'node scripts/check-arch-boundaries.mjs && node scripts/commercial-alignment-contract.test.mjs && node scripts/commercial-postgresql-ha-readiness-contract.test.mjs && node scripts/postgresql-ha-values-contract.test.mjs && node scripts/birdcoder-app-shell-componentization-contract.test.mjs && node scripts/app-sdk-surface-boundary-contract.test.mjs && node scripts/pc-architecture-layout-contract.test.mjs',
     filePath: path.join(rootDir, 'scripts', 'check-arch-boundaries.mjs'),
     exportedFunctionPattern: /export function runArchitectureBoundaryCheck\(/,
     launchPattern: /void runArchitectureBoundaryCheckCli\(\)/,

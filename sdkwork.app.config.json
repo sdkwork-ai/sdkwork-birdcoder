@@ -293,9 +293,9 @@
     ]
   },
   "security": {
-    "checksumRequired": false,
-    "signatureRequired": false,
-    "sbomRequired": false
+    "checksumRequired": true,
+    "signatureRequired": true,
+    "sbomRequired": true
   },
   "devApp": {
     "build": {
@@ -306,6 +306,12 @@
   "metadata": {
     "standardOwner": "sdkwork-platform",
     "initializedAt": "2026-05-07T00:00:00Z",
-    "releaseEvidenceStatus": "pending-first-artifact-build"
+    "releaseEvidenceStatus": "contract-gates-green-artifacts-pending",
+    "commercialReadiness": {
+      "pcPrivateBeta": "ready",
+      "enterpriseK8s": "sqlite-single-replica-ready",
+      "saasPublicCloud": "auth-gates-enabled-artifacts-pending",
+      "mobileProductParity": "phase-3-in-progress"
+    }
   }
 }

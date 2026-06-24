@@ -10,7 +10,7 @@ fn value_to_string(value: Option<i64>) -> Option<String> {
 }
 
 fn optional_string_from_row(
-    row: &sqlx::sqlite::SqliteRow,
+    row: &sqlx::any::AnyRow,
     index: usize,
     column_name: &str,
 ) -> Result<Option<String>, String> {
@@ -35,7 +35,7 @@ fn optional_string_from_row(
 }
 
 pub fn sqlx_row_required_string_value(
-    row: &sqlx::sqlite::SqliteRow,
+    row: &sqlx::any::AnyRow,
     index: usize,
     column_name: &str,
 ) -> Result<String, String> {
@@ -44,7 +44,7 @@ pub fn sqlx_row_required_string_value(
 }
 
 pub fn sqlx_row_optional_string_value(
-    row: &sqlx::sqlite::SqliteRow,
+    row: &sqlx::any::AnyRow,
     index: usize,
     column_name: &str,
 ) -> Result<Option<String>, String> {
@@ -52,7 +52,7 @@ pub fn sqlx_row_optional_string_value(
 }
 
 pub fn sqlx_row_optional_data_scope_value(
-    row: &sqlx::sqlite::SqliteRow,
+    row: &sqlx::any::AnyRow,
     index: usize,
     column_name: &str,
 ) -> Result<Option<String>, String> {
@@ -85,7 +85,7 @@ pub fn sqlx_row_optional_data_scope_value(
 }
 
 pub fn sqlx_row_optional_project_type_value(
-    row: &sqlx::sqlite::SqliteRow,
+    row: &sqlx::any::AnyRow,
     index: usize,
     column_name: &str,
 ) -> Result<Option<String>, String> {
@@ -120,7 +120,7 @@ pub fn sqlx_row_optional_project_type_value(
 }
 
 pub fn sqlx_row_required_project_status_value(
-    row: &sqlx::sqlite::SqliteRow,
+    row: &sqlx::any::AnyRow,
     index: usize,
     column_name: &str,
 ) -> Result<String, String> {

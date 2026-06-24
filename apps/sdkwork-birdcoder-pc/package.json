@@ -44,9 +44,9 @@
     "tauri:build:private": "node ../../scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:build:private",
     "tauri:build:cloud": "node ../../scripts/run-workspace-package-script.mjs apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop tauri:build:cloud",
     "test": "node ../../scripts/run-quality-fast-check.mjs",
-    "test:unit": "vitest run",
+    "test:unit": "node ../../scripts/run-local-tsx.mjs ../../scripts/auth-surface-routing-contract.test.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "node ../../scripts/run-pc-playwright-e2e.mjs",
     "test:config": "node ../../scripts/run-quality-fast-check.mjs"
   }
 }

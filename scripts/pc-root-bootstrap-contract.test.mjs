@@ -10,6 +10,7 @@ function readText(relativePath) {
 
 const iamRuntimeSource = readText('apps/sdkwork-birdcoder-pc/src/bootstrap/iamRuntime.ts');
 const sdkClientsSource = readText('apps/sdkwork-birdcoder-pc/src/bootstrap/sdkClients.ts');
+const adminSdkClientsSource = readText('apps/sdkwork-birdcoder-pc/src/bootstrap/adminSdkClients.ts');
 const environmentSource = readText('apps/sdkwork-birdcoder-pc/src/bootstrap/environment.ts');
 const runtimeSource = readText('apps/sdkwork-birdcoder-pc/src/bootstrap/runtime.ts');
 const routesSource = readText('apps/sdkwork-birdcoder-pc/src/bootstrap/routes.ts');
@@ -27,13 +28,23 @@ assert.doesNotMatch(
 
 assert.match(
   sdkClientsSource,
-  /getBirdCoderGeneratedAppSdkClient/u,
-  'Root SDK bootstrap must construct generated app SDK clients.',
+  /createBirdCoderAppSdkClients/u,
+  'Root SDK bootstrap must expose app-only SDK client composition.',
 );
 assert.match(
   sdkClientsSource,
+  /getBirdCoderGeneratedAppSdkClient/u,
+  'Root SDK bootstrap must construct generated app SDK clients.',
+);
+assert.doesNotMatch(
+  sdkClientsSource,
   /getBirdCoderGeneratedBackendSdkClient/u,
-  'Root SDK bootstrap must construct generated backend SDK clients.',
+  'Root SDK bootstrap must not eagerly construct backend SDK clients.',
+);
+assert.match(
+  adminSdkClientsSource,
+  /getBirdCoderGeneratedBackendSdkClient/u,
+  'Admin SDK bootstrap must own backend SDK client construction.',
 );
 assert.doesNotMatch(
   sdkClientsSource,

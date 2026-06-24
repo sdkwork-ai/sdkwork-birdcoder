@@ -1,3 +1,4 @@
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,102 +10,7 @@ function readSource(...segments) {
   return fs.readFileSync(path.join(rootDir, ...segments), 'utf8');
 }
 
-const appSettingsSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-settings',
-  'src',
-  'components',
-  'appSettings.ts',
-);
-const settingsPageSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-settings',
-  'src',
-  'pages',
-  'SettingsPage.tsx',
-);
-const gitSettingsSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-settings',
-  'src',
-  'components',
-  'GitSettings.tsx',
-);
-const worktreeSettingsSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-settings',
-  'src',
-  'components',
-  'WorktreeSettings.tsx',
-);
-const projectGitSettingsPanelSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-settings',
-  'src',
-  'components',
-  'ProjectGitSettingsPanel.tsx',
-);
-const worktreeManagementPanelSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-ui',
-  'src',
-  'components',
-  'ProjectGitWorktreeManagementPanel.tsx',
-);
-const legacySettingsWorktreeManagementPath = path.join(
-  rootDir,
-  'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
-  'sdkwork-birdcoder-pc-settings',
-  'src',
-  'components',
-  'ProjectGitWorktreeManagementPanel.tsx',
-);
-const shellAppSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-shell',
-  'src',
-  'application',
-  'app',
-  'BirdcoderApp.tsx',
-);
+const appSettingsSource = readBirdcoderAppShellSource();
 
 assert.doesNotMatch(
   appSettingsSource,

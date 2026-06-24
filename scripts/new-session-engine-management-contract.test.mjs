@@ -1,3 +1,4 @@
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,7 +15,7 @@ const topBarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-
 const studioChatSidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx');
 const sidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
 const projectExplorerHeaderSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorerHeader.tsx');
-const birdcoderAppSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx');
+const birdcoderAppSource = readBirdcoderAppShellSource();
 const workbenchNewSessionButtonPath = path.join(
   rootDir,
   'apps',

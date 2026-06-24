@@ -374,8 +374,8 @@ try {
 
 assert.match(
   dockerfileSource,
-  /COPY deploy\/docker\/profiles\/default\.env \/opt\/sdkwork-birdcoder\/deploy\/profiles\/default\.env/u,
-  'Container Dockerfile must copy default.env from the packaged bundle-root context used by docker buildx.',
+  /COPY deployments\/docker\/profiles\/default\.env \/opt\/sdkwork-birdcoder\/deploy\/profiles\/default\.env/u,
+  'Container Dockerfile must copy default.env from the source-tree deployments/docker context used by docker buildx.',
 );
 assert.match(
   dockerfileSource,

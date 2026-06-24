@@ -1,4 +1,4 @@
-use sqlx::{Row, SqlitePool};
+use sqlx::{AnyPool, Row};
 
 use super::payload_types::{ProjectPayload, WorkspacePayload};
 use super::sql_helpers::{
@@ -13,7 +13,7 @@ use super::string_helpers::{
 };
 
 pub async fn load_provider_workspace_payloads(
-    pool: &SqlitePool,
+    pool: &AnyPool,
 ) -> Result<Vec<WorkspacePayload>, String> {
     let rows = sqlx::query(
         r#"
@@ -147,7 +147,7 @@ pub async fn load_provider_workspace_payloads(
 }
 
 pub async fn load_provider_project_payloads(
-    pool: &SqlitePool,
+    pool: &AnyPool,
 ) -> Result<Vec<ProjectPayload>, String> {
     let rows = sqlx::query(
         r#"

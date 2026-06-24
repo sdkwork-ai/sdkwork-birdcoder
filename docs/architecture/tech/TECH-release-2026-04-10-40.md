@@ -1,0 +1,48 @@
+> Migrated from `docs/release/release-2026-04-10-40.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Closes finalized-release governance for the canonical `coding-server` OpenAPI snapshot by publishing `codingServerOpenApiEvidence` in `release-manifest.json`.
+- Extends finalized smoke and rendered release notes to consume and verify the same canonical OpenAPI evidence instead of ad hoc server-contract narration.
+- Adds the first downstream codegen consumer entry, `scripts/coding-server-openapi-codegen-input.mjs`, which resolves one canonical snapshot path from the finalized manifest.
+
+## Scope
+
+- [coding-server-openapi-release-evidence.mjs](/<workspace-root>/sdkwork-birdcoder/scripts/release/coding-server-openapi-release-evidence.mjs)
+- [finalize-release-assets.mjs](/<workspace-root>/sdkwork-birdcoder/scripts/release/finalize-release-assets.mjs)
+- [smoke-finalized-release-assets.mjs](/<workspace-root>/sdkwork-birdcoder/scripts/release/smoke-finalized-release-assets.mjs)
+- [render-release-notes.mjs](/<workspace-root>/sdkwork-birdcoder/scripts/release/render-release-notes.mjs)
+- [coding-server-openapi-codegen-input.mjs](/<workspace-root>/sdkwork-birdcoder/scripts/coding-server-openapi-codegen-input.mjs)
+- [coding-server-openapi-codegen-input.test.mjs](/<workspace-root>/sdkwork-birdcoder/scripts/coding-server-openapi-codegen-input.test.mjs)
+- [finalize-release-assets.test.mjs](/<workspace-root>/sdkwork-birdcoder/scripts/release/finalize-release-assets.test.mjs)
+- [smoke-finalized-release-assets.test.mjs](/<workspace-root>/sdkwork-birdcoder/scripts/release/smoke-finalized-release-assets.test.mjs)
+- [render-release-notes.test.mjs](/<workspace-root>/sdkwork-birdcoder/scripts/release/render-release-notes.test.mjs)
+- [render-release-notes-docs-registry.test.mjs](/<workspace-root>/sdkwork-birdcoder/scripts/release/render-release-notes-docs-registry.test.mjs)
+- [17F-Coding-Server-Finalized-OpenAPI-Governance-And-Codegen-Input.md](/<workspace-root>/sdkwork-birdcoder/docs/step/17F-Coding-Server-Finalized-OpenAPI-Governance-And-Codegen-Input.md)
+- [20-统一Rust-Coding-Server-API-协议标准.md](/<workspace-root>/sdkwork-birdcoder/docs/架构/20-统一Rust-Coding-Server-API-协议标准.md)
+- [09-安装-部署-发布标准.md](/<workspace-root>/sdkwork-birdcoder/docs/架构/09-安装-部署-发布标准.md)
+- [反复执行Step指令.md](/<workspace-root>/sdkwork-birdcoder/docs/prompts/反复执行Step指令.md)
+
+## Verification
+
+- `node scripts/coding-server-openapi-codegen-input.test.mjs`
+- `node scripts/release/finalize-release-assets.test.mjs`
+- `node scripts/release/smoke-finalized-release-assets.test.mjs`
+- `node scripts/release/render-release-notes.test.mjs`
+- `node scripts/release/render-release-notes-docs-registry.test.mjs`
+- `pnpm.cmd run generate:openapi:coding-server`
+- `node scripts/release/local-release-command.mjs package server --output-dir artifacts/release-openapi-canonical`
+- `node scripts/release/local-release-command.mjs smoke server --release-assets-dir artifacts/release-openapi-canonical`
+- `node scripts/release/local-release-command.mjs finalize --release-assets-dir artifacts/release-openapi-canonical`
+- `node scripts/release/smoke-finalized-release-assets.mjs --release-assets-dir artifacts/release-openapi-canonical`
+- `node scripts/release/render-release-notes.mjs --release-tag release-local --release-assets-dir artifacts/release-openapi-canonical --output artifacts/release-openapi-canonical/release-notes.md`
+- `node scripts/coding-server-openapi-codegen-input.mjs --release-assets-dir artifacts/release-openapi-canonical`
+- `pnpm.cmd run typecheck`
+- `pnpm.cmd run docs:build`
+
+## Notes
+
+- `codingServerOpenApiEvidence` is now the only finalized summary allowed to describe the canonical `coding-server` OpenAPI snapshot.
+- This loop closes finalized governance and first downstream input resolution only. The next non-environmental gap is generating a real SDK/codegen artifact from that finalized input.
+

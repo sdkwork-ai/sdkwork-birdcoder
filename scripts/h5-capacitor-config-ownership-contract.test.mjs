@@ -23,6 +23,16 @@ assert.match(
   'h5-capacitor config must declare Preferences plugin settings for secure storage.',
 );
 assert.match(
+  packageConfig,
+  /path:\s*'android'/u,
+  'h5-capacitor config must declare owned Android native project path.',
+);
+assert.match(
+  packageConfig,
+  /path:\s*'ios'/u,
+  'h5-capacitor config must declare owned iOS native project path.',
+);
+assert.match(
   rootConfig,
   /from ['"]@sdkwork\/birdcoder-h5-capacitor\/config['"]/u,
   'H5 app root must re-export Capacitor config from the h5-capacitor package boundary.',

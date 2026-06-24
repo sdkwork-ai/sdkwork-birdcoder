@@ -1,10 +1,10 @@
-use sqlx::{Row, SqlitePool};
+use sqlx::{AnyPool, Row};
 
 use crate::db::columns;
 use crate::db::rows::{SkillCapabilityRow, SkillInstallationRow, SkillPackageRow, SkillVersionRow};
 use crate::error::RepositoryError;
 
-pub async fn list_skill_packages(pool: &SqlitePool) -> Result<Vec<SkillPackageRow>, RepositoryError> {
+pub async fn list_skill_packages(pool: &AnyPool) -> Result<Vec<SkillPackageRow>, RepositoryError> {
     let sql = format!(
         "SELECT {} FROM {} WHERE is_deleted = 0 ORDER BY slug",
         ALL_PACKAGE_COLUMNS,
@@ -18,7 +18,7 @@ pub async fn list_skill_packages(pool: &SqlitePool) -> Result<Vec<SkillPackageRo
 }
 
 pub async fn get_skill_package_by_id(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     id: &str,
 ) -> Result<SkillPackageRow, RepositoryError> {
     let sql = format!(
@@ -38,7 +38,7 @@ pub async fn get_skill_package_by_id(
 }
 
 pub async fn list_skill_versions_by_package(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     package_id: &str,
 ) -> Result<Vec<SkillVersionRow>, RepositoryError> {
     let sql = format!(
@@ -54,7 +54,7 @@ pub async fn list_skill_versions_by_package(
 }
 
 pub async fn list_skill_capabilities_by_version(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     version_id: &str,
 ) -> Result<Vec<SkillCapabilityRow>, RepositoryError> {
     let sql = format!(
@@ -70,7 +70,7 @@ pub async fn list_skill_capabilities_by_version(
 }
 
 pub async fn list_all_skill_capabilities(
-    pool: &SqlitePool,
+    pool: &AnyPool,
 ) -> Result<Vec<SkillCapabilityRow>, RepositoryError> {
     let sql = format!(
         "SELECT {} FROM {} WHERE is_deleted = 0",
@@ -85,7 +85,7 @@ pub async fn list_all_skill_capabilities(
 }
 
 pub async fn list_skill_installations(
-    pool: &SqlitePool,
+    pool: &AnyPool,
 ) -> Result<Vec<SkillInstallationRow>, RepositoryError> {
     let sql = format!(
         "SELECT {} FROM {} WHERE is_deleted = 0",
@@ -100,7 +100,7 @@ pub async fn list_skill_installations(
 }
 
 pub async fn insert_skill_installation(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     row: &SkillInstallationRow,
 ) -> Result<(), RepositoryError> {
     let sql = format!(
@@ -139,7 +139,7 @@ const ALL_INSTALLATION_COLUMNS: &str =
     "id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, scope_type, scope_id, skill_version_id, status, installed_at";
 
 pub async fn find_skill_installation_for_scope(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     scope_type: &str,
     scope_id: &str,
     package_id: &str,
@@ -175,7 +175,7 @@ pub async fn find_skill_installation_for_scope(
 }
 
 pub async fn scope_exists(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     scope_type: &str,
     scope_id: &str,
     tenant_id: i64,

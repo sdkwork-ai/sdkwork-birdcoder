@@ -44,7 +44,7 @@ async fn health_endpoint_returns_healthy_status() {
         .await
         .expect("read health body");
     let json: serde_json::Value = serde_json::from_slice(&body).expect("parse health JSON");
-    assert_eq!(json["checks"]["sqlite"]["ok"], true);
+    assert_eq!(json["checks"]["database"]["ok"], true);
     if json["checks"]["iam_database"]["configured"] == true {
         assert!(
             json["status"] == "healthy" || json["status"] == "degraded",
@@ -53,6 +53,42 @@ async fn health_endpoint_returns_healthy_status() {
     } else {
         assert_eq!(json["status"], "healthy");
     }
+
+    let _ = std::fs::remove_file(&config.sqlite_file);
+}
+
+#[tokio::test]
+async fn metrics_endpoint_returns_prometheus_payload() {
+    let config = smoke_config("bootstrap-smoke-metrics.db");
+
+    let app = sdkwork_birdcoder_api_server::bootstrap::build_app(&config)
+        .await
+        .expect("build_app should succeed with valid config");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/metrics")
+                .body(Body::empty())
+                .expect("build metrics request"),
+        )
+        .await
+        .expect("serve metrics request");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read metrics body");
+    let text = String::from_utf8(body.to_vec()).expect("metrics body must be utf-8");
+    assert!(
+        text.contains("sdkwork_health_status"),
+        "metrics payload must expose sdkwork_health_status gauge"
+    );
+    assert!(
+        text.contains("sdkwork_http_requests_total"),
+        "metrics payload must expose sdkwork_http_requests_total counter"
+    );
 
     let _ = std::fs::remove_file(&config.sqlite_file);
 }

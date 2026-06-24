@@ -13,3 +13,7 @@ export function createCommonsUtils(): H5CommonsUtils {
 }
 
 export { AppProvider, useAppContext } from './providers/AppProvider.tsx';
+export {
+  resolveBirdCoderLegalLinks,
+  type BirdCoderLegalLinks,
+} from './legalLinks.ts';

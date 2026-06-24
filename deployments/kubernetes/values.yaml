@@ -8,6 +8,14 @@ service:
   type: ClusterIP
   port: 18989
 
+# SQLite persistence is single-writer. Use values-postgresql-ha.yaml for horizontal scale.
+replicaCount: 1
+
+database:
+  engine: sqlite
+  # When engine is postgresql, provide database.url via secret and apply values-postgresql-ha.yaml.
+  url: ""
+
 ingress:
   enabled: false
 
@@ -18,6 +26,10 @@ persistence:
 
 runtime:
   accelerator: cpu
+  deploymentProfile: cloud
+  runtimeTarget: container
+  environment: production
+  otelServiceName: sdkwork-birdcoder-api-server
 
 auth:
   manageUsername: sdkwork-birdcoder-admin
@@ -51,7 +63,8 @@ resources:
 
 autoscaling:
   enabled: false
-  minReplicas: 2
+  # Enable through values-postgresql-ha.yaml after PostgreSQL HA smoke passes.
+  minReplicas: 1
   maxReplicas: 10
   targetCPUUtilizationPercentage: 80
   targetMemoryUtilizationPercentage: 80
@@ -67,12 +80,16 @@ networkPolicy:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: ingress-nginx
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
 
 probes:
   liveness:
     enabled: true
     httpGet:
-      path: /app/v3/api/system/health
+      path: /health
       port: 18989
     initialDelaySeconds: 15
     periodSeconds: 30
@@ -81,7 +98,7 @@ probes:
   readiness:
     enabled: true
     httpGet:
-      path: /app/v3/api/system/health
+      path: /health
       port: 18989
     initialDelaySeconds: 5
     periodSeconds: 10
@@ -90,7 +107,7 @@ probes:
   startup:
     enabled: true
     httpGet:
-      path: /app/v3/api/system/health
+      path: /health
       port: 18989
     initialDelaySeconds: 5
     periodSeconds: 10
@@ -123,4 +140,7 @@ rbac:
   create: true
 
 serviceMonitor:
-  enabled: false
+  enabled: true
+  path: /metrics
+  interval: 30s
+  scrapeTimeout: 10s

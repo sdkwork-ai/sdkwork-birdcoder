@@ -1,3 +1,4 @@
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
@@ -5,7 +6,7 @@ function read(relativePath) {
   return fs.readFileSync(new URL(`../${relativePath}`, import.meta.url), 'utf8');
 }
 
-const appSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx');
+const appSource = readBirdcoderAppShellSource();
 const sidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
 const topBarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx');
 const universalChatSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx');

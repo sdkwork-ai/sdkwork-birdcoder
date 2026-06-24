@@ -1,6 +1,6 @@
 use axum::extract::{Query, State};
 use axum::Json;
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 
 use sdkwork_birdcoder_document_repository_sqlx::SqliteDocumentRepository;
 use sdkwork_birdcoder_document_service::domain::models::DocumentPayload;
@@ -27,7 +27,7 @@ pub struct DocumentAppState {
 }
 
 impl DocumentAppState {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: AnyPool) -> Self {
         Self {
             service: DocumentService::new(SqliteDocumentRepository::new(pool)),
         }

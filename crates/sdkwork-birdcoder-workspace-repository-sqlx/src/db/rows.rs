@@ -35,7 +35,7 @@ pub struct WorkspaceRow {
 }
 
 impl WorkspaceRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -91,7 +91,7 @@ pub struct WorkspaceMemberRow {
 }
 
 impl WorkspaceMemberRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -149,7 +149,7 @@ pub struct ProjectRow {
 }
 
 impl ProjectRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -208,7 +208,7 @@ pub struct ProjectCollaboratorRow {
 }
 
 impl ProjectCollaboratorRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -248,7 +248,7 @@ pub struct DeploymentTargetRow {
 }
 
 impl DeploymentTargetRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -287,7 +287,7 @@ pub struct DeploymentRecordRow {
 }
 
 impl DeploymentRecordRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -331,7 +331,7 @@ pub struct TeamRow {
 }
 
 impl TeamRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -374,7 +374,7 @@ pub struct TeamMemberRow {
 }
 
 impl TeamMemberRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -412,7 +412,7 @@ pub struct ReleaseRecordRow {
 }
 
 impl ReleaseRecordRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -448,7 +448,7 @@ pub struct AuditEventRow {
 }
 
 impl AuditEventRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -487,7 +487,7 @@ pub struct GovernancePolicyRow {
 }
 
 impl GovernancePolicyRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,

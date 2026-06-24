@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/name: sdkwork-birdcoder
     app.kubernetes.io/component: server
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -35,6 +35,8 @@ spec:
             - containerPort: {{ .Values.service.port }}
               protocol: TCP
           envFrom:
+            - configMapRef:
+                name: {{ include "sdkwork-birdcoder.fullname" . }}
             - secretRef:
                 name: {{ include "sdkwork-birdcoder.fullname" . }}-auth
           securityContext:
@@ -78,8 +80,12 @@ spec:
               mountPath: /tmp
       volumes:
         - name: data
+{{- if .Values.persistence.enabled }}
           persistentVolumeClaim:
             claimName: {{ include "sdkwork-birdcoder.fullname" . }}-data
+{{- else }}
+          emptyDir: {}
+{{- end }}
         - name: tmp
           emptyDir: {}
       {{- with .Values.nodeSelector }}

@@ -1,4 +1,4 @@
-use sqlx::{Row, SqlitePool};
+use sqlx::{AnyPool, Row};
 
 use sdkwork_birdcoder_document_service::domain::models::DocumentPayload;
 use sdkwork_birdcoder_document_service::service::document_service::DocumentRepository;
@@ -6,11 +6,11 @@ use sdkwork_birdcoder_errors::require_scoped_tenant_id;
 
 #[derive(Clone)]
 pub struct SqliteDocumentRepository {
-    pool: SqlitePool,
+    pool: AnyPool,
 }
 
 impl SqliteDocumentRepository {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: AnyPool) -> Self {
         Self { pool }
     }
 
@@ -22,7 +22,7 @@ impl SqliteDocumentRepository {
             .map_err(|_| "a valid tenant scope is required".to_owned())
     }
 
-    fn map_row(row: &sqlx::sqlite::SqliteRow) -> Result<DocumentPayload, sqlx::Error> {
+    fn map_row(row: &sqlx::any::AnyRow) -> Result<DocumentPayload, sqlx::Error> {
         Ok(DocumentPayload {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,

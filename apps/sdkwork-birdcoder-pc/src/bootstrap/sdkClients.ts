@@ -1,18 +1,19 @@
 import {
   getBirdCoderGeneratedAppSdkClient,
-  getBirdCoderGeneratedBackendSdkClient,
   type BirdCoderTokenManagerAwareAppSdkClient,
-  type BirdCoderTokenManagerAwareBackendSdkClient,
 } from '@sdkwork/birdcoder-pc-infrastructure';
 
-export interface SdkClients {
+export interface BirdCoderAppSdkClients {
   appSdk: BirdCoderTokenManagerAwareAppSdkClient;
-  backendSdk: BirdCoderTokenManagerAwareBackendSdkClient;
 }
 
-export function createSdkClients(): SdkClients {
+export function createBirdCoderAppSdkClients(): BirdCoderAppSdkClients {
   return {
     appSdk: getBirdCoderGeneratedAppSdkClient(),
-    backendSdk: getBirdCoderGeneratedBackendSdkClient(),
   };
+}
+
+/** @deprecated Use createBirdCoderAppSdkClients for product runtime bootstrap. */
+export function createSdkClients(): BirdCoderAppSdkClients {
+  return createBirdCoderAppSdkClients();
 }

@@ -1,0 +1,34 @@
+> Migrated from `docs/release/release-2026-04-10-28.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Closes the shared TypeScript-side `StorageProvider` / `UnitOfWork` abstraction so projection persistence no longer encodes transaction semantics through ad hoc local-store writes.
+- Adds reusable provider lifecycle methods `open`, `healthCheck`, `runMigrations`, and `beginUnitOfWork` in the shared `data-kernel`, and wires the coding-server projection repository onto that contract.
+- Extends verification so rollback keeps staged rows invisible, commit publishes them atomically, and Step 17 docs now move the next serial closure to true SQLite/PostgreSQL SQL executors plus app/backend repository adoption.
+
+## Scope
+
+- [dataKernel.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts)
+- [projectionRepository.ts](/<workspace-root>/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts)
+- [coding-server-provider-projection-repository-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/coding-server-provider-projection-repository-contract.test.ts)
+- [17-Coding-Server-App-Backend-SDK与控制台实现.md](/<workspace-root>/sdkwork-birdcoder/docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md)
+- [20-统一Rust-Coding-Server-API-协议标准.md](/<workspace-root>/sdkwork-birdcoder/docs/架构/20-统一Rust-Coding-Server-API-协议标准.md)
+- [反复执行Step指令.md](/<workspace-root>/sdkwork-birdcoder/docs/prompts/反复执行Step指令.md)
+
+## Verification
+
+- `pnpm.cmd run test:coding-server-provider-projection-repository-contract`
+- `pnpm.cmd run test:storage-provider-contract`
+- `pnpm.cmd run test:coding-server-projection-repository-contract`
+- `pnpm.cmd run check:data-kernel`
+- `pnpm.cmd run typecheck`
+- `pnpm.cmd run docs:build`
+- `pnpm.cmd run check:server`
+
+## Notes
+
+- The current provider/UoW executor is still backed by shared local-store persistence semantics; the abstraction is closed, but the real SQL executor swap remains the next serial slice.
+- Projection writes now share one UoW boundary for `runtime`, `event`, `artifact`, and `operation`, which removes partial-visibility risk inside the TS repository path.
+- Subsequent Step 17 work should push the same provider/UoW contract into true SQLite/PostgreSQL executors and representative app/backend repository consumers.
+

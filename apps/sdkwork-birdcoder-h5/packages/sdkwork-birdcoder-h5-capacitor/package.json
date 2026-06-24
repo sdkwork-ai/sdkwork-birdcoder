@@ -9,12 +9,20 @@
     "./config": "./capacitor.config.ts"
   },
   "dependencies": {
+    "@capacitor/android": "catalog:",
     "@capacitor/app": "catalog:",
     "@capacitor/core": "catalog:",
+    "@capacitor/ios": "catalog:",
     "@capacitor/preferences": "catalog:",
     "@sdkwork/birdcoder-h5-core": "workspace:*"
   },
   "devDependencies": {
     "@capacitor/cli": "catalog:"
+  },
+  "scripts": {
+    "cap:sync": "cap sync",
+    "cap:copy": "cap copy",
+    "cap:android:open": "cap open android",
+    "cap:ios:open": "cap open ios"
   }
 }

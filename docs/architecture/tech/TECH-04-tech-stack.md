@@ -1,0 +1,70 @@
+> Migrated from `docs/架构/04-技术选型与可插拔策略.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 04-技术选型与可插拔策略
+
+## 1. 当前技术基线
+
+| 领域 | 选型 | 说明 |
+| --- | --- | --- |
+| Workspace | `pnpm workspace` | 统一多包管理与脚本入口 |
+| 语言 | `TypeScript + Rust` | 前端、共享契约与服务宿主统一建模 |
+| UI | `React 19` | 组件化、状态驱动、跨宿主复用 |
+| 构建 | `Vite` | 快速开发构建与多包集成 |
+| 桌面 | `Tauri 2 + Rust` | 原生能力、安装包产物、较轻运行时 |
+| 服务端 | `Rust coding-server + axum` | 统一 `app/backend` API 与事件流中枢 |
+| 引擎接入 | `Engine SPI + Adapter` | 屏蔽 SDK、CLI、HTTP、SSE、JSON-RPC 差异 |
+| 权威存储 | `SQLite + PostgreSQL` | 同一逻辑 schema，按宿主选择 Provider |
+| 浏览器缓存 | `localStorage / IndexedDB` | 仅承载 UI cache，不进入权威持久化链路 |
+| 文档 | `VitePress` | 文档即站点、易发布 |
+| 部署 | `Docker / Helm` | Desktop、Server、Docker、K8s 统一交付 |
+
+## 2. 选型原则
+
+- 优先统一而非堆技术栈
+- 优先可替换而非一次性耦死
+- 优先协议与 SDK 稳定性，而非页面层直连
+- 优先跨宿主一致性，而非局部便捷
+- 优先治理与审计可落地，而非“能跑就行”
+
+## 3. Code Engine 接入策略
+
+| Engine | 官方主入口 | 主接入级别 | BirdCoder 主路径 | 补充路径 |
+| --- | --- | --- | --- | --- |
+| Codex | `@openai/codex-sdk` | `official-sdk` | SDK 直连 | CLI JSONL、app-server JSON-RPC |
+| Claude | `@anthropic-ai/claude-agent-sdk` | `official-sdk` | Agent SDK 直连 | Headless CLI、remote-control、preview session API |
+| Gemini | `@google/gemini-cli-sdk` | `official-sdk` | SDK 直连 | CLI/core/tool/skill 运行时 |
+| OpenCode | `@opencode-ai/sdk` | `official-sdk` | SDK 直连 | OpenAPI / SSE / server mode |
+
+### 3.1 统一接入规则
+
+- 优先使用官方 SDK
+- 官方 SDK 不能覆盖全部运行时语义时，可在 adapter 内组合官方协议
+- 只有官方 SDK 和官方协议都不存在时，才允许 `source-derived`
+- `source-derived` 必须显式标注，禁止伪装成官方集成
+
+## 4. 可插拔能力域
+
+- Code Engine：Codex、Claude、Gemini、OpenCode
+- Tool Provider：文件、终端、Git、搜索、构建、测试、预览
+- Build Provider：Web、Desktop、Server、Container、K8s
+- Preview Provider：浏览器预览、桌面预览、设备模拟器、接口仿真器
+- Auth Provider：本地令牌、团队登录、企业代理
+- Storage Provider：SQLite、PostgreSQL、BlobStore
+- Prompt / Skill / Template Provider：规则包、技能包、模板包、行业工作流
+
+## 5. 替换门槛
+
+- 新选型必须先通过统一契约接入
+- 必须说明替换边界、迁移路径、数据清理方案与治理影响
+- 不允许只因局部实现方便就破坏多宿主与多引擎一致性
+- 新引擎接入前必须确认：会话连续性、工具保真度、结构化输出、审批语义、Artifact 提取、SDK 可维护性
+
+## 6. 评估标准
+
+- 是否降低模块耦合
+- 是否提升构建、发布、验证效率
+- 是否支持多平台、多架构、多部署模式
+- 是否具备长期维护可控性
+- 是否可以被 `coding-server` 统一投影为同一套 DTO、错误模型和 SSE 事件
+

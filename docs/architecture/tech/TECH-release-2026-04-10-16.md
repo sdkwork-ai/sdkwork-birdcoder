@@ -1,0 +1,27 @@
+> Migrated from `docs/release/release-2026-04-10-16.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Adds the first Rust `coding-server` host skeleton on unified `app` prefixes, including JSON envelope handlers for descriptor, runtime, and health plus a minimal OpenAPI document route.
+- Removes the legacy plain-text `/health` host path so the Rust process now starts from the same `coding-server` contract direction as the TypeScript layer.
+- Extends Step 17 architecture evidence with executable Rust host tests and the workspace-level `check:server` gate.
+
+## Scope
+
+- [Cargo.toml](/<workspace-root>/sdkwork-birdcoder/crates/sdkwork-birdcoder-api-server/Cargo.toml)
+- [lib.rs](/<workspace-root>/sdkwork-birdcoder/crates/sdkwork-birdcoder-api-server/src/lib.rs)
+- [main.rs](/<workspace-root>/sdkwork-birdcoder/crates/sdkwork-birdcoder-api-server/src/main.rs)
+- [17-Coding-Server-App-Backend-SDK与控制台实现.md](/<workspace-root>/sdkwork-birdcoder/docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md)
+- [20-统一Rust-Coding-Server-API-协议标准.md](/<workspace-root>/sdkwork-birdcoder/docs/架构/20-统一Rust-Coding-Server-API-协议标准.md)
+
+## Verification
+
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+- `pnpm.cmd run check:server`
+- `pnpm.cmd run typecheck`
+
+## Notes
+
+- This is a route skeleton, not full parity. The next Rust-side closure is expanding from the minimal `app` handlers to the full `app/backend` matrix and wiring those routes to the shared projection repositories.
+

@@ -10,8 +10,8 @@ import {
   BIRDCODER_APP_SDK_OPERATIONS,
 } from '@sdkwork/birdcoder-app-sdk';
 import {
-  BIRDCODER_BACKEND_SDK_OPERATIONS,
-} from '@sdkwork/birdcoder-backend-sdk';
+  BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS,
+} from '@sdkwork/birdcoder-pc-types';
 import {
   BIRDCODER_CODING_SERVER_API_PREFIXES,
   BIRDCODER_CODING_SERVER_API_VERSION,
@@ -89,13 +89,9 @@ interface ResolvedRouteOperation {
 }
 
 type BirdCoderGeneratedSdkOperation =
-  | (typeof BIRDCODER_APP_SDK_OPERATIONS)[number]
-  | (typeof BIRDCODER_BACKEND_SDK_OPERATIONS)[number];
+  (typeof BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS)[number];
 
-const BIRDCODER_SPLIT_SDK_OPERATIONS = [
-  ...BIRDCODER_APP_SDK_OPERATIONS,
-  ...BIRDCODER_BACKEND_SDK_OPERATIONS,
-] as const;
+const BIRDCODER_SPLIT_SDK_OPERATIONS = BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS;
 
 const DEFAULT_OPENAPI_PATH = '/openapi/coding-server-v1.json';
 const DEFAULT_LIVE_OPENAPI_PATH = '/openapi.json';
@@ -578,9 +574,8 @@ function resolveRouteOperation(
 function toRouteCatalogEntry(
   operation: BirdCoderGeneratedSdkOperation,
 ): BirdCoderApiRouteCatalogEntry {
-  const surface: BirdCoderApiSurface = operation.path.startsWith(BIRDCODER_CODING_SERVER_API_PREFIXES.backend)
-    ? 'backend'
-    : 'app';
+  const surface: BirdCoderApiSurface =
+    operation.surface === 'backend' ? 'backend' : 'app';
   return {
     authMode: ROUTE_AUTH_MODE_BY_SURFACE[surface],
     method: operation.method,

@@ -1,3 +1,4 @@
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,19 +10,7 @@ function readSource(...segments) {
   return fs.readFileSync(path.join(rootDir, ...segments), 'utf8');
 }
 
-const birdcoderAppSource = readSource(
-  'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
-  
-  
-  'sdkwork-birdcoder-pc-shell',
-  'src',
-  'application',
-  'app',
-  'BirdcoderApp.tsx',
-);
+const birdcoderAppSource = readBirdcoderAppShellSource();
 
 assert.match(
   birdcoderAppSource,

@@ -900,6 +900,25 @@ pub mod platform {
             tenant_scope: "tenant",
         };
 
+        pub mod deployment_targets {
+            pub const LIST: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "platform",
+                key: "platform.projects.deploymentTargets.list",
+                method: "GET",
+                operation_id: "projects.deploymentTargets.list",
+                path: "/app/v3/api/projects/{projectId}/deployment_targets",
+                path_param_names: &["projectId"],
+                permission: Some("platform.projects.deploymentTargets.read"),
+                public: false,
+                resource: "platform.projects.deploymentTargets",
+                summary: "List project deployment targets",
+                tag: "platform",
+                tenant_scope: "tenant",
+            };
+        }
+
         pub mod git {
             pub mod branches {
                 pub const CREATE: crate::SdkOperation = crate::SdkOperation {
@@ -1610,6 +1629,7 @@ pub const OPERATIONS: &[SdkOperation] = &[
     platform::projects::collaborators::UPSERT,
     platform::projects::CREATE,
     platform::projects::DELETE,
+    platform::projects::deployment_targets::LIST,
     platform::projects::git::branches::CREATE,
     platform::projects::git::branch_switch::CREATE,
     platform::projects::git::commits::CREATE,

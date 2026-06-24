@@ -115,6 +115,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node --experimental-strip-types scripts/rust-host-engine-route-parity-contract.test.ts',
   'node scripts/release/package-release-assets.test.mjs',
   'node scripts/release/preflight-desktop-signing-environment.test.mjs',
+  'node scripts/release/desktop-signing-automation-contract.test.mjs',
   'node scripts/release/verify-desktop-installer-trust.test.mjs',
   'node scripts/release/finalize-release-assets.test.mjs',
   'node scripts/release/write-attestation-evidence.test.mjs',

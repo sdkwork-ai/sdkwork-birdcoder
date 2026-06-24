@@ -7,6 +7,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@sdkwork/birdcoder-pc-admin-core": "workspace:*",
+    "@sdkwork/birdcoder-pc-core": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure": "workspace:*"
   }
 }

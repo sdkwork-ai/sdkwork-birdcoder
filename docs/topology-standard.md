@@ -29,7 +29,7 @@ pnpm birdcoder:dev:desktop
 | Surface id | Plane | Consumer |
 | --- | --- | --- |
 | `application.public-ingress` | application | BirdCoder App/Backend SDKs, PC runtime API |
-| `platform.api-gateway` | platform | Appbase, IAM, and other platform SDKs via `sdkwork-api-gateway` |
+| `platform.api-gateway` | platform | Appbase, IAM, and other platform SDKs via `sdkwork-api-cloud-gateway` |
 
 Loader: `scripts/lib/birdcoder-topology.mjs` → `@sdkwork/app-topology`.
 

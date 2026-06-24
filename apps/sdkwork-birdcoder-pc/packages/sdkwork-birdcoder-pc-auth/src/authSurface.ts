@@ -1,6 +1,7 @@
-const AUTH_SURFACE_BASE_PATH = '/auth';
+export const AUTH_SURFACE_BASE_PATH = '/auth';
+export const AUTH_SURFACE_DEFAULT_ROUTE = `${AUTH_SURFACE_BASE_PATH}/login`;
 
-function normalizeAuthSurfaceLocationPath(rawPath: string | null | undefined): string {
+export function normalizeAuthSurfaceLocationPath(rawPath: string | null | undefined): string {
   const normalizedPath = (rawPath || '').trim();
   if (!normalizedPath) {
     return '';
@@ -9,11 +10,11 @@ function normalizeAuthSurfaceLocationPath(rawPath: string | null | undefined): s
   return normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`;
 }
 
-function isAuthSurfaceLocationPath(path: string): boolean {
+export function isAuthSurfaceLocationPath(path: string): boolean {
   return path === AUTH_SURFACE_BASE_PATH || path.startsWith(`${AUTH_SURFACE_BASE_PATH}/`);
 }
 
-function readAuthSurfaceHashPath(): string {
+export function readAuthSurfaceHashPath(): string {
   if (typeof window === 'undefined') {
     return '';
   }
@@ -36,4 +37,20 @@ export function shouldBootIntoAuthSurface(): boolean {
   }
 
   return isAuthSurfaceLocationPath(readAuthSurfaceHashPath());
+}
+
+export function replaceAuthSurfaceHashPath(path: string | null): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const normalizedPath = normalizeAuthSurfaceLocationPath(path);
+  const baseUrl = `${window.location.pathname}${window.location.search}`;
+  const nextUrl = normalizedPath ? `${baseUrl}#${normalizedPath}` : baseUrl;
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (currentUrl === nextUrl) {
+    return;
+  }
+
+  window.history.replaceState(window.history.state, '', nextUrl);
 }

@@ -1,12 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const recoveryModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/recovery.ts',
-  import.meta.url,
-);
-const birdcoderAppModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx',
   import.meta.url,
 );
 
@@ -98,7 +95,7 @@ assert.equal(
   'Recovery resolution should be ready once the selected workspace project list has loaded.',
 );
 
-const birdcoderAppSource = fs.readFileSync(birdcoderAppModulePath, 'utf8');
+const birdcoderAppSource = readBirdcoderAppShellSource();
 assert.equal(
   birdcoderAppSource.includes('resolveWorkbenchRecoveryPersistenceSelection('),
   true,

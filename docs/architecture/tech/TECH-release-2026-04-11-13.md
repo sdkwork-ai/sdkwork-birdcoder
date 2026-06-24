@@ -1,0 +1,53 @@
+> Migrated from `docs/release/release-2026-04-11-13.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Closes `17W` by turning `approvals.decisions.create` into a real Rust-host authority write route on both demo and sqlite-provider truth paths.
+- Promotes approval submission into the typed app-runtime write facade and first approval-facing consumer boundary, leaving no blocked app-runtime SDK operations.
+- Fixes canonical approval-resolution replay so `operation.updated` emits `approvalDecision` instead of a drifted `decision` field.
+
+## Scope
+
+- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `packages/sdkwork-birdcoder-types/src/server-api.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeWriteService.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeWriteService.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts`
+- `packages/sdkwork-birdcoder-commons/src/context/ideServices.ts`
+- `packages/sdkwork-birdcoder-commons/src/context/IDEContext.tsx`
+- `packages/sdkwork-birdcoder-commons/src/context/ServiceContext.tsx`
+- `packages/sdkwork-birdcoder-commons/src/hooks/useCodingSessionProjection.ts`
+- `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`
+- `docs/架构/09-安装-部署-发布标准.md`
+- `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md`
+- `docs/step/17W-App-Runtime-Approval-Decision-Lane.md`
+- `docs/step/17X-Real-App-Document-Catalog-Lane.md`
+- `docs/prompts/反复执行Step指令.md`
+- `docs/release/releases.json`
+
+## Verification
+
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml submit_approval_decision_route`
+- `pnpm.cmd run test:app-runtime-write-sdk-client-contract`
+- `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
+- `pnpm.cmd run test:coding-session-approval-consumer-contract`
+- `pnpm.cmd run test:api-backed-project-service-app-runtime-create-coding-session-contract`
+- `pnpm.cmd run test:api-backed-project-service-app-runtime-create-coding-session-turn-contract`
+- `pnpm.cmd run typecheck`
+- `pnpm.cmd run docs:build`
+- `pnpm.cmd run check:release-flow`
+
+## Post-release operations
+
+- Observation window: `0` minutes on `pending`.
+- Stop-ship signals: approval decisions no longer mutating checkpoint truth, `operation.updated` dropping `approvalDecision`, or app-runtime SDK governance reintroducing an excluded approval write.
+- Rollback entry: `pnpm release:rollback:plan -- --release-tag release-2026-04-11-13 --release-assets-dir artifacts/release`.
+- Re-issue path: `pnpm release:plan` -> approval lane repair -> docs/release backwrite -> `pnpm release:finalize`.
+- Writeback targets: `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`, `docs/架构/09-安装-部署-发布标准.md`, `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md`, `docs/step/17W-App-Runtime-Approval-Decision-Lane.md`, `docs/step/17X-Real-App-Document-Catalog-Lane.md`, `docs/prompts/反复执行Step指令.md`, `docs/release/releases.json`, and `docs/release/release-2026-04-11-13.md`.
+
+## Notes
+
+- PostgreSQL live smoke remains environment-blocked and was not claimed as passed.
+- The next non-environmental serial lane is `17X`, which targets the first representative app route still returning `not_implemented`: `app.listDocuments`.
+

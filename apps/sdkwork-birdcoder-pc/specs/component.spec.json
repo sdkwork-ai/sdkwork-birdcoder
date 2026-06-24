@@ -103,7 +103,10 @@
       "package.json#scripts.build",
       "package.json#scripts.tauri:dev"
     ],
-    "sdkClients": [],
+    "sdkClients": [
+      "@sdkwork/birdcoder-app-sdk",
+      "@sdkwork/appbase-app-sdk"
+    ],
     "sdkDependencies": [],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
@@ -113,7 +116,8 @@
   },
   "verification": {
     "commands": [
-      "pnpm typecheck"
+      "pnpm typecheck",
+      "pnpm run check:auth-session-standard"
     ]
   }
 }

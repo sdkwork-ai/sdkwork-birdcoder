@@ -49,12 +49,6 @@ export {
   type BirdCoderH5AppSdkClient,
 } from './sdk/appSdkClient.ts';
 export {
-  BIRDCODER_AUTH_BASE_PATH,
-  createBirdCoderAuthRouteCatalog,
-  createBirdCoderH5RouteCatalog,
-  type BirdCoderH5RouteDefinition,
-} from './routes/routeCatalog.ts';
-export {
   createDefaultHostAdapters,
   createHostAdapters,
   type HostAdapters,

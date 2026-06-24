@@ -67,6 +67,7 @@ const crates = [
       ['Get', 'PROJECT_COLLABORATORS_PATH', 'projects', 'projects.collaborators.list', 'dual_token'],
       ['Post', 'PROJECT_COLLABORATORS_PATH', 'projects', 'projects.collaborators.upsert', 'dual_token'],
       ['Get', 'DEPLOYMENTS_PATH', 'deployments', 'deployments.list', 'dual_token'],
+      ['Get', 'PROJECT_DEPLOYMENT_TARGETS_PATH', 'projects', 'projects.deploymentTargets.list', 'dual_token'],
       ['Post', 'PROJECT_PUBLISH_PATH', 'projects', 'projects.publish.create', 'dual_token'],
     ],
   },

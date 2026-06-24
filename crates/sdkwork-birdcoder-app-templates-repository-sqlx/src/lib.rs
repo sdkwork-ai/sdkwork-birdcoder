@@ -1,15 +1,15 @@
-use sqlx::{Row, SqlitePool};
+use sqlx::{AnyPool, Row};
 
 use sdkwork_birdcoder_app_templates_service::domain::models::AppTemplatePayload;
 use sdkwork_birdcoder_app_templates_service::service::app_template_service::AppTemplateRepository;
 
 #[derive(Clone)]
 pub struct SqliteAppTemplateRepository {
-    pool: SqlitePool,
+    pool: AnyPool,
 }
 
 impl SqliteAppTemplateRepository {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: AnyPool) -> Self {
         Self { pool }
     }
 }
@@ -120,7 +120,7 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
     }
 }
 
-async fn list_target_profiles(pool: &SqlitePool, version_id: &str) -> Result<Vec<String>, String> {
+async fn list_target_profiles(pool: &AnyPool, version_id: &str) -> Result<Vec<String>, String> {
     let rows = sqlx::query(
         r#"
         SELECT profile_key
@@ -140,7 +140,7 @@ async fn list_target_profiles(pool: &SqlitePool, version_id: &str) -> Result<Vec
         .collect()
 }
 
-fn map_template_row(row: sqlx::sqlite::SqliteRow, target_profiles: Vec<String>) -> Result<AppTemplatePayload, String> {
+fn map_template_row(row: sqlx::any::AnyRow, target_profiles: Vec<String>) -> Result<AppTemplatePayload, String> {
     Ok(AppTemplatePayload {
         id: row.try_get("id").map_err(|error| error.to_string())?,
         uuid: row.try_get("uuid").ok(),

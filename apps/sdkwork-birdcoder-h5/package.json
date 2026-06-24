@@ -10,7 +10,8 @@
     "@sdkwork/birdcoder-h5-core": "workspace:*",
     "@sdkwork/birdcoder-h5-shell": "workspace:*",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "react-router-dom": "catalog:"
   },
   "devDependencies": {
     "@capacitor/cli": "catalog:",
@@ -29,8 +30,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "test": "vitest",
-    "cap:sync": "cap sync",
-    "cap:copy": "cap copy",
+    "cap:sync": "pnpm --filter @sdkwork/birdcoder-h5-capacitor cap:sync",
+    "cap:copy": "pnpm --filter @sdkwork/birdcoder-h5-capacitor cap:copy",
     "cap:ios:build": "cap sync && cap copy ios && cap open ios",
     "cap:ios:build:prod": "tsc && vite build --mode production && cap sync && cap copy ios",
     "cap:android:build": "cap sync && cap copy android && cap open android",

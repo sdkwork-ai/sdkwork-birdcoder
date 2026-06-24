@@ -350,21 +350,12 @@ export function TemplatesPage({
       </div>
 
       <div className="border-t border-white/10 px-6 py-4">
-        <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-white">Need a custom starter?</h2>
-            <p className="text-sm text-gray-400">
-              Template publishing stays server-managed; the current desktop surface is read and instantiate only.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => addToast('Template publishing is not implemented yet.', 'info')}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-gray-200 transition hover:bg-white/10"
-          >
-            <Plus size={14} />
-            Publish Template
-          </button>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-4">
+          <h2 className="text-sm font-semibold text-white">Publishing templates</h2>
+          <p className="mt-1 text-sm text-gray-400">
+            Template catalog entries are managed by the server administrator through the backend
+            governance surface. Desktop users can browse and instantiate published templates here.
+          </p>
         </div>
       </div>
     </div>

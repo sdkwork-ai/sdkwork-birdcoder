@@ -82,6 +82,10 @@
     "./services/sdkClients": {
       "import": "./src/services/sdkClients.ts",
       "types": "./src/services/sdkClients.ts"
+    },
+    "./bootstrap/appSessionPersistenceBinding": {
+      "import": "./src/bootstrap/appSessionPersistenceBinding.ts",
+      "types": "./src/bootstrap/appSessionPersistenceBinding.ts"
     }
   },
   "dependencies": {

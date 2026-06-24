@@ -4,9 +4,16 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./routes": "./src/routes/appRouteContributions.ts",
+    "./screens/ChatPage": "./src/screens/ChatPage.tsx",
+    "./screens/SettingsPage": "./src/screens/SettingsPage.tsx"
   },
   "dependencies": {
-    "@sdkwork/birdcoder-chat-contracts": "workspace:*"
+    "@sdkwork/birdcoder-chat-contracts": "workspace:*",
+    "@sdkwork/birdcoder-h5-commons": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "catalog:"
   }
 }

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const appRootSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/AppRoot.tsx', import.meta.url),
@@ -13,10 +14,7 @@ const authGateSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/AuthGate.tsx', import.meta.url),
   'utf8',
 );
-const birdcoderAppSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx', import.meta.url),
-  'utf8',
-);
+const birdcoderAppSource = readBirdcoderAppShellSource();
 const iamRuntimeSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts', import.meta.url),
   'utf8',
@@ -62,8 +60,13 @@ assert.match(
 
 assert.match(
   authGateSource,
+  /requiresAuthenticatedProductAccess/u,
+  'AuthGate must enforce authenticated product access outside local deployment mode.',
+);
+assert.match(
+  authGateSource,
   /shouldBootIntoAuthSurface\(\)/u,
-  'AuthGate must render the IAM auth surface for direct /auth entry without blocking guest routes.',
+  'AuthGate must render the IAM auth surface for direct /auth entry.',
 );
 assert.match(
   authGateSource,

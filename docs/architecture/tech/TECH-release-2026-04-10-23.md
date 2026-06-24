@@ -1,0 +1,35 @@
+> Migrated from `docs/release/release-2026-04-10-23.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Promotes the first representative real app/backend Rust `coding-server` handlers from placeholder behavior to runtime-backed list reads.
+- Makes `/app/v3/api/projects` return project summaries from the active app state, including the shared desktop `kv_store` SQLite authority path when `BIRDCODER_CODING_SERVER_SQLITE_FILE` is configured.
+- Makes `/backend/v3/api/teams` return team summaries from the same runtime authority path and shared list-envelope contract.
+- Extends the shared type authority standard with `workspace`, `project`, and `team` storage bindings so representative app/backend reads follow the same documented keying model as app-runtime projection resources.
+
+## Scope
+
+- [data.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-types/src/data.ts)
+- [lib.rs](/<workspace-root>/sdkwork-birdcoder/crates/sdkwork-birdcoder-api-server/src/lib.rs)
+- [17-Coding-Server-App-Backend-SDK与控制台实现.md](/<workspace-root>/sdkwork-birdcoder/docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md)
+- [20-统一Rust-Coding-Server-API-协议标准.md](/<workspace-root>/sdkwork-birdcoder/docs/架构/20-统一Rust-Coding-Server-API-协议标准.md)
+- [反复执行Step指令.md](/<workspace-root>/sdkwork-birdcoder/docs/prompts/反复执行Step指令.md)
+
+## Verification
+
+- `cargo test --offline --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
+- `cargo test --offline --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
+- `cargo test --offline --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_routes_return_unified_problem_envelopes`
+- `cargo test --offline --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+- `pnpm.cmd run check:server`
+- `pnpm.cmd run typecheck`
+- `pnpm.cmd run docs:build`
+- `node -e "JSON.parse(require('node:fs').readFileSync('docs/release/releases.json','utf8'))"`
+
+## Notes
+
+- This loop closes the first real app/backend handler pair but does not yet claim direct provider/UoW authority.
+- Snapshot input remains fallback-only.
+- The next serial Step 17 slice is `/app/v3/api/teams` plus `/backend/v3/api/releases`, then direct provider/UoW authority without env-file bootstrap.
+

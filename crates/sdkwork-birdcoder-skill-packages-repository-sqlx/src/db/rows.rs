@@ -17,7 +17,7 @@ pub struct SkillPackageRow {
 }
 
 impl SkillPackageRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -52,7 +52,7 @@ pub struct SkillVersionRow {
 }
 
 impl SkillVersionRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -87,7 +87,7 @@ pub struct SkillCapabilityRow {
 }
 
 impl SkillCapabilityRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -123,7 +123,7 @@ pub struct SkillInstallationRow {
 }
 
 impl SkillInstallationRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,

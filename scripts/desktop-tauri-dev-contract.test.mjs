@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const rootDir = process.cwd();
 const rootPackageJsonPath = path.join(rootDir, 'package.json');
@@ -107,19 +108,8 @@ const tauriRustToolchainScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri
 const tauriDevPortGuardScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri-dev-port-free.mjs');
 const tauriCliRunnerScriptPath = path.join(rootDir, 'scripts', 'run-tauri-cli.mjs');
 const tauriTargetCleanScriptPath = path.join(rootDir, 'scripts', 'ensure-tauri-target-clean.mjs');
+
 const workspacePackageScriptRunnerPath = path.join(rootDir, 'scripts', 'run-workspace-package-script.mjs');
-const appSourcePath = path.join(
-  rootDir,
-  'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
-  'sdkwork-birdcoder-pc-shell',
-  'src',
-  'application',
-  'app',
-  'BirdcoderApp.tsx',
-);
 const appWorkspaceMenuSourcePath = path.join(
   rootDir,
   'apps',
@@ -191,7 +181,7 @@ const desktopTauriHostFileSystemSource = fs.readFileSync(
 );
 const desktopViteConfigSource = fs.readFileSync(desktopViteConfigPath, 'utf8');
 const desktopViteHostSource = fs.readFileSync(desktopViteHostPath, 'utf8');
-const appSource = fs.readFileSync(appSourcePath, 'utf8');
+const appSource = readBirdcoderAppShellSource(rootDir);
 const appWorkspaceMenuSource = fs.readFileSync(appWorkspaceMenuSourcePath, 'utf8');
 const codeTopBarSource = fs.readFileSync(codeTopBarPath, 'utf8');
 const desktopIndexHtmlSource = fs.readFileSync(desktopIndexHtmlPath, 'utf8');

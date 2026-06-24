@@ -13,6 +13,7 @@ export default defineLocaleModule('settings/extra', {
       worktree: 'Worktree',
       archivedSessions: 'Archived Sessions',
       skills: 'Skills',
+      legal: 'Legal & privacy',
       unavailable: '{{tab}} settings not available...',
     },
     appearance: {

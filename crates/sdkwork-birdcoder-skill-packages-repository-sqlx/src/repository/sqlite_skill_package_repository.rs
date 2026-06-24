@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 use time::format_description::well_known::Iso8601;
 use uuid::Uuid;
 
@@ -12,11 +12,11 @@ use crate::repository::skill_package_repository;
 
 #[derive(Clone)]
 pub struct SqliteSkillPackageRepository {
-    pool: SqlitePool,
+    pool: AnyPool,
 }
 
 impl SqliteSkillPackageRepository {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: AnyPool) -> Self {
         Self { pool }
     }
 

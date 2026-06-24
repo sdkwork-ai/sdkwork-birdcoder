@@ -1,6 +1,17 @@
-import { Suspense, lazy, useMemo, type ReactNode } from 'react';
+import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react';
 import { useAuth } from '@sdkwork/birdcoder-pc-commons';
-import { shouldBootIntoAuthSurface } from './authSurface.ts';
+import {
+  buildProtectedRouteLoginPath,
+  requiresAuthenticatedProductAccess,
+} from './authAccessPolicy.ts';
+import {
+  AUTH_SURFACE_DEFAULT_ROUTE,
+  isAuthSurfaceLocationPath,
+  normalizeAuthSurfaceLocationPath,
+  readAuthSurfaceHashPath,
+  replaceAuthSurfaceHashPath,
+  shouldBootIntoAuthSurface,
+} from './authSurface.ts';
 import { AuthShell } from './AuthShell.tsx';
 import { loadAuthPage, type LoadBirdCoderAuthPageOptions } from './pageLoaders.ts';
 
@@ -20,25 +31,77 @@ function AuthGateLoadingState() {
   );
 }
 
-export function AuthGate({ children, getRuntime }: AuthGateProps) {
-  const { isLoading, user } = useAuth();
+function readCurrentProtectedRouteTarget(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  const hashPath = readAuthSurfaceHashPath();
+  if (hashPath && !isAuthSurfaceLocationPath(hashPath)) {
+    return hashPath;
+  }
+
+  const pathname = normalizeAuthSurfaceLocationPath(window.location.pathname);
+  if (pathname && !isAuthSurfaceLocationPath(pathname)) {
+    return `${pathname}${window.location.search}`;
+  }
+
+  return '';
+}
+
+function AuthGateAuthSurface({ getRuntime }: Pick<AuthGateProps, 'getRuntime'>) {
   const LazyAuthPage = useMemo(
     () => lazy(() => loadAuthPage({ getRuntime })),
     [getRuntime],
   );
 
+  return (
+    <AuthShell>
+      <Suspense fallback={<AuthGateLoadingState />}>
+        <LazyAuthPage />
+      </Suspense>
+    </AuthShell>
+  );
+}
+
+export function AuthGate({ children, getRuntime }: AuthGateProps) {
+  const { isLoading, user } = useAuth();
+  const onAuthSurface = shouldBootIntoAuthSurface();
+  const productAccessRequiresAuth = requiresAuthenticatedProductAccess();
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || isLoading || !user || !onAuthSurface) {
+      return;
+    }
+
+    replaceAuthSurfaceHashPath(null);
+  }, [isLoading, onAuthSurface, user]);
+
+  useEffect(() => {
+    if (
+      typeof window === 'undefined'
+      || isLoading
+      || user
+      || !productAccessRequiresAuth
+      || onAuthSurface
+    ) {
+      return;
+    }
+
+    const loginPath = buildProtectedRouteLoginPath(readCurrentProtectedRouteTarget());
+    replaceAuthSurfaceHashPath(loginPath);
+  }, [isLoading, onAuthSurface, productAccessRequiresAuth, user]);
+
   if (isLoading) {
     return <AuthGateLoadingState />;
   }
 
-  if (!user && shouldBootIntoAuthSurface()) {
-    return (
-      <AuthShell>
-        <Suspense fallback={<AuthGateLoadingState />}>
-          <LazyAuthPage />
-        </Suspense>
-      </AuthShell>
-    );
+  if (!user && (onAuthSurface || productAccessRequiresAuth)) {
+    return <AuthGateAuthSurface getRuntime={getRuntime} />;
+  }
+
+  if (user && onAuthSurface) {
+    return <AuthGateLoadingState />;
   }
 
   return <>{children}</>;

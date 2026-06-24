@@ -1,192 +1,252 @@
 {
-    "schemaVersion":  2,
-    "kind":  "sdkwork.app.topology",
-    "appId":  "sdkwork-birdcoder",
-    "archetype":  "application-http-gateway",
-    "profileRoot":  "configs/topology",
-    "profilePattern":  "{hosting}.{serviceLayout}.{environment}.env",
-    "vocabulary":  {
-                       "hosting":  {
-                                       "allowed":  [
-                                                       "self-hosted",
-                                                       "cloud-hosted"
-                                                   ]
-                                   },
-                       "serviceLayout":  {
-                                             "allowed":  [
-                                                             "unified-process",
-                                                             "split-services"
-                                                         ]
-                                         },
-                       "environment":  {
-                                           "allowed":  [
-                                                           "development",
-                                                           "production"
-                                                       ]
-                                       },
-                       "connectivityPlane":  {
-                                                 "allowed":  [
-                                                                 "application",
-                                                                 "platform"
-                                                             ]
-                                             }
-                   },
-    "defaults":  {
-                     "developmentProfileId":  "self-hosted.split-services.development",
-                     "productionProfileId":  "cloud-hosted.split-services.production",
-                     "desktopBuildProfileId":  "cloud-hosted.split-services.production",
-                     "gatewayBind":  "127.0.0.1:3900"
-                 },
-    "profileFiles":  {
-                         "self-hosted.split-services.development":  "configs/topology/self-hosted.split-services.development.env",
-                         "self-hosted.unified-process.development":  "configs/topology/self-hosted.unified-process.development.env",
-                         "self-hosted.split-services.production":  "configs/topology/self-hosted.split-services.production.env",
-                         "cloud-hosted.split-services.development":  "configs/topology/cloud-hosted.split-services.development.env",
-                         "cloud-hosted.split-services.production":  "configs/topology/cloud-hosted.split-services.production.env"
-                     },
-    "envKeys":  {
-                    "hosting":  "SDKWORK_BIRDCODER_HOSTING",
-                    "serviceLayout":  "SDKWORK_BIRDCODER_SERVICE_LAYOUT",
-                    "environment":  "SDKWORK_BIRDCODER_ENVIRONMENT",
-                    "profileId":  "SDKWORK_BIRDCODER_PROFILE_ID",
-                    "clientHosting":  "VITE_SDKWORK_BIRDCODER_HOSTING",
-                    "gatewayAutostart":  "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART",
-                    "cloudGatewayBind":  "SDKWORK_API_GATEWAY_BIND",
-                    "apiGatewayBaseUrl":  "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
-                    "clientApiGatewayBaseUrl":  "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL"
-                },
-    "surfaces":  {
-                     "application.public-ingress":  {
-                                                        "connectivityPlane":  "application",
-                                                        "protocols":  [
-                                                                          "http"
-                                                                      ],
-                                                        "bindEnv":  "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_INGRESS_BIND",
-                                                        "httpUrlEnv":  "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
-                                                        "clientHttpEnv":  "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL"
-                                                    },
-                     "platform.api-gateway":  {
-                                                  "connectivityPlane":  "platform",
-                                                  "protocols":  [
-                                                                    "http"
-                                                                ],
-                                                  "owner":  "sdkwork-api-gateway",
-                                                  "bindEnv":  "SDKWORK_API_GATEWAY_BIND",
-                                                  "httpUrlEnv":  "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
-                                                  "clientHttpEnv":  "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
-                                                  "autostartEnv":  "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART"
-                                              }
-                 },
-    "cloudPublicHosts":  {
-                             "application.public-ingress":  {
-                                                                "httpHost":  "birdcoder.sdkwork.com"
-                                                            },
-                             "platform.api-gateway":  {
-                                                          "httpHost":  "api.sdkwork.com"
-                                                      }
-                         },
-    "database":  {
-                     "appPrefix":  "SDKWORK_BIRDCODER"
-                 },
-    "components":  {
-                       "applicationServer":  {
-                                                 "crate":  "sdkwork-birdcoder-api-server",
-                                                 "binary":  "sdkwork-birdcoder-api-server"
-                                             },
-                       "cloudGateway":  {
-                                            "crate":  "sdkwork-api-gateway-api-server",
-                                            "binary":  "sdkwork-api-gateway",
-                                            "repository":  "sdkwork-api-gateway"
-                                        }
-                   },
-    "orchestration":  {
-                          "profiles":  {
-                                           "self-hosted.split-services.development":  {
-                                                                                          "processes":  [
-                                                                                                            {
-                                                                                                                "id":  "application.public-ingress",
-                                                                                                                "package":  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server",
-                                                                                                                "script":  "dev:base",
-                                                                                                                "required":  true
-                                                                                                            },
-                                                                                                            {
-                                                                                                                "id":  "pc-web-renderer",
-                                                                                                                "package":  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
-                                                                                                                "script":  "dev:base",
-                                                                                                                "required":  false
-                                                                                                            },
-                                                                                                            {
-                                                                                                                "id":  "pc-desktop-renderer",
-                                                                                                                "package":  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
-                                                                                                                "script":  "tauri:dev:base",
-                                                                                                                "required":  false
-                                                                                                            }
-                                                                                                        ],
-                                                                                          "healthSurfaces":  [
-                                                                                                                 "application.public-ingress"
-                                                                                                             ]
-                                                                                      },
-                                           "self-hosted.unified-process.development":  {
-                                                                                           "processes":  [
-                                                                                                             {
-                                                                                                                 "id":  "pc-desktop-renderer",
-                                                                                                                 "package":  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
-                                                                                                                 "script":  "tauri:dev:base",
-                                                                                                                 "required":  true
-                                                                                                             }
-                                                                                                         ],
-                                                                                           "healthSurfaces":  [
-
-                                                                                                              ]
-                                                                                       },
-                                           "cloud-hosted.split-services.development":  {
-                                                                                           "processes":  [
-                                                                                                             {
-                                                                                                                 "id":  "platform.api-gateway",
-                                                                                                                 "binary":  "sdkwork-api-gateway",
-                                                                                                                 "repository":  "sdkwork-api-gateway",
-                                                                                                                 "required":  false
-                                                                                                             },
-                                                                                                             {
-                                                                                                                 "id":  "application.public-ingress",
-                                                                                                                 "package":  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server",
-                                                                                                                 "script":  "dev:base",
-                                                                                                                 "required":  true
-                                                                                                             },
-                                                                                                             {
-                                                                                                                 "id":  "pc-web-renderer",
-                                                                                                                 "package":  "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
-                                                                                                                 "script":  "dev:base",
-                                                                                                                 "required":  false
-                                                                                                             }
-                                                                                                         ],
-                                                                                           "healthSurfaces":  [
-                                                                                                                  "application.public-ingress"
-                                                                                                              ]
-                                                                                       }
-                                       }
-                      },
-    "scripts":  {
-                    "birdcoderDev":  "scripts/birdcoder-dev.mjs"
-                },
-    "retired":  {
-                    "vocabulary":  {
-                                       "topology":  [
-                                                        "standalone",
-                                                        "cloud"
-                                                    ],
-                                       "profile":  [
-                                                       "development",
-                                                       "production"
-                                                   ]
-                                   },
-                    "envKeys":  [
-                                    "SDKWORK_BIRDCODER_TOPOLOGY",
-                                    "VITE_BIRDCODER_TOPOLOGY",
-                                    "VITE_BIRDCODER_TOPOLOGY"
-                                ],
-                    "cliFlags":  [
-                                     "--topology"
-                                 ]
-                }
+  "schemaVersion": 2,
+  "kind": "sdkwork.app.topology",
+  "appId": "sdkwork-birdcoder",
+  "archetype": "application-http-gateway",
+  "profileRoot": "configs/topology",
+  "profilePattern": "{deploymentProfile}.{serviceLayout}.{environment}.env",
+  "vocabulary": {
+    "serviceLayout": {
+      "allowed": [
+        "unified-process",
+        "split-services"
+      ]
+    },
+    "environment": {
+      "allowed": [
+        "development",
+        "production"
+      ]
+    },
+    "connectivityPlane": {
+      "allowed": [
+        "application",
+        "platform"
+      ]
+    },
+    "deploymentProfile": {
+      "allowed": [
+        "standalone",
+        "cloud"
+      ]
+    }
+  },
+  "defaults": {
+    "developmentProfileId": "standalone.split-services.development",
+    "productionProfileId": "cloud.split-services.production",
+    "desktopBuildProfileId": "cloud.split-services.production",
+    "gatewayBind": "127.0.0.1:3900"
+  },
+  "profileFiles": {
+    "standalone.split-services.development": "configs/topology/standalone.split-services.development.env",
+    "standalone.unified-process.development": "configs/topology/standalone.unified-process.development.env",
+    "standalone.split-services.production": "configs/topology/standalone.split-services.production.env",
+    "cloud.split-services.development": "configs/topology/cloud.split-services.development.env",
+    "cloud.split-services.production": "configs/topology/cloud.split-services.production.env",
+    "standalone.unified-process.production": "configs/topology/standalone.unified-process.production.env"
+  },
+  "envKeys": {
+    "serviceLayout": "SDKWORK_BIRDCODER_SERVICE_LAYOUT",
+    "environment": "SDKWORK_BIRDCODER_ENVIRONMENT",
+    "profileId": "SDKWORK_BIRDCODER_PROFILE_ID",
+    "gatewayAutostart": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART",
+    "cloudGatewayBind": "SDKWORK_API_CLOUD_GATEWAY_BIND",
+    "apiGatewayBaseUrl": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+    "clientApiGatewayBaseUrl": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+    "deploymentProfile": "SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE",
+    "clientDeploymentProfile": "VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE"
+  },
+  "surfaces": {
+    "application.public-ingress": {
+      "connectivityPlane": "application",
+      "protocols": [
+        "http"
+      ],
+      "bindEnv": "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_INGRESS_BIND",
+      "httpUrlEnv": "SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL",
+      "clientHttpEnv": "VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL"
+    },
+    "platform.api-gateway": {
+      "connectivityPlane": "platform",
+      "protocols": [
+        "http"
+      ],
+      "owner": "sdkwork-api-cloud-gateway",
+      "bindEnv": "SDKWORK_API_CLOUD_GATEWAY_BIND",
+      "httpUrlEnv": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+      "clientHttpEnv": "VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL",
+      "autostartEnv": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART"
+    }
+  },
+  "cloudPublicHosts": {
+    "application.public-ingress": {
+      "httpHost": "birdcoder.sdkwork.com"
+    },
+    "platform.api-gateway": {
+      "httpHost": "api.sdkwork.com"
+    }
+  },
+  "database": {
+    "appPrefix": "SDKWORK_BIRDCODER"
+  },
+  "components": {
+    "applicationServer": {
+      "crate": "sdkwork-birdcoder-api-server",
+      "binary": "sdkwork-birdcoder-api-server"
+    },
+    "cloudGateway": {
+      "crate": "sdkwork-api-cloud-gateway-api-server",
+      "binary": "sdkwork-api-cloud-gateway",
+      "repository": "sdkwork-api-cloud-gateway"
+    }
+  },
+  "orchestration": {
+    "profiles": {
+      "standalone.split-services.development": {
+        "processes": [
+          {
+            "id": "application.public-ingress",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server",
+            "script": "dev:base",
+            "required": true
+          },
+          {
+            "id": "pc-web-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
+            "script": "dev:base",
+            "required": false
+          },
+          {
+            "id": "pc-desktop-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "script": "tauri:dev:base",
+            "required": false
+          }
+        ],
+        "healthSurfaces": [
+          "application.public-ingress"
+        ]
+      },
+      "standalone.unified-process.development": {
+        "processes": [
+          {
+            "id": "pc-desktop-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "script": "tauri:dev:base",
+            "required": true
+          }
+        ],
+        "healthSurfaces": []
+      },
+      "cloud.split-services.development": {
+        "processes": [
+          {
+            "id": "platform.api-gateway",
+            "binary": "sdkwork-api-cloud-gateway",
+            "repository": "sdkwork-api-cloud-gateway",
+            "required": false
+          },
+          {
+            "id": "application.public-ingress",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server",
+            "script": "dev:base",
+            "required": true
+          },
+          {
+            "id": "pc-web-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
+            "script": "dev:base",
+            "required": false
+          }
+        ],
+        "healthSurfaces": [
+          "application.public-ingress"
+        ]
+      },
+      "cloud.split-services.production": {
+        "processes": [
+          {
+            "id": "platform.api-gateway",
+            "crate": "sdkwork-api-cloud-gateway-api-server",
+            "binary": "sdkwork-api-cloud-gateway",
+            "repository": "sdkwork-api-cloud-gateway",
+            "required": false
+          },
+          {
+            "id": "application.public-ingress",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server",
+            "script": "dev:base",
+            "required": true
+          },
+          {
+            "id": "pc-web-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
+            "script": "dev:base",
+            "required": false
+          },
+          {
+            "id": "pc-desktop-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "script": "tauri:dev:base",
+            "required": false
+          }
+        ],
+        "healthSurfaces": [
+          "application.public-ingress",
+          "platform.api-gateway"
+        ]
+      }
+    }
+  },
+  "scripts": {
+    "birdcoderDev": "scripts/birdcoder-dev.mjs"
+  },
+  "retired": {
+    "vocabulary": {
+      "topology": [
+        "standalone",
+        "cloud"
+      ],
+      "profile": [
+        "development",
+        "production"
+      ],
+      "hosting": [
+        "self-hosted",
+        "cloud-hosted"
+      ]
+    },
+    "envKeys": [
+      "SDKWORK_BIRDCODER_TOPOLOGY",
+      "VITE_BIRDCODER_TOPOLOGY",
+      "VITE_BIRDCODER_TOPOLOGY",
+      "SDKWORK_BIRDCODER_HOSTING",
+      "VITE_SDKWORK_BIRDCODER_HOSTING"
+    ],
+    "cliFlags": [
+      "--topology"
+    ]
+  },
+  "packaging": {
+    "cloudConfigFiles": [
+      "sdkwork-api-cloud-gateway.birdcoder.development.toml",
+      "sdkwork-api-cloud-gateway.birdcoder.production.toml"
+    ],
+    "targets": [
+      {
+        "id": "container-noarch-cloud-container-config-bundle-tar-gz",
+        "profile": "container",
+        "platform": "container",
+        "architecture": "noarch",
+        "formats": [
+          "tar.gz"
+        ],
+        "runner": "ubuntu-24.04",
+        "outputGlob": "dist/cloud-config/sdkwork-birdcoder-api-gateway-config-*.tar.gz",
+        "deploymentProfile": "cloud",
+        "runtimeTarget": "container",
+        "variant": "config-bundle"
+      }
+    ]
+  }
 }

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const modulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/localFolderProjectWorkspace.ts',
@@ -8,10 +9,6 @@ const codeLocalFolderImportHookPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
   import.meta.url,
 );
-const appShellPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx',
-  import.meta.url,
-);
 
 const { resolveLocalFolderImportWorkspaceId } = await import(
   `${modulePath.href}?t=${Date.now()}`,
@@ -19,9 +16,9 @@ const { resolveLocalFolderImportWorkspaceId } = await import(
 
 const { readFileSync } = await import('node:fs');
 
+const appShellSource = readBirdcoderAppShellSource();
 const localFolderWorkspaceSource = readFileSync(modulePath, 'utf8');
 const codeLocalFolderImportHookSource = readFileSync(codeLocalFolderImportHookPath, 'utf8');
-const appShellSource = readFileSync(appShellPath, 'utf8');
 
 const immediateWorkspaceId = await resolveLocalFolderImportWorkspaceId({
   createWorkspace: async () => {

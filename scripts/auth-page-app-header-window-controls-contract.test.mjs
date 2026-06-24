@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const rootDir = process.cwd();
 const authPagePath = path.join(
@@ -15,21 +16,7 @@ const authPagePath = path.join(
   'pages',
   'AuthPage.tsx',
 );
-const shellAppPath = path.join(
-  rootDir,
-  'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
-  'sdkwork-birdcoder-pc-shell',
-  'src',
-  'application',
-  'app',
-  'BirdcoderApp.tsx',
-);
-
-const authPageSource = fs.readFileSync(authPagePath, 'utf8');
-const shellAppSource = fs.readFileSync(shellAppPath, 'utf8');
+const shellAppSource = readBirdcoderAppShellSource(rootDir);
 
 assert.match(
   authPageSource,

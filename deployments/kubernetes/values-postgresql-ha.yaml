@@ -1,0 +1,28 @@
+# PostgreSQL HA overlay for BirdCoder API server.
+# Apply on top of values.yaml after PostgreSQL is provisioned and baseline DDL is applied.
+#
+# Example:
+#   helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
+#     -f deployments/kubernetes/values.yaml \
+#     -f deployments/kubernetes/values-postgresql-ha.yaml \
+#     --set database.url='postgres://birdcoder:SECRET@postgresql:5432/birdcoder' \
+#     --set auth.managePassword='SECRET'
+
+replicaCount: 3
+
+database:
+  engine: postgresql
+  # Provide the connection URL via --set or an external secret manager integration.
+  url: ""
+
+persistence:
+  enabled: false
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

@@ -1,21 +1,8 @@
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const appPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx', import.meta.url);
-const topMenuPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/TopMenu.tsx',
-  import.meta.url,
-);
-const appWorkspaceMenuPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/AppWorkspaceMenu.tsx',
-  import.meta.url,
-);
-const headerLoadingPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/HeaderLoadingStatus.tsx',
-  import.meta.url,
-);
-
-const appSource = fs.readFileSync(appPath, 'utf8');
+const appSource = readBirdcoderAppShellSource();
 const topMenuSource = fs.readFileSync(topMenuPath, 'utf8');
 const appWorkspaceMenuSource = fs.readFileSync(appWorkspaceMenuPath, 'utf8');
 const headerLoadingSource = fs.readFileSync(headerLoadingPath, 'utf8');

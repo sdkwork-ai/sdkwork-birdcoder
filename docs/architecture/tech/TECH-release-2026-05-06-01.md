@@ -1,0 +1,225 @@
+> Migrated from `docs/release/release-2026-05-06-01.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Publishes the first GitHub-backed BirdCoder release from the current `main` branch after confirming that no earlier GitHub Release or release tag exists for this repository.
+- Carries forward the unpublished release chain through `release-2026-04-28-01`, including the pending history from the 2026-04-08, 2026-04-09, 2026-04-10, 2026-04-11, 2026-04-12, 2026-04-13, 2026-04-14, 2026-04-15, and 2026-04-28 release notes.
+- Hardens BirdCoder runtime activity surfaces across Code, Studio, Shell, Settings, Identity, Terminal, project/session inventory, transcript loading, file search, provider-backed persistence, and release governance.
+- Preserves the multi-window programming standard from `release-2026-04-28-01` while syncing the lockfile importer for the current workspace package layout.
+- Remediates the active problem list by tightening provider adapters, official SDK runtime selection, CLI fallback contracts, user storage, draft persistence, terminal runtime handling, and problem-list governance.
+- Removes retired compatibility surfaces including the retired VIP route option, Codex compatibility debt, and the unused Tauri dialog permission path.
+- Flattens chat inline change display so Universal Chat activity summaries and task progress render against governed transcript behavior without nested, duplicated presentation.
+- Adds a browser QRCode alias shim and contract so Vite development and production resolution use the browser-safe QRCode entry consistently.
+- Confirms shared SDK release dependency mode still uses GitHub-backed sources in release while local development keeps sibling repository links.
+- Switches GitHub Actions shared SDK materialization to passwordless SSH for private sibling repositories, while keeping the release source registry on GitHub URLs and keeping token-based HTTPS as an explicit fallback path.
+- Aligns the independent `sdkwork-ui` repository for git dependency installs by correcting published type entry paths and narrowing timeline status alias typing before this BirdCoder release.
+- Fixes the first GitHub Actions release verification failure by tracking Studio build source modules, adding explicit Terminal model subpath aliases, restoring the React 19 `JSX.Element` compatibility declaration required by sibling SDK source, adding the shared UI `react-hook-form` peer, and aligning CI/release Rust tooling with the governed Tauri toolchain.
+- Fixes the second GitHub Actions release verification failure by resolving shared appbase router aliases from managed git-mode dependency bridges when the cloned `sdkwork-appbase` repository has no root `node_modules` install.
+- Fixes the third GitHub Actions release verification failure by governing React Router 7.14.2 `"use client"` Rollup directive noise when clean Linux release builds resolve `react-router` or `react-router-dom` from the root pnpm store instead of the appbase bridge path.
+- Fixes the fourth GitHub Actions release verification failure by materializing generated product app SDK and `@sdkwork/sdk-common` source repositories from GitHub during release preparation, preserving local relative SDK paths while making clean Linux release clones independent of unpublished npm packages.
+- Fixes the fifth GitHub Actions release verification failure by making the Tauri Rust toolchain PATH guard honor injected filesystem probes consistently when release tests simulate Windows rustup paths on a Linux runner.
+- Fixes the sixth GitHub Actions release verification failure by making the Tauri CLI desktop SQLite fallback resolve paths with the requested target platform instead of the host OS path module.
+- Fixes the seventh GitHub Actions release verification failure by materializing internal `@sdkwork/terminal-*` workspace dependencies from the prepared `sdkwork-terminal` GitHub source repository into managed git-mode dependency bridges for clean Linux release clones.
+- Aligns CI and reusable release jobs with the Claw baseline by exposing checked-out POSIX `sdkwork-run-node` and `sdkwork-run-pnpm` command wrappers before pnpm lifecycle scripts run on Linux, macOS, or Git Bash based runners.
+- Fixes the eighth GitHub Actions release verification failure by making the provider-backed projection repository contract preserve whichever Codex transport the runtime actually selected, covering both local CLI JSONL fallback and clean Linux release environments where the official Codex SDK resolves as `sdk-stream`.
+- Fixes the ninth GitHub Actions release verification failure by updating the independent `sdkwork-terminal` shell source so React 19 consumers no longer compile shared terminal source through the legacy global `JSX.Element` namespace.
+- Hardens the local Claw parity contract so BirdCoder compares release workflow shape against the committed `claw-studio` `HEAD` baseline instead of any unrelated dirty sibling worktree state.
+- Follows the published `claw-studio` `release-2026-05-05-178` release SDK build baseline by pinning BirdCoder CI and reusable release Rust setup to `dtolnay/rust-toolchain@1.90.0` and adding CI/release contracts that reject drift back to `1.91.1`.
+- Fixes the tenth GitHub Actions release verification failure by making the Tauri dev binary unlock check contract simulate Windows PowerShell discovery through injected filesystem probes instead of requiring a real Windows PowerShell executable on Linux release runners.
+- Fixes the eleventh GitHub Actions release verification failure by making the release-flow runner contract use injected platform, Node executable, and shell environment values instead of mixing POSIX release simulation with the host process environment.
+- Fixes the twelfth GitHub Actions release verification failure by making the Claw release parity contract materialize the published `claw-studio` baseline from GitHub over SSH when a clean release runner has no adjacent sibling checkout.
+- Fixes the thirteenth GitHub Actions release verification failure by making the engine environment health contract use a PATHEXT-matching `codex.CMD` fixture so Linux release runners with case-sensitive filesystems can validate Windows command-shim discovery.
+- Fixes the fourteenth GitHub Actions release verification failure by making the server fake Codex CLI PATH guard split existing PATH entries before prepending the fixture directory, preventing Unix release runners from treating the full PATH value as one invalid entry.
+- Fixes the fifteenth GitHub Actions release workflow failure by enabling Windows Git long paths before checkout, normalizing public docs `404.html` and `search-index.json`, exporting the coding-server OpenAPI sidecar before server/container packaging, resolving the desktop Tauri runner from the package cwd, preserving `deploy/docker` inside container archives, and carrying pending desktop signing/trust evidence only for `canary`/`ring-1` releases while keeping formal/GA trust gates strict.
+- Fixes the sixteenth GitHub Actions release workflow failure by copying the Docker default profile from the packaged bundle-root context path, making Windows shared SDK SSH clones bypass runner URL rewrites with a real empty gitconfig file, packaging macOS Tauri `.app` bundle directories as `.app.tar.gz` release artifacts, installing Linux `xdg-open` support through `xdg-utils`, and pointing Rust cache steps at real server and desktop Cargo workspaces instead of the repository root.
+
+## Scope
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/release-reusable.yml`
+- `.github/workflows/release.yml`
+- `config/shared-sdk-release-sources.json`
+- `deploy/docker/Dockerfile`
+- `pnpm-lock.yaml`
+- `package.json`
+- `docs/.vitepress/searchIndexPolicy.ts`
+- `packages/sdkwork-birdcoder-auth`
+- `packages/sdkwork-birdcoder-chat`
+- `packages/sdkwork-birdcoder-chat-claude`
+- `packages/sdkwork-birdcoder-chat-codex`
+- `packages/sdkwork-birdcoder-chat-gemini`
+- `packages/sdkwork-birdcoder-chat-opencode`
+- `packages/sdkwork-birdcoder-code`
+- `packages/sdkwork-birdcoder-codeengine`
+- `packages/sdkwork-birdcoder-commons`
+- `packages/sdkwork-birdcoder-desktop`
+- `packages/sdkwork-birdcoder-i18n`
+- `packages/sdkwork-birdcoder-infrastructure`
+- `packages/sdkwork-birdcoder-multiwindow`
+- `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server`
+- `packages/sdkwork-birdcoder-settings`
+- `packages/sdkwork-birdcoder-shell`
+- `packages/sdkwork-birdcoder-shell-runtime`
+- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `packages/sdkwork-birdcoder-skills`
+- `packages/sdkwork-birdcoder-studio`
+- `packages/sdkwork-birdcoder-types`
+- `packages/sdkwork-birdcoder-ui`
+- `packages/sdkwork-birdcoder-ui-shell`
+- `packages/sdkwork-birdcoder-web`
+- `scripts`
+- `scripts/release`
+- `scripts/prepare-shared-sdk-git-sources.mjs`
+- `scripts/prepare-shared-sdk-git-sources.test.mjs`
+- `scripts/ci-flow-contract.test.mjs`
+- `scripts/release-flow-contract.test.mjs`
+- `scripts/release/package-release-assets.mjs`
+- `scripts/release/package-release-assets.test.mjs`
+- `scripts/release/preflight-desktop-signing-environment.mjs`
+- `scripts/release/preflight-desktop-signing-environment.test.mjs`
+- `scripts/release/verify-desktop-installer-trust.mjs`
+- `scripts/release/verify-desktop-installer-trust.test.mjs`
+- `scripts/claw-release-parity-baseline.mjs`
+- `scripts/claw-release-parity-baseline.test.mjs`
+- `scripts/claw-release-parity-contract.test.mjs`
+- `scripts/run-release-flow-check.mjs`
+- `scripts/run-release-flow-check.test.mjs`
+- `scripts/run-desktop-release-build.mjs`
+- `scripts/run-desktop-release-build.test.mjs`
+- `scripts/run-vitepress.mjs`
+- `scripts/run-vitepress.test.mjs`
+- `sdkwork-run-node`
+- `sdkwork-run-pnpm`
+- `scripts/runtime-symlink-dependency-resolution-contract.test.mjs`
+- `scripts/prepare-shared-sdk-packages.mjs`
+- `scripts/prepare-shared-sdk-packages.test.mjs`
+- `scripts/coding-server-provider-projection-repository-contract.test.ts`
+- `scripts/create-birdcoder-vite-plugins.mjs`
+- `scripts/ensure-tauri-rust-toolchain.mjs`
+- `scripts/ensure-tauri-rust-toolchain.test.mjs`
+- `scripts/run-tauri-cli.mjs`
+- `scripts/run-tauri-cli.test.mjs`
+- `scripts/run-desktop-vite-host.test.mjs`
+- `scripts/run-tauri-dev-binary-unlock-check.mjs`
+- `scripts/run-tauri-dev-binary-unlock-check.test.mjs`
+- `scripts/engine-environment-health-contract.test.ts`
+- `scripts/studio-build-evidence-store-contract.test.ts`
+- `scripts/studio-build-execution-contract.test.ts`
+- `scripts/vite-config-esm-contract.test.mjs`
+- `src/react-jsx-global-compat.d.ts`
+- `tsconfig.json`
+- `packages/sdkwork-birdcoder-studio/src/build`
+- `docs/core/release-and-deployment.md`
+- `docs/reference/commands.md`
+- `docs/reference/engine-sdk-integration.md`
+- `docs/release/release-2026-05-06-01.md`
+- `docs/release/releases.json`
+- Independent dependency repositories: `sdkwork-ui`, `sdkwork-terminal`
+
+## Verification
+
+- `pnpm.cmd install --frozen-lockfile`
+- `pnpm.cmd lint`
+- `pnpm.cmd run check:desktop`
+- `pnpm.cmd run check:server`
+- `pnpm.cmd run check:release-flow`
+- `pnpm.cmd run check:ci-flow`
+- `pnpm.cmd build`
+- `pnpm.cmd run server:build`
+- `pnpm.cmd run docs:build`
+- `pnpm.cmd run release:candidate:dry-run`
+- `node scripts/prepare-shared-sdk-git-sources.test.mjs`
+- `node scripts/prepare-shared-sdk-packages.test.mjs`
+- `node --experimental-strip-types scripts/studio-build-execution-contract.test.ts`
+- `node --experimental-strip-types scripts/studio-build-evidence-store-contract.test.ts`
+- `node scripts/vite-config-esm-contract.test.mjs`
+- `node scripts/rollup-warning-filter-contract.test.mjs`
+- `node scripts/runtime-symlink-dependency-resolution-contract.test.mjs`
+- `node scripts/run-desktop-vite-host.test.mjs`
+- `node scripts/run-tauri-dev-binary-unlock-check.test.mjs`
+- `node scripts/run-release-flow-check.test.mjs`
+- `node scripts/run-command-sequence.test.mjs`
+- `node scripts/claw-release-parity-baseline.test.mjs`
+- `node scripts/claw-release-parity-contract.test.mjs`
+- `node scripts/ensure-tauri-rust-toolchain.test.mjs`
+- `node scripts/ci-flow-contract.test.mjs`
+- `node scripts/release-flow-contract.test.mjs`
+- `node scripts/run-desktop-release-build.test.mjs`
+- `node scripts/run-vitepress.test.mjs`
+- `node scripts/release/package-release-assets.test.mjs`
+- `node scripts/release/preflight-desktop-signing-environment.test.mjs`
+- `node scripts/release/verify-desktop-installer-trust.test.mjs`
+- `node scripts/release/finalize-release-assets.test.mjs`
+- `node scripts/release/smoke-finalized-release-assets.test.mjs`
+- `node scripts/release/release-stop-ship-governance.test.mjs`
+- `node scripts/release/assert-release-readiness.test.mjs`
+- `node scripts/release/smoke-web-release-assets.test.mjs`
+- `node scripts/release/smoke-deployment-release-assets.test.mjs`
+- `node scripts/release/package-release-assets.mjs web --profile sdkwork-birdcoder --release-tag release-2026-05-06-01 --output-dir artifacts/release-web-smoke-local`
+- `node scripts/release/smoke-web-release-assets.mjs --release-assets-dir artifacts/release-web-smoke-local`
+- `node --experimental-strip-types scripts/engine-environment-health-contract.test.ts`
+- `node --experimental-strip-types scripts/coding-server-provider-projection-repository-contract.test.ts`
+- `node scripts/run-cargo.mjs test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml fake_codex_path_prepend_preserves_existing_path_entries`
+- `node scripts/run-cargo.mjs test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_turn_route_deduplicates_streamed_terminal_failure_events`
+- `node scripts/run-cargo.mjs test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml`
+- `node --experimental-strip-types tests/terminal-viewport-context-menu.test.ts` in `../sdkwork-terminal`
+- `node tools/scripts/run-local-typescript.mjs -p apps/web/tsconfig.json --noEmit` in `../sdkwork-terminal`
+- `node tools/scripts/run-local-typescript.mjs -p apps/desktop/tsconfig.json --noEmit` in `../sdkwork-terminal`
+- `pnpm.cmd lint` in `../sdkwork-terminal`
+- `pnpm.cmd exec vitest run src/install-contract.test.ts` in `../sdkwork-ui/sdkwork-ui-pc-react`
+- `pnpm.cmd run build` in `../sdkwork-ui/sdkwork-ui-pc-react`
+
+## Dependency Synchronization
+
+- `sdkwork-appbase`: local `main` matches `origin/main` at `4909120cb8c6f9f02f679ac477f6dd78711a1e0e`.
+- `sdkwork-core`: local `main` matches `origin/main` at `661c42032a7af6b81503d48c3821aa81075ebc8d`; untracked `node_modules` caches were removed before release.
+- `sdkwork-ui`: local `main` matches `origin/main` at `6aa7d817195c231b29e9731bc4a1b2640cad13d3` after publishing the git-install type entry and timeline alias typing fixes.
+- `sdkwork-terminal`: local `main` matches `origin/main` at `2021655d918652ec150b04698d73e40c4c9b7d80` after replacing the shell context-menu `JSX.Element` annotation with a React type import for React 19 source consumers.
+- `sdkwork-sdk-app`: local `main` matches `origin/main` at `e7bc761ce45acf142721b96f732b361c77a71e73`; release preparation materializes this generated app SDK source from GitHub instead of npm.
+- `sdkwork-sdk-commons`: local `main` matches `origin/main` at `892dd2585ebd9e40bc55653d34fd5fb91281bbda`; release preparation materializes this generated SDK common source from GitHub instead of npm.
+- BirdCoder release workflow keeps `SDKWORK_SHARED_SDK_MODE=git` and resolves shared SDK release sources from `config/shared-sdk-release-sources.json`.
+- GitHub Actions release jobs set `SDKWORK_SHARED_SDK_GIT_PROTOCOL=ssh`, load `SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY`, and clone private sibling SDK repositories through `git@github.com:` remotes so release materialization does not depend on the current repository `GITHUB_TOKEN` having cross-repository read scope.
+- BirdCoder local development lockfile remains link/file based for sibling SDK repositories and was not converted to npm registry dependencies.
+
+## Notes
+
+- This release intentionally uses `release-2026-05-06-01` as the first publishable GitHub Release because `gh release list` returned no existing releases and no repository tags were present before this release cycle.
+- The direct carry-forward entry is `release-2026-04-28-01`; that entry carries `release-2026-04-15-14`, which continues the pending chain back through the earlier release registry.
+- `release:candidate:dry-run` produced a complete synthetic readiness result with `artifactCount=33`, `requiredTargetCount=27`, `releasePlanTargetCount=27`, and no stop-ship signals.
+- GitHub Actions release run `25396445036` failed in `Verify release inputs` before publication; this release note now carries the local remediation for missing tracked Studio build sources, Terminal model alias resolution, the shared UI `react-hook-form` peer, React 19 global JSX compatibility, and CI/release Rust toolchain parity.
+- GitHub Actions release run `25398467765` then failed in `Verify release inputs` while loading Vite aliases from a clean Linux clone because `sdkwork-appbase` had no root install for `react-router-dom`; this release note now carries the managed bridge fallback remediation for `react-router` and `react-router-dom`.
+- GitHub Actions release run `25399391643` then failed in `Verify release inputs` while building the web shell because React Router 7.14.2 emitted a root-pnpm-store `"use client"` Rollup directive warning outside the previously governed appbase bridge path; this release note now carries the narrowed Rollup warning filter contract and remediation.
+- GitHub Actions release run `25401011135` then failed in `Verify release inputs` while the clean Linux web build loaded the product app SDK through the existing relative generated-SDK source path, which was not materialized in the release workspace; this release note now carries the generated product SDK GitHub source materialization contract for the product app SDK family and `sdkwork-sdk-commons`.
+- GitHub Actions release run `25402052754` then failed in `Verify release inputs` while the Linux release runner executed the Rust toolchain guard contract that simulates Windows rustup PATH augmentation; this release note now carries the injected `pathExists` propagation remediation so cross-platform toolchain tests do not depend on the host OS path model.
+- GitHub Actions release run `25403080418` then failed in `Verify release inputs` while the Linux release runner executed the Tauri CLI contract that simulates Windows desktop cwd handling; this release note now carries the target-platform path resolver remediation for the desktop dev SQLite fallback.
+- GitHub Actions release run `25403741432` then failed in `Verify release inputs` while the clean Linux release runner imported `sdkwork-terminal/packages/sdkwork-terminal-infrastructure/src/index.ts` without a local terminal workspace install; this release note now carries the managed bridge remediation for `@sdkwork/terminal-commons`, `@sdkwork/terminal-core`, `@sdkwork/terminal-contracts`, and `@sdkwork/terminal-types`.
+- Local release-flow parity then detected the Claw CI/release wrapper baseline had moved ahead of BirdCoder; this release note now carries the POSIX workspace command wrapper files and CI/release PATH exposure contracts so non-Windows runners can resolve `sdkwork-run-node` and `sdkwork-run-pnpm` exactly as checked out.
+- GitHub Actions release run `25404960640` then failed in `Verify release inputs` because the provider-backed projection repository contract assumed Codex always persisted the CLI JSONL fallback transport, while the clean Linux release workspace could resolve the official Codex SDK and correctly selected `sdk-stream`; this release note now carries the transport-preservation contract that compares persisted runtime state to the runtime projection instead of forcing one environment-specific lane.
+- GitHub Actions release run `25406022180` then failed in `Verify release inputs` while typechecking clean `sdkwork-terminal` shell source through BirdCoder's React 19 workspace because `terminal-viewport-context-menu.tsx` still referenced the removed global `JSX.Element` namespace; this release note now carries the independent `sdkwork-terminal` commit that imports `ReactElement` as a type and adds a source contract against the legacy namespace.
+- A local rerun then detected `claw-studio` workflow parity drift only because the adjacent Claw worktree contained unrelated uncommitted Rust toolchain downgrades from its committed `HEAD`; this release note now carries the parity contract hardening that reads Claw workflow baselines from `git show HEAD:<path>` so BirdCoder release gates are not polluted by sibling dirty worktree experiments.
+- The Claw baseline was then published as `release-2026-05-05-178` at `4559cbb4b0ac05e090cd0f34d633c0a91214bf8a`, making Rust `1.90.0` the committed release SDK build baseline; this release note now carries the BirdCoder CI/release workflow pin and contract updates that follow that upstream baseline instead of keeping the earlier `1.91.1` pin.
+- GitHub Actions release run `25407217233` then failed in `Verify release inputs` while the Linux release runner executed `run-tauri-dev-binary-unlock-check.test.mjs`; the test simulated Windows behavior but still tried to resolve a real Windows PowerShell executable from the host filesystem. This release note now carries the injected filesystem probe and target Windows path remediation so the Windows-only guard remains testable on Linux without requiring PowerShell to exist there.
+- GitHub Actions release run `25408043926` then failed in `Verify release inputs` while `run-release-flow-check.test.mjs` compared the invoked POSIX command shell to the release runner process environment instead of the injected test environment, producing `/bin/sh` versus `/bin/bash` drift on Ubuntu. This release note now carries the wrapper propagation fix for `platform` and `execPath`, plus a POSIX simulation contract that proves release-flow checks honor the injected shell and Node executable values.
+- GitHub Actions release run `25408575139` then failed in `Verify release inputs` after the release-flow runner contract passed, because `claw-release-parity-contract.test.mjs` still expected an adjacent `../claw-studio` checkout that does not exist in a clean GitHub Actions workspace. This release note now carries a Claw baseline resolver that reads a local sibling committed tag when present, or clones `git@github.com:Sdkwork-Cloud/claw-studio.git` at the published `release-2026-05-05-179` baseline when CI has no sibling checkout.
+- GitHub Actions release run `25409386457` then failed in `Verify release inputs` after Claw parity passed, because `engine-environment-health-contract.test.ts` created a lowercase `codex.cmd` fixture while asking `resolveExecutablePresence` to discover `.CMD` through `PATHEXT`; that passed on Windows' case-insensitive filesystem but failed on Ubuntu release runners. This release note now carries the PATHEXT-matching `codex.CMD` fixture so the contract remains portable without changing runtime executable discovery.
+- GitHub Actions release run `25410534691` then failed in `Verify release inputs` while the Linux release runner executed server Rust tests. `FakeCodexCliGuard::install_from_path` prepended the fake Codex fixture directory by passing the entire existing PATH value as one `join_paths` entry, which is invalid on Unix once the value contains the PATH separator. This release note now carries the split-before-join PATH remediation and regression test for fake Codex CLI installation.
+- GitHub Actions release run `25411473780` then passed `Verify release inputs` and failed in the release matrix before publication: Windows jobs failed checkout before long-path support was enabled; web/docs packaging missed public docs `search-index.json` and `404.html`; server/container packaging missed the exported coding-server OpenAPI sidecar; Linux desktop jobs invoked `scripts/run-tauri-cli.mjs` from the desktop package cwd; macOS desktop trust checks used an invalid `spctl --version` probe and had no signing/notarization secrets; and CPU container archives flattened `deploy/docker` to `deploy/*`. This release note now carries the workflow, docs, packaging, and canary trust-evidence remediations for those failures.
+- GitHub Actions release run `25413888032` then passed `Verify release inputs` and failed in the release matrix before publication: CPU container Docker builds copied `profiles/default.env` from the wrong build-context path; Windows server and desktop jobs rejected `GIT_CONFIG_GLOBAL=\\.\nul` during SSH shared SDK clone preparation; macOS desktop packaging did not count Tauri-emitted `.app` directories as required `app` installer artifacts; Linux arm64 desktop packaging lacked `/usr/bin/xdg-open`; and Rust cache steps attempted root-level `cargo metadata` in a repository with no root `Cargo.toml`. This release note now carries the Dockerfile, shared SDK clone, macOS `.app` archiving, Linux desktop dependency, and Rust cache workspace remediations for those failures. The `Publish GitHub release` job was skipped because the matrix failed, so publication remains pending until the next workflow run succeeds.
+- Current host validation covered the Windows-local build and test surface before pushing. Cross-platform packaging, attestation, and GitHub Release publication are delegated to `.github/workflows/release.yml` after the release tag is pushed.
+- A targeted `sdkwork-ui` Timeline Vitest command could not run before reinstalling that repo because the local test dependency tree was missing `@testing-library/dom`; the BirdCoder `pnpm.cmd lint` gate then typechecked the consumed source successfully after the fix.
+- Full `sdkwork-ui` `tsc --noEmit` still reports unrelated pre-existing `@testing-library/react` test import typing failures for `screen`, `fireEvent`, `waitFor`, and related helpers; these are outside the BirdCoder release gate and were not mixed into this release.
+
+## Post-release operations
+
+- Observation goal: confirm GitHub Actions completes every desktop, server, container, kubernetes, web, attestation, readiness, and `softprops/action-gh-release` publish step for `release-2026-05-06-01`.
+- Observation window: monitor the release workflow immediately after tag push and verify `gh release view release-2026-05-06-01` returns the published GitHub Release.
+- Stop-ship signals: any shared SDK source checkout points to a non-main or dirty sibling repo; GitHub release workflow cannot clone private sibling SDK repositories over passwordless SSH; GitHub release workflow cannot clone `sdkwork-ui` at `6aa7d817195c231b29e9731bc4a1b2640cad13d3` or `sdkwork-terminal` at `2021655d918652ec150b04698d73e40c4c9b7d80`; `pnpm lint`, `check:desktop`, `check:server`, `build`, `server:build`, or `docs:build` regresses in CI; release coverage becomes partial; attestation evidence is missing; GitHub Release asset publication fails; or formal/GA promotion is attempted while any desktop installer trust report or installer signature evidence remains `pending`.
+- Release kind: `canary`
+- Rollout stage: `ring-1`
+- Formal or GA status: `blocked`
+- Machine stop-ship signals: pending desktop installer signing/trust evidence blocks formal or general-availability promotion; this pending evidence is allowed for this `canary`/`ring-1` publication path, but blocks `formal` or `general-availability` promotion until platform signing, notarization, stapling, and package metadata verification evidence is complete.
+- Rollback entry: `pnpm release:rollback:plan -- --release-tag release-2026-05-06-01 --release-assets-dir artifacts/release`
+- Re-issue path: fix the failing local gate or GitHub workflow step -> rerun the corresponding local command -> update this release note and registry if behavior changes -> push main -> recreate or dispatch the release workflow for `release-2026-05-06-01` until the GitHub Release is published.
+- Writeback targets: `docs/release/release-2026-05-06-01.md`, `docs/release/releases.json`, `config/shared-sdk-release-sources.json`, `.github/workflows/ci.yml`, `.github/workflows/release-reusable.yml`, `.github/workflows/release.yml`, `deploy/docker/Dockerfile`, `docs/.vitepress/searchIndexPolicy.ts`, `sdkwork-run-node`, `sdkwork-run-pnpm`, `scripts/prepare-shared-sdk-git-sources.mjs`, `scripts/prepare-shared-sdk-git-sources.test.mjs`, `scripts/prepare-shared-sdk-packages.mjs`, `scripts/prepare-shared-sdk-packages.test.mjs`, `scripts/coding-server-provider-projection-repository-contract.test.ts`, `scripts/ensure-tauri-rust-toolchain.mjs`, `scripts/ensure-tauri-rust-toolchain.test.mjs`, `scripts/run-tauri-cli.mjs`, `scripts/run-tauri-cli.test.mjs`, `scripts/run-tauri-dev-binary-unlock-check.mjs`, `scripts/run-tauri-dev-binary-unlock-check.test.mjs`, `scripts/engine-environment-health-contract.test.ts`, `scripts/run-release-flow-check.mjs`, `scripts/run-release-flow-check.test.mjs`, `scripts/ci-flow-contract.test.mjs`, `scripts/release-flow-contract.test.mjs`, `scripts/claw-release-parity-baseline.mjs`, `scripts/claw-release-parity-baseline.test.mjs`, `scripts/claw-release-parity-contract.test.mjs`, `scripts/release/package-release-assets.mjs`, `scripts/release/package-release-assets.test.mjs`, `scripts/release/preflight-desktop-signing-environment.mjs`, `scripts/release/preflight-desktop-signing-environment.test.mjs`, `scripts/release/verify-desktop-installer-trust.mjs`, `scripts/release/verify-desktop-installer-trust.test.mjs`, `scripts/run-desktop-release-build.mjs`, `scripts/run-desktop-release-build.test.mjs`, `scripts/run-vitepress.mjs`, `scripts/run-vitepress.test.mjs`, `crates/sdkwork-birdcoder-api-server/src/lib.rs`, the independent `sdkwork-ui` repository commits `1bbf17c65d4fd640ceb3d43892019613eb60496b` and `6aa7d817195c231b29e9731bc4a1b2640cad13d3`, and the independent `sdkwork-terminal` repository commit `2021655d918652ec150b04698d73e40c4c9b7d80`.
+

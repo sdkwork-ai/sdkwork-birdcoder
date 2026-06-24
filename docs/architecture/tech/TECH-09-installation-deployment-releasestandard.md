@@ -1,0 +1,637 @@
+> Migrated from `docs/架构/09-安装-部署-发布标准.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 09-安装、部署、发布标准
+
+## 1. 本地安装与开发
+
+前置环境：
+
+- Node.js + `pnpm`
+- Rust + Tauri 依赖
+- Docker
+- Kubernetes / Helm 工具链
+
+标准命令：
+
+- `pnpm install`
+- `pnpm dev`
+- `pnpm build`
+- `pnpm server:build`
+- `pnpm tauri:build`
+- `pnpm docs:build`
+
+## 2. Distribution、Runtime Descriptor 与统一 API
+
+Distribution 是发布事实源，至少定义 `appId`、`bundleIdentifier`、`apiBaseUrl`、`mirrorStrategy`。所有宿主必须输出统一 host runtime descriptor；Desktop、Host-Studio、Server 只能在统一字段上追加自身运行参数，不得重复维护身份信息。
+
+`apiBaseUrl` 必须指向统一 `coding-server` API 根地址。`web / desktop / server` 三种模式都只允许访问该统一 API：
+
+- `app`: `/app/v3/api`
+- `backend`: `/backend/v3/api`
+
+Desktop 可使用本地回环 `coding-server`；Web 可访问远程 `coding-server`；Server 模式直接对外提供同一协议面。
+
+当前事实：
+
+- `packages/sdkwork-birdcoder-types/src/server-api.ts` 已冻结 `app / backend` DTO 与 envelope 标准。
+- Rust host 已在统一 `coding-server` 协议面上落地代表性 `app / backend` 路由、canonical OpenAPI 导出与发布侧证据链；Representative placeholder routes 当前真相为 `none`。
+
+## 3. 部署形态
+
+- 本地开发：Web / Desktop / Server
+- Docker：`deploy/docker`
+- Kubernetes：`deploy/kubernetes`
+- Release：`.github/workflows/package.yml` + `sdkwork.workflow.json` + `scripts/release/sdkwork-workflow-lifecycle.mjs`
+
+统一服务职责：
+
+- `coding-server`：统一 `app / backend` 协议、SSE/HTTP 事件流、鉴权与治理入口。
+- `app console`：面向 workspace/project/document/test/deployment 的协作操作面。
+- `admin console`：面向 team/member/policy/audit/release 的治理操作面。
+
+当前成熟度：
+
+- `coding-server` 的协议标准、代表性资源路由、OpenAPI 发布证据链与 PostgreSQL host-pass 当前真相已经闭环；未来循环只应在 fresh failing evidence 下重开该成熟度摘要。
+- `app console` 与 `admin console` 当前首先以类型标准和资源边界存在，尚未形成完整控制台实现闭环。
+
+## 4. 发布矩阵
+
+- Desktop：`windows/linux/macos x x64/arm64`
+- Server：与 Desktop 对齐 OS / CPU 维度，统一输出 `tar.gz`
+- Container / Kubernetes：`linux/x64 -> cpu,nvidia-cuda,amd-rocm`，`linux/arm64 -> cpu`
+
+## 5. 发布流程
+
+1. `release:plan`
+2. `release:rollback:plan`
+3. `release:package:*`
+4. `release:smoke:*`
+5. `release:finalize`
+6. `render-release-notes`
+7. GitHub Release
+
+发布语义统一通过 `releaseControl` 表达：
+
+- `releaseKind`: `formal | canary | hotfix | rollback`
+- `rolloutStage`
+- `monitoringWindowMinutes`
+- `rollbackRunbookRef`
+- `rollbackCommand`，可选
+
+示例：
+
+- `pnpm release:plan -- --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/step/13-发布就绪-github-flow-灰度回滚闭环.md`
+- `pnpm release:rollback:plan -- --release-tag release-2026-04-09-105 --release-assets-dir artifacts/release --rollback-command "gh workflow run rollback.yml --ref main"`
+- `pnpm release:finalize -- --release-assets-dir artifacts/release --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/step/13-发布就绪-github-flow-灰度回滚闭环.md --repository Sdkwork-Cloud/sdkwork-birdcoder`
+
+## 6. 制品与证据标准
+
+- `release-manifest.json`
+- `SHA256SUMS.txt`
+- Desktop / Server / Deployment smoke 证据
+- Studio Preview / Build / Simulator / Test evidence 摘要
+- `quality/quality-gate-matrix-report.json`
+- `docs/release/` 下的版本化 release note
+- `coding-server` OpenAPI 产物与协议快照
+
+`release-manifest.json` 必须保留 `releaseControl` 与治理摘要；fallback release notes 与 GitHub Release 文案必须复用同一语义，不允许各写一套。
+`release:rollback:plan` 必须优先复用 finalized manifest，输出回滚执行摘要、回滚命令、前置检查与证据定位。
+新增发布链路入口必须同步纳入 `check:release-flow` 与 `check:governance-regression`。
+Release Note 与 GitHub Release 必须固定输出 `Post-release operations`，至少包含观察窗口、stop-ship signals、rollback entry、补发路径和 writeback targets。`rollbackCommand` 缺省时，回滚入口必须自动降级为 `release:rollback:plan`，不得渲染为 `pending`。
+
+## 7. 评估标准
+
+- 任一发布形态都能追溯到版本、平台、架构、distribution、制品、smoke、`releaseControl`
+- GitHub Release、文档、脚本、manifest 字段完全一致
+- `coding-server` 地址、OpenAPI 版本、宿主 runtime descriptor 与发布物元数据完全一致
+- 发布失败能快速定位到计划、制品、宿主前提或回滚入口
+- 宿主问题必须归类为 `toolchain-platform`，不能伪装成架构回退
+
+
+## 8. Host Runtime Bootstrap Standard
+
+- Every runnable surface must resolve a host runtime descriptor before rendering:
+  - web -> `resolveWebRuntime()`
+  - desktop -> `resolveDesktopRuntime()`
+  - server -> `resolveServerRuntime()`
+- Every runnable surface must pass that descriptor into `bootstrapShellRuntime({ host })`.
+- Server-side TypeScript consumers must not fake a shell bootstrap entrypoint; they bind the same runtime descriptor through `bindBirdCoderServerRuntimeTransport()` and the shared `bindDefaultBirdCoderIdeServicesRuntime()` rule.
+- `apiBaseUrl` is a root prefix, not a replaceable route origin. If it already contains a path segment, request assembly must preserve that prefix.
+- Release and smoke verification must treat runtime bootstrap as broken if any of these regress:
+  - default workspace/project reads ignore host `apiBaseUrl`
+  - HTTP transport drops a base path prefix
+  - `IDEContext` or `ServiceContext` freeze default services before bootstrap executes
+  - web runtime identity diverges from distribution manifest standards
+  - server runtime binding bypasses the shared host-derived transport rule
+- Minimum verification commands for this standard:
+  - `pnpm.cmd run test:shell-runtime-app-client-contract`
+  - `pnpm.cmd run test:server-runtime-transport-contract`
+  - `node scripts/host-runtime-contract.test.ts`
+  - `pnpm.cmd run typecheck`
+
+## 9. PostgreSQL Live Smoke Standard
+
+- The PostgreSQL release-smoke entry is `pnpm.cmd run release:smoke:postgresql-live`.
+- The executable runner is `scripts/run-postgresql-live-smoke.ts`; the shared preflight logic is `scripts/postgresql-live-smoke.ts`.
+- DSN resolution order is fixed:
+  - `BIRDCODER_POSTGRESQL_DSN`
+  - `BIRDCODER_DATABASE_URL`
+  - `DATABASE_URL`
+  - `PGURL`
+- Result semantics are standardized:
+  - `passed`: a real DSN-backed smoke run completed migration, transaction visibility, transaction isolation, and rollback cleanup checks
+  - `blocked`: the environment is missing a DSN or PostgreSQL runtime driver
+  - `failed`: a DSN-backed smoke run reached an executable failure path that still returned an auditable report
+- Block reasons are auditable and must be preserved in release notes:
+  - `missing_postgresql_dsn`
+  - `missing_postgresql_driver`
+- DSN-configured connection failures must stay on the structured `failed` path:
+  - cleanup must not replace the report with an uncaught exception
+  - `dsnSource`, `reasonCode`, and the backend error message must survive the CLI boundary
+- Governance rule:
+  - never claim PostgreSQL release/deployment closure from contract-only evidence
+  - contract-only evidence may close the preflight standard
+  - final PostgreSQL closure requires one real DSN-backed `passed` report
+- Current host evidence:
+  - on `2026-04-13`, `pnpm.cmd run release:smoke:postgresql-live` returned `passed` against a local Docker-backed `postgres:16-alpine` container on `127.0.0.1:55432`
+
+## 10. Server OpenAPI Release Evidence Standard
+
+- `pnpm.cmd run generate:openapi:coding-server` is the only canonical OpenAPI export entry for `coding-server`.
+- The export output is fixed to `artifacts/openapi/coding-server-v1.json`.
+- `pnpm.cmd run release:package:server` must run that export first and package the same snapshot into `artifacts/release/server/<platform>/<arch>/openapi/coding-server-v1.json`.
+- The server `release-asset-manifest.json` must include the OpenAPI sidecar relative path.
+- `pnpm.cmd run release:smoke:server` must fail on any of these conditions:
+  - manifest missing
+  - archive missing
+  - OpenAPI sidecar manifest reference missing
+  - OpenAPI sidecar file missing
+- `local-release-command package server` must emit auditable packaging facts:
+  - `outputDir`
+  - `outputFamilyDir`
+  - `manifestPath`
+  - `archivePath`
+  - `artifacts`
+- Default package output is valid only under `artifacts/release/server/<platform>/<arch>/`; repo-root `server/*` output is not a valid release target.
+
+## 11. Finalized OpenAPI Governance Standard
+
+- If finalized release assets include the `server` family, `release-manifest.json` must also include `codingServerOpenApiEvidence`.
+- `codingServerOpenApiEvidence` is the only finalized summary allowed to describe the canonical `coding-server` OpenAPI snapshot.
+- The summary must be derived from packaged server sidecars, not regenerated at finalize or release-notes time.
+- Finalized smoke must verify:
+  - `codingServerOpenApiEvidence` exists when server assets exist
+  - the canonical snapshot file exists
+  - mirrored server snapshot files match byte-for-byte
+  - manifest summary fields match packaged snapshot facts
+- Release notes must render the same canonical OpenAPI evidence fields:
+  - canonical snapshot path
+  - targets
+  - OpenAPI version
+  - API version
+  - SHA256
+- Downstream SDK/codegen must consume `scripts/coding-server-openapi-codegen-input.mjs` or an equivalent finalized-manifest reader instead of discovering OpenAPI files ad hoc.
+
+## 12. Finalized OpenAPI Types Codegen Standard
+
+- `pnpm.cmd run generate:types:coding-server-openapi` is the first release-backed SDK/codegen lane.
+- Its only valid input is finalized `release-manifest.json` via `scripts/coding-server-openapi-codegen-input.mjs`.
+- Its fixed output path is `packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts`.
+- The generated module must include:
+  - finalized OpenAPI evidence
+  - deterministic operation catalog
+  - exported TS literal types for downstream SDK/client work
+- `check:release-flow` must execute `scripts/generate-coding-server-openapi-types.test.mjs`.
+- Latest registry-backed release notes must include `## Post-release operations` with:
+  - `Observation window:`
+  - `Stop-ship signals:`
+  - `Rollback entry:`
+  - `Re-issue path:`
+  - `Writeback targets:`
+- Governance rule:
+  - finalized manifest remains the only OpenAPI truth source
+  - generated TS output is the only approved release-backed contract surface for downstream typed client generation
+  - do not regenerate clients by walking packaged OpenAPI files directly
+
+## 13. Finalized OpenAPI Typed Client Codegen Standard
+
+- `pnpm.cmd run generate:types:coding-server-client` is the second release-backed SDK/codegen lane.
+- Its only valid input is `packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts`.
+- Its fixed output path is `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts`.
+- The generated client module must include:
+  - deterministic operation descriptor map
+  - typed path-parameter contract derived from canonical route placeholders
+  - `buildBirdCoderFinalizedCodingServerClientRequest()`
+  - `createBirdCoderFinalizedCodingServerClient()`
+- Shared consumers must prefer generated request builders over handwritten route strings. The current representative closure is `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts`.
+- Type governance must guarantee:
+  - operations without route params may omit `pathParams`
+  - operations with route params still require `pathParams`
+- `check:release-flow` must execute `scripts/generate-coding-server-client-types.test.ts`.
+- Governance rule:
+  - do not rebuild request builders from raw packaged OpenAPI files
+  - do not fork app/backend or app runtime request assembly per host
+  - broaden client adoption only on top of the generated module exported by `@sdkwork/birdcoder-types`
+
+## 14. Generated App/Backend SDK Client Standard
+
+- `@sdkwork/birdcoder-infrastructure` owns `createBirdCoderAppSdkApiClient({ transport: appTransport }) and createBirdCoderBackendSdkApiClient({ transport: backendTransport })` as the explicit high-level app/backend SDK client pair.
+- Infrastructure, web, desktop, and server consumers may provide transport implementations only; they must not locally rebuild representative workspace/project/team/release requests.
+- The current representative direct app/backend client coverage is fixed to:
+  - `/app/v3/api/workspaces`
+  - `/app/v3/api/projects`
+  - `/app/v3/api/teams`
+  - `/backend/v3/api/iam/teams`
+  - `/backend/v3/api/releases`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` is the representative thin delegator and must stay transport-scoped.
+- `node --experimental-strip-types scripts/split-sdk-client-facade-contract.test.ts` is the executable contract for this standard.
+- `pnpm.cmd run check:release-flow` must execute that contract.
+- Governance rule:
+  - keep request-building truth in the generated client plus explicit app/backend SDK client pair
+  - do not duplicate high-level request assembly in transport adapters
+  - expand explicit app/backend SDK client pairs before adding host-local convenience wrappers
+
+## 15. Team Surface Split Standard
+
+- `BirdCoderAppSdkApiClient.listTeams()` is the workspace/runtime team reader and must resolve against `/app/v3/api/teams`.
+- `BirdCoderBackendSdkApiClient.listGovernanceTeams()` is the explicit backend governance team reader and must resolve against `/backend/v3/api/iam/teams`.
+- Default IDE runtime/team services must use `listTeams()` and therefore stay on the app surface.
+- In-process transport must serve both team routes from the same repository-backed query layer without rewriting DTO shape per surface.
+- Executable governance for this split must include:
+  - `node --experimental-strip-types scripts/split-sdk-client-facade-contract.test.ts`
+  - `node --experimental-strip-types scripts/split-sdk-consumer-contract.test.ts`
+  - `node --experimental-strip-types scripts/server-runtime-transport-contract.test.ts`
+- Governance rule:
+  - do not route normal workspace team reads through the backend surface
+  - do not hide backend governance team reads behind the same ambiguous method name used by runtime consumers
+  - preserve one explicit app/backend SDK client pair while keeping app/backend team semantics explicit
+
+## 16. Default IDE Services App/Backend SDK Adoption Standard
+
+- `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts` must compose runtime HTTP and in-process fallback app/backend clients through `createBirdCoderAppSdkApiClient({ transport: appTransport })` and `createBirdCoderBackendSdkApiClient({ transport: backendTransport })`.
+- Default IDE service composition must not route those transport-based reads through a mixed split SDK wrapper.
+- `scripts/default-ide-services-split-sdk-client-contract.test.ts` is the executable contract for this adoption rule.
+- `pnpm.cmd run check:release-flow` must execute that contract.
+- Governance rule:
+  - keep the default service-composition path aligned with the explicit app/backend SDK client pair
+  - keep infrastructure wrappers limited to generated app/backend SDK clients over injected transports
+  - broaden adoption by moving more transport consumers to the explicit app/backend SDK client pair instead of adding new local wrappers
+
+## 17. App/Backend Wrapper Removal Standard
+
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` must not export a high-level mixed split SDK wrapper.
+- The infrastructure module may expose transport factories and the explicit generated app/backend SDK client wrappers only.
+- SDK consumers must compose `createBirdCoderAppSdkApiClient({ transport: appTransport })` and `createBirdCoderBackendSdkApiClient({ transport: backendTransport })` directly.
+- `scripts/birdcoder-sdk-consumer-boundary-contract.test.mjs` is the executable contract for this hard-cut rule.
+- `pnpm.cmd run check:release-flow` must execute that contract.
+- Governance rule:
+  - remove redundant wrapper layers when the explicit app/backend SDK client pair is already the sole truth source
+  - do not preserve extra wrapper layers with no real in-repo consumer
+  - keep transport creation and request assembly separated by package boundary
+
+## 18. App Runtime SDK Read Facade Standard
+
+- `@sdkwork/birdcoder-infrastructure` owns `createBirdCoderAppSdkApiClient({ transport })` as the app runtime read SDK facade.
+- The facade scope is limited to implemented representative routes:
+  - `GET /app/v3/api/system/descriptor`
+  - `GET /app/v3/api/system/runtime`
+  - `GET /app/v3/api/system/health`
+  - `GET /app/v3/api/engines`
+  - `GET /app/v3/api/operations/:operationId`
+- The facade must not publish `engineCapabilities`, `models`, `createCodingSessionTurn`, or `submitApprovalDecision` until those routes stop returning `not_implemented`.
+- `createCodingSession` may stay excluded after the route becomes real, but only until a typed app runtime write SDK facade is closed and verified.
+- `scripts/app-runtime-read-sdk-client-contract.test.ts` is the executable contract for this standard.
+- `pnpm.cmd run check:release-flow` must execute that contract.
+- Governance rule:
+  - add explicit app/backend SDK client pairs only on top of real server behavior
+  - keep app runtime read request-building truth in the generated client plus explicit app/backend SDK client pair
+  - expand to projection-read routes next, not to placeholder routes
+
+## 19. App Runtime SDK Projection Read Facade Standard
+
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts` maps `createBirdCoderAppSdkApiClient({ transport })` to implemented projection-read routes only:
+  - `GET /app/v3/api/coding_sessions/:id`
+  - `GET /app/v3/api/coding_sessions/:id/events`
+  - `GET /app/v3/api/coding_sessions/:id/artifacts`
+  - `GET /app/v3/api/coding_sessions/:id/checkpoints`
+- The explicit app/backend SDK client pair must return shared types-layer payloads only:
+  - `BirdCoderCodingSessionSummary`
+  - `BirdCoderCodingSessionEvent[]`
+  - `BirdCoderCodingSessionArtifact[]`
+  - `BirdCoderCodingSessionCheckpoint[]`
+- `scripts/app-runtime-projection-read-sdk-client-contract.test.ts` is the executable contract for this standard.
+- `pnpm.cmd run check:release-flow` must execute that contract.
+- Governance rule:
+  - keep projection-read request building in the generated client plus explicit app/backend SDK client pair
+  - do not rebuild these routes inside infrastructure transport adapters
+  - broaden direct app/backend client adoption next; do not skip forward to not-yet-promoted app runtime writes
+
+## 20. Default IDE Release Catalog Adoption Standard
+
+- `BirdCoderBackendSdkApiClient.listReleases()` is the explicit backend release catalog reader and must resolve against `GET /backend/v3/api/releases`.
+- `IReleaseService`, `ApiBackedReleaseService`, `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useReleases()` must expose governed release catalog reads through that explicit app/backend SDK client pair instead of rebuilding backend HTTP or DTOs locally.
+- `scripts/default-ide-services-release-service-contract.test.ts` is the executable contract for this adoption rule.
+- `pnpm.cmd run check:release-flow` must execute that contract.
+- Governance rule:
+  - keep release catalog reads on the explicit backend surface
+  - keep default service/context adoption aligned with the explicit app/backend SDK client pair
+
+## 21. Default IDE App Runtime Read Adoption Standard
+
+- `IAppRuntimeReadService`, `ApiBackedAppRuntimeReadService`, `createDefaultBirdCoderIdeServices()`, `IDEContext`, `ServiceContext`, and `useCodingServerOverview()` must expose the implemented app runtime SDK read surface through one default app-consumer path.
+- Runtime-bound default IDE services must compose `createBirdCoderAppSdkApiClient({ transport: createBirdCoderHttpApiTransport(...) })` directly.
+- No current closure may claim a local in-process app runtime transport truth; without a bound runtime or injected `appRuntimeReadClient`, app runtime reads must stay explicitly unavailable.
+- `scripts/default-ide-services-app-runtime-read-sdk-contract.test.ts` and `scripts/default-ide-services-app-runtime-read-service-contract.test.ts` are the executable contracts for this adoption rule.
+- `pnpm.cmd run check:release-flow` must execute both contracts.
+- Governance rule:
+  - keep app runtime request assembly in the generated client plus explicit app/backend SDK client pair
+  - adopt app-level projection-read consumers next instead of skipping to not-yet-promoted app runtime writes
+
+## 22. App-Level Coding Session Projection Consumer Adoption Standard
+
+- `useCodingSessionProjection()` and `loadCodingSessionProjection()` must expose the implemented coding-session detail, event, artifact, and checkpoint reads through `IAppRuntimeReadService` only.
+- `ideServices.ts` must keep shared service access available from a non-JSX module so direct Node contracts validate the same consumer boundary that React consumers use.
+- `scripts/coding-session-projection-app-consumer-contract.test.ts` is the executable contract for this adoption rule.
+- `pnpm.cmd run check:release-flow` must execute that contract.
+- Governance rule:
+  - keep coding-session detail request assembly in the generated client plus app runtime SDK-read facade
+  - keep app consumers on shared payloads instead of local route or DTO reconstruction
+  - keep typed write/response facades blocked until server-backed app runtime write routes are real
+
+## 23. App Runtime SDK Facade Exclusion Governance Standard
+
+- `@sdkwork/birdcoder-types` must expose an explicit promoted-operation catalog for the app runtime SDK facade.
+- `@sdkwork/birdcoder-types` must expose an explicit excluded-operation catalog for not-yet-promoted app runtime writes and still-unimplemented app runtime reads.
+- Excluded operations must remain available in the low-level generated client and generated OpenAPI catalog, but must stay absent from the shared high-level facade.
+- `scripts/app-runtime-sdk-facade-governance-contract.test.ts` is the executable contract for this rule.
+- `pnpm.cmd run check:release-flow` must execute that contract.
+- Governance rule:
+  - promote operations only when the server route is real
+  - treat promoted/excluded catalog edits as serial cross-layer contract changes
+  - do not bypass the exclusion catalog by assembling blocked app runtime operations in app or infrastructure layers
+
+## 24. App Runtime SDK Create Session Write Adoption Standard
+
+- `@sdkwork/birdcoder-infrastructure` must expose `createBirdCoderAppSdkApiClient({ transport })` once `POST /app/v3/api/coding_sessions` is server-real.
+- The typed app runtime write SDK facade may promote `codingSessions.create` only when all of these are closed together:
+  - generated-client-backed request assembly
+  - typed response mapping to `BirdCoderCodingSessionSummary`
+  - executable governance in `check:release-flow`
+  - at least one real consumer adoption path
+- Runtime-bound default IDE services must compose the app runtime write SDK facade directly from `createBirdCoderHttpApiTransport(...)`.
+- `ApiBackedProjectService.createCodingSession()` must treat the server-created session id as authoritative and must mirror the returned session into local project session state before refreshed catalog reads run.
+- `scripts/app-runtime-write-sdk-client-contract.test.ts`, `scripts/default-ide-services-app-runtime-write-sdk-contract.test.ts`, and `scripts/api-backed-project-service-app-runtime-create-coding-session-contract.test.ts` are the executable contracts for this standard.
+- Governance rule:
+  - now that `codingSessions.turns.create` is server-real, keep it excluded until the typed app runtime write SDK facade plus first consumer adoption close together
+  - do not synthesize a second local session id after a remote create succeeds
+  - treat remote create plus local mirror retention as one indivisible closure
+
+## 25. App Runtime SDK Create Turn Route Reality Standard
+
+- `POST /app/v3/api/coding_sessions/:id/turns` must return `201 Created` plus a real `BirdCoderCodingSessionTurn`.
+- The Rust host must validate `requestKind` and `inputSummary`, resolve an active runtime, and emit one initial `turn.started` event plus one readable operation record.
+- sqlite provider-backed hosts must persist:
+  - `coding_session_turns`
+  - `coding_session_events`
+  - `coding_session_operations`
+  - updated `coding_sessions.updated_at` / `last_turn_at`
+  - refreshed active runtime row status / timestamp
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_turn_route_returns_created_turn_and_makes_projection_readable`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_turn_route_returns_not_found_for_missing_session`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_turn_route_persists_into_sqlite_provider_authority`
+- Governance rule:
+  - keep `codingSessions.turns.create` outside the shared high-level facade until the typed write facade and first consumer adoption close together
+  - do not claim closure from a `201` response alone if operation replay, event replay, or provider persistence is missing
+
+## 26. App Runtime SDK Create Turn Write Adoption Standard
+
+- `@sdkwork/birdcoder-infrastructure` must expose `createBirdCoderAppSdkApiClient({ transport }).createCodingSessionTurn(...)` once `POST /app/v3/api/coding_sessions/:id/turns` is server-real.
+- The typed app runtime write SDK facade may promote `codingSessions.turns.create` only when all of these are closed together:
+  - generated-client-backed request assembly
+  - typed response mapping to `BirdCoderCodingSessionTurn`
+  - executable governance in `check:release-flow`
+  - at least one real consumer adoption path
+- Runtime-bound default IDE services must keep resolving the app runtime SDK write client through `createBirdCoderHttpApiTransport(...)`; the first consumer path must stay inside `ApiBackedProjectService`.
+- `ApiBackedProjectService.addCodingSessionMessage()` must:
+  - map supported local message roles to canonical turn request kinds
+  - call `codingSessions.turns.create` without rebuilding the route locally
+  - mirror the returned `turnId` back into refreshed local message state
+  - fall back only for missing-session `404` cases so legacy local-only sessions do not break
+- `scripts/app-runtime-write-sdk-client-contract.test.ts`, `scripts/app-runtime-sdk-facade-governance-contract.test.ts`, and `scripts/api-backed-project-service-app-runtime-create-coding-session-turn-contract.test.ts` are the executable contracts for this standard.
+- `pnpm.cmd run check:release-flow` must execute those three contracts.
+- Governance rule:
+  - treat turn-create request mapping, promoted/excluded governance, and consumer adoption as one serial closure
+  - do not reassemble `/app/v3/api/coding_sessions/:id/turns` inside infrastructure or app consumers
+  - at that checkpoint, the next non-environmental serial slice was real `engineCapabilities` / `models` server truth instead of reopening already-closed session/turn write work, and the later closure is recorded in `docs/release/release-2026-04-11-12.md`.
+
+## 27. App Runtime SDK Engine/Model Catalog Adoption Standard
+
+- `engines.capabilities.retrieve` and `models.list` are now real Rust-host routes, promoted into the app runtime SDK facade, and consumed through `appRuntimeReadService`.
+- PostgreSQL live smoke is now closed on the current host with a real DSN-backed `passed` report.
+- Future reruns must still keep missing DSN/driver as `blocked` and DSN-backed runtime connectivity errors as structured `failed`.
+
+## 28. App Runtime SDK Approval Decision Adoption Standard
+
+- `POST /app/v3/api/approvals/:approvalId/decision` is now a real Rust-host authority write route and must not be described as `not_implemented`.
+- Approval submission must mutate one replayable truth source:
+  - demo/snapshot-backed host -> shared projection authority
+  - sqlite provider-backed host -> provider tables plus authoritative reload
+- The shared typed app runtime write SDK facade now includes `approvals.decisions.create`; `BIRDCODER_APP_RUNTIME_SDK_EXCLUDED_OPERATION_IDS` is empty.
+- Approval-resolution event payloads must use `approvalDecision`, not a second ad hoc `decision` key, so governance/audit consumers read one canonical field.
+- The first approval consumer path must stay on shared service/facade boundaries:
+  - `IAppRuntimeWriteService`
+  - `ApiBackedAppRuntimeWriteService`
+  - `loadCodingSessionApprovalState()`
+  - `submitCodingSessionApprovalDecision()`
+  - `useCodingSessionApprovalState()`
+- Mandatory verification:
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml submit_approval_decision_route`
+  - `pnpm.cmd run test:app-runtime-write-sdk-client-contract`
+  - `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
+  - `pnpm.cmd run test:coding-session-approval-consumer-contract`
+  - `pnpm.cmd run typecheck`
+  - `pnpm.cmd run docs:build`
+  - `pnpm.cmd run check:release-flow`
+- Next non-environmental serial slice: `docs/step/17X-Real-App-Document-Catalog-Lane.md`.
+
+- The staged restriction from section `18` is now partially closed:
+  - `engineCapabilities`
+  - `models`
+  are no longer blocked because the Rust host routes are real.
+- Rust host must serve canonical catalog truth on:
+  - `GET /app/v3/api/engines`
+  - `GET /app/v3/api/engines/:engineKey/capabilities`
+  - `GET /app/v3/api/models`
+- `@sdkwork/birdcoder-infrastructure` must expose `getEngineCapabilities(engineKey)` and `listModels()` on `createBirdCoderAppSdkApiClient({ transport })`.
+- `BIRDCODER_APP_RUNTIME_SDK_OPERATION_IDS` must now promote:
+  - `engines.capabilities.retrieve`
+  - `models.list`
+- `BIRDCODER_APP_RUNTIME_SDK_EXCLUDED_OPERATION_IDS` must now keep only:
+  - `approvals.decisions.create`
+- `IAppRuntimeReadService`, `ApiBackedAppRuntimeReadService`, and `createDefaultBirdCoderIdeServices()` must expose the promoted engine/model reads end-to-end.
+- `loadCodingServerOverview()` and `useCodingServerOverview()` are the first governed app-level consumer path for descriptor/runtime/health/engine/model overview state.
+- Executable governance for this standard must include:
+  - `pnpm.cmd run test:app-runtime-read-sdk-client-contract`
+  - `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
+  - `pnpm.cmd run test:default-ide-services-app-runtime-read-service-contract`
+  - `pnpm.cmd run test:coding-server-overview-engine-model-consumer-contract`
+- Governance rule:
+  - promote engine/model reads only as one serial slice
+  - keep approval writes blocked until approval authority truth is real
+
+## 29. Shared App Document Catalog Adoption Standard
+
+- `GET /app/v3/api/documents` is now a real Rust-host authority read route and must not be described as `not_implemented`.
+- Document catalog truth must stay replayable across all current host modes:
+  - demo host -> `AppState.documents`
+  - legacy sqlite `kv_store` -> provider-side `project_documents` materialization
+  - direct sqlite provider -> `project_documents`
+- The shared generated app/backend facade now includes `listDocuments()` and must remain the only promoted high-level client surface for representative document reads.
+- The first document consumer path must stay on shared service/facade boundaries:
+  - `IDocumentService`
+  - `ApiBackedDocumentService`
+  - `createDefaultBirdCoderIdeServices()`
+  - `loadDocuments()`
+  - `useDocuments()`
+- Mandatory verification:
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured`
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
+  - `pnpm.cmd run test:provider-backed-console-contract`
+  - `pnpm.cmd run test:split-sdk-consumer-contract`
+  - `pnpm.cmd run test:default-ide-services-document-service-contract`
+  - `pnpm.cmd run test:document-app-consumer-contract`
+  - `pnpm.cmd run typecheck`
+  - `pnpm.cmd run docs:build`
+- `pnpm.cmd run check:release-flow`
+- Next non-environmental serial slice: `docs/step/17Y-Real-Admin-Audit-Lane.md`.
+
+## 30. Shared Admin Audit Catalog Adoption Standard
+
+- `GET /backend/v3/api/iam/audit_events` is now a real Rust-host authority read route and must not be described as `not_implemented`.
+- Audit catalog truth must stay replayable across all current host modes:
+  - demo host -> in-process audit state
+  - legacy sqlite `kv_store` -> provider-side `audit_events` materialization
+  - direct sqlite provider -> `audit_events`
+- The shared generated app/backend facade now includes `listAuditEvents()` and must remain the only promoted high-level client surface for representative audit reads.
+- The first audit consumer path must stay on shared service/facade boundaries:
+  - `IAuditService`
+  - `ApiBackedAuditService`
+  - `createDefaultBirdCoderIdeServices()`
+  - `loadAuditEvents()`
+  - `useAuditEvents()`
+- Mandatory verification:
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured`
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
+  - `pnpm.cmd run test:default-ide-services-audit-service-contract`
+  - `pnpm.cmd run test:audit-admin-consumer-contract`
+  - `pnpm.cmd run test:sqlite-app/backend-repository-contract`
+  - `pnpm.cmd run test:provider-backed-console-contract`
+  - `pnpm.cmd run test:split-sdk-consumer-contract`
+  - `pnpm.cmd run typecheck`
+  - `pnpm.cmd run docs:build`
+  - `pnpm.cmd run check:release-flow`
+- Remaining representative placeholder routes:
+  - `GET /app/v3/api/deployments`
+  - `GET /backend/v3/api/iam/policies`
+  - `GET /backend/v3/api/deployments`
+- Next non-environmental serial slice: `docs/step/17Z-Real-App-Deployment-Catalog-Lane.md`.
+
+## 31. Shared App Deployment Catalog Adoption Standard
+
+- `GET /app/v3/api/deployments` is now a real Rust-host authority read route and must not be described as `not_implemented`.
+- Deployment catalog truth must stay replayable across all current host modes:
+  - demo host -> in-process deployment state
+  - legacy sqlite `kv_store` -> provider-side `deployment_records` materialization
+  - direct sqlite provider -> `deployment_records`
+- The shared generated app/backend facade now includes `listDeployments()` and must remain the only promoted high-level client surface for representative app deployment reads.
+- The first deployment consumer path must stay on shared service/facade boundaries:
+  - `IDeploymentService`
+  - `ApiBackedDeploymentService`
+  - `createDefaultBirdCoderIdeServices()`
+  - `loadDeployments()`
+  - `useDeployments()`
+- Mandatory verification:
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
+  - `pnpm.cmd run test:provider-backed-console-contract`
+  - `pnpm.cmd run test:sqlite-app/backend-repository-contract`
+  - `pnpm.cmd run test:split-sdk-consumer-contract`
+  - `pnpm.cmd run test:default-ide-services-deployment-service-contract`
+  - `pnpm.cmd run test:deployment-app-consumer-contract`
+  - `pnpm.cmd run typecheck`
+  - `pnpm.cmd run docs:build`
+  - `pnpm.cmd run check:release-flow`
+- Remaining representative placeholder routes:
+  - `GET /backend/v3/api/iam/policies`
+  - `GET /backend/v3/api/deployments`
+- Next non-environmental serial slice: `docs/step/17ZA-Real-Admin-Deployment-Governance-Lane.md`.
+
+## 32. Shared Admin Deployment Governance Adoption Standard
+
+- `GET /backend/v3/api/deployments` is now a real Rust-host authority read route and must not be described as `not_implemented`.
+- Admin deployment catalog truth must stay replayable across all current host modes:
+  - demo host -> in-process deployment state
+  - legacy sqlite `kv_store` -> provider-side `deployment_records` materialization
+  - direct sqlite provider -> `deployment_records`
+- The shared generated app/backend facade now includes `listAdminDeployments()` and must remain the only promoted high-level client surface for representative backend deployment reads.
+- The first backend deployment consumer path must stay on shared service/facade boundaries:
+  - `IAdminDeploymentService`
+  - `ApiBackedAdminDeploymentService`
+  - `createDefaultBirdCoderIdeServices()`
+  - `loadAdminDeployments()`
+  - `useAdminDeployments()`
+- Mandatory verification:
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
+  - `pnpm.cmd run test:split-sdk-consumer-contract`
+  - `pnpm.cmd run test:default-ide-services-admin-deployment-service-contract`
+  - `pnpm.cmd run test:admin-deployment-consumer-contract`
+  - `pnpm.cmd run typecheck`
+  - `pnpm.cmd run docs:build`
+  - `pnpm.cmd run check:release-flow`
+- Remaining representative placeholder routes:
+  - `GET /backend/v3/api/iam/policies`
+- The follow-on serial closure from this point was the dedicated backend policy governance lane, now closed in section `33`.
+
+## 33. Shared Admin Policy Governance Adoption Standard
+
+- `GET /backend/v3/api/iam/policies` is now a real Rust-host authority read route and must not be described as `not_implemented`.
+- Policy-governance truth must stay on its own modeled authority path:
+  - demo host -> in-process policy state
+  - legacy sqlite `kv_store` -> provider-side `governance_policies` materialization from `table.sqlite.governance-policies.v1`
+  - direct sqlite provider -> `governance_policies`
+- The shared generated app/backend facade now includes `listPolicies()` and must remain the only promoted high-level client surface for representative backend policy reads.
+- The first backend policy consumer path must stay on shared service/facade boundaries:
+  - `IAdminPolicyService`
+  - `ApiBackedAdminPolicyService`
+  - `createDefaultBirdCoderIdeServices()`
+  - `loadAdminPolicies()`
+  - `useAdminPolicies()`
+- Mandatory verification:
+  - `pnpm.cmd run test:split-sdk-client-facade-contract`
+  - `pnpm.cmd run test:split-sdk-consumer-contract`
+  - `pnpm.cmd run test:default-ide-services-admin-policy-service-contract`
+  - `pnpm.cmd run test:admin-policy-consumer-contract`
+  - `pnpm.cmd run test:sqlite-app/backend-repository-contract`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+  - `pnpm.cmd run typecheck`
+  - `pnpm.cmd run docs:build`
+  - `pnpm.cmd run check:release-flow`
+- Remaining representative placeholder routes:
+  - none
+- Step 17 representative route closure is complete.
+- PostgreSQL live smoke now has a recorded DSN-backed `passed` report on this host; future missing-DSN or driver regressions must stay `blocked`, and future DSN-backed runtime-connectivity regressions must stay structured `failed`.
+- Next non-environmental serial slice: `docs/step/18-多Code-Engine-Adapter-统一工具协议闭环.md`.
+

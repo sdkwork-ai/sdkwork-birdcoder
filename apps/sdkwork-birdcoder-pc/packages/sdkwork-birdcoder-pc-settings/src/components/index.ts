@@ -9,4 +9,5 @@ export * from './GitSettings';
 export * from './EnvironmentSettings';
 export * from './WorktreeSettings';
 export * from './ArchivedSettings';
+export * from './LegalComplianceSettings';
 export * from './SettingsSidebar';

@@ -25,7 +25,7 @@ pub struct SessionRow {
 }
 
 impl SessionRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -74,7 +74,7 @@ pub struct MessageRow {
 }
 
 impl MessageRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -132,7 +132,7 @@ pub struct TurnRow {
 }
 
 impl TurnRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             created_at: row.try_get("created_at")?,
@@ -165,7 +165,7 @@ pub struct EventRow {
 }
 
 impl EventRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             created_at: row.try_get("created_at")?,
@@ -197,7 +197,7 @@ pub struct ArtifactRow {
 }
 
 impl ArtifactRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             created_at: row.try_get("created_at")?,
@@ -228,7 +228,7 @@ pub struct CheckpointRow {
 }
 
 impl CheckpointRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             created_at: row.try_get("created_at")?,
@@ -259,7 +259,7 @@ pub struct OperationRow {
 }
 
 impl OperationRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             created_at: row.try_get("created_at")?,

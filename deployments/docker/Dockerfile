@@ -23,7 +23,7 @@ FROM base AS runtime
 
 WORKDIR /opt/sdkwork-birdcoder
 
-COPY deploy/docker/profiles/default.env /opt/sdkwork-birdcoder/deploy/profiles/default.env
+COPY deployments/docker/profiles/default.env /opt/sdkwork-birdcoder/deploy/profiles/default.env
 COPY --chown=birdcoder:birdcoder artifacts/release/server /opt/sdkwork-birdcoder/
 COPY --chown=birdcoder:birdcoder artifacts/release/server-binary /opt/sdkwork-birdcoder/
 
@@ -38,7 +38,7 @@ USER birdcoder
 VOLUME ["/var/lib/sdkwork-birdcoder"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl --fail --silent http://127.0.0.1:18989/app/v3/api/system/health || exit 1
+    CMD curl --fail --silent http://127.0.0.1:18989/health || exit 1
 
 EXPOSE 18989
 

@@ -1,7 +1,7 @@
 use sdkwork_birdcoder_deployment_service::context::DeploymentContext;
 use sdkwork_birdcoder_deployment_service::error::DeploymentError;
 use sdkwork_birdcoder_errors::require_scoped_tenant_id;
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 
 use crate::db::columns::audit_event;
 use crate::db::columns::deployment_record;
@@ -18,11 +18,11 @@ use sdkwork_birdcoder_deployment_service::domain::results::{
 
 #[derive(Clone)]
 pub struct SqliteDeploymentRepository {
-    pool: SqlitePool,
+    pool: AnyPool,
 }
 
 impl SqliteDeploymentRepository {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: AnyPool) -> Self {
         Self { pool }
     }
 }

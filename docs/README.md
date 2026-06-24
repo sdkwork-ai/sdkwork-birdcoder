@@ -33,3 +33,23 @@ Shared documentation across all application surfaces (PC, H5, Flutter).
 - [ ] All documentation follows `DOCUMENTATION_SPEC.md`
 - [ ] No secrets or credentials in documentation
 - [ ] App-specific docs are in app `docs/` directories
+
+## Canon Documents
+
+| Document | Path |
+| --- | --- |
+| Product PRD | [product/prd/PRD.md](product/prd/PRD.md) |
+| Technical architecture | [architecture/tech/TECH_ARCHITECTURE.md](architecture/tech/TECH_ARCHITECTURE.md) |
+
+- [docs/product/prd/PRD.md](product/prd/PRD.md)
+- [docs/architecture/tech/TECH_ARCHITECTURE.md](architecture/tech/TECH_ARCHITECTURE.md)
+
+## Canon Documents
+
+| Document | Path |
+| --- | --- |
+| Product PRD | [product/prd/PRD.md](product/prd/PRD.md) |
+| Technical architecture | [architecture/tech/TECH_ARCHITECTURE.md](architecture/tech/TECH_ARCHITECTURE.md) |
+
+- [docs/product/prd/PRD.md](product/prd/PRD.md)
+- [docs/architecture/tech/TECH_ARCHITECTURE.md](architecture/tech/TECH_ARCHITECTURE.md)

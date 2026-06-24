@@ -221,7 +221,7 @@ export interface BirdCoderCodingServerOpenApiDocument {
       >
     >
   >;
-  'x-sdkwork-api-gateway': {
+  'x-sdkwork-api-cloud-gateway': {
     versionedOpenApiPaths: string[];
     docsPath: typeof BIRDCODER_CODING_SERVER_DOCS_PATH;
     liveOpenApiPath: typeof BIRDCODER_CODING_SERVER_LIVE_OPENAPI_PATH;
@@ -5314,6 +5314,7 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['GET /app/v3/api/workspaces/:workspaceId/members', 'workspaces.members.list'],
     ['POST /app/v3/api/workspaces/:workspaceId/members', 'workspaces.members.upsert'],
     ['POST /app/v3/api/projects/:projectId/publish', 'projects.publish.create'],
+    ['GET /app/v3/api/projects/:projectId/deployment_targets', 'projects.deploymentTargets.list'],
     ['GET /app/v3/api/deployments', 'deployments.list'],
     ['GET /backend/v3/api/iam/audit_events', 'auditEvents.list'],
     ['GET /backend/v3/api/iam/policies', 'policies.list'],
@@ -5776,6 +5777,13 @@ function getResolvedBirdCoderAppApiContract(): BirdCoderAppApiContract {
       'Subscribe to workspace realtime invalidation events',
     ),
     deployments: createRoute('app', 'user', 'GET', '/app/v3/api/deployments', 'List deployments'),
+    projectDeploymentTargets: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/projects/:projectId/deployment_targets',
+      'List project deployment targets',
+    ),
     documents: createRoute('app', 'user', 'GET', '/app/v3/api/documents', 'List project documents'),
     project: createRoute('app', 'user', 'GET', '/app/v3/api/projects/:projectId', 'Get project'),
     projectGitOverview: createRoute(
@@ -6217,7 +6225,7 @@ export function buildBirdCoderCodingServerOpenApiDocument(
       schemas,
     },
     paths,
-    'x-sdkwork-api-gateway': {
+    'x-sdkwork-api-cloud-gateway': {
       versionedOpenApiPaths: [BIRDCODER_CODING_SERVER_OPENAPI_PATH],
       docsPath: BIRDCODER_CODING_SERVER_DOCS_PATH,
       liveOpenApiPath: BIRDCODER_CODING_SERVER_LIVE_OPENAPI_PATH,

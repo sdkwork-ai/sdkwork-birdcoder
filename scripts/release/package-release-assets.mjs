@@ -851,7 +851,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
   }
 
   if (family === 'container') {
-    copyIfExists(path.join(rootDir, 'deploy', 'docker'), path.join(bundleRoot, 'deploy', 'docker'));
+    copyIfExists(path.join(rootDir, 'deployments', 'docker'), path.join(bundleRoot, 'deploy', 'docker'));
     copyRequiredServerBinary({
       bundleRoot,
       descriptor,
@@ -871,7 +871,11 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
   }
 
   if (family === 'kubernetes') {
-    copyIfExists(path.join(rootDir, 'deploy', 'kubernetes'), path.join(bundleRoot, 'chart'));
+    copyIfExists(path.join(rootDir, 'deployments', 'kubernetes'), path.join(bundleRoot, 'chart'));
+    copyIfExists(
+      path.join(rootDir, 'deployments', 'kubernetes', 'values-postgresql-ha.yaml'),
+      path.join(bundleRoot, 'chart', 'values-postgresql-ha.yaml'),
+    );
     writeKubernetesReleaseSidecars(bundleRoot, descriptor);
     return;
   }

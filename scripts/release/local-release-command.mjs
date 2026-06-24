@@ -11,6 +11,7 @@ import { assertReleaseReadiness } from './assert-release-readiness.mjs';
 import { finalizeReleaseAssets } from './finalize-release-assets.mjs';
 import { packageReleaseAssets } from './package-release-assets.mjs';
 import { verifyDesktopInstallerTrust } from './verify-desktop-installer-trust.mjs';
+import { preflightDesktopSigningEnvironment } from './preflight-desktop-signing-environment.mjs';
 import {
   createReleasePlan,
   createRollbackPlan,
@@ -136,6 +137,25 @@ function summarizePackageResult(result) {
   };
 }
 
+export function runDesktopSigningPreflightIfRequired(context, {
+  preflightDesktopSigningEnvironmentFn = preflightDesktopSigningEnvironment,
+} = {}) {
+  const enforce =
+    context.enforceSigningPreflight === true
+    || String(process.env.BIRDCODER_ENFORCE_DESKTOP_SIGNING_PREFLIGHT ?? '').trim() === '1';
+  if (!enforce || !context.mode.startsWith('package:') || context.mode.split(':')[1] !== 'desktop') {
+    return null;
+  }
+
+  return preflightDesktopSigningEnvironmentFn({
+    platform: context.platform || process.platform,
+    arch: context.arch || process.arch,
+    target: context.target,
+    releaseKind: context.releaseKind,
+    rolloutStage: context.rolloutStage,
+  });
+}
+
 export function parseArgs(argv) {
   const [command, maybeFamily, ...rest] = argv;
   const options = {
@@ -159,6 +179,7 @@ export function parseArgs(argv) {
     imageDigest: '',
     repository: '',
     qualityExecutionReportPath: '',
+    enforceSigningPreflight: false,
   };
 
   const tokens = argv.slice(command === 'package' || command === 'smoke' || command === 'verify-trust' ? 2 : 1);
@@ -249,6 +270,9 @@ export function parseArgs(argv) {
         options.qualityExecutionReportPath = readOptionValue(tokens, index, token);
         index += 1;
         break;
+      case '--enforce-signing-preflight':
+        options.enforceSigningPreflight = true;
+        break;
       default:
         throw new Error(`Unsupported option: ${token}`);
     }
@@ -330,6 +354,10 @@ async function resolveCommandPayload(context) {
 
   if (context.mode.startsWith('package:')) {
     const family = context.mode.split(':')[1];
+    const signingPreflight = runDesktopSigningPreflightIfRequired(context);
+    if (signingPreflight?.status === 'failed') {
+      throw new Error(signingPreflight.message || 'Desktop signing environment preflight failed.');
+    }
     const result = packageReleaseAssets(family, {
       profile: context.profileId,
       'release-tag': context.releaseTag,

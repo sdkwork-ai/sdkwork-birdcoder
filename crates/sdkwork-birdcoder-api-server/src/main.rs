@@ -3,12 +3,7 @@ use sdkwork_birdcoder_api_server::server;
 
 #[tokio::main]
 async fn main() {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
+    sdkwork_web_bootstrap::init_tracing_from_env();
 
     let config = bootstrap::config::BirdServerConfig::from_env();
     let app = bootstrap::build_app(&config)

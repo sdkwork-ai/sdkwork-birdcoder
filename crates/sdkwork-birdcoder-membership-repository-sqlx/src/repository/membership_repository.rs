@@ -1,11 +1,11 @@
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 
 use crate::db::columns;
 use crate::db::rows::{MembershipPackageRow, MembershipRow, PackageGroupRow};
 use crate::error::RepositoryError;
 
 pub async fn get_current_membership(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     tenant_id: Option<i64>,
     owner_user_id: &str,
 ) -> Result<MembershipRow, RepositoryError> {
@@ -41,7 +41,7 @@ pub async fn get_current_membership(
     MembershipRow::from_row(&row).map_err(Into::into)
 }
 
-pub async fn list_package_groups(pool: &SqlitePool) -> Result<Vec<PackageGroupRow>, RepositoryError> {
+pub async fn list_package_groups(pool: &AnyPool) -> Result<Vec<PackageGroupRow>, RepositoryError> {
     let sql = format!(
         "SELECT {} FROM {} WHERE is_deleted = 0 ORDER BY sort_weight",
         ALL_GROUP_COLUMNS,
@@ -55,7 +55,7 @@ pub async fn list_package_groups(pool: &SqlitePool) -> Result<Vec<PackageGroupRo
 }
 
 pub async fn list_packages_by_group(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     group_id: &str,
 ) -> Result<Vec<MembershipPackageRow>, RepositoryError> {
     let sql = format!(

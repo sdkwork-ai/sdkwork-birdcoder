@@ -10,6 +10,7 @@ type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 type PlatformProjectsCollaboratorsListPathParams = Types.PlatformProjectsCollaboratorsListPathParams;
 type PlatformProjectsCollaboratorsUpsertPathParams = Types.PlatformProjectsCollaboratorsUpsertPathParams;
 type PlatformProjectsDeletePathParams = Types.PlatformProjectsDeletePathParams;
+type PlatformProjectsDeploymentTargetsListPathParams = Types.PlatformProjectsDeploymentTargetsListPathParams;
 type PlatformProjectsGitBranchesCreatePathParams = Types.PlatformProjectsGitBranchesCreatePathParams;
 type PlatformProjectsGitBranchSwitchCreatePathParams = Types.PlatformProjectsGitBranchSwitchCreatePathParams;
 type PlatformProjectsGitCommitsCreatePathParams = Types.PlatformProjectsGitCommitsCreatePathParams;
@@ -39,6 +40,9 @@ export interface PlatformApi {
     };
     create(body: Types.BirdCoderCreateProjectRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectSummaryEnvelope>;
     delete(pathParams: PlatformProjectsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeletedResourceEnvelope>;
+    deploymentTargets: {
+      list(pathParams: PlatformProjectsDeploymentTargetsListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeploymentTargetSummaryListEnvelope>;
+    };
     git: {
       branches: {
         create(pathParams: PlatformProjectsGitBranchesCreatePathParams, body: Types.BirdCoderCreateProjectGitBranchRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectGitOverviewEnvelope>;
@@ -104,6 +108,11 @@ export function createPlatformApi(requestOperation: BirdcoderSdkRequestOperation
       },
       delete(pathParams: PlatformProjectsDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderDeletedResourceEnvelope>("platform.projects.delete", { pathParams }, options);
+      },
+      deploymentTargets: {
+        list(pathParams: PlatformProjectsDeploymentTargetsListPathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderDeploymentTargetSummaryListEnvelope>("platform.projects.deploymentTargets.list", { pathParams }, options);
+        }
       },
       git: {
         branches: {

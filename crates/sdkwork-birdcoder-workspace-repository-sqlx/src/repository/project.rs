@@ -1,5 +1,5 @@
 use sdkwork_birdcoder_project_service::context::ProjectContext;
-use sqlx::{QueryBuilder, Sqlite, SqlitePool};
+use sqlx::{Any, AnyPool, QueryBuilder};
 use uuid::Uuid;
 
 use crate::db::columns::project as col;
@@ -15,11 +15,11 @@ use sdkwork_birdcoder_project_service::error::ProjectError;
 
 #[derive(Clone)]
 pub struct SqliteProjectRepository {
-    pool: SqlitePool,
+    pool: AnyPool,
 }
 
 impl SqliteProjectRepository {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: AnyPool) -> Self {
         Self { pool }
     }
 
@@ -183,7 +183,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
-        let id = result.last_insert_rowid();
+        let id = result.last_insert_id();
         let row = sqlx::query(&format!(
             "SELECT * FROM {} WHERE {} = ?",
             col::TABLE,
@@ -209,7 +209,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let tenant_id = project_scoped_tenant_id(ctx)?;
         let now = Self::now_iso();
 
-        let mut builder: QueryBuilder<Sqlite> =
+        let mut builder: QueryBuilder<Any> =
             QueryBuilder::new(format!("UPDATE {} SET ", col::TABLE));
         {
             let mut sep = builder.separated(", ");
@@ -497,7 +497,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .await
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
-            let new_id = result.last_insert_rowid();
+            let new_id = result.last_insert_id();
             let row = sqlx::query(&format!(
                 "SELECT * FROM {} WHERE {} = ?",
                 collab_col::TABLE,

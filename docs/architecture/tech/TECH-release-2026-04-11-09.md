@@ -1,0 +1,51 @@
+> Migrated from `docs/release/release-2026-04-11-09.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Closes the typed app-runtime write facade for `codingSessions.create` on top of the generated coding-server client.
+- Promotes `codingSessions.create` from the excluded app-runtime governance catalog into the promoted app-runtime SDK catalog.
+- Wires the first real consumer boundary through `ApiBackedProjectService.createCodingSession()` and preserves refreshed UI session visibility by mirroring the server-created session into local project state.
+
+## Scope
+
+- `packages/sdkwork-birdcoder-types/src/server-api.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ProviderBackedProjectService.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IProjectSessionMirror.ts`
+- `package.json`
+- `scripts/app-runtime-write-sdk-client-contract.test.ts`
+- `scripts/default-ide-services-app-runtime-write-sdk-contract.test.ts`
+- `scripts/api-backed-project-service-app-runtime-create-coding-session-contract.test.ts`
+- `scripts/app-runtime-sdk-facade-governance-contract.test.ts`
+- `docs/架构/09-安装-部署-发布标准.md`
+- `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`
+- `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md`
+- `docs/step/17T-App-Runtime-Create-Coding-Session-SDK-And-Consumer-Adoption-Lane.md`
+- `docs/prompts/反复执行Step指令.md`
+- `docs/release/releases.json`
+
+## Verification
+
+- `pnpm.cmd run test:app-runtime-write-sdk-client-contract`
+- `pnpm.cmd run test:default-ide-services-app-runtime-write-sdk-contract`
+- `pnpm.cmd run test:api-backed-project-service-app-runtime-create-coding-session-contract`
+- `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
+- `pnpm.cmd run typecheck`
+- `pnpm.cmd run docs:build`
+- `pnpm.cmd run check:release-flow`
+
+## Post-release operations
+
+- Observation window: `0` minutes on `pending`.
+- Stop-ship signals: shared governance still excludes `codingSessions.create`; runtime-bound default services bypass the app-runtime write facade; refreshed project catalogs lose the server-created session; or release-flow omits the new app-runtime write contracts.
+- Rollback entry: `pnpm release:rollback:plan -- --release-tag release-2026-04-11-09 --release-assets-dir artifacts/release`.
+- Re-issue path: `pnpm release:plan` -> typed app-runtime write facade fix -> consumer adoption fix -> docs/release backwrite -> `pnpm release:finalize`.
+- Writeback targets: `docs/架构/09-安装-部署-发布标准.md`, `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`, `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md`, `docs/step/17T-App-Runtime-Create-Coding-Session-SDK-And-Consumer-Adoption-Lane.md`, `docs/prompts/反复执行Step指令.md`, `docs/release/releases.json`, and `docs/release/release-2026-04-11-09.md`.
+
+## Notes
+
+- This loop does not promote `codingSessions.turns.create`.
+- The next serial non-environmental closure is making the turn-create route real before introducing another app-runtime write facade.
+

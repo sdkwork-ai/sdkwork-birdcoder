@@ -12,6 +12,7 @@ import {
   createEnvelope,
   createListEnvelope,
   mapDeploymentSummary,
+  mapDeploymentTargetSummary,
   mapDocumentSummary,
   mapProjectSummary,
   mapTeamSummary,
@@ -149,10 +150,21 @@ export function createBirdCoderInProcessAppSdkTransport({
         throw new Error(`Unsupported in-process app SDK method: ${request.method}`);
       }
 
+      const deploymentTargetsMatch = request.path.match(
+        /^\/app\/v3\/api\/projects\/([^/]+)\/deployment_targets$/,
+      );
+      if (deploymentTargetsMatch) {
+        const projectId = decodeURIComponent(deploymentTargetsMatch[1]!);
+        return createListEnvelope(
+          (await queries.listDeploymentTargets({ projectId })).map(mapDeploymentTargetSummary),
+        ) as TResponse;
+      }
+
       if (
         request.path.startsWith(appProjectRoutePrefix) &&
         !request.path.endsWith('/collaborators') &&
-        !request.path.endsWith('/publish')
+        !request.path.endsWith('/publish') &&
+        !request.path.endsWith('/deployment_targets')
       ) {
         const encodedProjectId = request.path.slice(appProjectRoutePrefix.length);
         if (encodedProjectId && !encodedProjectId.includes('/')) {

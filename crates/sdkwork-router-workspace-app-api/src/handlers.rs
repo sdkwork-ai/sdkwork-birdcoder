@@ -37,7 +37,7 @@ use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 use sdkwork_birdcoder_deployment_service::domain::commands::PublishProjectCommand;
 use sdkwork_birdcoder_deployment_service::domain::commands::PublishProjectRequest as DeployPublishRequest;
 use sdkwork_birdcoder_deployment_service::domain::results::{
-    DeploymentPayload, PublishProjectResultPayload,
+    DeploymentPayload, DeploymentTargetPayload, PublishProjectResultPayload,
 };
 use sdkwork_birdcoder_deployment_service::service::deployment_service::DeploymentService;
 
@@ -707,6 +707,29 @@ pub async fn list_deployments(
         Ok(deployments) => {
             let total = deployments.len();
             Ok(Json(build_list_envelope(deployments, total, request_id(&web))))
+        }
+        Err(e) => Err(error::map_deployment_error(e, request_trace_id(&web))),
+    }
+}
+
+pub async fn list_project_deployment_targets(
+    web: WebRequestContext,
+    RequiredIamContext(iam): RequiredIamContext,
+    State(state): State<WorkspaceAppState>,
+    Path(params): Path<ProjectPathParams>,
+) -> Result<
+    Json<ApiListEnvelope<DeploymentTargetPayload>>,
+    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+> {
+    let ctx = deployment_context(&iam);
+    match state
+        .deployment_service
+        .list_deployment_targets_by_project(&ctx, &params.project_id)
+        .await
+    {
+        Ok(targets) => {
+            let total = targets.len();
+            Ok(Json(build_list_envelope(targets, total, request_id(&web))))
         }
         Err(e) => Err(error::map_deployment_error(e, request_trace_id(&web))),
     }

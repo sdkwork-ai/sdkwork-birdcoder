@@ -67,8 +67,8 @@ assert.doesNotMatch(
 
 assert.match(
   h5AdminBackendSdk,
-  /getBirdCoderGeneratedBackendSdkClient/u,
-  'h5-admin-core must own backend SDK client construction.',
+  /@sdkwork\/birdcoder-pc-admin-core/u,
+  'h5-admin-core must construct backend SDK clients through pc-admin-core.',
 );
 assert.doesNotMatch(
   h5AdminCoreIndex,

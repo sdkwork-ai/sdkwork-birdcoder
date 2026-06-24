@@ -9,7 +9,10 @@ const pcPackagesRelativeDir = 'apps/sdkwork-birdcoder-pc/packages';
 
 const allowedInternalDependencies = new Map([
   ['@sdkwork/birdcoder-pc-admin-core', new Set([
+    '@sdkwork/birdcoder-backend-sdk',
+    '@sdkwork/birdcoder-pc-core',
     '@sdkwork/birdcoder-pc-types',
+    '@sdkwork/sdk-common',
   ])],
   ['@sdkwork/birdcoder-pc-admin-shell', new Set()],
   ['@sdkwork/birdcoder-pc-auth', new Set([

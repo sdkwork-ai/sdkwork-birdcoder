@@ -55,8 +55,11 @@ if (!apiServerSources.includes('database_pool')) {
 if (!apiServerSources.includes('wire_repositories(database_pool')) {
   fail('wire_repositories must consume sdkwork-database pool');
 }
-if (!apiServerSources.includes('SqlitePool')) {
-  fail('api-server repositories and health checks must use sqlx SqlitePool');
+if (!apiServerSources.includes('AnyPool')) {
+  fail('api-server repositories must use sqlx AnyPool for engine-agnostic persistence');
+}
+if (!apiServerSources.includes('DatabasePool::Postgres')) {
+  fail('api-server health checks must probe PostgreSQL pools when configured');
 }
 if (apiServerSources.includes('rusqlite')) {
   fail('api-server bootstrap must not reference rusqlite');
@@ -78,6 +81,11 @@ for (const relativePath of sqlxRepoCrates) {
   if (cargoToml.includes('rusqlite')) {
     fail(`${relativePath} must not depend on rusqlite after sqlx migration`);
   }
+}
+
+const repositoryPoolCrate = read('crates/sdkwork-birdcoder-sqlx-repository-pool/Cargo.toml');
+if (!repositoryPoolCrate.includes('sdkwork_database_sqlx')) {
+  fail('birdcoder sqlx repository pool bridge must depend on sdkwork-database-sqlx');
 }
 
 const iamEnvScript = read('scripts/birdcoder-iam-env.mjs');

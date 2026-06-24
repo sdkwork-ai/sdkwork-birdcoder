@@ -1,65 +1,8 @@
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const appPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx', import.meta.url);
-const codeEditorPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/CodeEditor.tsx',
-  import.meta.url,
-);
-const diffEditorPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/DiffEditor.tsx',
-  import.meta.url,
-);
-const codeEditorSurfacePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorSurface.tsx',
-  import.meta.url,
-);
-const codeEditorWorkspacePanelPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx',
-  import.meta.url,
-);
-const codeTerminalPanelPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeTerminalIntegrationPanel.tsx',
-  import.meta.url,
-);
-const studioPagePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPage.tsx',
-  import.meta.url,
-);
-const studioCodeWorkspacePanelPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioCodeWorkspacePanel.tsx',
-  import.meta.url,
-);
-const studioPreviewPanelPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/StudioPreviewPanel.tsx',
-  import.meta.url,
-);
-const studioSimulatorPanelPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/simulator/StudioSimulatorPanel.tsx',
-  import.meta.url,
-);
-const studioTerminalPanelPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioTerminalIntegrationPanel.tsx',
-  import.meta.url,
-);
-const studioWorkspaceOverlaysPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioWorkspaceOverlays.tsx',
-  import.meta.url,
-);
-const studioStageHeaderPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/preview/StudioStageHeader.tsx',
-  import.meta.url,
-);
-const monacoRuntimePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/monacoRuntime.ts',
-  import.meta.url,
-);
-const resizeHandlePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/ResizeHandle.tsx',
-  import.meta.url,
-);
-
-const appSource = fs.readFileSync(appPath, 'utf8');
+const appSource = readBirdcoderAppShellSource();
 const codeEditorSource = fs.readFileSync(codeEditorPath, 'utf8');
 const diffEditorSource = fs.readFileSync(diffEditorPath, 'utf8');
 const codeEditorSurfaceSource = fs.readFileSync(codeEditorSurfacePath, 'utf8');

@@ -1,0 +1,35 @@
+> Migrated from `docs/release/release-2026-04-10-31.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Extends the shared `sqlExecutor.ts` path from provider migrations into generic table repositories and executor-backed UoW visibility.
+- Wires `coding-server` projection persistence for `runtime / event / artifact / operation` onto `sqlPlans.ts + sqlExecutor.ts`, so app-runtime projection reads and writes can now reuse the same executor/UoW contract.
+- Adds dedicated contract coverage for executor-backed table repositories and executor-backed projection repositories, and moves the next serial closure to real SQLite/PostgreSQL backend binding plus representative app/backend repository adoption.
+
+## Scope
+
+- [sqlExecutor.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-infrastructure/src/storage/sqlExecutor.ts)
+- [sqlPlans.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-infrastructure/src/storage/sqlPlans.ts)
+- [dataKernel.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-infrastructure/src/storage/dataKernel.ts)
+- [projectionRepository.ts](/<workspace-root>/sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/projectionRepository.ts)
+- [sql-executor-table-repository-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/sql-executor-table-repository-contract.test.ts)
+- [sql-executor-projection-repository-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/sql-executor-projection-repository-contract.test.ts)
+- [package.json](/<workspace-root>/sdkwork-birdcoder/package.json)
+- [17-Coding-Server-App-Backend-SDK与控制台实现.md](/<workspace-root>/sdkwork-birdcoder/docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md)
+- [20-统一Rust-Coding-Server-API-协议标准.md](/<workspace-root>/sdkwork-birdcoder/docs/架构/20-统一Rust-Coding-Server-API-协议标准.md)
+- [反复执行Step指令.md](/<workspace-root>/sdkwork-birdcoder/docs/prompts/反复执行Step指令.md)
+
+## Verification
+
+- `pnpm.cmd run test:sql-executor-table-repository-contract`
+- `pnpm.cmd run test:sql-executor-projection-repository-contract`
+- `pnpm.cmd run test:storage-provider-contract`
+- `pnpm.cmd run check:data-kernel`
+- `pnpm.cmd run typecheck`
+
+## Notes
+
+- The current executor path is still contract-first and in-memory-backed on the TypeScript side; this release closes the reusable execution semantics, not the final native SQLite/PostgreSQL backend binding.
+- The next serial slice is binding the same plan/executor contract to real SQLite/PostgreSQL backends and then reusing it in representative app/backend repositories and SDK consumers.
+

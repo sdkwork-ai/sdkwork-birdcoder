@@ -578,6 +578,13 @@ export interface BirdCoderDeploymentTargetSummary {
   status: "active" | "archived";
 }
 
+export interface BirdCoderDeploymentTargetSummaryListEnvelope {
+  items: Array<BirdCoderDeploymentTargetSummary>;
+  meta: BirdCoderApiListMeta;
+  requestId: string;
+  timestamp: string;
+}
+
 export interface BirdCoderEditCodingSessionMessageRequest {
   content: string;
 }
@@ -1664,6 +1671,10 @@ export interface PlatformProjectsDeletePathParams {
   projectId: string;
 }
 
+export interface PlatformProjectsDeploymentTargetsListPathParams {
+  projectId: string;
+}
+
 export interface PlatformProjectsGitBranchesCreatePathParams {
   projectId: string;
 }
@@ -2541,6 +2552,24 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "public": false,
     "resource": "platform.projects",
     "summary": "Delete project",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.deploymentTargets.list",
+    "method": "GET",
+    "operationId": "projects.deploymentTargets.list",
+    "path": "/app/v3/api/projects/{projectId}/deployment_targets",
+    "pathParamNames": [
+      "projectId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "platform.projects.deploymentTargets.read",
+    "public": false,
+    "resource": "platform.projects.deploymentTargets",
+    "summary": "List project deployment targets",
     "tag": "platform",
     "tenantScope": "tenant"
   },

@@ -2698,11 +2698,17 @@
             "type": "string",
             "format": "date-time"
           },
+          "pollSecret": {
+            "type": "string"
+          },
           "qrContent": {
             "type": "string"
           },
           "qrUrl": {
             "type": "string"
+          },
+          "sessionReady": {
+            "type": "boolean"
           },
           "status": {
             "type": "string",
@@ -2710,13 +2716,28 @@
               "pending",
               "scanned",
               "confirmed",
-              "expired"
+              "completed",
+              "expired",
+              "cancelled",
+              "failed"
             ]
           }
         },
         "required": [
           "deviceAuthorizationId",
           "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderIamDeviceAuthorizationSessionExchangeRequest": {
+        "type": "object",
+        "properties": {
+          "pollSecret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pollSecret"
         ],
         "additionalProperties": false
       },
@@ -2786,7 +2807,10 @@
               "pending",
               "scanned",
               "confirmed",
-              "expired"
+              "completed",
+              "expired",
+              "cancelled",
+              "failed"
             ]
           }
         },
@@ -10548,6 +10572,108 @@
         "x-sdkwork-tenant-scope": "platform"
       }
     },
+    "/app/v3/api/oauth/device_authorizations/{deviceAuthorizationId}/session_exchanges": {
+      "post": {
+        "operationId": "oauth.deviceAuthorizations.sessionExchanges.create",
+        "summary": "Exchange SDKWork IAM OAuth device authorization for a session",
+        "description": "Exchange SDKWork IAM OAuth device authorization for a session. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "oauth"
+        ],
+        "parameters": [
+          {
+            "name": "deviceAuthorizationId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork IAM OAuth device authorization identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationSessionExchangeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork IAM OAuth device authorization session exchanged successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderIamSessionEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth device authorization session exchange is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "OAuth device authorization poll secret was rejected.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "OAuth device authorization was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "OAuth device authorization session is not ready for exchange.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "platform",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-public": true,
+        "x-sdkwork-resource": "system.oauth.deviceAuthorizations.sessionExchanges",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "platform"
+      }
+    },
     "/app/v3/api/auth/password_reset_requests": {
       "post": {
         "operationId": "passwordResetRequests.create",
@@ -12320,6 +12446,74 @@
         "x-sdkwork-permission": "platform.deployments.read",
         "x-sdkwork-public": false,
         "x-sdkwork-resource": "platform.deployments",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/app/v3/api/projects/{projectId}/deployment_targets": {
+      "get": {
+        "operationId": "projects.deploymentTargets.list",
+        "summary": "List project deployment targets",
+        "description": "List project deployment targets. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deployment targets returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeploymentTargetSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.projects.deploymentTargets.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.projects.deploymentTargets",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16922,16 +17116,16 @@
       }
     }
   },
-  "x-sdkwork-api-gateway": {
+  "x-sdkwork-api-cloud-gateway": {
     "versionedOpenApiPaths": [
       "/openapi/coding-server-v1.json"
     ],
     "docsPath": "/docs",
     "liveOpenApiPath": "/openapi.json",
     "routeCatalogPath": "/app/v3/api/system/routes",
-    "routeCount": 129,
+    "routeCount": 131,
     "routesBySurface": {
-      "app": 80,
+      "app": 82,
       "backend": 49
     },
     "surfaces": [
@@ -16940,7 +17134,7 @@
         "basePath": "/app/v3/api",
         "description": "Application-facing coding runtime, workspace, project, collaboration, and IAM routes.",
         "name": "app",
-        "routeCount": 80
+        "routeCount": 82
       },
       {
         "authMode": "admin",

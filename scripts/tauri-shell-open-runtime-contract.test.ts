@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const rootPackageJsonPath = new URL('../package.json', import.meta.url);
 const workspaceLockPath = new URL('../pnpm-lock.yaml', import.meta.url);
@@ -14,7 +15,6 @@ const tauriShellModulePath = new URL(
 const sourcePaths = [
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeWorkbenchCommands.ts',
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/useStudioWorkbenchEventBindings.ts',
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx',
 ];
 
 const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf8'));
@@ -63,6 +63,18 @@ for (const relativeSourcePath of sourcePaths) {
     `${relativeSourcePath} must use the shared openTauriShellPath helper.`,
   );
 }
+
+const birdcoderAppShellSource = readBirdcoderAppShellSource();
+assert.doesNotMatch(
+  birdcoderAppShellSource,
+  /@tauri-apps\/plugin-shell/u,
+  'Birdcoder app shell must not import @tauri-apps/plugin-shell because Vite statically resolves literal dynamic imports and broken local package contents block startup before runtime branching.',
+);
+assert.match(
+  birdcoderAppShellSource,
+  /openTauriShellPath/u,
+  'Birdcoder app shell must use the shared openTauriShellPath helper.',
+);
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
 

@@ -3,9 +3,10 @@ import { createBirdCoderInProcessAppSdkTransport } from './appSdkTransport.ts';
 import { createBirdCoderInProcessBackendSdkTransport } from './backendSdkTransport.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import {
-  ApiBackedAdminDeploymentService,
-  ApiBackedAdminPolicyService,
-  ApiBackedAuditService,
+  createBirdCoderAdminIdeServices,
+  createUnavailableAdminDeploymentService,
+  createUnavailableAdminPolicyService,
+  createUnavailableAuditService,
 } from '@sdkwork/birdcoder-pc-admin-core';
 import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
 import { ApiBackedCollaborationService } from './impl/ApiBackedCollaborationService.ts';
@@ -15,7 +16,7 @@ import { ApiBackedDeploymentService } from './impl/ApiBackedDeploymentService.ts
 import { ApiBackedDocumentService } from './impl/ApiBackedDocumentService.ts';
 import { ApiBackedGitService } from './impl/ApiBackedGitService.ts';
 import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
-import { ApiBackedReleaseService } from './impl/ApiBackedReleaseService.ts';
+import { EmptyReleaseService } from './impl/EmptyReleaseService.ts';
 import { ApiBackedTeamService } from './impl/ApiBackedTeamService.ts';
 import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
 import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
@@ -134,10 +135,6 @@ export function createDefaultBirdCoderIdeServices(
     runtime.appClient ??
     resolveRuntimeAppClient() ??
     createUnavailableBirdCoderAppClient();
-  const backendClient =
-    runtime.backendClient ??
-    resolveRuntimeBackendClient() ??
-    createUnavailableBirdCoderBackendClient();
   const workspaceService = runtime.hasBoundAppClient
     ? new ApiBackedWorkspaceService({
         appClient,
@@ -157,17 +154,19 @@ export function createDefaultBirdCoderIdeServices(
       })
     : runtime.providerBackedProjectService;
 
+  const adminServices = runtime.hasExplicitBackendClient
+    ? createBirdCoderAdminIdeServices(runtime.backendClient)
+    : {
+        adminDeploymentService: createUnavailableAdminDeploymentService(),
+        adminPolicyService: createUnavailableAdminPolicyService(),
+        auditService: createUnavailableAuditService(),
+      };
+
   return {
-    adminDeploymentService: new ApiBackedAdminDeploymentService({
-      backendClient,
-    }),
-    adminPolicyService: new ApiBackedAdminPolicyService({
-      backendClient,
-    }),
+    adminDeploymentService: adminServices.adminDeploymentService,
+    adminPolicyService: adminServices.adminPolicyService,
     authService: runtime.authService,
-    auditService: new ApiBackedAuditService({
-      backendClient,
-    }),
+    auditService: adminServices.auditService,
     catalogService: new ApiBackedCatalogService({
       appClient,
     }),
@@ -184,7 +183,6 @@ export function createDefaultBirdCoderIdeServices(
     }),
     deploymentService: new ApiBackedDeploymentService({
       appClient,
-      backendClient,
     }),
     documentService: new ApiBackedDocumentService({
       appClient,
@@ -195,9 +193,7 @@ export function createDefaultBirdCoderIdeServices(
     }),
     promptService: runtime.promptService,
     projectService,
-    releaseService: new ApiBackedReleaseService({
-      backendClient,
-    }),
+    releaseService: new EmptyReleaseService(),
     teamService: new ApiBackedTeamService({
       appClient,
       currentUserProvider: runtime.authService,

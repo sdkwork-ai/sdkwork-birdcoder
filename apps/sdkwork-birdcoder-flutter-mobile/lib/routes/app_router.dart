@@ -3,6 +3,7 @@ import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_
 
 import '../auth/auth_route.dart';
 import '../auth/auth_surface.dart';
+import '../routing/route_page_factory.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -21,30 +22,9 @@ class AppRouter {
       );
     }
 
-    switch (routeName) {
-      case '/':
-        return MaterialPageRoute(
-          builder: (_) => const Scaffold(
-            body: Center(child: Text('Chat Page')),
-          ),
-          settings: settings,
-        );
-      case '/settings':
-        return MaterialPageRoute(
-          builder: (_) => const Scaffold(
-            body: Center(child: Text('Settings Page')),
-          ),
-          settings: settings,
-        );
-      default:
-        return MaterialPageRoute(
-          builder: (_) => Scaffold(
-            body: Center(
-              child: Text('Unknown route: $routeName'),
-            ),
-          ),
-          settings: settings,
-        );
-    }
+    return MaterialPageRoute(
+      builder: (_) => buildBirdCoderRoutePageForPath(routeName),
+      settings: settings,
+    );
   }
 }

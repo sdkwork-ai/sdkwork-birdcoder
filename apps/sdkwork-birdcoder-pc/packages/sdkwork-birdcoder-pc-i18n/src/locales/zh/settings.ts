@@ -25,5 +25,11 @@ export default defineLocaleModule('settings', {
     turnCompletionNotificationDesc: '设置 Codex 完成任务时的提醒方式',
     enablePermissionNotifications: '启用权限通知',
     enablePermissionNotificationsDesc: '当需要权限时显示提醒',
+    legalCompliance: '法律与隐私',
+    legalComplianceDesc: '查看 SDKWork BirdCoder 的法律披露与支持资源。',
+    privacyPolicy: '隐私政策',
+    termsOfService: '服务条款',
+    support: '支持',
+    officialWebsite: '官方网站',
   },
 });

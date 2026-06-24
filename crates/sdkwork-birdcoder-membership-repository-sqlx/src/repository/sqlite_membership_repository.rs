@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 
 use sdkwork_birdcoder_membership_service::domain::models::{
     CommerceMembershipCurrentPayload, CommerceMembershipPackageGroupPayload,
@@ -9,11 +9,11 @@ use super::membership_repository;
 
 #[derive(Clone)]
 pub struct SqliteMembershipRepository {
-    pool: SqlitePool,
+    pool: AnyPool,
 }
 
 impl SqliteMembershipRepository {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: AnyPool) -> Self {
         Self { pool }
     }
 }

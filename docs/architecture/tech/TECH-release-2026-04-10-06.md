@@ -1,0 +1,22 @@
+> Migrated from `docs/release/release-2026-04-10-06.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Rewrites the reusable Step execution control prompt so BirdCoder now follows the current `00-18 / 91 / 95 / 97 / 98 / 99` governance chain instead of older mixed-project wording.
+- Hardens the loop contract around batch-first implementation, step-by-step closure, release backwrite, semantic version recording, and unblock-what-you-can execution.
+- Compresses the prompt while preserving the rules needed for repeatable multi-batch delivery toward a commercial-grade product.
+
+## Scope
+
+- [反复执行Step指令.md](/<workspace-root>/sdkwork-birdcoder/docs/prompts/反复执行Step指令.md)
+
+## Verification
+
+- `pnpm.cmd run docs:build`
+
+## Notes
+
+- Semantic version baseline for future loops remains `0.y.z` until all `docs/step/00-18` close and release closure is complete.
+- This iteration standardizes the execution prompt itself; it does not claim new runtime capability beyond delivery-governance hardening.
+

@@ -149,6 +149,12 @@ pub const WORKSPACE_APP_API_ROUTES: &[HttpRoute] = &[
         "deployments.list",
     ),
     HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PROJECT_DEPLOYMENT_TARGETS_PATH,
+        "projects",
+        "projects.deploymentTargets.list",
+    ),
+    HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_PUBLISH_PATH,
         "projects",

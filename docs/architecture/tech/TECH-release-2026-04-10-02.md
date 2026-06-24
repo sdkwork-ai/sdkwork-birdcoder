@@ -1,0 +1,45 @@
+> Migrated from `docs/release/release-2026-04-10-02.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Completes the first executable Step 05 hard-cutover by making `claude-code` the canonical runtime/profile id across the shared workbench kernel, terminal registry, launch profiles, and settings state.
+- Adds descriptor and model-catalog exports to the shared engine kernel so runtime consumers now resolve one standard engine contract instead of duplicating local engine metadata.
+- Aligns terminal, chat, and settings consumers to the same engine registry so launch guards, profile icons, preferences, and Claude default model handling all resolve through the unified kernel.
+
+## Scope
+
+- [kernel.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-commons/src/workbench/kernel.ts)
+- [profiles.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-commons/src/terminal/profiles.ts)
+- [TerminalPage.tsx](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-terminal/src/pages/TerminalPage.tsx)
+- [SettingsPage.tsx](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-settings/src/pages/SettingsPage.tsx)
+- [GeneralSettings.tsx](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-settings/src/components/GeneralSettings.tsx)
+- [index.ts](/<workspace-root>/sdkwork-birdcoder/packages/sdkwork-birdcoder-chat-claude/src/index.ts)
+- [engine-kernel-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/engine-kernel-contract.test.ts)
+- [workbench-preferences-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/workbench-preferences-contract.test.ts)
+- [terminal-cli-registry-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/terminal-cli-registry-contract.test.ts)
+- [terminal-runtime-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/terminal-runtime-contract.test.ts)
+- [chat-runtime-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/chat-runtime-contract.test.ts)
+- [terminal-host-runtime-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/terminal-host-runtime-contract.test.ts)
+- [terminal-session-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/terminal-session-contract.test.ts)
+- [run-config-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/run-config-contract.test.ts)
+- [gemini-engine-contract.test.ts](/<workspace-root>/sdkwork-birdcoder/scripts/gemini-engine-contract.test.ts)
+
+## Verification
+
+- `node scripts/engine-kernel-contract.test.ts`
+- `node scripts/workbench-preferences-contract.test.ts`
+- `node scripts/terminal-cli-registry-contract.test.ts`
+- `node scripts/terminal-runtime-contract.test.ts`
+- `node scripts/chat-runtime-contract.test.ts`
+- `node scripts/terminal-host-runtime-contract.test.ts`
+- `node scripts/terminal-session-contract.test.ts`
+- `node scripts/run-config-contract.test.ts`
+- `node scripts/gemini-engine-contract.test.ts`
+- `pnpm.cmd run typecheck`
+- `pnpm.cmd run check:data-kernel`
+
+## Notes
+
+- This release moves the executable runtime onto the shared engine contract frozen in `packages/sdkwork-birdcoder-types`; later engine-adapter work can now target descriptor/model-catalog exports instead of legacy per-surface ids.
+

@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 
 use crate::db::columns;
 use crate::db::rows::ModelConfigRow;
@@ -6,7 +6,7 @@ use crate::error::RepositoryError;
 
 const DEFAULT_CONFIG_KEY: &str = "default";
 
-pub async fn get_model_config(pool: &SqlitePool) -> Result<ModelConfigRow, RepositoryError> {
+pub async fn get_model_config(pool: &AnyPool) -> Result<ModelConfigRow, RepositoryError> {
     let sql = format!(
         "SELECT id, config_key, config_json, schema_version, source, updated_at, created_at FROM {} WHERE config_key = ?1",
         columns::model_config::TABLE,
@@ -23,7 +23,7 @@ pub async fn get_model_config(pool: &SqlitePool) -> Result<ModelConfigRow, Repos
 }
 
 pub async fn upsert_model_config(
-    pool: &SqlitePool,
+    pool: &AnyPool,
     row: &ModelConfigRow,
 ) -> Result<(), RepositoryError> {
     let sql = format!(

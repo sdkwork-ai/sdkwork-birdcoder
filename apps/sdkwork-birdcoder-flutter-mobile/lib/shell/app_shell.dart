@@ -19,11 +19,27 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  static const _tabPaths = ['/', '/settings'];
+
   int _selectedIndex = 0;
+
+  void _openTab(int index) {
+    if (index < 0 || index >= _tabPaths.length) {
+      return;
+    }
+
+    setState(() => _selectedIndex = index);
+    Navigator.of(context).pushReplacementNamed(_tabPaths[index]);
+  }
 
   @override
   Widget build(BuildContext context) {
     final shellConfig = ShellConfig.defaultConfig();
+    final routeName = ModalRoute.of(context)?.settings.name ?? '/';
+    final selectedIndex = _tabPaths.indexOf(routeName);
+    if (selectedIndex >= 0 && selectedIndex != _selectedIndex) {
+      _selectedIndex = selectedIndex;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -39,7 +55,7 @@ class _AppShellState extends State<AppShell> {
       body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+        onTap: _openTab,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.chat),

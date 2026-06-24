@@ -5,6 +5,7 @@ import 'package:sdkwork_birdcoder_flutter_mobile_shell/sdkwork_birdcoder_flutter
 import 'auth_gate.dart';
 import 'providers/app_provider.dart';
 import 'routes/app_router.dart';
+import 'routing/route_page_factory.dart';
 import 'shell/app_shell.dart';
 
 class BirdcoderApp extends StatelessWidget {
@@ -31,38 +32,9 @@ class BirdcoderApp extends StatelessWidget {
         home: AuthGate(
           child: AppShell(
             bootstrapState: bootstrapState,
-            child: const _HomePlaceholder(),
+            child: buildBirdCoderRoutePageForPath('/'),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _HomePlaceholder extends StatelessWidget {
-  const _HomePlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = AppProvider.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'SDKWork BirdCoder Flutter Mobile',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
-          Text('API: ${provider.apiBaseUrl}'),
-          Text('Profile: ${provider.deploymentProfile}'),
-          Text('Routes: ${provider.routes.length}'),
-          const SizedBox(height: 12),
-          const Text(
-            'Mobile shell bootstrap, IAM runtime, and auth gate are active.',
-          ),
-        ],
       ),
     );
   }

@@ -25,7 +25,7 @@ pub struct MembershipRow {
 }
 
 impl MembershipRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -73,7 +73,7 @@ pub struct MembershipBenefitRow {
 }
 
 impl MembershipBenefitRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -112,7 +112,7 @@ pub struct PackageGroupRow {
 }
 
 impl PackageGroupRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,
@@ -152,7 +152,7 @@ pub struct MembershipPackageRow {
 }
 
 impl MembershipPackageRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             uuid: row.try_get("uuid")?,

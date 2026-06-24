@@ -1,16 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
-const appPath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx',
-  import.meta.url,
-);
 const indexCssPath = new URL(
   '../src/index.css',
   import.meta.url,
 );
 
-const appSource = fs.readFileSync(appPath, 'utf8');
+const appSource = readBirdcoderAppShellSource();
 const indexCssSource = fs.readFileSync(indexCssPath, 'utf8');
 
 assert.match(

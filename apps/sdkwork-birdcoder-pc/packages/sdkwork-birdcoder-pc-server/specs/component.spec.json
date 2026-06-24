@@ -10,7 +10,7 @@
     "domain": "platform",
     "declaredDomain": null,
     "capability": "component",
-    "status": "standardizing",
+    "status": "ready",
     "languages": [
       "typescript"
     ],

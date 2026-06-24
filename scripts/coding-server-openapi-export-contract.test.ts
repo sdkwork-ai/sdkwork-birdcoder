@@ -33,9 +33,9 @@ try {
   assert.equal(writtenDocument.openapi, '3.1.0');
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
-  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCatalogPath, '/app/v3/api/system/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-gateway']?.routeCount, 130);
-  assert.deepEqual(writtenDocument['x-sdkwork-api-gateway']?.routesBySurface, {
+  assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCatalogPath, '/app/v3/api/system/routes');
+  assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCount, 130);
+  assert.deepEqual(writtenDocument['x-sdkwork-api-cloud-gateway']?.routesBySurface, {
     app: 81,
     backend: 49,
   });

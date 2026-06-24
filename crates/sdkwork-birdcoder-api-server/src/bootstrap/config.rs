@@ -78,7 +78,7 @@ impl BirdServerConfig {
 
 pub fn sqlite_database_url(path: &Path) -> String {
     let normalized = path.to_string_lossy().replace('\\', "/");
-    format!("sqlite://{normalized}?mode=rwc")
+    format!("sqlite:///{normalized}?mode=rwc")
 }
 
 pub fn default_allowed_origins_for_host(host: &str) -> Vec<String> {

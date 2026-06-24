@@ -86,6 +86,7 @@ export interface BirdCoderDefaultIdeSharedRuntime {
   backendClient: BirdCoderBackendSdkApiClient;
   hasBoundAppClient: boolean;
   hasBoundBackendClient: boolean;
+  hasExplicitBackendClient: boolean;
   promptService: ProviderBackedPromptService;
   providerBackedProjectService: ProviderBackedProjectService;
   providerBackedWorkspaceService: ProviderBackedWorkspaceService;
@@ -274,6 +275,9 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   });
   const hasBoundAppClient = hasConfiguredRemoteAppAccess(runtimeConfig, options);
   const hasBoundBackendClient = hasConfiguredRemoteBackendAccess(runtimeConfig, options);
+  const hasExplicitBackendClient = Boolean(
+    options.backendClient || runtimeConfig.backendClient,
+  );
   const appClient =
     options.appClient ??
     resolveRuntimeAppClient() ??
@@ -289,9 +293,11 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const backendClient =
     options.backendClient ??
     resolveRuntimeBackendClient() ??
-    (runtimeConfig.executionAuthorityMode === 'remote-required'
-      ? createUnavailableBirdCoderBackendClient()
-      : createInProcessBirdCoderBackendClient(queries));
+    (hasExplicitBackendClient
+      ? runtimeConfig.executionAuthorityMode === 'remote-required'
+        ? createUnavailableBirdCoderBackendClient()
+        : createInProcessBirdCoderBackendClient(queries)
+      : createUnavailableBirdCoderBackendClient());
   const authService = createBirdCoderRuntimeAuthService();
 
   return {
@@ -301,6 +307,7 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     backendClient,
     hasBoundAppClient,
     hasBoundBackendClient,
+    hasExplicitBackendClient,
     promptService,
     providerBackedProjectService,
     providerBackedWorkspaceService,

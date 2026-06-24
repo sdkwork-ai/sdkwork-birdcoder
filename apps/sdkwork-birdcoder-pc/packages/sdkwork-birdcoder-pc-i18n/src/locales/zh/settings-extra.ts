@@ -13,6 +13,7 @@ export default defineLocaleModule('settings/extra', {
       worktree: '工作树',
       archivedSessions: '已归档会话',
       skills: '技能',
+      legal: '法律与隐私',
       unavailable: '{{tab}} 设置暂不可用...',
     },
     appearance: {

@@ -1,0 +1,48 @@
+> Migrated from `docs/release/release-2026-04-13-07.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+## Highlights
+
+- Closes Step `20A team_member` by promoting `team_member` from schema-only definition into shared repository/query truth, shared app/backend facade truth, real `coding-server` route truth, and Rust host demo/sqlite authority truth.
+- Freezes `/backend/v3/api/iam/teams/:teamId/members` as the canonical admin member-read surface across TS route contracts, generated client requests, in-process transport, and the Rust host OpenAPI matrix.
+- Realigns Step, architecture, and loop-control docs so future autonomous loops treat `deployment_target` as the only remaining Step 20 serial lane.
+
+## Scope
+
+- `packages/sdkwork-birdcoder-types/src/data.ts`
+- `packages/sdkwork-birdcoder-types/src/server-api.ts`
+- `packages/sdkwork-birdcoder-types/src/generated/coding-server-client.ts`
+- `packages/sdkwork-birdcoder-types/src/generated/coding-server-openapi.ts`
+- `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts`
+- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `packages/sdkwork-birdcoder-infrastructure/src/storage/appConsoleRepository.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/consoleQueries.ts`
+- `packages/sdkwork-birdcoder-infrastructure/src/services/sdkClients.ts`
+- `scripts/coding-server-route-contract.test.ts`
+- `scripts/split-sdk-client-facade-contract.test.ts`
+- `scripts/provider-backed-console-contract.test.ts`
+- `scripts/split-sdk-consumer-contract.test.ts`
+- `docs/step/20-runtime-data-kernel-v2剩余实体Authority闭环.md`
+- `docs/step/README.md`
+- `docs/step/90-架构能力-Step-目录-证据映射矩阵.md`
+- `docs/step/97-Step完成后的架构回写与能力兑现清单.md`
+- `docs/step/99-Step总执行矩阵与最短路径总表.md`
+- `docs/架构/07-数据模型-状态模型-接口契约.md`
+- `docs/架构/18-多数据库抽象-Provider-迁移标准.md`
+- `docs/prompts/反复执行Step指令.md`
+- `docs/release/release-2026-04-13-07.md`
+- `docs/release/releases.json`
+
+## Verification
+
+- `node scripts/coding-server-route-contract.test.ts`
+- `node scripts/run-local-tsx.mjs scripts/split-sdk-client-facade-contract.test.ts`
+- `node --experimental-strip-types scripts/provider-backed-console-contract.test.ts`
+- `node scripts/run-local-tsx.mjs scripts/split-sdk-consumer-contract.test.ts`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml -- --nocapture`
+
+## Notes
+
+- This release closes `20A team_member` only. It does not claim `deployment_target` closure.
+- The next autonomous implementation loop should attack Step `20B deployment_target` as the remaining lowest-score `runtime-data-kernel-v2` authority gap.
+

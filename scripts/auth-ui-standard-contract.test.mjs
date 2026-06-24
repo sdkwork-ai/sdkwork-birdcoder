@@ -144,6 +144,26 @@ assert.match(
 );
 assert.match(
   authSurfaceSource,
+  /loginMethods:\s*\['password',\s*'emailCode',\s*'phoneCode'\]/u,
+  'BirdCoder auth surface must expose password, email-code, and phone-code login for SaaS readiness.',
+);
+assert.match(
+  authSurfaceSource,
+  /emailCodeLoginEnabled:\s*true/u,
+  'BirdCoder auth surface must enable email-code login through IAM verification policy.',
+);
+assert.match(
+  authSurfaceSource,
+  /phoneCodeLoginEnabled:\s*true/u,
+  'BirdCoder auth surface must enable phone-code login through IAM verification policy.',
+);
+assert.match(
+  authSurfaceSource,
+  /recoveryMethods:\s*\['email',\s*'phone'\]/u,
+  'BirdCoder auth surface must expose email and phone recovery methods.',
+);
+assert.match(
+  authSurfaceSource,
   /createSdkworkIamRuntimeAuthController/u,
   'BirdCoder auth surface must use the standard IAM runtime auth controller.',
 );

@@ -14,4 +14,5 @@ pub const PROJECT_GIT_WORKTREE_REMOVALS_PATH: &str = "/app/v3/api/projects/{proj
 pub const PROJECT_GIT_WORKTREE_PRUNE_PATH: &str = "/app/v3/api/projects/{projectId}/git/worktree_prune";
 pub const PROJECT_COLLABORATORS_PATH: &str = "/app/v3/api/projects/{projectId}/collaborators";
 pub const PROJECT_PUBLISH_PATH: &str = "/app/v3/api/projects/{projectId}/publish";
+pub const PROJECT_DEPLOYMENT_TARGETS_PATH: &str = "/app/v3/api/projects/{projectId}/deployment_targets";
 pub const DEPLOYMENTS_PATH: &str = "/app/v3/api/deployments";

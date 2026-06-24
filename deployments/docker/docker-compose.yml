@@ -2,7 +2,7 @@ services:
   sdkwork-birdcoder:
     build:
       context: ../..
-      dockerfile: deploy/docker/Dockerfile
+      dockerfile: deployments/docker/Dockerfile
     env_file:
       - profiles/default.env
     ports:
@@ -11,7 +11,7 @@ services:
       - sdkwork-birdcoder-data:/var/lib/sdkwork-birdcoder
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:18989/app/v3/api/system/health"]
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:18989/health"]
       interval: 30s
       timeout: 5s
       start_period: 15s

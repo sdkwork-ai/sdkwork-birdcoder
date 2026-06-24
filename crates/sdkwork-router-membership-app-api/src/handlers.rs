@@ -1,6 +1,6 @@
 use axum::extract::{Query, State};
 use axum::Json;
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 
 use sdkwork_birdcoder_membership_repository_sqlx::SqliteMembershipRepository;
 use sdkwork_birdcoder_membership_service::domain::models::{
@@ -31,7 +31,7 @@ pub struct MembershipAppState {
 }
 
 impl MembershipAppState {
-    pub fn new(pool: SqlitePool) -> Self {
+    pub fn new(pool: AnyPool) -> Self {
         Self {
             service: MembershipService::new(SqliteMembershipRepository::new(pool)),
         }

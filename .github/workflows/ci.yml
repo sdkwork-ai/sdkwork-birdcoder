@@ -98,6 +98,12 @@ jobs:
       - name: Run workspace lint and parity checks
         run: pnpm lint
 
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Run PC browser e2e smoke
+        run: node scripts/run-pc-playwright-e2e.mjs
+
       - name: Run desktop contract checks
         run: pnpm check:desktop
 

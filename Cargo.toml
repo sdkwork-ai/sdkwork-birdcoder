@@ -30,6 +30,7 @@ members = [
     "crates/sdkwork-birdcoder-model-config-repository-sqlx",
     "crates/sdkwork-birdcoder-membership-repository-sqlx",
     "crates/sdkwork-birdcoder-document-repository-sqlx",
+    "crates/sdkwork-birdcoder-sqlx-repository-pool",
     "crates/sdkwork-birdcoder-database-host",
     # Host/server crates
     "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri",
@@ -65,7 +66,7 @@ time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
 async-trait = "0.1"
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }
-sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "macros"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "postgres", "any", "macros"] }
 
 # Relocated crates
 sdkwork-birdcoder-codeengine = { package = "sdkwork-birdcoder-codeengine", path = "crates/sdkwork-birdcoder-codeengine" }
@@ -103,6 +104,7 @@ sdkwork-birdcoder-app-templates-repository-sqlx = { path = "crates/sdkwork-birdc
 sdkwork-birdcoder-model-config-repository-sqlx = { path = "crates/sdkwork-birdcoder-model-config-repository-sqlx" }
 sdkwork-birdcoder-membership-repository-sqlx = { path = "crates/sdkwork-birdcoder-membership-repository-sqlx" }
 sdkwork-birdcoder-document-repository-sqlx = { path = "crates/sdkwork-birdcoder-document-repository-sqlx" }
+sdkwork-birdcoder-sqlx-repository-pool = { path = "crates/sdkwork-birdcoder-sqlx-repository-pool" }
 
 # Host/server crates
 sdkwork-birdcoder-api-server = { path = "crates/sdkwork-birdcoder-api-server" }

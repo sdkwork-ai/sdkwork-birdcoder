@@ -10,7 +10,7 @@
     "domain": "platform",
     "declaredDomain": null,
     "capability": "settings",
-    "status": "standardizing",
+    "status": "ready",
     "languages": [
       "typescript",
       "react"
@@ -133,7 +133,7 @@
   },
   "verification": {
     "commands": [
-      "pnpm --filter @sdkwork/sdkwork-birdcoder-settings typecheck"
+      "pnpm --filter @sdkwork/birdcoder-pc-settings typecheck"
     ]
   },
   "metadata": {

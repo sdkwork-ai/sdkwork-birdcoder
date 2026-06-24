@@ -19,6 +19,7 @@ import {
   EnvironmentSettings,
   WorktreeSettings,
   ArchivedSettings,
+  LegalComplianceSettings,
   type AppSettings,
   type UpdateSetting,
 } from '../components';
@@ -108,6 +109,8 @@ export function SettingsPage({
             </Suspense>
           </div>
         );
+      case 'legal':
+        return <LegalComplianceSettings />;
       default:
         return (
           <div className="flex-1 flex items-center justify-center text-gray-500">

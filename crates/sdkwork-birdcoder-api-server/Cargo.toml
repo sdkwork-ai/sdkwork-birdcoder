@@ -20,6 +20,7 @@ async-trait = { workspace = true }
 http = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+sdkwork-web-bootstrap = { path = "../../../sdkwork-web-framework/crates/sdkwork-web-bootstrap" }
 
 # Route crates
 sdkwork-router-system-app-api = { workspace = true }
@@ -63,6 +64,7 @@ sdkwork-birdcoder-workspace-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-skill-packages-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-model-config-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-membership-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

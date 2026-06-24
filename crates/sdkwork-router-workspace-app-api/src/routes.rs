@@ -72,6 +72,10 @@ pub fn build_workspace_app_router() -> Router<WorkspaceAppState> {
         )
         .route(paths::DEPLOYMENTS_PATH, get(handlers::list_deployments))
         .route(
+            paths::PROJECT_DEPLOYMENT_TARGETS_PATH,
+            get(handlers::list_project_deployment_targets),
+        )
+        .route(
             paths::PROJECT_PUBLISH_PATH,
             post(handlers::publish_project),
         )

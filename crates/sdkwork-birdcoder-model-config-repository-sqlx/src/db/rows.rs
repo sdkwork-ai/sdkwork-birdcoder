@@ -12,7 +12,7 @@ pub struct ModelConfigRow {
 }
 
 impl ModelConfigRow {
-    pub fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             id: row.try_get("id")?,
             config_key: row.try_get("config_key")?,

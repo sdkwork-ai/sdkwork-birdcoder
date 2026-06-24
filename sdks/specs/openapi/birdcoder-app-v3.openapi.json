@@ -4700,6 +4700,78 @@
         "x-sdkwork-api-surface": "app-api"
       }
     },
+    "/app/v3/api/projects/{projectId}/deployment_targets": {
+      "get": {
+        "operationId": "projects.deploymentTargets.list",
+        "summary": "List project deployment targets",
+        "description": "List project deployment targets. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deployment targets returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeploymentTargetSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.projects.deploymentTargets.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.projects.deploymentTargets",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
     "/app/v3/api/documents": {
       "get": {
         "operationId": "documents.list",
@@ -8363,6 +8435,36 @@
           "environmentKey",
           "runtime",
           "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeploymentTargetSummaryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderDeploymentTargetSummary"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          },
+          "requestId": {
+            "type": "string",
+            "description": "Server-generated request correlation identifier."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Response emission timestamp."
+          }
+        },
+        "required": [
+          "requestId",
+          "timestamp",
+          "items",
+          "meta"
         ],
         "additionalProperties": false
       },

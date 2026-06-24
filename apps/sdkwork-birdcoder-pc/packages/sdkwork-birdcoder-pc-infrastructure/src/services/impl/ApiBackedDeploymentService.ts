@@ -5,23 +5,17 @@ import type {
   BirdCoderPublishProjectRequest,
 } from '@sdkwork/birdcoder-pc-types';
 import type { IDeploymentService } from '../interfaces/IDeploymentService.ts';
-import type {
-  BirdCoderAppSdkApiClient,
-  BirdCoderBackendSdkApiClient,
-} from '../sdkClients.ts';
+import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 
 export interface ApiBackedDeploymentServiceOptions {
   appClient: BirdCoderAppSdkApiClient;
-  backendClient: BirdCoderBackendSdkApiClient;
 }
 
 export class ApiBackedDeploymentService implements IDeploymentService {
   private readonly appClient: BirdCoderAppSdkApiClient;
-  private readonly backendClient: BirdCoderBackendSdkApiClient;
 
-  constructor({ appClient, backendClient }: ApiBackedDeploymentServiceOptions) {
+  constructor({ appClient }: ApiBackedDeploymentServiceOptions) {
     this.appClient = appClient;
-    this.backendClient = backendClient;
   }
 
   async getDeployments(): Promise<BirdCoderDeploymentRecordSummary[]> {
@@ -29,7 +23,7 @@ export class ApiBackedDeploymentService implements IDeploymentService {
   }
 
   async getDeploymentTargets(projectId: string): Promise<BirdCoderDeploymentTargetSummary[]> {
-    return this.backendClient.listDeploymentTargets(projectId);
+    return this.appClient.listDeploymentTargets(projectId);
   }
 
   async publishProject(

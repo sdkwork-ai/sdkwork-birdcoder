@@ -1,14 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const recoveryModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/recovery.ts',
   import.meta.url,
 );
-const birdcoderAppModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx',
-  import.meta.url,
-);
+const birdcoderAppSource = readBirdcoderAppShellSource();
 
 const recoveryModule = await import(`${recoveryModulePath.href}?t=${Date.now()}`);
 
@@ -81,7 +79,7 @@ assert.deepEqual(
   'authenticated startup must not restore unscoped legacy workspace/project/session ids.',
 );
 
-const birdcoderAppSource = fs.readFileSync(birdcoderAppModulePath, 'utf8');
+const birdcoderAppSource = readBirdcoderAppShellSource();
 assert.match(
   birdcoderAppSource,
   /resolveWorkbenchRecoverySnapshotForUser\(/,

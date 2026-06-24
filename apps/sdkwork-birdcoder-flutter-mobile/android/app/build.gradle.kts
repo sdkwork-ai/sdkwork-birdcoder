@@ -32,9 +32,25 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            val releaseStoreFile = providers.gradleProperty("BIRDCODER_ANDROID_RELEASE_STORE_FILE")
+            val releaseStorePassword = providers.gradleProperty("BIRDCODER_ANDROID_RELEASE_STORE_PASSWORD")
+            val releaseKeyAlias = providers.gradleProperty("BIRDCODER_ANDROID_RELEASE_KEY_ALIAS")
+            val releaseKeyPassword = providers.gradleProperty("BIRDCODER_ANDROID_RELEASE_KEY_PASSWORD")
+            if (
+                releaseStoreFile.isPresent
+                && releaseStorePassword.isPresent
+                && releaseKeyAlias.isPresent
+                && releaseKeyPassword.isPresent
+            ) {
+                signingConfig = signingConfigs.create("release") {
+                    storeFile = file(releaseStoreFile.get())
+                    storePassword = releaseStorePassword.get()
+                    keyAlias = releaseKeyAlias.get()
+                    keyPassword = releaseKeyPassword.get()
+                }
+            } else {
+                signingConfig = signingConfigs.getByName("debug")
+            }
         }
     }
 }

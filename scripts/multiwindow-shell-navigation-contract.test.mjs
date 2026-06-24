@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sources.mjs';
 
 const appTabSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts', import.meta.url),
   'utf8',
 );
-const shellSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/BirdcoderApp.tsx', import.meta.url),
+const shellSource = readBirdcoderAppShellSource();
+const authRoutingSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/authAppTabRouting.ts', import.meta.url),
   'utf8',
 );
 const pageLoadersSource = fs.readFileSync(
@@ -45,7 +47,7 @@ assert.match(
 );
 
 assert.match(
-  shellSource,
+  authRoutingSource,
   /AUTH_REQUIRED_APP_TABS = new Set<AppTab>\(\[[\s\S]*'multiwindow'[\s\S]*\]\)/,
   'Multi-window programming must require an authenticated workbench session.',
 );
