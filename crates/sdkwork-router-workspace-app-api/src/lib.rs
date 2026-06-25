@@ -3,6 +3,7 @@ pub mod handlers;
 pub mod manifest;
 pub mod mapper;
 pub mod paths;
+mod realtime_config;
 pub mod realtime_hub;
 pub mod routes;
 

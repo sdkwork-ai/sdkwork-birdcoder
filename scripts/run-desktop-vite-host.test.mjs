@@ -316,6 +316,7 @@ assert.equal(config.server.hmr, false);
 assert.deepEqual(config.server.fs.allow, [
   path.resolve(desktopRootDir, '../../../..'),
   dependencyPath('sdkwork-appbase'),
+  dependencyPath('sdkwork-iam'),
   dependencyPath('sdkwork-core'),
   dependencyPath('sdkwork-drive'),
   dependencyPath('sdkwork-messaging'),

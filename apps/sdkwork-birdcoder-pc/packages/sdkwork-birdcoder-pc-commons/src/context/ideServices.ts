@@ -1,10 +1,6 @@
 import { createContext, useContext } from 'react';
 import type {
-  BirdCoderDefaultIdeServices,
-  IAdminDeploymentService,
-  IAdminPolicyService,
   IAuthService,
-  IAuditService,
   ICatalogService,
   ICollaborationService,
   IAppRuntimeReadService,
@@ -20,18 +16,15 @@ import type {
   IVipMembershipService,
   IWorkspaceService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
-import { createLazyDefaultIdeServices } from './lazyDefaultIdeServices.ts';
+import { createLazyDefaultIdeServices, type AppIdeServices } from './lazyDefaultIdeServices.ts';
 
 export interface IIDEContext {
-  adminDeploymentService: IAdminDeploymentService;
-  adminPolicyService: IAdminPolicyService;
   catalogService: ICatalogService;
   workspaceService: IWorkspaceService;
   projectService: IProjectService;
   collaborationService: ICollaborationService;
   appRuntimeReadService: IAppRuntimeReadService;
   appRuntimeWriteService: IAppRuntimeWriteService;
-  auditService: IAuditService;
   deploymentService: IDeploymentService;
   documentService: IDocumentService;
   releaseService: IReleaseService;
@@ -44,17 +37,14 @@ export interface IIDEContext {
 }
 
 export function createDefaultIdeContextValue(): IIDEContext {
-  const defaultIdeServices: BirdCoderDefaultIdeServices = createLazyDefaultIdeServices();
+  const defaultIdeServices: AppIdeServices = createLazyDefaultIdeServices();
   return {
-    adminDeploymentService: defaultIdeServices.adminDeploymentService,
-    adminPolicyService: defaultIdeServices.adminPolicyService,
     catalogService: defaultIdeServices.catalogService,
     workspaceService: defaultIdeServices.workspaceService,
     projectService: defaultIdeServices.projectService,
     collaborationService: defaultIdeServices.collaborationService,
     appRuntimeReadService: defaultIdeServices.appRuntimeReadService,
     appRuntimeWriteService: defaultIdeServices.appRuntimeWriteService,
-    auditService: defaultIdeServices.auditService,
     deploymentService: defaultIdeServices.deploymentService,
     documentService: defaultIdeServices.documentService,
     releaseService: defaultIdeServices.releaseService,
@@ -79,4 +69,3 @@ export const IDEContext = createContext<IIDEContext | null>(null);
 export function useIDEServices() {
   return useContext(IDEContext) ?? getFallbackIdeContextValue();
 }
-

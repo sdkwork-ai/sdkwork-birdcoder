@@ -13,6 +13,16 @@ import {
 import {
   createPendingDesktopInstallerSignatureEvidence,
 } from './desktop-installer-trust-evidence.mjs';
+import {
+  PC_DESKTOP_DIST_REL,
+  PC_DESKTOP_TAURI_REL,
+  PC_WEB_DIST_REL,
+  resolveDesktopBundleOutputRoot,
+  resolveReleaseBuildPath,
+  resolveServerBinaryCandidates,
+  resolveServerBinaryFileName,
+  SERVER_CRATE_BINARY_NAME,
+} from './release-build-paths.mjs';
 
 const DEFAULT_KUBERNETES_IMAGE_REPOSITORY = 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server';
 
@@ -113,49 +123,13 @@ function copyRequiredFile({
   fs.copyFileSync(sourcePath, targetPath);
 }
 
-function resolveServerBinaryFileName(binaryName, {
-  targetTriple = '',
-  platform = '',
-} = {}) {
-  const normalizedBinaryName = String(binaryName ?? '').trim();
-  const normalizedTargetTriple = String(targetTriple ?? '').trim().toLowerCase();
-  const normalizedPlatform = String(platform ?? '').trim().toLowerCase();
-  if (
-    (normalizedTargetTriple.includes('windows')
-      || normalizedPlatform === 'windows'
-      || normalizedPlatform === 'win32')
-    && !normalizedBinaryName.toLowerCase().endsWith('.exe')
-  ) {
-    return `${normalizedBinaryName}.exe`;
-  }
-
-  return normalizedBinaryName;
-}
-
 function resolveRequiredServerBinaryPath({
   rootDir,
   descriptor,
   profile,
 }) {
-  const binaryName = String(profile?.server?.binaryName ?? '').trim() || 'sdkwork-birdcoder-server';
-  const binaryFileName = resolveServerBinaryFileName(binaryName, {
-    targetTriple: descriptor.target,
-    platform: descriptor.platform,
-  });
-  const serverTargetRoot = path.join(
-    rootDir,
-    'packages',
-    'sdkwork-birdcoder-server',
-    'src-host',
-    'target',
-  );
-  const candidatePaths = [];
-  const normalizedTarget = String(descriptor.target ?? '').trim();
-  if (normalizedTarget) {
-    candidatePaths.push(path.join(serverTargetRoot, normalizedTarget, 'release', binaryFileName));
-  }
-  candidatePaths.push(path.join(serverTargetRoot, 'release', binaryFileName));
-
+  const binaryName = String(profile?.server?.binaryName ?? '').trim() || SERVER_CRATE_BINARY_NAME;
+  const { binaryFileName, candidatePaths } = resolveServerBinaryCandidates(rootDir, descriptor, binaryName);
   const binaryPath = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath)) ?? '';
   if (!binaryPath) {
     throw new Error(
@@ -191,23 +165,11 @@ function copyRequiredServerBinary({
   );
 }
 
-function resolveDesktopBundleOutputRoot({
+function resolveDesktopBundleOutputRootFromDescriptor({
   rootDir,
   target,
 } = {}) {
-  const targetRoot = path.join(
-    rootDir,
-    'packages',
-    'sdkwork-birdcoder-desktop',
-    'src-tauri',
-    'target',
-  );
-  const normalizedTarget = String(target ?? '').trim();
-  if (normalizedTarget) {
-    return path.join(targetRoot, normalizedTarget, 'release', 'bundle');
-  }
-
-  return path.join(targetRoot, 'release', 'bundle');
+  return resolveDesktopBundleOutputRoot(rootDir, target);
 }
 
 function isDesktopInstallerArtifact(filePath) {
@@ -394,7 +356,7 @@ function resolveDesktopInstallerArtifacts({
   descriptor,
   rootDir,
 } = {}) {
-  const bundleOutputRoot = resolveDesktopBundleOutputRoot({
+  const bundleOutputRoot = resolveDesktopBundleOutputRootFromDescriptor({
     rootDir,
     target: descriptor.target,
   });
@@ -811,11 +773,11 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
 
   if (family === 'desktop') {
     copyIfExists(
-      path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'src-tauri'),
+      resolveReleaseBuildPath(rootDir, PC_DESKTOP_TAURI_REL),
       path.join(bundleRoot, 'desktop'),
     );
     copyRequiredBuildOutput({
-      sourcePath: path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'dist'),
+      sourcePath: resolveReleaseBuildPath(rootDir, PC_DESKTOP_DIST_REL),
       targetPath: path.join(bundleRoot, 'app'),
       label: 'desktop app build output',
       command: 'pnpm tauri:build',
@@ -840,7 +802,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
       releaseAssetsLabel: 'server release assets',
     });
     copyRequiredBuildOutput({
-      sourcePath: path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
+      sourcePath: resolveReleaseBuildPath(rootDir, PC_WEB_DIST_REL),
       targetPath: path.join(bundleRoot, 'web'),
       label: 'server web build output',
       command: 'pnpm build',
@@ -852,6 +814,14 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
 
   if (family === 'container') {
     copyIfExists(path.join(rootDir, 'deployments', 'docker'), path.join(bundleRoot, 'deploy', 'docker'));
+    copyIfExists(path.join(rootDir, 'database'), path.join(bundleRoot, 'database'));
+    copyRequiredFile({
+      sourcePath: path.join(rootDir, 'artifacts', 'openapi', 'coding-server-v1.json'),
+      targetPath: path.join(bundleRoot, 'openapi', 'coding-server-v1.json'),
+      label: 'coding-server OpenAPI snapshot',
+      command: 'pnpm generate:openapi:coding-server',
+      releaseAssetsLabel: 'container release assets',
+    });
     copyRequiredServerBinary({
       bundleRoot,
       descriptor,
@@ -859,7 +829,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
       profile,
     });
     copyRequiredBuildOutput({
-      sourcePath: path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
+      sourcePath: resolveReleaseBuildPath(rootDir, PC_WEB_DIST_REL),
       targetPath: path.join(bundleRoot, 'web'),
       label: 'container web build output',
       command: 'pnpm build',
@@ -882,7 +852,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
 
   if (family === 'web') {
     copyRequiredBuildOutput({
-      sourcePath: path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist'),
+      sourcePath: resolveReleaseBuildPath(rootDir, PC_WEB_DIST_REL),
       targetPath: path.join(bundleRoot, 'app'),
       label: 'web app build output',
       command: 'pnpm build',
@@ -901,6 +871,27 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
   }
 
   throw new Error(`Unsupported release family: ${family}`);
+}
+
+function publishDockerHostServerArtifacts({
+  rootDir,
+  outputDir,
+  bundleRoot,
+  descriptor,
+  profile,
+}) {
+  const { binaryPath } = resolveRequiredServerBinaryPath({
+    rootDir,
+    descriptor,
+    profile,
+  });
+  const dockerBinaryPath = path.join(outputDir, 'server-binary');
+  const dockerBundlePath = path.join(outputDir, 'server');
+  ensureDir(path.dirname(dockerBinaryPath));
+  fs.copyFileSync(binaryPath, dockerBinaryPath);
+  fs.chmodSync(dockerBinaryPath, 0o755);
+  fs.rmSync(dockerBundlePath, { recursive: true, force: true });
+  fs.cpSync(bundleRoot, dockerBundlePath, { recursive: true });
 }
 
 function copyFamilySidecars(bundleRoot, outputFamilyDir, family) {
@@ -1012,6 +1003,15 @@ function packageReleaseAssets(family, options = {}) {
 
   try {
     stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile);
+    if (family === 'server' || family === 'container') {
+      publishDockerHostServerArtifacts({
+        rootDir,
+        outputDir,
+        bundleRoot,
+        descriptor,
+        profile,
+      });
+    }
     if (family === 'desktop') {
       desktopInstallerArtifacts = resolveDesktopInstallerArtifacts({
         descriptor,

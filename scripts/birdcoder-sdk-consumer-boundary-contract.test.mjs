@@ -162,8 +162,8 @@ assert.equal(
   'infrastructure package must depend on the generated backend SDK workspace package.',
 );
 for (const dependencyName of [
-  '@sdkwork/appbase-app-sdk',
-  '@sdkwork/appbase-backend-sdk',
+  '@sdkwork/iam-app-sdk',
+  '@sdkwork/iam-backend-sdk',
   '@sdkwork/auth-runtime-pc-react',
   '@sdkwork/drive-app-sdk',
   '@sdkwork/messaging-app-sdk',
@@ -191,18 +191,18 @@ for (const [label, config] of [
     `${label} must resolve @sdkwork/birdcoder-pc-backend-sdk to generated source.`,
   );
   assert.deepEqual(
-    config.compilerOptions?.paths?.['@sdkwork/appbase-app-sdk'],
-    ['../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts'],
-    `${label} must resolve @sdkwork/appbase-app-sdk to the dependency generated app SDK package entry.`,
+    config.compilerOptions?.paths?.['@sdkwork/iam-app-sdk'],
+    ['../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts'],
+    `${label} must resolve @sdkwork/iam-app-sdk to the dependency generated app SDK package entry.`,
   );
   assert.deepEqual(
-    config.compilerOptions?.paths?.['@sdkwork/appbase-backend-sdk'],
-    ['../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts'],
-    `${label} must resolve @sdkwork/appbase-backend-sdk to the dependency generated backend SDK package entry.`,
+    config.compilerOptions?.paths?.['@sdkwork/iam-backend-sdk'],
+    ['../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi/src/index.ts'],
+    `${label} must resolve @sdkwork/iam-backend-sdk to the dependency generated backend SDK package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/auth-runtime-pc-react'],
-    ['../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts'],
+    ['../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/index.ts'],
     `${label} must resolve @sdkwork/auth-runtime-pc-react to the high-level appbase auth runtime package entry.`,
   );
   assert.deepEqual(
@@ -248,18 +248,18 @@ assert.match(
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-appbase\/sdks\/sdkwork-appbase-app-sdk\/sdkwork-appbase-app-sdk-typescript\/generated\/server-openapi/u,
-  'pnpm workspace must include the appbase app SDK dependency package.',
+  /\.\.\/sdkwork-iam\/sdks\/sdkwork-iam-app-sdk\/sdkwork-iam-app-sdk-typescript\/generated\/server-openapi/u,
+  'pnpm workspace must include the IAM app SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-appbase\/sdks\/sdkwork-appbase-backend-sdk\/sdkwork-appbase-backend-sdk-typescript\/generated\/server-openapi/u,
-  'pnpm workspace must include the appbase backend SDK dependency package.',
+  /\.\.\/sdkwork-iam\/sdks\/sdkwork-iam-backend-sdk\/sdkwork-iam-backend-sdk-typescript\/generated\/server-openapi/u,
+  'pnpm workspace must include the IAM backend SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-auth-runtime-pc-react/u,
-  'pnpm workspace must include the appbase high-level auth runtime dependency package.',
+  /\.\.\/sdkwork-iam\/apps\/sdkwork-iam-pc\/packages\/sdkwork-auth-runtime-pc-react/u,
+  'pnpm workspace must include the IAM high-level auth runtime dependency package.',
 );
 assert.match(
   workspace,
@@ -279,8 +279,8 @@ assert.match(
 
 const vitePluginSource = read('scripts/create-birdcoder-vite-plugins.mjs');
 for (const dependencySpecifier of [
-  '@sdkwork/appbase-app-sdk',
-  '@sdkwork/appbase-backend-sdk',
+  '@sdkwork/iam-app-sdk',
+  '@sdkwork/iam-backend-sdk',
   '@sdkwork/auth-runtime-pc-react',
   '@sdkwork/drive-app-sdk',
   '@sdkwork/messaging-app-sdk',

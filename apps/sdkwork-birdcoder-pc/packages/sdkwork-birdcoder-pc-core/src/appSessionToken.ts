@@ -7,7 +7,6 @@ import {
 export { APP_SESSION_CHANGE_EVENT_NAME } from './appSessionEvents.ts';
 export { APP_SESSION_STORAGE_KEY } from './appSessionPersistence.ts';
 
-const LEGACY_LOCAL_SESSION_KEY = 'sdkwork-birdcoder-pc:session:v1';
 const EXPIRY_SKEW_SECONDS = 30;
 
 export interface StoredAppSessionToken {
@@ -114,7 +113,7 @@ export function loadStoredAppSessionToken(): StoredAppSessionToken | null {
   }
 
   storageLoaded = true;
-  const raw = readSessionStorage() ?? readLegacyLocalSessionStorage();
+  const raw = readSessionStorage();
   if (!raw) {
     return null;
   }
@@ -126,8 +125,6 @@ export function loadStoredAppSessionToken(): StoredAppSessionToken | null {
       return null;
     }
     memoryToken = parsed;
-    writeSessionStorage(parsed);
-    removeLegacyLocalSessionStorage();
     return parsed;
   } catch {
     clearStoredAppSessionToken();
@@ -138,8 +135,7 @@ export function loadStoredAppSessionToken(): StoredAppSessionToken | null {
 export function clearStoredAppSessionToken(): void {
   memoryToken = null;
   storageLoaded = true;
-  getAppSessionPersistencePort().remove();
-  removeLegacyLocalSessionStorage();
+  removeSessionStorage();
   dispatchAppSessionChange();
 }
 
@@ -243,60 +239,6 @@ function writeSessionStorage(token: StoredAppSessionToken): void {
 
 function removeSessionStorage(): void {
   getAppSessionPersistencePort().remove();
-}
-
-function readLegacyLocalSessionStorage(): string | null {
-  try {
-    const raw = globalThis.localStorage?.getItem(LEGACY_LOCAL_SESSION_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const accessToken = typeof parsed.accessToken === 'string' ? parsed.accessToken.trim() : '';
-    const authToken = typeof parsed.authToken === 'string' ? parsed.authToken.trim() : '';
-    if (!accessToken || !authToken) {
-      return null;
-    }
-
-    const expiresAt = normalizeLegacyExpiresAt(parsed.expiresAt);
-    const migrated: StoredAppSessionToken = {
-      accessToken,
-      authToken,
-      ...(typeof parsed.refreshToken === 'string' && parsed.refreshToken.trim()
-        ? { refreshToken: parsed.refreshToken.trim() }
-        : {}),
-      ...(typeof parsed.sessionId === 'string' && parsed.sessionId.trim()
-        ? { sessionId: parsed.sessionId.trim() }
-        : {}),
-      ...(typeof expiresAt === 'number' ? { expiresAt } : {}),
-      storedAt: currentUnixSeconds(),
-    };
-    return JSON.stringify(migrated);
-  } catch {
-    return null;
-  }
-}
-
-function removeLegacyLocalSessionStorage(): void {
-  try {
-    globalThis.localStorage?.removeItem(LEGACY_LOCAL_SESSION_KEY);
-  } catch {
-    // Legacy cleanup is best-effort.
-  }
-}
-
-function normalizeLegacyExpiresAt(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value > 1_000_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
-  }
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Date.parse(value);
-    if (Number.isFinite(parsed)) {
-      return Math.floor(parsed / 1000);
-    }
-  }
-  return undefined;
 }
 
 function dispatchAppSessionChange(): void {

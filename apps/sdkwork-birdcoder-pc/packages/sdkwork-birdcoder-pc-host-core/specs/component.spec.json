@@ -104,7 +104,8 @@
     "routeManifest": null,
     "sdkDependencies": [],
     "dependencyApiExports": [],
-    "dependencyApiSurfaces": []
+    "dependencyApiSurfaces": [],
+    "dependencyComposition": "../../../specs/dependency.composition.json"
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",

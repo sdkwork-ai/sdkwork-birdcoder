@@ -18,7 +18,20 @@ helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes -f deployments
 1. Set `database.engine: postgresql` and provide `database.url` in values or an external secret.
 2. Run database bootstrap/migrations against the PostgreSQL baseline in `database/ddl/baseline/postgres/`.
 3. BirdCoder repositories resolve a shared sqlx `AnyPool` from the bootstrap `DatabasePool`, so PostgreSQL no longer fails fast at repository wiring.
-4. Re-enable autoscaling and raise `replicaCount` only after PostgreSQL HA smoke passes in the target environment.
+4. Provision Redis and apply `values-postgresql-ha.yaml`, which sets `realtime.backend: redis` and `redis.enabled: true`. Workspace WebSocket events fan out through Redis pub/sub so multiple API replicas stay consistent.
+5. Re-enable autoscaling and raise `replicaCount` only after PostgreSQL HA smoke passes in the target environment.
+
+6. Enable scheduled backups when ready:
+
+```yaml
+backup:
+  enabled: true
+database:
+  engine: postgresql
+  url: postgres://birdcoder:SECRET@postgresql:5432/birdcoder
+```
+
+See `docs/guides/operator/backup-restore.md` for restore procedures.
 
 Apply the production overlay:
 

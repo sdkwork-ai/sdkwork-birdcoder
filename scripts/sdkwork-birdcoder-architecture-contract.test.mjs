@@ -3,8 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { buildCanonicalDocPathIndex, resolveCanonicalDocPath } from './lib/canonical-doc-paths.mjs';
+
 const rootDir = process.cwd();
-const architectureDocDir = path.join(rootDir, 'docs', '\u67b6\u6784');
+const canonicalDocIndex = buildCanonicalDocPathIndex(rootDir);
 const pcPackagesDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages');
 const h5PackagesDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-h5', 'packages');
 const requiredArchitectureDocBasenames = [
@@ -197,14 +199,12 @@ for (const relativePath of requiredPaths) {
   );
 }
 
-assert.ok(
-  fs.existsSync(architectureDocDir),
-  'Expected architecture docs directory to exist: docs/??',
-);
 for (const basename of requiredArchitectureDocBasenames) {
+  const legacyPath = `docs/架构/${basename}`;
+  const resolvedPath = resolveCanonicalDocPath(rootDir, legacyPath, canonicalDocIndex);
   assert.ok(
-    fs.existsSync(path.join(architectureDocDir, basename)),
-    `Expected architecture doc to exist: docs/??/${basename}`,
+    fs.existsSync(path.join(rootDir, resolvedPath)),
+    `Expected architecture doc to exist: ${legacyPath} (resolved: ${resolvedPath})`,
   );
 }
 

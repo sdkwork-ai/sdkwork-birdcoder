@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "kind": "sdkwork.kernel-birdcoder-alignment",
-  "updatedAt": "2026-06-21",
+  "updatedAt": "2026-06-24",
   "summary": "Machine-readable alignment tracker for sdkwork-kernel agent runtime vs BirdCoder product/tooling boundaries.",
   "authorityDocs": [
-    "docs/架构/30-Kernel-BirdCoder-职责边界标准.md",
-    "docs/架构/31-Kernel-BirdCoder-集成实施方案.md",
-    "docs/架构/32-Kernel-BirdCoder-对齐验收与核对清单.md",
+    "docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md",
+    "docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md",
+    "docs/architecture/tech/TECH-32-kernel-birdcoder.md",
     "docs/prompts/反复执行Kernel对齐指令.md"
   ],
   "siblingDependencies": [
@@ -25,22 +25,22 @@
     {
       "id": "P1-boundary",
       "title": "职责边界冻结",
-      "doc": "docs/架构/30-Kernel-BirdCoder-职责边界标准.md"
+      "doc": "docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md"
     },
     {
       "id": "P2-birdcoder-bridge",
       "title": "BirdCoder kernel-bridge 落地",
-      "doc": "docs/架构/31-Kernel-BirdCoder-集成实施方案.md"
+      "doc": "docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md"
     },
     {
       "id": "P3-verification",
       "title": "契约与反复核对",
-      "doc": "docs/架构/32-Kernel-BirdCoder-对齐验收与核对清单.md"
+      "doc": "docs/architecture/tech/TECH-32-kernel-birdcoder.md"
     },
     {
       "id": "P4-kernel-production",
       "title": "sdkwork-kernel 生产化",
-      "doc": "docs/架构/31-Kernel-BirdCoder-集成实施方案.md#6-sdkwork-kernel-生产化路线"
+      "doc": "docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md#6-sdkwork-kernel-生产化路线"
     }
   ],
   "tasks": [
@@ -232,9 +232,9 @@
       "gate": true,
       "evidence": {
         "paths": [
-          "docs/架构/30-Kernel-BirdCoder-职责边界标准.md",
-          "docs/架构/31-Kernel-BirdCoder-集成实施方案.md",
-          "docs/架构/32-Kernel-BirdCoder-对齐验收与核对清单.md",
+          "docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md",
+          "docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md",
+          "docs/architecture/tech/TECH-32-kernel-birdcoder.md",
           "docs/prompts/反复执行Kernel对齐指令.md",
           "specs/kernel-birdcoder-alignment.spec.json"
         ]

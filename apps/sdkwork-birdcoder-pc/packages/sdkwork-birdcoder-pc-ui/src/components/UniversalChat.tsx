@@ -36,6 +36,9 @@ import {
   useWorkbenchChatInputDraft,
   useWorkbenchChatMessageQueue,
   useWorkbenchPreferences,
+  buildDriveMediaResourceContentBlock,
+  resolveChatAttachmentUploadProfile,
+  uploadBirdCoderChatAttachmentToDrive,
 } from '@sdkwork/birdcoder-pc-commons';
 import type {
   BirdCoderCodingSessionPendingApproval,
@@ -154,7 +157,6 @@ const FOLDER_UPLOAD_YIELD_INTERVAL = 8;
 const MAX_SINGLE_FILE_UPLOAD_BYTES = 1048576;
 const MAX_SINGLE_FILE_UPLOAD_CHARACTERS = 16000;
 const MAX_IMAGE_UPLOAD_BYTES = 1048576;
-const MAX_IMAGE_UPLOAD_DATA_URL_CHARACTERS = 1400000;
 const MAX_FOLDER_UPLOAD_FILE_CHARACTERS = 4000;
 const MAX_FOLDER_UPLOAD_INPUT_CHARACTERS = 64000;
 const MAX_FOLDER_UPLOAD_TEXT_FILES = 24;
@@ -258,19 +260,6 @@ function buildSingleFileUploadContentBlock(
   };
 }
 
-function estimateImageUploadDataUrlCharacters(file: File): number {
-  const mediaType = file.type.trim() || 'image/*';
-  return `data:${mediaType};base64,`.length + Math.ceil(file.size / 3) * 4;
-}
-
-function buildImageUploadContentBlock(fileName: string, dataUrl: string): string | null {
-  if (dataUrl.length > MAX_IMAGE_UPLOAD_DATA_URL_CHARACTERS) {
-    return null;
-  }
-
-  return `\n![${fileName}](${dataUrl})\n`;
-}
-
 function clampComposerHeight(height: number): number {
   return Math.max(RESIZABLE_COMPOSER_MIN_HEIGHT, Math.min(RESIZABLE_COMPOSER_MAX_HEIGHT, height));
 }
@@ -281,15 +270,6 @@ function readFileAsText(file: File): Promise<string> {
     reader.onload = (event) => resolve(event.target?.result as string);
     reader.onerror = reject;
     reader.readAsText(file);
-  });
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (event) => resolve(event.target?.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
   });
 }
 
@@ -1546,6 +1526,13 @@ export const UniversalChat = memo(function UniversalChat({
       }
 
       try {
+        const profile = resolveChatAttachmentUploadProfile(file);
+        const driveUpload = await uploadBirdCoderChatAttachmentToDrive({
+          file,
+          sessionId: normalizedSessionId,
+          profile,
+        });
+        const driveContentBlock = buildDriveMediaResourceContentBlock(driveUpload.mediaResource);
         const content = await readFileAsText(file);
         const { block: fileContentBlock, isTruncated } = buildSingleFileUploadContentBlock(
           file.name,
@@ -1554,7 +1541,7 @@ export const UniversalChat = memo(function UniversalChat({
         setInputValue(
           appendChatInput(
             inputValueRef.current,
-            fileContentBlock,
+            `${driveContentBlock}${fileContentBlock}`,
           ),
         );
         addToast(
@@ -1564,8 +1551,8 @@ export const UniversalChat = memo(function UniversalChat({
           'success',
         );
       } catch (err) {
-        console.error(`Failed to read file ${file.name}`, err);
-        addToast(t('chat.fileReadFailed'), 'error');
+        console.error(`Failed to upload file ${file.name}`, err);
+        addToast(t('chat.driveUploadFailed'), 'error');
       }
     }
     setShowAttachmentMenu(false);
@@ -1602,6 +1589,11 @@ export const UniversalChat = memo(function UniversalChat({
         if (file.name.match(/\.(png|jpe?g|gif|ico|pdf|zip|tar|gz|mp4|mp3|wav)$/i)) continue;
 
         try {
+          await uploadBirdCoderChatAttachmentToDrive({
+            file,
+            sessionId: normalizedSessionId,
+            profile: resolveChatAttachmentUploadProfile(file),
+          });
           const content = await readFileAsText(file);
 
           // Only append if it looks like text (not binary)
@@ -1650,28 +1642,28 @@ export const UniversalChat = memo(function UniversalChat({
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (
-        file.size > MAX_IMAGE_UPLOAD_BYTES ||
-        estimateImageUploadDataUrlCharacters(file) > MAX_IMAGE_UPLOAD_DATA_URL_CHARACTERS
-      ) {
+      if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
         addToast(t('chat.imageTooLarge'), 'error');
         setShowAttachmentMenu(false);
         if (imageInputRef.current) imageInputRef.current.value = '';
         return;
       }
       try {
-        const base64 = await readFileAsDataUrl(file);
-        const imageContentBlock = buildImageUploadContentBlock(file.name, base64);
-        if (!imageContentBlock) {
-          addToast(t('chat.imageTooLarge'), 'error');
-          return;
-        }
+        const driveUpload = await uploadBirdCoderChatAttachmentToDrive({
+          file,
+          sessionId: normalizedSessionId,
+          profile: 'image',
+        });
+        const imageContentBlock = buildDriveMediaResourceContentBlock(
+          driveUpload.mediaResource,
+          driveUpload.previewUrl,
+        );
 
         setInputValue(appendChatInput(inputValueRef.current, imageContentBlock));
         addToast(t('chat.imageAttached', { name: file.name }), 'success');
       } catch (err) {
-        console.error(`Failed to read image ${file.name}`, err);
-        addToast(t('chat.imageReadFailed'), 'error');
+        console.error(`Failed to upload image ${file.name}`, err);
+        addToast(t('chat.driveUploadFailed'), 'error');
       }
     }
     setShowAttachmentMenu(false);

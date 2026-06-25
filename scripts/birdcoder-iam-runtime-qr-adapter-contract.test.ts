@@ -7,7 +7,7 @@ const iamRuntimeSource = fs.readFileSync(
 );
 const appbaseOauthSdkSource = fs.readFileSync(
   new URL(
-    '../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/api/oauth.ts',
+    '../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/api/oauth.ts',
     import.meta.url,
   ),
   'utf8',

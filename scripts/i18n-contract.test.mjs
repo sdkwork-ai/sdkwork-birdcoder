@@ -89,6 +89,56 @@ const translationKeys = Object.fromEntries(
 const sourceFiles = [];
 collectSourceFiles(path.join(rootDir, 'src'), sourceFiles);
 collectSourceFiles(path.join(rootDir, 'packages'), sourceFiles);
+collectSourceFiles(path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'src'), sourceFiles);
+collectSourceFiles(path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages'), sourceFiles);
+
+const forbiddenProductUiLiterals = [
+  'Validating SDKWork session',
+  'Application Error',
+  'Search skills and packages',
+  'Search templates',
+  'Search files...',
+  'Search files by name...',
+  'An unexpected error occurred. Please try refreshing the page.',
+  'An unexpected error occurred. Please reload the application.',
+  'Starting SDKWork BirdCoder',
+  'Project folder path is unavailable',
+  'No matching skills',
+  'Sign in to create a project from a template.',
+  'Select a workspace before creating a project from a template.',
+  'Project not found',
+  'Project folder path is unavailable:',
+  'Preview is available once the file has visible content.',
+  'Rendering Markdown preview...',
+  'Rendering structured data preview...',
+  'Rendering config preview...',
+  'Rendering table preview...',
+  'Rendering code preview...',
+  'The Rust debugger host API is not wired yet',
+  'Loading skill catalog...',
+  'Failed to load skills',
+  'Official Registry',
+  'Alibaba Cloud Mirror',
+  'Tencent Cloud Mirror',
+];
+
+for (const filePath of sourceFiles) {
+  if (!filePath.includes(`${path.sep}apps${path.sep}sdkwork-birdcoder-pc${path.sep}packages${path.sep}`)) {
+    continue;
+  }
+  if (filePath.includes(`${path.sep}sdkwork-birdcoder-pc-i18n${path.sep}src${path.sep}locales${path.sep}`)) {
+    continue;
+  }
+
+  const source = fs.readFileSync(filePath, 'utf8');
+  for (const literal of forbiddenProductUiLiterals) {
+    assert.doesNotMatch(
+      source,
+      new RegExp(literal.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')),
+      `${path.relative(rootDir, filePath)} must not hardcode product UI copy: "${literal}"`,
+    );
+  }
+}
 
 const usedTranslationKeys = new Set();
 const translationCallPattern = /\b(?:t|i18n\.t)\(\s*['"]([^'"]+)['"]/g;

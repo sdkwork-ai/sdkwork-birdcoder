@@ -9,13 +9,15 @@ pub const MEMBERSHIP_APP_API_ROUTES: &[HttpRoute] = &[
         paths::MEMBERSHIP_CURRENT_PATH,
         "memberships",
         "memberships.current.retrieve",
-    ),
+    )
+    .with_required_permission("commerce.memberships.current.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::MEMBERSHIP_PACKAGE_GROUPS_PATH,
         "memberships",
         "memberships.packageGroups.list",
-    ),
+    )
+    .with_required_permission("commerce.memberships.packageGroups.read"),
 ];
 
 pub fn membership_app_api_route_manifest() -> HttpRouteManifest {

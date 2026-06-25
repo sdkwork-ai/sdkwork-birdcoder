@@ -5,6 +5,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 
 import { smokeDeploymentReleaseAssets } from './smoke-deployment-release-assets.mjs';
+import { SERVER_CRATE_BINARY_NAME } from './release-build-paths.mjs';
 
 function formatTarOctal(value, width) {
   return `${value.toString(8).padStart(width - 2, '0')}\0 `;
@@ -76,7 +77,7 @@ writeTarGzArchive(
   path.join(containerDir, `${containerBundleRoot}.tar.gz`),
   [
     createTarRecord({
-      name: `${containerBundleRoot}/server/bin/sdkwork-birdcoder-server`,
+      name: `${containerBundleRoot}/server/bin/${SERVER_CRATE_BINARY_NAME}`,
       content: 'compiled server binary\n',
     }),
     createTarRecord({

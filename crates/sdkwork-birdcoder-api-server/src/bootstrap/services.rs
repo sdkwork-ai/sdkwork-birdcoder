@@ -3,6 +3,7 @@ use std::sync::Arc;
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
 use sdkwork_birdcoder_deployment_service::service::deployment_service::DeploymentService;
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
+use sdkwork_birdcoder_workspace_service::service::team_service::TeamService;
 use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService;
 
 use crate::bootstrap::adapters::{wire_code_engine_provider, wire_engine_validator};
@@ -13,6 +14,7 @@ use crate::bootstrap::realtime_hub::{
     HubWorkspaceEventPublisher,
 };
 use crate::bootstrap::repositories::Repositories;
+use sdkwork_router_workspace_app_api::realtime_hub::RealtimeHubBootstrapError;
 use sdkwork_router_workspace_app_api::WorkspaceRealtimeHub;
 
 #[derive(Clone)]
@@ -21,11 +23,15 @@ pub struct Services {
     pub workspace: WorkspaceService,
     pub project: ProjectService,
     pub deployment: DeploymentService,
+    pub team: TeamService,
     pub realtime_hub: WorkspaceRealtimeHub,
 }
 
-pub fn wire_services(repos: &Repositories, config: &BirdServerConfig) -> Services {
-    let realtime_hub = WorkspaceRealtimeHub::new();
+pub async fn wire_services(
+    repos: &Repositories,
+    config: &BirdServerConfig,
+) -> Result<Services, RealtimeHubBootstrapError> {
+    let realtime_hub = WorkspaceRealtimeHub::bootstrap().await?;
     let coding_session = CodingSessionService::new(
         repos.coding_session.clone(),
         wire_code_engine_provider(config),
@@ -50,11 +56,14 @@ pub fn wire_services(repos: &Repositories, config: &BirdServerConfig) -> Service
         Arc::new(HubDeploymentEventPublisher::new(realtime_hub.clone())),
     );
 
-    Services {
+    let team = TeamService::new(repos.team.clone(), repos.workspace.clone());
+
+    Ok(Services {
         coding_session,
         workspace,
         project,
         deployment,
+        team,
         realtime_hub,
-    }
+    })
 }

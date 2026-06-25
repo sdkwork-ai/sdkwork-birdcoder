@@ -45,6 +45,15 @@ assert.doesNotMatch(
   'PC root bootstrap must not eagerly construct backend SDK clients.',
 );
 
+const commonsIdeServicesSource = readText(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/context/ideServices.ts',
+);
+assert.doesNotMatch(
+  commonsIdeServicesSource,
+  /adminDeploymentService|adminPolicyService|auditService/u,
+  'pc-commons IDE context must not expose admin/backend services to the app shell.',
+);
+
 const appRuntimeTransportSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts',
 );
@@ -61,6 +70,16 @@ assert.match(
   lazyDefaultIdeServicesSource,
   /createUnavailableAdminDeploymentService/u,
   'Lazy IDE services must expose unavailable admin stubs for app runtime.',
+);
+assert.match(
+  lazyDefaultIdeServicesSource,
+  /createUnavailableReleaseService/u,
+  'Lazy IDE services must expose unavailable release stubs for app runtime.',
+);
+assert.match(
+  defaultIdeServicesSource,
+  /createUnavailableReleaseService|ApiBackedReleaseService/u,
+  'Default IDE services must gate release inventory behind explicit backend client binding.',
 );
 assert.equal(
   h5CorePackage.dependencies?.['@sdkwork/birdcoder-h5-chat'],

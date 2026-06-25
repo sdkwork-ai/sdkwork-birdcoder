@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronRight, ChevronDown, File, Folder, Search, X, Plus, FilePlus, FolderPlus, Trash2, FileJson, FileCode2, FileImage, FileText, FileType2, ListCollapse, Copy, Terminal, ExternalLink, FileEdit, Loader2 } from 'lucide-react';
 import { emitOpenTerminalRequest, globalEventBus, useToast } from '@sdkwork/birdcoder-pc-commons';
 import { copyTextToClipboard } from './clipboard';
@@ -580,6 +581,7 @@ export const FileExplorer = React.memo(function FileExplorer({
   onRenameNode,
   basePath = '',
 }: FileExplorerProps) {
+  const { t } = useTranslation();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [isSearchVisible, setIsSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -607,7 +609,7 @@ export const FileExplorer = React.memo(function FileExplorer({
     node.type === 'directory'
       ? resolveNodeAbsolutePath(node.path)
       : resolveAbsoluteExplorerPath(basePath, resolveRelativeParentPath(node.path));
-  const notifyMissingProjectPath = () => addToast('Project folder path is unavailable', 'error');
+  const notifyMissingProjectPath = () => addToast(t('code.projectFolderUnavailable'), 'error');
   const rootCreationParentPath = useMemo(() => resolveRootCreationParentPath(files), [files]);
   const singleRootDirectoryPath = useMemo(() => resolveSingleRootDirectoryPath(files), [files]);
   const startCreatingRootNode = useCallback((type: 'file' | 'directory') => {
@@ -1033,7 +1035,11 @@ export const FileExplorer = React.memo(function FileExplorer({
                 onChange={handleInputValueChange}
                 onKeyDown={handleInputKeyDown}
                 onBlur={handleInputBlur}
-                placeholder={`New ${row.type}...`}
+                placeholder={
+                  row.type === 'directory'
+                    ? t('code.newDirectoryPlaceholder')
+                    : t('code.newFilePlaceholder')
+                }
               />
             ) : (
               <FileExplorerNodeRow
@@ -1179,7 +1185,7 @@ export const FileExplorer = React.memo(function FileExplorer({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search files..."
+                placeholder={t('code.searchFiles')}
                 className="w-full bg-[#0e0e11] border border-white/10 rounded px-2 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500/50"
                 autoFocus
               />

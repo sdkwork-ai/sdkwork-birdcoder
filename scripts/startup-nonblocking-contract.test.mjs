@@ -40,7 +40,7 @@ for (const entryPath of entryPaths) {
 
   assert.match(
     source,
-    /<BootstrapGate\s+bootstrap=\{bootstrapRuntime\}>/,
+    /<BootstrapGate\s+bootstrap=\{bootstrapRuntime\}\s+messages=\{createBootstrapGateMessages\(\)\}>/,
     `Startup entry ${entryPath.pathname} must render through BootstrapGate so startup work happens after the first paint.`,
   );
 }

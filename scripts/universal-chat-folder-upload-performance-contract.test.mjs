@@ -35,13 +35,37 @@ assert.match(
 assert.match(
   source,
   /const MAX_IMAGE_UPLOAD_BYTES = \d+;/,
-  'UniversalChat should define an explicit image byte limit before readAsDataURL expands the payload in memory.',
+  'UniversalChat should define an explicit image byte limit before uploading attachments to Drive.',
 );
 
 assert.match(
   source,
-  /const MAX_IMAGE_UPLOAD_DATA_URL_CHARACTERS = \d+;/,
-  'UniversalChat should define an explicit image data URL character budget so base64 attachments cannot bloat the composer state.',
+  /uploadBirdCoderChatAttachmentToDrive/,
+  'UniversalChat should upload chat attachments through the canonical Drive app SDK instead of embedding base64 payloads in composer state.',
+);
+
+assert.match(
+  source,
+  /buildDriveMediaResourceContentBlock/,
+  'UniversalChat should build composer attachment blocks from Drive media resources instead of inline data URLs.',
+);
+
+assert.doesNotMatch(
+  source,
+  /MAX_IMAGE_UPLOAD_DATA_URL_CHARACTERS/,
+  'UniversalChat should not keep a base64 data URL budget after migrating image uploads to Drive.',
+);
+
+assert.doesNotMatch(
+  source,
+  /estimateImageUploadDataUrlCharacters/,
+  'UniversalChat should not estimate base64 payload size after migrating image uploads to Drive.',
+);
+
+assert.doesNotMatch(
+  source,
+  /buildImageUploadContentBlock/,
+  'UniversalChat should not build inline image data URL blocks after migrating image uploads to Drive.',
 );
 
 assert.match(
@@ -64,32 +88,26 @@ assert.match(
 
 assert.match(
   source,
-  /function estimateImageUploadDataUrlCharacters\(/,
-  'UniversalChat should estimate image data URL payload size before allocating the base64 string.',
+  /if \(file\.size > MAX_IMAGE_UPLOAD_BYTES\) \{[\s\S]*addToast\(t\('chat\.imageTooLarge'\), 'error'\);[\s\S]*return;/s,
+  'UniversalChat should reject oversized images before uploading them to Drive.',
 );
 
 assert.match(
   source,
-  /function buildImageUploadContentBlock\(/,
-  'UniversalChat should centralize image upload block construction behind a bounded helper.',
+  /const driveUpload = await uploadBirdCoderChatAttachmentToDrive\([\s\S]*profile: 'image',[\s\S]*\);[\s\S]*const imageContentBlock = buildDriveMediaResourceContentBlock\([\s\S]*driveUpload\.mediaResource,[\s\S]*driveUpload\.previewUrl,[\s\S]*\);/s,
+  'UniversalChat should upload images through Drive and append a bounded media resource block to composer state.',
+);
+
+assert.match(
+  source,
+  /addToast\(t\('chat\.driveUploadFailed'\), 'error'\);/,
+  'UniversalChat should surface Drive upload failures through a dedicated chat toast key.',
 );
 
 assert.match(
   source,
   /if \(file\.size > MAX_SINGLE_FILE_UPLOAD_BYTES\) \{[\s\S]*addToast\(t\('chat\.fileTooLarge'\), 'error'\);[\s\S]*return;/s,
   'UniversalChat should reject oversized single-file uploads before readFileAsText allocates file contents on the UI thread.',
-);
-
-assert.match(
-  source,
-  /if \(\s*file\.size > MAX_IMAGE_UPLOAD_BYTES \|\|[\s\S]*estimateImageUploadDataUrlCharacters\(file\) > MAX_IMAGE_UPLOAD_DATA_URL_CHARACTERS[\s\S]*\) \{[\s\S]*addToast\(t\('chat\.imageTooLarge'\), 'error'\);[\s\S]*return;/s,
-  'UniversalChat should reject oversized images before readFileAsDataUrl expands them into base64 on the UI thread.',
-);
-
-assert.match(
-  source,
-  /const imageContentBlock = buildImageUploadContentBlock\(file\.name, base64\);[\s\S]*if \(!imageContentBlock\) \{[\s\S]*addToast\(t\('chat\.imageTooLarge'\), 'error'\);[\s\S]*return;[\s\S]*\}/s,
-  'UniversalChat should verify the actual image data URL budget before appending it to composer state.',
 );
 
 assert.match(
@@ -162,6 +180,18 @@ assert.match(
   enLocale,
   /imageTooLarge:.*1MB/,
   'English chat locale should communicate the bounded image upload budget.',
+);
+
+assert.match(
+  zhLocale,
+  /driveUploadFailed:/,
+  'Chinese chat locale should expose a dedicated Drive upload failure message.',
+);
+
+assert.match(
+  enLocale,
+  /driveUploadFailed:/,
+  'English chat locale should expose a dedicated Drive upload failure message.',
 );
 
 console.log('universal chat folder upload performance contract passed.');

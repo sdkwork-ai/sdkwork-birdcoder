@@ -1,0 +1,84 @@
+name: governance-scheduled
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: governance-scheduled-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  SDKWORK_SHARED_SDK_MODE: git
+  SDKWORK_SHARED_SDK_GIT_PROTOCOL: ssh
+  SDKWORK_SHARED_SDK_GITHUB_TOKEN: ${{ secrets.SDKWORK_SHARED_SDK_GITHUB_TOKEN || github.token }}
+
+jobs:
+  governance-release-tier:
+    name: Release-tier governance regression
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Expose workspace command wrappers
+        shell: bash
+        run: |
+          workspace_path="$GITHUB_WORKSPACE"
+          github_path_file="$GITHUB_PATH"
+          if command -v cygpath >/dev/null 2>&1; then
+            workspace_path="$(cygpath -u "$GITHUB_WORKSPACE")"
+            github_path_file="$(cygpath -u "$GITHUB_PATH")"
+          fi
+          chmod +x "${workspace_path}/sdkwork-run-node" "${workspace_path}/sdkwork-run-pnpm"
+          printf '%s\n' "$GITHUB_WORKSPACE" >> "${github_path_file}"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.90.0
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Setup shared SDK SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY }}
+
+      - name: Prepare shared SDK sources
+        run: node scripts/prepare-shared-sdk-git-sources.mjs
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared SDK packages
+        run: pnpm prepare:shared-sdk
+
+      - name: Run release-tier quality gate
+        run: pnpm check:quality:release
+
+      - name: Upload governance regression report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governance-regression-report
+          path: artifacts/governance/governance-regression-report.json
+          if-no-files-found: warn
+          retention-days: 30

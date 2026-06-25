@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const rootDir = process.cwd();
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const h5Prefix = 'apps/sdkwork-birdcoder-h5';
 const shellPrefix = `${h5Prefix}/packages/sdkwork-birdcoder-h5-shell/src`;
 

@@ -25,6 +25,13 @@
       "tokenSecret": "SDKWORK_RELEASE_TOKEN"
     },
     {
+      "id": "sdkwork-iam",
+      "repository": "Sdkwork-Cloud/sdkwork-iam",
+      "ref": "0c112a7e5fcf1fa07431c5ededb56ea7c5f9d473",
+      "refInput": "SDKWORK_IAM_REF",
+      "tokenSecret": "SDKWORK_RELEASE_TOKEN"
+    },
+    {
       "id": "sdkwork-core",
       "repository": "Sdkwork-Cloud/sdkwork-core",
       "ref": "864d0264d9e170ea0d1820402f46195be62fecf6",

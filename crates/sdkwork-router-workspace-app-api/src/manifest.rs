@@ -9,157 +9,190 @@ pub const WORKSPACE_APP_API_ROUTES: &[HttpRoute] = &[
         paths::WORKSPACES_PATH,
         "workspaces",
         "workspaces.list",
-    ),
+    )
+    .with_required_permission("platform.workspaces.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::WORKSPACES_PATH,
         "workspaces",
         "workspaces.create",
-    ),
+    )
+    .with_required_permission("platform.workspaces.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::WORKSPACE_DETAIL_PATH,
         "workspaces",
         "workspaces.retrieve",
-    ),
+    )
+    .with_required_permission("platform.workspaces.read"),
     HttpRoute::dual_token(
         HttpMethod::Patch,
         paths::WORKSPACE_DETAIL_PATH,
         "workspaces",
         "workspaces.update",
-    ),
+    )
+    .with_required_permission("platform.workspaces.update"),
     HttpRoute::dual_token(
         HttpMethod::Delete,
         paths::WORKSPACE_DETAIL_PATH,
         "workspaces",
         "workspaces.delete",
-    ),
+    )
+    .with_required_permission("platform.workspaces.delete"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::WORKSPACE_REALTIME_PATH,
         "workspaces",
         "workspaces.realtime.subscribe",
-    ),
+    )
+    .with_required_permission("platform.workspaces.realtime.subscribe"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::WORKSPACE_MEMBERS_PATH,
         "workspaces",
         "workspaces.members.list",
-    ),
+    )
+    .with_required_permission("iam.workspaces.members.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::WORKSPACE_MEMBERS_PATH,
         "workspaces",
         "workspaces.members.upsert",
-    ),
+    )
+    .with_required_permission("iam.workspaces.members.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECTS_PATH,
         "projects",
         "projects.list",
-    ),
+    )
+    .with_required_permission("platform.projects.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECTS_PATH,
         "projects",
         "projects.create",
-    ),
+    )
+    .with_required_permission("platform.projects.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECT_DETAIL_PATH,
         "projects",
         "projects.retrieve",
-    ),
+    )
+    .with_required_permission("platform.projects.read"),
     HttpRoute::dual_token(
         HttpMethod::Patch,
         paths::PROJECT_DETAIL_PATH,
         "projects",
         "projects.update",
-    ),
+    )
+    .with_required_permission("platform.projects.update"),
     HttpRoute::dual_token(
         HttpMethod::Delete,
         paths::PROJECT_DETAIL_PATH,
         "projects",
         "projects.delete",
-    ),
+    )
+    .with_required_permission("platform.projects.delete"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECT_GIT_OVERVIEW_PATH,
         "projects",
         "projects.git.overview.retrieve",
-    ),
+    )
+    .with_required_permission("platform.projects.git.overview.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_BRANCHES_PATH,
         "projects",
         "projects.git.branches.create",
-    ),
+    )
+    .with_required_permission("platform.projects.git.branches.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_BRANCH_SWITCH_PATH,
         "projects",
         "projects.git.branchSwitch.create",
-    ),
+    )
+    .with_required_permission("platform.projects.git.branchSwitch.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_COMMITS_PATH,
         "projects",
         "projects.git.commits.create",
-    ),
+    )
+    .with_required_permission("platform.projects.git.commits.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_PUSHES_PATH,
         "projects",
         "projects.git.pushes.create",
-    ),
+    )
+    .with_required_permission("platform.projects.git.pushes.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_WORKTREES_PATH,
         "projects",
         "projects.git.worktrees.create",
-    ),
+    )
+    .with_required_permission("platform.projects.git.worktrees.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_WORKTREE_REMOVALS_PATH,
         "projects",
         "projects.git.worktreeRemovals.create",
-    ),
+    )
+    .with_required_permission("platform.projects.git.worktreeRemovals.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_WORKTREE_PRUNE_PATH,
         "projects",
         "projects.git.worktreePrune.create",
-    ),
+    )
+    .with_required_permission("platform.projects.git.worktreePrune.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECT_COLLABORATORS_PATH,
         "projects",
         "projects.collaborators.list",
-    ),
+    )
+    .with_required_permission("platform.projects.collaborators.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_COLLABORATORS_PATH,
         "projects",
         "projects.collaborators.upsert",
-    ),
+    )
+    .with_required_permission("platform.projects.collaborators.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::DEPLOYMENTS_PATH,
         "deployments",
         "deployments.list",
-    ),
+    )
+    .with_required_permission("platform.deployments.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::PROJECT_DEPLOYMENT_TARGETS_PATH,
         "projects",
         "projects.deploymentTargets.list",
-    ),
+    )
+    .with_required_permission("platform.projects.deploymentTargets.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_PUBLISH_PATH,
         "projects",
         "projects.publish.create",
-    ),
+    )
+    .with_required_permission("platform.projects.publish.create"),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::TEAMS_PATH,
+        "workspaceTeams",
+        "workspaceTeams.list",
+    )
+    .with_required_permission("collaboration.workspaceTeams.read"),
 ];
 
 pub fn workspace_app_api_route_manifest() -> HttpRouteManifest {

@@ -4,10 +4,21 @@ import path from 'node:path';
 import process from 'node:process';
 
 import { GOVERNANCE_REGRESSION_CHECKS } from './governance-regression-report.mjs';
+import {
+  buildCanonicalDocPathIndex,
+  readCanonicalDoc,
+  resolveCanonicalDocPath,
+} from './lib/canonical-doc-paths.mjs';
 
 const rootDir = process.cwd();
 const docsDir = path.join(rootDir, 'docs');
+const canonicalDocIndex = buildCanonicalDocPathIndex(rootDir);
 const expectedCheckCount = GOVERNANCE_REGRESSION_CHECKS.length;
+
+function readDoc(legacyRelativePath) {
+  return readCanonicalDoc(rootDir, legacyRelativePath, canonicalDocIndex).source;
+}
+
 const releaseAndDeploymentSource = fs.readFileSync(
   path.join(docsDir, 'core', 'release-and-deployment.md'),
   'utf8',
@@ -20,98 +31,25 @@ const commandsReferenceSource = fs.readFileSync(
   path.join(docsDir, 'reference', 'commands.md'),
   'utf8',
 );
-const step17Source = fs.readFileSync(
-  path.join(docsDir, 'step', '17-Coding-Server-App-Backend-SDK与控制台实现.md'),
-  'utf8',
-);
-const step16Source = fs.readFileSync(
-  path.join(docsDir, 'step', '16-Prompt-SkillHub-AppTemplate-项目模板体系.md'),
-  'utf8',
-);
-const step18DSource = fs.readFileSync(
-  path.join(docsDir, 'step', '18D-Rust-Host-Engine-Route-Parity-Lane.md'),
-  'utf8',
-);
-const step13Source = fs.readFileSync(
-  path.join(docsDir, 'step', '13-发布就绪-github-flow-灰度回滚闭环.md'),
-  'utf8',
-);
-const step06Source = fs.readFileSync(
-  path.join(docsDir, 'step', '06-code视图-编辑器-文件系统重构.md'),
-  'utf8',
-);
-const architecture03Source = fs.readFileSync(
-  path.join(docsDir, '架构', '03-模块规划与边界.md'),
-  'utf8',
-);
-const architecture19Source = fs.readFileSync(
-  path.join(docsDir, '架构', '19-统一会话运行时-Prompt-SkillHub-AppTemplate标准.md'),
-  'utf8',
-);
-const architecture20Source = fs.readFileSync(
-  path.join(docsDir, '架构', '20-统一Rust-Coding-Server-API-协议标准.md'),
-  'utf8',
-);
-const architecture25Source = fs.readFileSync(
-  path.join(docsDir, '架构', '25-Rust-Host-Engine-Route-Parity-Standard.md'),
-  'utf8',
-);
-const architecture09Source = fs.readFileSync(
-  path.join(docsDir, '架构', '09-安装-部署-发布标准.md'),
-  'utf8',
-);
-const architectureReadmeSource = fs.readFileSync(
-  path.join(docsDir, '架构', 'README.md'),
-  'utf8',
-);
-const architecture11Source = fs.readFileSync(
-  path.join(docsDir, '架构', '11-行业对标与能力矩阵.md'),
-  'utf8',
-);
-const architecture22Source = fs.readFileSync(
-  path.join(docsDir, '架构', '22-多Code-Engine源码镜像真相补充标准.md'),
-  'utf8',
-);
-const architecture23Source = fs.readFileSync(
-  path.join(docsDir, '架构', '23-Coding-Server-Engine-Truth-Promotion-Standard.md'),
-  'utf8',
-);
-const architecture24Source = fs.readFileSync(
-  path.join(docsDir, '架构', '24-Rust-Host-Engine-Truth-Artifact-Standard.md'),
-  'utf8',
-);
-const architecture26Source = fs.readFileSync(
-  path.join(docsDir, '架构', '26-Step-18-Engine-Governance-Release-Flow-Standard.md'),
-  'utf8',
-);
-
-const architectureDocsDirName = fs
-  .readdirSync(docsDir, { withFileTypes: true })
-  .find(
-    (entry) =>
-      entry.isDirectory() &&
-      fs.existsSync(
-        path.join(docsDir, entry.name, '26-Step-18-Engine-Governance-Release-Flow-Standard.md'),
-      ),
-  )?.name;
-
-assert.ok(
-  architectureDocsDirName,
-  'docs directory must contain the active architecture standards directory.',
-);
-
-const architecture27Source = fs.readFileSync(
-  path.join(docsDir, architectureDocsDirName, '27-Step-18-Engine-Governance-Score-Surface-Standard.md'),
-  'utf8',
-);
-const architecture28Source = fs.readFileSync(
-  path.join(docsDir, architectureDocsDirName, '28-Governance-Regression-Deterministic-Baseline-Standard.md'),
-  'utf8',
-);
-const architecture29Source = fs.readFileSync(
-  path.join(docsDir, architectureDocsDirName, '29-Web-Bundle-Segmentation-And-Production-Build-Standard.md'),
-  'utf8',
-);
+const step17Source = readDoc('docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md');
+const step16Source = readDoc('docs/step/16-Prompt-SkillHub-AppTemplate-项目模板体系.md');
+const step18DSource = readDoc('docs/step/18D-Rust-Host-Engine-Route-Parity-Lane.md');
+const step13Source = readDoc('docs/step/13-发布就绪-github-flow-灰度回滚闭环.md');
+const step06Source = readDoc('docs/step/06-code视图-编辑器-文件系统重构.md');
+const architecture03Source = readDoc('docs/架构/03-模块规划与边界.md');
+const architecture19Source = readDoc('docs/架构/19-统一会话运行时-Prompt-SkillHub-AppTemplate标准.md');
+const architecture20Source = readDoc('docs/架构/20-统一Rust-Coding-Server-API-协议标准.md');
+const architecture25Source = readDoc('docs/架构/25-Rust-Host-Engine-Route-Parity-Standard.md');
+const architecture09Source = readDoc('docs/架构/09-安装-部署-发布标准.md');
+const architectureReadmeSource = readDoc('docs/架构/README.md');
+const architecture11Source = readDoc('docs/架构/11-行业对标与能力矩阵.md');
+const architecture22Source = readDoc('docs/架构/22-多Code-Engine源码镜像真相补充标准.md');
+const architecture23Source = readDoc('docs/架构/23-Coding-Server-Engine-Truth-Promotion-Standard.md');
+const architecture24Source = readDoc('docs/架构/24-Rust-Host-Engine-Truth-Artifact-Standard.md');
+const architecture26Source = readDoc('docs/架构/26-Step-18-Engine-Governance-Release-Flow-Standard.md');
+const architecture27Source = readDoc('docs/架构/27-Step-18-Engine-Governance-Score-Surface-Standard.md');
+const architecture28Source = readDoc('docs/架构/28-Governance-Regression-Deterministic-Baseline-Standard.md');
+const architecture29Source = readDoc('docs/架构/29-Web-Bundle-Segmentation-And-Production-Build-Standard.md');
 
 const postgresqlHostPassLiveDocs = [
   'docs/架构/09-安装-部署-发布标准.md',
@@ -1170,7 +1108,7 @@ const stalePostgresqlHostPassPatterns = [
 ];
 
 for (const relativePath of postgresqlHostPassLiveDocs) {
-  const source = fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
+  const source = readDoc(relativePath);
 
   assert.match(
     source,
@@ -1213,7 +1151,11 @@ while (stack.length > 0) {
   }
 
   const relativePath = path.relative(rootDir, currentPath).split(path.sep).join('/');
-  if (relativePath.startsWith('docs/release/')) {
+  if (
+    relativePath.startsWith('docs/release/')
+    || relativePath.startsWith('docs/archive/')
+    || /docs\/architecture\/tech\/TECH-release-/.test(relativePath)
+  ) {
     continue;
   }
 

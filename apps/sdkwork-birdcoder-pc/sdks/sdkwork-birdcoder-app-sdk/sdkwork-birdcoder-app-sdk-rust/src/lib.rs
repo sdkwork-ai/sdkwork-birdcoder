@@ -1215,6 +1215,23 @@ pub mod platform {
             };
         }
 
+        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "platform",
+            key: "platform.workspaces.retrieve",
+            method: "GET",
+            operation_id: "workspaces.retrieve",
+            path: "/app/v3/api/workspaces/{workspaceId}",
+            path_param_names: &["workspaceId"],
+            permission: Some("platform.workspaces.read"),
+            public: false,
+            resource: "platform.workspaces",
+            summary: "Get workspace",
+            tag: "platform",
+            tenant_scope: "tenant",
+        };
+
         pub const UPDATE: crate::SdkOperation = crate::SdkOperation {
             data_scope: "organization",
             deployment: "all",
@@ -1646,6 +1663,7 @@ pub const OPERATIONS: &[SdkOperation] = &[
     platform::workspaces::DELETE,
     platform::workspaces::LIST,
     platform::workspaces::realtime::SUBSCRIBE,
+    platform::workspaces::RETRIEVE,
     platform::workspaces::UPDATE,
     runtime::engines::capabilities::RETRIEVE,
     runtime::engines::LIST,

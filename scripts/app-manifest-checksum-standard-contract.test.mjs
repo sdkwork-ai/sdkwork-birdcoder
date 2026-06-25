@@ -45,18 +45,30 @@ function assertManifestChecksumPolicy(manifestPath) {
 
 assertManifestChecksumPolicy('sdkwork.app.config.json');
 
-const h5Manifest = readJson('apps/sdkwork-birdcoder-h5/sdkwork.app.config.json');
-const flutterManifest = readJson('apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json');
+for (const scaffoldManifestPath of [
+  'apps/sdkwork-birdcoder-h5/sdkwork.app.config.json',
+  'apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json',
+]) {
+  const manifest = readJson(scaffoldManifestPath);
+  assert.equal(
+    manifest.security?.checksumRequired,
+    true,
+    `${scaffoldManifestPath} must declare checksumRequired security policy even while preLaunch packages stay disabled.`,
+  );
 
-assert.equal(
-  h5Manifest.security?.checksumRequired,
-  false,
-  'H5 scaffold manifest must keep checksumRequired disabled until real release artifacts exist.',
-);
-assert.equal(
-  flutterManifest.security?.checksumRequired,
-  false,
-  'Flutter scaffold manifest must keep checksumRequired disabled until real release artifacts exist.',
-);
+  const packages = manifest.artifacts?.installConfig?.packages ?? [];
+  for (const pkg of packages) {
+    assert.equal(
+      pkg.enabled,
+      false,
+      `${scaffoldManifestPath} package ${pkg.id} must stay disabled until real release artifacts exist.`,
+    );
+    assert.equal(
+      pkg.checksum,
+      undefined,
+      `${scaffoldManifestPath} package ${pkg.id} must not ship checksum values before the first governed release.`,
+    );
+  }
+}
 
 console.log('app manifest checksum standard contract passed.');

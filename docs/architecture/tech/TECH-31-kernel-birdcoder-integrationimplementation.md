@@ -159,13 +159,13 @@ flowchart TB
 | `pnpm run test:engine-runtime-adapter` | `kernel-runtime-adapter-contract`（历史脚本名保留） |
 | `cargo test -p sdkwork-birdcoder-kernel-bridge` | Rust 单元测试 |
 
-完整循环见《32》与 `docs/prompts/反复执行Kernel对齐指令.md`。
+完整循环见 [TECH-32-kernel-birdcoder](./TECH-32-kernel-birdcoder.md) 与 `docs/prompts/反复执行Kernel对齐指令.md`。
 
 ## 9. 相关文档
 
-- [30-职责边界标准](./30-Kernel-BirdCoder-职责边界标准.md)
-- [32-对齐验收与核对清单](./32-Kernel-BirdCoder-对齐验收与核对清单.md)
-- [05-统一Kernel与Code Engine标准](./05-统一Kernel与Code%20Engine标准.md)
+- [TECH-30-职责边界标准](./TECH-30-kernel-birdcoder-boundariesstandard.md)
+- [TECH-32-对齐验收与核对清单](./TECH-32-kernel-birdcoder.md)
+- [TECH-05-统一Kernel与Code Engine标准](./TECH-05-kernelcode-enginestandard.md)
 - [engine-sdk-integration 参考](../reference/engine-sdk-integration.md)
 - [反复执行Kernel对齐指令](../prompts/反复执行Kernel对齐指令.md)
 

@@ -9,19 +9,22 @@ pub const SKILL_PACKAGES_APP_API_ROUTES: &[HttpRoute] = &[
         paths::SKILL_PACKAGES_PATH,
         "skillPackages",
         "skillPackages.list",
-    ),
+    )
+    .with_required_permission("ecosystem.skillPackages.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::SKILL_PACKAGE_INSTALLATIONS_PATH,
         "skillPackages",
         "skillPackages.installations.create",
-    ),
+    )
+    .with_required_permission("ecosystem.skillPackages.installations.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::APP_TEMPLATES_PATH,
         "appTemplates",
         "appTemplates.list",
-    ),
+    )
+    .with_required_permission("ecosystem.appTemplates.read"),
 ];
 
 pub fn skill_packages_app_api_route_manifest() -> HttpRouteManifest {

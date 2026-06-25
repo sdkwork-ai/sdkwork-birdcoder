@@ -23,5 +23,6 @@ export default defineLocaleModule('auth', {
     continueWithGithub: '使用 GitHub 继续',
     continueWithGoogle: '使用 Google 继续',
     continueWithWeChat: '使用微信继续',
+    validatingSession: '正在验证 SDKWork 会话',
   },
 });

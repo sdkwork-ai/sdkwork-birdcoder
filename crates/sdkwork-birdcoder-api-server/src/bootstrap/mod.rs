@@ -18,7 +18,9 @@ use config::BirdServerConfig;
 pub async fn build_app(config: &BirdServerConfig) -> Result<Router, Box<dyn std::error::Error>> {
     let database_pool = database::bootstrap_database(config).await?;
     let repositories = repositories::wire_repositories(database_pool.clone()).await?;
-    let services = services::wire_services(&repositories, config);
+    let services = services::wire_services(&repositories, config)
+        .await
+        .map_err(|error| -> Box<dyn std::error::Error> { error.to_string().into() })?;
     let adapters = adapters::wire_adapters(config);
     let state = state::AppState::new(services, repositories, adapters, database_pool);
     let app = routers::build_router(state, config).await?;

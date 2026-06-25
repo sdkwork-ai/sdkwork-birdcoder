@@ -16,3 +16,4 @@ pub const PROJECT_COLLABORATORS_PATH: &str = "/app/v3/api/projects/{projectId}/c
 pub const PROJECT_PUBLISH_PATH: &str = "/app/v3/api/projects/{projectId}/publish";
 pub const PROJECT_DEPLOYMENT_TARGETS_PATH: &str = "/app/v3/api/projects/{projectId}/deployment_targets";
 pub const DEPLOYMENTS_PATH: &str = "/app/v3/api/deployments";
+pub const TEAMS_PATH: &str = "/app/v3/api/teams";

@@ -67,7 +67,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Local Extension Specs
 
-- [kernel-birdcoder-alignment.spec.json](./kernel-birdcoder-alignment.spec.json) — Kernel ↔ BirdCoder alignment tasks, evidence, and verification matrix. See `docs/架构/31–32` and `pnpm run check:kernel-birdcoder-alignment`.
+- [kernel-birdcoder-alignment.spec.json](./kernel-birdcoder-alignment.spec.json) — Kernel ↔ BirdCoder alignment tasks, evidence, and verification matrix. See `docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md`–`TECH-32-kernel-birdcoder.md` and `pnpm run check:kernel-birdcoder-alignment`.
 
 ## Verification
 

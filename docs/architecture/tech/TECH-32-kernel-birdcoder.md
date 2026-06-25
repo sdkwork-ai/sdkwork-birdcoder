@@ -81,10 +81,10 @@ pnpm run check:sdkwork-birdcoder-structure
 
 每轮对齐后确认：
 
-- [x] `docs/架构/30` 与 `boundaries.rs` 能力表一致
-- [x] `docs/架构/31` 文件路径与仓库实际路径一致
+- [x] `docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md` 与 `boundaries.rs` 能力表一致
+- [x] `docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md` 文件路径与仓库实际路径一致
 - [x] `docs/reference/engine-sdk-integration.md` 以 kernel-bridge 为当前执行路径
-- [x] `docs/架构/README.md` 阅读顺序含 30、31、32
+- [x] `docs/architecture/tech/README.md` 阅读顺序含 TECH-30、TECH-31、TECH-32
 - [x] `specs/README.md` 索引 `kernel-birdcoder-alignment.spec.json`
 
 ## 7. 完成定义（BirdCoder 仓库）
@@ -104,5 +104,5 @@ pnpm run check:sdkwork-birdcoder-structure
 2. 运行 §2 核对循环
 3. 更新 `specs/kernel-birdcoder-alignment.spec.json` 中任务 `status`
 4. 同步更新本文 §3、§4 表格
-5. 若行为面变化，更新 `docs/架构/31` 与相关 step/release 文档
+5. 若行为面变化，更新 `docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md` 与相关 step/release 文档
 

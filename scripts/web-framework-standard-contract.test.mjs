@@ -51,6 +51,10 @@ for (const crateDir of routeCrates) {
     fail(`${crateDir}/Cargo.toml must depend on sdkwork-web-core`);
   }
 
+  if (!manifest.includes('with_required_permission')) {
+    fail(`${manifestPath} must declare with_required_permission on protected routes`);
+  }
+
   const libRs = read(`${crateDir}/src/lib.rs`);
   if (!libRs.includes('pub mod manifest')) {
     fail(`${crateDir}/src/lib.rs must expose manifest module`);
@@ -107,6 +111,9 @@ if (!authBootstrap.includes('SecurityPolicy')) {
 const routerContext = read('crates/sdkwork-birdcoder-router-context/src/lib.rs');
 if (!routerContext.includes('WebRequestContext')) {
   fail('sdkwork-birdcoder-router-context must resolve IAM from WebRequestContext');
+}
+if (!routerContext.includes('ProblemDetailsPayload')) {
+  fail('sdkwork-birdcoder-router-context must reject missing IAM context with ProblemDetailsPayload');
 }
 
 const handlerFiles = [

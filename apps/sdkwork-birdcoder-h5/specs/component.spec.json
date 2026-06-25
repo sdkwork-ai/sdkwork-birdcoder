@@ -11,10 +11,16 @@
     "capability": "ide",
     "surface": "app",
     "status": "ACTIVE",
-    "languages": ["typescript", "react"],
+    "languages": [
+      "typescript",
+      "react"
+    ],
     "generated": false,
     "private": true,
-    "manifests": ["package.json", "vite.config.ts"]
+    "manifests": [
+      "package.json",
+      "vite.config.ts"
+    ]
   },
   "canonicalSpecs": [
     {
@@ -80,14 +86,17 @@
   ],
   "contracts": {
     "publicExports": [],
-    "runtimeEntrypoints": ["package.json#scripts.dev"],
+    "runtimeEntrypoints": [
+      "package.json#scripts.dev"
+    ],
     "sdkClients": [],
     "sdkDependencies": [],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [],
-    "routeManifest": null
+    "routeManifest": null,
+    "dependencyComposition": "specs/dependency.composition.json"
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative.",
@@ -95,7 +104,10 @@
     "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries."
   },
   "verification": {
-    "commands": ["pnpm typecheck", "pnpm lint"]
+    "commands": [
+      "pnpm typecheck",
+      "pnpm lint"
+    ]
   },
   "metadata": {
     "standardVersion": "2026-06-13"

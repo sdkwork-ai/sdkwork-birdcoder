@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const expectedDependencyIds = [
   'sdkwork-appbase',
+  'sdkwork-iam',
   'sdkwork-core',
   'sdkwork-ui',
   'sdkwork-drive',

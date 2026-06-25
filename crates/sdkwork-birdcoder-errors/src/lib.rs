@@ -1,4 +1,4 @@
-use axum::http::StatusCode;
+use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Serialize;
@@ -94,9 +94,39 @@ impl AppError {
     }
 }
 
+pub type ProblemJsonBody = (
+    StatusCode,
+    [(axum::http::header::HeaderName, HeaderValue); 1],
+    Json<ProblemDetailsPayload>,
+);
+
+pub fn problem_json(status: StatusCode, body: ProblemDetailsPayload) -> ProblemJsonBody {
+    (
+        status,
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/problem+json"),
+        )],
+        Json(body),
+    )
+}
+
+pub fn traced_problem_json(
+    status: StatusCode,
+    body: ProblemDetailsPayload,
+    trace_id: Option<&str>,
+) -> ProblemJsonBody {
+    problem_json(status, body.with_trace_id(trace_id))
+}
+
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        (self.status, Json(self.body)).into_response()
+        let mut response = (self.status, Json(self.body)).into_response();
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/problem+json"),
+        );
+        response
     }
 }
 

@@ -7,7 +7,7 @@ import {
   resolveBirdCoderBootstrapServerBaseUrl,
   waitForBirdCoderApiReady,
 } from '@sdkwork/birdcoder-pc-shell-runtime';
-import { ErrorBoundary } from '@sdkwork/birdcoder-pc-commons';
+import { createBootstrapGateMessages, ErrorBoundary } from '@sdkwork/birdcoder-pc-commons';
 import { loadCatalog } from '@sdkwork/birdcoder-pc-codeengine/catalogBridge';
 import { resolveWebRuntime } from './web/resolveWebRuntime';
 import App from './App';
@@ -54,7 +54,7 @@ if (!document.getElementById('root')) {
 }
 createRoot(document.getElementById('root')!).render(
   <ErrorBoundary>
-    <BootstrapGate bootstrap={bootstrapRuntime}>
+    <BootstrapGate bootstrap={bootstrapRuntime} messages={createBootstrapGateMessages()}>
       <App />
     </BootstrapGate>
   </ErrorBoundary>,

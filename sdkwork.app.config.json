@@ -26,7 +26,7 @@
     "ownerMode": "tenant",
     "grantMode": "current",
     "platform": "WEB",
-    "appId": null,
+    "appId": "sdkwork-birdcoder",
     "tenantId": "100001",
     "organizationId": "0",
     "accessTokenPermissionScope": [
@@ -70,9 +70,10 @@
         "fileSizeBytes": 524288,
         "alphaChannel": false,
         "sortOrder": 0,
-        "enabled": true,
+        "enabled": false,
         "metadata": {
-          "generatedPlaceholder": true
+          "generatedPlaceholder": true,
+          "preLaunch": true
         }
       },
       "platform": [],
@@ -97,9 +98,10 @@
         "alphaChannel": false,
         "caption": "SDKWork Birdcoder product screenshot.",
         "sortOrder": 0,
-        "enabled": true,
+        "enabled": false,
         "metadata": {
           "generatedPlaceholder": true,
+          "preLaunch": true,
           "altText": "SDKWork Birdcoder app screenshot."
         }
       }
@@ -119,9 +121,10 @@
         "alphaChannel": false,
         "caption": "SDKWork Birdcoder preview.",
         "sortOrder": 0,
-        "enabled": true,
+        "enabled": false,
         "metadata": {
           "generatedPlaceholder": true,
+          "preLaunch": true,
           "altText": "SDKWork Birdcoder preview cover."
         }
       }
@@ -132,7 +135,8 @@
     }
   },
   "publish": {
-    "status": "ACTIVE",
+    "status": "DRAFT",
+    "preLaunch": true,
     "installSkill": {
       "name": "sdkwork-skills-app"
     },
@@ -194,10 +198,11 @@
           "packageFormat": "ZIP",
           "platform": "WEB",
           "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/STABLE/0.1.0/web.zip",
-          "enabled": true,
-          "metadata": {},
-          "checksumAlgorithm": "SHA-256",
-          "checksum": "4bd464424bd464424bd464424bd464424bd464424bd464424bd464424bd46442",
+          "enabled": false,
+          "metadata": {
+            "preLaunch": true,
+            "artifactPending": true
+          },
           "architecture": "universal",
           "deploymentProfile": "cloud",
           "runtimeTarget": "browser"
@@ -209,11 +214,12 @@
           "packageFormat": "ZIP",
           "platform": "DESKTOP_WINDOWS",
           "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/STABLE/0.1.0/windows/x64/app.zip",
-          "enabled": true,
-          "metadata": {},
+          "enabled": false,
+          "metadata": {
+            "preLaunch": true,
+            "artifactPending": true
+          },
           "architecture": "x64",
-          "checksumAlgorithm": "SHA-256",
-          "checksum": "6475b8626475b8626475b8626475b8626475b8626475b8626475b8626475b862",
           "deploymentProfile": "standalone",
           "runtimeTarget": "desktop"
         },
@@ -224,11 +230,12 @@
           "packageFormat": "DMG",
           "platform": "DESKTOP_MACOS",
           "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/STABLE/0.1.0/macos/universal/app.dmg",
-          "enabled": true,
-          "metadata": {},
+          "enabled": false,
+          "metadata": {
+            "preLaunch": true,
+            "artifactPending": true
+          },
           "architecture": "universal",
-          "checksumAlgorithm": "SHA-256",
-          "checksum": "1a2d9d121a2d9d121a2d9d121a2d9d121a2d9d121a2d9d121a2d9d121a2d9d12",
           "deploymentProfile": "standalone",
           "runtimeTarget": "desktop"
         },
@@ -239,15 +246,15 @@
           "packageFormat": "APPIMAGE",
           "platform": "DESKTOP_LINUX",
           "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/STABLE/0.1.0/linux/generic/x64/app.AppImage",
-          "enabled": true,
+          "enabled": false,
           "metadata": {
+            "preLaunch": true,
+            "artifactPending": true,
             "linux": {
               "distro": "generic"
             }
           },
           "architecture": "x64",
-          "checksumAlgorithm": "SHA-256",
-          "checksum": "1a2352931a2352931a2352931a2352931a2352931a2352931a2352931a235293",
           "deploymentProfile": "standalone",
           "runtimeTarget": "desktop"
         }
@@ -256,7 +263,8 @@
         "workspaceRoot": "apps/sdkwork-birdcoder-pc",
         "framework": "react-tauri",
         "packageManager": "pnpm@10.30.2",
-        "migratedFromLegacyConfig": true
+        "migratedFromLegacyConfig": true,
+        "preLaunch": true
       }
     }
   },
@@ -271,12 +279,12 @@
         "version": "0.1.0",
         "releaseChannel": "STABLE",
         "title": "SDKWork Birdcoder 0.1.0",
-        "summary": "SDKWork Birdcoder initialized standard release.",
-        "content": "Initial SDKWork App Standard v3 manifest for SDKWork Birdcoder.",
+        "summary": "Pre-launch scaffold — install packages remain disabled until release artifacts are published.",
+        "content": "SDKWork BirdCoder has not launched publicly. Artifact URLs and checksums are withheld until the first governed release build completes.",
         "highlights": [
-          "SDKWork App Standard v3 configuration initialized",
-          "PlusApp projection metadata standardized",
-          "Download package matrix normalized"
+          "Pre-launch manifest: install packages disabled pending real artifacts",
+          "Contract gates green; supply-chain evidence pending first release",
+          "OpenAPI defer registry tracks phased Rust route rollout"
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",
@@ -285,7 +293,7 @@
           "linux-x64-standalone-desktop-appimage"
         ],
         "publishedAt": "2026-05-07T00:00:00Z",
-        "current": true,
+        "current": false,
         "forceUpdate": false,
         "minSupportedVersion": "0.1.0",
         "metadata": {}
@@ -306,12 +314,14 @@
   "metadata": {
     "standardOwner": "sdkwork-platform",
     "initializedAt": "2026-05-07T00:00:00Z",
-    "releaseEvidenceStatus": "contract-gates-green-artifacts-pending",
+    "preLaunch": true,
+    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-prelaunch-artifacts-pending",
     "commercialReadiness": {
-      "pcPrivateBeta": "ready",
-      "enterpriseK8s": "sqlite-single-replica-ready",
-      "saasPublicCloud": "auth-gates-enabled-artifacts-pending",
-      "mobileProductParity": "phase-3-in-progress"
+      "pcPrivateBeta": "openapi-132-of-132-iam-federation-teams-aligned",
+      "enterpriseK8s": "postgresql-ha-backup-template-ci-smoke-iam-db-health-ping-aligned",
+      "saasPublicCloud": "governance-regression-release-rehearsal-openapi-complete-prelaunch-artifacts-pending",
+      "mobileProductParity": "h5-flutter-ci-smoke-capacitor-sync-android-assemble-aligned",
+      "manifestHonesty": "root-h5-flutter-draft-prelaunch-contract-gated"
     }
   }
 }

@@ -33,6 +33,13 @@ pub struct ProjectListQuery {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TeamListQuery {
+    pub user_id: Option<String>,
+    pub workspace_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateWorkspaceBody {
     pub name: String,
     pub description: Option<String>,

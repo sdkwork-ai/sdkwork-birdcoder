@@ -5,10 +5,36 @@ import path from 'node:path';
 import { gunzipSync } from 'node:zlib';
 
 import { packageReleaseAssets } from './package-release-assets.mjs';
+import {
+  PC_DESKTOP_DIST_REL,
+  PC_DESKTOP_TAURI_REL,
+  PC_WEB_DIST_REL,
+  SERVER_CRATE_BINARY_NAME,
+  WORKSPACE_CARGO_TARGET_REL,
+} from './release-build-paths.mjs';
 import { RELEASE_ASSET_MANIFEST_FILE_NAME } from './release-profiles.mjs';
 
 const SERVER_BINARY_TARGET = 'x86_64-unknown-linux-gnu';
-const SERVER_BINARY_NAME = 'sdkwork-birdcoder-server';
+const SERVER_BINARY_NAME = SERVER_CRATE_BINARY_NAME;
+
+const WEB_DIST_REGEX = PC_WEB_DIST_REL.replaceAll('/', '[\\\\/]');
+const DESKTOP_DIST_REGEX = PC_DESKTOP_DIST_REL.replaceAll('/', '[\\\\/]');
+const MISSING_WEB_DIST_ERROR = new RegExp(
+  `Missing required web app build output.*${WEB_DIST_REGEX}.*Run \`pnpm build\` before packaging web release assets`,
+  'u',
+);
+const MISSING_DESKTOP_DIST_ERROR = new RegExp(
+  `Missing required desktop app build output.*${DESKTOP_DIST_REGEX}.*Run \`pnpm tauri:build\` before packaging desktop release assets`,
+  'u',
+);
+const MISSING_SERVER_WEB_DIST_ERROR = new RegExp(
+  `Missing required server web build output.*${WEB_DIST_REGEX}.*Run \`pnpm build\` before packaging server release assets`,
+  'u',
+);
+const MISSING_CONTAINER_WEB_DIST_ERROR = new RegExp(
+  `Missing required container web build output.*${WEB_DIST_REGEX}.*Run \`pnpm build\` before packaging container release assets`,
+  'u',
+);
 
 function writeFile(targetPath, value) {
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
@@ -17,22 +43,22 @@ function writeFile(targetPath, value) {
 
 function writeWebDistFixture(rootDir) {
   writeFile(
-    path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist', 'index.html'),
+    path.join(rootDir, PC_WEB_DIST_REL, 'index.html'),
     '<!doctype html><script type="module" src="./assets/index.js"></script>\n',
   );
   writeFile(
-    path.join(rootDir, 'packages', 'sdkwork-birdcoder-web', 'dist', 'assets', 'index.js'),
+    path.join(rootDir, PC_WEB_DIST_REL, 'assets', 'index.js'),
     'export const web = true;\n',
   );
 }
 
 function writeDesktopDistFixture(rootDir) {
   writeFile(
-    path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'dist', 'index.html'),
+    path.join(rootDir, PC_DESKTOP_DIST_REL, 'index.html'),
     '<!doctype html><script type="module" src="./assets/desktop.js"></script>\n',
   );
   writeFile(
-    path.join(rootDir, 'packages', 'sdkwork-birdcoder-desktop', 'dist', 'assets', 'desktop.js'),
+    path.join(rootDir, PC_DESKTOP_DIST_REL, 'assets', 'desktop.js'),
     'export const desktop = true;\n',
   );
 }
@@ -40,9 +66,7 @@ function writeDesktopDistFixture(rootDir) {
 function writeDesktopInstallerBundleFixture(rootDir, targetTriple) {
   const releaseRoot = path.join(
     rootDir,
-    'packages',
-    'sdkwork-birdcoder-desktop',
-    'src-tauri',
+    PC_DESKTOP_TAURI_REL,
     'target',
     targetTriple,
     'release',
@@ -69,9 +93,7 @@ function writeDesktopInstallerBundleFixture(rootDir, targetTriple) {
 function writePartialDesktopInstallerBundleFixture(rootDir, targetTriple) {
   const releaseRoot = path.join(
     rootDir,
-    'packages',
-    'sdkwork-birdcoder-desktop',
-    'src-tauri',
+    PC_DESKTOP_TAURI_REL,
     'target',
     targetTriple,
     'release',
@@ -86,9 +108,7 @@ function writePartialDesktopInstallerBundleFixture(rootDir, targetTriple) {
 function writeMismatchedDesktopInstallerBundleFixture(rootDir, targetTriple) {
   const releaseRoot = path.join(
     rootDir,
-    'packages',
-    'sdkwork-birdcoder-desktop',
-    'src-tauri',
+    PC_DESKTOP_TAURI_REL,
     'target',
     targetTriple,
     'release',
@@ -107,9 +127,7 @@ function writeMismatchedDesktopInstallerBundleFixture(rootDir, targetTriple) {
 function writeMacosDesktopInstallerBundleFixture(rootDir, targetTriple, archSuffix) {
   const releaseRoot = path.join(
     rootDir,
-    'packages',
-    'sdkwork-birdcoder-desktop',
-    'src-tauri',
+    PC_DESKTOP_TAURI_REL,
     'target',
     targetTriple,
     'release',
@@ -142,16 +160,9 @@ function writeDocsDistFixture(rootDir) {
 
 function writeServerFixture(rootDir) {
   writeFile(
-    path.join(rootDir, 'packages', 'sdkwork-birdcoder-server', 'src-host', 'src', 'main.rs'),
-    'fn main() {}\n',
-  );
-  writeFile(
     path.join(
       rootDir,
-      'packages',
-      'sdkwork-birdcoder-server',
-      'src-host',
-      'target',
+      WORKSPACE_CARGO_TARGET_REL,
       SERVER_BINARY_TARGET,
       'release',
       SERVER_BINARY_NAME,
@@ -161,10 +172,7 @@ function writeServerFixture(rootDir) {
   writeFile(
     path.join(
       rootDir,
-      'packages',
-      'sdkwork-birdcoder-server',
-      'src-host',
-      'target',
+      WORKSPACE_CARGO_TARGET_REL,
       'release',
       `${SERVER_BINARY_NAME}.exe`,
     ),
@@ -199,19 +207,19 @@ function writeServerFixture(rootDir) {
 
 function writeDeploymentFixtures(rootDir) {
   writeFile(
-    path.join(rootDir, 'deploy', 'docker', 'Dockerfile'),
+    path.join(rootDir, 'deployments', 'docker', 'Dockerfile'),
     'FROM ubuntu:24.04\n',
   );
   writeFile(
-    path.join(rootDir, 'deploy', 'docker', 'profiles', 'default.env'),
+    path.join(rootDir, 'deployments', 'docker', 'profiles', 'default.env'),
     'BIRDCODER_DATA_DIR=/var/lib/sdkwork-birdcoder\n',
   );
   writeFile(
-    path.join(rootDir, 'deploy', 'docker', 'docker-compose.yml'),
+    path.join(rootDir, 'deployments', 'docker', 'docker-compose.yml'),
     'services:\n  sdkwork-birdcoder:\n    build: .\n',
   );
   writeFile(
-    path.join(rootDir, 'deploy', 'kubernetes', 'Chart.yaml'),
+    path.join(rootDir, 'deployments', 'kubernetes', 'Chart.yaml'),
     'apiVersion: v2\nname: sdkwork-birdcoder\n',
   );
 }
@@ -530,7 +538,7 @@ withFixture((fixtureRoot) => {
 
 withFixture((fixtureRoot) => {
   writeFile(
-    path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'src', 'index.ts'),
+    path.join(fixtureRoot, PC_WEB_DIST_REL.replace('/dist', ''), 'src', 'index.ts'),
     'export const sourceOnly = true;\n',
   );
   writeFile(
@@ -544,7 +552,7 @@ withFixture((fixtureRoot) => {
       'release-tag': 'release-local',
       'output-dir': 'artifacts/release',
     }),
-    /Missing required web app build output.*packages[\\/]sdkwork-birdcoder-web[\\/]dist.*Run `pnpm build` before packaging web release assets/u,
+    MISSING_WEB_DIST_ERROR,
   );
 
   writeWebDistFixture(fixtureRoot);
@@ -581,9 +589,9 @@ withFixture((fixtureRoot) => {
   writeWebDistFixture(fixtureRoot);
   writeServerFixture(fixtureRoot);
 
-  fs.mkdirSync(path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-desktop', 'src-tauri'), { recursive: true });
+  fs.mkdirSync(path.join(fixtureRoot, PC_DESKTOP_TAURI_REL), { recursive: true });
   writeFile(
-    path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'src', 'index.ts'),
+    path.join(fixtureRoot, PC_WEB_DIST_REL.replace('/dist', ''), 'src', 'index.ts'),
     'export const sourceOnly = true;\n',
   );
 
@@ -594,10 +602,10 @@ withFixture((fixtureRoot) => {
       arch: 'x64',
       'output-dir': 'artifacts/release',
     }),
-    /Missing required desktop app build output.*packages[\\/]sdkwork-birdcoder-desktop[\\/]dist.*Run `pnpm tauri:build` before packaging desktop release assets/u,
+    MISSING_DESKTOP_DIST_ERROR,
   );
 
-  fs.rmSync(path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'dist'), { recursive: true, force: true });
+  fs.rmSync(path.join(fixtureRoot, PC_WEB_DIST_REL), { recursive: true, force: true });
 
   assertThrowsWithMessage(
     () => packageReleaseAssets('server', {
@@ -608,7 +616,7 @@ withFixture((fixtureRoot) => {
       target: SERVER_BINARY_TARGET,
       'output-dir': 'artifacts/release',
     }),
-    /Missing required server web build output.*packages[\\/]sdkwork-birdcoder-web[\\/]dist.*Run `pnpm build` before packaging server release assets/u,
+    MISSING_SERVER_WEB_DIST_ERROR,
   );
 
   assertThrowsWithMessage(
@@ -621,7 +629,7 @@ withFixture((fixtureRoot) => {
       accelerator: 'cpu',
       'output-dir': 'artifacts/release',
     }),
-    /Missing required container web build output.*packages[\\/]sdkwork-birdcoder-web[\\/]dist.*Run `pnpm build` before packaging container release assets/u,
+    MISSING_CONTAINER_WEB_DIST_ERROR,
   );
 });
 

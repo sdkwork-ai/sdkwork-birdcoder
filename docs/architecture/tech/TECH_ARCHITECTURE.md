@@ -80,6 +80,7 @@ Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md
 - [TECH-2026-05-25-birdcoder-iam-integration-design.md](TECH-2026-05-25-birdcoder-iam-integration-design.md)
 - [TECH-2026-05-25-birdcoder-iam-integration.md](TECH-2026-05-25-birdcoder-iam-integration.md)
 - [TECH-2026-06-15-rust-backend-sdkwork-specs-migration.md](TECH-2026-06-15-rust-backend-sdkwork-specs-migration.md)
+- [TECH-2026-06-24-commercial-readiness-alignment.md](TECH-2026-06-24-commercial-readiness-alignment.md)
 - [TECH-21-code-engine-sdk-standard.md](TECH-21-code-engine-sdk-standard.md)
 - [TECH-22-code-engine-standard.md](TECH-22-code-engine-standard.md)
 - [TECH-23-coding-server-engine-truth-promotion-standard.md](TECH-23-coding-server-engine-truth-promotion-standard.md)
@@ -474,21 +475,63 @@ Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## 1. Architecture Overview
 
-Architecture detail lives in the linked TECH shards below.
+BirdCoder is a multi-surface SDKWork application: PC web/desktop (`apps/sdkwork-birdcoder-pc`), H5/Capacitor (`apps/sdkwork-birdcoder-h5`), Flutter mobile (`apps/sdkwork-birdcoder-flutter-mobile`), and a Rust api-server (`crates/sdkwork-birdcoder-api-server`). Client surfaces consume generated `@sdkwork/birdcoder-app-sdk` families; the server exposes 132 OpenAPI operations with federated `sdkwork-iam` routes.
 
+Current commercial truth: [TECH-2026-06-24-commercial-readiness-alignment.md](TECH-2026-06-24-commercial-readiness-alignment.md).
 
 ## 2. Technology Choices
 
+| Layer | Choice |
+| --- | --- |
+| PC UI | React + Vite + Tauri desktop host |
+| Mobile | Capacitor H5 + Flutter |
+| API server | Rust + Axum + `sdkwork-web-framework` |
+| Persistence | SQLite default; PostgreSQL HA overlay |
+| Auth | `sdkwork-iam` + appbase IAM runtime |
+| Contracts | OpenAPI 3.1.2 + generated SDKs + script contract gates |
+
 ## 3. System Boundaries And Modules
+
+- **Shell**: `@sdkwork/birdcoder-pc-shell`, bootstrap, routing, auth gate
+- **Infrastructure**: SDK clients, IAM runtime, session persistence, IDE services
+- **Product modules**: code, studio, chat, skills, templates, settings
+- **Server**: route crates under `crates/sdkwork-router-*`, services/repositories under `crates/sdkwork-birdcoder-*`
 
 ## 4. Directory And Package Layout
 
+See [APP_PC_ARCHITECTURE_SPEC.md](../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md) and repository `AGENTS.md`. Authoritative app identity: root `sdkwork.app.config.json`.
+
 ## 5. API, SDK, And Data Ownership
+
+- OpenAPI authority: `apps/sdkwork-birdcoder-pc/sdks/` and deployed snapshot `deployments/server-windows/x64/openapi/coding-server-v1.json`
+- Database lifecycle: root `database/` consumed via `SDKWORK_BIRDCODER_APP_ROOT`
+- Defer registry: `specs/coding-server-openapi-rust-defer-registry.json` (132 contract operations implemented, 0 deferred)
 
 ## 6. Security, Privacy, And Observability
 
+- IAM middleware on product routes; Problem JSON 401/403
+- Browser CSP baseline on PC shell entry HTML
+- `/health` checks application database ping, IAM database ping (when `SDKWORK_IAM_DATABASE_URL` is set), and realtime backend readiness
+- `/metrics` Prometheus endpoint; operator runbooks under `docs/guides/operator/`
+
 ## 7. Deployment And Runtime Topology
+
+- Standalone: local SQLite + memory realtime
+- Cloud/container: `deployments/docker/Dockerfile` bundles server binary, `database/`, OpenAPI snapshot
+- Enterprise HA: `deployments/kubernetes/values-postgresql-ha.yaml` overlay
 
 ## 8. Architecture Decision Index
 
+Detailed ADRs and lane shards are linked in the Document Map above. For release and manifest policy, see `docs/guides/operator/first-governed-release.md`.
+
 ## 9. Verification
+
+```bash
+pnpm run lint
+pnpm run check:arch
+pnpm run check:server
+pnpm run check:i18n
+pnpm run check:quality:release
+```
+
+Release packaging additionally requires `release-preflight` in `.github/workflows/package.yml` before governed artifacts publish.

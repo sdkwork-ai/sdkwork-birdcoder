@@ -9,6 +9,8 @@ import {
   createBirdcoderWorkspaceFsAllowList,
   createBirdcoderVitePlugins,
   onBirdcoderRollupWarning,
+  resolveBirdcoderProductionCssMinify,
+  resolveBirdcoderProductionMinify,
 } from '../../../../scripts/create-birdcoder-vite-plugins.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -74,7 +76,6 @@ function sdkworkModelsDataPlugin(): Plugin {
 
 export default defineConfig(({ mode }) => {
   const runtimeEnvSource = loadEnv(mode, __dirname, '');
-  const isWindows = process.platform === 'win32';
 
   return ({
     esbuild: false,
@@ -92,8 +93,8 @@ export default defineConfig(({ mode }) => {
       include: [...BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE],
     },
     build: {
-      minify: !isWindows && mode === 'production',
-      cssMinify: !isWindows && mode === 'production',
+      minify: resolveBirdcoderProductionMinify(mode),
+      cssMinify: resolveBirdcoderProductionCssMinify(mode),
       sourcemap: false,
       modulePreload: {
         resolveDependencies(_filename, deps, context) {
@@ -541,11 +542,11 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-definition.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-appearance.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-config.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/index.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-definition.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-appearance.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-config.ts',
             ])
           ) {
             return 'birdcoder-iam-surface';
@@ -553,13 +554,13 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-authority.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-controller.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-copy.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-local-service.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-runtime-config.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-runtime-authority.ts',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-service.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-authority.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-controller.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-copy.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-local-service.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-runtime-config.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-runtime-authority.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-service.ts',
             ])
           ) {
             return 'birdcoder-platform-auth-runtime';
@@ -567,12 +568,12 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-intl.tsx',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/components/auth/',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/components/auth-page-shell.tsx',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/components/oauth-provider-grid.tsx',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/components/qr-login-panel.tsx',
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-intl.tsx',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/components/auth/',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/components/auth-page-shell.tsx',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/components/oauth-provider-grid.tsx',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/components/qr-login-panel.tsx',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/pages/',
             ])
           ) {
             return 'birdcoder-iam-surface';
@@ -580,7 +581,7 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react/src/',
             ])
           ) {
             return 'birdcoder-iam-surface';
@@ -642,6 +643,7 @@ export default defineConfig(({ mode }) => {
           if (
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionToken.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionRefresh.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSdkTransport.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/backendSdkTransport.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts',
@@ -650,6 +652,7 @@ export default defineConfig(({ mode }) => {
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sessionService.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkTransportShared.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts',
               '/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/',
               '/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/',
             ])
@@ -671,7 +674,6 @@ export default defineConfig(({ mode }) => {
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/lazyDefaultIdeServices.ts',
             ])
           ) {

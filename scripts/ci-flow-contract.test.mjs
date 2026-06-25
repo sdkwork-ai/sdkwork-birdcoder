@@ -86,7 +86,7 @@ assert.match(
 );
 assert.equal(
   ciWorkflow.match(/Expose workspace command wrappers/g)?.length ?? 0,
-  2,
+  4,
   'CI must expose workspace command wrappers in each job that runs pnpm lifecycle scripts.',
 );
 assert.doesNotMatch(
@@ -108,6 +108,11 @@ assert.match(ciWorkflow, /prepare-shared-sdk-git-sources\.mjs/);
 assertPrepareSharedSdkStepsUseGithubToken(ciWorkflow, 'CI workflow');
 assert.match(ciWorkflow, /pnpm prepare:shared-sdk/);
 assert.match(ciWorkflow, /pnpm lint/);
+assert.match(
+  ciWorkflow,
+  /Run governance regression report[\s\S]*pnpm check:governance-regression/u,
+  'CI must run the governance regression report on pull requests.',
+);
 assert.match(ciWorkflow, /run-pc-playwright-e2e\.mjs/);
 assert.match(ciWorkflow, /playwright install chromium/u);
 assert.match(ciWorkflow, /pnpm check:desktop/);
@@ -117,6 +122,16 @@ assert.match(
   /node scripts\/run-cargo\.mjs test --manifest-path apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-desktop\/src-tauri\/Cargo\.toml/,
 );
 assert.match(ciWorkflow, /pnpm server:build/);
+assert.match(
+  ciWorkflow,
+  /postgresql-live-smoke:[\s\S]*postgres:16-alpine[\s\S]*pnpm release:smoke:postgresql-live/u,
+  'CI must run PostgreSQL live smoke against a service-container PostgreSQL instance.',
+);
+assert.match(
+  ciWorkflow,
+  /mobile-surfaces:[\s\S]*pnpm h5:typecheck[\s\S]*pnpm h5:build[\s\S]*pnpm cap:sync[\s\S]*setup-java[\s\S]*setup-android[\s\S]*pnpm cap:android:assemble[\s\S]*pnpm flutter:analyze[\s\S]*pnpm flutter:test[\s\S]*h5-capacitor-native-platform-contract\.test\.mjs/u,
+  'CI must typecheck/build H5 via root runners, sync Capacitor, assemble Android debug APK, analyze/test Flutter, and run H5 Capacitor platform contracts.',
+);
 assert.match(ciWorkflow, /pnpm docs:build/);
 assert.match(
   ciWorkflow,
@@ -178,7 +193,7 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:auth-session-standard'],
-  'node scripts/auth-bootstrap-gating-contract.test.mjs && node scripts/auth-gate-provider-order-contract.test.mjs && node scripts/auth-required-tab-navigation-contract.test.mjs && node scripts/auth-workspace-loading-gating-contract.test.mjs && node scripts/auth-bootstrap-stale-current-user-guard-contract.test.mjs && node --experimental-strip-types scripts/auth-user-identity-contract.test.ts && node scripts/auth-surface-successful-login-adoption-contract.test.mjs && node scripts/run-local-tsx-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/runtime-server-session-persistence-contract.test.ts && node scripts/runtime-server-session-token-manager-contract.test.mjs && node scripts/app-session-persistence-port-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/runtime-auth-unbound-profile-preserves-session-contract.test.ts && node scripts/pc-root-bootstrap-contract.test.mjs && node scripts/h5-root-bootstrap-contract.test.mjs && node scripts/h5-route-assembly-contract.test.mjs && node scripts/h5-architecture-boundary-contract.test.mjs && node scripts/h5-sdk-assembly-contract.test.mjs && node scripts/h5-host-adapter-contract.test.mjs && node scripts/h5-capacitor-preferences-contract.test.mjs && node scripts/h5-capacitor-config-ownership-contract.test.mjs && node scripts/h5-app-session-persistence-contract.test.mjs && node scripts/flutter-mobile-root-bootstrap-contract.test.mjs && node scripts/flutter-mobile-auth-surface-contract.test.mjs && node scripts/flutter-mobile-deep-link-auth-contract.test.mjs && node scripts/flutter-mobile-host-config-contract.test.mjs && node scripts/flutter-mobile-native-platform-contract.test.mjs && node scripts/flutter-iam-session-storage-contract.test.mjs && node scripts/flutter-admin-sdk-boundary-contract.test.mjs && node scripts/flutter-sdk-assembly-contract.test.mjs && node scripts/flutter-mobile-sdk-generation-contract.test.mjs && node scripts/flutter-mobile-command-runner-contract.test.mjs && node scripts/h5-capacitor-deep-link-auth-contract.test.mjs && node scripts/h5-capacitor-native-platform-contract.test.mjs && node scripts/pc-e2e-standard-contract.test.mjs',
+  'node scripts/auth-bootstrap-gating-contract.test.mjs && node scripts/auth-gate-provider-order-contract.test.mjs && node scripts/auth-required-tab-navigation-contract.test.mjs && node scripts/auth-workspace-loading-gating-contract.test.mjs && node scripts/auth-bootstrap-stale-current-user-guard-contract.test.mjs && node --experimental-strip-types scripts/auth-user-identity-contract.test.ts && node scripts/auth-surface-successful-login-adoption-contract.test.mjs && node scripts/run-local-tsx-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/runtime-server-session-persistence-contract.test.ts && node scripts/runtime-server-session-token-manager-contract.test.mjs && node scripts/app-session-persistence-port-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/runtime-auth-unbound-profile-preserves-session-contract.test.ts && node scripts/pc-root-bootstrap-contract.test.mjs && node scripts/h5-root-bootstrap-contract.test.mjs && node scripts/h5-app-command-runner-contract.test.mjs && node scripts/h5-route-assembly-contract.test.mjs && node scripts/h5-architecture-boundary-contract.test.mjs && node scripts/h5-sdk-assembly-contract.test.mjs && node scripts/h5-host-adapter-contract.test.mjs && node scripts/h5-capacitor-preferences-contract.test.mjs && node scripts/h5-capacitor-config-ownership-contract.test.mjs && node scripts/h5-app-session-persistence-contract.test.mjs && node scripts/flutter-mobile-root-bootstrap-contract.test.mjs && node scripts/flutter-mobile-auth-surface-contract.test.mjs && node scripts/flutter-mobile-deep-link-auth-contract.test.mjs && node scripts/flutter-mobile-host-config-contract.test.mjs && node scripts/flutter-mobile-native-platform-contract.test.mjs && node scripts/flutter-iam-session-storage-contract.test.mjs && node scripts/flutter-admin-sdk-boundary-contract.test.mjs && node scripts/flutter-mobile-product-parity-contract.test.mjs && node scripts/flutter-mobile-android-release-signing-contract.test.mjs && node scripts/flutter-sdk-assembly-contract.test.mjs && node scripts/flutter-mobile-sdk-generation-contract.test.mjs && node scripts/flutter-mobile-command-runner-contract.test.mjs && node scripts/h5-capacitor-deep-link-auth-contract.test.mjs && node scripts/h5-capacitor-native-platform-contract.test.mjs && node scripts/pc-e2e-standard-contract.test.mjs',
   'Root quality scripts must expose non-blocking SDKWork IAM auth bootstrap, urgent auth-required navigation, authenticated workspace loading gates, stale current-user guards, canonical auth user identity matching, IAM auth surface adoption, durable runtime session persistence, and PC/H5/Flutter root bootstrap delegation as one first-class standard.',
 );
 assert.equal(
@@ -247,7 +262,7 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts['check:api-transport-standard'],
-  'node --experimental-strip-types scripts/http-api-transport-cors-contract.test.ts && node scripts/birdcoder-public-runtime-env-contract.test.mjs && node scripts/frontend-request-id-ownership-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/in-process-app-runtime-api-descriptor-contract.test.ts && node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts && node --experimental-strip-types scripts/api-observability-pagination-contract.test.ts && node --experimental-strip-types scripts/router-internal-error-sanitization-contract.test.ts && node scripts/skill-package-tenant-scope-contract.test.mjs',
+  'node --experimental-strip-types scripts/http-api-transport-cors-contract.test.ts && node scripts/birdcoder-public-runtime-env-contract.test.mjs && node scripts/frontend-request-id-ownership-contract.test.mjs && node scripts/run-local-tsx.mjs scripts/in-process-app-runtime-api-descriptor-contract.test.ts && node scripts/run-local-tsx.mjs scripts/coding-server-api-spec-path-contract.test.ts && node --experimental-strip-types scripts/api-observability-pagination-contract.test.ts && node --experimental-strip-types scripts/router-internal-error-sanitization-contract.test.ts && node scripts/skill-package-tenant-scope-contract.test.mjs',
   'Root quality scripts must expose API transport/CORS behavior, frontend requestId ownership, in-process app/backend descriptor parity, canonical API_SPEC path governance, list pagination defaults, router internal error sanitization, and tenant scope enforcement as a first-class standard.',
 );
 assert.match(
@@ -352,6 +367,7 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:web-framework-standard',
   'node scripts/run-workspace-package-script.mjs . check:database-framework-standard',
   'node scripts/run-workspace-package-script.mjs . check:utils-standard',
+  'node scripts/run-workspace-package-script.mjs . check:drive-standard',
   'node scripts/run-workspace-package-script.mjs . check:dependency-management',
   'node scripts/run-workspace-package-script.mjs . check:sdkwork-shared-package-boundary',
   'node scripts/run-workspace-package-script.mjs . check:iam-standard',

@@ -16,6 +16,17 @@ database:
   # When engine is postgresql, provide database.url via secret and apply values-postgresql-ha.yaml.
   url: ""
 
+realtime:
+  backend: memory
+
+redis:
+  enabled: false
+  host: redis
+  port: 6379
+  database: 0
+  keyPrefix: birdcoder
+  tls: false
+
 ingress:
   enabled: false
 
@@ -144,3 +155,9 @@ serviceMonitor:
   path: /metrics
   interval: 30s
   scrapeTimeout: 10s
+
+backup:
+  enabled: false
+  schedule: "0 3 * * *"
+  retentionDays: 14
+  image: postgres:16-alpine

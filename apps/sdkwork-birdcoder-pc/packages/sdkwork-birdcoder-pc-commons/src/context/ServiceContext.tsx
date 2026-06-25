@@ -1,8 +1,5 @@
 import React, { createContext, useContext, useRef } from 'react';
 import {
-  IAdminDeploymentService,
-  IAdminPolicyService,
-  IAuditService,
   IAppRuntimeReadService,
   IAppRuntimeWriteService,
   IDeploymentService,
@@ -16,45 +13,12 @@ import {
   IVipMembershipService,
   IWorkspaceService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
-import { createLazyDefaultIdeServices } from './lazyDefaultIdeServices.ts';
+import { createLazyDefaultIdeServices, type AppIdeServices } from './lazyDefaultIdeServices.ts';
 
-export interface IServices {
-  adminDeploymentService: IAdminDeploymentService;
-  adminPolicyService: IAdminPolicyService;
-  workspaceService: IWorkspaceService;
-  projectService: IProjectService;
-  appRuntimeReadService: IAppRuntimeReadService;
-  appRuntimeWriteService: IAppRuntimeWriteService;
-  auditService: IAuditService;
-  deploymentService: IDeploymentService;
-  documentService: IDocumentService;
-  releaseService: IReleaseService;
-  teamService: ITeamService;
-  vipMembershipService: IVipMembershipService;
-  fileSystemService: IFileSystemService;
-  gitService: IGitService;
-  promptService: IPromptService;
-}
+export interface IServices extends AppIdeServices {}
 
 function createDefaultServicesValue(): IServices {
-  const defaultIdeServices = createLazyDefaultIdeServices();
-  return {
-    adminDeploymentService: defaultIdeServices.adminDeploymentService,
-    adminPolicyService: defaultIdeServices.adminPolicyService,
-    workspaceService: defaultIdeServices.workspaceService,
-    projectService: defaultIdeServices.projectService,
-    appRuntimeReadService: defaultIdeServices.appRuntimeReadService,
-    appRuntimeWriteService: defaultIdeServices.appRuntimeWriteService,
-    auditService: defaultIdeServices.auditService,
-    deploymentService: defaultIdeServices.deploymentService,
-    documentService: defaultIdeServices.documentService,
-    releaseService: defaultIdeServices.releaseService,
-    teamService: defaultIdeServices.teamService,
-    vipMembershipService: defaultIdeServices.vipMembershipService,
-    fileSystemService: defaultIdeServices.fileSystemService,
-    gitService: defaultIdeServices.gitService,
-    promptService: defaultIdeServices.promptService,
-  };
+  return createLazyDefaultIdeServices();
 }
 
 let fallbackServicesValue: IServices | null = null;
@@ -79,4 +43,3 @@ export function ServiceProvider({ children, services }: { children: React.ReactN
 export function useServices() {
   return useContext(ServiceContext) ?? getFallbackServicesValue();
 }
-

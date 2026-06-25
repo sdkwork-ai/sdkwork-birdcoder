@@ -147,7 +147,7 @@ pub async fn get_operation(
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<SystemAppState>,
     Path(params): Path<OperationPathParams>,
-) -> Result<Json<ApiDataEnvelope<OperationPayload>>, (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<Json<ApiDataEnvelope<OperationPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     match state.service.get_operation(&params.operation_id) {
         Ok(operation) => Ok(Json(build_data_envelope(operation, request_id(&web)))),

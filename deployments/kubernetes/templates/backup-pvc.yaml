@@ -1,0 +1,17 @@
+{{- if and .Values.backup.enabled (eq .Values.database.engine "postgresql") .Values.database.url }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "sdkwork-birdcoder.fullname" . }}-backup
+  labels:
+    {{- include "sdkwork-birdcoder.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  {{- if .Values.persistence.storageClass }}
+  storageClassName: {{ .Values.persistence.storageClass | quote }}
+  {{- end }}
+{{- end }}

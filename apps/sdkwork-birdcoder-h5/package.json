@@ -29,7 +29,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "test": "vitest",
+    "test": "node ../../scripts/h5-app-session-persistence-contract.test.mjs && node ../../scripts/h5-route-assembly-contract.test.mjs",
     "cap:sync": "pnpm --filter @sdkwork/birdcoder-h5-capacitor cap:sync",
     "cap:copy": "pnpm --filter @sdkwork/birdcoder-h5-capacitor cap:copy",
     "cap:ios:build": "cap sync && cap copy ios && cap open ios",
@@ -47,7 +47,6 @@
     "build:staging": "tsc && vite build --mode staging",
     "dev:private": "vite --mode development",
     "dev:cloud": "vite --mode production",
-    "test:config": "vitest run --config vitest.config.ts",
     "cap:ios:dev": "cap sync && cap open ios",
     "cap:android:dev": "cap sync && cap open android"
   }

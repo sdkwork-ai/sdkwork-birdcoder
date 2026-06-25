@@ -4,9 +4,9 @@ import {
   type SdkworkAppbasePcAuthRuntimeSdkClient,
 } from '@sdkwork/auth-runtime-pc-react';
 import type { IamRuntime } from '@sdkwork/iam-runtime';
-import { createClient as createAppbaseAppSdkClient } from '@sdkwork/appbase-app-sdk';
+import { createClient as createAppbaseAppSdkClient } from '@sdkwork/iam-app-sdk';
 import { BIRDCODER_DEFAULT_LOCAL_API_BASE_URL } from '@sdkwork/birdcoder-pc-host-core';
-import { createDriveAppClient } from '@sdkwork/drive-app-sdk';
+import { createDriveAppClient, type SdkworkDriveAppClient } from '@sdkwork/drive-app-sdk';
 import { createClient as createMessagingAppSdkClient } from '@sdkwork/messaging-app-sdk';
 import {
   APP_SESSION_CHANGE_EVENT_NAME,
@@ -14,6 +14,7 @@ import {
   loadStoredAppSessionToken,
   storeAppSessionFromResult,
 } from './appSessionToken.ts';
+import { startBirdCoderAppSessionRefreshLoop } from './appSessionRefresh.ts';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import {
   getBirdCoderGeneratedAppSdkClient,
@@ -53,6 +54,7 @@ function readDefaultRuntimeTargetFromSurfaceEnv(): string | undefined {
 }
 
 let runtimeComposition: SdkworkAppbasePcAuthRuntimeComposition | null = null;
+let driveAppClient: SdkworkDriveAppClient | null = null;
 let sessionChangeListenerRegistered = false;
 
 export function createBirdCoderIamRuntime(): IamRuntime {
@@ -77,6 +79,7 @@ export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRunt
     platform: iamPlatform,
     tokenManager,
   });
+  driveAppClient = driveApp;
   const messagingApp = createMessagingAppSdkClient({
     authMode: 'dual-token',
     baseUrl: sdkBaseUrls.messagingAppApiBaseUrl,
@@ -161,6 +164,16 @@ function resolveBirdCoderRuntimeSdkBaseUrl(envNames: readonly string[]): string 
   return runtimeConfig.apiBaseUrl ?? BIRDCODER_DEFAULT_LOCAL_API_BASE_URL;
 }
 
+export function getBirdCoderDriveAppClient(): SdkworkDriveAppClient {
+  if (!driveAppClient) {
+    createBirdCoderIamRuntimeComposition();
+  }
+  if (!driveAppClient) {
+    throw new Error('BirdCoder Drive app SDK client is unavailable.');
+  }
+  return driveAppClient;
+}
+
 export function getBirdCoderIamRuntime(): IamRuntime {
   registerBirdCoderIamRuntimeSessionChangeListener();
   if (!runtimeComposition) {
@@ -171,6 +184,7 @@ export function getBirdCoderIamRuntime(): IamRuntime {
 
 export function resetBirdCoderIamRuntime(): void {
   runtimeComposition = null;
+  driveAppClient = null;
 }
 
 function clearBirdCoderIamRuntimeSession(): void {
@@ -190,6 +204,7 @@ function registerBirdCoderIamRuntimeSessionChangeListener(): void {
   }
 
   sessionChangeListenerRegistered = true;
+  startBirdCoderAppSessionRefreshLoop();
   try {
     globalThis.addEventListener?.(
       APP_SESSION_CHANGE_EVENT_NAME,

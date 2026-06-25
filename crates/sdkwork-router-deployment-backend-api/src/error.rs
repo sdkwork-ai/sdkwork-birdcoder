@@ -1,65 +1,90 @@
 use axum::http::StatusCode;
-use axum::Json;
 use sdkwork_birdcoder_deployment_service::error::DeploymentError;
+use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
 
 use sdkwork_birdcoder_errors::{
     client_safe_data_access_problem, client_safe_event_publish_problem,
-    client_safe_internal_problem,
+    client_safe_internal_problem, traced_problem_json,
 };
 
-pub use sdkwork_birdcoder_errors::ProblemDetailsPayload;
+pub use sdkwork_birdcoder_errors::{ProblemDetailsPayload, ProblemJsonBody};
 
-fn with_trace_id(
-    payload: ProblemDetailsPayload,
-    trace_id: Option<&str>,
-) -> ProblemDetailsPayload {
-    payload.with_trace_id(trace_id)
+pub fn map_service_error(error: DeploymentError, trace_id: Option<&str>) -> ProblemJsonBody {
+    match error {
+        DeploymentError::NotFound(msg) => traced_problem_json(
+            StatusCode::NOT_FOUND,
+            ProblemDetailsPayload::new("not_found", msg, false),
+            trace_id,
+        ),
+        DeploymentError::Forbidden(msg) => traced_problem_json(
+            StatusCode::FORBIDDEN,
+            ProblemDetailsPayload::new("forbidden", msg, false),
+            trace_id,
+        ),
+        DeploymentError::InvalidInput(msg) => traced_problem_json(
+            StatusCode::BAD_REQUEST,
+            ProblemDetailsPayload::new("invalid_input", msg, false),
+            trace_id,
+        ),
+        DeploymentError::Conflict(msg) => traced_problem_json(
+            StatusCode::CONFLICT,
+            ProblemDetailsPayload::new("conflict", msg, false),
+            trace_id,
+        ),
+        DeploymentError::Repository(_) => traced_problem_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            client_safe_data_access_problem(),
+            trace_id,
+        ),
+        DeploymentError::EventPublish(_) => traced_problem_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            client_safe_event_publish_problem(),
+            trace_id,
+        ),
+        DeploymentError::Internal(_) => traced_problem_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            client_safe_internal_problem(),
+            trace_id,
+        ),
+    }
 }
 
-pub fn map_service_error(
-    error: DeploymentError,
-    trace_id: Option<&str>,
-) -> (StatusCode, Json<ProblemDetailsPayload>) {
+pub fn map_workspace_error(error: WorkspaceError, trace_id: Option<&str>) -> ProblemJsonBody {
     match error {
-        DeploymentError::NotFound(msg) => (
+        WorkspaceError::NotFound(msg) => traced_problem_json(
             StatusCode::NOT_FOUND,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("not_found", msg, false),
-                trace_id,
-            )),
+            ProblemDetailsPayload::new("not_found", msg, false),
+            trace_id,
         ),
-        DeploymentError::Forbidden(msg) => (
+        WorkspaceError::Forbidden(msg) => traced_problem_json(
             StatusCode::FORBIDDEN,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("forbidden", msg, false),
-                trace_id,
-            )),
+            ProblemDetailsPayload::new("forbidden", msg, false),
+            trace_id,
         ),
-        DeploymentError::InvalidInput(msg) => (
+        WorkspaceError::InvalidInput(msg) => traced_problem_json(
             StatusCode::BAD_REQUEST,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("invalid_input", msg, false),
-                trace_id,
-            )),
+            ProblemDetailsPayload::new("invalid_input", msg, false),
+            trace_id,
         ),
-        DeploymentError::Conflict(msg) => (
+        WorkspaceError::Conflict(msg) => traced_problem_json(
             StatusCode::CONFLICT,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("conflict", msg, false),
-                trace_id,
-            )),
+            ProblemDetailsPayload::new("conflict", msg, false),
+            trace_id,
         ),
-        DeploymentError::Repository(_) => (
+        WorkspaceError::Repository(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(with_trace_id(client_safe_data_access_problem(), trace_id)),
+            client_safe_data_access_problem(),
+            trace_id,
         ),
-        DeploymentError::EventPublish(_) => (
+        WorkspaceError::EventPublish(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(with_trace_id(client_safe_event_publish_problem(), trace_id)),
+            client_safe_event_publish_problem(),
+            trace_id,
         ),
-        DeploymentError::Internal(_) => (
+        WorkspaceError::Internal(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(with_trace_id(client_safe_internal_problem(), trace_id)),
+            client_safe_internal_problem(),
+            trace_id,
         ),
     }
 }

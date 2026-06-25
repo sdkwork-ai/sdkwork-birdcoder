@@ -7,6 +7,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { applyTopologyProfileToEnv } from './lib/birdcoder-topology.mjs';
+import { mergeRepoDevBootstrapAccessTokenEnv } from '../../sdkwork-iam/scripts/dev/create-dev-bootstrap-access-token-env.mjs';
 import {
   normalizeViteMode,
   resolveWorkspaceRootDir,
@@ -71,6 +72,12 @@ const VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE_ENV =
   'VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE';
 
 const SDKWORK_IAM_DATABASE_URL_ENV = 'SDKWORK_IAM_DATABASE_URL';
+const CLIENT_IAM_COMMAND_TARGETS = new Set(['desktop-dev', 'web-dev']);
+const BIRDCODER_PC_MANIFEST_RELATIVE_PATH = path.join(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'sdkwork.app.config.json',
+);
 
 const DEFAULT_SQLITE_RELATIVE_PATHS = Object.freeze({
   'cloud-saas': path.join(
@@ -879,6 +886,18 @@ export function resolveBirdcoderIamCommandEnv({
     target,
     viteMode: resolvedViteMode,
   });
+
+  if (CLIENT_IAM_COMMAND_TARGETS.has(target)) {
+    Object.assign(
+      nextEnv,
+      mergeRepoDevBootstrapAccessTokenEnv({
+        repoRoot: workspaceRootDir,
+        manifestPath: BIRDCODER_PC_MANIFEST_RELATIVE_PATH,
+        appId: 'sdkwork-birdcoder',
+        env: nextEnv,
+      }),
+    );
+  }
 
   if (
     resolvedIamMode === 'cloud-saas'

@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.dependency.composition",
+  "applicationCode": "birdcoder",
+  "clientArchitecture": "pc",
+  "surfaces": [
+    {
+      "surface": "app",
+      "corePackage": "@sdkwork/birdcoder-pc-core",
+      "sdkClients": [
+        "@sdkwork/birdcoder-app-sdk",
+        "@sdkwork/iam-app-sdk",
+        "@sdkwork/drive-app-sdk",
+        "@sdkwork/messaging-app-sdk"
+      ],
+      "reusableModules": [
+        "@sdkwork/birdcoder-pc-infrastructure",
+        "@sdkwork/birdcoder-pc-commons",
+        "@sdkwork/birdcoder-pc-auth",
+        "@sdkwork/birdcoder-pc-user",
+        "@sdkwork/birdcoder-pc-iam"
+      ],
+      "hostAdapters": [
+        "@sdkwork/birdcoder-pc-host-core",
+        "@sdkwork/birdcoder-pc-desktop"
+      ],
+      "dependencyApiExports": [],
+      "dependencyApiSurfaces": []
+    },
+    {
+      "surface": "backend-admin",
+      "corePackage": "@sdkwork/birdcoder-pc-admin-core",
+      "sdkClients": [
+        "@sdkwork/birdcoder-backend-sdk",
+        "@sdkwork/iam-backend-sdk"
+      ],
+      "reusableModules": [
+        "@sdkwork/birdcoder-pc-admin-core"
+      ],
+      "hostAdapters": [],
+      "dependencyApiExports": [],
+      "dependencyApiSurfaces": []
+    },
+    {
+      "surface": "console",
+      "corePackage": "@sdkwork/birdcoder-pc-console-core",
+      "sdkClients": [
+        "@sdkwork/birdcoder-app-sdk"
+      ],
+      "reusableModules": [
+        "@sdkwork/birdcoder-pc-console-core"
+      ],
+      "hostAdapters": [],
+      "dependencyApiExports": [],
+      "dependencyApiSurfaces": []
+    }
+  ],
+  "buildToolEntries": {
+    "pnpm": {
+      "workspacePackages": [
+        "@sdkwork/birdcoder-pc-core",
+        "@sdkwork/birdcoder-pc-admin-core",
+        "@sdkwork/birdcoder-pc-console-core",
+        "@sdkwork/birdcoder-pc-admin-shell",
+        "@sdkwork/birdcoder-pc-auth",
+        "@sdkwork/birdcoder-pc-code",
+        "@sdkwork/birdcoder-pc-codeengine",
+        "@sdkwork/birdcoder-pc-commons",
+        "@sdkwork/birdcoder-pc-console-shell",
+        "@sdkwork/birdcoder-pc-desktop",
+        "@sdkwork/birdcoder-pc-distribution",
+        "@sdkwork/birdcoder-pc-host-core",
+        "@sdkwork/birdcoder-pc-host-studio",
+        "@sdkwork/birdcoder-pc-i18n",
+        "@sdkwork/birdcoder-pc-iam",
+        "@sdkwork/birdcoder-pc-infrastructure",
+        "@sdkwork/birdcoder-pc-infrastructure-runtime",
+        "@sdkwork/birdcoder-pc-multiwindow",
+        "@sdkwork/birdcoder-pc-projection",
+        "@sdkwork/birdcoder-pc-server",
+        "@sdkwork/birdcoder-pc-settings",
+        "@sdkwork/birdcoder-pc-shell",
+        "@sdkwork/birdcoder-pc-shell-runtime",
+        "@sdkwork/birdcoder-pc-skills",
+        "@sdkwork/birdcoder-pc-studio",
+        "@sdkwork/birdcoder-pc-templates",
+        "@sdkwork/birdcoder-pc-types",
+        "@sdkwork/birdcoder-pc-ui",
+        "@sdkwork/birdcoder-pc-ui-shell",
+        "@sdkwork/birdcoder-pc-user",
+        "@sdkwork/birdcoder-pc-web",
+        "@sdkwork/birdcoder-pc-workbench-state",
+        "@sdkwork/birdcoder-pc-workbench-storage"
+      ]
+    }
+  }
+}

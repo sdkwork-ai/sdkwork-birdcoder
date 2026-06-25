@@ -27,6 +27,7 @@ type PlatformWorkspacesDeletePathParams = Types.PlatformWorkspacesDeletePathPara
 type PlatformWorkspacesListQuery = Types.PlatformWorkspacesListQuery;
 type PlatformWorkspacesRealtimeSubscribePathParams = Types.PlatformWorkspacesRealtimeSubscribePathParams;
 type PlatformWorkspacesRealtimeSubscribeQuery = Types.PlatformWorkspacesRealtimeSubscribeQuery;
+type PlatformWorkspacesRetrievePathParams = Types.PlatformWorkspacesRetrievePathParams;
 type PlatformWorkspacesUpdatePathParams = Types.PlatformWorkspacesUpdatePathParams;
 
 export interface PlatformApi {
@@ -83,6 +84,7 @@ export interface PlatformApi {
     realtime: {
       subscribe(pathParams: PlatformWorkspacesRealtimeSubscribePathParams, query?: PlatformWorkspacesRealtimeSubscribeQuery, options?: BirdcoderSdkRequestOptions): Promise<void>;
     };
+    retrieve(pathParams: PlatformWorkspacesRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderWorkspaceSummaryEnvelope>;
     update(pathParams: PlatformWorkspacesUpdatePathParams, body: Types.BirdCoderUpdateWorkspaceRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderWorkspaceSummaryEnvelope>;
   };
 }
@@ -185,6 +187,9 @@ export function createPlatformApi(requestOperation: BirdcoderSdkRequestOperation
         subscribe(pathParams: PlatformWorkspacesRealtimeSubscribePathParams, query: PlatformWorkspacesRealtimeSubscribeQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<void>("platform.workspaces.realtime.subscribe", { pathParams, query }, options);
         }
+      },
+      retrieve(pathParams: PlatformWorkspacesRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderWorkspaceSummaryEnvelope>("platform.workspaces.retrieve", { pathParams }, options);
       },
       update(pathParams: PlatformWorkspacesUpdatePathParams, body: Types.BirdCoderUpdateWorkspaceRequest, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderWorkspaceSummaryEnvelope>("platform.workspaces.update", { pathParams, body }, options);

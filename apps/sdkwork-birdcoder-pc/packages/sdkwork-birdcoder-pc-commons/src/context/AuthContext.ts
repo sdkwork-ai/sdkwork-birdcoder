@@ -10,10 +10,8 @@ import React, {
 import type {
   User,
 } from '@sdkwork/birdcoder-pc-types';
-import {
-  resolveFallbackAwareCurrentUser,
-} from './authUserIdentity.ts';
 import { useIDEServices } from './IDEContext.ts';
+import { resolveFallbackAwareCurrentUser } from './authUserIdentity.ts';
 
 interface AuthContextType {
   isLoading: boolean;

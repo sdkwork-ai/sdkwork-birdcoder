@@ -17,6 +17,7 @@ const authPagePath = path.join(
   'AuthPage.tsx',
 );
 const shellAppSource = readBirdcoderAppShellSource(rootDir);
+const authPageSource = fs.readFileSync(authPagePath, 'utf8');
 
 assert.match(
   authPageSource,

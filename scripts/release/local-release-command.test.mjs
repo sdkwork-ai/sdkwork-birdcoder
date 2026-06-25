@@ -4,6 +4,11 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { parseArgs, runLocalReleaseCommand } from './local-release-command.mjs';
+import {
+  PC_WEB_DIST_REL,
+  SERVER_CRATE_BINARY_NAME,
+  WORKSPACE_CARGO_TARGET_REL,
+} from './release-build-paths.mjs';
 
 const plan = parseArgs(['plan']);
 assert.equal(plan.mode, 'plan');
@@ -155,35 +160,22 @@ const originalCwd = process.cwd();
 const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-local-release-command-'));
 
 try {
-  fs.mkdirSync(path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-server', 'src-host', 'src'), { recursive: true });
-  fs.mkdirSync(path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-server', 'src-host', 'target', 'release'), { recursive: true });
-  fs.mkdirSync(path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'dist', 'assets'), { recursive: true });
+  fs.mkdirSync(path.join(fixtureRoot, WORKSPACE_CARGO_TARGET_REL, 'release'), { recursive: true });
+  fs.mkdirSync(path.join(fixtureRoot, PC_WEB_DIST_REL, 'assets'), { recursive: true });
   fs.mkdirSync(path.join(fixtureRoot, 'artifacts', 'openapi'), { recursive: true });
-  fs.writeFileSync(
-    path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-server', 'src-host', 'src', 'main.rs'),
-    'fn main() {}\n',
-  );
   const localServerBinaryName = process.platform === 'win32'
-    ? 'sdkwork-birdcoder-server.exe'
-    : 'sdkwork-birdcoder-server';
+    ? `${SERVER_CRATE_BINARY_NAME}.exe`
+    : SERVER_CRATE_BINARY_NAME;
   fs.writeFileSync(
-    path.join(
-      fixtureRoot,
-      'packages',
-      'sdkwork-birdcoder-server',
-      'src-host',
-      'target',
-      'release',
-      localServerBinaryName,
-    ),
+    path.join(fixtureRoot, WORKSPACE_CARGO_TARGET_REL, 'release', localServerBinaryName),
     'compiled-birdcoder-server-binary\n',
   );
   fs.writeFileSync(
-    path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'dist', 'index.html'),
+    path.join(fixtureRoot, PC_WEB_DIST_REL, 'index.html'),
     '<!doctype html><script type="module" src="./assets/index.js"></script>\n',
   );
   fs.writeFileSync(
-    path.join(fixtureRoot, 'packages', 'sdkwork-birdcoder-web', 'dist', 'assets', 'index.js'),
+    path.join(fixtureRoot, PC_WEB_DIST_REL, 'assets', 'index.js'),
     'export const web = true;\n',
   );
   fs.writeFileSync(

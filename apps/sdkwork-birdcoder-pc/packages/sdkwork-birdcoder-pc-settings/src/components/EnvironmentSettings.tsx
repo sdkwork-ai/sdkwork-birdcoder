@@ -1,21 +1,46 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import { useToast } from '@sdkwork/birdcoder-pc-commons';
+import { usePersistedState, useToast } from '@sdkwork/birdcoder-pc-commons';
 import { useTranslation } from 'react-i18next';
 import { SettingsProps } from './types';
 
 export function EnvironmentSettings({ settings, updateSetting }: SettingsProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
-  const [envContent, setEnvContent] = useState('API_KEY=your_api_key_here\nDEBUG=true\nPORT=3000');
+  const [envContent, setEnvContent, isHydrated] = usePersistedState<string>(
+    'settings',
+    'environment-variables',
+    '',
+  );
+  const [draftContent, setDraftContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
+  useEffect(() => {
+    if (!isEditing) {
+      setDraftContent(envContent);
+    }
+  }, [envContent, isEditing]);
+
   const handleSave = () => {
+    setEnvContent(draftContent.trim());
     setIsEditing(false);
-    // In a real app, this would save to a .env file
-    addToast(t('settings.environment.variablesSaved'), 'success');
+    addToast(t('settings.environment.variablesSavedLocally'), 'success');
   };
+
+  const handleCancel = () => {
+    setDraftContent(envContent);
+    setIsEditing(false);
+  };
+
+  const handleStartEditing = () => {
+    setDraftContent(envContent);
+    setIsEditing(true);
+  };
+
+  if (!isHydrated) {
+    return null;
+  }
 
   return (
     <div className="flex-1 overflow-y-auto p-12 bg-[#0e0e11]">
@@ -65,22 +90,23 @@ export function EnvironmentSettings({ settings, updateSetting }: SettingsProps) 
               <div>
                 <div className="text-white font-medium">{t('settings.environment.environmentVariables')}</div>
                 <div className="text-sm text-gray-500">{t('settings.environment.environmentVariablesDesc')}</div>
+                <div className="text-xs text-gray-600 mt-1">{t('settings.environment.environmentVariablesLocalOnly')}</div>
               </div>
               {isEditing ? (
                 <div className="flex gap-2">
-                  <Button variant="ghost" onClick={() => setIsEditing(false)}>{t('common.cancel')}</Button>
+                  <Button variant="ghost" onClick={handleCancel}>{t('common.cancel')}</Button>
                   <Button variant="default" onClick={handleSave}>{t('common.save')}</Button>
                 </div>
               ) : (
-                <Button variant="secondary" onClick={() => setIsEditing(true)}>
+                <Button variant="secondary" onClick={handleStartEditing}>
                   {t('settings.environment.editVariables')}
                 </Button>
               )}
             </div>
             {isEditing ? (
               <textarea 
-                value={envContent}
-                onChange={(e) => setEnvContent(e.target.value)}
+                value={draftContent}
+                onChange={(e) => setDraftContent(e.target.value)}
                 className="w-full h-48 bg-black/50 border border-white/10 rounded-lg p-3 text-sm text-gray-300 font-mono outline-none focus:border-blue-500/50 resize-none"
                 placeholder="KEY=value"
               />
@@ -95,4 +121,3 @@ export function EnvironmentSettings({ settings, updateSetting }: SettingsProps) 
     </div>
   );
 }
-

@@ -1,3 +1,5 @@
+import { SERVER_CRATE_BINARY_NAME } from './release-build-paths.mjs';
+
 export const DEFAULT_RELEASE_PROFILE_ID = 'sdkwork-birdcoder';
 export const RELEASE_ASSET_MANIFEST_FILE_NAME = 'release-asset-manifest.json';
 
@@ -85,7 +87,7 @@ const SDKWORK_BIRDCODER_RELEASE_PROFILE = Object.freeze({
     matrix: NATIVE_RELEASE_TARGET_MATRIX,
   }),
   server: Object.freeze({
-    binaryName: 'sdkwork-birdcoder-server',
+    binaryName: SERVER_CRATE_BINARY_NAME,
     matrix: NATIVE_RELEASE_TARGET_MATRIX.map((entry) => Object.freeze({
       runner: entry.runner,
       platform: entry.platform,

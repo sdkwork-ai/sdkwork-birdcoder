@@ -15,6 +15,17 @@ database:
   # Provide the connection URL via --set or an external secret manager integration.
   url: ""
 
+realtime:
+  backend: redis
+
+redis:
+  enabled: true
+  host: redis
+  port: 6379
+  database: 0
+  keyPrefix: birdcoder
+  tls: false
+
 persistence:
   enabled: false
 

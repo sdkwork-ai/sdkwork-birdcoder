@@ -89,7 +89,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   iamRuntimeSource,
-  /createAppbaseBackendClient|appbaseBackendApiBaseUrl|from ['"]@sdkwork\/appbase-backend-sdk['"]/u,
+  /createAppbaseBackendClient|appbaseBackendApiBaseUrl|from ['"]@sdkwork\/iam-backend-sdk['"]/u,
   'BirdCoder app auth runtime must not construct appbase backend SDK clients.',
 );
 assert.doesNotMatch(

@@ -407,7 +407,7 @@ packages:
   - 'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript'
   - 'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript'
   # Cross-repository SDKWork sources (unchanged)
-  - '../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts'
+  - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts'
   # ... (all 18 cross-repo dependencies remain)
 ```
 
@@ -572,13 +572,13 @@ packages:
   - '../../packages/sdkwork-birdcoder-*'
   - 'sdks/*'
   # Cross-repo dependencies (subset needed for H5)
-  - '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts'
-  - '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-runtime'
-  - '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-adapter'
-  - '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports'
-  - '../../../sdkwork-appbase/packages/common/iam/sdkwork-iam-service'
+  - '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts'
+  - '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime'
+  - '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-adapter'
+  - '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports'
+  - '../../../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service'
   - '../../../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap'
-  - '../../../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi'
+  - '../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi'
   - '../../../sdkwork-sdk-commons/sdkwork-sdk-common-typescript'
 ```
 

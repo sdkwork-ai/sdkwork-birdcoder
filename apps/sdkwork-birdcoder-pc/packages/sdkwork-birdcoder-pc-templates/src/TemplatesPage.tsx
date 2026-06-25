@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Check,
   FolderPlus,
@@ -87,6 +88,7 @@ export function TemplatesPage({
   onRequireAuth,
   workspaceId,
 }: TemplatesPageProps) {
+  const { t } = useTranslation();
   const { createProject, updateProject } = useProjects(workspaceId);
   const { catalogService, fileSystemService, projectService } = useIDEServices();
   const { addToast } = useToast();
@@ -175,13 +177,13 @@ export function TemplatesPage({
 
   async function handleCreateProjectFromTemplate(template: TemplateCardModel) {
     if (!isAuthenticated) {
-      addToast('Sign in to create a project from a template.', 'info');
+      addToast(t('templates.signInRequired'), 'info');
       onRequireAuth?.();
       return;
     }
 
     if (!workspaceId?.trim()) {
-      addToast('Select a workspace before creating a project from a template.', 'error');
+      addToast(t('templates.selectWorkspaceRequired'), 'error');
       return;
     }
 
@@ -196,13 +198,13 @@ export function TemplatesPage({
           name: template.title,
         });
       }
-      addToast(`Created "${template.title}" from templates.`, 'success');
+      addToast(t('templates.createdFromTemplate', { title: template.title }), 'success');
       onProjectCreated?.(project.projectId);
     } catch (createError) {
       addToast(
         createError instanceof Error && createError.message.trim()
           ? createError.message
-          : `Failed to create "${template.title}".`,
+          : t('templates.createFailed', { title: template.title }),
         'error',
       );
     } finally {
@@ -220,9 +222,9 @@ export function TemplatesPage({
                 <LayoutTemplate size={18} />
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-white">Project Templates</h1>
+                <h1 className="text-xl font-semibold text-white">{t('templates.title')}</h1>
                 <p className="text-sm text-gray-400">
-                  Curated app starters served by the BirdCoder server catalog.
+                  {t('templates.subtitle')}
                 </p>
               </div>
             </div>
@@ -234,7 +236,7 @@ export function TemplatesPage({
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search templates"
+              placeholder={t('templates.searchPlaceholder')}
               className="w-full rounded-xl border border-white/10 bg-white/5 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-blue-500/50 focus:bg-white/[0.07]"
             />
           </div>

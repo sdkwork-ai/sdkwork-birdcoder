@@ -3,6 +3,7 @@ use axum::http::request::Parts;
 use axum::http::StatusCode;
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_deployment_service::context::DeploymentContext;
+use sdkwork_birdcoder_errors::{problem_json, ProblemDetailsPayload};
 use sdkwork_birdcoder_project_service::context::ProjectContext;
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_iam_context_service::IamAppContext;
@@ -17,7 +18,7 @@ impl<S> FromRequestParts<S> for RequiredIamContext
 where
     S: Send + Sync,
 {
-    type Rejection = (StatusCode, &'static str);
+    type Rejection = (StatusCode, [(axum::http::header::HeaderName, axum::http::HeaderValue); 1], axum::Json<ProblemDetailsPayload>);
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         if let Some(web) = parts.extensions.get::<WebRequestContext>() {
@@ -31,7 +32,10 @@ where
             .get::<IamAppContext>()
             .cloned()
             .map(RequiredIamContext)
-            .ok_or((StatusCode::UNAUTHORIZED, "session required"))
+            .ok_or(problem_json(
+                StatusCode::UNAUTHORIZED,
+                ProblemDetailsPayload::new("unauthorized", "session required", false),
+            ))
     }
 }
 

@@ -7,7 +7,7 @@ Platform standard: `../sdkwork-specs/APP_RUNTIME_TOPOLOGY_ADOPTION.md`
 
 ## Default dev profile
 
-`self-hosted.split-services.development` — load the profile with:
+`standalone.split-services.development` — load the profile with:
 
 ```bash
 pnpm birdcoder:dev
@@ -38,9 +38,9 @@ IAM mode mapping:
 
 | Topology profile | IAM deployment mode |
 | --- | --- |
-| `self-hosted.split-services.*` | `server-private` |
-| `self-hosted.unified-process.*` | `desktop-local` |
-| `cloud-hosted.split-services.*` | `cloud-saas` |
+| `standalone.split-services.*` | `server-private` |
+| `standalone.unified-process.*` | `desktop-local` |
+| `cloud.split-services.*` | `cloud-saas` |
 
 Validate:
 

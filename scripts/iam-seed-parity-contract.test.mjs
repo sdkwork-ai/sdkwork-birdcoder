@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
-const appbaseRoot = path.resolve(workspaceRoot, '..', 'sdkwork-appbase');
 
 function readText(rootDir, relativePath) {
   const absolutePath = path.join(rootDir, relativePath);
@@ -11,6 +10,20 @@ function readText(rootDir, relativePath) {
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
+function resolveCargoWorkspaceCrateRoot(cargoTomlSource, dependencyKey) {
+  const pattern = new RegExp(
+    `^${dependencyKey}\\s*=\\s*\\{[^\\}]*path\\s*=\\s*"([^"]+)"`,
+    'mu',
+  );
+  const match = cargoTomlSource.match(pattern);
+  assert.ok(
+    match,
+    `Cargo.toml must declare ${dependencyKey} with a workspace path for IAM seed parity checks.`,
+  );
+  return path.resolve(workspaceRoot, match[1]);
+}
+
+const birdCoderCargoSource = readText(workspaceRoot, 'Cargo.toml');
 const birdCoderServerCargoSource = readText(
   workspaceRoot,
   'crates/sdkwork-birdcoder-api-server/Cargo.toml',
@@ -19,24 +32,40 @@ const apiServerIamBootstrapSource = readText(
   workspaceRoot,
   'crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs',
 );
-const appbaseIamContextSource = readText(
-  appbaseRoot,
-  'crates/sdkwork-iam-context-service/src/lib.rs',
+const apiServerRoutersSource = readText(
+  workspaceRoot,
+  'crates/sdkwork-birdcoder-api-server/src/bootstrap/routers.rs',
 );
-const appbaseIamDirectoryRepositorySource = readText(
-  appbaseRoot,
-  'crates/sdkwork-iam-directory-repository-sqlx/src/lib.rs',
+
+const iamContextCrateRoot = resolveCargoWorkspaceCrateRoot(
+  birdCoderCargoSource,
+  'sdkwork_iam_context_service',
 );
-const appbaseIamRouterSource = [
-  readText(appbaseRoot, 'crates/sdkwork-router-iam-app-api/src/handlers.rs'),
-  readText(appbaseRoot, 'crates/sdkwork-router-iam-app-api/src/directory.rs'),
-  readText(appbaseRoot, 'crates/sdkwork-router-iam-app-api/src/tokens.rs'),
+const iamDirectoryRepositoryCrateRoot = resolveCargoWorkspaceCrateRoot(
+  birdCoderCargoSource,
+  'sdkwork_iam_directory_repository_sqlx',
+);
+const iamAppRouterCrateRoot = resolveCargoWorkspaceCrateRoot(
+  birdCoderCargoSource,
+  'sdkwork_router_iam_app_api',
+);
+
+const iamContextSource = readText(iamContextCrateRoot, 'src/lib.rs');
+const iamDirectoryRepositorySource = readText(iamDirectoryRepositoryCrateRoot, 'src/lib.rs');
+const iamRouterSource = [
+  readText(iamAppRouterCrateRoot, 'src/handlers.rs'),
+  readText(iamAppRouterCrateRoot, 'src/directory.rs'),
+  readText(iamAppRouterCrateRoot, 'src/tokens.rs'),
 ].join('\n');
 
 for (const [requiredDependencyName, pattern] of [
   [
     'sdkwork_router_iam_app_api',
     /^sdkwork_router_iam_app_api = \{ workspace = true \}/mu,
+  ],
+  [
+    'sdkwork_router_iam_backend_api',
+    /^sdkwork_router_iam_backend_api = \{ workspace = true \}/mu,
   ],
   [
     'sdkwork_iam_web_adapter',
@@ -52,8 +81,33 @@ for (const [requiredDependencyName, pattern] of [
 
 assert.match(
   apiServerIamBootstrapSource,
-  /sdkwork_router_iam_app_api::build_sdkwork_appbase_app_api_router/u,
-  'BirdCoder api-server IAM bootstrap must wire the standard appbase IAM app router.',
+  /sdkwork_router_iam_app_api::build_sdkwork_iam_app_api_router/u,
+  'BirdCoder api-server IAM bootstrap must wire the standard sdkwork-iam app router.',
+);
+assert.match(
+  apiServerIamBootstrapSource,
+  /bootstrap_iam_database_from_env/u,
+  'BirdCoder api-server IAM bootstrap must bootstrap IAM schema before tenant application provisioning.',
+);
+assert.match(
+  apiServerIamBootstrapSource,
+  /ensure_birdcoder_tenant_application_bootstrap/u,
+  'BirdCoder api-server IAM bootstrap must provision tenant applications before building the IAM router.',
+);
+assert.match(
+  apiServerIamBootstrapSource,
+  /ensure_tenant_application_from_app_root_with_env_and_fallback/u,
+  'BirdCoder api-server IAM bootstrap must delegate to the shared embedded bootstrap crate.',
+);
+assert.match(
+  apiServerIamBootstrapSource,
+  /sdkwork_router_iam_backend_api::build_sdkwork_iam_backend_api_router_from_env/u,
+  'BirdCoder api-server IAM bootstrap must wire the standard sdkwork-iam backend router.',
+);
+assert.match(
+  apiServerRoutersSource,
+  /wire_iam_routers/u,
+  'BirdCoder api-server router assembly must merge federated sdkwork-iam app and backend routers.',
 );
 
 for (const requiredIamCorePattern of [
@@ -63,9 +117,9 @@ for (const requiredIamCorePattern of [
   /pub enum DeploymentMode/u,
 ]) {
   assert.match(
-    appbaseIamContextSource,
+    iamContextSource,
     requiredIamCorePattern,
-    'sdkwork-appbase IAM context service must publish the standard dual-token context contract.',
+    'sdkwork-iam context service must publish the standard dual-token context contract.',
   );
 }
 
@@ -82,9 +136,9 @@ for (const requiredIamStoragePattern of [
   /pub fn iam_database_baseline_sql\(\) -> &'static str/u,
 ]) {
   assert.match(
-    appbaseIamDirectoryRepositorySource,
+    iamDirectoryRepositorySource,
     requiredIamStoragePattern,
-    'sdkwork-appbase IAM directory repository crate must publish standard IAM bootstrap and table contracts.',
+    'sdkwork-iam directory repository crate must publish standard IAM bootstrap and table contracts.',
   );
 }
 
@@ -94,9 +148,9 @@ for (const forbiddenIamStoragePattern of [
   /DEFAULT_BOOTSTRAP_ADMIN/u,
 ]) {
   assert.doesNotMatch(
-    appbaseIamDirectoryRepositorySource,
+    iamDirectoryRepositorySource,
     forbiddenIamStoragePattern,
-    'sdkwork-appbase IAM directory repository crate must not publish default bootstrap seed data.',
+    'sdkwork-iam directory repository crate must not publish default bootstrap seed data.',
   );
 }
 
@@ -121,9 +175,9 @@ for (const forbiddenBirdCoderIamPattern of [
   /SDKWORK_IAM_BOOTSTRAP_/u,
 ]) {
   assert.doesNotMatch(
-    appbaseIamRouterSource,
+    iamRouterSource,
     forbiddenBirdCoderIamPattern,
-    `Standard appbase IAM router must not own VIP, billing, membership, or bootstrap identity env injection ${forbiddenBirdCoderIamPattern}.`,
+    `Standard sdkwork-iam app router must not own VIP, billing, membership, or bootstrap identity env injection ${forbiddenBirdCoderIamPattern}.`,
   );
 }
 
@@ -135,7 +189,7 @@ assert.equal(
     ),
   ),
   false,
-  'Retired BirdCoder local IAM authority archive must be removed after appbase router migration.',
+  'Retired BirdCoder local IAM authority archive must be removed after sdkwork-iam router migration.',
 );
 
 console.log('birdcoder IAM seed parity contract passed.');

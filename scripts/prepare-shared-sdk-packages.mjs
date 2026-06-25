@@ -34,11 +34,11 @@ const SHARED_PACKAGE_BRIDGE_SPECS = Object.freeze([
   {
     id: 'sdkwork-appbase',
     relativePackageRoots: [
-      'packages/pc-react/iam/sdkwork-auth-pc-react',
+      'apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react',
       'packages/pc-react/foundation/sdkwork-appbase-pc-react',
       'packages/pc-react/foundation/sdkwork-i18n-pc-react',
       'packages/pc-react/foundation/sdkwork-search-pc-react',
-      'packages/pc-react/iam/sdkwork-user-pc-react',
+      'apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react',
     ],
   },
   {

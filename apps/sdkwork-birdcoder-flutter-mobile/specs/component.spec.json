@@ -11,10 +11,15 @@
     "capability": "ide",
     "surface": "app",
     "status": "ACTIVE",
-    "languages": ["dart", "flutter"],
+    "languages": [
+      "dart",
+      "flutter"
+    ],
     "generated": false,
     "private": true,
-    "manifests": ["pubspec.yaml"]
+    "manifests": [
+      "pubspec.yaml"
+    ]
   },
   "canonicalSpecs": [
     {
@@ -75,14 +80,17 @@
   ],
   "contracts": {
     "publicExports": [],
-    "runtimeEntrypoints": ["pubspec.yaml"],
+    "runtimeEntrypoints": [
+      "pubspec.yaml"
+    ],
     "sdkClients": [],
     "sdkDependencies": [],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [],
-    "routeManifest": null
+    "routeManifest": null,
+    "dependencyComposition": "specs/dependency.composition.json"
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative.",
@@ -90,7 +98,10 @@
     "sdkPolicy": "Generated Dart SDK clients are injected through service/runtime boundaries."
   },
   "verification": {
-    "commands": ["flutter analyze", "flutter test"]
+    "commands": [
+      "flutter analyze",
+      "flutter test"
+    ]
   },
   "metadata": {
     "standardVersion": "2026-06-13"

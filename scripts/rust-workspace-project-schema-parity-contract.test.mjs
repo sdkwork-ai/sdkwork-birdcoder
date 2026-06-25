@@ -9,6 +9,9 @@ const canonicalSqliteSchemaSource = readCanonicalSqliteSchemaBundle();
 const apiServerDatabaseSource = readCanonicalServerRustSource(
   'crates/sdkwork-birdcoder-api-server/src/bootstrap/database.rs',
 );
+const databaseHostSource = readCanonicalServerRustSource(
+  'crates/sdkwork-birdcoder-database-host/src/lib.rs',
+);
 
 const sources = [
   {
@@ -343,17 +346,22 @@ for (const { label, source: rustSource } of sources) {
     assert.match(
       apiServerDatabaseSource,
       /bootstrap_database\(/,
-      'api-server database bootstrap must own sqlite schema initialization.',
+      'api-server database bootstrap must own database initialization.',
     );
     assert.match(
       apiServerDatabaseSource,
-      /sdkwork_birdcoder_coding_sessions_repository_sqlx::db::schema::SCHEMA_SQL/,
-      'api-server database bootstrap must apply intelligence coding session schema from the sqlx repository crate.',
+      /sdkwork_birdcoder_database_host::bootstrap_birdcoder_database/,
+      'api-server database bootstrap must delegate schema lifecycle to sdkwork-birdcoder-database-host.',
     );
     assert.match(
-      apiServerDatabaseSource,
-      /sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL/,
-      'api-server database bootstrap must apply platform workspace schema from the sqlx repository crate.',
+      databaseHostSource,
+      /LifecycleOrchestrator/u,
+      'birdcoder database host must apply schema through the governed lifecycle orchestrator.',
+    );
+    assert.match(
+      databaseHostSource,
+      /DefaultDatabaseModule::from_app_root/u,
+      'birdcoder database host must load the canonical database module manifest from the app root.',
     );
   }
 }

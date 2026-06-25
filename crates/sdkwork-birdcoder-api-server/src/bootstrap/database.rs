@@ -36,13 +36,13 @@ pub async fn bootstrap_database(
     let db_config = resolve_birdcoder_database_config(config);
     let pool = create_pool_from_config(db_config.clone()).await?;
 
-    if db_config.engine == DatabaseEngine::Postgres {
-        sdkwork_birdcoder_database_host::bootstrap_birdcoder_database(pool.clone())
-            .await
-            .map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
-    } else {
+    sdkwork_birdcoder_database_host::bootstrap_birdcoder_database(pool.clone())
+        .await
+        .map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
+
+    if db_config.engine == DatabaseEngine::Sqlite {
         let sqlite = require_sqlite_pool(&pool)?;
-        ensure_schema(&sqlite).await?;
+        apply_sqlite_pragmas(&sqlite).await?;
     }
 
     tracing::info!("sdkwork-database pool ready for BIRDCODER");
@@ -55,55 +55,12 @@ pub fn require_sqlite_pool(pool: &DatabasePool) -> Result<SqlitePool, String> {
         .ok_or_else(|| "BIRDCODER database profile must use sqlite".to_string())
 }
 
-async fn ensure_schema(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+async fn apply_sqlite_pragmas(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("PRAGMA journal_mode=WAL;")
         .execute(pool)
         .await?;
     sqlx::query("PRAGMA foreign_keys=ON;")
         .execute(pool)
         .await?;
-
-    execute_sql_batch(
-        pool,
-        sdkwork_birdcoder_coding_sessions_repository_sqlx::db::schema::SCHEMA_SQL,
-    )
-    .await
-    .map_err(|e| format!("intelligence coding sessions schema: {e}"))?;
-
-    execute_sql_batch(
-        pool,
-        sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL,
-    )
-    .await
-    .map_err(|e| format!("platform workspace schema: {e}"))?;
-
-    execute_sql_batch(
-        pool,
-        sdkwork_birdcoder_skill_packages_repository_sqlx::db::schema::ALL_TABLES_DDL,
-    )
-    .await
-    .map_err(|e| format!("ecosystem skill packages schema: {e}"))?;
-
-    execute_sql_batch(
-        pool,
-        sdkwork_birdcoder_model_config_repository_sqlx::db::schema::ALL_TABLES_DDL,
-    )
-    .await
-    .map_err(|e| format!("runtime model config schema: {e}"))?;
-
-    execute_sql_batch(
-        pool,
-        sdkwork_birdcoder_membership_repository_sqlx::db::schema::ALL_TABLES_DDL,
-    )
-    .await
-    .map_err(|e| format!("commerce membership schema: {e}"))?;
-
-    Ok(())
-}
-
-async fn execute_sql_batch(pool: &SqlitePool, sql: &str) -> Result<(), sqlx::Error> {
-    for statement in sql.split(';').map(str::trim).filter(|part| !part.is_empty()) {
-        sqlx::query(statement).execute(pool).await?;
-    }
     Ok(())
 }

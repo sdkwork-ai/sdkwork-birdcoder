@@ -105,14 +105,15 @@
     ],
     "sdkClients": [
       "@sdkwork/birdcoder-app-sdk",
-      "@sdkwork/appbase-app-sdk"
+      "@sdkwork/iam-app-sdk"
     ],
     "sdkDependencies": [],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [],
-    "routeManifest": null
+    "routeManifest": null,
+    "dependencyComposition": "specs/dependency.composition.json"
   },
   "verification": {
     "commands": [

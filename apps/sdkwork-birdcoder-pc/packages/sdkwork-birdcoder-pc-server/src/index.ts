@@ -4091,6 +4091,17 @@ function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
+    'workspaces.retrieve': {
+      parameters: [workspaceIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Workspace returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderWorkspaceSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Workspace was not found.'),
+        },
+      }),
+    },
     'workspaces.update': {
       parameters: [workspaceIdPathParameter],
       requestBody: createOpenApiRequestBody(
@@ -5288,6 +5299,7 @@ function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): string {
     ['PATCH /app/v3/api/iam/users/current', 'users.current.update'],
     ['GET /app/v3/api/workspaces', 'workspaces.list'],
     ['POST /app/v3/api/workspaces', 'workspaces.create'],
+    ['GET /app/v3/api/workspaces/:workspaceId', 'workspaces.retrieve'],
     ['PATCH /app/v3/api/workspaces/:workspaceId', 'workspaces.update'],
     ['DELETE /app/v3/api/workspaces/:workspaceId', 'workspaces.delete'],
     ['GET /app/v3/api/workspaces/:workspaceId/realtime', 'workspaces.realtime.subscribe'],
@@ -5786,6 +5798,13 @@ function getResolvedBirdCoderAppApiContract(): BirdCoderAppApiContract {
     ),
     documents: createRoute('app', 'user', 'GET', '/app/v3/api/documents', 'List project documents'),
     project: createRoute('app', 'user', 'GET', '/app/v3/api/projects/:projectId', 'Get project'),
+    workspace: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/workspaces/:workspaceId',
+      'Get workspace',
+    ),
     projectGitOverview: createRoute(
       'app',
       'user',

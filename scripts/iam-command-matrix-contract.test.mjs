@@ -120,11 +120,11 @@ test('birdcoder IAM command matrix governs standard local, private, and cloud sc
   );
   assert.equal(
     workspacePackageJson.scripts?.['dev:private'],
-    'node scripts/birdcoder-dev.mjs web --hosting self-hosted --service-layout split-services',
+    'node scripts/birdcoder-dev.mjs web --deployment-profile standalone --service-layout split-services',
   );
   assert.equal(
     workspacePackageJson.scripts?.['dev:cloud'],
-    'node scripts/birdcoder-dev.mjs web --hosting cloud-hosted',
+    'node scripts/birdcoder-dev.mjs web --deployment-profile cloud',
   );
   assert.equal(
     workspacePackageJson.scripts?.['iam:show:web:private'],

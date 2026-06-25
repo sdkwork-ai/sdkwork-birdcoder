@@ -19,7 +19,8 @@ import { ApiBackedDeploymentService } from './impl/ApiBackedDeploymentService.ts
 import { ApiBackedDocumentService } from './impl/ApiBackedDocumentService.ts';
 import { ApiBackedGitService } from './impl/ApiBackedGitService.ts';
 import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
-import { EmptyReleaseService } from './impl/EmptyReleaseService.ts';
+import { ApiBackedReleaseService } from './impl/ApiBackedReleaseService.ts';
+import { createUnavailableReleaseService } from './impl/UnavailableReleaseService.ts';
 import { ApiBackedTeamService } from './impl/ApiBackedTeamService.ts';
 import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
 import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
@@ -155,7 +156,10 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       case 'projectService':
         return loadProjectService(runtime);
       case 'releaseService': {
-        return new EmptyReleaseService();
+        if (!runtime.hasExplicitBackendClient) {
+          return createUnavailableReleaseService();
+        }
+        return new ApiBackedReleaseService({ backendClient: runtime.backendClient });
       }
       case 'teamService': {
         return new ApiBackedTeamService({

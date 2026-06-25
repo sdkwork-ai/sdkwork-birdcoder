@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Check,
   CheckCircle2,
@@ -9,7 +10,6 @@ import {
   Download,
   ExternalLink,
   FileText,
-  Github,
   Globe,
   Loader2,
   Package,
@@ -36,11 +36,19 @@ import type {
 } from '@sdkwork/birdcoder-pc-types';
 import type { Skill, SkillPackage } from './types';
 
-const REGISTRIES = [
-  { id: 'official', name: 'Official Registry', url: 'registry://official' },
-  { id: 'aliyun', name: 'Alibaba Cloud Mirror', url: 'registry://aliyun' },
-  { id: 'tencent', name: 'Tencent Cloud Mirror', url: 'registry://tencent' },
-] as const;
+const SDKWORK_AUTHOR = 'SDKWork';
+
+const REGISTRY_IDS = ['official', 'aliyun', 'tencent'] as const;
+
+type RegistryId = (typeof REGISTRY_IDS)[number];
+
+const REGISTRY_URLS: Record<RegistryId, string> = {
+  official: 'registry://official',
+  aliyun: 'registry://aliyun',
+  tencent: 'registry://tencent',
+};
+
+const DEFAULT_REGISTRY_ID = REGISTRY_IDS[0];
 
 type SkillTab = 'hub' | 'sdkwork' | 'installed' | 'packages';
 type SkillView = 'main' | 'package-detail' | 'skill-detail';
@@ -95,7 +103,7 @@ function mapSkill(entry: BirdCoderSkillCatalogEntrySummary): Skill {
     desc: entry.description,
     icon: entry.icon || entry.name.slice(0, 2).toUpperCase(),
     installs: formatCount(entry.installCount),
-    author: entry.author || 'Unknown',
+    author: entry.author?.trim() || '',
     longDesc: entry.longDescription,
     version: entry.versionLabel,
     tags: entry.tags,
@@ -114,7 +122,7 @@ function mapSkillPackage(summary: BirdCoderSkillPackageSummary): SkillPackage {
     desc: summary.description,
     icon: summary.icon || summary.name.slice(0, 2).toUpperCase(),
     installs: formatCount(summary.installCount),
-    author: summary.author || 'Unknown',
+    author: summary.author?.trim() || '',
     version: summary.versionLabel,
     isInstalled: summary.installed,
     longDesc: summary.longDescription,
@@ -147,13 +155,29 @@ export function SkillsPage({
   onRequireAuth,
   workspaceId,
 }: SkillsPageProps) {
+  const { t } = useTranslation();
   const { catalogService } = useIDEServices();
   const { addToast } = useToast();
   const normalizedWorkspaceId = workspaceId?.trim() ?? '';
+  const registries = useMemo(
+    () =>
+      REGISTRY_IDS.map((id) => ({
+        id,
+        name: t(
+          id === 'official'
+            ? 'skills.registryOfficial'
+            : id === 'aliyun'
+              ? 'skills.registryAliyun'
+              : 'skills.registryTencent',
+        ),
+        url: REGISTRY_URLS[id],
+      })),
+    [t],
+  );
   const [selectedRegistryId, setSelectedRegistryId] = usePersistedState<string>(
     'skills',
     'registry',
-    REGISTRIES[0].id,
+    DEFAULT_REGISTRY_ID,
   );
   const [activeSkillTab, setActiveSkillTab] = useState<SkillTab>('hub');
   const [currentView, setCurrentView] = useState<SkillView>('main');
@@ -169,7 +193,7 @@ export function SkillsPage({
   const [showRegistryMenu, setShowRegistryMenu] = useState(false);
   const registryMenuRef = useRef<HTMLDivElement>(null);
   const selectedRegistry =
-    REGISTRIES.find((registry) => registry.id === selectedRegistryId) ?? REGISTRIES[0];
+    registries.find((registry) => registry.id === selectedRegistryId) ?? registries[0];
 
   const clearCopiedCommandTimeout = useCallback(() => {
     if (copiedCommandTimeoutRef.current === null) {
@@ -230,7 +254,7 @@ export function SkillsPage({
         setError(
           loadError instanceof Error && loadError.message.trim()
             ? loadError.message
-            : 'Failed to load skill catalog.',
+            : t('skills.loadCatalogFailed'),
         );
       } finally {
         if (!cancelled) {
@@ -287,7 +311,7 @@ export function SkillsPage({
   const visibleSkills = useMemo(() => {
     switch (activeSkillTab) {
       case 'sdkwork':
-        return filteredSkills.filter((skill) => skill.author === 'SDKWork');
+        return filteredSkills.filter((skill) => skill.author === SDKWORK_AUTHOR);
       case 'installed':
         return filteredSkills.filter((skill) => skill.isInstalled);
       case 'packages':
@@ -318,7 +342,7 @@ export function SkillsPage({
   async function copyCommand(command: string) {
     const didCopy = await copyTextToClipboard(command);
     if (!didCopy) {
-      addToast('Unable to copy install command.', 'error');
+      addToast(t('skills.copyInstallCommandFailed'), 'error');
       return;
     }
 
@@ -340,7 +364,7 @@ export function SkillsPage({
         onRequireAuth?.();
         return;
       }
-      addToast('Select a workspace before installing a skill package.', 'error');
+      addToast(t('skills.selectWorkspaceBeforeInstall'), 'error');
       return;
     }
 
@@ -352,14 +376,17 @@ export function SkillsPage({
       const nextPackages = await catalogService.getSkillPackages(normalizedWorkspaceId);
       setPackages(nextPackages.map(mapSkillPackage));
       addToast(
-        `Installed ${skillPackage.name} from ${selectedRegistry.name}.`,
+        t('skills.installedFromRegistry', {
+          name: skillPackage.name,
+          registry: selectedRegistry.name,
+        }),
         'success',
       );
     } catch (installError) {
       addToast(
         installError instanceof Error && installError.message.trim()
           ? installError.message
-          : `Failed to install ${skillPackage.name}.`,
+          : t('skills.installFailed', { name: skillPackage.name }),
         'error',
       );
     } finally {
@@ -371,7 +398,7 @@ export function SkillsPage({
     const skillPackage =
       packages.find((candidate) => candidate.id === skill.packageId) ?? null;
     if (!skillPackage) {
-      addToast('Skill package was not found.', 'error');
+      addToast(t('skills.skillPackageNotFound'), 'error');
       return;
     }
     await installPackage(skillPackage);
@@ -404,7 +431,7 @@ export function SkillsPage({
       return (
         <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300">
           <CheckCircle2 size={16} />
-          Installed
+          {t('skills.installed')}
         </div>
       );
     }
@@ -423,7 +450,7 @@ export function SkillsPage({
         ) : (
           <Download size={16} />
         )}
-        {installingId === itemId ? 'Installing...' : 'Install'}
+        {installingId === itemId ? t('skills.installing') : t('skills.install')}
       </button>
     );
   }
@@ -450,17 +477,17 @@ export function SkillsPage({
                   )}
                   <h1 className="text-xl font-semibold text-white">
                     {currentView === 'package-detail'
-                      ? selectedPackage?.name || 'Skill Package'
+                      ? selectedPackage?.name || t('skills.skillPackageFallback')
                       : currentView === 'skill-detail'
-                        ? selectedSkill?.name || 'Skill'
-                        : 'Skills Hub'}
+                        ? selectedSkill?.name || t('skills.skillFallback')
+                        : t('skills.hubTitle')}
                   </h1>
                   {currentView !== 'main' && (
                     <ChevronRight size={16} className="text-gray-500" />
                   )}
                 </div>
                 <p className="text-sm text-gray-400">
-                  Real catalog data served by the BirdCoder server authority.
+                  {t('skills.subtitle')}
                 </p>
               </div>
             </div>
@@ -479,7 +506,7 @@ export function SkillsPage({
               </button>
               {showRegistryMenu && (
                 <div className="absolute right-0 top-full z-20 mt-2 min-w-[220px] rounded-2xl border border-white/10 bg-[#16161b] p-2 shadow-2xl">
-                  {REGISTRIES.map((registry) => (
+                  {registries.map((registry) => (
                     <button
                       key={registry.id}
                       type="button"
@@ -507,7 +534,7 @@ export function SkillsPage({
               <input
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search skills and packages"
+                placeholder={t('skills.searchPlaceholder')}
                 className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white outline-none transition focus:border-blue-500/50"
               />
             </div>
@@ -517,16 +544,16 @@ export function SkillsPage({
         {currentView === 'main' && (
           <div className="mt-4 flex flex-wrap gap-2">
             {[
-              { id: 'hub', label: 'All Skills', count: skills.length },
-              { id: 'packages', label: 'Packages', count: packages.length },
+              { id: 'hub', label: t('skills.tabAllSkills'), count: skills.length },
+              { id: 'packages', label: t('skills.tabPackages'), count: packages.length },
               {
                 id: 'sdkwork',
-                label: 'SDKWork',
-                count: skills.filter((skill) => skill.author === 'SDKWork').length,
+                label: t('skills.tabSdkwork'),
+                count: skills.filter((skill) => skill.author === SDKWORK_AUTHOR).length,
               },
               {
                 id: 'installed',
-                label: 'Installed',
+                label: t('skills.tabInstalled'),
                 count: skills.filter((skill) => skill.isInstalled).length,
               },
             ].map((tab) => (
@@ -540,7 +567,7 @@ export function SkillsPage({
                     : 'border border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
                 }`}
               >
-                {tab.label} �� {tab.count}
+                {t('skills.tabCount', { label: tab.label, count: tab.count })}
               </button>
             ))}
           </div>
@@ -552,12 +579,12 @@ export function SkillsPage({
           <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
             <div className="flex items-center gap-3 text-sm text-gray-300">
               <Loader2 size={18} className="animate-spin" />
-              Loading skill catalog...
+              {t('skills.loadingCatalog')}
             </div>
           </div>
         ) : error ? (
           <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/5 text-center">
-            <p className="text-base font-semibold text-white">Failed to load skills</p>
+            <p className="text-base font-semibold text-white">{t('skills.loadFailedTitle')}</p>
             <p className="mt-2 max-w-xl text-sm text-red-200/80">{error}</p>
           </div>
         ) : currentView === 'main' ? (
@@ -583,14 +610,14 @@ export function SkillsPage({
                         <div>
                           <h2 className="text-base font-semibold text-white">{skillPackage.name}</h2>
                           <p className="text-xs uppercase tracking-[0.18em] text-gray-500">
-                            {skillPackage.author}
+                            {skillPackage.author || t('skills.unknownAuthor')}
                           </p>
                         </div>
                       </button>
                       <div className="text-right text-xs text-gray-400">
                         <div className="inline-flex items-center gap-1">
                           <Package size={12} />
-                          {skillPackage.skills.length} skills
+                          {t('skills.skillsCount', { count: skillPackage.skills.length })}
                         </div>
                         <div className="mt-1 inline-flex items-center gap-1">
                           <Download size={12} />
@@ -634,7 +661,7 @@ export function SkillsPage({
                       <div>
                         <h2 className="text-base font-semibold text-white">{skill.name}</h2>
                         <p className="text-xs uppercase tracking-[0.18em] text-gray-500">
-                          {skill.author}
+                          {skill.author || t('skills.unknownAuthor')}
                         </p>
                       </div>
                     </button>
@@ -681,7 +708,9 @@ export function SkillsPage({
                   <div className="space-y-3">
                     <div>
                       <h2 className="text-3xl font-semibold text-white">{selectedPackage.name}</h2>
-                      <p className="mt-1 text-sm text-gray-400">{selectedPackage.author}</p>
+                      <p className="mt-1 text-sm text-gray-400">
+                        {selectedPackage.author || t('skills.unknownAuthor')}
+                      </p>
                     </div>
                     <p className="max-w-3xl text-sm leading-7 text-gray-300">
                       {selectedPackage.longDesc || selectedPackage.desc}
@@ -689,7 +718,7 @@ export function SkillsPage({
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                       <span className="inline-flex items-center gap-1">
                         <Package size={14} />
-                        {selectedPackage.skills.length} skills
+                        {t('skills.skillsCount', { count: selectedPackage.skills.length })}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Download size={14} />
@@ -717,7 +746,7 @@ export function SkillsPage({
                     ) : (
                       <Copy size={16} />
                     )}
-                    Copy install command
+                    {t('skills.copyInstallCommand')}
                   </button>
                 </div>
               </div>
@@ -726,7 +755,7 @@ export function SkillsPage({
             <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
               <div className="mb-4 flex items-center gap-2">
                 <Package size={18} className="text-blue-300" />
-                <h3 className="text-lg font-semibold text-white">Included Skills</h3>
+                <h3 className="text-lg font-semibold text-white">{t('skills.includedSkills')}</h3>
               </div>
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 {selectedPackage.skills.map((skill) => (
@@ -743,7 +772,9 @@ export function SkillsPage({
                         </div>
                         <div>
                           <h4 className="text-sm font-semibold text-white">{skill.name}</h4>
-                          <p className="text-xs text-gray-500">{skill.author}</p>
+                          <p className="text-xs text-gray-500">
+                            {skill.author || t('skills.unknownAuthor')}
+                          </p>
                         </div>
                       </div>
                       <ChevronRight size={16} className="text-gray-500" />
@@ -765,7 +796,9 @@ export function SkillsPage({
                   <div className="space-y-3">
                     <div>
                       <h2 className="text-3xl font-semibold text-white">{selectedSkill.name}</h2>
-                      <p className="mt-1 text-sm text-gray-400">{selectedSkill.author}</p>
+                      <p className="mt-1 text-sm text-gray-400">
+                        {selectedSkill.author || t('skills.unknownAuthor')}
+                      </p>
                     </div>
                     <p className="max-w-3xl text-sm leading-7 text-gray-300">
                       {selectedSkill.longDesc || selectedSkill.desc}
@@ -797,7 +830,7 @@ export function SkillsPage({
                     ) : (
                       <Copy size={16} />
                     )}
-                    Copy install command
+                    {t('skills.copyInstallCommand')}
                   </button>
                 </div>
               </div>
@@ -807,7 +840,7 @@ export function SkillsPage({
               <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
                 <div className="mb-4 flex items-center gap-2">
                   <FileText size={18} className="text-blue-300" />
-                  <h3 className="text-lg font-semibold text-white">Overview</h3>
+                  <h3 className="text-lg font-semibold text-white">{t('skills.overview')}</h3>
                 </div>
                 <div className="prose prose-invert max-w-none">
                   {selectedSkill.readme ? (
@@ -823,7 +856,7 @@ export function SkillsPage({
               <aside className="space-y-4">
                 <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
                   <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-400">
-                    Metadata
+                    {t('skills.metadata')}
                   </h3>
                   <div className="mt-4 space-y-4 text-sm">
                     {selectedSkill.repository ? (
@@ -834,8 +867,8 @@ export function SkillsPage({
                         className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-gray-200 transition hover:bg-white/10"
                       >
                         <span className="inline-flex items-center gap-2">
-                          <Github size={14} />
-                          Repository
+                          <ExternalLink size={14} />
+                          {t('skills.repository')}
                         </span>
                         <ExternalLink size={14} />
                       </a>
@@ -863,7 +896,7 @@ export function SkillsPage({
                   <div className="mb-3 flex items-center gap-2">
                     <Settings size={16} className="text-blue-300" />
                     <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-gray-400">
-                      Tags
+                      {t('skills.tags')}
                     </h3>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -888,14 +921,16 @@ export function SkillsPage({
 }
 
 function EmptyState({ query }: { query: string }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.03] text-center">
       <Search size={26} className="mb-3 text-gray-500" />
-      <h2 className="text-base font-semibold text-white">No matching skills</h2>
+      <h2 className="text-base font-semibold text-white">{t('skills.noMatchingSkills')}</h2>
       <p className="mt-1 max-w-md text-sm text-gray-400">
         {query.trim()
-          ? `No catalog entries matched "${query}".`
-          : 'The catalog is empty for the current filter.'}
+          ? t('skills.noMatchingSkillsQuery', { query: query.trim() })
+          : t('skills.catalogEmpty')}
       </p>
     </div>
   );

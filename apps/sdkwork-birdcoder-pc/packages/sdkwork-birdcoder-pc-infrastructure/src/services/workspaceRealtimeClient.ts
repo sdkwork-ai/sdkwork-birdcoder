@@ -11,15 +11,21 @@ export interface BirdCoderWorkspaceRealtimeSubscription {
 }
 
 export interface SubscribeBirdCoderWorkspaceRealtimeOptions {
+  maxReconnectAttempts?: number;
   onClose?: () => void;
   onError?: (error: Error) => void;
   onEvent: (event: BirdCoderWorkspaceRealtimeEvent) => void;
   onOpen?: () => void;
   onReady?: (message: Extract<BirdCoderWorkspaceRealtimeMessage, { kind: 'ready' }>) => void;
+  reconnectDelayMs?: number;
   workspaceId: string;
 }
 
 type BirdCoderWebSocketFactory = (url: string) => WebSocket;
+
+const DEFAULT_MAX_RECONNECT_ATTEMPTS = 8;
+const DEFAULT_RECONNECT_DELAY_MS = 1_000;
+const MAX_RECONNECT_DELAY_MS = 30_000;
 
 function normalizeText(value: string | null | undefined): string | null {
   if (typeof value !== 'string') {
@@ -109,47 +115,112 @@ export function subscribeBirdCoderWorkspaceRealtime(
     return null;
   }
 
-  const socket = createWebSocket(
-    resolveBirdCoderWorkspaceRealtimeUrl(baseUrl, workspaceId, sessionId),
-  );
+  const maxAttempts = options.maxReconnectAttempts ?? DEFAULT_MAX_RECONNECT_ATTEMPTS;
+  const baseDelayMs = options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS;
+  let closed = false;
+  let reconnectAttempts = 0;
+  let activeSocket: WebSocket | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 
-  socket.addEventListener('open', () => {
-    options.onOpen?.();
-  });
-  socket.addEventListener('close', () => {
-    options.onClose?.();
-  });
-  socket.addEventListener('error', () => {
-    options.onError?.(new Error(`Workspace realtime channel failed for ${workspaceId}.`));
-  });
-  socket.addEventListener('message', (event) => {
-    try {
-      const parsedMessage = parseBirdCoderApiJson(String(event.data)) as unknown;
-      if (!isRealtimeMessage(parsedMessage)) {
-        return;
-      }
-
-      if (parsedMessage.kind === 'ready') {
-        options.onReady?.(parsedMessage);
-        return;
-      }
-
-      options.onEvent(parsedMessage.event);
-    } catch (error) {
-      options.onError?.(
-        error instanceof Error
-          ? error
-          : new Error(`Workspace realtime payload parse failed for ${workspaceId}.`),
-      );
+  const clearReconnectTimer = () => {
+    if (reconnectTimer !== undefined) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = undefined;
     }
-  });
+  };
+
+  const closeActiveSocket = () => {
+    if (!activeSocket) {
+      return;
+    }
+
+    if (activeSocket.readyState === WebSocket.CLOSING || activeSocket.readyState === WebSocket.CLOSED) {
+      activeSocket = null;
+      return;
+    }
+
+    activeSocket.close();
+    activeSocket = null;
+  };
+
+  const scheduleReconnect = () => {
+    if (closed) {
+      return;
+    }
+
+    reconnectAttempts += 1;
+    if (reconnectAttempts > maxAttempts) {
+      options.onClose?.();
+      return;
+    }
+
+    const delayMs = Math.min(baseDelayMs * 2 ** (reconnectAttempts - 1), MAX_RECONNECT_DELAY_MS);
+    clearReconnectTimer();
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = undefined;
+      connect();
+    }, delayMs);
+  };
+
+  const connect = () => {
+    if (closed) {
+      return;
+    }
+
+    closeActiveSocket();
+    const socket = createWebSocket(
+      resolveBirdCoderWorkspaceRealtimeUrl(baseUrl, workspaceId, sessionId),
+    );
+    activeSocket = socket;
+
+    socket.addEventListener('open', () => {
+      reconnectAttempts = 0;
+      options.onOpen?.();
+    });
+    socket.addEventListener('close', () => {
+      if (closed) {
+        options.onClose?.();
+        return;
+      }
+
+      if (activeSocket === socket) {
+        activeSocket = null;
+      }
+      scheduleReconnect();
+    });
+    socket.addEventListener('error', () => {
+      options.onError?.(new Error(`Workspace realtime channel failed for ${workspaceId}.`));
+    });
+    socket.addEventListener('message', (event) => {
+      try {
+        const parsedMessage = parseBirdCoderApiJson(String(event.data)) as unknown;
+        if (!isRealtimeMessage(parsedMessage)) {
+          return;
+        }
+
+        if (parsedMessage.kind === 'ready') {
+          options.onReady?.(parsedMessage);
+          return;
+        }
+
+        options.onEvent(parsedMessage.event);
+      } catch (error) {
+        options.onError?.(
+          error instanceof Error
+            ? error
+            : new Error(`Workspace realtime payload parse failed for ${workspaceId}.`),
+        );
+      }
+    });
+  };
+
+  connect();
 
   return {
     close() {
-      if (socket.readyState === WebSocket.CLOSING || socket.readyState === WebSocket.CLOSED) {
-        return;
-      }
-      socket.close();
+      closed = true;
+      clearReconnectTimer();
+      closeActiveSocket();
     },
   };
 }

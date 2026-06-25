@@ -50,6 +50,7 @@ const BIRDCODER_VITE_DEV_WATCH_IGNORED = [
   '**/*.sqlite3-shm',
 ];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_KEY = '__SDKWORK_PC_REACT_ENV__';
+const BIRDCODER_CREDENTIAL_ENTRY_ENV_KEY = '__SDKWORK_IAM_CREDENTIAL_ENTRY_ENV__';
 const BIRDCODER_PUBLIC_RUNTIME_ENV_PREFIXES = ['SDKWORK_', 'VITE_'];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS = ['DEV', 'MODE', 'NODE_ENV', 'PROD'];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_DENYLIST = new Set([
@@ -93,6 +94,14 @@ export function isBirdcoderPublicRuntimeEnvKey(key) {
   }
 
   return BIRDCODER_PUBLIC_RUNTIME_ENV_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+
+export function resolveBirdcoderProductionMinify(mode) {
+  return mode === 'production' ? 'terser' : false;
+}
+
+export function resolveBirdcoderProductionCssMinify(mode) {
+  return mode === 'production';
 }
 
 function resolveBirdcoderTerminalInfrastructureRuntimePath(
@@ -293,20 +302,20 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       ),
     },
     {
-      find: '@sdkwork/appbase-app-sdk',
-      replacement: resolveDependencyPath('sdkwork-appbase', 'sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi/src/index.ts'),
+      find: '@sdkwork/iam-app-sdk',
+      replacement: resolveDependencyPath('sdkwork-iam', 'sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts'),
     },
     {
-      find: '@sdkwork/appbase-backend-sdk',
-      replacement: resolveDependencyPath('sdkwork-appbase', 'sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi/src/index.ts'),
+      find: '@sdkwork/iam-backend-sdk',
+      replacement: resolveDependencyPath('sdkwork-iam', 'sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi/src/index.ts'),
     },
     {
       find: /^@sdkwork\/auth-runtime-pc-react\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/$1'),
+      replacement: resolveDependencyPath('sdkwork-iam', 'apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/$1'),
     },
     {
       find: '@sdkwork/auth-runtime-pc-react',
-      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-auth-runtime-pc-react/src/index.ts'),
+      replacement: resolveDependencyPath('sdkwork-iam', 'apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/index.ts'),
     },
     {
       find: '@sdkwork/appbase-pc-react',
@@ -314,19 +323,19 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: /^@sdkwork\/auth-pc-react\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-auth-pc-react/src/$1'),
+      replacement: resolveDependencyPath('sdkwork-iam', 'apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/$1'),
     },
     {
       find: '@sdkwork/auth-pc-react',
-      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts'),
+      replacement: resolveDependencyPath('sdkwork-iam', 'apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/index.ts'),
     },
     {
       find: /^@sdkwork\/user-pc-react\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-user-pc-react/src/$1'),
+      replacement: resolveDependencyPath('sdkwork-iam', 'apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react/src/$1'),
     },
     {
       find: '@sdkwork/user-pc-react',
-      replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-user-pc-react/src/index.ts'),
+      replacement: resolveDependencyPath('sdkwork-iam', 'apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react/src/index.ts'),
     },
     {
       find: /^@sdkwork\/wallet-pc-react\/(.+)$/u,
@@ -437,6 +446,7 @@ function createBirdcoderWorkspaceFsAllowList(appRootDir = defaultBirdcoderAppRoo
   return [
     resolveWorkspaceRootDir(appRootDir),
     resolveDependencyRootDir('sdkwork-appbase'),
+    resolveDependencyRootDir('sdkwork-iam'),
     resolveDependencyRootDir('sdkwork-core'),
     resolveDependencyRootDir('sdkwork-drive'),
     resolveDependencyRootDir('sdkwork-messaging'),
@@ -824,13 +834,13 @@ function resolvePackageJsonPathFromWorkspaceRoot(workspaceRootDir, specifier) {
 }
 
 function resolveAppbaseWorkspacePackageEntryPath(appRootDir, specifier, relativeEntryPath) {
-  const appbaseWorkspaceRootDir = resolveDependencyRootDir('sdkwork-appbase');
-  const packageJsonPath = resolvePackageJsonPathFromWorkspaceRoot(appbaseWorkspaceRootDir, specifier)
-    ?? resolveAppbaseManagedBridgePackageJsonPath(appbaseWorkspaceRootDir, specifier);
+  const iamWorkspaceRootDir = resolveDependencyRootDir('sdkwork-iam');
+  const packageJsonPath = resolvePackageJsonPathFromWorkspaceRoot(iamWorkspaceRootDir, specifier)
+    ?? resolveAppbaseManagedBridgePackageJsonPath(iamWorkspaceRootDir, specifier);
 
   if (!packageJsonPath) {
     return path.join(
-      appbaseWorkspaceRootDir,
+      iamWorkspaceRootDir,
       'node_modules',
       ...resolvePackageNameFromSpecifier(specifier).split('/'),
       ...relativeEntryPath,
@@ -843,7 +853,7 @@ function resolveAppbaseWorkspacePackageEntryPath(appRootDir, specifier, relative
 function resolveAppbaseManagedBridgePackageJsonPath(appbaseWorkspaceRootDir, specifier) {
   const packageName = resolvePackageNameFromSpecifier(specifier);
   const bridgePackageRoots = [
-    'packages/pc-react/iam/sdkwork-auth-pc-react',
+    'apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react',
   ];
 
   for (const bridgePackageRoot of bridgePackageRoots) {
@@ -1387,6 +1397,86 @@ function createBirdcoderSharedRouterCompatPlugin({
   return plugin;
 }
 
+function resolveBirdcoderCredentialEntryBootstrapAccessToken(runtimeEnvSource = {}) {
+  const token = String(runtimeEnvSource.SDKWORK_ACCESS_TOKEN ?? '').trim();
+  return token || undefined;
+}
+
+function patchCredentialEntryBootstrapTokenSource(code, bootstrapAccessToken) {
+  if (!bootstrapAccessToken) {
+    return code;
+  }
+
+  return String(code).replace(
+    /export function readBootstrapAccessTokenFromProcessEnv\([\s\S]*?\n\}/u,
+    [
+      'export function readBootstrapAccessTokenFromProcessEnv(',
+      '  env = (globalThis).process?.env,',
+      ') {',
+      `  const privateToken = (globalThis).${BIRDCODER_CREDENTIAL_ENTRY_ENV_KEY}?.SDKWORK_ACCESS_TOKEN?.trim();`,
+      '  if (privateToken) {',
+      '    return privateToken;',
+      '  }',
+      '  const value = env?.SDKWORK_ACCESS_TOKEN?.trim();',
+      '  return value || undefined;',
+      '}',
+    ].join('\n'),
+  );
+}
+
+function isCredentialEntryBootstrapTokenModule(id) {
+  return normalizeWarningModuleReference(id).includes('/sdkwork-iam-credential-entry/');
+}
+
+function createBirdcoderCredentialEntryBootstrapPlugin({
+  runtimeEnvSource = process.env,
+  namespace = defaultBirdcoderNamespace,
+} = {}) {
+  const bootstrapAccessToken = resolveBirdcoderCredentialEntryBootstrapAccessToken(runtimeEnvSource);
+
+  /** @type {BirdcoderOpaqueVitePlugin} */
+  const plugin = {
+    name: `${namespace}-credential-entry-bootstrap`,
+    /** @type {'pre'} */
+    enforce: 'pre',
+    transformIndexHtml() {
+      if (!bootstrapAccessToken) {
+        return [];
+      }
+
+      return [
+        {
+          tag: 'script',
+          injectTo: 'head-prepend',
+          children: `globalThis.${BIRDCODER_CREDENTIAL_ENTRY_ENV_KEY} = Object.freeze({ SDKWORK_ACCESS_TOKEN: ${JSON.stringify(bootstrapAccessToken)} });`,
+        },
+      ];
+    },
+    transform(code, id) {
+      const cleanId = String(id ?? '').split('?')[0] ?? '';
+      if (!cleanId || !isCredentialEntryBootstrapTokenModule(cleanId)) {
+        return null;
+      }
+
+      if (!code.includes('readBootstrapAccessTokenFromProcessEnv')) {
+        return null;
+      }
+
+      const patchedCode = patchCredentialEntryBootstrapTokenSource(code, bootstrapAccessToken);
+      if (patchedCode === code) {
+        return null;
+      }
+
+      return {
+        code: patchedCode,
+        map: null,
+      };
+    },
+  };
+
+  return plugin;
+}
+
 function createBirdcoderRuntimeEnvBootstrapPlugin({
   mode = 'development',
   runtimeEnvSource = {},
@@ -1451,6 +1541,10 @@ function createBirdcoderVitePlugins({
       runtimeEnvSource,
       namespace,
     }),
+    createBirdcoderCredentialEntryBootstrapPlugin({
+      runtimeEnvSource,
+      namespace,
+    }),
     createBirdcoderSharedRouterCompatPlugin({
       mode,
       namespace,
@@ -1482,12 +1576,14 @@ function createBirdcoderVitePlugins({
 }
 
 export {
+  BIRDCODER_CREDENTIAL_ENTRY_ENV_KEY,
   BIRDCODER_VITE_DEDUPE_PACKAGES,
   BIRDCODER_VITE_DESKTOP_OPTIMIZE_DEPS_INCLUDE,
   BIRDCODER_VITE_DEV_WATCH_IGNORED,
   BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE,
   createBirdcoderCommonJsDefaultCompatPlugin,
   createBirdcoderCoreEnvCompatPlugin,
+  createBirdcoderCredentialEntryBootstrapPlugin,
   createBirdcoderWorkspaceAliasEntries,
   createBirdcoderWorkspaceFsAllowList,
   createBirdcoderReactCompatPlugin,
@@ -1498,6 +1594,7 @@ export {
   createBirdcoderVitePlugins,
   onBirdcoderRollupWarning,
   resolveBirdcoderPublicRuntimeEnv,
+  resolveBirdcoderCredentialEntryBootstrapAccessToken,
   resolveBirdcoderTerminalInfrastructureRuntimePath,
   resolveSdkworkTerminalDesktopEntryPath,
   resolveSdkworkTerminalDesktopHostEntryPath,

@@ -1,5 +1,6 @@
 {
   "apiBaseUrl": "https://api.sdkwork.com/apps/sdkwork-birdcoder",
   "appVersion": "0.1.0",
+  "deploymentMode": "saas",
   "environment": "production"
 }

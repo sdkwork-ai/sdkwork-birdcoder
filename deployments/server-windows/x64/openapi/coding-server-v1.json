@@ -12226,6 +12226,72 @@
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
+      "get": {
+        "operationId": "workspaces.retrieve",
+        "summary": "Get workspace",
+        "description": "Get workspace. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder workspace identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderWorkspaceSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.workspaces.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.workspaces",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
       "patch": {
         "operationId": "workspaces.update",
         "summary": "Update workspace",
@@ -17123,9 +17189,9 @@
     "docsPath": "/docs",
     "liveOpenApiPath": "/openapi.json",
     "routeCatalogPath": "/app/v3/api/system/routes",
-    "routeCount": 131,
+    "routeCount": 132,
     "routesBySurface": {
-      "app": 82,
+      "app": 83,
       "backend": 49
     },
     "surfaces": [
@@ -17134,7 +17200,7 @@
         "basePath": "/app/v3/api",
         "description": "Application-facing coding runtime, workspace, project, collaboration, and IAM routes.",
         "name": "app",
-        "routeCount": 82
+        "routeCount": 83
       },
       {
         "authMode": "admin",

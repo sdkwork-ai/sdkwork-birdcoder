@@ -2,7 +2,27 @@ import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sour
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+const pcPackage = (packageName, ...relativePathParts) =>
+  new URL(
+    ['../apps/sdkwork-birdcoder-pc/packages', packageName, ...relativePathParts].join('/'),
+    import.meta.url,
+  );
+
 const appSource = readBirdcoderAppShellSource();
+const codeEditorPath = pcPackage('sdkwork-birdcoder-pc-ui', 'src/components/CodeEditor.tsx');
+const diffEditorPath = pcPackage('sdkwork-birdcoder-pc-ui', 'src/components/DiffEditor.tsx');
+const codeEditorSurfacePath = pcPackage('sdkwork-birdcoder-pc-code', 'src/pages/CodeEditorSurface.tsx');
+const codeEditorWorkspacePanelPath = pcPackage('sdkwork-birdcoder-pc-code', 'src/pages/CodeEditorWorkspacePanel.tsx');
+const codeTerminalPanelPath = pcPackage('sdkwork-birdcoder-pc-code', 'src/pages/CodeTerminalIntegrationPanel.tsx');
+const studioPagePath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/pages/StudioPage.tsx');
+const studioCodeWorkspacePanelPath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/pages/StudioCodeWorkspacePanel.tsx');
+const studioPreviewPanelPath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/preview/StudioPreviewPanel.tsx');
+const studioSimulatorPanelPath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/simulator/StudioSimulatorPanel.tsx');
+const studioTerminalPanelPath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/pages/StudioTerminalIntegrationPanel.tsx');
+const studioWorkspaceOverlaysPath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/pages/StudioWorkspaceOverlays.tsx');
+const studioStageHeaderPath = pcPackage('sdkwork-birdcoder-pc-studio', 'src/preview/StudioStageHeader.tsx');
+const monacoRuntimePath = pcPackage('sdkwork-birdcoder-pc-ui', 'src/components/monacoRuntime.ts');
+const resizeHandlePath = pcPackage('sdkwork-birdcoder-pc-ui-shell', 'src/components/ResizeHandle.tsx');
 const codeEditorSource = fs.readFileSync(codeEditorPath, 'utf8');
 const diffEditorSource = fs.readFileSync(diffEditorPath, 'utf8');
 const codeEditorSurfaceSource = fs.readFileSync(codeEditorSurfacePath, 'utf8');

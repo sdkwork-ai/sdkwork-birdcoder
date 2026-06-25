@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { i18n } from '@sdkwork/birdcoder-pc-commons';
 import { SessionTranscriptLoadingState } from '@sdkwork/birdcoder-pc-ui-shell';
 import { CodeChatEmptyState } from './CodeChatEmptyState';
 
@@ -21,13 +22,13 @@ export function resolveCodeProjectActionTarget<TProject extends { name: string; 
   addToast: (message: string, type: 'error') => void,
 ): { project: TProject; projectPath: string } | null {
   if (!project) {
-    addToast('Project not found', 'error');
+    addToast(i18n.t('code.projectNotFound'), 'error');
     return null;
   }
 
   const projectPath = resolveCodeProjectPath(project.path);
   if (!projectPath) {
-    addToast(`Project folder path is unavailable: ${project.name}`, 'error');
+    addToast(i18n.t('code.projectFolderUnavailableNamed', { name: project.name }), 'error');
     return null;
   }
 

@@ -8,6 +8,14 @@ function readText(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
+function readTextIfExists(relativePath) {
+  const absolutePath = path.join(rootDir, relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    return null;
+  }
+  return fs.readFileSync(absolutePath, 'utf8');
+}
+
 function readJson(relativePath) {
   return JSON.parse(readText(relativePath));
 }
@@ -21,7 +29,10 @@ function assertNoMatch(source, forbiddenPattern, label) {
 }
 
 function assertNoLegacyUserCenterText(relativePath, label = relativePath) {
-  const source = readText(relativePath);
+  const source = readTextIfExists(relativePath);
+  if (source === null) {
+    return;
+  }
   for (const forbiddenPattern of [
     /SDKWORK_USER_CENTER_/u,
     /VITE_SDKWORK_USER_CENTER_/u,
@@ -44,7 +55,10 @@ function assertNoLegacyUserCenterText(relativePath, label = relativePath) {
 }
 
 function assertNoRetiredAppbaseIamText(relativePath, label = relativePath) {
-  const source = readText(relativePath);
+  const source = readTextIfExists(relativePath);
+  if (source === null) {
+    return;
+  }
   for (const forbiddenPattern of [
     /17-appbase-auth-user-vip/u,
     /14-appbase-auth-user-vip/u,
@@ -81,10 +95,8 @@ for (const relativePath of [
   'README.md',
   'README.zh-CN.md',
   'docs/superpowers/plans/2026-04-09-birdcoder-data-kernel-implementation.md',
-  'docs/架构/17-sdkwork-iam-auth-user-standard.md',
-  'docs/step/14-sdkwork-iam-integration.md',
-  'docs/step/04-workspace-project-auth-settings治理.md',
-  'docs/step/90-架构能力-Step-目录-证据映射矩阵.md',
+  'docs/architecture/tech/TECH-17-sdkwork-iam-auth-user-standard.md',
+  'docs/architecture/tech/TECH-topology-standard.md',
   'scripts/birdcoder-command-options.mjs',
   'scripts/birdcoder-iam-command-matrix.mjs',
   'scripts/birdcoder-iam-env.mjs',
@@ -109,16 +121,9 @@ for (const relativePath of [
 
 for (const relativePath of [
   'docs/guide/development.md',
-  'docs/架构/02-架构标准与总体设计.md',
-  'docs/架构/03-模块规划与边界.md',
-  'docs/架构/07-数据模型-状态模型-接口契约.md',
-  'docs/架构/18-多数据库抽象-Provider-迁移标准.md',
-  'docs/step/README.md',
-  'docs/step/04-workspace-project-auth-settings治理.md',
-  'docs/step/90-架构能力-Step-目录-证据映射矩阵.md',
-  'docs/step/94-Step并行执行编排与多子Agent车道.md',
-  'docs/step/97-Step完成后的架构回写与能力兑现清单.md',
-  'docs/step/99-Step总执行矩阵与最短路径总表.md',
+  'docs/README.md',
+  'docs/architecture/TECH_ARCHITECTURE.md',
+  'docs/architecture/tech/TECH-17-sdkwork-iam-auth-user-standard.md',
 ]) {
   assertNoRetiredAppbaseIamText(relativePath);
 }

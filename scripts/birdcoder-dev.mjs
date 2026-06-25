@@ -4,6 +4,7 @@ import process from 'node:process';
 
 import {
   DEFAULT_DEV_PROFILE_ID,
+  IAM_APPLICATION_BOOTSTRAP_ENV,
   listHealthSurfaces,
   loadProfile,
   mergeRuntimeEnv,
@@ -19,7 +20,7 @@ import { runBirdcoderDevStack } from './run-birdcoder-dev-stack.mjs';
 
 function parseArgs(argv) {
   const settings = {
-    hosting: 'self-hosted',
+    deploymentProfile: 'standalone',
     serviceLayout: 'split-services',
     target: 'web',
     dryRun: false,
@@ -34,10 +35,15 @@ function parseArgs(argv) {
       settings.help = true;
       continue;
     }
-    if (arg === '--hosting') {
-      settings.hosting = argv[index + 1] ?? settings.hosting;
+    if (arg === '--deployment-profile') {
+      settings.deploymentProfile = argv[index + 1] ?? settings.deploymentProfile;
       index += 1;
       continue;
+    }
+    if (arg === '--hosting') {
+      throw new Error(
+        '--hosting is retired; use --deployment-profile (standalone or cloud)',
+      );
     }
     if (arg === '--service-layout') {
       settings.serviceLayout = argv[index + 1] ?? settings.serviceLayout;
@@ -75,7 +81,7 @@ function printHelp() {
 Topology-aware BirdCoder dev entry. Loads configs/topology profile env via @sdkwork/app-topology.
 
 Options:
-  --hosting <self-hosted|cloud-hosted>              Default: self-hosted
+  --deployment-profile <standalone|cloud>             Default: standalone
   --service-layout <split-services|unified-process> Default: split-services
   --target <web|desktop>                            Default: web
   --dry-run                                         Print plan without executing
@@ -95,7 +101,7 @@ async function main() {
     return;
   }
 
-  const profileId = resolveDevProfileId(settings.hosting, settings.serviceLayout);
+  const profileId = resolveDevProfileId(settings.deploymentProfile, settings.serviceLayout);
   const profile = loadProfile(profileId);
   const mergedEnv = mergeRuntimeEnv(
     process.env,
@@ -104,9 +110,11 @@ async function main() {
     resolveIamDevEnv(process.env),
     {
       SDKWORK_BIRDCODER_PROFILE_ID: profileId,
+      SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: settings.deploymentProfile,
+      ...IAM_APPLICATION_BOOTSTRAP_ENV,
     },
   );
-  const iamMode = resolveIamModeFromTopology(settings.hosting, settings.serviceLayout);
+  const iamMode = resolveIamModeFromTopology(settings.deploymentProfile, settings.serviceLayout);
 
   const summary = {
     repoRoot: REPO_ROOT,
@@ -119,7 +127,7 @@ async function main() {
       'application.public-ingress',
       mergedEnv,
     ),
-    platformApiGatewayHttpUrl: resolveGatewayBaseUrl(mergedEnv, settings.hosting),
+    platformApiGatewayHttpUrl: resolveGatewayBaseUrl(mergedEnv, settings.deploymentProfile),
     healthSurfaces: listHealthSurfaces(profileId),
   };
 

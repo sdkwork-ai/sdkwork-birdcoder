@@ -11,30 +11,30 @@ const canonicalOpenApiPath = 'deployments/server-windows/x64/openapi/coding-serv
 const domainCatalogPath = 'sdks/specs/domain-catalog.json';
 
 const appbaseAppSdkDependency = {
-  workspace: 'sdkwork-appbase-app-sdk',
+  workspace: 'sdkwork-iam-app-sdk',
   role: 'appbase-app-capability',
   required: true,
   dependencyMode: 'consumer-sdk',
   apiPrefix: '/app/v3/api',
-  apiAuthority: 'sdkwork-appbase-app-api',
+  apiAuthority: 'sdkwork-iam-app-api',
   generatedTransportImportPolicy: 'forbidden',
   packageByLanguage: {
-    typescript: '@sdkwork/appbase-app-sdk',
-    rust: 'sdkwork-appbase-app-sdk',
+    typescript: '@sdkwork/iam-app-sdk',
+    rust: 'sdkwork-iam-app-sdk',
   },
 };
 
 const appbaseBackendSdkDependency = {
-  workspace: 'sdkwork-appbase-backend-sdk',
+  workspace: 'sdkwork-iam-backend-sdk',
   role: 'appbase-backend-capability',
   required: true,
   dependencyMode: 'consumer-sdk',
   apiPrefix: '/backend/v3/api',
-  apiAuthority: 'sdkwork-appbase-backend-api',
+  apiAuthority: 'sdkwork-iam-backend-api',
   generatedTransportImportPolicy: 'forbidden',
   packageByLanguage: {
-    typescript: '@sdkwork/appbase-backend-sdk',
-    rust: 'sdkwork-appbase-backend-sdk',
+    typescript: '@sdkwork/iam-backend-sdk',
+    rust: 'sdkwork-iam-backend-sdk',
   },
 };
 

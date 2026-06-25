@@ -47,6 +47,7 @@ export default defineLocaleModule('settings/extra', {
       confirmDelete: 'Are you sure?',
       emptyTitle: 'No archived sessions',
       emptyDescription: 'When you archive a session, it will appear here.',
+      runtimeUnavailable: 'Archived session management is not wired to the coding session runtime yet.',
       restored: 'Session restored successfully.',
       deleted: 'Session deleted permanently.',
     },
@@ -91,6 +92,8 @@ export default defineLocaleModule('settings/extra', {
       environmentVariablesDesc: 'Manage workspace environment variables (.env).',
       editVariables: 'Edit variables',
       variablesSaved: 'Environment variables saved successfully.',
+      variablesSavedLocally: 'Environment variables saved locally. Project .env synchronization is not available yet.',
+      environmentVariablesLocalOnly: 'Variables are stored in local app settings until workspace .env synchronization ships.',
       noneDefined: 'No environment variables defined.',
     },
     git: {
@@ -107,6 +110,8 @@ export default defineLocaleModule('settings/extra', {
       description:
         'Model Context Protocol (MCP) servers allow you to connect external tools and data sources, expanding AI capabilities.',
       noServersConfigured: 'No MCP servers configured.',
+      connectionStatusUnavailable: 'Connection health checks are not available yet. Saved servers are stored locally until runtime wiring ships.',
+      notConnected: 'Not connected',
       addNewServer: 'Add New MCP Server',
       serverName: 'Server Name',
       serverUrl: 'Server URL',

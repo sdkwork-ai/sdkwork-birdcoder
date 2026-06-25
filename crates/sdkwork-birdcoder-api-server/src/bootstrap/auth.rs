@@ -15,12 +15,12 @@ pub async fn build_protected_app_router(
     router: Router,
     config: &BirdServerConfig,
     metrics: Arc<HttpMetricsRegistry>,
-) -> Router {
+) -> Result<Router, String> {
     let resolver = iam_database_resolver_from_env().await;
     let manifest = birdcoder_product_app_api_route_manifest();
     manifest
         .validate_public_path_prefixes(&birdcoder_public_path_prefixes())
-        .expect("route manifest public prefix validation failed");
+        .map_err(|error| format!("route manifest public prefix validation failed: {error}"))?;
 
     let layer = build_web_framework_layer(
         resolver,
@@ -30,7 +30,7 @@ pub async fn build_protected_app_router(
     .with_security_policy(build_security_policy(config))
     .with_metrics(metrics);
 
-    with_web_request_context(router, layer)
+    Ok(with_web_request_context(router, layer))
 }
 
 fn build_security_policy(config: &BirdServerConfig) -> SecurityPolicy {

@@ -1,0 +1,41 @@
+{{- if and .Values.backup.enabled (eq .Values.database.engine "postgresql") .Values.database.url }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "sdkwork-birdcoder.fullname" . }}-pg-backup
+  labels:
+    {{- include "sdkwork-birdcoder.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-backup
+              image: {{ .Values.backup.image | quote }}
+              env:
+                - name: DATABASE_URL
+                  value: {{ .Values.database.url | quote }}
+                - name: RETENTION_DAYS
+                  value: {{ .Values.backup.retentionDays | quote }}
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  ts="$(date +%Y%m%d-%H%M%S)"
+                  out="/backup/birdcoder-${ts}.dump"
+                  pg_dump --format=custom --no-owner --dbname="${DATABASE_URL}" > "${out}"
+                  find /backup -name 'birdcoder-*.dump' -mtime +"${RETENTION_DAYS}" -delete
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+          volumes:
+            - name: backup
+              persistentVolumeClaim:
+                claimName: {{ include "sdkwork-birdcoder.fullname" . }}-backup
+{{- end }}

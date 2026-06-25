@@ -82,4 +82,13 @@ export * from './workbench/sessionInventory.ts';
 export * from './workbench/projectInventoryRender.ts';
 export * from './workbench/workspaceBootstrap.ts';
 export * from './stores/workspaceRealtime.ts';
+export {
+  buildDriveMediaResourceContentBlock,
+  resolveChatAttachmentUploadProfile,
+  uploadBirdCoderChatAttachmentToDrive,
+} from '@sdkwork/birdcoder-pc-infrastructure';
 export { default as i18n } from '@sdkwork/birdcoder-pc-i18n';
+export {
+  createBootstrapGateMessages,
+  type BootstrapGateMessages,
+} from './bootstrap/createBootstrapGateMessages.ts';

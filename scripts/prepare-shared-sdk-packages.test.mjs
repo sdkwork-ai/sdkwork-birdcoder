@@ -478,9 +478,9 @@ test('prepareSharedSdkPackages bridges shared appbase router runtime fallbacks i
     assert.ok(appbaseSpec, 'fixture must include sdkwork-appbase');
     const authPackageRoot = path.join(
       appbaseSpec.repoRoot,
+      'apps',
+      'sdkwork-iam-pc',
       'packages',
-      'pc-react',
-      'iam',
       'sdkwork-auth-pc-react',
     );
     fs.mkdirSync(authPackageRoot, { recursive: true });

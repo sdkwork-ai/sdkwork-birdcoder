@@ -6,7 +6,7 @@
 
 **Architecture:** Decompose the single `lib.rs` into ~23 route/service/repository crates under `crates/`, each with focused responsibility. Route crates own HTTP adaptation, service crates own business logic with port traits, repository crates own SQLite persistence, and host/server crates wire them together. The existing `iam_authority.rs` (2,549 lines) is replaced by consuming `sdkwork-appbase` IAM crates. The desktop crate is updated to depend on the new architecture.
 
-**Tech Stack:** Rust 2021, Axum 0.8, rusqlite 0.32 (existing; SQLx migration is a future phase), tokio, tower-http, serde, sdkwork-appbase IAM crates, sdkwork-terminal crates.
+**Tech Stack:** Rust 2021, Axum 0.8, rusqlite 0.32 (existing; SQLx migration is a future phase), tokio, tower-http, serde, sdkwork-iam crates, sdkwork-terminal crates.
 
 ---
 

@@ -14,6 +14,7 @@ const dependencyPath = (dependencyId, ...relativePathParts) =>
 const expectedDependencyFsAllowList = [
   workspaceRootDir,
   dependencyPath('sdkwork-appbase'),
+  dependencyPath('sdkwork-iam'),
   dependencyPath('sdkwork-core'),
   dependencyPath('sdkwork-drive'),
   dependencyPath('sdkwork-messaging'),
@@ -342,8 +343,8 @@ const rootAuthSurfaceAlias = findAliasEntry(
 );
 assert.equal(
   rootAuthSurfaceAlias.replacement,
-  dependencyPath('sdkwork-appbase', 'packages/pc-react/iam/sdkwork-auth-pc-react/src/index.ts'),
-  'Root Vite config should resolve @sdkwork/auth-pc-react from the sdkwork-appbase workspace dependency root.',
+  dependencyPath('sdkwork-iam', 'apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/index.ts'),
+  'Root Vite config should resolve @sdkwork/auth-pc-react from the sdkwork-iam workspace dependency root.',
 );
 assertSharedCoreBrowserFacadeAlias(rootConfig.resolve?.alias, 'Root Vite config');
 assertXtermCssAlias(rootConfig.resolve?.alias, 'Root Vite config');
@@ -440,13 +441,13 @@ assert.equal(
 );
 assert.equal(
   webConfig.build?.minify,
-  false,
-  'Web Vite build must avoid esbuild minification in the current Windows environment.',
+  'terser',
+  'Web Vite production build must use terser minification on all platforms.',
 );
 assert.equal(
   webConfig.build?.cssMinify,
-  false,
-  'Web Vite build must avoid esbuild CSS minification in the current Windows environment.',
+  true,
+  'Web Vite production build must minify CSS on all platforms.',
 );
 assertLucideRollupWarningFilter(
   webConfig.build?.rollupOptions?.onwarn,
@@ -729,9 +730,9 @@ for (const apiRuntimeModuleId of [
   );
 }
 for (const identitySurfaceModuleId of [
-  '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
-  '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/AuthPage.tsx',
-  '/repo/sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react/src/index.ts',
+  '/repo/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth.ts',
+  '/repo/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/pages/AuthPage.tsx',
+  '/repo/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react/src/index.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/src/pages/AuthPage.tsx',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/pages/UserPage.tsx',
 ]) {
@@ -759,13 +760,13 @@ assertReactRouterAliases(desktopConfig.resolve?.alias, 'Desktop Vite config');
 assertSearchPcReactAliases(desktopConfig.resolve?.alias, 'Desktop Vite config');
 assert.equal(
   desktopConfig.build?.minify,
-  false,
-  'Desktop Vite build must avoid esbuild minification in the current Windows environment.',
+  'terser',
+  'Desktop Vite production build must use terser minification on all platforms.',
 );
 assert.equal(
   desktopConfig.build?.cssMinify,
-  false,
-  'Desktop Vite build must avoid esbuild CSS minification in the current Windows environment.',
+  true,
+  'Desktop Vite production build must minify CSS on all platforms.',
 );
 assertLucideRollupWarningFilter(
   desktopConfig.build?.rollupOptions?.onwarn,

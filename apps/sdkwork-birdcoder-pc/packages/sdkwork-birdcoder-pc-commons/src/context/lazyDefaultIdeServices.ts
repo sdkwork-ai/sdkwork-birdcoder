@@ -3,9 +3,30 @@ import type {
   BirdCoderDefaultIdeServices,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 
+const APP_IDE_SERVICE_KEYS = [
+  'authService',
+  'catalogService',
+  'collaborationService',
+  'appRuntimeReadService',
+  'appRuntimeWriteService',
+  'deploymentService',
+  'documentService',
+  'fileSystemService',
+  'gitService',
+  'promptService',
+  'projectService',
+  'releaseService',
+  'teamService',
+  'vipMembershipService',
+  'workspaceService',
+] as const satisfies readonly BirdCoderDefaultIdeServiceKey[];
+
+type AppIdeServiceKey = (typeof APP_IDE_SERVICE_KEYS)[number];
+export type AppIdeServices = Pick<BirdCoderDefaultIdeServices, AppIdeServiceKey>;
+
 const defaultIdeServicePromiseByKey = new Map<
-  BirdCoderDefaultIdeServiceKey,
-  Promise<BirdCoderDefaultIdeServices[BirdCoderDefaultIdeServiceKey]>
+  AppIdeServiceKey,
+  Promise<AppIdeServices[AppIdeServiceKey]>
 >();
 
 type LazyServiceSyncMethodBridge<Service extends object> = (
@@ -22,11 +43,11 @@ function isVoidCleanup(value: unknown): value is () => void {
   return typeof value === 'function';
 }
 
-async function loadDefaultIdeService<K extends BirdCoderDefaultIdeServiceKey>(
+async function loadDefaultIdeService<K extends AppIdeServiceKey>(
   serviceKey: K,
-): Promise<BirdCoderDefaultIdeServices[K]> {
+): Promise<AppIdeServices[K]> {
   const cachedPromise = defaultIdeServicePromiseByKey.get(serviceKey) as
-    | Promise<BirdCoderDefaultIdeServices[K]>
+    | Promise<AppIdeServices[K]>
     | undefined;
   if (cachedPromise) {
     return cachedPromise;
@@ -35,12 +56,9 @@ async function loadDefaultIdeService<K extends BirdCoderDefaultIdeServiceKey>(
   const servicePromise = import('./defaultIdeServicesLoader.ts').then(
     ({ loadDefaultIdeServiceFromInfrastructure }) =>
       loadDefaultIdeServiceFromInfrastructure(serviceKey),
-  ) as Promise<BirdCoderDefaultIdeServices[K]>;
+  ) as Promise<AppIdeServices[K]>;
 
-  defaultIdeServicePromiseByKey.set(
-    serviceKey,
-    servicePromise as Promise<BirdCoderDefaultIdeServices[BirdCoderDefaultIdeServiceKey]>,
-  );
+  defaultIdeServicePromiseByKey.set(serviceKey, servicePromise);
   return servicePromise;
 }
 
@@ -122,19 +140,10 @@ function createLazyServiceProxy<Service extends object>(
   ) as Service;
 }
 
-export function createLazyDefaultIdeServices(): BirdCoderDefaultIdeServices {
+export function createLazyDefaultIdeServices(): AppIdeServices {
   return {
-    adminDeploymentService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('adminDeploymentService'),
-    ),
-    adminPolicyService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('adminPolicyService'),
-    ),
     authService: createLazyServiceProxy(async () => loadDefaultIdeService('authService')),
-    auditService: createLazyServiceProxy(async () => loadDefaultIdeService('auditService')),
-    catalogService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('catalogService'),
-    ),
+    catalogService: createLazyServiceProxy(async () => loadDefaultIdeService('catalogService')),
     collaborationService: createLazyServiceProxy(
       async () => loadDefaultIdeService('collaborationService'),
     ),
@@ -147,9 +156,7 @@ export function createLazyDefaultIdeServices(): BirdCoderDefaultIdeServices {
     deploymentService: createLazyServiceProxy(
       async () => loadDefaultIdeService('deploymentService'),
     ),
-    documentService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('documentService'),
-    ),
+    documentService: createLazyServiceProxy(async () => loadDefaultIdeService('documentService')),
     fileSystemService: createLazyServiceProxy(
       async () => loadDefaultIdeService('fileSystemService'),
       {
@@ -159,18 +166,13 @@ export function createLazyDefaultIdeServices(): BirdCoderDefaultIdeServices {
       },
     ),
     gitService: createLazyServiceProxy(async () => loadDefaultIdeService('gitService')),
-    promptService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('promptService'),
-    ),
+    promptService: createLazyServiceProxy(async () => loadDefaultIdeService('promptService')),
     projectService: createLazyServiceProxy(async () => loadDefaultIdeService('projectService')),
     releaseService: createLazyServiceProxy(async () => loadDefaultIdeService('releaseService')),
     teamService: createLazyServiceProxy(async () => loadDefaultIdeService('teamService')),
     vipMembershipService: createLazyServiceProxy(
       async () => loadDefaultIdeService('vipMembershipService'),
     ),
-    workspaceService: createLazyServiceProxy(
-      async () => loadDefaultIdeService('workspaceService'),
-    ),
+    workspaceService: createLazyServiceProxy(async () => loadDefaultIdeService('workspaceService')),
   };
 }
-

@@ -112,6 +112,14 @@ function listActiveMarkdownDocs(dir: string): string[] {
       continue;
     }
 
+    if (/docs\/architecture\/tech\/TECH-release-/.test(relativePath)) {
+      continue;
+    }
+
+    if (relativePath.startsWith('docs/archive/')) {
+      continue;
+    }
+
     const stats = statSync(absolutePath);
     if (stats.isDirectory()) {
       files.push(...listActiveMarkdownDocs(absolutePath));
@@ -333,7 +341,7 @@ assertActiveDocsUseCanonicalApiAndSdkLanguage();
 assertNoRetiredAdminApiSurfaceNaming();
 assertNoRetiredOpenApiSeedBuilder();
 assertNoRetiredBillingVipServerTypes();
-assert.equal(descriptor.gateway.routesBySurface.app, 82);
+assert.equal(descriptor.gateway.routesBySurface.app, 83);
 assert.equal(descriptor.gateway.routesBySurface.backend, 49);
 assert.deepEqual(descriptor.surfaces, ['app', 'backend']);
 assert.equal(
@@ -425,7 +433,7 @@ assert.deepEqual(openApiDocument.tags.map((tag) => tag.name), [
   'system',
   'templates',
 ]);
-assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.app, 82);
+assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.app, 83);
 assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.backend, 49);
 assert.equal(
   'basePath' in openApiDocument['x-sdkwork-api-cloud-gateway'],

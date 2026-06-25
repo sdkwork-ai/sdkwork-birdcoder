@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode, Ref } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import type {
   BirdCoderChatMessage,
   BirdCoderChatMessageView,
@@ -54,7 +54,7 @@ export interface ChatMessageRenderContext {
 export interface ChatMessageRendererProps {
   view: BirdCoderChatMessageView;
   context: ChatMessageRenderContext;
-  messageRef?: Ref<HTMLDivElement>;
+  messageRef?: (element: HTMLDivElement | null) => void;
 }
 
 export type ChatMessageRendererComponent = ComponentType<ChatMessageRendererProps>;

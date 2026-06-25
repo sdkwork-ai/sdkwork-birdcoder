@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import i18n from 'i18next';
 
 export interface ErrorBoundaryProps {
   children: ReactNode;
@@ -36,9 +37,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <div className="flex h-full w-full items-center justify-center bg-[#0e0e11] px-6 text-white">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#18181b] p-6 shadow-2xl">
             <div className="flex flex-col gap-4">
-              <div className="text-lg font-semibold text-red-400">Application Error</div>
+              <div className="text-lg font-semibold text-red-400">{i18n.t('app.somethingWentWrong')}</div>
               <div className="text-sm text-gray-400">
-                An unexpected error occurred. Please try refreshing the page.
+                {i18n.t('app.unexpectedError')}
               </div>
               <button
                 className="mt-2 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors"
@@ -47,7 +48,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   window.location.reload();
                 }}
               >
-                Refresh
+                {i18n.t('app.refresh')}
               </button>
             </div>
           </div>

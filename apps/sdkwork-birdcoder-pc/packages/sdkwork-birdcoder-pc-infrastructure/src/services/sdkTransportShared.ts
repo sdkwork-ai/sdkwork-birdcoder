@@ -16,6 +16,7 @@ import {
   type BirdCoderTeamSummary,
   type BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-pc-types';
+import { BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-core/birdCoderApiTransportError';
 import { BIRDCODER_DEFAULT_LOCAL_TENANT_ID } from '../storage/bootstrapConsoleCatalog.ts';
 import {
   normalizeBirdCoderApiQueryValue,
@@ -354,16 +355,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 async function buildBirdCoderApiError(
   response: Response,
   request: BirdCoderApiTransportRequest,
-): Promise<Error> {
+): Promise<BirdCoderApiTransportError> {
   let detail = '';
+  let code: string | undefined;
+  let businessCode: string | undefined;
 
   try {
     const rawBody = await response.text();
     const trimmedBody = rawBody.trim();
     if (!trimmedBody) {
-      return new Error(
-        `BirdCoder API request failed: ${request.method} ${request.path} -> ${response.status}`,
-      );
+      return new BirdCoderApiTransportError({
+        detail,
+        httpStatus: response.status,
+        method: request.method,
+        path: request.path,
+      });
     }
 
     try {
@@ -376,6 +382,14 @@ async function buildBirdCoderApiError(
             ? parsedBody.data.message.trim()
             : '';
         detail = dataMessage || directMessage;
+        code = typeof parsedBody.code === 'string' ? parsedBody.code.trim() : undefined;
+        businessCode =
+          typeof parsedBody.businessCode === 'string'
+            ? parsedBody.businessCode.trim()
+            : undefined;
+        if (!code && isRecord(parsedBody.data) && typeof parsedBody.data.code === 'string') {
+          code = parsedBody.data.code.trim();
+        }
       }
     } catch {
       detail = trimmedBody;
@@ -384,11 +398,14 @@ async function buildBirdCoderApiError(
     // Fall back to the status-only error below.
   }
 
-  return new Error(
-    detail
-      ? `BirdCoder API request failed: ${request.method} ${request.path} -> ${response.status} (${detail})`
-      : `BirdCoder API request failed: ${request.method} ${request.path} -> ${response.status}`,
-  );
+  return new BirdCoderApiTransportError({
+    businessCode,
+    code,
+    detail: detail || undefined,
+    httpStatus: response.status,
+    method: request.method,
+    path: request.path,
+  });
 }
 
 export function createBirdCoderHttpApiTransport({

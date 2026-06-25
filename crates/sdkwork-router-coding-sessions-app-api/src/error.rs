@@ -1,11 +1,13 @@
-use axum::http::StatusCode;
+use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_errors::{
     client_safe_data_access_problem, client_safe_event_publish_problem,
-    client_safe_internal_problem, client_safe_provider_problem, ProblemDetailsPayload,
+    client_safe_internal_problem, client_safe_provider_problem,
 };
+
+pub use sdkwork_birdcoder_errors::ProblemDetailsPayload;
 
 #[derive(Debug)]
 pub struct AppError {
@@ -83,7 +85,12 @@ impl From<CodingSessionError> for AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        (self.status, Json(self.body)).into_response()
+        let mut response = (self.status, Json(self.body)).into_response();
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/problem+json"),
+        );
+        response
     }
 }
 

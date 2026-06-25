@@ -35,37 +35,54 @@ pub fn wire_adapters(config: &BirdServerConfig) -> Adapters {
     }
 }
 
-fn kernel_host() -> Arc<BirdcoderKernelHost> {
-    static HOST: OnceLock<Arc<BirdcoderKernelHost>> = OnceLock::new();
+fn kernel_host() -> Result<Arc<BirdcoderKernelHost>, String> {
+    static HOST: OnceLock<Result<Arc<BirdcoderKernelHost>, String>> = OnceLock::new();
     HOST.get_or_init(|| {
-        Arc::new(
-            BirdcoderKernelHost::bootstrap()
-                .unwrap_or_else(|error| panic!("BirdCoder kernel host bootstrap failed: {error}")),
-        )
+        BirdcoderKernelHost::bootstrap()
+            .map(Arc::new)
+            .map_err(|error| format!("BirdCoder kernel host bootstrap failed: {error}"))
     })
     .clone()
 }
 
 pub fn wire_code_engine_provider(config: &BirdServerConfig) -> Arc<dyn CodeEngineProvider> {
+    let host = match kernel_host() {
+        Ok(host) => Some(host),
+        Err(error) => {
+            tracing::error!(
+                error = %error,
+                "BirdCoder kernel host unavailable; coding session turns will fail until kernel bootstrap succeeds"
+            );
+            None
+        }
+    };
+
     Arc::new(KernelBridgeCodeEngineProvider {
-        host: kernel_host(),
+        host,
         project_root: config.project_root.clone(),
     })
 }
 
 pub fn wire_engine_validator() -> Arc<dyn EngineValidator> {
-    Arc::new(CatalogEngineValidator {
-        host: kernel_host(),
-    })
+    let host = kernel_host().ok();
+    Arc::new(CatalogEngineValidator { host })
 }
 
 struct KernelBridgeCodeEngineProvider {
-    host: Arc<BirdcoderKernelHost>,
+    host: Option<Arc<BirdcoderKernelHost>>,
     project_root: Option<String>,
 }
 
 struct CatalogEngineValidator {
-    host: Arc<BirdcoderKernelHost>,
+    host: Option<Arc<BirdcoderKernelHost>>,
+}
+
+fn require_kernel_host(
+    host: &Option<Arc<BirdcoderKernelHost>>,
+) -> Result<Arc<BirdcoderKernelHost>, CodingSessionError> {
+    host.as_ref()
+        .cloned()
+        .ok_or_else(|| CodingSessionError::Repository("BirdCoder kernel host is unavailable.".into()))
 }
 
 #[async_trait::async_trait]
@@ -84,7 +101,7 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
             .clone()
             .unwrap_or_else(|| pending.operation.operation_id.clone());
         let operation_id = pending.operation.operation_id.clone();
-        let host = Arc::clone(&self.host);
+        let host = require_kernel_host(&self.host)?;
 
         let result = tokio::task::spawn_blocking(move || host.execute_turn(&request))
             .await
@@ -130,7 +147,7 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
             return Err(CodingSessionError::InvalidInput("decision is required.".into()));
         }
 
-        let host = Arc::clone(&self.host);
+        let host = require_kernel_host(&self.host)?;
         let decision = CodeEngineApprovalDecisionRecord {
             native_session_id: native_session_id.map(str::to_string),
             approval_id: checkpoint_id.to_string(),
@@ -159,7 +176,7 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
             return Err(CodingSessionError::InvalidInput("answer is required.".into()));
         }
 
-        let host = Arc::clone(&self.host);
+        let host = require_kernel_host(&self.host)?;
         let answer = CodeEngineUserQuestionAnswerRecord {
             native_session_id: native_session_id.map(str::to_string),
             question_id: question_id.to_string(),
@@ -186,7 +203,7 @@ impl EngineValidator for CatalogEngineValidator {
         engine_id: &str,
         _host_mode: &str,
     ) -> Result<AuthoritativeEngineRuntimeProfile, CodingSessionError> {
-        self.host
+        require_kernel_host(&self.host)?
             .validate_engine_id(engine_id)
             .map_err(CodingSessionError::InvalidInput)?;
 

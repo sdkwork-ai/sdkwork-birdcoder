@@ -61,8 +61,11 @@ if (!apiServerSources.includes('AnyPool')) {
 if (!apiServerSources.includes('DatabasePool::Postgres')) {
   fail('api-server health checks must probe PostgreSQL pools when configured');
 }
-if (apiServerSources.includes('rusqlite')) {
-  fail('api-server bootstrap must not reference rusqlite');
+if (!apiServerSources.includes('bootstrap_birdcoder_database(pool.clone())')) {
+  fail('api-server database bootstrap must use database-host lifecycle for all engines');
+}
+if (apiServerSources.includes('ensure_schema')) {
+  fail('api-server database bootstrap must not keep inline ensure_schema after lifecycle unification');
 }
 
 const sqlxRepoCrates = [

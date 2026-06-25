@@ -94,6 +94,38 @@ async fn metrics_endpoint_returns_prometheus_payload() {
 }
 
 #[tokio::test]
+async fn openapi_endpoint_returns_canonical_snapshot() {
+    let config = smoke_config("bootstrap-smoke-openapi.db");
+
+    let app = sdkwork_birdcoder_api_server::bootstrap::build_app(&config)
+        .await
+        .expect("build_app should succeed with valid config");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/openapi.json")
+                .body(Body::empty())
+                .expect("build openapi request"),
+        )
+        .await
+        .expect("serve openapi request");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read openapi body");
+    let text = String::from_utf8(body.to_vec()).expect("openapi body must be utf-8");
+    assert!(
+        text.contains("\"openapi\"") && text.contains("SDKWork BirdCoder Coding Server API"),
+        "openapi payload must expose canonical coding-server snapshot"
+    );
+
+    let _ = std::fs::remove_file(&config.sqlite_file);
+}
+
+#[tokio::test]
 async fn build_app_requires_authentication_for_system_health() {
     let config = smoke_config("bootstrap-smoke-full.db");
 
@@ -203,6 +235,33 @@ async fn platform_workspaces_endpoint_requires_authentication() {
         .expect("serve list workspaces request");
 
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+    let _ = std::fs::remove_file(&config.sqlite_file);
+}
+
+#[tokio::test]
+async fn backend_iam_tenants_route_is_registered() {
+    let config = smoke_config("bootstrap-smoke-iam-backend.db");
+
+    let app = sdkwork_birdcoder_api_server::bootstrap::build_app(&config)
+        .await
+        .expect("build_app should succeed");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/backend/v3/api/iam/tenants")
+                .body(Body::empty())
+                .expect("build backend iam tenants request"),
+        )
+        .await
+        .expect("serve backend iam tenants request");
+
+    assert_ne!(
+        response.status(),
+        StatusCode::NOT_FOUND,
+        "federated sdkwork-iam backend router must register /backend/v3/api/iam/tenants"
+    );
 
     let _ = std::fs::remove_file(&config.sqlite_file);
 }

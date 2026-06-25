@@ -7,6 +7,7 @@ const persistedStatePath = new URL(
   import.meta.url,
 );
 const appSource = readBirdcoderAppShellSource();
+const persistedStateSource = fs.readFileSync(persistedStatePath, 'utf8');
 
 assert.match(
   persistedStateSource,

@@ -247,7 +247,7 @@ export const CodeWorkspaceOverlays = memo(function CodeWorkspaceOverlays({
             <input
               type="text"
               autoFocus
-              placeholder="Search files by name..."
+              placeholder={t('studio.searchFilesByName')}
               className="flex-1 bg-transparent border-none outline-none text-sm text-gray-200 px-3 py-1.5 placeholder:text-gray-500"
               value={quickOpenQuery}
               onChange={(event) => setQuickOpenQuery(event.target.value)}

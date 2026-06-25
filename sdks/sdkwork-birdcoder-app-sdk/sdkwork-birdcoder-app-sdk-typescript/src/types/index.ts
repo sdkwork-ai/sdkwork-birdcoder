@@ -1745,6 +1745,10 @@ export interface PlatformWorkspacesRealtimeSubscribeQuery extends Record<string,
   sessionId?: string;
 }
 
+export interface PlatformWorkspacesRetrievePathParams {
+  workspaceId: string;
+}
+
 export interface PlatformWorkspacesUpdatePathParams {
   workspaceId: string;
 }
@@ -2852,6 +2856,24 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "public": false,
     "resource": "platform.workspaces.realtime",
     "summary": "Subscribe to workspace realtime invalidation events",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.workspaces.retrieve",
+    "method": "GET",
+    "operationId": "workspaces.retrieve",
+    "path": "/app/v3/api/workspaces/{workspaceId}",
+    "pathParamNames": [
+      "workspaceId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "platform.workspaces.read",
+    "public": false,
+    "resource": "platform.workspaces",
+    "summary": "Get workspace",
     "tag": "platform",
     "tenantScope": "tenant"
   },

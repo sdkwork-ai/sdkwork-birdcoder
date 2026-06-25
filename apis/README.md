@@ -29,6 +29,12 @@ BirdCoder consumes `sdkwork-utils` through:
 
 Verification: `pnpm run check:utils-standard`
 
+## Drive Upload Integration
+
+BirdCoder routes composer and attachment uploads through `@sdkwork/drive-app-sdk` and the Drive uploader client. Server-side multipart upload handlers must use Drive uploader services when introduced.
+
+Verification: `pnpm run check:drive-standard`
+
 ## Owner
 
 SDKWork Birdcoder team.

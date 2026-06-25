@@ -34,9 +34,9 @@ try {
   assert.equal(writtenDocument.info.version, 'v1');
   assert.equal(writtenDocument.servers[0]?.url, '/');
   assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCatalogPath, '/app/v3/api/system/routes');
-  assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCount, 130);
+  assert.equal(writtenDocument['x-sdkwork-api-cloud-gateway']?.routeCount, 132);
   assert.deepEqual(writtenDocument['x-sdkwork-api-cloud-gateway']?.routesBySurface, {
-    app: 81,
+    app: 83,
     backend: 49,
   });
   const publishedOperationIds = Object.values(writtenDocument.paths).flatMap((methods) =>

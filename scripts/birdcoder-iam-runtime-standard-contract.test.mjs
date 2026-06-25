@@ -104,10 +104,10 @@ for (const [label, config] of [
   ['tsconfig.runtime.json', runtimeTsconfig],
 ]) {
   for (const [specifier, target] of [
-    ['@sdkwork/iam-contracts', '../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts/src/index.ts'],
-    ['@sdkwork/iam-runtime', '../sdkwork-appbase/packages/common/iam/sdkwork-iam-runtime/src/index.ts'],
-    ['@sdkwork/iam-service', '../sdkwork-appbase/packages/common/iam/sdkwork-iam-service/src/index.ts'],
-    ['@sdkwork/iam-sdk-ports', '../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports/src/index.ts'],
+    ['@sdkwork/iam-contracts', '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts/src/index.ts'],
+    ['@sdkwork/iam-runtime', '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime/src/index.ts'],
+    ['@sdkwork/iam-service', '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service/src/index.ts'],
+    ['@sdkwork/iam-sdk-ports', '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports/src/index.ts'],
     ['@sdkwork/runtime-bootstrap', '../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap/src/index.ts'],
   ]) {
     assert.deepEqual(
@@ -118,8 +118,8 @@ for (const [label, config] of [
   }
 }
 for (const dependencyName of [
-  '@sdkwork/appbase-app-sdk',
-  '@sdkwork/appbase-backend-sdk',
+  '@sdkwork/iam-app-sdk',
+  '@sdkwork/iam-backend-sdk',
   '@sdkwork/drive-app-sdk',
   '@sdkwork/messaging-app-sdk',
   '@sdkwork/sdk-common',
@@ -186,6 +186,16 @@ assertNoMatch(
   'sdkwork-birdcoder-infrastructure must not export the retired user-center runtime bridge.',
 );
 assertMatch(
+  iamRuntimeSource,
+  /startBirdCoderAppSessionRefreshLoop/u,
+  'BirdCoder IAM runtime must start proactive app session refresh before auth-protected SDK calls expire.',
+);
+assertMatch(
+  sdkClientsSource,
+  /redirectBrowserToBirdCoderProtectedLogin/u,
+  'BirdCoder SDK client factory must redirect session auth failures to the canonical hash auth login route.',
+);
+assertMatch(
   sdkClientsSource,
   /handleBirdCoderSdkSessionAuthError/u,
   'BirdCoder SDK client factory must clear IAM session state on SDK auth errors.',
@@ -212,12 +222,12 @@ assertNoMatch(
 );
 assertMatch(
   iamRuntimeSource,
-  /from ['"]@sdkwork\/appbase-app-sdk['"]/u,
+  /from ['"]@sdkwork\/iam-app-sdk['"]/u,
   'BirdCoder IAM runtime must construct the appbase app SDK client, not use the product app SDK as the login authority.',
 );
 assertNoMatch(
   iamRuntimeSource,
-  /from ['"]@sdkwork\/appbase-backend-sdk['"]|createAppbaseBackendClient|appbaseBackendApiBaseUrl/u,
+  /from ['"]@sdkwork\/iam-backend-sdk['"]|createAppbaseBackendClient|appbaseBackendApiBaseUrl/u,
   'BirdCoder app auth runtime must not construct appbase backend SDK clients; backend IAM belongs to explicit backend-admin boundaries.',
 );
 assertMatch(

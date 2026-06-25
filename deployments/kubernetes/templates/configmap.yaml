@@ -9,3 +9,14 @@ data:
   SDKWORK_ENVIRONMENT: {{ .Values.runtime.environment | quote }}
   OTEL_SERVICE_NAME: {{ .Values.runtime.otelServiceName | quote }}
   SDKWORK_BIRDCODER_DATABASE_ENGINE: {{ .Values.database.engine | quote }}
+  SDKWORK_BIRDCODER_REALTIME_BACKEND: {{ .Values.realtime.backend | quote }}
+  SDKWORK_BIRDCODER_REDIS_ENABLED: {{ .Values.redis.enabled | quote }}
+  SDKWORK_BIRDCODER_REDIS_HOST: {{ .Values.redis.host | quote }}
+  SDKWORK_BIRDCODER_REDIS_PORT: {{ .Values.redis.port | quote }}
+  SDKWORK_BIRDCODER_REDIS_DATABASE: {{ .Values.redis.database | quote }}
+  SDKWORK_BIRDCODER_REDIS_KEY_PREFIX: {{ .Values.redis.keyPrefix | quote }}
+  SDKWORK_BIRDCODER_REDIS_TLS: {{ .Values.redis.tls | quote }}
+  BIRDCODER_SERVER_PORT: {{ .Values.service.port | quote }}
+  BIRDCODER_CODING_SERVER_SQLITE_FILE: "/var/lib/sdkwork-birdcoder/data.sqlite3"
+  SDKWORK_BIRDCODER_APP_ROOT: "/opt/sdkwork-birdcoder"
+  SDKWORK_OPENAPI_SNAPSHOT_PATH: "/opt/sdkwork-birdcoder/openapi/coding-server-v1.json"

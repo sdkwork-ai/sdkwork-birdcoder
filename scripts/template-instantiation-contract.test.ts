@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const rootDir = process.cwd();
+const { buildCanonicalDocPathIndex, readCanonicalDoc } = await import('./lib/canonical-doc-paths.mjs');
+const canonicalDocIndex = buildCanonicalDocPathIndex(rootDir);
 const typesEntryModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
   import.meta.url,
@@ -47,18 +49,21 @@ assert.equal(
   true,
 );
 
-const architectureSource = fs.readFileSync(
-  path.join(rootDir, 'docs/架构/13-规则-技能-MCP-知识系统标准.md'),
-  'utf8',
-);
-const runtimeSource = fs.readFileSync(
-  path.join(rootDir, 'docs/架构/19-统一会话运行时-Prompt-SkillHub-AppTemplate标准.md'),
-  'utf8',
-);
-const stepSource = fs.readFileSync(
-  path.join(rootDir, 'docs/step/16-Prompt-SkillHub-AppTemplate-项目模板体系.md'),
-  'utf8',
-);
+const architectureSource = readCanonicalDoc(
+  rootDir,
+  'docs/架构/13-规则-技能-MCP-知识系统标准.md',
+  canonicalDocIndex,
+).source;
+const runtimeSource = readCanonicalDoc(
+  rootDir,
+  'docs/架构/19-统一会话运行时-Prompt-SkillHub-AppTemplate标准.md',
+  canonicalDocIndex,
+).source;
+const stepSource = readCanonicalDoc(
+  rootDir,
+  'docs/step/16-Prompt-SkillHub-AppTemplate-项目模板体系.md',
+  canonicalDocIndex,
+).source;
 const promptSource = fs.readFileSync(
   path.join(rootDir, 'docs/prompts/反复执行Step指令.md'),
   'utf8',

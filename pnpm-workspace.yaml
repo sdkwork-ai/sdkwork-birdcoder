@@ -4,26 +4,28 @@ packages:
   # PC app root packages
   - 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*'
   # H5 app root packages
+  - 'apps/sdkwork-birdcoder-h5'
   - 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*'
   # PC app root SDKs
   - 'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript'
   - 'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript'
-  - '../sdkwork-appbase/packages/common/iam/sdkwork-iam-contracts'
-  - '../sdkwork-appbase/packages/common/iam/sdkwork-iam-runtime'
-  - '../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-adapter'
-  - '../sdkwork-appbase/packages/common/iam/sdkwork-iam-sdk-ports'
-  - '../sdkwork-appbase/packages/common/iam/sdkwork-iam-service'
+  - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts'
+  - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry'
+  - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime'
+  - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-adapter'
+  - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports'
+  - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service'
   - '../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap'
-  - '../sdkwork-appbase/sdks/sdkwork-appbase-app-sdk/sdkwork-appbase-app-sdk-typescript/generated/server-openapi'
-  - '../sdkwork-appbase/sdks/sdkwork-appbase-backend-sdk/sdkwork-appbase-backend-sdk-typescript/generated/server-openapi'
+  - '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi'
+  - '../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi'
   - '../sdkwork-sdk-commons/sdkwork-sdk-common-typescript'
   - '../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react'
   - '../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react'
   - '../sdkwork-search/packages/common/search/sdkwork-search-contracts'
   - '../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react'
-  - '../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-runtime-pc-react'
-  - '../sdkwork-appbase/packages/pc-react/iam/sdkwork-auth-pc-react'
-  - '../sdkwork-appbase/packages/pc-react/iam/sdkwork-user-pc-react'
+  - '../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react'
+  - '../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react'
+  - '../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react'
   - '../sdkwork-core/sdkwork-core-pc-react'
   - '../sdkwork-ui/sdkwork-ui-pc-react'
   - '../sdkwork-terminal/apps/sdkwork-terminal-pc'
@@ -131,6 +133,7 @@ catalog:
   unist-util-position: ^5.0.0
   unist-util-stringify-position: ^4.0.0
   unist-util-visit: ^5.1.0
+  terser: ^5.39.0
   unist-util-visit-parents: ^6.0.2
   use-sync-external-store: ^1.6.0
   vfile: ^6.0.3

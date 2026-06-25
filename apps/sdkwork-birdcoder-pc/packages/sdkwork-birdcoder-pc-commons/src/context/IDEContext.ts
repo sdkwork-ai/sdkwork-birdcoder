@@ -1,9 +1,6 @@
 import React, { type ReactNode, useRef } from 'react';
 import type {
-  IAdminDeploymentService,
-  IAdminPolicyService,
   IAuthService,
-  IAuditService,
   ICatalogService,
   ICollaborationService,
   IAppRuntimeReadService,
@@ -28,15 +25,12 @@ import {
 
 export interface IDEProviderProps {
   children: ReactNode;
-  adminDeploymentService?: IAdminDeploymentService;
-  adminPolicyService?: IAdminPolicyService;
   catalogService?: ICatalogService;
   workspaceService?: IWorkspaceService;
   projectService?: IProjectService;
   collaborationService?: ICollaborationService;
   appRuntimeReadService?: IAppRuntimeReadService;
   appRuntimeWriteService?: IAppRuntimeWriteService;
-  auditService?: IAuditService;
   deploymentService?: IDeploymentService;
   documentService?: IDocumentService;
   releaseService?: IReleaseService;
@@ -50,15 +44,12 @@ export interface IDEProviderProps {
 
 export const IDEProvider = ({
   children,
-  adminDeploymentService,
-  adminPolicyService,
   catalogService,
   workspaceService,
   projectService,
   collaborationService,
   appRuntimeReadService,
   appRuntimeWriteService,
-  auditService,
   deploymentService,
   documentService,
   releaseService,
@@ -77,15 +68,12 @@ export const IDEProvider = ({
     IDEContext.Provider,
     {
       value: {
-        adminDeploymentService: adminDeploymentService ?? defaultContext.adminDeploymentService,
-        adminPolicyService: adminPolicyService ?? defaultContext.adminPolicyService,
         catalogService: catalogService ?? defaultContext.catalogService,
         workspaceService: workspaceService ?? defaultContext.workspaceService,
         projectService: projectService ?? defaultContext.projectService,
         collaborationService: collaborationService ?? defaultContext.collaborationService,
         appRuntimeReadService: appRuntimeReadService ?? defaultContext.appRuntimeReadService,
         appRuntimeWriteService: appRuntimeWriteService ?? defaultContext.appRuntimeWriteService,
-        auditService: auditService ?? defaultContext.auditService,
         deploymentService: deploymentService ?? defaultContext.deploymentService,
         documentService: documentService ?? defaultContext.documentService,
         releaseService: releaseService ?? defaultContext.releaseService,
@@ -102,4 +90,3 @@ export const IDEProvider = ({
 };
 
 export { useIDEServices };
-

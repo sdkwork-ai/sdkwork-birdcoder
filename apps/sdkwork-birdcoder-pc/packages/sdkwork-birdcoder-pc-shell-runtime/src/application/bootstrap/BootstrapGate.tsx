@@ -4,12 +4,20 @@ type BootstrapStatus = 'booting' | 'failed' | 'ready';
 const DEFAULT_BOOTSTRAP_TIMEOUT_MS = 30_000;
 const BOOTSTRAP_IDLE_START_TIMEOUT_MS = 250;
 
+export interface BootstrapGateMessages {
+  bootingDescription: string;
+  retry: string;
+  startingTitle: string;
+  startupFailed: string;
+  startupTimeout: (seconds: number) => string;
+  unknownFailure: string;
+}
+
 export interface BootstrapGateProps {
   bootstrap: () => Promise<void>;
   bootstrapTimeoutMs?: number;
-  bootingDescription?: string;
   children: ReactNode;
-  title?: string;
+  messages: BootstrapGateMessages;
 }
 
 interface DeferredBootstrapStart {
@@ -34,12 +42,15 @@ type BootstrapSchedulingGlobal = typeof globalThis & {
   requestIdleCallback?: BootstrapRequestIdleCallback;
 };
 
+const BOOTSTRAP_TIMEOUT_ERROR = 'BIRDCODER_BOOTSTRAP_TIMEOUT';
+const BOOTSTRAP_UNKNOWN_ERROR = 'BIRDCODER_BOOTSTRAP_UNKNOWN';
+
 function normalizeBootstrapError(error: unknown): Error {
   if (error instanceof Error) {
     return error;
   }
 
-  return new Error(typeof error === 'string' ? error : 'Unknown bootstrap failure');
+  return new Error(BOOTSTRAP_UNKNOWN_ERROR);
 }
 
 function normalizeBootstrapTimeoutMs(value: number | null | undefined): number {
@@ -55,7 +66,7 @@ function createBootstrapTimeoutPromise(timeoutMs: number): {
   let timeoutHandle: ReturnType<typeof globalThis.setTimeout> | null = null;
   const promise = new Promise<never>((_, reject) => {
     timeoutHandle = globalThis.setTimeout(() => {
-      reject(new Error(`Startup did not complete within ${Math.ceil(timeoutMs / 1000)} seconds.`));
+      reject(new Error(BOOTSTRAP_TIMEOUT_ERROR));
     }, timeoutMs);
   });
 
@@ -100,14 +111,26 @@ function scheduleBootstrapStart(callback: () => void): DeferredBootstrapStart {
 export function BootstrapGate({
   bootstrap,
   bootstrapTimeoutMs = DEFAULT_BOOTSTRAP_TIMEOUT_MS,
-  bootingDescription = 'Preparing the local runtime and loading the application shell.',
   children,
-  title = 'Starting SDKWork BirdCoder',
+  messages,
 }: BootstrapGateProps) {
   const bootstrapRef = useRef(bootstrap);
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<Error | null>(null);
   const [status, setStatus] = useState<BootstrapStatus>('booting');
+  const timeoutSeconds = Math.ceil(normalizeBootstrapTimeoutMs(bootstrapTimeoutMs) / 1000);
+
+  const resolveErrorMessage = (bootstrapError: Error) => {
+    if (bootstrapError.message === BOOTSTRAP_TIMEOUT_ERROR) {
+      return messages.startupTimeout(timeoutSeconds);
+    }
+
+    if (bootstrapError.message === BOOTSTRAP_UNKNOWN_ERROR) {
+      return messages.unknownFailure;
+    }
+
+    return bootstrapError.message;
+  };
 
   useEffect(() => {
     bootstrapRef.current = bootstrap;
@@ -175,18 +198,18 @@ export function BootstrapGate({
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-white/80" />
           <div className="min-w-0">
-            <div className="truncate text-base font-semibold">{title}</div>
+            <div className="truncate text-base font-semibold">{messages.startingTitle}</div>
             <div className="mt-1 text-sm text-gray-400">
               {status === 'failed'
-                ? 'Startup did not complete. Review the error and retry.'
-                : bootingDescription}
+                ? messages.startupFailed
+                : messages.bootingDescription}
             </div>
           </div>
         </div>
 
         {error ? (
           <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">
-            {error.message}
+            {error ? resolveErrorMessage(error) : null}
           </div>
         ) : null}
 
@@ -197,7 +220,7 @@ export function BootstrapGate({
               className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-gray-200"
               onClick={() => setAttempt((previousAttempt) => previousAttempt + 1)}
             >
-              Retry
+              {messages.retry}
             </button>
           </div>
         ) : null}

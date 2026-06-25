@@ -13,6 +13,7 @@ export const BIRDCODER_APP_SHELL_SOURCE_RELATIVE_PATHS = Object.freeze([
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/workbenchRecoveryPersistence.ts',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppWindowControlIcons.tsx',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppSurfaceLoader.tsx',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppConstants.ts',
 ]);
 
 export function readBirdcoderAppShellSource(rootDir = process.cwd()) {

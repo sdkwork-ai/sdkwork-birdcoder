@@ -45,7 +45,7 @@ pub async fn get_current_membership(
     Query(query): Query<MembershipQuery>,
 ) -> Result<
     Json<ApiDataEnvelope<CommerceMembershipCurrentPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
@@ -83,7 +83,7 @@ pub async fn list_membership_package_groups(
     State(state): State<MembershipAppState>,
 ) -> Result<
     Json<ApiListEnvelope<CommerceMembershipPackageGroupPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);

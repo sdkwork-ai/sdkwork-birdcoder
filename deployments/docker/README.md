@@ -1,22 +1,26 @@
 # SDKWork BirdCoder Container Deployment
 
-This directory follows the same packaging role as `apps/claw-studio/deploy/docker`: source-side
-deployment templates that are copied into packaged release bundles.
+This directory follows the SDKWork deployment standard: source-side templates copied into
+packaged release bundles under `deploy/docker/`.
 
 Base deployment:
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml up -d
+docker compose -f deployments/docker/docker-compose.yml up -d
 ```
 
 NVIDIA CUDA overlay:
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.nvidia-cuda.yml up -d
+docker compose -f deployments/docker/docker-compose.yml -f deployments/docker/docker-compose.nvidia-cuda.yml up -d
 ```
 
 AMD ROCm overlay:
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml -f deploy/docker/docker-compose.amd-rocm.yml up -d
+docker compose -f deployments/docker/docker-compose.yml -f deployments/docker/docker-compose.amd-rocm.yml up -d
 ```
+
+Container images bundle `database/` and the OpenAPI snapshot under `/opt/sdkwork-birdcoder`.
+Set `SDKWORK_BIRDCODER_APP_ROOT` and `SDKWORK_OPENAPI_SNAPSHOT_PATH` when overriding the default
+layout.

@@ -16,6 +16,7 @@ use crate::bootstrap::route_manifest::birdcoder_product_app_api_routes;
 use crate::bootstrap::state::AppState;
 use crate::health;
 use crate::observability;
+use crate::openapi;
 
 fn resolve_http_metrics_dimensions() -> HttpMetricsDimensions {
     let mut dimensions = HttpMetricsDimensions::default()
@@ -59,6 +60,7 @@ pub async fn build_router(
             workspace_service: state.services.workspace.clone(),
             project_service: state.services.project.clone(),
             deployment_service: state.services.deployment.clone(),
+            team_service: state.services.team.clone(),
             realtime_hub: state.services.realtime_hub.clone(),
         });
 
@@ -81,9 +83,10 @@ pub async fn build_router(
     let deployment_backend_router = sdkwork_router_deployment_backend_api::build_deployment_backend_router()
         .with_state(DeploymentBackendAppState {
             service: state.services.deployment.clone(),
+            team_service: state.services.team.clone(),
         });
 
-    let iam_router = crate::bootstrap::iam::wire_iam_app_router()
+    let iam_router = crate::bootstrap::iam::wire_iam_routers()
         .await
         .map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
 
@@ -100,7 +103,8 @@ pub async fn build_router(
     let database_pool = state.database_pool.clone();
     let app = Router::new()
         .merge(iam_router)
-        .merge(build_protected_app_router(protected, config, metrics.clone()).await)
+        .merge(build_protected_app_router(protected, config, metrics.clone()).await?)
+        .route("/openapi.json", axum::routing::get(openapi::serve_openapi_json))
         .route(
             "/health",
             axum::routing::get(move || {

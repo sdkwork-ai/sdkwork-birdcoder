@@ -52,6 +52,19 @@ function normalizeRelativeReleasePath(value: string | undefined): string | null 
   return normalizedValue.length > 0 ? normalizedValue : null;
 }
 
+function syncDeploymentOpenApiMirrors(rootDir: string, serializedDocument: string): void {
+  const mirrorPaths = [
+    'deployments/server-windows/x64/openapi/coding-server-v1.json',
+    'deployments/server-win32/x64/openapi/coding-server-v1.json',
+  ];
+
+  for (const relativePath of mirrorPaths) {
+    const absolutePath = path.join(rootDir, relativePath);
+    fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+    fs.writeFileSync(absolutePath, serializedDocument, 'utf8');
+  }
+}
+
 function syncReleaseOpenApiSidecars(rootDir: string, serializedDocument: string): void {
   const releaseAssetsDir = path.join(rootDir, 'artifacts', 'release');
   const manifestPath = path.join(releaseAssetsDir, 'release-manifest.json');
@@ -117,6 +130,7 @@ export function writeBirdCoderCodingServerOpenApiSnapshot(
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, serializedDocument, 'utf8');
+  syncDeploymentOpenApiMirrors(rootDir, serializedDocument);
   syncReleaseOpenApiSidecars(rootDir, serializedDocument);
 
   return {

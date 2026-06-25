@@ -18,7 +18,7 @@ assert.match(
 
 assert.match(
   appSource,
-  /const DESKTOP_WINDOW_FRAME_STATE_CACHE_TTL_MS = \d+;/,
+  /export const DESKTOP_WINDOW_FRAME_STATE_CACHE_TTL_MS = \d+;/,
   'Desktop window frame state synchronization must keep a short verified-state cache so accidental repeated calls do not keep polling isMaximized over IPC.',
 );
 

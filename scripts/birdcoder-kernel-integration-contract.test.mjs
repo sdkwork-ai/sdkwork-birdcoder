@@ -79,8 +79,10 @@ const alignmentSpec = JSON.parse(
   fs.readFileSync(path.join(root, 'specs/kernel-birdcoder-alignment.spec.json'), 'utf8'),
 );
 assert.ok(
-  alignmentSpec.authorityDocs.includes('docs/架构/31-Kernel-BirdCoder-集成实施方案.md'),
-  'alignment spec must index implementation doc 31',
+  alignmentSpec.authorityDocs.includes(
+    'docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md',
+  ),
+  'alignment spec must index TECH-31 kernel integration implementation doc',
 );
 
 const projectionSpec = path.join(

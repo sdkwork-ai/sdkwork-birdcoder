@@ -37,6 +37,11 @@ assert.match(
   'API server must expose an unauthenticated Prometheus scrape endpoint at /metrics.',
 );
 assert.match(
+  routerSource,
+  /"\/openapi\.json"/u,
+  'API server must expose the live OpenAPI snapshot at /openapi.json.',
+);
+assert.match(
   mainSource,
   /sdkwork_web_bootstrap::init_tracing_from_env/u,
   'API server must bootstrap structured tracing through sdkwork-web-bootstrap.',

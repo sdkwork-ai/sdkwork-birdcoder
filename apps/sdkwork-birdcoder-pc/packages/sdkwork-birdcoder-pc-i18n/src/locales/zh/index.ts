@@ -8,6 +8,7 @@ import settingsEngine from './settings-engine.ts';
 import chat from './chat.ts';
 import multiWindow from './multiwindow.ts';
 import appErrors from './app/errors.ts';
+import appBootstrap from './app/bootstrap.ts';
 import appMenu from './app/menu.ts';
 import appWorkspace from './app/workspace.ts';
 import appSidebar from './app/sidebar.ts';
@@ -22,6 +23,9 @@ import studioPreview from './studio/preview.ts';
 import studioWorkspace from './studio/workspace.ts';
 import studioActions from './studio/actions.ts';
 import studioDialogs from './studio/dialogs.ts';
+import skillsPage from './skills/page.ts';
+import templatesPage from './templates/page.ts';
+import uiContentPreview from './ui/content-preview.ts';
 import { buildLocaleResource, type LocaleModule } from '../resource.ts';
 
 export const zhModules = [
@@ -35,6 +39,7 @@ export const zhModules = [
   chat,
   multiWindow,
   appErrors,
+  appBootstrap,
   appMenu,
   appWorkspace,
   appSidebar,
@@ -49,6 +54,9 @@ export const zhModules = [
   studioWorkspace,
   studioActions,
   studioDialogs,
+  skillsPage,
+  templatesPage,
+  uiContentPreview,
 ] as const satisfies readonly LocaleModule[];
 
 export const zhTranslation = buildLocaleResource('zh', zhModules);

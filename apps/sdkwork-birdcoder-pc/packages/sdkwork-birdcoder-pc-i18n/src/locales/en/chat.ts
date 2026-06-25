@@ -8,6 +8,7 @@ export default defineLocaleModule('chat', {
     fileAttached: 'File {{name}} attached',
     fileAttachedTruncated: 'File {{name}} attached with content truncated to keep the composer responsive',
     fileReadFailed: 'Failed to read file',
+    driveUploadFailed: 'Failed to upload attachment through Drive',
     fileTooLarge: 'File too large (max 1MB)',
     processingFiles: 'Processing {{count}} files...',
     folderAttached: 'Folder with {{count}} text files attached',

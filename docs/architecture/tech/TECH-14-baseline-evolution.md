@@ -6,7 +6,7 @@
 ## 1. 当前基线
 
 - Step 05 已完成第一轮 runtime hard-cutover：共享 workbench kernel 已冻结 canonical engine id、descriptor、model catalog，`claude-code` 已替代旧 `claude` 成为统一主键。
-- **Kernel ↔ BirdCoder 对齐（2026-06）**：agent turn 经 `sdkwork-birdcoder-kernel-bridge` 执行；`pc-chat*` 已退役；`codeengine` 仅保留 native-session catalog。详见 `docs/架构/30–32` 与 `pnpm run check:kernel-birdcoder-alignment`。
+- **Kernel ↔ BirdCoder 对齐（2026-06）**：agent turn 经 `sdkwork-birdcoder-kernel-bridge` 执行；`pc-chat*` 已退役；`codeengine` 仅保留 native-session catalog。详见 `docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md` 至 `TECH-32-kernel-birdcoder.md` 与 `pnpm run check:kernel-birdcoder-alignment`。
 - Step 07 已闭环 Preview / Build / Simulator / Test 四条 Studio 证据链，并统一到同一 Evidence Viewer。
 - Step 08 与 Step 10 已把 Terminal profile、launch guard、危险命令阻断、审计沉淀、恢复引导、诊断导出、release-note 复用和 release 资产聚合收口到同一治理主线。
 - Step 09 已统一 desktop / server / host-studio 的 runtime descriptor，并冻结 `app / backend` DTO；当前 Rust host 仍是最小 `/health` 骨架。

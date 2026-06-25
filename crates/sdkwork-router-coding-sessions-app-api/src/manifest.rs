@@ -8,86 +8,100 @@ pub const CODING_SESSIONS_APP_API_ROUTES: &[HttpRoute] = &[
         HttpMethod::Get,
         paths::SESSIONS,
         "intelligence",
-        "listCodingSessions",
-    ),
+        "codingSessions.list",
+    )
+    .with_required_permission("intelligence.codingSessions.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::SESSIONS,
         "intelligence",
-        "createCodingSession",
-    ),
+        "codingSessions.create",
+    )
+    .with_required_permission("intelligence.codingSessions.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SESSION,
         "intelligence",
-        "getCodingSession",
-    ),
+        "codingSessions.retrieve",
+    )
+    .with_required_permission("intelligence.codingSessions.read"),
     HttpRoute::dual_token(
         HttpMethod::Patch,
         paths::SESSION,
         "intelligence",
-        "updateCodingSession",
-    ),
+        "codingSessions.update",
+    )
+    .with_required_permission("intelligence.codingSessions.update"),
     HttpRoute::dual_token(
         HttpMethod::Delete,
         paths::SESSION,
         "intelligence",
-        "deleteCodingSession",
-    ),
+        "codingSessions.delete",
+    )
+    .with_required_permission("intelligence.codingSessions.delete"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::SESSION_FORK,
         "intelligence",
-        "forkCodingSession",
-    ),
+        "codingSessions.forks.create",
+    )
+    .with_required_permission("intelligence.codingSessions.forks.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::SESSION_TURNS,
         "intelligence",
-        "createCodingSessionTurn",
-    ),
+        "codingSessions.turns.create",
+    )
+    .with_required_permission("intelligence.codingSessions.turns.create"),
     HttpRoute::dual_token(
         HttpMethod::Patch,
         paths::SESSION_MESSAGE,
         "intelligence",
-        "editCodingSessionMessage",
-    ),
+        "codingSessions.messages.update",
+    )
+    .with_required_permission("intelligence.codingSessions.messages.update"),
     HttpRoute::dual_token(
         HttpMethod::Delete,
         paths::SESSION_MESSAGE,
         "intelligence",
-        "deleteCodingSessionMessage",
-    ),
+        "codingSessions.messages.delete",
+    )
+    .with_required_permission("intelligence.codingSessions.messages.delete"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SESSION_EVENTS,
         "intelligence",
-        "listCodingSessionEvents",
-    ),
+        "codingSessions.events.list",
+    )
+    .with_required_permission("intelligence.codingSessions.events.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SESSION_ARTIFACTS,
         "intelligence",
-        "listCodingSessionArtifacts",
-    ),
+        "codingSessions.artifacts.list",
+    )
+    .with_required_permission("intelligence.codingSessions.artifacts.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SESSION_CHECKPOINTS,
         "intelligence",
-        "listCodingSessionCheckpoints",
-    ),
+        "codingSessions.checkpoints.list",
+    )
+    .with_required_permission("intelligence.codingSessions.checkpoints.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::APPROVAL_DECISION,
         "intelligence",
-        "submitApprovalDecision",
-    ),
+        "codingSessions.checkpoints.approval.create",
+    )
+    .with_required_permission("intelligence.codingSessions.checkpoints.approval.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::USER_QUESTION_ANSWER,
         "intelligence",
-        "submitUserQuestionAnswer",
-    ),
+        "codingSessions.questions.answers.create",
+    )
+    .with_required_permission("intelligence.codingSessions.questions.answers.create"),
 ];
 
 pub fn coding_sessions_app_api_route_manifest() -> HttpRouteManifest {

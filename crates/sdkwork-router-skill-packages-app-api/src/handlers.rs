@@ -62,7 +62,7 @@ async fn ensure_skill_scope_access(
     scope_type: &str,
     scope_id: &str,
     trace_id: Option<&str>,
-) -> Result<(), (axum::http::StatusCode, Json<error::ProblemDetailsPayload>)> {
+) -> Result<(), error::ProblemJsonBody> {
     match scope_type {
         "workspace" => {
             let ctx = workspace_context(&iam.0);
@@ -118,7 +118,7 @@ pub async fn list_skill_packages(
     Query(query): Query<SkillPackageListQuery>,
 ) -> Result<
     Json<ApiListEnvelope<SkillPackagePayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
@@ -146,7 +146,7 @@ pub async fn install_skill_package(
     Json(body): Json<InstallSkillPackageBody>,
 ) -> Result<
     Json<ApiDataEnvelope<SkillInstallationPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
@@ -179,7 +179,7 @@ pub async fn list_app_templates(
     State(state): State<SkillPackagesAppState>,
 ) -> Result<
     Json<ApiListEnvelope<AppTemplatePayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);

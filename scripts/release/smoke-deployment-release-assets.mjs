@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 
 import { RELEASE_ASSET_MANIFEST_FILE_NAME } from './release-profiles.mjs';
+import { SERVER_CRATE_BINARY_NAME } from './release-build-paths.mjs';
 import { writeReleaseSmokeReport } from './release-smoke-contract.mjs';
 
 function readOptionValue(argv, index, flag) {
@@ -59,8 +60,8 @@ function readTarGzEntryPaths(archivePath) {
 
 function resolveExpectedServerBinaryName(target = '') {
   return String(target ?? '').toLowerCase().includes('windows')
-    ? 'sdkwork-birdcoder-server.exe'
-    : 'sdkwork-birdcoder-server';
+    ? `${SERVER_CRATE_BINARY_NAME}.exe`
+    : SERVER_CRATE_BINARY_NAME;
 }
 
 function assertContainerServerBinaryPresent({

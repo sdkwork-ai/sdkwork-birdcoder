@@ -4464,6 +4464,76 @@
         "x-sdkwork-request-context": "WebRequestContext",
         "x-sdkwork-api-surface": "app-api"
       },
+      "get": {
+        "operationId": "workspaces.retrieve",
+        "summary": "Get workspace",
+        "description": "Get workspace. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder workspace identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderWorkspaceSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Workspace was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "platform.workspaces.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "platform.workspaces",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      },
       "patch": {
         "operationId": "workspaces.update",
         "summary": "Update workspace",

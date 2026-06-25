@@ -79,7 +79,8 @@
     }
   },
   "publish": {
-    "status": "ACTIVE",
+    "status": "DRAFT",
+    "preLaunch": true,
     "installSkill": {
       "name": "sdkwork-skills-app"
     },
@@ -136,11 +137,12 @@
           "packageFormat": "AAB",
           "platform": "FLUTTER_ANDROID",
           "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-flutter/STABLE/0.1.0/android/app.aab",
-          "enabled": true,
-          "metadata": {},
+          "enabled": false,
+          "metadata": {
+            "preLaunch": true,
+            "artifactPending": true
+          },
           "architecture": "universal",
-          "checksumAlgorithm": "SHA-256",
-          "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
           "deploymentProfile": "standalone",
           "runtimeTarget": "flutter-android"
         },
@@ -151,11 +153,11 @@
           "packageFormat": "IPA",
           "platform": "FLUTTER_IOS",
           "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder-flutter/STABLE/0.1.0/ios/app.ipa",
-          "enabled": true,
-          "metadata": {},
-          "architecture": "universal",
-          "checksumAlgorithm": "SHA-256",
-          "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+          "enabled": false,
+          "metadata": {
+            "preLaunch": true,
+            "artifactPending": true
+          },
           "deploymentProfile": "standalone",
           "runtimeTarget": "flutter-ios"
         }
@@ -163,7 +165,8 @@
       "metadata": {
         "workspaceRoot": "apps/sdkwork-birdcoder-flutter-mobile",
         "framework": "flutter",
-        "packageManager": "pub"
+        "packageManager": "pub",
+        "preLaunch": true
       }
     }
   },
@@ -178,8 +181,8 @@
         "version": "0.1.0",
         "releaseChannel": "STABLE",
         "title": "SDKWork Birdcoder Flutter Mobile 0.1.0",
-        "summary": "SDKWork Birdcoder Flutter Mobile initial release.",
-        "content": "Initial SDKWork App Standard v3 manifest for SDKWork Birdcoder Flutter Mobile.",
+        "summary": "Pre-launch scaffold — install packages remain disabled until release artifacts are published.",
+        "content": "SDKWork BirdCoder Flutter Mobile has not launched publicly. Artifact URLs and checksums are withheld until the first governed release build completes.",
         "highlights": [
           "Flutter mobile application",
           "iOS and Android support",
@@ -190,7 +193,7 @@
           "ios-universal-standalone-mobile-ipa"
         ],
         "publishedAt": "2026-06-13T00:00:00Z",
-        "current": true,
+        "current": false,
         "forceUpdate": false,
         "minSupportedVersion": "0.1.0",
         "metadata": {}
@@ -198,9 +201,9 @@
     ]
   },
   "security": {
-    "checksumRequired": false,
-    "signatureRequired": false,
-    "sbomRequired": false
+    "checksumRequired": true,
+    "signatureRequired": true,
+    "sbomRequired": true
   },
   "devApp": {
     "build": {
@@ -210,6 +213,8 @@
   },
   "metadata": {
     "standardOwner": "sdkwork-platform",
-    "initializedAt": "2026-06-13T00:00:00Z"
+    "initializedAt": "2026-06-13T00:00:00Z",
+    "preLaunch": true,
+    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-prelaunch-artifacts-pending"
   }
 }

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const workspaceRoot = path.resolve(import.meta.dirname, '..');
+const iamWorkspaceRoot = path.resolve(workspaceRoot, '..', 'sdkwork-iam');
 const appbaseWorkspaceRoot = path.resolve(workspaceRoot, '..', 'sdkwork-appbase');
 
 function readText(relativePath) {
@@ -11,6 +12,10 @@ function readText(relativePath) {
 
 function readJson(relativePath) {
   return JSON.parse(readText(relativePath));
+}
+
+function readIamText(relativePath) {
+  return fs.readFileSync(path.resolve(iamWorkspaceRoot, relativePath), 'utf8');
 }
 
 function readAppbaseText(relativePath) {
@@ -56,10 +61,10 @@ const userSurfaceSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-b
 const vipSurfaceSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-user/src/vip-surface.ts');
 const vitePluginSource = readText('scripts/create-birdcoder-vite-plugins.mjs');
 const shellStylesheetSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/styles/index.css');
-const sharedAuthRoutesSource = readAppbaseText('packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/IamAuthRoutes.tsx');
-const sharedAuthRuntimeSource = readAppbaseText('packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-iam-runtime.ts');
+const sharedAuthRoutesSource = readIamText('apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/pages/IamAuthRoutes.tsx');
+const sharedAuthRuntimeSource = readIamText('apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-iam-runtime.ts');
 const sharedUserPackageJson = JSON.parse(
-  readAppbaseText('packages/pc-react/iam/sdkwork-user-pc-react/package.json'),
+  readIamText('apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react/package.json'),
 );
 assert.equal(
   authPackageJson.dependencies?.['@sdkwork/auth-pc-react'],
@@ -203,12 +208,12 @@ assert.doesNotMatch(
 assert.match(
   vitePluginSource,
   /find: ['"]@sdkwork\/auth-pc-react['"]/u,
-  'BirdCoder Vite aliases must resolve @sdkwork/auth-pc-react from sdkwork-appbase.',
+  'BirdCoder Vite aliases must resolve @sdkwork/auth-pc-react from sdkwork-iam.',
 );
 assert.match(
   vitePluginSource,
   /find: ['"]@sdkwork\/user-pc-react['"]/u,
-  'BirdCoder Vite aliases must resolve @sdkwork/user-pc-react from sdkwork-appbase.',
+  'BirdCoder Vite aliases must resolve @sdkwork/user-pc-react from sdkwork-iam.',
 );
 assert.doesNotMatch(
   vitePluginSource,
@@ -228,12 +233,12 @@ assert.match(
 
 assert.match(
   shellStylesheetSource,
-  /sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-auth-pc-react\/src/u,
+  /sdkwork-iam\/apps\/sdkwork-iam-pc\/packages\/sdkwork-auth-pc-react\/src/u,
   'BirdCoder shell stylesheet must scan the shared auth source tree for Tailwind classes.',
 );
 assert.match(
   shellStylesheetSource,
-  /sdkwork-appbase\/packages\/pc-react\/iam\/sdkwork-user-pc-react\/src/u,
+  /sdkwork-iam\/apps\/sdkwork-iam-pc\/packages\/sdkwork-user-pc-react\/src/u,
   'BirdCoder shell stylesheet must scan the shared user source tree for Tailwind classes.',
 );
 assert.match(

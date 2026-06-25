@@ -1,5 +1,6 @@
 {
   "apiBaseUrl": "https://api-staging.sdkwork.com/apps/sdkwork-birdcoder",
   "appVersion": "0.1.0",
+  "deploymentMode": "private",
   "environment": "staging"
 }

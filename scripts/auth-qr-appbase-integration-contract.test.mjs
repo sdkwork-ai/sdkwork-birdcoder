@@ -7,15 +7,20 @@ import {
   readCanonicalServerRustSource,
 } from './birdcoder-canonical-server-rust-sources.mjs';
 
+import {
+  IAM_AUTH_PC_REACT_ROOT_REL,
+  SDKWORK_IAM_WORKSPACE_REL,
+} from './birdcoder-iam-workspace-paths.mjs';
+
 const rootDir = process.cwd();
-const appbaseRootDir = path.resolve(rootDir, '../sdkwork-appbase');
+const iamRootDir = path.resolve(rootDir, SDKWORK_IAM_WORKSPACE_REL);
 
 function readText(...segments) {
   return fs.readFileSync(path.join(rootDir, ...segments), 'utf8');
 }
 
-function readAppbaseText(...segments) {
-  return fs.readFileSync(path.join(appbaseRootDir, ...segments), 'utf8');
+function readIamText(...segments) {
+  return fs.readFileSync(path.join(iamRootDir, ...segments), 'utf8');
 }
 
 const authPageSource = readText(
@@ -54,10 +59,10 @@ const iamRuntimeSource = readText(
   'iamRuntime.ts',
 );
 const vitePluginSource = readText('scripts', 'create-birdcoder-vite-plugins.mjs');
-const appbaseIamOauthSource = [
-  readAppbaseText('crates/sdkwork-router-iam-app-api/src/directory.rs'),
-  readAppbaseText('crates/sdkwork-router-iam-app-api/src/ephemeral.rs'),
-  readAppbaseText('crates/sdkwork-router-iam-app-api/src/handlers.rs'),
+const iamOauthSource = [
+  readIamText('crates/sdkwork-router-iam-app-api/src/directory.rs'),
+  readIamText('crates/sdkwork-router-iam-app-api/src/ephemeral.rs'),
+  readIamText('crates/sdkwork-router-iam-app-api/src/handlers.rs'),
 ].join('\n');
 const apiServerIamSource = [
   readCanonicalServerRustSource(CANONICAL_SERVER_RUST_PATHS.apiServerAuth),
@@ -72,32 +77,14 @@ const apiServerIamSource = [
     'main.rs',
   ),
 ].join('\n');
-const sharedAuthPageSource = readAppbaseText(
-  'packages',
-  'pc-react',
-  'iam',
-  'sdkwork-auth-pc-react',
-  'src',
-  'pages',
-  'AuthPage.tsx',
+const sharedAuthPageSource = readIamText(
+  `${IAM_AUTH_PC_REACT_ROOT_REL}/src/pages/AuthPage.tsx`,
 );
-const sharedAuthRuntimeSource = readAppbaseText(
-  'packages',
-  'pc-react',
-  'iam',
-  'sdkwork-auth-pc-react',
-  'src',
-  'auth-iam-runtime.ts',
+const sharedAuthRuntimeSource = readIamText(
+  `${IAM_AUTH_PC_REACT_ROOT_REL}/src/auth-iam-runtime.ts`,
 );
-const appbaseAppOauthSdkSource = readAppbaseText(
-  'sdks',
-  'sdkwork-appbase-app-sdk',
-  'sdkwork-appbase-app-sdk-typescript',
-  'generated',
-  'server-openapi',
-  'src',
-  'api',
-  'oauth.ts',
+const appbaseAppOauthSdkSource = readIamText(
+  'sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/api/oauth.ts',
 );
 
 assert.match(
@@ -123,13 +110,13 @@ assert.match(
 assert.match(
   authSurfaceSource,
   /createSdkworkIamRuntimeAuthController/u,
-  'BirdCoder auth surface must use the sdkwork-appbase IAM runtime auth controller.',
+  'BirdCoder auth surface must use the sdkwork-iam runtime auth controller.',
 );
 
 assert.match(
   vitePluginSource,
   /find:\s*['"]@sdkwork\/auth-pc-react['"]/u,
-  'BirdCoder Vite aliases must resolve @sdkwork/auth-pc-react from sdkwork-appbase.',
+  'BirdCoder Vite aliases must resolve @sdkwork/auth-pc-react from sdkwork-iam.',
 );
 assert.match(
   vitePluginSource,
@@ -149,12 +136,12 @@ assert.match(
 assert.match(
   sharedAuthRuntimeSource,
   /function resolvePlatformQrContent/u,
-  'sdkwork-appbase IAM runtime must normalize generated SDK qrContent payloads before rendering.',
+  'sdkwork-iam runtime must normalize generated SDK qrContent payloads before rendering.',
 );
 assert.doesNotMatch(
   sharedAuthRuntimeSource,
   /\bqrUrl\b/u,
-  'sdkwork-appbase IAM runtime must not treat qrUrl as a QR status API URL; QR rendering is based on qrContent or qrCode media.',
+  'sdkwork-iam runtime must not treat qrUrl as a QR status API URL; QR rendering is based on qrContent or qrCode media.',
 );
 assert.match(
   iamRuntimeSource,
@@ -183,17 +170,17 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  appbaseIamOauthSource,
+  iamOauthSource,
   /format!\(["']\{\/\}\/app\/v3\/api\/open_platform\/qr_auth\/sessions\/\{session_key\}["']/u,
   'Appbase IAM must not return the JSON QR auth status endpoint as qrUrl; clients treat qrUrl as an image source.',
 );
 assert.doesNotMatch(
-  appbaseIamOauthSource,
+  iamOauthSource,
   /request_base_url/u,
   'Appbase IAM QR generation must not depend on request headers to synthesize a status API qrUrl.',
 );
 assert.match(
-  appbaseIamOauthSource,
+  iamOauthSource,
   /"qrContent":\s*\{\s*"content":\s*s\.qr_content,\s*"mode":\s*s\.qr_content_mode\s*\}/u,
   'Appbase IAM must expose structured qrContent payloads instead of legacy qrUrl status endpoints.',
 );
@@ -204,8 +191,8 @@ assert.doesNotMatch(
 );
 assert.match(
   apiServerIamSource,
-  /sdkwork_router_iam_app_api::build_sdkwork_appbase_app_api_router/u,
-  'BirdCoder canonical api-server must wire IAM through sdkwork-appbase router crates.',
+  /sdkwork_router_iam_app_api::build_sdkwork_iam_app_api_router/u,
+  'BirdCoder canonical api-server must wire IAM through sdkwork-iam router crates.',
 );
 
 console.log('auth qr appbase integration contract passed.');

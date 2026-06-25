@@ -41,7 +41,7 @@ pub async fn list_documents(
     Query(query): Query<DocumentListQuery>,
 ) -> Result<
     Json<ApiListEnvelope<DocumentPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);

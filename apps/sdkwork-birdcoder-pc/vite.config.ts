@@ -8,6 +8,8 @@ import {
   createBirdcoderWorkspaceFsAllowList,
   createBirdcoderVitePlugins,
   onBirdcoderRollupWarning,
+  resolveBirdcoderProductionCssMinify,
+  resolveBirdcoderProductionMinify,
 } from '../../scripts/create-birdcoder-vite-plugins.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,8 +31,8 @@ export default defineConfig(({ mode }) => {
       include: [...BIRDCODER_VITE_WEB_OPTIMIZE_DEPS_INCLUDE],
     },
     build: {
-      minify: false,
-      cssMinify: false,
+      minify: resolveBirdcoderProductionMinify(mode),
+      cssMinify: resolveBirdcoderProductionCssMinify(mode),
       rollupOptions: {
         onwarn: onBirdcoderRollupWarning,
       },

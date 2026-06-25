@@ -51,8 +51,8 @@
 
 ## 8. 延伸阅读
 
-- [31-集成实施方案](./31-Kernel-BirdCoder-集成实施方案.md)
-- [32-对齐验收与核对清单](./32-Kernel-BirdCoder-对齐验收与核对清单.md)
+- [TECH-31-集成实施方案](./TECH-31-kernel-birdcoder-integrationimplementation.md)
+- [TECH-32-对齐验收与核对清单](./TECH-32-kernel-birdcoder.md)
 - [反复执行Kernel对齐指令](../prompts/反复执行Kernel对齐指令.md)
 - 机器可读任务：`specs/kernel-birdcoder-alignment.spec.json`
 

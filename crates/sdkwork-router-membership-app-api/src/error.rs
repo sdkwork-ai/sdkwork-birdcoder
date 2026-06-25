@@ -1,70 +1,52 @@
 use axum::http::StatusCode;
-use axum::Json;
 use sdkwork_birdcoder_membership_service::error::MembershipError;
 
 use sdkwork_birdcoder_errors::{
     client_safe_data_access_problem, client_safe_internal_problem, client_safe_provider_problem,
+    traced_problem_json,
 };
 
-pub use sdkwork_birdcoder_errors::ProblemDetailsPayload;
+pub use sdkwork_birdcoder_errors::{ProblemDetailsPayload, ProblemJsonBody};
 
-fn with_trace_id(
-    payload: ProblemDetailsPayload,
-    trace_id: Option<&str>,
-) -> ProblemDetailsPayload {
-    payload.with_trace_id(trace_id)
-}
-
-pub fn forbidden(
-    message: impl Into<String>,
-    trace_id: Option<&str>,
-) -> (StatusCode, Json<ProblemDetailsPayload>) {
-    (
+pub fn forbidden(message: impl Into<String>, trace_id: Option<&str>) -> ProblemJsonBody {
+    traced_problem_json(
         StatusCode::FORBIDDEN,
-        Json(with_trace_id(
-            ProblemDetailsPayload::new("forbidden", message, false),
-            trace_id,
-        )),
+        ProblemDetailsPayload::new("forbidden", message, false),
+        trace_id,
     )
 }
 
-pub fn map_service_error(
-    error: MembershipError,
-    trace_id: Option<&str>,
-) -> (StatusCode, Json<ProblemDetailsPayload>) {
+pub fn map_service_error(error: MembershipError, trace_id: Option<&str>) -> ProblemJsonBody {
     match error {
-        MembershipError::NotFound(msg) => (
+        MembershipError::NotFound(msg) => traced_problem_json(
             StatusCode::NOT_FOUND,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("not_found", msg, false),
-                trace_id,
-            )),
+            ProblemDetailsPayload::new("not_found", msg, false),
+            trace_id,
         ),
-        MembershipError::InvalidInput(msg) => (
+        MembershipError::InvalidInput(msg) => traced_problem_json(
             StatusCode::BAD_REQUEST,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("invalid_input", msg, false),
-                trace_id,
-            )),
+            ProblemDetailsPayload::new("invalid_input", msg, false),
+            trace_id,
         ),
-        MembershipError::Conflict(msg) => (
+        MembershipError::Conflict(msg) => traced_problem_json(
             StatusCode::CONFLICT,
-            Json(with_trace_id(
-                ProblemDetailsPayload::new("conflict", msg, false),
-                trace_id,
-            )),
+            ProblemDetailsPayload::new("conflict", msg, false),
+            trace_id,
         ),
-        MembershipError::Provider(_) => (
+        MembershipError::Provider(_) => traced_problem_json(
             StatusCode::BAD_GATEWAY,
-            Json(with_trace_id(client_safe_provider_problem(), trace_id)),
+            client_safe_provider_problem(),
+            trace_id,
         ),
-        MembershipError::Repository(_) => (
+        MembershipError::Repository(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(with_trace_id(client_safe_data_access_problem(), trace_id)),
+            client_safe_data_access_problem(),
+            trace_id,
         ),
-        MembershipError::Internal(_) => (
+        MembershipError::Internal(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(with_trace_id(client_safe_internal_problem(), trace_id)),
+            client_safe_internal_problem(),
+            trace_id,
         ),
     }
 }

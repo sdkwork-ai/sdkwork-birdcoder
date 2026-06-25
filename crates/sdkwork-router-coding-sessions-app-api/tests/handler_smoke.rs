@@ -21,13 +21,15 @@ use sdkwork_birdcoder_coding_sessions_service::ports::events::{
 };
 use sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider;
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
-use sdkwork_iam_context_service::{AuthLevel, DeploymentMode, Environment, IamAppContext};
+use sdkwork_database_config::{DatabaseConfig, DatabaseEngine, DeploymentMode};
+use sdkwork_database_sqlx::create_any_pool_from_config;
+use sdkwork_iam_context_service::{AuthLevel, DeploymentMode as IamDeploymentMode, Environment, IamAppContext};
 use sdkwork_router_coding_sessions_app_api::build_coding_sessions_app_api_router;
 use sdkwork_router_coding_sessions_app_api::handlers::CodingSessionsAppState;
 use sdkwork_web_core::{
     ServerRequestId, WebApiSurface, WebAuthMode, WebRequestContext, WebTransportFacts,
 };
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 use tower::ServiceExt;
 
 struct NoopRealtimePublisher;
@@ -114,23 +116,35 @@ fn test_iam_context() -> IamAppContext {
         "handler-smoke-session",
         "birdcoder",
         Environment::Dev,
-        DeploymentMode::Local,
+        IamDeploymentMode::Local,
         AuthLevel::Password,
         vec![],
         vec![],
     )
 }
 
-async fn execute_sql_batch(pool: &SqlitePool, sql: &str) -> Result<(), sqlx::Error> {
+async fn execute_sql_batch(pool: &AnyPool, sql: &str) -> Result<(), sqlx::Error> {
     for statement in sql.split(';').map(str::trim).filter(|part| !part.is_empty()) {
         sqlx::query(statement).execute(pool).await?;
     }
     Ok(())
 }
+
+async fn test_any_pool() -> AnyPool {
+    sqlx::any::install_default_drivers();
+    create_any_pool_from_config(DatabaseConfig {
+        engine: DatabaseEngine::Sqlite,
+        url: "sqlite::memory:".to_string(),
+        mode: DeploymentMode::Standalone,
+        max_connections: 1,
+        ..DatabaseConfig::default()
+    })
+    .await
+    .expect("open in-memory sqlite any pool")
+}
+
 async fn test_state_with_seeded_workspace(workspace_id: i64) -> CodingSessionsAppState {
-    let pool = SqlitePool::connect("sqlite::memory:")
-        .await
-        .expect("open in-memory sqlite");
+    let pool = test_any_pool().await;
     execute_sql_batch(&pool, SCHEMA_SQL)
         .await
         .expect("apply coding sessions schema");
@@ -183,7 +197,7 @@ fn with_request_context(mut request: Request<Body>, iam: Option<IamAppContext>) 
     request
 }
 
-async fn seed_workspace(pool: &SqlitePool, workspace_id: i64) {
+async fn seed_workspace(pool: &AnyPool, workspace_id: i64) {
     sqlx::query(
         "INSERT INTO studio_workspace (
             id, tenant_id, organization_id, data_scope, created_at, updated_at,

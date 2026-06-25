@@ -24,6 +24,8 @@ async-trait = { workspace = true }
 serde_json = { workspace = true }
 sdkwork-birdcoder-coding-sessions-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-workspace-repository-sqlx = { workspace = true }
+sdkwork_database_config = { workspace = true }
+sdkwork_database_sqlx = { workspace = true }
 sdkwork_iam_context_service = { workspace = true }
 sdkwork-web-core = { workspace = true }
 

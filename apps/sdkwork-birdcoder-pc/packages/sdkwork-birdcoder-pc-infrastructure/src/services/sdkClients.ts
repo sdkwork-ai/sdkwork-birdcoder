@@ -98,6 +98,11 @@ import type {
   BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-pc-types';
 import { clearStoredAppSessionToken } from './appSessionToken.ts';
+import {
+  buildBirdCoderProtectedLoginBrowserUrl,
+  redirectBrowserToBirdCoderProtectedLogin,
+} from '@sdkwork/birdcoder-pc-core/appSessionAuthRedirect';
+import { readBirdCoderApiTransportErrorHttpStatus, BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-core/birdCoderApiTransportError';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
 import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
 
@@ -587,7 +592,11 @@ export function handleBirdCoderSdkSessionAuthError(error: unknown): boolean {
 
   clearStoredAppSessionToken();
   resetBirdCoderSdkClients();
-  redirectBrowserToBirdCoderLoginAfterSessionAuthError(readBrowserWindow());
+  const redirectUrl = buildBirdCoderProtectedLoginBrowserUrl();
+  if (sessionAuthRedirectTarget !== redirectUrl) {
+    sessionAuthRedirectTarget = redirectUrl;
+    redirectBrowserToBirdCoderProtectedLogin();
+  }
   return true;
 }
 
@@ -693,87 +702,24 @@ function hasGeneratedSdkRuntimeOverrides(
   return Object.entries(options).some(([key, value]) => key !== 'tokenManager' && value !== undefined);
 }
 
-type BrowserLocationWithReplace = {
-  hash?: string;
-  pathname?: string;
-  replace?: (url: string) => void;
-  search?: string;
-};
-
-type BrowserWindowWithLocation = {
-  location?: BrowserLocationWithReplace;
-};
-
-function readBrowserWindow(): BrowserWindowWithLocation | undefined {
-  const candidate = globalThis as typeof globalThis & { window?: BrowserWindowWithLocation };
-  return candidate.window;
-}
-
-function redirectBrowserToBirdCoderLoginAfterSessionAuthError(
-  browserWindow: BrowserWindowWithLocation | undefined,
-): void {
-  const location = browserWindow?.location;
-  if (!location || typeof location.replace !== 'function') {
-    return;
-  }
-
-  const pathname = normalizeBrowserLocationPathname(location.pathname);
-  if (pathname === '/auth' || pathname.startsWith('/auth/')) {
-    return;
-  }
-
-  const redirectTo = buildBirdCoderAuthLoginRedirect({
-    hash: location.hash,
-    pathname,
-    search: location.search,
-  });
-  if (sessionAuthRedirectTarget === redirectTo) {
-    return;
-  }
-
-  sessionAuthRedirectTarget = redirectTo;
-  location.replace(redirectTo);
-}
-
-function buildBirdCoderAuthLoginRedirect({
-  hash,
-  pathname,
-  search,
-}: {
-  hash?: string;
-  pathname: string;
-  search?: string;
-}): string {
-  const redirectPath = `${pathname}${search ?? ''}${hash ?? ''}`;
-  const params = new URLSearchParams();
-  if (redirectPath && redirectPath !== '/') {
-    params.set('redirect', redirectPath);
-  }
-  const query = params.toString();
-  return query ? `/auth?${query}` : '/auth';
-}
-
-function normalizeBrowserLocationPathname(pathname: string | undefined): string {
-  const normalized = pathname?.trim();
-  if (!normalized) {
-    return '/';
-  }
-  return normalized.startsWith('/') ? normalized : `/${normalized}`;
-}
-
 function readBirdCoderSdkErrorCode(error: unknown): string {
+  if (error instanceof BirdCoderApiTransportError && error.code) {
+    return error.code;
+  }
   const value = readBirdCoderSdkErrorField(error, 'code');
   return normalizeBirdCoderSdkErrorCode(value);
 }
 
 function readBirdCoderSdkBusinessCode(error: unknown): string {
+  if (error instanceof BirdCoderApiTransportError && error.businessCode) {
+    return error.businessCode;
+  }
   const value = readBirdCoderSdkErrorField(error, 'businessCode');
   return normalizeBirdCoderSdkErrorCode(value);
 }
 
 function readBirdCoderSdkErrorHttpStatus(error: unknown): number | undefined {
-  const value = readBirdCoderSdkErrorField(error, 'httpStatus');
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  return readBirdCoderApiTransportErrorHttpStatus(error);
 }
 
 function readBirdCoderSdkErrorMessage(error: unknown): string {

@@ -2,7 +2,21 @@ import { readBirdcoderAppShellSource } from './birdcoder-app-shell-contract-sour
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+const shellApp = (relativePath) =>
+  new URL(
+    `../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/${relativePath}`,
+    import.meta.url,
+  );
+const uiShell = (relativePath) =>
+  new URL(
+    `../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/src/components/${relativePath}`,
+    import.meta.url,
+  );
+
 const appSource = readBirdcoderAppShellSource();
+const topMenuPath = uiShell('TopMenu.tsx');
+const appWorkspaceMenuPath = shellApp('AppWorkspaceMenu.tsx');
+const headerLoadingPath = shellApp('HeaderLoadingStatus.tsx');
 const topMenuSource = fs.readFileSync(topMenuPath, 'utf8');
 const appWorkspaceMenuSource = fs.readFileSync(appWorkspaceMenuPath, 'utf8');
 const headerLoadingSource = fs.readFileSync(headerLoadingPath, 'utf8');

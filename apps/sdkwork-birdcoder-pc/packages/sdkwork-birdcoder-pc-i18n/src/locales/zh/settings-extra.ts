@@ -47,6 +47,7 @@ export default defineLocaleModule('settings/extra', {
       confirmDelete: '确定要删除吗？',
       emptyTitle: '暂无已归档会话',
       emptyDescription: '归档后的会话会显示在这里。',
+      runtimeUnavailable: '已归档会话管理尚未接入 coding session 运行时。',
       restored: '会话恢复成功。',
       deleted: '会话已永久删除。',
     },
@@ -89,6 +90,8 @@ export default defineLocaleModule('settings/extra', {
       environmentVariablesDesc: '管理工作区环境变量（.env）。',
       editVariables: '编辑变量',
       variablesSaved: '环境变量保存成功。',
+      variablesSavedLocally: '环境变量已保存到本地。项目 .env 同步功能尚未开放。',
+      environmentVariablesLocalOnly: '变量暂存于本地应用设置，工作区 .env 同步能力上线后才会写入项目。',
       noneDefined: '尚未定义环境变量。',
     },
     git: {
@@ -105,6 +108,8 @@ export default defineLocaleModule('settings/extra', {
       description:
         'Model Context Protocol (MCP) 服务可连接外部工具和数据源，扩展 AI 能力。',
       noServersConfigured: '尚未配置 MCP 服务。',
+      connectionStatusUnavailable: '连接健康检查尚未开放。已保存的服务仅保存在本地，待运行时接入后生效。',
+      notConnected: '未连接',
       addNewServer: '新增 MCP 服务',
       serverName: '服务名称',
       serverUrl: '服务 URL',

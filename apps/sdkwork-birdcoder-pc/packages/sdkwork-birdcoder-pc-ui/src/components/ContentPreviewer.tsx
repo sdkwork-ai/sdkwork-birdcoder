@@ -6,6 +6,7 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@sdkwork/birdcoder-pc-ui-shell';
 import {
@@ -74,9 +75,30 @@ function PreviewLoadingState({
 }
 
 function DefaultEmptyPreviewState() {
+  const { t } = useTranslation();
   return (
     <div className="flex h-full min-h-0 items-center justify-center bg-[#0b0d12] px-6 text-center text-sm text-gray-500">
-      Preview is available once the file has visible content.
+      {t('ui.previewAvailableWhenVisible')}
+    </div>
+  );
+}
+
+function CodePreview({
+  className,
+  language,
+  value,
+  loadingLabel,
+}: {
+  className?: string;
+  language: string;
+  value: string;
+  loadingLabel: string;
+}) {
+  return (
+    <div className={cn('flex-1 min-h-0', className)}>
+      <Suspense fallback={<PreviewLoadingState label={loadingLabel} />}>
+        <ContentCodePreview language={language} value={value} />
+      </Suspense>
     </div>
   );
 }
@@ -95,24 +117,6 @@ function PlainTextPreview({
   );
 }
 
-function CodePreview({
-  className,
-  language,
-  value,
-}: {
-  className?: string;
-  language: string;
-  value: string;
-}) {
-  return (
-    <div className={cn('flex-1 min-h-0', className)}>
-      <Suspense fallback={<PreviewLoadingState label="Rendering code preview..." />}>
-        <ContentCodePreview language={language} value={value} />
-      </Suspense>
-    </div>
-  );
-}
-
 export function ContentPreviewer({
   className,
   emptyState,
@@ -127,6 +131,7 @@ export function ContentPreviewer({
   path,
   value,
 }: ContentPreviewerProps) {
+  const { t } = useTranslation();
   const deferredValue = useDeferredValue(value);
   const previewDescriptor = useMemo(
     () =>
@@ -182,7 +187,7 @@ export function ContentPreviewer({
           className="h-full w-full border-0 bg-white"
           sandbox={resolvedSandbox}
           srcDoc={htmlPreviewDocument ?? ''}
-          title={htmlDocumentTitle?.trim() || previewDescriptor.path?.trim() || 'Content Preview'}
+          title={htmlDocumentTitle?.trim() || previewDescriptor.path?.trim() || t('ui.contentPreview')}
         />
       </div>
     );
@@ -191,7 +196,7 @@ export function ContentPreviewer({
   if (previewDescriptor.presentation === 'markdown') {
     return (
       <div className={cn('flex-1 min-h-0', className)}>
-        <Suspense fallback={<PreviewLoadingState label="Rendering Markdown preview..." />}>
+        <Suspense fallback={<PreviewLoadingState label={t('ui.renderingMarkdownPreview')} />}>
           <ContentMarkdownPreview value={previewDescriptor.sourceValue} />
         </Suspense>
       </div>
@@ -201,7 +206,7 @@ export function ContentPreviewer({
   if (previewDescriptor.presentation === 'structured-data' && previewDescriptor.structuredData !== null) {
     return (
       <div className={cn('flex-1 min-h-0', className)}>
-        <Suspense fallback={<PreviewLoadingState label="Rendering structured data preview..." />}>
+        <Suspense fallback={<PreviewLoadingState label={t('ui.renderingStructuredDataPreview')} />}>
           <ContentStructuredDataPreview
             format={previewDescriptor.structuredData.format}
             value={previewDescriptor.structuredData.value}
@@ -214,7 +219,7 @@ export function ContentPreviewer({
   if (previewDescriptor.presentation === 'key-value' && previewDescriptor.keyValueData !== null) {
     return (
       <div className={cn('flex-1 min-h-0', className)}>
-        <Suspense fallback={<PreviewLoadingState label="Rendering config preview..." />}>
+        <Suspense fallback={<PreviewLoadingState label={t('ui.renderingConfigPreview')} />}>
           <ContentKeyValuePreview value={previewDescriptor.keyValueData} />
         </Suspense>
       </div>
@@ -224,7 +229,7 @@ export function ContentPreviewer({
   if (previewDescriptor.presentation === 'table' && previewDescriptor.tabularData !== null) {
     return (
       <div className={cn('flex-1 min-h-0', className)}>
-        <Suspense fallback={<PreviewLoadingState label="Rendering table preview..." />}>
+        <Suspense fallback={<PreviewLoadingState label={t('ui.renderingTablePreview')} />}>
           <ContentTablePreview value={previewDescriptor.tabularData} />
         </Suspense>
       </div>
@@ -232,7 +237,14 @@ export function ContentPreviewer({
   }
 
   if (previewDescriptor.presentation === 'code') {
-    return <CodePreview className={className} language={previewDescriptor.codeLanguage} value={previewDescriptor.sourceValue} />;
+    return (
+      <CodePreview
+        className={className}
+        language={previewDescriptor.codeLanguage}
+        loadingLabel={t('ui.renderingCodePreview')}
+        value={previewDescriptor.sourceValue}
+      />
+    );
   }
 
   if (previewDescriptor.presentation === 'structured-data') {
@@ -241,6 +253,7 @@ export function ContentPreviewer({
         <CodePreview
           className={className}
           language={previewDescriptor.codeLanguage}
+          loadingLabel={t('ui.renderingCodePreview')}
           value={previewDescriptor.sourceValue}
         />
       );

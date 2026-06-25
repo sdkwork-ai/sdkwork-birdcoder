@@ -33,8 +33,8 @@ assert.match(
 );
 assert.doesNotMatch(
   tokenSource,
-  /globalThis\.sessionStorage\?\.getItem\(APP_SESSION_STORAGE_KEY\)/u,
-  'appSessionToken must not read sessionStorage directly after port extraction.',
+  /globalThis\.localStorage/u,
+  'appSessionToken must not read or write browser localStorage for IAM tokens.',
 );
 
 console.log('app session persistence port contract passed.');

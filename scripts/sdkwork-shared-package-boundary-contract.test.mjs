@@ -64,8 +64,8 @@ for (const relativePath of tsconfigRelativePaths) {
           '@sdkwork/iam-service',
           '@sdkwork/iam-sdk-ports',
           '@sdkwork/runtime-bootstrap',
-          '@sdkwork/appbase-app-sdk',
-          '@sdkwork/appbase-backend-sdk',
+          '@sdkwork/iam-app-sdk',
+          '@sdkwork/iam-backend-sdk',
         ];
         assert.ok(
           allowedDirectMappings.includes(specifier),

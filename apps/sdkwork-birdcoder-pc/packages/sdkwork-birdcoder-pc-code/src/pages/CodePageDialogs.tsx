@@ -100,8 +100,7 @@ export const CodePageDialogs = memo(function CodePageDialogs({
             </div>
             <div className="p-4 flex flex-col gap-4">
               <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-3 text-xs text-amber-100">
-                The Rust debugger host API is not wired yet. Debug attach remains unavailable until
-                the server-side debugger bridge is implemented.
+                {t('studio.debugConfigurationUnavailable')}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1.5">{t('app.name')}</label>

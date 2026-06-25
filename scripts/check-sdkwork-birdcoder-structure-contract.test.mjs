@@ -100,6 +100,7 @@ const fixtureRootDir = createStructureFixtureWorkspace({
     build: 'pnpm --dir apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web exec node ../../scripts/existing-topology-check.mjs build --mode production',
     'check:tauri-dev-binary-unlock': 'powershell -NoProfile -ExecutionPolicy Bypass -File scripts/existing-topology-check.ps1',
     'check:missing-topology': 'node scripts/missing-topology-check.mjs',
+    'gateway:package:cloud': 'node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs bundle --root .',
   },
 });
 
@@ -124,6 +125,11 @@ assert.doesNotMatch(
   stderr.join('\n'),
   /existing-topology-check/,
   'structure check must not flag root package script targets that already exist in the workspace.',
+);
+assert.doesNotMatch(
+  stderr.join('\n'),
+  /gateway-cloud-bundle/,
+  'structure check must not treat sibling-repo scripts paths as missing local repo files.',
 );
 assert.deepEqual(stdout, []);
 

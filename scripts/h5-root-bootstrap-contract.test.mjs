@@ -79,7 +79,7 @@ assert.match(
 
 assert.match(
   mainSource,
-  /<BootstrapGate bootstrap=\{createBirdCoderH5BootstrapRuntime\}>[\s\S]*<App \/>/u,
+  /<BootstrapGate bootstrap=\{createBirdCoderH5BootstrapRuntime\} messages=\{createBootstrapGateMessages\(\)\}>[\s\S]*<App \/>/u,
   'H5 entrypoint must mount BootstrapGate and delegate runtime bootstrap before rendering the app shell.',
 );
 

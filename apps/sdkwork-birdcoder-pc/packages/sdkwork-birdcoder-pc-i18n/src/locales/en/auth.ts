@@ -23,5 +23,6 @@ export default defineLocaleModule('auth', {
     continueWithGithub: 'Continue with GitHub',
     continueWithGoogle: 'Continue with Google',
     continueWithWeChat: 'Continue with WeChat',
+    validatingSession: 'Validating SDKWork session',
   },
 });

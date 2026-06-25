@@ -32,10 +32,13 @@ sdkwork-router-skill-packages-app-api = { workspace = true }
 sdkwork-router-membership-app-api = { workspace = true }
 sdkwork-router-deployment-backend-api = { workspace = true }
 sdkwork_router_iam_app_api = { workspace = true }
+sdkwork_router_iam_backend_api = { workspace = true }
 sdkwork-web-axum.workspace = true
 sdkwork-web-core = { workspace = true }
 sdkwork-web-contract = { workspace = true }
 sdkwork_iam_web_adapter.workspace = true
+sdkwork_iam_embedded_application_bootstrap.workspace = true
+sdkwork_iam_database_host.workspace = true
 sdkwork_database_sqlx = { workspace = true }
 sdkwork_database_config = { workspace = true }
 sdkwork-birdcoder-database-host = { workspace = true }

@@ -12,16 +12,20 @@ use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 use sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::deployment::SqliteDeploymentRepository;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::project::SqliteProjectRepository;
+use sdkwork_birdcoder_workspace_repository_sqlx::repository::team::SqliteTeamRepository;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::workspace::SqliteWorkspaceRepository;
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
 use sdkwork_birdcoder_workspace_service::ports::events::WorkspaceEventPublisher;
+use sdkwork_birdcoder_workspace_service::service::team_service::TeamService;
 use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService;
-use sdkwork_iam_context_service::{AuthLevel, DeploymentMode, Environment, IamAppContext};
+use sdkwork_database_config::{DatabaseConfig, DatabaseEngine, DeploymentMode};
+use sdkwork_database_sqlx::create_any_pool_from_config;
+use sdkwork_iam_context_service::{AuthLevel, DeploymentMode as IamDeploymentMode, Environment, IamAppContext};
 use sdkwork_router_workspace_app_api::{build_workspace_app_router, WorkspaceAppState, WorkspaceRealtimeHub};
 use sdkwork_web_core::{
     ServerRequestId, WebApiSurface, WebAuthMode, WebRequestContext, WebTransportFacts,
 };
-use sqlx::SqlitePool;
+use sqlx::AnyPool;
 use tower::ServiceExt;
 
 struct NoopWorkspaceEvents;
@@ -228,24 +232,35 @@ fn test_iam_context() -> IamAppContext {
         "handler-smoke-session",
         "birdcoder",
         Environment::Dev,
-        DeploymentMode::Local,
+        IamDeploymentMode::Local,
         AuthLevel::Password,
         vec![],
         vec![],
     )
 }
 
-async fn execute_sql_batch(pool: &SqlitePool, sql: &str) -> Result<(), sqlx::Error> {
+async fn execute_sql_batch(pool: &AnyPool, sql: &str) -> Result<(), sqlx::Error> {
     for statement in sql.split(';').map(str::trim).filter(|part| !part.is_empty()) {
         sqlx::query(statement).execute(pool).await?;
     }
     Ok(())
 }
 
+async fn test_any_pool() -> AnyPool {
+    sqlx::any::install_default_drivers();
+    create_any_pool_from_config(DatabaseConfig {
+        engine: DatabaseEngine::Sqlite,
+        url: "sqlite::memory:".to_string(),
+        mode: DeploymentMode::Standalone,
+        max_connections: 1,
+        ..DatabaseConfig::default()
+    })
+    .await
+    .expect("open in-memory sqlite any pool")
+}
+
 async fn test_state() -> WorkspaceAppState {
-    let pool = SqlitePool::connect("sqlite::memory:")
-        .await
-        .expect("open in-memory sqlite");
+    let pool = test_any_pool().await;
     execute_sql_batch(&pool, ALL_TABLES_DDL)
         .await
         .expect("apply workspace schema");
@@ -254,6 +269,10 @@ async fn test_state() -> WorkspaceAppState {
     let workspace_service = WorkspaceService::new(
         Arc::new(SqliteWorkspaceRepository::new(pool.clone())),
         Arc::new(NoopWorkspaceEvents),
+    );
+    let team_service = TeamService::new(
+        Arc::new(SqliteTeamRepository::new(pool.clone())),
+        Arc::new(SqliteWorkspaceRepository::new(pool.clone())),
     );
     let project_service = ProjectService::new(
         Arc::new(SqliteProjectRepository::new(pool.clone())),
@@ -269,6 +288,7 @@ async fn test_state() -> WorkspaceAppState {
         workspace_service,
         project_service,
         deployment_service,
+        team_service,
         realtime_hub,
     }
 }
@@ -349,4 +369,45 @@ async fn list_workspaces_returns_ok_with_empty_inventory() {
     assert_eq!(json["meta"]["version"], "v1");
     assert_eq!(json["requestId"], "handler-smoke-request");
     assert!(json["timestamp"].is_string());
+}
+
+#[tokio::test]
+async fn list_teams_requires_authentication() {
+    let response = build_workspace_app_router()
+        .with_state(test_state().await)
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri("/app/v3/api/teams")
+                .body(Body::empty())
+                .expect("build list teams request"),
+            None,
+        ))
+        .await
+        .expect("serve list teams request");
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn list_teams_returns_ok_with_empty_inventory() {
+    let response = build_workspace_app_router()
+        .with_state(test_state().await)
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri("/app/v3/api/teams")
+                .body(Body::empty())
+                .expect("build list teams request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve list teams request");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read list teams body");
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("parse list teams JSON");
+    assert_eq!(json["items"].as_array().map(Vec::len), Some(0));
+    assert_eq!(json["meta"]["total"], 0);
 }

@@ -9,6 +9,7 @@ export default defineLocaleModule('chat', {
     fileAttachedTruncated:
       '\u6587\u4ef6 {{name}} \u5df2\u9644\u52a0\uff0c\u4e3a\u4fdd\u6301\u8f93\u5165\u6846\u54cd\u5e94\u901f\u5ea6\u5df2\u81ea\u52a8\u622a\u65ad',
     fileReadFailed: '\u8bfb\u53d6\u6587\u4ef6\u5931\u8d25',
+    driveUploadFailed: 'Drive \u9644\u4ef6\u4e0a\u4f20\u5931\u8d25',
     fileTooLarge: '\u6587\u4ef6\u8fc7\u5927\uff08\u6700\u5927 1MB\uff09',
     processingFiles: '\u6b63\u5728\u5904\u7406 {{count}} \u4e2a\u6587\u4ef6...',
     folderAttached: '\u5df2\u9644\u52a0\u5305\u542b {{count}} \u4e2a\u6587\u672c\u6587\u4ef6\u7684\u6587\u4ef6\u5939',

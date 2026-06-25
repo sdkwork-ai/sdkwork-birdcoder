@@ -98,6 +98,9 @@ jobs:
       - name: Run workspace lint and parity checks
         run: pnpm lint
 
+      - name: Run governance regression report
+        run: pnpm check:governance-regression
+
       - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium --with-deps
 
@@ -216,3 +219,150 @@ jobs:
 
       - name: Run Windows server build
         run: pnpm server:build
+
+  postgresql-live-smoke:
+    name: PostgreSQL live smoke
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: birdcoder
+          POSTGRES_PASSWORD: birdcoder_ci
+          POSTGRES_DB: birdcoder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U birdcoder -d birdcoder"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      BIRDCODER_POSTGRESQL_DSN: postgresql://birdcoder:birdcoder_ci@localhost:5432/birdcoder
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Expose workspace command wrappers
+        shell: bash
+        run: |
+          workspace_path="$GITHUB_WORKSPACE"
+          github_path_file="$GITHUB_PATH"
+          if command -v cygpath >/dev/null 2>&1; then
+            workspace_path="$(cygpath -u "$GITHUB_WORKSPACE")"
+            github_path_file="$(cygpath -u "$GITHUB_PATH")"
+          fi
+          chmod +x "${workspace_path}/sdkwork-run-node" "${workspace_path}/sdkwork-run-pnpm"
+          printf '%s\n' "$GITHUB_WORKSPACE" >> "${github_path_file}"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup shared SDK SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY }}
+
+      - name: Prepare shared SDK sources
+        run: node scripts/prepare-shared-sdk-git-sources.mjs
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared SDK packages
+        run: pnpm prepare:shared-sdk
+
+      - name: Run PostgreSQL live smoke
+        run: pnpm release:smoke:postgresql-live
+
+  mobile-surfaces:
+    name: Mobile surfaces smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Expose workspace command wrappers
+        shell: bash
+        run: |
+          workspace_path="$GITHUB_WORKSPACE"
+          github_path_file="$GITHUB_PATH"
+          if command -v cygpath >/dev/null 2>&1; then
+            workspace_path="$(cygpath -u "$GITHUB_WORKSPACE")"
+            github_path_file="$(cygpath -u "$GITHUB_PATH")"
+          fi
+          chmod +x "${workspace_path}/sdkwork-run-node" "${workspace_path}/sdkwork-run-pnpm"
+          printf '%s\n' "$GITHUB_WORKSPACE" >> "${github_path_file}"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup shared SDK SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SDKWORK_SHARED_SDK_SSH_PRIVATE_KEY }}
+
+      - name: Prepare shared SDK sources
+        run: node scripts/prepare-shared-sdk-git-sources.mjs
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared SDK packages
+        run: pnpm prepare:shared-sdk
+
+      - name: Run H5 typecheck
+        run: pnpm h5:typecheck
+
+      - name: Build H5 production bundle
+        run: pnpm h5:build
+
+      - name: Sync Capacitor native projects
+        run: pnpm cap:sync
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Assemble Capacitor Android debug APK
+        run: pnpm cap:android:assemble
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Run Flutter analyze
+        run: pnpm flutter:pub-get && pnpm flutter:analyze
+
+      - name: Run Flutter tests
+        run: pnpm flutter:test
+
+      - name: Run H5 Capacitor platform contracts
+        run: node scripts/h5-capacitor-native-platform-contract.test.mjs && node scripts/h5-capacitor-deep-link-auth-contract.test.mjs

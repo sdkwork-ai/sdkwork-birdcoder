@@ -32,7 +32,17 @@ assert.match(
 assert.match(
   overlaySource,
   /minReplicas: 2/u,
-  'PostgreSQL HA overlay must keep at least two replicas for HA.',
+  'PostgreSQL HA overlay must set database.engine to postgresql.',
+);
+assert.match(
+  overlaySource,
+  /realtime:\s*\n\s*backend: redis/u,
+  'PostgreSQL HA overlay must require Redis-backed realtime.',
+);
+assert.match(
+  overlaySource,
+  /redis:\s*\n\s*enabled: true/u,
+  'PostgreSQL HA overlay must enable Redis.',
 );
 assert.match(
   deploymentTemplate,

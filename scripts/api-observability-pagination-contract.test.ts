@@ -46,7 +46,7 @@ const workspaceHandlersSource = readFileSync(
 );
 assert.match(
   workspaceErrorSource,
-  /sdkwork_birdcoder_errors::ProblemDetailsPayload/,
+  /sdkwork_birdcoder_errors::(\{[\s\S]*ProblemDetailsPayload|ProblemDetailsPayload)/,
   'Workspace API errors must use shared problem payloads with traceId support.',
 );
 assert.match(
@@ -148,8 +148,13 @@ assert.match(
 );
 assert.match(
   authBootstrapSource,
-  /validate_public_path_prefixes\(&birdcoder_public_path_prefixes\(\)\)\s*\.expect/u,
-  'BirdCoder API bootstrap must fail fast when route manifest public prefix validation fails.',
+  /validate_public_path_prefixes\(&birdcoder_public_path_prefixes\(\)\)/u,
+  'BirdCoder API bootstrap must validate route manifest public prefixes before serving traffic.',
+);
+assert.doesNotMatch(
+  authBootstrapSource,
+  /validate_public_path_prefixes\(&birdcoder_public_path_prefixes\(\)\)\s*\.expect\(/u,
+  'BirdCoder API bootstrap must not panic on route manifest public prefix validation failures.',
 );
 
 const alignedRouterCrates = [
@@ -173,7 +178,7 @@ for (const crate of alignedRouterCrates) {
 
   assert.match(
     errorSource,
-    /sdkwork_birdcoder_errors::ProblemDetailsPayload/,
+    /sdkwork_birdcoder_errors::(\{[\s\S]*ProblemDetailsPayload|ProblemDetailsPayload)/,
     `${crate} errors must use shared problem payloads with traceId support.`,
   );
   assert.match(

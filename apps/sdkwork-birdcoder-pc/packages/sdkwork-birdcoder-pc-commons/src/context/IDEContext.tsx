@@ -1,9 +1,6 @@
 import React, { ReactNode, useRef } from 'react';
 import type {
-  IAdminDeploymentService,
-  IAdminPolicyService,
   IAuthService,
-  IAuditService,
   ICatalogService,
   ICollaborationService,
   IAppRuntimeReadService,
@@ -16,6 +13,7 @@ import type {
   IProjectService,
   IReleaseService,
   ITeamService,
+  IVipMembershipService,
   IWorkspaceService,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import {
@@ -30,19 +28,17 @@ import {
 
 export interface IDEProviderProps {
   children: ReactNode;
-  adminDeploymentService?: IAdminDeploymentService;
-  adminPolicyService?: IAdminPolicyService;
   catalogService?: ICatalogService;
   workspaceService?: IWorkspaceService;
   projectService?: IProjectService;
   collaborationService?: ICollaborationService;
   appRuntimeReadService?: IAppRuntimeReadService;
   appRuntimeWriteService?: IAppRuntimeWriteService;
-  auditService?: IAuditService;
   deploymentService?: IDeploymentService;
   documentService?: IDocumentService;
   releaseService?: IReleaseService;
   teamService?: ITeamService;
+  vipMembershipService?: IVipMembershipService;
   fileSystemService?: IFileSystemService;
   gitService?: IGitService;
   authService?: IAuthService;
@@ -51,19 +47,17 @@ export interface IDEProviderProps {
 
 export const IDEProvider: React.FC<IDEProviderProps> = ({
   children,
-  adminDeploymentService,
-  adminPolicyService,
   catalogService,
   workspaceService,
   projectService,
   collaborationService,
   appRuntimeReadService,
   appRuntimeWriteService,
-  auditService,
   deploymentService,
   documentService,
   releaseService,
   teamService,
+  vipMembershipService,
   fileSystemService,
   gitService,
   authService,
@@ -76,19 +70,17 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
   return (
     <IDEContext.Provider
       value={{
-        adminDeploymentService: adminDeploymentService ?? defaultContext.adminDeploymentService,
-        adminPolicyService: adminPolicyService ?? defaultContext.adminPolicyService,
         catalogService: catalogService ?? defaultContext.catalogService,
         workspaceService: workspaceService ?? defaultContext.workspaceService,
         projectService: projectService ?? defaultContext.projectService,
         collaborationService: collaborationService ?? defaultContext.collaborationService,
         appRuntimeReadService: appRuntimeReadService ?? defaultContext.appRuntimeReadService,
         appRuntimeWriteService: appRuntimeWriteService ?? defaultContext.appRuntimeWriteService,
-        auditService: auditService ?? defaultContext.auditService,
         deploymentService: deploymentService ?? defaultContext.deploymentService,
         documentService: documentService ?? defaultContext.documentService,
         releaseService: releaseService ?? defaultContext.releaseService,
         teamService: teamService ?? defaultContext.teamService,
+        vipMembershipService: vipMembershipService ?? defaultContext.vipMembershipService,
         fileSystemService: fileSystemService ?? defaultContext.fileSystemService,
         gitService: gitService ?? defaultContext.gitService,
         authService: authService ?? defaultContext.authService,
@@ -100,4 +92,3 @@ export const IDEProvider: React.FC<IDEProviderProps> = ({
   );
 };
 export { useIDEServices };
-

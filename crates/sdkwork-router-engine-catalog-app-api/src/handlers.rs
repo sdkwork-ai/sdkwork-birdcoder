@@ -270,7 +270,7 @@ pub async fn list_engines(
     State(state): State<EngineCatalogAppState>,
 ) -> Result<
     Json<ApiListEnvelope<EngineDescriptorPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
@@ -290,7 +290,7 @@ pub async fn get_engine_capabilities(
     Path(params): Path<EngineKeyPathParams>,
 ) -> Result<
     Json<ApiDataEnvelope<EngineCapabilityMatrixPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
@@ -309,7 +309,7 @@ pub async fn list_native_session_providers(
     State(state): State<EngineCatalogAppState>,
 ) -> Result<
     Json<ApiListEnvelope<EngineNativeSessionProviderPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
@@ -332,7 +332,7 @@ pub async fn list_native_sessions(
     Query(params): Query<NativeSessionQueryParams>,
 ) -> Result<
     Json<ApiListEnvelope<NativeSessionSummaryPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
@@ -373,7 +373,7 @@ pub async fn get_native_session(
     Query(scope): Query<NativeSessionScopeQuery>,
 ) -> Result<
     Json<ApiDataEnvelope<NativeSessionDetailPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
@@ -404,7 +404,7 @@ pub async fn list_models(
     State(state): State<EngineCatalogAppState>,
 ) -> Result<
     Json<ApiListEnvelope<ModelCatalogEntryPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
@@ -423,7 +423,7 @@ pub async fn get_model_config(
     State(state): State<EngineCatalogAppState>,
 ) -> Result<
     Json<ApiDataEnvelope<CodeEngineModelConfigPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
@@ -440,7 +440,7 @@ pub async fn sync_model_config(
     Json(body): Json<SyncModelConfigRequest>,
 ) -> Result<
     Json<ApiDataEnvelope<SyncModelConfigResultPayload>>,
-    (axum::http::StatusCode, Json<error::ProblemDetailsPayload>),
+    error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);

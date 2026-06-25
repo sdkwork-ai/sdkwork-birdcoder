@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const rootDir = process.cwd();
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function read(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');

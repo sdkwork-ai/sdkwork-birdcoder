@@ -79,4 +79,5 @@ pub fn build_workspace_app_router() -> Router<WorkspaceAppState> {
             paths::PROJECT_PUBLISH_PATH,
             post(handlers::publish_project),
         )
+        .route(paths::TEAMS_PATH, get(handlers::list_teams))
 }

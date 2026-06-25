@@ -93,6 +93,88 @@ impl SqliteTeamRepository {
             .collect()
     }
 
+    pub async fn list_teams(
+        &self,
+        ctx: &WorkspaceContext,
+        workspace_id: Option<&str>,
+        user_id: Option<&str>,
+    ) -> Result<Vec<TeamPayload>, WorkspaceError> {
+        let tenant_id = scoped_tenant_id(ctx)?;
+        let uid = user_id
+            .map(|value| {
+                value.parse::<i64>().map_err(|_| {
+                    WorkspaceError::InvalidInput(format!("invalid user_id: {value}"))
+                })
+            })
+            .transpose()?;
+
+        if let Some(workspace_id) = workspace_id {
+            let wid: i64 = workspace_id.parse().map_err(|_| {
+                WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
+            })?;
+            let mut sql = format!(
+                "SELECT t.* FROM {} t WHERE t.{} = ? AND t.{} = 0 AND t.{} = ?",
+                col::TABLE,
+                col::WORKSPACE_ID,
+                col::IS_DELETED,
+                col::TENANT_ID,
+            );
+            if let Some(parsed) = uid {
+                sql.push_str(&format!(
+                    " AND (t.{} = ? OR EXISTS (SELECT 1 FROM {} m WHERE m.{} = t.{} AND m.{} = ? AND m.{} = 0))",
+                    col::OWNER_ID,
+                    member_col::TABLE,
+                    member_col::TEAM_ID,
+                    col::ID,
+                    member_col::USER_ID,
+                    member_col::IS_DELETED,
+                ));
+                let mut query = sqlx::query(&sql).bind(wid).bind(tenant_id).bind(parsed).bind(parsed);
+                return Self::collect_team_rows(query.fetch_all(&self.pool).await);
+            }
+
+            let query = sqlx::query(&sql).bind(wid).bind(tenant_id);
+            return Self::collect_team_rows(query.fetch_all(&self.pool).await);
+        }
+
+        let mut sql = format!(
+            "SELECT t.* FROM {} t WHERE t.{} = 0 AND t.{} = ?",
+            col::TABLE,
+            col::IS_DELETED,
+            col::TENANT_ID,
+        );
+
+        if let Some(parsed) = uid {
+            sql.push_str(&format!(
+                " AND (t.{} = ? OR EXISTS (SELECT 1 FROM {} m WHERE m.{} = t.{} AND m.{} = ? AND m.{} = 0))",
+                col::OWNER_ID,
+                member_col::TABLE,
+                member_col::TEAM_ID,
+                col::ID,
+                member_col::USER_ID,
+                member_col::IS_DELETED,
+            ));
+            let mut query = sqlx::query(&sql).bind(tenant_id).bind(parsed).bind(parsed);
+            return Self::collect_team_rows(query.fetch_all(&self.pool).await);
+        }
+
+        let query = sqlx::query(&sql).bind(tenant_id);
+        Self::collect_team_rows(query.fetch_all(&self.pool).await)
+    }
+
+    fn collect_team_rows(
+        rows: Result<Vec<sqlx::any::AnyRow>, sqlx::Error>,
+    ) -> Result<Vec<TeamPayload>, WorkspaceError> {
+        let rows = rows.map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        rows.iter()
+            .map(|row| {
+                TeamRow::from_row(row)
+                    .map(|r| row_mapper::team_row_to_payload(&r))
+                    .map_err(|e| WorkspaceError::Repository(e.to_string()))
+            })
+            .collect()
+    }
+
     pub async fn create_team(
         &self,
         ctx: &WorkspaceContext,
@@ -283,5 +365,25 @@ impl SqliteTeamRepository {
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl sdkwork_birdcoder_workspace_service::ports::team::TeamRepository for SqliteTeamRepository {
+    async fn list_teams(
+        &self,
+        ctx: &WorkspaceContext,
+        workspace_id: Option<&str>,
+        user_id: Option<&str>,
+    ) -> Result<Vec<TeamPayload>, WorkspaceError> {
+        SqliteTeamRepository::list_teams(self, ctx, workspace_id, user_id).await
+    }
+
+    async fn list_team_members(
+        &self,
+        ctx: &WorkspaceContext,
+        team_id: &str,
+    ) -> Result<Vec<TeamMemberPayload>, WorkspaceError> {
+        SqliteTeamRepository::list_team_members(self, ctx, team_id).await
     }
 }

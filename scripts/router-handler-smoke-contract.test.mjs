@@ -5,11 +5,13 @@ const smokeFiles = [
   '../crates/sdkwork-router-coding-sessions-app-api/tests/handler_smoke.rs',
   '../crates/sdkwork-router-workspace-app-api/tests/handler_smoke.rs',
   '../crates/sdkwork-router-system-app-api/tests/handler_smoke.rs',
+  '../crates/sdkwork-router-deployment-backend-api/tests/handler_smoke.rs',
 ];
 
 const listEnvelopeSmokeFiles = [
   '../crates/sdkwork-router-coding-sessions-app-api/tests/handler_smoke.rs',
   '../crates/sdkwork-router-workspace-app-api/tests/handler_smoke.rs',
+  '../crates/sdkwork-router-deployment-backend-api/tests/handler_smoke.rs',
 ];
 
 for (const relativePath of smokeFiles) {
@@ -28,6 +30,11 @@ for (const relativePath of smokeFiles) {
 
 for (const relativePath of listEnvelopeSmokeFiles) {
   const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8');
+  assert.match(
+    source,
+    /create_any_pool_from_config|AnyPool/u,
+    `${relativePath} must bootstrap repositories through sqlx AnyPool for engine-agnostic smoke coverage.`,
+  );
   assert.match(
     source,
     /json\["meta"\]\["version"\]/,

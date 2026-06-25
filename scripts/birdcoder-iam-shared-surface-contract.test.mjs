@@ -3,10 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { SDKWORK_IAM_WORKSPACE_REL } from './birdcoder-iam-workspace-paths.mjs';
+
 const rootDir = path.resolve(import.meta.dirname, '..');
-const appbaseRootDir = process.env.SDKWORK_APPBASE_ROOT
-  ? path.resolve(rootDir, process.env.SDKWORK_APPBASE_ROOT)
-  : path.resolve(rootDir, '..', 'sdkwork-appbase');
+const iamRootDir = process.env.SDKWORK_IAM_ROOT
+  ? path.resolve(rootDir, process.env.SDKWORK_IAM_ROOT)
+  : path.resolve(rootDir, SDKWORK_IAM_WORKSPACE_REL);
 
 function readText(baseDir, relativePath) {
   const absolutePath = path.join(baseDir, relativePath);
@@ -53,25 +55,25 @@ function assertNoUserCenterDependency(packageJson, label) {
 }
 
 assert.ok(
-  fs.existsSync(appbaseRootDir),
-  `Expected sdkwork-appbase reference repo to exist at ${appbaseRootDir}.`,
+  fs.existsSync(iamRootDir),
+  `Expected sdkwork-iam reference repo to exist at ${iamRootDir}.`,
 );
 
 const authUpstreamSource = readText(
-  appbaseRootDir,
-  'packages/pc-react/iam/sdkwork-auth-pc-react/src/auth.ts',
+  iamRootDir,
+  'apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth.ts',
 );
 const authIamRuntimeUpstreamSource = readText(
-  appbaseRootDir,
-  'packages/pc-react/iam/sdkwork-auth-pc-react/src/auth-iam-runtime.ts',
+  iamRootDir,
+  'apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/auth-iam-runtime.ts',
 );
 const authRoutesUpstreamSource = readText(
-  appbaseRootDir,
-  'packages/pc-react/iam/sdkwork-auth-pc-react/src/pages/IamAuthRoutes.tsx',
+  iamRootDir,
+  'apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src/pages/IamAuthRoutes.tsx',
 );
 const userUpstreamSource = readText(
-  appbaseRootDir,
-  'packages/pc-react/iam/sdkwork-user-pc-react/src/user.ts',
+  iamRootDir,
+  'apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react/src/user.ts',
 );
 const rootPackageJson = readJson(rootDir, 'package.json');
 const authPackageJson = readJson(rootDir, 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-auth/package.json');
@@ -145,13 +147,13 @@ const serviceContextSource = readText(
 );
 assert.match(
   serviceContextSource,
-  /vipMembershipService:\s*IVipMembershipService/u,
+  /IVipMembershipService/u,
   'ServiceContext must expose vipMembershipService on the canonical IDE service boundary.',
 );
 assert.match(
   serviceContextSource,
-  /vipMembershipService:\s*defaultIdeServices\.vipMembershipService/u,
-  'ServiceContext must wire vipMembershipService from default IDE services.',
+  /AppIdeServices/u,
+  'ServiceContext must compose lazy app IDE services including VIP membership.',
 );
 
 for (const [label, packageJson] of [

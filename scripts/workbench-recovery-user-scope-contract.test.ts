@@ -79,7 +79,6 @@ assert.deepEqual(
   'authenticated startup must not restore unscoped legacy workspace/project/session ids.',
 );
 
-const birdcoderAppSource = readBirdcoderAppShellSource();
 assert.match(
   birdcoderAppSource,
   /resolveWorkbenchRecoverySnapshotForUser\(/,

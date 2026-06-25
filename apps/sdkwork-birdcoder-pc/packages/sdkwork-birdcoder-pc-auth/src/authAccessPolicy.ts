@@ -23,26 +23,37 @@ function normalizeDeploymentMode(value: string | undefined): BirdCoderAuthDeploy
 }
 
 export function resolveBirdCoderAuthDeploymentMode(): BirdCoderAuthDeploymentMode {
-  return (
+  const resolved =
     normalizeDeploymentMode(
       readBirdCoderPublicEnvValue(
         'VITE_SDKWORK_DEPLOYMENT_MODE',
         'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE',
         'VITE_SDKWORK_BIRDCODER_IAM_DEPLOYMENT_MODE',
       ),
-    ) ?? 'private'
-  );
+    ) ?? 'private';
+
+  if (import.meta.env.PROD && resolved === 'local') {
+    throw new Error(
+      'Production builds must not ship with VITE_SDKWORK_DEPLOYMENT_MODE=local. Use private or saas.',
+    );
+  }
+
+  return resolved;
 }
 
 export function requiresAuthenticatedProductAccess(): boolean {
   return resolveBirdCoderAuthDeploymentMode() !== 'local';
 }
 
+const AUTH_SURFACE_BASE_PATH = '/auth';
+const AUTH_SURFACE_LOGIN_PATH = `${AUTH_SURFACE_BASE_PATH}/login`;
+
+/** Auth-surface alias kept for IAM/AuthGate; canonical implementation lives in pc-core. */
 export function buildProtectedRouteLoginPath(redirectTarget?: string | null): string {
   const normalizedTarget = (redirectTarget ?? '').trim();
-  if (!normalizedTarget || normalizedTarget.startsWith('/auth')) {
-    return '/auth/login';
+  if (!normalizedTarget || normalizedTarget.startsWith(AUTH_SURFACE_BASE_PATH)) {
+    return AUTH_SURFACE_LOGIN_PATH;
   }
 
-  return `/auth/login?redirect=${encodeURIComponent(normalizedTarget)}`;
+  return `${AUTH_SURFACE_LOGIN_PATH}?redirect=${encodeURIComponent(normalizedTarget)}`;
 }
