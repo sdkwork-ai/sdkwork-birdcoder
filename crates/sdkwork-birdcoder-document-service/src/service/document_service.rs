@@ -1,6 +1,8 @@
 use crate::domain::models::DocumentPayload;
 use crate::error::DocumentError;
 
+use sdkwork_utils_rust::{is_blank, trim as trim_string};
+
 // ── Repository trait ─────────────────────────────────────────────────
 
 #[async_trait::async_trait]
@@ -61,10 +63,9 @@ impl<R: DocumentRepository> DocumentService<R> {
 }
 
 fn normalize_required(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
+    if is_blank(Some(value)) {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(trim_string(value))
     }
 }

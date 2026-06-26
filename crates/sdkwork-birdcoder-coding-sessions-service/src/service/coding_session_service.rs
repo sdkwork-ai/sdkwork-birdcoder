@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use sdkwork_utils_rust::is_blank;
+use sdkwork_utils_rust::{is_blank, trim as trim_string};
 
 use crate::context::CodingSessionContext;
 use crate::domain::commands::{
@@ -764,11 +764,10 @@ impl CodingSessionService {
 // ── String normalization helpers ─────────────────────────────────────
 
 fn normalize_required_string(value: &str) -> Option<String> {
-    let normalized = value.trim().to_owned();
-    if normalized.is_empty() {
+    if is_blank(Some(value)) {
         None
     } else {
-        Some(normalized)
+        Some(trim_string(value))
     }
 }
 

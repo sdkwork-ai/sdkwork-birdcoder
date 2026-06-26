@@ -362,7 +362,7 @@ pub async fn list_projects(
 ) -> Result<Json<ApiListEnvelope<ProjectPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = project_context(&iam);
-    let workspace_id = query.workspace_id.as_deref().filter(|value| !value.trim().is_empty()).ok_or_else(|| {
+    let workspace_id = query.workspace_id.as_deref().filter(|value| !sdkwork_utils_rust::is_blank(Some(value))).ok_or_else(|| {
         error::map_validation_error(
             "workspaceId is required to list projects.",
             trace_id,

@@ -144,9 +144,5 @@ sdkwork-terminal-session-runtime = { path = "../sdkwork-terminal/apps/sdkwork-te
 # sdkwork-kernel agent SPI (sibling checkout)
 sdkwork-agent-kernel = { path = "../sdkwork-kernel/sdkwork-agent-kernel" }
 sdkwork-code-kernel = { path = "../sdkwork-kernel/sdkwork-code-kernel" }
-sdkwork-agent-adapter-core = { path = "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-core" }
-sdkwork-agent-adapter-codex = { path = "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-codex" }
-sdkwork-agent-adapter-claude-code = { path = "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-claude-code" }
-sdkwork-agent-adapter-gemini-cli = { path = "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-gemini-cli" }
-sdkwork-agent-adapter-opencode = { path = "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-opencode" }
+sdkwork-agents-runtime-facade = { path = "../sdkwork-agents/crates/sdkwork-agents-runtime-facade" }
 

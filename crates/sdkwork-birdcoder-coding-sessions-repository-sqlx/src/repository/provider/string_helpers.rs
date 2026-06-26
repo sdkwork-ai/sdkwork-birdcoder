@@ -1,11 +1,11 @@
 use crate::repository::provider::constants::BOOTSTRAP_WORKSPACE_OWNER_USER_ID;
+use sdkwork_utils_rust::{is_blank, trim as trim_string};
 
 pub fn normalize_required_string(value: String) -> Option<String> {
-    let normalized = value.trim().to_owned();
-    if normalized.is_empty() {
+    if is_blank(Some(&value)) {
         None
     } else {
-        Some(normalized)
+        Some(trim_string(&value))
     }
 }
 

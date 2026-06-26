@@ -4,6 +4,7 @@
  */
 
 import { setStoredJson, type WorkbenchRecoverySnapshot } from '@sdkwork/birdcoder-pc-commons';
+import { randomString } from '@sdkwork/utils/id';
 
 export type DesktopWindowHandle = {
   isMinimized: () => Promise<boolean>;
@@ -29,5 +30,5 @@ export function persistWorkbenchRecoverySnapshot(snapshot: WorkbenchRecoverySnap
 }
 
 export function createWorkbenchRecoverySessionId() {
-  return `recovery-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  return `recovery-${Date.now().toString(36)}-${randomString(6)}`;
 }

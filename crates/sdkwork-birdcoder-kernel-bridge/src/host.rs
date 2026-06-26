@@ -1,40 +1,69 @@
-use std::collections::HashMap;
+use std::sync::Arc;
 
+use sdkwork_agents_runtime_facade::{
+    AgentsCodeEngineHost, ApprovalDecision, EngineLiveInteraction, LiveInteractionRegistry,
+    UserQuestionAnswer,
+};
 use sdkwork_birdcoder_codeengine::{
-    find_codeengine_descriptor, CodeEngineApprovalDecisionRecord, CodeEngineTurnRequestRecord,
-    CodeEngineTurnResultRecord, CodeEngineUserQuestionAnswerRecord,
+    find_codeengine_descriptor, reject_opencode_question_request, reply_opencode_permission_request,
+    reply_opencode_question_request, CodeEngineApprovalDecisionRecord,
+    CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord, CodeEngineUserQuestionAnswerRecord,
 };
 
-use crate::engine_registry::{
-    bootstrap_kernel_slot, canonical_engine_keys, KernelBootstrapError, KernelEngineSlot,
-};
-use crate::live_interaction::{
-    submit_approval_decision as route_approval_decision,
-    submit_user_question_answer as route_user_question_answer,
-};
 use crate::turn_executor::execute_kernel_turn;
 
-/// BirdCoder integration host for sdkwork-kernel agent runtime slots.
+struct OpenCodeLiveInteraction;
+
+impl EngineLiveInteraction for OpenCodeLiveInteraction {
+    fn submit_approval(&self, decision: &ApprovalDecision) -> Result<(), String> {
+        reply_opencode_permission_request(
+            decision.approval_id.as_str(),
+            decision.decision.as_str(),
+            decision.reason.as_deref(),
+        )
+    }
+
+    fn submit_user_question(&self, answer: &UserQuestionAnswer) -> Result<(), String> {
+        if answer.rejected {
+            return reject_opencode_question_request(answer.question_id.as_str());
+        }
+        reply_opencode_question_request(
+            answer.question_id.as_str(),
+            answer.answer.as_str(),
+            answer.option_label.as_deref(),
+        )
+    }
+}
+
+fn build_live_registry() -> LiveInteractionRegistry {
+    let mut live = LiveInteractionRegistry::new();
+    live.register("opencode", Arc::new(OpenCodeLiveInteraction));
+    live
+}
+
+/// BirdCoder integration host backed by `sdkwork-agents` runtime facade.
 pub struct BirdcoderKernelHost {
-    slots: HashMap<String, KernelEngineSlot>,
+    inner: AgentsCodeEngineHost,
 }
 
 impl BirdcoderKernelHost {
-    pub fn bootstrap() -> Result<Self, KernelBootstrapError> {
-        let mut slots = HashMap::new();
-        for engine_key in canonical_engine_keys() {
-            let slot = bootstrap_kernel_slot(engine_key)?;
-            slots.insert(engine_key.to_string(), slot);
-        }
-        Ok(Self { slots })
+    pub fn bootstrap() -> Result<Self, sdkwork_agents_runtime_facade::CodeEngineBootstrapError> {
+        AgentsCodeEngineHost::bootstrap_with_live(build_live_registry()).map(|inner| Self { inner })
     }
 
-    pub fn slot(&self, engine_key: &str) -> Option<&KernelEngineSlot> {
-        self.slots.get(engine_key)
+    pub fn inner(&self) -> &AgentsCodeEngineHost {
+        &self.inner
+    }
+
+    pub fn slot(
+        &self,
+        engine_key: &str,
+    ) -> Option<&sdkwork_agents_runtime_facade::CodeEngineSlot> {
+        self.inner.slot(engine_key)
     }
 
     pub fn engine_keys(&self) -> impl Iterator<Item = &str> {
-        self.slots.keys().map(String::as_str)
+        self.inner.engine_keys()
     }
 
     pub fn execute_turn(
@@ -42,8 +71,8 @@ impl BirdcoderKernelHost {
         request: &CodeEngineTurnRequestRecord,
     ) -> Result<CodeEngineTurnResultRecord, String> {
         let slot = self
-            .slots
-            .get(request.engine_id.as_str())
+            .inner
+            .slot(request.engine_id.as_str())
             .ok_or_else(|| format!("unsupported engineId \"{}\".", request.engine_id))?;
         execute_kernel_turn(slot, request)
     }
@@ -54,7 +83,15 @@ impl BirdcoderKernelHost {
         decision: &CodeEngineApprovalDecisionRecord,
     ) -> Result<(), String> {
         self.validate_engine_id(engine_id)?;
-        route_approval_decision(engine_id, decision)
+        self.inner.submit_approval_decision(
+            engine_id,
+            &ApprovalDecision {
+                native_session_id: decision.native_session_id.clone(),
+                approval_id: decision.approval_id.clone(),
+                decision: decision.decision.clone(),
+                reason: decision.reason.clone(),
+            },
+        )
     }
 
     pub fn submit_user_question_answer(
@@ -63,20 +100,45 @@ impl BirdcoderKernelHost {
         answer: &CodeEngineUserQuestionAnswerRecord,
     ) -> Result<(), String> {
         self.validate_engine_id(engine_id)?;
-        route_user_question_answer(engine_id, answer)
+        self.inner.submit_user_question_answer(
+            engine_id,
+            &UserQuestionAnswer {
+                native_session_id: answer.native_session_id.clone(),
+                question_id: answer.question_id.clone(),
+                answer: answer.answer.clone(),
+                rejected: answer.rejected,
+                option_label: answer.option_label.clone(),
+            },
+        )
     }
 
     pub fn validate_engine_id(&self, engine_id: &str) -> Result<(), String> {
-        if self.slots.contains_key(engine_id) {
+        if self.inner.validate_engine_key(engine_id).is_ok() {
             return Ok(());
         }
         if find_codeengine_descriptor(engine_id).is_some() {
             return Err(format!(
-                "engineId \"{engine_id}\" is cataloged but kernel slot is unavailable."
+                "engineId \"{engine_id}\" is cataloged but agents runtime slot is unavailable."
             ));
         }
         Err(format!("unknown engineId \"{engine_id}\"."))
     }
+}
+
+pub fn submit_approval_decision(
+    engine_id: &str,
+    decision: &CodeEngineApprovalDecisionRecord,
+) -> Result<(), String> {
+    let host = BirdcoderKernelHost::bootstrap().map_err(|error| error.to_string())?;
+    host.submit_approval_decision(engine_id, decision)
+}
+
+pub fn submit_user_question_answer(
+    engine_id: &str,
+    answer: &CodeEngineUserQuestionAnswerRecord,
+) -> Result<(), String> {
+    let host = BirdcoderKernelHost::bootstrap().map_err(|error| error.to_string())?;
+    host.submit_user_question_answer(engine_id, answer)
 }
 
 #[cfg(test)]
@@ -86,6 +148,20 @@ mod tests {
     #[test]
     fn host_bootstraps_all_canonical_engines() {
         let host = BirdcoderKernelHost::bootstrap().expect("host bootstrap");
-        assert_eq!(host.slots.len(), 4);
+        assert_eq!(host.engine_keys().count(), 4);
+    }
+
+    #[test]
+    fn unsupported_engine_returns_clear_error_for_approval() {
+        let err = submit_approval_decision(
+            "codex",
+            &CodeEngineApprovalDecisionRecord {
+                approval_id: "perm-1".to_string(),
+                decision: "approve".to_string(),
+                ..Default::default()
+            },
+        )
+        .expect_err("codex should not support live approval yet");
+        assert!(err.contains("codex"));
     }
 }

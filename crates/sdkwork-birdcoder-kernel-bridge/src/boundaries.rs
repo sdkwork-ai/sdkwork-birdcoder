@@ -1,6 +1,6 @@
-//! Responsibility split between BirdCoder and sdkwork-kernel.
+//! Responsibility split between BirdCoder, sdkwork-agents, and sdkwork-kernel.
 
-/// Capabilities that must stay in sdkwork-kernel (agent SPI).
+/// Capabilities owned by sdkwork-kernel (agent SPI — not consumed directly by BirdCoder).
 pub const KERNEL_OWNED_CAPABILITIES: &[&str] = &[
     "agent.manifest",
     "agent.runtime",
@@ -21,6 +21,17 @@ pub const KERNEL_OWNED_CAPABILITIES: &[&str] = &[
     "code.safety",
 ];
 
+/// Capabilities owned by sdkwork-agents application layer.
+pub const AGENTS_OWNED_CAPABILITIES: &[&str] = &[
+    "agents-runtime-facade",
+    "agents-engine-catalog-api",
+    "agents-domain-service",
+    "agents-http-routes",
+    "agents-managed-agents",
+    "agents-provider-bindings",
+    "agents-runtime-executions",
+];
+
 /// Capabilities that remain BirdCoder product/tooling concerns.
 pub const BIRDCODER_OWNED_CAPABILITIES: &[&str] = &[
     "coding_session",
@@ -38,5 +49,5 @@ pub const BIRDCODER_OWNED_CAPABILITIES: &[&str] = &[
     "native-session.catalog",
 ];
 
-/// Legacy BirdCoder surfaces retired after kernel bridge rollout.
+/// Legacy BirdCoder surfaces retired after agents runtime facade rollout.
 pub const LEGACY_CODEENGINE_SURFACES: &[&str] = &[];

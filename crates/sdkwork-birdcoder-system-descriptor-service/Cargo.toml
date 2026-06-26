@@ -9,5 +9,6 @@ authors.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sdkwork-web-contract = { workspace = true }
+sdkwork-utils-rust.workspace = true
 
 

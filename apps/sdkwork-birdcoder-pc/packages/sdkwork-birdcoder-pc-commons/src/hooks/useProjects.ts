@@ -1,4 +1,5 @@
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { randomString } from '@sdkwork/utils/id';
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
@@ -428,7 +429,7 @@ function buildOptimisticCodingSessionMessage(
   options?: BirdCoderSendMessageOptions,
 ): BirdCoderChatMessage {
   const createdAt = new Date().toISOString();
-  const randomToken = Math.random().toString(36).slice(2, 10);
+  const randomToken = randomString(8);
   return {
     id: `${codingSessionId}:optimistic:${createdAt}:${randomToken}`,
     codingSessionId,

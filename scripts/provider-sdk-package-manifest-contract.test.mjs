@@ -18,14 +18,14 @@ const workspaceConfigSource = fs.readFileSync(workspaceConfigPath, 'utf8');
 for (const engine of kernelBindingEngines) {
   const manifestPath = path.join(
     rootDir,
-    '../sdkwork-kernel/sdks/external-agent-sdks',
+    '../sdkwork-kernel/bindings/agent-providers',
     engine,
-    'sdk-binding.manifest.json',
+    'provider-binding.manifest.json',
   );
   assert.equal(
     fs.existsSync(manifestPath),
     true,
-    `sdkwork-kernel must publish sdk-binding.manifest.json for ${engine}`,
+    `sdkwork-kernel must publish provider-binding.manifest.json for ${engine}`,
   );
 }
 

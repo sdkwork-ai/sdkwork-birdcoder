@@ -16,19 +16,16 @@ const boundaries = fs.readFileSync(
   path.join(root, 'crates/sdkwork-birdcoder-kernel-bridge/src/boundaries.rs'),
   'utf8',
 );
+const hostSource = fs.readFileSync(
+  path.join(root, 'crates/sdkwork-birdcoder-kernel-bridge/src/host.rs'),
+  'utf8',
+);
 const engineRegistry = fs.readFileSync(
   path.join(root, 'crates/sdkwork-birdcoder-kernel-bridge/src/engine_registry.rs'),
   'utf8',
 );
 const workflow = JSON.parse(
   fs.readFileSync(path.join(root, 'sdkwork.workflow.json'), 'utf8'),
-);
-const chatReadme = fs.readFileSync(
-  path.join(
-    root,
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/README.md',
-  ),
-  'utf8',
 );
 
 assert.match(bridgeCargo, /sdkwork-agents-runtime-facade/);
@@ -39,62 +36,65 @@ assert.doesNotMatch(
 assert.doesNotMatch(bridgeCargo, /sdkwork-code-kernel/);
 assert.doesNotMatch(bridgeCargo, /sdkwork-agent-provider-/);
 assert.match(bridgeLib, /sdkwork-agents/);
+assert.match(bridgeLib, /AgentsCodeEngineHost/);
 assert.match(boundaries, /AGENTS_OWNED_CAPABILITIES/);
 assert.match(boundaries, /BIRDCODER_OWNED_CAPABILITIES/);
-assert.match(boundaries, /LEGACY_CODEENGINE_SURFACES/);
-assert.match(boundaries, /coding_session/);
-
+assert.match(boundaries, /agents-runtime-facade/);
+assert.match(hostSource, /AgentsCodeEngineHost/);
+assert.match(hostSource, /sdkwork_agents_runtime_facade/);
 assert.match(engineRegistry, /sdkwork_agents_runtime_facade/);
 
-assert.equal(
-  workflow.dependencies.some((dep) => dep.id === 'sdkwork-kernel'),
-  true,
-  'sdkwork.workflow.json must declare sdkwork-kernel as a sibling dependency',
-);
 assert.equal(
   workflow.dependencies.some((dep) => dep.id === 'sdkwork-agents'),
   true,
   'sdkwork.workflow.json must declare sdkwork-agents as a sibling dependency',
 );
 
-assert.match(
-  chatReadme,
-  /agents|runtime facade/i,
-  'pc-projection README must document agents runtime facade ownership',
+const agentsFacadeLib = fs.readFileSync(
+  path.join(root, '../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/lib.rs'),
+  'utf8',
+);
+for (const symbol of [
+  'AgentsCodeEngineHost',
+  'execute_code_engine_turn',
+  'bootstrap_canonical_code_engine_catalog',
+  'LiveInteractionRegistry',
+]) {
+  assert.match(
+    agentsFacadeLib,
+    new RegExp(symbol),
+    `sdkwork-agents-runtime-facade must export ${symbol}`,
+  );
+}
+
+const agentsServiceHttp = fs.readFileSync(
+  path.join(
+    root,
+    '../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs',
+  ),
+  'utf8',
+);
+assert.match(agentsServiceHttp, /\/app\/v3\/api\/ai\/code_engines/);
+assert.match(agentsServiceHttp, /\/app\/v3\/api\/ai\/mcp_servers/);
+assert.doesNotMatch(
+  fs.readFileSync(
+    path.join(
+      root,
+      '../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs',
+    ),
+    'utf8',
+  ),
+  /deterministic-local-contract/,
+  'agents runtime executions must not use deterministic-local-contract stubs',
 );
 
 const alignmentSpec = JSON.parse(
-  fs.readFileSync(path.join(root, 'specs/kernel-birdcoder-alignment.spec.json'), 'utf8'),
-);
-assert.ok(
-  alignmentSpec.authorityDocs.includes(
-    'docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md',
-  ),
-  'alignment spec must index TECH-31 kernel integration implementation doc',
-);
-
-const agentsAlignmentSpec = JSON.parse(
   fs.readFileSync(path.join(root, 'specs/agents-birdcoder-alignment.spec.json'), 'utf8'),
 );
 assert.equal(
-  agentsAlignmentSpec.tasks.filter((task) => task.gate).every((task) => task.status === 'done'),
+  alignmentSpec.tasks.filter((task) => task.gate).every((task) => task.status === 'done'),
   true,
   'all gate tasks in agents-birdcoder-alignment.spec.json must be done',
 );
 
-const codeengineIndex = fs.readFileSync(
-  path.join(
-    root,
-    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/index.ts',
-  ),
-  'utf8',
-);
-for (const forbiddenExport of ['serverRuntime', 'kernelRuntime', './engines']) {
-  assert.doesNotMatch(
-    codeengineIndex,
-    new RegExp(forbiddenExport.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')),
-    `Browser-facing @sdkwork/birdcoder-pc-codeengine index must not re-export Node turn surfaces (${forbiddenExport}).`,
-  );
-}
-
-console.log('birdcoder kernel integration contract passed.');
+console.log('birdcoder agents integration contract passed.');

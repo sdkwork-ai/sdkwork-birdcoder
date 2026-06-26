@@ -45,7 +45,13 @@ for (const doc of spec.authorityDocs) {
 // Sibling bindings
 for (const dep of spec.siblingDependencies ?? []) {
   for (const engine of dep.requiredBindings ?? []) {
-    const manifest = path.join(root, dep.path, 'sdks/external-agent-sdks', engine, 'sdk-binding.manifest.json');
+    const manifest = path.join(
+      root,
+      dep.path,
+      'bindings/agent-providers',
+      engine,
+      'provider-binding.manifest.json',
+    );
     assert.equal(
       existsSync(manifest),
       true,

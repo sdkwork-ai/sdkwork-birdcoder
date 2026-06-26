@@ -1,4 +1,5 @@
 import { isBlank } from '@sdkwork/utils/string';
+import { randomBytes } from '@sdkwork/utils/id';
 import type {
   BirdCoderProjectSummary,
   BirdCoderChatMessage,
@@ -68,7 +69,7 @@ const CACHED_CODING_SESSION_MESSAGE_INDEX_MAX_ENTRIES = 128;
 function createIdentifier(prefix: string): string {
   void prefix;
   const timestampPart = BigInt(Date.now()) * 1_000_000n;
-  const randomPart = BigInt(Math.floor(Math.random() * 1_000_000));
+  const randomPart = BigInt(randomBytes(4).reduce((acc, byte) => acc * 256n + BigInt(byte), 0n) % 1_000_000n);
   return (timestampPart + randomPart).toString();
 }
 

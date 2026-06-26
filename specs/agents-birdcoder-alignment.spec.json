@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.agents-birdcoder-alignment",
+  "updatedAt": "2026-06-26",
+  "summary": "Machine-readable alignment tracker for sdkwork-agents application layer vs BirdCoder product integration.",
+  "authorityDocs": [
+    "docs/architecture/tech/TECH-33-agents-birdcoder-boundariesstandard.md",
+    "docs/architecture/tech/TECH-34-agents-birdcoder-integrationimplementation.md",
+    "../sdkwork-agents/docs/architecture/AGENTS_LAYERING.md"
+  ],
+  "siblingDependencies": [
+    {
+      "id": "sdkwork-agents",
+      "path": "../sdkwork-agents",
+      "requiredCapabilities": [
+        "agents-runtime-facade",
+        "agents-engine-catalog-api",
+        "agents-domain-service"
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "P1-boundary",
+      "title": "Agents 应用层边界冻结",
+      "doc": "docs/architecture/tech/TECH-33-agents-birdcoder-boundariesstandard.md"
+    },
+    {
+      "id": "P2-facade",
+      "title": "runtime-facade 扩展与 BirdCoder 瘦身",
+      "doc": "docs/architecture/tech/TECH-34-agents-birdcoder-integrationimplementation.md"
+    },
+    {
+      "id": "P3-agents-service",
+      "title": "Agents 服务能力补齐",
+      "doc": "../sdkwork-agents/docs/architecture/AGENTS_LAYERING.md"
+    },
+    {
+      "id": "P4-verification",
+      "title": "契约与反复核对",
+      "doc": "docs/architecture/tech/TECH-35-agents-birdcoder-alignment.md"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "ABA-BC-01",
+      "phase": "P2-facade",
+      "owner": "agents",
+      "title": "sdkwork-agents-runtime-facade 提供 host / turn / catalog / live interaction",
+      "status": "done",
+      "gate": true,
+      "evidence": {
+        "paths": [
+          "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/runtime_host.rs",
+          "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/turn.rs",
+          "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/engine_catalog.rs",
+          "../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/live_interaction.rs"
+        ]
+      },
+      "verification": {
+        "commands": [
+          "cargo test -p sdkwork-agents-runtime-facade"
+        ]
+      }
+    },
+    {
+      "id": "ABA-BC-02",
+      "phase": "P2-facade",
+      "owner": "birdcoder",
+      "title": "BirdCoder kernel-bridge 仅依赖 agents runtime facade",
+      "status": "done",
+      "gate": true,
+      "evidence": {
+        "paths": [
+          "crates/sdkwork-birdcoder-kernel-bridge/Cargo.toml",
+          "crates/sdkwork-birdcoder-kernel-bridge/src/host.rs",
+          "crates/sdkwork-birdcoder-kernel-bridge/src/turn_executor.rs"
+        ],
+        "forbiddenPatterns": [
+          {
+            "file": "crates/sdkwork-birdcoder-kernel-bridge/Cargo.toml",
+            "pattern": "\\[dependencies\\][\\s\\S]*sdkwork-agent-kernel\\s*=",
+            "section": "dependencies"
+          },
+          {
+            "file": "crates/sdkwork-birdcoder-kernel-bridge/Cargo.toml",
+            "pattern": "sdkwork-code-kernel"
+          }
+        ]
+      },
+      "verification": {
+        "commands": [
+          "cargo test -p sdkwork-birdcoder-kernel-bridge",
+          "node scripts/birdcoder-agents-integration-contract.test.mjs"
+        ]
+      }
+    },
+    {
+      "id": "ABA-AG-01",
+      "phase": "P3-agents-service",
+      "owner": "agents",
+      "title": "agents-engine-catalog-api HTTP",
+      "status": "done",
+      "gate": true,
+      "evidence": {
+        "paths": [
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/code_engine_catalog.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs"
+        ],
+        "requiredPatterns": [
+          {
+            "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs",
+            "pattern": "/app/v3/api/ai/code_engines"
+          }
+        ]
+      },
+      "verification": {
+        "commands": [
+          "cargo test -p sdkwork-intelligence-agents-service --features http-axum --lib"
+        ]
+      }
+    },
+    {
+      "id": "ABA-AG-02",
+      "phase": "P3-agents-service",
+      "owner": "agents",
+      "title": "MCP marketplace HTTP 路由",
+      "status": "done",
+      "gate": true,
+      "evidence": {
+        "paths": [
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/mcp_marketplace_http.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs"
+        ],
+        "requiredPatterns": [
+          {
+            "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs",
+            "pattern": "/app/v3/api/ai/mcp_servers"
+          }
+        ]
+      },
+      "verification": {
+        "commands": [
+          "cargo test -p sdkwork-intelligence-agents-service --features http-axum --lib"
+        ]
+      }
+    },
+    {
+      "id": "ABA-AG-03",
+      "phase": "P3-agents-service",
+      "owner": "agents",
+      "title": "preview / prompt optimization 接入 agents runtime facade",
+      "status": "done",
+      "gate": true,
+      "evidence": {
+        "paths": [
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/runtime_facade_bridge.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs"
+        ],
+        "forbiddenPatterns": [
+          {
+            "file": "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/application.rs",
+            "pattern": "deterministic-local-contract"
+          }
+        ]
+      },
+      "verification": {
+        "commands": [
+          "cargo test -p sdkwork-intelligence-agents-service --features http-axum --lib"
+        ]
+      }
+    },
+    {
+      "id": "ABA-BC-03",
+      "phase": "P4-verification",
+      "owner": "birdcoder",
+      "title": "契约测试与 workflow 兄弟依赖登记",
+      "status": "done",
+      "gate": true,
+      "evidence": {
+        "paths": [
+          "scripts/birdcoder-agents-integration-contract.test.mjs",
+          "sdkwork.workflow.json"
+        ]
+      },
+      "verification": {
+        "commands": [
+          "node scripts/birdcoder-agents-integration-contract.test.mjs"
+        ]
+      }
+    }
+  ]
+}

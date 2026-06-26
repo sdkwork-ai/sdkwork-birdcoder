@@ -54,7 +54,7 @@ fn resolve_redis_url() -> Result<String, String> {
     let database = std::env::var("SDKWORK_BIRDCODER_REDIS_DATABASE").unwrap_or_else(|_| "0".to_string());
     let username = std::env::var("SDKWORK_BIRDCODER_REDIS_USERNAME")
         .ok()
-        .filter(|value| !value.trim().is_empty());
+        .filter(|value| !sdkwork_utils_rust::is_blank(Some(value)));
     let password = resolve_redis_password()?;
     let tls = std::env::var("SDKWORK_BIRDCODER_REDIS_TLS")
         .ok()

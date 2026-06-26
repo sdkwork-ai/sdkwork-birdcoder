@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@sdkwork/birdcoder-chat-contracts": "workspace:*",
-    "@sdkwork/birdcoder-h5-commons": "workspace:*"
+    "@sdkwork/birdcoder-h5-commons": "workspace:*",
+    "@sdkwork/utils": "workspace:*"
   },
   "peerDependencies": {
     "react": "catalog:"

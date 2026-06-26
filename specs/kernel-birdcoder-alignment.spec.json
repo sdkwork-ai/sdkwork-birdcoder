@@ -351,10 +351,10 @@
       "gate": false,
       "evidence": {
         "siblingPaths": [
-          "../sdkwork-kernel/sdks/external-agent-sdks/claude-code/sdk-binding.manifest.json",
-          "../sdkwork-kernel/sdks/external-agent-sdks/gemini-cli/sdk-binding.manifest.json",
-          "../sdkwork-kernel/sdks/external-agent-sdks/codex/sdk-binding.manifest.json",
-          "../sdkwork-kernel/sdks/external-agent-sdks/opencode/sdk-binding.manifest.json"
+          "../sdkwork-kernel/bindings/agent-providers/claude-code/provider-binding.manifest.json",
+          "../sdkwork-kernel/bindings/agent-providers/gemini-cli/provider-binding.manifest.json",
+          "../sdkwork-kernel/bindings/agent-providers/codex/provider-binding.manifest.json",
+          "../sdkwork-kernel/bindings/agent-providers/opencode/provider-binding.manifest.json"
         ]
       },
       "verification": {
@@ -370,18 +370,18 @@
       "title": "release 模式 mock ModelProvider fail-closed",
       "status": "done",
       "gate": false,
-      "notes": "sdkwork-agent-adapter-core/mock_policy.rs + sdk-spi bridge fail-closed + node worker fail_closed transport.",
+      "notes": "sdkwork-agent-provider-core/mock_policy.rs + provider-spi bridge fail-closed + node worker fail_closed transport.",
       "evidence": {
         "siblingPaths": [
-          "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-core/src/mock_policy.rs",
-          "../sdkwork-kernel/sdkwork-agent-sdk-spi/src/bridge.rs",
-          "../sdkwork-kernel/sdkwork-agent-sdk-backend-node/src/worker_runtime.rs"
+          "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-provider-core/src/mock_policy.rs",
+          "../sdkwork-kernel/sdkwork-agent-provider-spi/src/bridge.rs",
+          "../sdkwork-kernel/sdkwork-agent-provider-transport-node/src/worker_runtime.rs"
         ]
       },
       "verification": {
         "commands": [
-          "cargo test -p sdkwork-agent-adapter-core",
-          "cargo test -p sdkwork-agent-sdk-spi"
+          "cargo test -p sdkwork-agent-provider-core",
+          "cargo test -p sdkwork-agent-provider-spi"
         ]
       }
     },
@@ -395,19 +395,19 @@
       "notes": "engine-sdk-live.mjs dispatches live official SDK invokes (mode=sdk_live); codex routes model.chat through TypeScriptNode; production rejects stub/sdk_probe/sdk_live_failed.",
       "evidence": {
         "siblingPaths": [
-          "../sdkwork-kernel/scripts/sdk-backend-workers/engine-sdk-live.mjs",
-          "../sdkwork-kernel/scripts/sdk-backend-workers/generic-ts-sdk-worker.mjs",
-          "../sdkwork-kernel/sdks/external-agent-sdks/codex/sdk-binding.manifest.json",
-          "../sdkwork-kernel/sdkwork-kernel-plugins/crates/sdkwork-agent-adapter-codex/src/sdk_integration.rs"
+          "../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.mjs",
+          "../sdkwork-kernel/scripts/provider-transport-workers/generic-ts-sdk-worker.mjs",
+          "../sdkwork-kernel/bindings/agent-providers/codex/provider-binding.manifest.json",
+          "../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-codex/src/sdk_integration.rs"
         ]
       },
       "verification": {
         "commands": [
-          "node ../sdkwork-kernel/scripts/sdk-backend-workers/engine-sdk-live.test.mjs",
-          "cargo test -p sdkwork-agent-adapter-codex",
-          "cargo test -p sdkwork-agent-adapter-opencode",
-          "cargo test -p sdkwork-agent-adapter-claude-code",
-          "cargo test -p sdkwork-agent-adapter-gemini-cli"
+          "node ../sdkwork-kernel/scripts/provider-transport-workers/engine-sdk-live.test.mjs",
+          "cargo test -p sdkwork-agent-provider-codex",
+          "cargo test -p sdkwork-agent-provider-opencode",
+          "cargo test -p sdkwork-agent-provider-claude-code",
+          "cargo test -p sdkwork-agent-provider-gemini-cli"
         ]
       }
     },

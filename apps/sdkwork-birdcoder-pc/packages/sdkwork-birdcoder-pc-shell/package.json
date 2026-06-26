@@ -23,6 +23,7 @@
     "@sdkwork/birdcoder-pc-types": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/terminal-pc-desktop": "workspace:*",
+    "@sdkwork/utils": "workspace:*",
     "use-sync-external-store": "catalog:"
   },
   "devDependencies": {

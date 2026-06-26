@@ -8,6 +8,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { randomString } from '@sdkwork/utils/id';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -26,7 +27,7 @@ const MAX_VISIBLE_TOASTS = 4;
 const TOAST_AUTO_DISMISS_MS = 3000;
 
 function createToastId(): string {
-  return Math.random().toString(36).substring(2, 9);
+  return randomString(7);
 }
 
 export const ToastProvider = ({ children }: { children: ReactNode }) => {

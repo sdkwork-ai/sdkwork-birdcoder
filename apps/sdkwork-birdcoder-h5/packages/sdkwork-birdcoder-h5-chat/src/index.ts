@@ -9,6 +9,8 @@ export {
   type BirdCoderChatMessageViewKind,
 } from '@sdkwork/birdcoder-chat-contracts';
 
+import { uuid } from '@sdkwork/utils/id';
+
 export const H5_CHAT_VERSION = '0.1.0';
 
 export function createChatMessage(
@@ -16,7 +18,7 @@ export function createChatMessage(
   content: string,
 ): import('@sdkwork/birdcoder-chat-contracts').BirdCoderChatMessageRecord {
   return {
-    id: crypto.randomUUID(),
+    id: uuid(),
     role,
     content,
     createdAt: new Date().toISOString(),

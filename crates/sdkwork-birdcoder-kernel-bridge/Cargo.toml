@@ -2,18 +2,11 @@
 name = "sdkwork-birdcoder-kernel-bridge"
 version = "0.1.0"
 edition = "2021"
-description = "Bridge between BirdCoder coding-tool surfaces and sdkwork-kernel agent SPI"
+description = "BirdCoder adapter for sdkwork-agents runtime facade"
 
 [dependencies]
-sdkwork-agent-kernel = { workspace = true }
-sdkwork-code-kernel = { workspace = true }
-sdkwork-agent-adapter-core = { workspace = true }
-sdkwork-agent-adapter-codex = { workspace = true }
-sdkwork-agent-adapter-claude-code = { workspace = true }
-sdkwork-agent-adapter-gemini-cli = { workspace = true }
-sdkwork-agent-adapter-opencode = { workspace = true }
+sdkwork-agents-runtime-facade = { path = "../../../sdkwork-agents/crates/sdkwork-agents-runtime-facade" }
 sdkwork-birdcoder-codeengine = { workspace = true }
-uuid = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

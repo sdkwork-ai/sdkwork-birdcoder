@@ -21,12 +21,15 @@
 
 ## 4. 唯一集成边界
 
-| 层 |  crate / 包 | 职责 |
+| 层 | crate / 包 | 职责 |
 |---|---|---|
-| Rust bridge | `sdkwork-birdcoder-kernel-bridge` | bootstrap 四引擎 slot、`execute_kernel_turn`、`BirdcoderKernelHost` |
+| Agents facade | `sdkwork-agents-runtime-facade` | code engine bootstrap、turn、catalog、live interaction |
+| Rust adapter | `sdkwork-birdcoder-kernel-bridge` | 产品薄适配（prompt 构建、OpenCode live handler） |
 | Server wiring | `sdkwork-birdcoder-api-server` | `KernelBridgeCodeEngineProvider` 注入 coding-sessions service |
 | TS runtime | `@sdkwork/birdcoder-pc-codeengine` → `kernelRuntime.ts` | `birdcoder-kernel-turn` 子进程 + `sendCanonicalEvents()` |
 | 投影 | `@sdkwork/birdcoder-pc-projection` | canonical event / transcript / dialect 消费，不执行 agent turn |
+
+详见 [TECH-33 Agents 边界标准](./TECH-33-agents-birdcoder-boundariesstandard.md)。
 
 ## 5. 已退役表面
 

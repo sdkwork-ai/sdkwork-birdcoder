@@ -10,5 +10,6 @@ async-trait = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-utils-rust.workspace = true
 
 

@@ -5,6 +5,7 @@ import {
   type BirdCoderTableRecordRepository,
 } from '../storage/dataKernel.ts';
 import { getTerminalProfile, type TerminalProfileId } from './profiles.ts';
+import { uuid } from '@sdkwork/utils/id';
 import {
   BIRDCODER_RUN_CONFIGURATION_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
@@ -113,8 +114,8 @@ function extractPublicRunConfigurationId(
     : normalizedStorageId;
 }
 
-function createRunConfigurationUuid(storageId: string): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${storageId}:uuid`;
+function createRunConfigurationUuid(_storageId: string): string {
+  return uuid();
 }
 
 function normalizeRunConfigurationGroup(value: unknown): RunConfigurationGroup {

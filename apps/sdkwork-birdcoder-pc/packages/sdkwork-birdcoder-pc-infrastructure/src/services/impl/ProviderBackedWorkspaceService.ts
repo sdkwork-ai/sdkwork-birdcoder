@@ -1,4 +1,5 @@
 import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-pc-types';
+import { randomBytes } from '@sdkwork/utils/id';
 import type { IWorkspaceService } from '../interfaces/IWorkspaceService.ts';
 import type { BirdCoderTableRecordRepository } from '../../storage/dataKernel.ts';
 import type { BirdCoderWorkspaceRecord } from '../../storage/appConsoleRepository.ts';
@@ -17,7 +18,7 @@ function createTimestamp(): string {
 function createIdentifier(prefix: string): string {
   void prefix;
   const timestampPart = BigInt(Date.now()) * 1_000_000n;
-  const randomPart = BigInt(Math.floor(Math.random() * 1_000_000));
+  const randomPart = BigInt(randomBytes(4).reduce((acc, byte) => acc * 256n + BigInt(byte), 0n) % 1_000_000n);
   return (timestampPart + randomPart).toString();
 }
 

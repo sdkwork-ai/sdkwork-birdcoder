@@ -143,10 +143,9 @@ impl<R: SkillPackageRepository> SkillPackageService<R> {
 }
 
 fn normalize_required(value: &str) -> Option<String> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
+    if sdkwork_utils_rust::is_blank(Some(value)) {
         None
     } else {
-        Some(trimmed.to_string())
+        Some(sdkwork_utils_rust::trim(value))
     }
 }

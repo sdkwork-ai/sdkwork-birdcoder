@@ -8,6 +8,7 @@ import {
   serializeStoredValue,
   writeUserHomeTextFile,
 } from '../storage/dataKernel.ts';
+import { uuid } from '@sdkwork/utils/id';
 import { getTerminalProfile, type TerminalProfileId } from '../terminal/profiles.ts';
 import {
   DEFAULT_WORKBENCH_CHAT_SELECTION,
@@ -115,8 +116,8 @@ export const DEFAULT_WORKBENCH_PREFERENCES: WorkbenchPreferences = {
   codeEditorChatWidth: DEFAULT_WORKBENCH_CODE_EDITOR_CHAT_WIDTH,
 };
 
-function createWorkbenchPreferencesUuid(storageId: string): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${storageId}:uuid`;
+function createWorkbenchPreferencesUuid(_storageId: string): string {
+  return uuid();
 }
 
 const ENGINE_TERMINAL_PROFILE_SETTING_ALIASES = Object.fromEntries(
