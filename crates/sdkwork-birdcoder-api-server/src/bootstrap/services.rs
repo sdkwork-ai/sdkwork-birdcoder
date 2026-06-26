@@ -14,8 +14,8 @@ use crate::bootstrap::realtime_hub::{
     HubWorkspaceEventPublisher,
 };
 use crate::bootstrap::repositories::Repositories;
-use sdkwork_router_workspace_app_api::realtime_hub::RealtimeHubBootstrapError;
-use sdkwork_router_workspace_app_api::WorkspaceRealtimeHub;
+use sdkwork_routes_workspace_app_api::realtime_hub::RealtimeHubBootstrapError;
+use sdkwork_routes_workspace_app_api::WorkspaceRealtimeHub;
 
 #[derive(Clone)]
 pub struct Services {

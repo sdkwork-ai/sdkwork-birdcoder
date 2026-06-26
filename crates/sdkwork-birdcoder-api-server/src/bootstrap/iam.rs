@@ -22,11 +22,11 @@ pub async fn wire_iam_app_router() -> Result<Router, String> {
         .await
         .map_err(|error| format!("failed to bootstrap IAM database lifecycle: {error}"))?;
     ensure_birdcoder_tenant_application_bootstrap().await?;
-    sdkwork_router_iam_app_api::build_sdkwork_iam_app_api_router().await
+    sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router().await
 }
 
 pub async fn wire_iam_backend_router() -> Router {
-    sdkwork_router_iam_backend_api::build_sdkwork_iam_backend_api_router_from_env().await
+    sdkwork_routes_iam_backend_api::build_sdkwork_iam_backend_api_router_from_env().await
 }
 
 pub async fn wire_iam_routers() -> Result<Router, String> {

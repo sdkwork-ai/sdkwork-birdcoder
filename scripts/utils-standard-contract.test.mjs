@@ -75,8 +75,8 @@ const rustServiceCrates = [
   'crates/sdkwork-birdcoder-project-service',
   'crates/sdkwork-birdcoder-deployment-service',
   'crates/sdkwork-birdcoder-coding-sessions-service',
-  'crates/sdkwork-router-engine-catalog-app-api',
-  'crates/sdkwork-router-membership-app-api',
+  'crates/sdkwork-routes-engine-catalog-app-api',
+  'crates/sdkwork-routes-membership-app-api',
 ];
 
 for (const crateDir of rustServiceCrates) {

@@ -15,7 +15,7 @@ use sdkwork_database_sqlx::create_any_pool_from_config;
 use sdkwork_iam_context_service::{
     AuthLevel, DeploymentMode as IamDeploymentMode, Environment, IamAppContext,
 };
-use sdkwork_router_deployment_backend_api::{
+use sdkwork_routes_deployment_backend_api::{
     build_deployment_backend_router, DeploymentBackendAppState,
 };
 use sdkwork_web_core::{

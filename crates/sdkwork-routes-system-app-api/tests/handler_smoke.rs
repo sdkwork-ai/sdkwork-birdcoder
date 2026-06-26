@@ -3,8 +3,8 @@ use axum::http::{Request, StatusCode};
 use tower::ServiceExt;
 
 use sdkwork_iam_context_service::{AuthLevel, DeploymentMode, Environment, IamAppContext};
-use sdkwork_router_system_app_api::manifest::SYSTEM_APP_API_ROUTES;
-use sdkwork_router_system_app_api::{build_system_app_router, SystemAppState};
+use sdkwork_routes_system_app_api::manifest::SYSTEM_APP_API_ROUTES;
+use sdkwork_routes_system_app_api::{build_system_app_router, SystemAppState};
 use sdkwork_web_core::{
     ServerRequestId, WebApiSurface, WebAuthMode, WebRequestContext, WebTransportFacts,
 };

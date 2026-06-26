@@ -495,7 +495,7 @@ Current commercial truth: [TECH-2026-06-24-commercial-readiness-alignment.md](TE
 - **Shell**: `@sdkwork/birdcoder-pc-shell`, bootstrap, routing, auth gate
 - **Infrastructure**: SDK clients, IAM runtime, session persistence, IDE services
 - **Product modules**: code, studio, chat, skills, templates, settings
-- **Server**: route crates under `crates/sdkwork-router-*`, services/repositories under `crates/sdkwork-birdcoder-*`
+- **Server**: route crates under `crates/sdkwork-routes-*`, services/repositories under `crates/sdkwork-birdcoder-*`
 
 ## 4. Directory And Package Layout
 

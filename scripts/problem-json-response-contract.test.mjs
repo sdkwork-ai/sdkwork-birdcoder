@@ -12,7 +12,7 @@ function readText(relativePath) {
 function listRouterErrorFiles() {
   return fs
     .readdirSync(routerErrorDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith('sdkwork-router-'))
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('sdkwork-routes-'))
     .map((entry) => path.join('crates', entry.name, 'src', 'error.rs'))
     .filter((relativePath) => fs.existsSync(path.join(rootDir, relativePath)));
 }
@@ -32,7 +32,7 @@ for (const relativePath of listRouterErrorFiles()) {
 }
 
 const handlerFiles = fs
-  .globSync('crates/sdkwork-router-*/src/handlers.rs', { cwd: rootDir })
+  .globSync('crates/sdkwork-routes-*/src/handlers.rs', { cwd: rootDir })
   .map((relativePath) => relativePath.replaceAll('\\', '/'));
 
 for (const relativePath of handlerFiles) {

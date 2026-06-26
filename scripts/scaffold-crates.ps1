@@ -7,15 +7,15 @@ $rootDir = "E:\sdkwork-space\sdkwork-birdcoder\crates"
 
 # Route crates
 $routeCrates = @(
-    "sdkwork-router-system-app-api",
-    "sdkwork-router-runtime-app-api",
-    "sdkwork-router-intelligence-app-api",
-    "sdkwork-router-platform-app-api",
-    "sdkwork-router-content-app-api",
-    "sdkwork-router-ecosystem-app-api",
-    "sdkwork-router-commerce-app-api",
-    "sdkwork-router-iam-backend-api",
-    "sdkwork-router-platform-backend-api"
+    "sdkwork-routes-system-app-api",
+    "sdkwork-routes-runtime-app-api",
+    "sdkwork-routes-intelligence-app-api",
+    "sdkwork-routes-platform-app-api",
+    "sdkwork-routes-content-app-api",
+    "sdkwork-routes-ecosystem-app-api",
+    "sdkwork-routes-commerce-app-api",
+    "sdkwork-routes-iam-backend-api",
+    "sdkwork-routes-platform-backend-api"
 )
 
 # Service crates

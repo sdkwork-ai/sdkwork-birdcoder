@@ -1,18 +1,17 @@
 [package]
-name = "sdkwork-router-deployment-backend-api"
+name = "sdkwork-routes-coding-sessions-app-api"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
 [dependencies]
-async-trait = { workspace = true }
 axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sdkwork-birdcoder-deployment-service = { workspace = true }
-sdkwork-birdcoder-workspace-service = { workspace = true }
+sdkwork-birdcoder-coding-sessions-service = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-birdcoder-project-service = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
 sdkwork-web-contract = { workspace = true }
 sdkwork-web-core = { workspace = true }
@@ -23,6 +22,7 @@ tokio = { workspace = true }
 sqlx = { workspace = true, features = ["sqlite"] }
 async-trait = { workspace = true }
 serde_json = { workspace = true }
+sdkwork-birdcoder-coding-sessions-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-workspace-repository-sqlx = { workspace = true }
 sdkwork_database_config = { workspace = true }
 sdkwork_database_sqlx = { workspace = true }

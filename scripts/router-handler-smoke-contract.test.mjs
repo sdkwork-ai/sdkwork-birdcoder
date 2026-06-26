@@ -2,16 +2,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const smokeFiles = [
-  '../crates/sdkwork-router-coding-sessions-app-api/tests/handler_smoke.rs',
-  '../crates/sdkwork-router-workspace-app-api/tests/handler_smoke.rs',
-  '../crates/sdkwork-router-system-app-api/tests/handler_smoke.rs',
-  '../crates/sdkwork-router-deployment-backend-api/tests/handler_smoke.rs',
+  '../crates/sdkwork-routes-coding-sessions-app-api/tests/handler_smoke.rs',
+  '../crates/sdkwork-routes-workspace-app-api/tests/handler_smoke.rs',
+  '../crates/sdkwork-routes-system-app-api/tests/handler_smoke.rs',
+  '../crates/sdkwork-routes-deployment-backend-api/tests/handler_smoke.rs',
 ];
 
 const listEnvelopeSmokeFiles = [
-  '../crates/sdkwork-router-coding-sessions-app-api/tests/handler_smoke.rs',
-  '../crates/sdkwork-router-workspace-app-api/tests/handler_smoke.rs',
-  '../crates/sdkwork-router-deployment-backend-api/tests/handler_smoke.rs',
+  '../crates/sdkwork-routes-coding-sessions-app-api/tests/handler_smoke.rs',
+  '../crates/sdkwork-routes-workspace-app-api/tests/handler_smoke.rs',
+  '../crates/sdkwork-routes-deployment-backend-api/tests/handler_smoke.rs',
 ];
 
 for (const relativePath of smokeFiles) {

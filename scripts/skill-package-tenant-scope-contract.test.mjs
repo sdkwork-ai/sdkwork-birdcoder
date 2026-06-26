@@ -10,7 +10,7 @@ const serviceSource = readFileSync(
   'utf8',
 );
 const handlerSource = readFileSync(
-  'crates/sdkwork-router-skill-packages-app-api/src/handlers.rs',
+  'crates/sdkwork-routes-skill-packages-app-api/src/handlers.rs',
   'utf8',
 );
 

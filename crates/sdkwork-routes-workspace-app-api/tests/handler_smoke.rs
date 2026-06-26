@@ -21,7 +21,7 @@ use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceSe
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine, DeploymentMode};
 use sdkwork_database_sqlx::create_any_pool_from_config;
 use sdkwork_iam_context_service::{AuthLevel, DeploymentMode as IamDeploymentMode, Environment, IamAppContext};
-use sdkwork_router_workspace_app_api::{build_workspace_app_router, WorkspaceAppState, WorkspaceRealtimeHub};
+use sdkwork_routes_workspace_app_api::{build_workspace_app_router, WorkspaceAppState, WorkspaceRealtimeHub};
 use sdkwork_web_core::{
     ServerRequestId, WebApiSurface, WebAuthMode, WebRequestContext, WebTransportFacts,
 };

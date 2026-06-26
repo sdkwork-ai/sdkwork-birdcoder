@@ -47,7 +47,7 @@ const iamDirectoryRepositoryCrateRoot = resolveCargoWorkspaceCrateRoot(
 );
 const iamAppRouterCrateRoot = resolveCargoWorkspaceCrateRoot(
   birdCoderCargoSource,
-  'sdkwork_router_iam_app_api',
+  'sdkwork_routes_iam_app_api',
 );
 
 const iamContextSource = readText(iamContextCrateRoot, 'src/lib.rs');
@@ -60,12 +60,12 @@ const iamRouterSource = [
 
 for (const [requiredDependencyName, pattern] of [
   [
-    'sdkwork_router_iam_app_api',
-    /^sdkwork_router_iam_app_api = \{ workspace = true \}/mu,
+    'sdkwork_routes_iam_app_api',
+    /^sdkwork_routes_iam_app_api = \{ workspace = true \}/mu,
   ],
   [
-    'sdkwork_router_iam_backend_api',
-    /^sdkwork_router_iam_backend_api = \{ workspace = true \}/mu,
+    'sdkwork_routes_iam_backend_api',
+    /^sdkwork_routes_iam_backend_api = \{ workspace = true \}/mu,
   ],
   [
     'sdkwork_iam_web_adapter',
@@ -81,7 +81,7 @@ for (const [requiredDependencyName, pattern] of [
 
 assert.match(
   apiServerIamBootstrapSource,
-  /sdkwork_router_iam_app_api::build_sdkwork_iam_app_api_router/u,
+  /sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router/u,
   'BirdCoder api-server IAM bootstrap must wire the standard sdkwork-iam app router.',
 );
 assert.match(
@@ -101,7 +101,7 @@ assert.match(
 );
 assert.match(
   apiServerIamBootstrapSource,
-  /sdkwork_router_iam_backend_api::build_sdkwork_iam_backend_api_router_from_env/u,
+  /sdkwork_routes_iam_backend_api::build_sdkwork_iam_backend_api_router_from_env/u,
   'BirdCoder api-server IAM bootstrap must wire the standard sdkwork-iam backend router.',
 );
 assert.match(

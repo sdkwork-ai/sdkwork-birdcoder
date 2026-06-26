@@ -23,14 +23,14 @@ for (const crate of ['sdkwork-web-core', 'sdkwork-web-axum', 'sdkwork-web-contra
 }
 
 const routeCrates = [
-  'crates/sdkwork-router-system-app-api',
-  'crates/sdkwork-router-engine-catalog-app-api',
-  'crates/sdkwork-router-coding-sessions-app-api',
-  'crates/sdkwork-router-workspace-app-api',
-  'crates/sdkwork-router-document-app-api',
-  'crates/sdkwork-router-skill-packages-app-api',
-  'crates/sdkwork-router-membership-app-api',
-  'crates/sdkwork-router-deployment-backend-api',
+  'crates/sdkwork-routes-system-app-api',
+  'crates/sdkwork-routes-engine-catalog-app-api',
+  'crates/sdkwork-routes-coding-sessions-app-api',
+  'crates/sdkwork-routes-workspace-app-api',
+  'crates/sdkwork-routes-document-app-api',
+  'crates/sdkwork-routes-skill-packages-app-api',
+  'crates/sdkwork-routes-membership-app-api',
+  'crates/sdkwork-routes-deployment-backend-api',
 ];
 
 for (const crateDir of routeCrates) {
@@ -117,13 +117,13 @@ if (!routerContext.includes('ProblemDetailsPayload')) {
 }
 
 const handlerFiles = [
-  'crates/sdkwork-router-coding-sessions-app-api/src/handlers.rs',
-  'crates/sdkwork-router-workspace-app-api/src/handlers.rs',
-  'crates/sdkwork-router-engine-catalog-app-api/src/handlers.rs',
-  'crates/sdkwork-router-document-app-api/src/handlers.rs',
-  'crates/sdkwork-router-skill-packages-app-api/src/handlers.rs',
-  'crates/sdkwork-router-membership-app-api/src/handlers.rs',
-  'crates/sdkwork-router-deployment-backend-api/src/handlers.rs',
+  'crates/sdkwork-routes-coding-sessions-app-api/src/handlers.rs',
+  'crates/sdkwork-routes-workspace-app-api/src/handlers.rs',
+  'crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs',
+  'crates/sdkwork-routes-document-app-api/src/handlers.rs',
+  'crates/sdkwork-routes-skill-packages-app-api/src/handlers.rs',
+  'crates/sdkwork-routes-membership-app-api/src/handlers.rs',
+  'crates/sdkwork-routes-deployment-backend-api/src/handlers.rs',
 ];
 
 for (const relativePath of handlerFiles) {

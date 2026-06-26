@@ -21,7 +21,7 @@ const desktopMainSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src/main.tsx',
 );
 const workspaceManifestSource = readText(
-  'crates/sdkwork-router-workspace-app-api/src/manifest.rs',
+  'crates/sdkwork-routes-workspace-app-api/src/manifest.rs',
 );
 const deploymentServiceSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedDeploymentService.ts',

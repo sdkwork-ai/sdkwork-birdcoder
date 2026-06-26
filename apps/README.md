@@ -1,34 +1,41 @@
-# Apps Directory
+# apps/
 
-## Purpose
-Independently runnable application roots, application surfaces, app shells, demos promoted to runnable apps, or deployable application compositions.
+Application: sdkwork-birdcoder
+Status: active
+Owner: SDKWork maintainers
+Specs: APPLICATION_SPEC.md, SDKWORK_WORKSPACE_SPEC.md
 
-## Owner
-SDKWork Birdcoder team.
+## Primary App Surface
+
+The repository root is the primary runnable app surface.
+The repository root `sdkwork.app.config.json` governs the primary application manifest.
+
+## Directory Index
+
+| Directory | Surface role | Runnable | Purpose | Entry |
+| --- | --- | --- | --- | --- |
+| sdkwork-birdcoder-flutter-mobile | flutter-mobile | yes | SDKWork Birdcoder Flutter Mobile flutter-mobile application root. | `sdkwork-birdcoder-flutter-mobile/` |
+| sdkwork-birdcoder-h5 | h5 | yes | SDKWork Birdcoder H5 h5 application root. | `sdkwork-birdcoder-h5/` |
+| sdkwork-birdcoder-pc | pc | yes | SDKWork BirdCoder PC pc application root. | `sdkwork-birdcoder-pc/` |
 
 ## Allowed Content
-- Application surface roots (e.g., sdkwork-birdcoder-pc/)
-- Application shell configurations
-- Demo applications
-- Deployable application compositions
-- Application-specific README.md files
+
+- Selected language/architecture application roots with `README.md`, `AGENTS.md`, `.sdkwork/`, and `specs/` when authored packages exist.
+- Architecture-local `packages/`, `config/`, `src/`, `lib/`, `App/`, or `entry/` directories required by the owning architecture standard.
 
 ## Forbidden Content
-- Unrelated library packages
-- Generated SDK output
-- Runtime secrets or credentials
-- Temporary build artifacts
+
+- Repository-root API contracts, generated SDK workspaces, Rust crates, or deployment descriptors moved under `apps/`.
+- Runtime secrets, user-private state, generated SDK transport output, or cross-application copied business logic.
 
 ## Related Specs
-- [APPLICATION_SPEC.md](../sdkwork-specs/APPLICATION_SPEC.md)
-- [APP_PC_ARCHITECTURE_SPEC.md](../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md)
-- [APP_MANIFEST_SPEC.md](../sdkwork-specs/APP_MANIFEST_SPEC.md)
-- [COMPONENT_SPEC.md](../sdkwork-specs/COMPONENT_SPEC.md)
+
+- `../sdkwork-specs/APPLICATION_SPEC.md`
+- `../sdkwork-specs/SDKWORK_WORKSPACE_SPEC.md`
+- `../sdkwork-specs/APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md`
 
 ## Verification
-- [ ] Each app surface has its own sdkwork.app.config.json
-- [ ] App surfaces follow the appropriate architecture spec
-- [ ] App surfaces have proper .sdkwork/ directories when independently built
 
-## Notes
-The repository root is the primary application surface for sdkwork-birdcoder. Secondary app surfaces, shells, or demos should be listed here.
+```bash
+node ../sdkwork-specs/tools/check-apps-directory-index.mjs --root .
+```

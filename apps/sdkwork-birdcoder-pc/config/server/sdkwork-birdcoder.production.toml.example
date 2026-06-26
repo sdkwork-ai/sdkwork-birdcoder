@@ -9,10 +9,10 @@ environment = "production"
 engine = "postgresql"
 host = "db.example.com"
 port = 5432
-database = "sdkwork"
-schema = "public"
-username = "sdkwork"
-password_file = "/etc/sdkwork/database.secret"
+database = "sdkwork_ai_prod"
+schema = "sdkwork_ai_prod"
+username = "sdkwork_ai_prod"
+password_file = "/etc/sdkwork/router/database.secret"
 ssl_mode = "require"
 
 [logging]

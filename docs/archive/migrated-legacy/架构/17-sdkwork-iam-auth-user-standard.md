@@ -14,7 +14,7 @@ Because BirdCoder is a new application, there is no compatibility lane for retir
 - Protected operations use `Authorization: Bearer <auth_token>` and `Access-Token: <access_token>`.
 - OpenAPI is the source of truth for generated SDKs.
 - UI calls IAM through `UI -> service/runtime -> generated SDK`.
-- Rust local/private IAM uses `sdkwork_iam_context_service`, `sdkwork_router_iam_app_api`, `sdkwork_router_iam_backend_api`, `sdkwork_iam_directory_repository_sqlx`, and `sdkwork_appbase_tauri_host`.
+- Rust local/private IAM uses `sdkwork_iam_context_service`, `sdkwork_routes_iam_app_api`, `sdkwork_routes_iam_backend_api`, `sdkwork_iam_directory_repository_sqlx`, and `sdkwork_appbase_tauri_host`.
 
 ## 3. Package Responsibilities
 

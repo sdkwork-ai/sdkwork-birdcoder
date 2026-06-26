@@ -1,5 +1,5 @@
 [package]
-name = "sdkwork-router-document-app-api"
+name = "sdkwork-routes-document-app-api"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

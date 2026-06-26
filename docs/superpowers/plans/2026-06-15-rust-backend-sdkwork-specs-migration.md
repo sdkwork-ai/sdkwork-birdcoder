@@ -56,15 +56,15 @@
 
 | # | Crate Name | Surface | Domain/Capability |
 |---|-----------|---------|-------------------|
-| 1 | `sdkwork-router-system-app-api` | app-api | system (health, descriptor, routes, runtime, operations) |
-| 2 | `sdkwork-router-runtime-app-api` | app-api | runtime (engines, models, model_config, native_sessions) |
-| 3 | `sdkwork-router-intelligence-app-api` | app-api | intelligence (coding_sessions, turns, events, messages, artifacts, checkpoints, approvals, questions) |
-| 4 | `sdkwork-router-platform-app-api` | app-api | platform (workspaces, projects, git, members, collaborators, deployments, releases, publish) |
-| 5 | `sdkwork-router-content-app-api` | app-api | content (documents) |
-| 6 | `sdkwork-router-ecosystem-app-api` | app-api | ecosystem (skill_packages, app_templates) |
-| 7 | `sdkwork-router-commerce-app-api` | app-api | commerce (memberships, package_groups) |
-| 8 | `sdkwork-router-iam-backend-api` | backend-api | iam (teams, audit_events, policies) — **consumes sdkwork-appbase crate** |
-| 9 | `sdkwork-router-platform-backend-api` | backend-api | platform (deployments, releases, deployment_targets) |
+| 1 | `sdkwork-routes-system-app-api` | app-api | system (health, descriptor, routes, runtime, operations) |
+| 2 | `sdkwork-routes-runtime-app-api` | app-api | runtime (engines, models, model_config, native_sessions) |
+| 3 | `sdkwork-routes-intelligence-app-api` | app-api | intelligence (coding_sessions, turns, events, messages, artifacts, checkpoints, approvals, questions) |
+| 4 | `sdkwork-routes-platform-app-api` | app-api | platform (workspaces, projects, git, members, collaborators, deployments, releases, publish) |
+| 5 | `sdkwork-routes-content-app-api` | app-api | content (documents) |
+| 6 | `sdkwork-routes-ecosystem-app-api` | app-api | ecosystem (skill_packages, app_templates) |
+| 7 | `sdkwork-routes-commerce-app-api` | app-api | commerce (memberships, package_groups) |
+| 8 | `sdkwork-routes-iam-backend-api` | backend-api | iam (teams, audit_events, policies) — **consumes sdkwork-appbase crate** |
+| 9 | `sdkwork-routes-platform-backend-api` | backend-api | platform (deployments, releases, deployment_targets) |
 
 #### Service Crates (under `crates/`)
 
@@ -122,23 +122,23 @@
 | Local Code | Replacement |
 |-----------|-------------|
 | `iam_authority::IamState` | `sdkwork_iam_context_service::IamContextService` |
-| `iam_authority::resolve_session()` | `sdkwork_router_iam_app_api` middleware/extractor |
-| `iam_authority::login/register/refresh/logout` | Routes from `sdkwork_router_iam_app_api` |
+| `iam_authority::resolve_session()` | `sdkwork_routes_iam_app_api` middleware/extractor |
+| `iam_authority::login/register/refresh/logout` | Routes from `sdkwork_routes_iam_app_api` |
 | `iam_authority::ensure_sqlite_iam_schema()` | `sdkwork_iam_directory_repository_sqlx` schema management |
 | `iam_authority::ensure_sqlite_iam_bootstrap_user()` | `sdkwork_iam_context_service` bootstrap |
 | All IAM SQLite tables (19 tables) | Managed by `sdkwork_iam_directory_repository_sqlx` |
-| `IamLoginRequest`, `IamSessionPayload`, etc. | Types from `sdkwork_router_iam_app_api` |
+| `IamLoginRequest`, `IamSessionPayload`, etc. | Types from `sdkwork_routes_iam_app_api` |
 
-The `sdkwork-router-iam-backend-api` crate in this project **consumes** (not duplicates) `sdkwork_router_iam_backend_api` from appbase.
+The `sdkwork-routes-iam-backend-api` crate in this project **consumes** (not duplicates) `sdkwork_routes_iam_backend_api` from appbase.
 
 ---
 
 ## File Structure per Crate
 
-### Route Crate Example: `crates/sdkwork-router-intelligence-app-api/`
+### Route Crate Example: `crates/sdkwork-routes-intelligence-app-api/`
 
 ```
-crates/sdkwork-router-intelligence-app-api/
+crates/sdkwork-routes-intelligence-app-api/
   Cargo.toml
   src/
     lib.rs          (~80 lines: pub mod declarations, re-exports)
@@ -283,15 +283,15 @@ crates/sdkwork-birdcoder-tauri-host/
 Create all 30 crate directories under `crates/` with `Cargo.toml` and empty `src/lib.rs` files.
 
 **Files:**
-- Create: `crates/sdkwork-router-system-app-api/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-router-runtime-app-api/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-router-intelligence-app-api/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-router-platform-app-api/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-router-content-app-api/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-router-ecosystem-app-api/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-router-commerce-app-api/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-router-iam-backend-api/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-router-platform-backend-api/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-routes-system-app-api/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-routes-runtime-app-api/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-routes-intelligence-app-api/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-routes-platform-app-api/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-routes-content-app-api/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-routes-ecosystem-app-api/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-routes-commerce-app-api/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-routes-iam-backend-api/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-routes-platform-backend-api/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-intelligence-coding-sessions-service/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-runtime-engine-catalog-service/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-runtime-native-sessions-service/Cargo.toml`, `src/lib.rs`
@@ -337,15 +337,15 @@ members = [
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-git/src-host",
   "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-studio/src-host",
   # New route crates
-  "crates/sdkwork-router-system-app-api",
-  "crates/sdkwork-router-runtime-app-api",
-  "crates/sdkwork-router-intelligence-app-api",
-  "crates/sdkwork-router-platform-app-api",
-  "crates/sdkwork-router-content-app-api",
-  "crates/sdkwork-router-ecosystem-app-api",
-  "crates/sdkwork-router-commerce-app-api",
-  "crates/sdkwork-router-iam-backend-api",
-  "crates/sdkwork-router-platform-backend-api",
+  "crates/sdkwork-routes-system-app-api",
+  "crates/sdkwork-routes-runtime-app-api",
+  "crates/sdkwork-routes-intelligence-app-api",
+  "crates/sdkwork-routes-platform-app-api",
+  "crates/sdkwork-routes-content-app-api",
+  "crates/sdkwork-routes-ecosystem-app-api",
+  "crates/sdkwork-routes-commerce-app-api",
+  "crates/sdkwork-routes-iam-backend-api",
+  "crates/sdkwork-routes-platform-backend-api",
   # New service crates
   "crates/sdkwork-intelligence-coding-sessions-service",
   "crates/sdkwork-runtime-engine-catalog-service",
@@ -725,20 +725,20 @@ cargo check -p sdkwork-birdcoder-api-server
 #### Task 4.2: Create intelligence route crate
 
 **Files:**
-- Create: `crates/sdkwork-router-intelligence-app-api/src/paths.rs`
+- Create: `crates/sdkwork-routes-intelligence-app-api/src/paths.rs`
   - Constants: `CODING_SESSIONS`, `CODING_SESSION`, `CODING_SESSION_TURNS`, `CODING_SESSION_EVENTS`, `CODING_SESSION_ARTIFACTS`, `CODING_SESSION_CHECKPOINTS`, `CODING_SESSION_MESSAGES`, `APPROVALS`, `QUESTIONS`
-- Create: `crates/sdkwork-router-intelligence-app-api/src/routes.rs`
+- Create: `crates/sdkwork-routes-intelligence-app-api/src/routes.rs`
   - `build_intelligence_app_api_router() -> Router`
-- Create: `crates/sdkwork-router-intelligence-app-api/src/handlers.rs`
+- Create: `crates/sdkwork-routes-intelligence-app-api/src/handlers.rs`
   - Extract all coding session handlers (lines 22628-23859)
   - Each handler: thin adapter — extract context, call service, map response
-- Create: `crates/sdkwork-router-intelligence-app-api/src/manifest.rs`
+- Create: `crates/sdkwork-routes-intelligence-app-api/src/manifest.rs`
   - Route manifest for `/app/v3/api/coding_sessions*` routes
-- Create: `crates/sdkwork-router-intelligence-app-api/src/error.rs`
+- Create: `crates/sdkwork-routes-intelligence-app-api/src/error.rs`
   - `CodingSessionError` → `ProblemDetails` mapping
-- Create: `crates/sdkwork-router-intelligence-app-api/src/mapper/` (request.rs, response.rs, problem.rs)
-- Modify: `crates/sdkwork-router-intelligence-app-api/src/lib.rs`
-- Modify: `crates/sdkwork-router-intelligence-app-api/Cargo.toml`
+- Create: `crates/sdkwork-routes-intelligence-app-api/src/mapper/` (request.rs, response.rs, problem.rs)
+- Modify: `crates/sdkwork-routes-intelligence-app-api/src/lib.rs`
+- Modify: `crates/sdkwork-routes-intelligence-app-api/Cargo.toml`
 
 **Handlers to extract:**
 - `core_sessions` (GET /coding_sessions) → line 22628
@@ -758,7 +758,7 @@ cargo check -p sdkwork-birdcoder-api-server
 
 **Verification:**
 ```bash
-cargo check -p sdkwork-router-intelligence-app-api
+cargo check -p sdkwork-routes-intelligence-app-api
 ```
 
 #### Task 4.3: Create remaining route crates
@@ -766,21 +766,21 @@ cargo check -p sdkwork-router-intelligence-app-api
 Repeat the pattern from Task 4.2 for all other route crates.
 
 **Files:**
-- `crates/sdkwork-router-system-app-api/src/` (paths, routes, handlers, manifest, error, mapper)
+- `crates/sdkwork-routes-system-app-api/src/` (paths, routes, handlers, manifest, error, mapper)
   - Handlers: `core_health`, `core_descriptor`, `core_route_catalog`, `core_runtime`, `core_operation`
-- `crates/sdkwork-router-runtime-app-api/src/`
+- `crates/sdkwork-routes-runtime-app-api/src/`
   - Handlers: `core_engines`, `core_engine_capabilities`, `core_models`, `core_model_config`, `core_sync_model_config`, `core_native_sessions`, `core_native_session`, `core_native_session_providers`
-- `crates/sdkwork-router-platform-app-api/src/`
+- `crates/sdkwork-routes-platform-app-api/src/`
   - Handlers: all workspace, project, git, member, collaborator, deployment, publish handlers
-- `crates/sdkwork-router-content-app-api/src/`
+- `crates/sdkwork-routes-content-app-api/src/`
   - Handlers: `app_documents`
-- `crates/sdkwork-router-ecosystem-app-api/src/`
+- `crates/sdkwork-routes-ecosystem-app-api/src/`
   - Handlers: `app_skill_packages`, `app_install_skill_package`, `app_templates`
-- `crates/sdkwork-router-commerce-app-api/src/`
+- `crates/sdkwork-routes-commerce-app-api/src/`
   - Handlers: `app_commerce_membership_current`, `app_commerce_membership_package_groups`
-- `crates/sdkwork-router-iam-backend-api/src/`
-  - Consumes `sdkwork_router_iam_backend_api` from appbase, adds birdcoder-specific admin routes
-- `crates/sdkwork-router-platform-backend-api/src/`
+- `crates/sdkwork-routes-iam-backend-api/src/`
+  - Consumes `sdkwork_routes_iam_backend_api` from appbase, adds birdcoder-specific admin routes
+- `crates/sdkwork-routes-platform-backend-api/src/`
   - Handlers: `admin_deployment_targets`, `admin_releases`, `admin_deployments`
 
 **Verification:**
@@ -795,7 +795,7 @@ cargo check --workspace
 - Create: `crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs`
   - Initialize `sdkwork_iam_context_service::IamContextService`
   - Set up IAM middleware that resolves `AppRequestContext` from tokens
-  - Mount `sdkwork_router_iam_app_api` routes for auth/OAuth/profile endpoints
+  - Mount `sdkwork_routes_iam_app_api` routes for auth/OAuth/profile endpoints
 - Modify: `crates/sdkwork-birdcoder-api-server/src/bootstrap/routers.rs`
   - Mount IAM routes from appbase crate
 
@@ -921,7 +921,7 @@ The test module (lines 24222-32496) should be distributed:
 **Files:**
 - Service unit tests → `crates/sdkwork-intelligence-coding-sessions-service/src/test_support/` and `tests/`
 - Repository tests → `crates/sdkwork-intelligence-coding-sessions-repository-sqlite/tests/`
-- Route integration tests → `crates/sdkwork-router-intelligence-app-api/tests/`
+- Route integration tests → `crates/sdkwork-routes-intelligence-app-api/tests/`
 - API server bootstrap tests → `crates/sdkwork-birdcoder-api-server/tests/`
 - Move test fixtures: `TestGitRepositoryFixture` → `crates/sdkwork-birdcoder-git/src/test_support/`
 - Move test fixtures: `FakeCodexCliGuard`, `FakeCodexHomeGuard` → `crates/sdkwork-birdcoder-codeengine/src/test_support/`
@@ -985,7 +985,7 @@ pnpm run check:arch
 grep -r "product\|runtime\|backend\|core\|common\|manager\|server-runtime" crates/*/Cargo.toml
 
 # Verify all crates follow naming patterns
-# Route: sdkwork-router-<capability>-<surface>
+# Route: sdkwork-routes-<capability>-<surface>
 # Service: sdkwork-<domain>-<capability>-service
 # Repository: sdkwork-<domain>-<capability>-repository-sqlite
 # Server: sdkwork-<app>-api-server
@@ -999,23 +999,23 @@ grep -r "product\|runtime\|backend\|core\|common\|manager\|server-runtime" crate
 find crates/ -name lib.rs -exec wc -l {} \;
 
 # Verify no SQL in route crates
-grep -r "SELECT\|INSERT\|UPDATE\|DELETE\|CREATE TABLE" crates/sdkwork-router-*/src/
+grep -r "SELECT\|INSERT\|UPDATE\|DELETE\|CREATE TABLE" crates/sdkwork-routes-*/src/
 
 # Verify no HTTP types in service crates
 grep -r "axum\|StatusCode\|Json\|Extension" crates/sdkwork-*/service/src/
 
 # Verify no business logic in handlers (check handler line counts)
-find crates/sdkwork-router-*/src/handlers.rs -exec wc -l {} \;
+find crates/sdkwork-routes-*/src/handlers.rs -exec wc -l {} \;
 ```
 
 #### Task 7.3: Request context compliance
 
 ```bash
 # Verify no raw header parsing in route handlers
-grep -r "header.*Authorization\|header.*Access-Token\|header.*X-API-Key\|header.*tenant_id" crates/sdkwork-router-*/src/handlers.rs
+grep -r "header.*Authorization\|header.*Access-Token\|header.*X-API-Key\|header.*tenant_id" crates/sdkwork-routes-*/src/handlers.rs
 
 # Verify all handlers consume AppRequestContext
-grep -c "AppRequestContext" crates/sdkwork-router-*/src/handlers.rs
+grep -c "AppRequestContext" crates/sdkwork-routes-*/src/handlers.rs
 ```
 
 #### Task 7.4: Full build and test
@@ -1035,20 +1035,20 @@ pnpm run check:arch
 
 ```
 sdkwork-birdcoder-api-server
-├── sdkwork-router-system-app-api
+├── sdkwork-routes-system-app-api
 │   └── sdkwork-system-descriptor-service
-├── sdkwork-router-runtime-app-api
+├── sdkwork-routes-runtime-app-api
 │   ├── sdkwork-runtime-engine-catalog-service
 │   │   └── sdkwork-birdcoder-codeengine
 │   ├── sdkwork-runtime-native-sessions-service
 │   │   └── sdkwork-birdcoder-codeengine
 │   └── sdkwork-runtime-model-config-repository-sqlite
-├── sdkwork-router-intelligence-app-api
+├── sdkwork-routes-intelligence-app-api
 │   └── sdkwork-intelligence-coding-sessions-service
 │       ├── sdkwork-intelligence-coding-sessions-repository-sqlite
 │       ├── sdkwork-birdcoder-codeengine (via port trait)
 │       └── sdkwork-birdcoder-git (via port trait)
-├── sdkwork-router-platform-app-api
+├── sdkwork-routes-platform-app-api
 │   ├── sdkwork-platform-workspace-service
 │   │   └── sdkwork-platform-workspace-repository-sqlite
 │   ├── sdkwork-platform-project-service
@@ -1056,22 +1056,22 @@ sdkwork-birdcoder-api-server
 │   │   └── sdkwork-birdcoder-git
 │   └── sdkwork-platform-deployment-service
 │       └── sdkwork-platform-workspace-repository-sqlite
-├── sdkwork-router-content-app-api
+├── sdkwork-routes-content-app-api
 │   └── sdkwork-content-document-service
-├── sdkwork-router-ecosystem-app-api
+├── sdkwork-routes-ecosystem-app-api
 │   ├── sdkwork-ecosystem-skill-packages-service
 │   │   └── sdkwork-ecosystem-skill-packages-repository-sqlite
 │   └── sdkwork-ecosystem-app-templates-service
 │       └── sdkwork-ecosystem-skill-packages-repository-sqlite
-├── sdkwork-router-commerce-app-api
+├── sdkwork-routes-commerce-app-api
 │   └── sdkwork-commerce-membership-service
 │       └── sdkwork-commerce-membership-repository-sqlite
-├── sdkwork-router-iam-backend-api (consumes appbase)
-│   └── sdkwork_router_iam_backend_api (from sdkwork-appbase)
-├── sdkwork-router-platform-backend-api
+├── sdkwork-routes-iam-backend-api (consumes appbase)
+│   └── sdkwork_routes_iam_backend_api (from sdkwork-appbase)
+├── sdkwork-routes-platform-backend-api
 │   └── sdkwork-platform-deployment-service
 ├── sdkwork_iam_context_service (from sdkwork-appbase)
-├── sdkwork_router_iam_app_api (from sdkwork-appbase)
+├── sdkwork_routes_iam_app_api (from sdkwork-appbase)
 └── sdkwork_birdcoder_errors
 
 sdkwork-birdcoder-tauri-host

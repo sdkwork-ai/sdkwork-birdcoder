@@ -490,7 +490,7 @@ for (const [pathKey, methods] of Object.entries(openApiDocument.paths)) {
 }
 
 const codingSessionsRouteSource = readFileSync(
-  new URL('../crates/sdkwork-router-coding-sessions-app-api/src/paths.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-coding-sessions-app-api/src/paths.rs', import.meta.url),
   'utf8',
 );
 for (const forbiddenPrefix of FORBIDDEN_PREFIXES) {

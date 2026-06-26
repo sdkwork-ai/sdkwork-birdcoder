@@ -1,27 +1,21 @@
 [package]
-name = "sdkwork-router-workspace-app-api"
+name = "sdkwork-routes-deployment-backend-api"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 authors.workspace = true
 
 [dependencies]
-axum = { workspace = true, features = ["ws"] }
+async-trait = { workspace = true }
+axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sdkwork-birdcoder-workspace-service = { workspace = true }
-sdkwork-birdcoder-project-service = { workspace = true }
 sdkwork-birdcoder-deployment-service = { workspace = true }
-sdkwork-birdcoder-router-context = { workspace = true }
+sdkwork-birdcoder-workspace-service = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-birdcoder-router-context = { workspace = true }
 sdkwork-web-contract = { workspace = true }
 sdkwork-web-core = { workspace = true }
-futures-util = "0.3"
-uuid = { workspace = true }
-time = { workspace = true }
-tokio = { workspace = true }
-redis = { workspace = true }
-tracing = "0.1"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

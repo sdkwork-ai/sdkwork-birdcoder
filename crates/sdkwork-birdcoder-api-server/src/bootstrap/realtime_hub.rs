@@ -12,7 +12,7 @@ use sdkwork_birdcoder_project_service::error::ProjectError;
 use sdkwork_birdcoder_project_service::ports::events::ProjectEventPublisher;
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
 use sdkwork_birdcoder_workspace_service::ports::events::WorkspaceEventPublisher;
-use sdkwork_router_workspace_app_api::realtime_hub::{
+use sdkwork_routes_workspace_app_api::realtime_hub::{
     current_rfc3339_timestamp, new_workspace_realtime_event_id, WorkspaceRealtimeHub,
 };
 

@@ -24,8 +24,8 @@ use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine, DeploymentMode};
 use sdkwork_database_sqlx::create_any_pool_from_config;
 use sdkwork_iam_context_service::{AuthLevel, DeploymentMode as IamDeploymentMode, Environment, IamAppContext};
-use sdkwork_router_coding_sessions_app_api::build_coding_sessions_app_api_router;
-use sdkwork_router_coding_sessions_app_api::handlers::CodingSessionsAppState;
+use sdkwork_routes_coding_sessions_app_api::build_coding_sessions_app_api_router;
+use sdkwork_routes_coding_sessions_app_api::handlers::CodingSessionsAppState;
 use sdkwork_web_core::{
     ServerRequestId, WebApiSurface, WebAuthMode, WebRequestContext, WebTransportFacts,
 };

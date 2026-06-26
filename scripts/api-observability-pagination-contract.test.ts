@@ -6,11 +6,11 @@ const errorsSource = readFileSync(
   'utf8',
 );
 const codingSessionsErrorSource = readFileSync(
-  new URL('../crates/sdkwork-router-coding-sessions-app-api/src/error.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-coding-sessions-app-api/src/error.rs', import.meta.url),
   'utf8',
 );
 const handlersSource = readFileSync(
-  new URL('../crates/sdkwork-router-coding-sessions-app-api/src/handlers.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-coding-sessions-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
 const sdkClientsSource = readFileSync(
@@ -37,11 +37,11 @@ assert.match(
   'BirdCoder shared API errors must expose request-id trace helpers.',
 );
 const workspaceErrorSource = readFileSync(
-  new URL('../crates/sdkwork-router-workspace-app-api/src/error.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-workspace-app-api/src/error.rs', import.meta.url),
   'utf8',
 );
 const workspaceHandlersSource = readFileSync(
-  new URL('../crates/sdkwork-router-workspace-app-api/src/handlers.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-workspace-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
 assert.match(
@@ -124,11 +124,11 @@ assert.match(
 );
 
 const nativeSessionHandlersSource = readFileSync(
-  new URL('../crates/sdkwork-router-engine-catalog-app-api/src/handlers.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
 const membershipHandlersSource = readFileSync(
-  new URL('../crates/sdkwork-router-membership-app-api/src/handlers.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-membership-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
 const authBootstrapSource = readFileSync(
@@ -168,11 +168,11 @@ const alignedRouterCrates = [
 
 for (const crate of alignedRouterCrates) {
   const errorSource = readFileSync(
-    new URL(`../crates/sdkwork-router-${crate}/src/error.rs`, import.meta.url),
+    new URL(`../crates/sdkwork-routes-${crate}/src/error.rs`, import.meta.url),
     'utf8',
   );
   const handlersSource = readFileSync(
-    new URL(`../crates/sdkwork-router-${crate}/src/handlers.rs`, import.meta.url),
+    new URL(`../crates/sdkwork-routes-${crate}/src/handlers.rs`, import.meta.url),
     'utf8',
   );
 
@@ -204,11 +204,11 @@ for (const crate of alignedRouterCrates) {
 }
 
 const systemHandlersSource = readFileSync(
-  new URL('../crates/sdkwork-router-system-app-api/src/handlers.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-system-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
 const systemManifestSource = readFileSync(
-  new URL('../crates/sdkwork-router-system-app-api/src/manifest.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-system-app-api/src/manifest.rs', import.meta.url),
   'utf8',
 );
 assert.match(

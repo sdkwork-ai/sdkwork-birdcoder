@@ -4165,16 +4165,16 @@ dependencies = [
  "sdkwork-iam-database-host",
  "sdkwork-iam-embedded-application-bootstrap",
  "sdkwork-iam-web-adapter",
- "sdkwork-router-coding-sessions-app-api",
- "sdkwork-router-deployment-backend-api",
- "sdkwork-router-document-app-api",
- "sdkwork-router-engine-catalog-app-api",
- "sdkwork-router-iam-app-api",
- "sdkwork-router-iam-backend-api",
- "sdkwork-router-membership-app-api",
- "sdkwork-router-skill-packages-app-api",
- "sdkwork-router-system-app-api",
- "sdkwork-router-workspace-app-api",
+ "sdkwork-routes-coding-sessions-app-api",
+ "sdkwork-routes-deployment-backend-api",
+ "sdkwork-routes-document-app-api",
+ "sdkwork-routes-engine-catalog-app-api",
+ "sdkwork-routes-iam-app-api",
+ "sdkwork-routes-iam-backend-api",
+ "sdkwork-routes-membership-app-api",
+ "sdkwork-routes-skill-packages-app-api",
+ "sdkwork-routes-system-app-api",
+ "sdkwork-routes-workspace-app-api",
  "sdkwork-web-axum",
  "sdkwork-web-bootstrap",
  "sdkwork-web-contract",
@@ -4704,7 +4704,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-coding-sessions-app-api"
+name = "sdkwork-routes-coding-sessions-app-api"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -4728,7 +4728,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-deployment-backend-api"
+name = "sdkwork-routes-deployment-backend-api"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -4751,7 +4751,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-document-app-api"
+name = "sdkwork-routes-document-app-api"
 version = "0.1.0"
 dependencies = [
  "axum",
@@ -4767,7 +4767,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-engine-catalog-app-api"
+name = "sdkwork-routes-engine-catalog-app-api"
 version = "0.1.0"
 dependencies = [
  "axum",
@@ -4784,7 +4784,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-iam-app-api"
+name = "sdkwork-routes-iam-app-api"
 version = "0.1.0"
 dependencies = [
  "argon2",
@@ -4816,7 +4816,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-iam-backend-api"
+name = "sdkwork-routes-iam-backend-api"
 version = "0.1.0"
 dependencies = [
  "axum",
@@ -4835,7 +4835,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-membership-app-api"
+name = "sdkwork-routes-membership-app-api"
 version = "0.1.0"
 dependencies = [
  "axum",
@@ -4852,7 +4852,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-skill-packages-app-api"
+name = "sdkwork-routes-skill-packages-app-api"
 version = "0.1.0"
 dependencies = [
  "axum",
@@ -4872,7 +4872,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-system-app-api"
+name = "sdkwork-routes-system-app-api"
 version = "0.1.0"
 dependencies = [
  "axum",
@@ -4890,7 +4890,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sdkwork-router-workspace-app-api"
+name = "sdkwork-routes-workspace-app-api"
 version = "0.1.0"
 dependencies = [
  "async-trait",

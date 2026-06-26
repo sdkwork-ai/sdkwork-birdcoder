@@ -1,5 +1,5 @@
 [package]
-name = "sdkwork-router-skill-packages-app-api"
+name = "sdkwork-routes-skill-packages-app-api"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

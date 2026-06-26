@@ -9,8 +9,8 @@ function readText(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const hubSource = readText('crates/sdkwork-router-workspace-app-api/src/realtime_hub.rs');
-const configSource = readText('crates/sdkwork-router-workspace-app-api/src/realtime_config.rs');
+const hubSource = readText('crates/sdkwork-routes-workspace-app-api/src/realtime_hub.rs');
+const configSource = readText('crates/sdkwork-routes-workspace-app-api/src/realtime_config.rs');
 const servicesSource = readText('crates/sdkwork-birdcoder-api-server/src/bootstrap/services.rs');
 const databaseSource = readText('crates/sdkwork-birdcoder-api-server/src/bootstrap/database.rs');
 const haValues = readText('deployments/kubernetes/values-postgresql-ha.yaml');

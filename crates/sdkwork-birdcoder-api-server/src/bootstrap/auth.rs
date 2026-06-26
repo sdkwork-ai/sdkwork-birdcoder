@@ -1,5 +1,5 @@
 use axum::Router;
-use sdkwork_iam_web_adapter::{build_web_framework_layer, iam_database_resolver_from_env};
+use sdkwork_iam_web_adapter::{build_web_framework_layer, iam_web_request_context_resolver_from_env};
 use sdkwork_web_axum::with_web_request_context;
 use sdkwork_web_core::{CorsPolicy, HttpMetricsRegistry, RateLimitPolicy, SecurityPolicy};
 use std::sync::Arc;
@@ -16,7 +16,7 @@ pub async fn build_protected_app_router(
     config: &BirdServerConfig,
     metrics: Arc<HttpMetricsRegistry>,
 ) -> Result<Router, String> {
-    let resolver = iam_database_resolver_from_env().await;
+    let resolver = iam_web_request_context_resolver_from_env().await;
     let manifest = birdcoder_product_app_api_route_manifest();
     manifest
         .validate_public_path_prefixes(&birdcoder_public_path_prefixes())

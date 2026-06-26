@@ -55,7 +55,7 @@ function resolveOperation(method, pathConst, pathConstants) {
 
 const crates = [
   {
-    crateDir: 'crates/sdkwork-router-system-app-api',
+    crateDir: 'crates/sdkwork-routes-system-app-api',
     fnName: 'system_app_api_route_manifest',
     routesConst: 'SYSTEM_APP_API_ROUTES',
     routes: [
@@ -67,7 +67,7 @@ const crates = [
     ],
   },
   {
-    crateDir: 'crates/sdkwork-router-coding-sessions-app-api',
+    crateDir: 'crates/sdkwork-routes-coding-sessions-app-api',
     fnName: 'coding_sessions_app_api_route_manifest',
     routesConst: 'CODING_SESSIONS_APP_API_ROUTES',
     routes: [
@@ -88,7 +88,7 @@ const crates = [
     ],
   },
   {
-    crateDir: 'crates/sdkwork-router-workspace-app-api',
+    crateDir: 'crates/sdkwork-routes-workspace-app-api',
     fnName: 'workspace_app_api_route_manifest',
     routesConst: 'WORKSPACE_APP_API_ROUTES',
     routes: [
@@ -122,7 +122,7 @@ const crates = [
     ],
   },
   {
-    crateDir: 'crates/sdkwork-router-engine-catalog-app-api',
+    crateDir: 'crates/sdkwork-routes-engine-catalog-app-api',
     fnName: 'engine_catalog_app_api_route_manifest',
     routesConst: 'ENGINE_CATALOG_APP_API_ROUTES',
     routes: [
@@ -137,13 +137,13 @@ const crates = [
     ],
   },
   {
-    crateDir: 'crates/sdkwork-router-document-app-api',
+    crateDir: 'crates/sdkwork-routes-document-app-api',
     fnName: 'document_app_api_route_manifest',
     routesConst: 'DOCUMENT_APP_API_ROUTES',
     routes: [['Get', 'DOCUMENTS_PATH', 'documents']],
   },
   {
-    crateDir: 'crates/sdkwork-router-skill-packages-app-api',
+    crateDir: 'crates/sdkwork-routes-skill-packages-app-api',
     fnName: 'skill_packages_app_api_route_manifest',
     routesConst: 'SKILL_PACKAGES_APP_API_ROUTES',
     routes: [
@@ -153,7 +153,7 @@ const crates = [
     ],
   },
   {
-    crateDir: 'crates/sdkwork-router-membership-app-api',
+    crateDir: 'crates/sdkwork-routes-membership-app-api',
     fnName: 'membership_app_api_route_manifest',
     routesConst: 'MEMBERSHIP_APP_API_ROUTES',
     routes: [
@@ -162,7 +162,7 @@ const crates = [
     ],
   },
   {
-    crateDir: 'crates/sdkwork-router-deployment-backend-api',
+    crateDir: 'crates/sdkwork-routes-deployment-backend-api',
     fnName: 'deployment_backend_api_route_manifest',
     routesConst: 'DEPLOYMENT_BACKEND_API_ROUTES',
     routes: [

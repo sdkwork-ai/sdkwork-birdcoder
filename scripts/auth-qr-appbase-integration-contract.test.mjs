@@ -60,9 +60,9 @@ const iamRuntimeSource = readText(
 );
 const vitePluginSource = readText('scripts', 'create-birdcoder-vite-plugins.mjs');
 const iamOauthSource = [
-  readIamText('crates/sdkwork-router-iam-app-api/src/directory.rs'),
-  readIamText('crates/sdkwork-router-iam-app-api/src/ephemeral.rs'),
-  readIamText('crates/sdkwork-router-iam-app-api/src/handlers.rs'),
+  readIamText('crates/sdkwork-routes-iam-app-api/src/directory.rs'),
+  readIamText('crates/sdkwork-routes-iam-app-api/src/ephemeral.rs'),
+  readIamText('crates/sdkwork-routes-iam-app-api/src/handlers.rs'),
 ].join('\n');
 const apiServerIamSource = [
   readCanonicalServerRustSource(CANONICAL_SERVER_RUST_PATHS.apiServerAuth),
@@ -191,7 +191,7 @@ assert.doesNotMatch(
 );
 assert.match(
   apiServerIamSource,
-  /sdkwork_router_iam_app_api::build_sdkwork_iam_app_api_router/u,
+  /sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router/u,
   'BirdCoder canonical api-server must wire IAM through sdkwork-iam router crates.',
 );
 

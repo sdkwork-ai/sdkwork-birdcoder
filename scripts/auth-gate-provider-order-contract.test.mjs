@@ -20,11 +20,11 @@ const iamRuntimeSource = fs.readFileSync(
   'utf8',
 );
 const nativeSessionHandlersSource = fs.readFileSync(
-  new URL('../crates/sdkwork-router-engine-catalog-app-api/src/handlers.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
 const membershipHandlersSource = fs.readFileSync(
-  new URL('../crates/sdkwork-router-membership-app-api/src/handlers.rs', import.meta.url),
+  new URL('../crates/sdkwork-routes-membership-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
 

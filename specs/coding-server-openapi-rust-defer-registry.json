@@ -11,8 +11,8 @@
     "deferredOperationCount": 0
   },
   "federation": {
-    "iamAppCrate": "../sdkwork-iam/crates/sdkwork-router-iam-app-api",
-    "iamBackendCrate": "../sdkwork-iam/crates/sdkwork-router-iam-backend-api",
+    "iamAppCrate": "../sdkwork-iam/crates/sdkwork-routes-iam-app-api",
+    "iamBackendCrate": "../sdkwork-iam/crates/sdkwork-routes-iam-backend-api",
     "wiredInApiServer": "crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs"
   },
   "rule": "Deferred operations are absent from BirdCoder product manifests and federated sdkwork-iam manifests wired in api-server; remaining routes are intentionally phased per TECH-2026-06-24.",

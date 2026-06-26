@@ -4,7 +4,7 @@ import {
   type SdkworkAppbasePcAuthRuntimeSdkClient,
 } from '@sdkwork/auth-runtime-pc-react';
 import type { IamRuntime } from '@sdkwork/iam-runtime';
-import { createClient as createAppbaseAppSdkClient } from '@sdkwork/iam-app-sdk';
+import { createAppbaseAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
 import { BIRDCODER_DEFAULT_LOCAL_API_BASE_URL } from '@sdkwork/birdcoder-pc-host-core';
 import { createDriveAppClient, type SdkworkDriveAppClient } from '@sdkwork/drive-app-sdk';
 import { createClient as createMessagingAppSdkClient } from '@sdkwork/messaging-app-sdk';

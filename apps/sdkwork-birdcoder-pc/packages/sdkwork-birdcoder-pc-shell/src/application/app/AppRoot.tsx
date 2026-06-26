@@ -1,4 +1,6 @@
 import { Suspense, lazy } from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { SdkworkSessionAuthBrowserRoot } from '@sdkwork/auth-pc-react';
 import { BirdCoderAuthGate } from '@sdkwork/birdcoder-pc-iam';
 import { AppProviders } from '../providers/AppProviders';
 import { ShellRuntimeProviders } from '../providers/ShellRuntimeProviders';
@@ -21,14 +23,18 @@ function AppRootLoadingFallback() {
 
 export default function AppRoot() {
   return (
-    <AppProviders>
-      <ShellRuntimeProviders>
-        <BirdCoderAuthGate>
-          <Suspense fallback={<AppRootLoadingFallback />}>
-            <LazyBirdcoderApp />
-          </Suspense>
-        </BirdCoderAuthGate>
-      </ShellRuntimeProviders>
-    </AppProviders>
+    <MemoryRouter>
+      <SdkworkSessionAuthBrowserRoot>
+        <AppProviders>
+          <ShellRuntimeProviders>
+            <BirdCoderAuthGate>
+              <Suspense fallback={<AppRootLoadingFallback />}>
+                <LazyBirdcoderApp />
+              </Suspense>
+            </BirdCoderAuthGate>
+          </ShellRuntimeProviders>
+        </AppProviders>
+      </SdkworkSessionAuthBrowserRoot>
+    </MemoryRouter>
   );
 }

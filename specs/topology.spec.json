@@ -92,7 +92,7 @@
   "components": {
     "applicationServer": {
       "crate": "sdkwork-birdcoder-api-server",
-      "binary": "sdkwork-birdcoder-api-server"
+      "binary": "sdkwork-birdcoder-standalone-gateway"
     },
     "cloudGateway": {
       "crate": "sdkwork-api-cloud-gateway-api-server",

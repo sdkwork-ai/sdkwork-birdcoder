@@ -9,7 +9,7 @@ const cratesRoot = path.join(repoRoot, 'crates');
 const routerErrorFiles = readdirSync(cratesRoot)
   .flatMap((crateName) => {
     const errorPath = path.join(cratesRoot, crateName, 'src', 'error.rs');
-    if (!crateName.startsWith('sdkwork-router-') || !statSync(errorPath, { throwIfNoEntry: false })) {
+    if (!crateName.startsWith('sdkwork-routes-') || !statSync(errorPath, { throwIfNoEntry: false })) {
       return [];
     }
     return [errorPath];

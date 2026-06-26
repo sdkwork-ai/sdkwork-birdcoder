@@ -13,19 +13,19 @@ const OPENAPI_CANDIDATE_PATHS = [
 ];
 
 const RUST_PRODUCT_ROUTE_CRATES = [
-  'crates/sdkwork-router-system-app-api',
-  'crates/sdkwork-router-coding-sessions-app-api',
-  'crates/sdkwork-router-workspace-app-api',
-  'crates/sdkwork-router-document-app-api',
-  'crates/sdkwork-router-engine-catalog-app-api',
-  'crates/sdkwork-router-skill-packages-app-api',
-  'crates/sdkwork-router-membership-app-api',
-  'crates/sdkwork-router-deployment-backend-api',
+  'crates/sdkwork-routes-system-app-api',
+  'crates/sdkwork-routes-coding-sessions-app-api',
+  'crates/sdkwork-routes-workspace-app-api',
+  'crates/sdkwork-routes-document-app-api',
+  'crates/sdkwork-routes-engine-catalog-app-api',
+  'crates/sdkwork-routes-skill-packages-app-api',
+  'crates/sdkwork-routes-membership-app-api',
+  'crates/sdkwork-routes-deployment-backend-api',
 ];
 
 const IAM_FEDERATION_DEPENDENCIES = [
-  'sdkwork_router_iam_app_api',
-  'sdkwork_router_iam_backend_api',
+  'sdkwork_routes_iam_app_api',
+  'sdkwork_routes_iam_backend_api',
 ];
 
 function readJson(relativePath) {
@@ -170,11 +170,11 @@ export function buildCodingServerOpenApiRustDeferRegistry() {
   );
   const iamAppCrateRoot = resolveCargoWorkspaceCrateRoot(
     cargoTomlSource,
-    'sdkwork_router_iam_app_api',
+    'sdkwork_routes_iam_app_api',
   );
   const iamBackendCrateRoot = resolveCargoWorkspaceCrateRoot(
     cargoTomlSource,
-    'sdkwork_router_iam_backend_api',
+    'sdkwork_routes_iam_backend_api',
   );
   const iamAppRoutes = readRustIamManifestRoutes(iamAppCrateRoot, 'sdkwork-iam-app');
   const iamBackendRoutes = readRustIamManifestRoutes(iamBackendCrateRoot, 'sdkwork-iam-backend');

@@ -299,7 +299,7 @@
     "check:governance-regression": "node scripts/governance-regression-report.mjs",
     "check:web-bundle-budget": "node scripts/web-bundle-budget.test.mjs",
     "check:desktop": "node scripts/run-local-typescript.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop --noEmit && node scripts/release/release-profiles.test.mjs && node scripts/run-cargo.mjs test --manifest-path apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml",
-    "check:server": "node scripts/server-observability-contract.test.mjs && node scripts/legacy-src-host-retirement-contract.test.mjs && node scripts/legacy-codeengine-src-host-retirement-contract.test.mjs && node scripts/birdcoder-iam-runtime-standard-contract.test.mjs && node scripts/iam-seed-parity-contract.test.mjs && node scripts/dev/sdkwork-birdcoder-iam-application-bootstrap-standard.test.mjs && node scripts/rust-long-id-standard-contract.test.mjs && node scripts/rust-workspace-project-schema-parity-contract.test.mjs && node scripts/codeengine-catalog-tenant-standard-contract.test.mjs && node scripts/router-handler-smoke-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server --noEmit && node scripts/run-cargo.mjs test -p sdkwork-birdcoder-api-server && node scripts/run-cargo.mjs test -p sdkwork-router-coding-sessions-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-router-workspace-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-router-system-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-router-deployment-backend-api --test handler_smoke",
+    "check:server": "node scripts/server-observability-contract.test.mjs && node scripts/legacy-src-host-retirement-contract.test.mjs && node scripts/legacy-codeengine-src-host-retirement-contract.test.mjs && node scripts/birdcoder-iam-runtime-standard-contract.test.mjs && node scripts/iam-seed-parity-contract.test.mjs && node scripts/dev/sdkwork-birdcoder-iam-application-bootstrap-standard.test.mjs && node scripts/rust-long-id-standard-contract.test.mjs && node scripts/rust-workspace-project-schema-parity-contract.test.mjs && node scripts/codeengine-catalog-tenant-standard-contract.test.mjs && node scripts/router-handler-smoke-contract.test.mjs && node scripts/run-local-typescript.mjs --cwd apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server --noEmit && node scripts/run-cargo.mjs test -p sdkwork-birdcoder-api-server && node scripts/run-cargo.mjs test -p sdkwork-routes-coding-sessions-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-routes-workspace-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-routes-system-app-api --test handler_smoke && node scripts/run-cargo.mjs test -p sdkwork-routes-deployment-backend-api --test handler_smoke",
     "check:release-flow": "node scripts/run-release-flow-check.mjs",
     "check:ci-flow": "node scripts/ci-flow-contract.test.mjs",
     "check:multi-mode": "node scripts/run-workspace-package-script.mjs . check:desktop && node scripts/run-workspace-package-script.mjs . check:server && node scripts/run-workspace-package-script.mjs . check:release-flow",
@@ -349,7 +349,7 @@
     "release:rehearsal:verify": "node scripts/release/rehearsal-verify.mjs",
     "release:rollback:plan": "node scripts/release/local-release-command.mjs rollback-plan --release-assets-dir artifacts/release",
     "release:smoke:finalized": "node scripts/release/smoke-finalized-release-assets.mjs --release-assets-dir artifacts/release",
-    "db:materialize:contract": "node ../sdkwork-specs/tools/materialize-database-contract-from-baseline.mjs --root . --baseline database/ddl/baseline/sqlite/0001_birdcoder_legacy_baseline.sql --module-id birdcoder --owner birdcoder-platform --prefixes ai_,commerce_,ops_,runtime_,studio_ --engines sqlite,postgres",
+    "db:materialize:contract": "node ../sdkwork-specs/tools/materialize-database-contract-from-baseline.mjs --root . --baseline database/ddl/baseline/postgres/0001_birdcoder_legacy_baseline.sql --module-id birdcoder --owner birdcoder-platform --prefixes birdcoder_ --engines postgres",
     "db:validate": "node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root .",
     "db:plan": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . plan",
     "db:init": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . init",
@@ -363,7 +363,9 @@
     "topology:validate": "node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json",
     "topology:plan": "node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs plan --root . --spec specs/topology.spec.json",
     "gateway:package:cloud": "node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs bundle --root .",
-    "gateway:validate:cloud": "node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs validate --root ."
+    "gateway:validate:cloud": "node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs validate --root .",
+    "db:postgres:init": "node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode init --config .env.postgres --app-root .",
+    "db:postgres:plan": "node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode plan --config .env.postgres --app-root . --dry-run"
   },
   "dependencies": {
     "@babel/runtime": "catalog:",

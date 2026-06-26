@@ -8,7 +8,7 @@ SDKWork Birdcoder team.
 
 ## Allowed Content
 - Rust crates following SDKWork naming conventions:
-  - `sdkwork-router-<capability>-<surface>/`
+  - `sdkwork-routes-<capability>-<surface>/`
   - `sdkwork-<domain>-<capability>-service/`
   - `sdkwork-<domain>-<capability>-repository-sqlx/`
   - `sdkwork-<app>-api-server/`

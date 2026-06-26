@@ -26,6 +26,11 @@ import {
 } from '@sdkwork/birdcoder-pc-admin-core';
 import { type AuthTokenManager } from '@sdkwork/sdk-common';
 import {
+  handleSdkworkSessionAuthUnauthorizedError,
+  isSdkworkSdkSessionAuthError,
+  resetSdkworkSessionAuthRedirectState,
+} from '@sdkwork/auth-runtime-pc-react';
+import {
   getBirdCoderGlobalTokenManager as getCoreBirdCoderGlobalTokenManager,
   setBirdCoderGlobalTokenManager,
 } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
@@ -496,23 +501,6 @@ interface BirdCoderSdkTokenManagerRef {
 }
 
 let generatedAppClient: BirdCoderTokenManagerAwareAppSdkClient | null = null;
-let sessionAuthRedirectTarget: string | null = null;
-
-const SESSION_AUTH_ERROR_CODES = new Set([
-  '401',
-  '4010',
-  'UNAUTHORIZED',
-  'TOKEN_EXPIRED',
-  'TOKEN_INVALID',
-]);
-const SESSION_AUTH_ERROR_MESSAGES = [
-  'app session token has expired',
-  'session token has expired',
-  'token has expired',
-  'not logged in',
-  'not login',
-  'unauthorized',
-];
 
 export function createBirdCoderGeneratedAppSdkClient(
   options: BirdCoderGeneratedAppSdkClientOptions = {},
@@ -564,40 +552,25 @@ export function resetBirdCoderSdkClients(): void {
 }
 
 export function resetBirdCoderSdkSessionAuthRedirectState(): void {
-  sessionAuthRedirectTarget = null;
+  resetSdkworkSessionAuthRedirectState();
 }
 
 export function isBirdCoderSdkSessionAuthError(error: unknown): boolean {
-  const code = readBirdCoderSdkErrorCode(error);
-  const httpStatus = readBirdCoderSdkErrorHttpStatus(error);
-  const businessCode = readBirdCoderSdkBusinessCode(error);
-  if (httpStatus === 401) {
-    return true;
-  }
-  if (code && SESSION_AUTH_ERROR_CODES.has(code.toUpperCase())) {
-    return true;
-  }
-  if (businessCode && SESSION_AUTH_ERROR_CODES.has(businessCode.toUpperCase())) {
-    return true;
-  }
-
-  const message = readBirdCoderSdkErrorMessage(error).toLowerCase();
-  return SESSION_AUTH_ERROR_MESSAGES.some((pattern) => message.includes(pattern));
+  return isSdkworkSdkSessionAuthError(error);
 }
 
 export function handleBirdCoderSdkSessionAuthError(error: unknown): boolean {
-  if (!isBirdCoderSdkSessionAuthError(error)) {
-    return false;
-  }
-
-  clearStoredAppSessionToken();
-  resetBirdCoderSdkClients();
-  const redirectUrl = buildBirdCoderProtectedLoginBrowserUrl();
-  if (sessionAuthRedirectTarget !== redirectUrl) {
-    sessionAuthRedirectTarget = redirectUrl;
-    redirectBrowserToBirdCoderProtectedLogin();
-  }
-  return true;
+  return handleSdkworkSessionAuthUnauthorizedError(error, {
+    clearSession: () => {
+      clearStoredAppSessionToken();
+    },
+    redirectToLogin: () => {
+      redirectBrowserToBirdCoderProtectedLogin();
+    },
+    resetClients: () => {
+      resetBirdCoderSdkClients();
+    },
+  });
 }
 
 function resolveBirdCoderGeneratedSdkTransport(

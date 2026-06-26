@@ -14,10 +14,10 @@ function createUseClientWarning(id) {
 }
 
 const knownUseClientNoiseIds = [
-  '../../../sdkwork-api-router/apps/sdkwork-router-portal/node_modules/.pnpm/@radix-ui+react-radio-group_cc2a70da647cefa06e7f90fd9b481f08/node_modules/@radix-ui/react-radio-group/dist/index.mjs',
-  '../../../sdkwork-api-router/apps/sdkwork-router-portal/node_modules/.pnpm/cmdk@1.1.1/node_modules/cmdk/dist/index.mjs',
-  '../../../sdkwork-api-router/apps/sdkwork-router-portal/node_modules/.pnpm/sonner@2.0.7/node_modules/sonner/dist/index.mjs',
-  '../../../sdkwork-api-router/apps/sdkwork-router-portal/node_modules/.pnpm/react-resizable-panels@4.10.0/node_modules/react-resizable-panels/dist/react-resizable-panels.js',
+  '../../../sdkwork-api-router/apps/sdkwork-routes-portal/node_modules/.pnpm/@radix-ui+react-radio-group_cc2a70da647cefa06e7f90fd9b481f08/node_modules/@radix-ui/react-radio-group/dist/index.mjs',
+  '../../../sdkwork-api-router/apps/sdkwork-routes-portal/node_modules/.pnpm/cmdk@1.1.1/node_modules/cmdk/dist/index.mjs',
+  '../../../sdkwork-api-router/apps/sdkwork-routes-portal/node_modules/.pnpm/sonner@2.0.7/node_modules/sonner/dist/index.mjs',
+  '../../../sdkwork-api-router/apps/sdkwork-routes-portal/node_modules/.pnpm/react-resizable-panels@4.10.0/node_modules/react-resizable-panels/dist/react-resizable-panels.js',
 ];
 
 const knownReactRouterUseClientNoiseIds = [
@@ -54,7 +54,7 @@ assert.equal(
 assert.equal(
   shouldIgnoreBirdcoderRollupWarning({
     code: 'UNRESOLVED_IMPORT',
-    id: '../../../sdkwork-api-router/apps/sdkwork-router-portal/node_modules/.pnpm/sonner@2.0.7/node_modules/sonner/dist/index.mjs',
+    id: '../../../sdkwork-api-router/apps/sdkwork-routes-portal/node_modules/.pnpm/sonner@2.0.7/node_modules/sonner/dist/index.mjs',
     message: 'Could not resolve import "x".',
   }),
   false,

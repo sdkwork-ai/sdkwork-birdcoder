@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const handlersSource = readFileSync(
-  'crates/sdkwork-router-workspace-app-api/src/handlers.rs',
+  'crates/sdkwork-routes-workspace-app-api/src/handlers.rs',
   'utf8',
 );
 const errorSource = readFileSync(
-  'crates/sdkwork-router-workspace-app-api/src/error.rs',
+  'crates/sdkwork-routes-workspace-app-api/src/error.rs',
   'utf8',
 );
 const hubSource = readFileSync(
-  'crates/sdkwork-router-workspace-app-api/src/realtime_hub.rs',
+  'crates/sdkwork-routes-workspace-app-api/src/realtime_hub.rs',
   'utf8',
 );
 

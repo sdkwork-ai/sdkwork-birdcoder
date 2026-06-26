@@ -148,8 +148,8 @@ node scripts/docker-container-readiness-contract.test.mjs
 pnpm run check:server
 node scripts/iam-seed-parity-contract.test.mjs
 pnpm run check:governance-regression
-cargo test -p sdkwork-router-workspace-app-api
-cargo test -p sdkwork-router-deployment-backend-api
+cargo test -p sdkwork-routes-workspace-app-api
+cargo test -p sdkwork-routes-deployment-backend-api
 node scripts/h5-capacitor-android-assemble-contract.test.mjs
 node scripts/release-rehearsal-readiness-contract.test.mjs
 node scripts/prelaunch-publish-gate-contract.test.mjs

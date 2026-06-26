@@ -1,5 +1,5 @@
 [package]
-name = "sdkwork-router-engine-catalog-app-api"
+name = "sdkwork-routes-membership-app-api"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,10 +9,10 @@ authors.workspace = true
 axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sdkwork-birdcoder-codeengine = { workspace = true }
+sqlx = { workspace = true }
+sdkwork-birdcoder-membership-service = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
-sdkwork-birdcoder-engine-catalog-service = { workspace = true }
-sdkwork-birdcoder-native-sessions-service = { workspace = true }
+sdkwork-birdcoder-membership-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
 sdkwork-web-contract = { workspace = true }
 sdkwork-web-core = { workspace = true }

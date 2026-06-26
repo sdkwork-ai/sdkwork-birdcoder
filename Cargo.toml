@@ -1,14 +1,14 @@
 [workspace]
 members = [
     # Route crates
-    "crates/sdkwork-router-system-app-api",
-    "crates/sdkwork-router-engine-catalog-app-api",
-    "crates/sdkwork-router-coding-sessions-app-api",
-    "crates/sdkwork-router-workspace-app-api",
-    "crates/sdkwork-router-document-app-api",
-    "crates/sdkwork-router-skill-packages-app-api",
-    "crates/sdkwork-router-membership-app-api",
-    "crates/sdkwork-router-deployment-backend-api",
+    "crates/sdkwork-routes-system-app-api",
+    "crates/sdkwork-routes-engine-catalog-app-api",
+    "crates/sdkwork-routes-coding-sessions-app-api",
+    "crates/sdkwork-routes-workspace-app-api",
+    "crates/sdkwork-routes-document-app-api",
+    "crates/sdkwork-routes-skill-packages-app-api",
+    "crates/sdkwork-routes-membership-app-api",
+    "crates/sdkwork-routes-deployment-backend-api",
     "crates/sdkwork-birdcoder-router-context",
     # Service crates
     "crates/sdkwork-birdcoder-coding-sessions-service",
@@ -75,14 +75,14 @@ sdkwork-birdcoder-kernel-bridge = { package = "sdkwork-birdcoder-kernel-bridge",
 sdkwork-birdcoder-git = { package = "sdkwork-birdcoder-git", path = "crates/sdkwork-birdcoder-git" }
 
 # Route crates
-sdkwork-router-system-app-api = { path = "crates/sdkwork-router-system-app-api" }
-sdkwork-router-engine-catalog-app-api = { path = "crates/sdkwork-router-engine-catalog-app-api" }
-sdkwork-router-coding-sessions-app-api = { path = "crates/sdkwork-router-coding-sessions-app-api" }
-sdkwork-router-workspace-app-api = { path = "crates/sdkwork-router-workspace-app-api" }
-sdkwork-router-document-app-api = { path = "crates/sdkwork-router-document-app-api" }
-sdkwork-router-skill-packages-app-api = { path = "crates/sdkwork-router-skill-packages-app-api" }
-sdkwork-router-membership-app-api = { path = "crates/sdkwork-router-membership-app-api" }
-sdkwork-router-deployment-backend-api = { path = "crates/sdkwork-router-deployment-backend-api" }
+sdkwork-routes-system-app-api = { path = "crates/sdkwork-routes-system-app-api" }
+sdkwork-routes-engine-catalog-app-api = { path = "crates/sdkwork-routes-engine-catalog-app-api" }
+sdkwork-routes-coding-sessions-app-api = { path = "crates/sdkwork-routes-coding-sessions-app-api" }
+sdkwork-routes-workspace-app-api = { path = "crates/sdkwork-routes-workspace-app-api" }
+sdkwork-routes-document-app-api = { path = "crates/sdkwork-routes-document-app-api" }
+sdkwork-routes-skill-packages-app-api = { path = "crates/sdkwork-routes-skill-packages-app-api" }
+sdkwork-routes-membership-app-api = { path = "crates/sdkwork-routes-membership-app-api" }
+sdkwork-routes-deployment-backend-api = { path = "crates/sdkwork-routes-deployment-backend-api" }
 
 # Service crates
 sdkwork-birdcoder-coding-sessions-service = { path = "crates/sdkwork-birdcoder-coding-sessions-service" }
@@ -118,8 +118,8 @@ sdkwork-birdcoder-errors = { path = "crates/sdkwork-birdcoder-errors" }
 
 # Cross-repo SDKWork sources (declared once at the root)
 sdkwork_iam_context_service = { package = "sdkwork-iam-context-service", path = "../sdkwork-iam/crates/sdkwork-iam-context-service" }
-sdkwork_router_iam_app_api = { package = "sdkwork-router-iam-app-api", path = "../sdkwork-iam/crates/sdkwork-router-iam-app-api" }
-sdkwork_router_iam_backend_api = { package = "sdkwork-router-iam-backend-api", path = "../sdkwork-iam/crates/sdkwork-router-iam-backend-api" }
+sdkwork_routes_iam_app_api = { package = "sdkwork-routes-iam-app-api", path = "../sdkwork-iam/crates/sdkwork-routes-iam-app-api" }
+sdkwork_routes_iam_backend_api = { package = "sdkwork-routes-iam-backend-api", path = "../sdkwork-iam/crates/sdkwork-routes-iam-backend-api" }
 sdkwork-web-core = { path = "../sdkwork-web-framework/crates/sdkwork-web-core" }
 sdkwork-web-axum = { path = "../sdkwork-web-framework/crates/sdkwork-web-axum" }
 sdkwork-web-contract = { path = "../sdkwork-web-framework/crates/sdkwork-web-contract" }

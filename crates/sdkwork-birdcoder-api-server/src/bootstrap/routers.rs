@@ -1,14 +1,14 @@
 use axum::Router;
 use sdkwork_web_core::{HttpMetricsDimensions, HttpMetricsRegistry};
 
-use sdkwork_router_coding_sessions_app_api::handlers::CodingSessionsAppState;
-use sdkwork_router_deployment_backend_api::DeploymentBackendAppState;
-use sdkwork_router_document_app_api::DocumentAppState;
-use sdkwork_router_engine_catalog_app_api::EngineCatalogAppState;
-use sdkwork_router_membership_app_api::MembershipAppState;
-use sdkwork_router_skill_packages_app_api::SkillPackagesAppState;
-use sdkwork_router_system_app_api::SystemAppState;
-use sdkwork_router_workspace_app_api::WorkspaceAppState;
+use sdkwork_routes_coding_sessions_app_api::handlers::CodingSessionsAppState;
+use sdkwork_routes_deployment_backend_api::DeploymentBackendAppState;
+use sdkwork_routes_document_app_api::DocumentAppState;
+use sdkwork_routes_engine_catalog_app_api::EngineCatalogAppState;
+use sdkwork_routes_membership_app_api::MembershipAppState;
+use sdkwork_routes_skill_packages_app_api::SkillPackagesAppState;
+use sdkwork_routes_system_app_api::SystemAppState;
+use sdkwork_routes_workspace_app_api::WorkspaceAppState;
 
 use crate::bootstrap::auth::build_protected_app_router;
 use crate::bootstrap::config::BirdServerConfig;
@@ -44,18 +44,18 @@ pub async fn build_router(
 ) -> Result<Router, Box<dyn std::error::Error>> {
     let metrics = HttpMetricsRegistry::with_dimensions(resolve_http_metrics_dimensions());
     let product_routes = birdcoder_product_app_api_routes();
-    let system_router = sdkwork_router_system_app_api::build_system_app_router()
+    let system_router = sdkwork_routes_system_app_api::build_system_app_router()
         .with_state(SystemAppState::with_repository_pool(
             state.repositories.any_pool.clone(),
             product_routes,
         ));
 
-    let intelligence_router = sdkwork_router_coding_sessions_app_api::build_coding_sessions_app_api_router()
+    let intelligence_router = sdkwork_routes_coding_sessions_app_api::build_coding_sessions_app_api_router()
         .with_state(CodingSessionsAppState {
             service: state.services.coding_session.clone(),
         });
 
-    let workspace_router = sdkwork_router_workspace_app_api::build_workspace_app_router()
+    let workspace_router = sdkwork_routes_workspace_app_api::build_workspace_app_router()
         .with_state(WorkspaceAppState {
             workspace_service: state.services.workspace.clone(),
             project_service: state.services.project.clone(),
@@ -64,23 +64,23 @@ pub async fn build_router(
             realtime_hub: state.services.realtime_hub.clone(),
         });
 
-    let engine_catalog_router = sdkwork_router_engine_catalog_app_api::build_engine_catalog_app_router()
+    let engine_catalog_router = sdkwork_routes_engine_catalog_app_api::build_engine_catalog_app_router()
         .with_state(EngineCatalogAppState::default());
 
-    let document_router = sdkwork_router_document_app_api::build_document_app_router()
+    let document_router = sdkwork_routes_document_app_api::build_document_app_router()
         .with_state(DocumentAppState::new(state.repositories.any_pool.clone()));
 
-    let skill_packages_router = sdkwork_router_skill_packages_app_api::build_skill_packages_app_router()
+    let skill_packages_router = sdkwork_routes_skill_packages_app_api::build_skill_packages_app_router()
         .with_state(SkillPackagesAppState::new(
             state.repositories.any_pool.clone(),
             state.services.workspace.clone(),
             state.services.project.clone(),
         ));
 
-    let membership_router = sdkwork_router_membership_app_api::build_membership_app_router()
+    let membership_router = sdkwork_routes_membership_app_api::build_membership_app_router()
         .with_state(MembershipAppState::new(state.repositories.any_pool.clone()));
 
-    let deployment_backend_router = sdkwork_router_deployment_backend_api::build_deployment_backend_router()
+    let deployment_backend_router = sdkwork_routes_deployment_backend_api::build_deployment_backend_router()
         .with_state(DeploymentBackendAppState {
             service: state.services.deployment.clone(),
             team_service: state.services.team.clone(),
