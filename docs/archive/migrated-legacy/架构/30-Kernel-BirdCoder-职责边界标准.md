@@ -23,7 +23,7 @@
 | 层 |  crate / 包 | 职责 |
 |---|---|---|
 | Rust bridge | `sdkwork-birdcoder-kernel-bridge` | bootstrap 四引擎 slot、`execute_kernel_turn`、`BirdcoderKernelHost` |
-| Server wiring | `sdkwork-birdcoder-api-server` | `KernelBridgeCodeEngineProvider` 注入 coding-sessions service |
+| Server wiring | `sdkwork-birdcoder-standalone-gateway` | `KernelBridgeCodeEngineProvider` 注入 coding-sessions service |
 | TS runtime | `@sdkwork/birdcoder-pc-codeengine` → `kernelRuntime.ts` | `birdcoder-kernel-turn` 子进程 + `sendCanonicalEvents()` |
 | 投影 | `@sdkwork/birdcoder-pc-projection` | canonical event / transcript / dialect 消费，不执行 agent turn |
 

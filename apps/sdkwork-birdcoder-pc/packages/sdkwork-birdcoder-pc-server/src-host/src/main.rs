@@ -1,5 +1,5 @@
-use sdkwork_birdcoder_api_server::bootstrap;
-use sdkwork_birdcoder_api_server::server;
+use sdkwork_birdcoder_standalone_gateway::bootstrap;
+use sdkwork_birdcoder_standalone_gateway::server;
 
 #[tokio::main]
 async fn main() {

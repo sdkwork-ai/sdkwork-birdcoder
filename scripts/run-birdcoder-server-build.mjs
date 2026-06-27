@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const serverManifestPath = path.join(rootDir, 'Cargo.toml');
-const serverPackageName = 'sdkwork-birdcoder-api-server';
+const serverPackageName = 'sdkwork-birdcoder-standalone-gateway';
 
 export function parseArgs(argv = process.argv.slice(2)) {
   const options = {

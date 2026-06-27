@@ -1,21 +1,28 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-06-24",
+  "updatedAt": "2026-06-26",
   "openApiSnapshotPath": "deployments/server-windows/x64/openapi/coding-server-v1.json",
   "summary": {
-    "contractOperationCount": 132,
+    "contractOperationCount": 147,
     "rustProductManifestRouteCount": 65,
     "iamFederationManifestRouteCount": 196,
     "hostManifestRouteCount": 261,
     "implementedOperationCount": 132,
-    "deferredOperationCount": 0
+    "deferredOperationCount": 15
   },
   "federation": {
     "iamAppCrate": "../sdkwork-iam/crates/sdkwork-routes-iam-app-api",
     "iamBackendCrate": "../sdkwork-iam/crates/sdkwork-routes-iam-backend-api",
-    "wiredInApiServer": "crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs"
+    "wiredInApiServer": "crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs"
   },
-  "rule": "Deferred operations are absent from BirdCoder product manifests and federated sdkwork-iam manifests wired in api-server; remaining routes are intentionally phased per TECH-2026-06-24.",
+  "rule": "Deferred operations are absent from BirdCoder product manifests and federated sdkwork-iam manifests wired in standalone-gateway; remaining routes are intentionally phased per TECH-2026-06-24. The commerce lane (api-keys / notifications / usage) is pre-launch deferred: OpenAPI contracts ship first, Rust route crate implementation lands at commercial launch readiness.",
+  "deferredLanePolicy": {
+    "lane": "commerce",
+    "status": "pre-launch-deferred",
+    "reason": "Commerce routes are designed in the OpenAPI contract ahead of Rust route crate implementation; Rust handlers land when commercial capabilities reach launch readiness.",
+    "expectedClosePhase": "P3 commercial capability",
+    "addedAt": "2026-06-27"
+  },
   "implemented": [
     {
       "method": "DELETE",
@@ -810,5 +817,141 @@
       "surface": "app"
     }
   ],
-  "deferred": []
+  "deferred": [
+    {
+      "method": "DELETE",
+      "path": "/api/v1/api-keys/{id}",
+      "operationId": "commerce.apiKeys.revoke",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/api-keys",
+      "operationId": "commerce.apiKeys.list",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/notifications",
+      "operationId": "commerce.notifications.list",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/notifications/{id}",
+      "operationId": "commerce.notifications.get",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/notifications/unread-count",
+      "operationId": "commerce.notifications.unreadCount",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/usage/breakdown",
+      "operationId": "commerce.usage.breakdown",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/usage/current-period",
+      "operationId": "commerce.usage.currentPeriod",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/usage/history",
+      "operationId": "commerce.usage.history",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/usage/quota",
+      "operationId": "commerce.usage.quota",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/api-keys",
+      "operationId": "commerce.apiKeys.create",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/api-keys/{id}/rotate",
+      "operationId": "commerce.apiKeys.rotate",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/notifications",
+      "operationId": "commerce.notifications.send",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/notifications/{id}/read",
+      "operationId": "commerce.notifications.markRead",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/notifications/read-all",
+      "operationId": "commerce.notifications.markAllRead",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/usage/record",
+      "operationId": "commerce.usage.record",
+      "lane": "unknown/app-feature-lane",
+      "reason": "commerce-pre-launch-deferred",
+      "addedAt": "2026-06-27",
+      "note": "Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending."
+    }
+  ]
 }

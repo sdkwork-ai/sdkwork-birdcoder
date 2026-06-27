@@ -191,9 +191,9 @@ The emitted `finalized-release-smoke-report.json` now also carries `stopShipSign
 ## Release Control Examples
 
 ```bash
-pnpm release:plan -- --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/step/13-鍙戝竷灏辩华-github-flow-鐏板害鍥炴粴闂幆.md
+pnpm release:plan -- --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/architecture/tech/TECH-13-release-github-flow.md
 pnpm release:rollback:plan -- --release-tag release-2026-04-09-105 --release-assets-dir artifacts/release --rollback-command "gh workflow run rollback.yml --ref main"
-pnpm release:finalize -- --release-assets-dir artifacts/release --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/step/13-鍙戝竷灏辩华-github-flow-鐏板害鍥炴粴闂幆.md --repository Sdkwork-Cloud/sdkwork-birdcoder
+pnpm release:finalize -- --release-assets-dir artifacts/release --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/architecture/tech/TECH-13-release-github-flow.md --repository Sdkwork-Cloud/sdkwork-birdcoder
 ```
 
 `releaseKind` allows `formal`, `canary`, `hotfix`, and `rollback`. `rollbackCommand` remains optional, but `rollbackRunbookRef` must always exist.

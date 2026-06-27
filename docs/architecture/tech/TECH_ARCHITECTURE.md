@@ -475,7 +475,7 @@ Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## 1. Architecture Overview
 
-BirdCoder is a multi-surface SDKWork application: PC web/desktop (`apps/sdkwork-birdcoder-pc`), H5/Capacitor (`apps/sdkwork-birdcoder-h5`), Flutter mobile (`apps/sdkwork-birdcoder-flutter-mobile`), and a Rust api-server (`crates/sdkwork-birdcoder-api-server`). Client surfaces consume generated `@sdkwork/birdcoder-app-sdk` families; the server exposes 132 OpenAPI operations with federated `sdkwork-iam` routes.
+BirdCoder is a multi-surface SDKWork application: PC web/desktop (`apps/sdkwork-birdcoder-pc`), H5/Capacitor (`apps/sdkwork-birdcoder-h5`), Flutter mobile (`apps/sdkwork-birdcoder-flutter-mobile`), and a Rust standalone gateway (`crates/sdkwork-birdcoder-standalone-gateway`). Client surfaces consume generated `@sdkwork/birdcoder-app-sdk` families; the server exposes 132 OpenAPI operations with federated `sdkwork-iam` routes.
 
 Current commercial truth: [TECH-2026-06-24-commercial-readiness-alignment.md](TECH-2026-06-24-commercial-readiness-alignment.md).
 
@@ -505,7 +505,7 @@ See [APP_PC_ARCHITECTURE_SPEC.md](../../../../sdkwork-specs/APP_PC_ARCHITECTURE_
 
 - OpenAPI authority: `apps/sdkwork-birdcoder-pc/sdks/` and deployed snapshot `deployments/server-windows/x64/openapi/coding-server-v1.json`
 - Database lifecycle: root `database/` consumed via `SDKWORK_BIRDCODER_APP_ROOT`
-- Defer registry: `specs/coding-server-openapi-rust-defer-registry.json` (132 contract operations implemented, 0 deferred)
+- Defer registry: `specs/coding-server-openapi-rust-defer-registry.json` (132 of 147 contract operations implemented, 15 commerce pre-launch deferred; see `TECH-2026-06-24-commercial-readiness-alignment.md` §2b)
 
 ## 6. Security, Privacy, And Observability
 

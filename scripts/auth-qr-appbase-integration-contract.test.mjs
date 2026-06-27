@@ -66,7 +66,7 @@ const iamOauthSource = [
 ].join('\n');
 const apiServerIamSource = [
   readCanonicalServerRustSource(CANONICAL_SERVER_RUST_PATHS.apiServerAuth),
-  readCanonicalServerRustSource('crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs'),
+  readCanonicalServerRustSource('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs'),
   readText(
     'apps',
     'sdkwork-birdcoder-pc',
@@ -187,12 +187,12 @@ assert.match(
 assert.doesNotMatch(
   apiServerIamSource,
   /resolve_request_base_url/u,
-  'BirdCoder canonical api-server bootstrap must not keep request-base-url plumbing solely to create a non-image QR status URL.',
+  'BirdCoder canonical standalone-gateway bootstrap must not keep request-base-url plumbing solely to create a non-image QR status URL.',
 );
 assert.match(
   apiServerIamSource,
   /sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router/u,
-  'BirdCoder canonical api-server must wire IAM through sdkwork-iam router crates.',
+  'BirdCoder canonical standalone-gateway must wire IAM through sdkwork-iam router crates.',
 );
 
 console.log('auth qr appbase integration contract passed.');

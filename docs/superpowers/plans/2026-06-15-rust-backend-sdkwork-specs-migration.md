@@ -96,7 +96,7 @@
 
 | # | Crate Name | Purpose |
 |---|-----------|---------|
-| 26 | `sdkwork-birdcoder-api-server` | HTTP server: mounts routes, constructs services, injects repos, starts listener |
+| 26 | `sdkwork-birdcoder-standalone-gateway` | HTTP server: mounts routes, constructs services, injects repos, starts listener |
 | 27 | `sdkwork-birdcoder-service-host` | In-process service container (for desktop embedding) |
 | 28 | `sdkwork-birdcoder-tauri-host` | Tauri desktop host: commands, adapters, terminal bridge |
 
@@ -113,7 +113,7 @@
 |---------|--------|
 | `sdkwork-birdcoder-server` | Dissolved into route/service/repo/server crates |
 | `sdkwork-birdcoder-desktop` | Renamed to `sdkwork-birdcoder-tauri-host` |
-| `sdkwork-birdcoder-host-studio` | Absorbed into `sdkwork-birdcoder-api-server` or removed |
+| `sdkwork-birdcoder-host-studio` | Absorbed into `sdkwork-birdcoder-standalone-gateway` or removed |
 
 ### IAM Integration Strategy
 
@@ -211,10 +211,10 @@ crates/sdkwork-intelligence-coding-sessions-repository-sqlite/
       coding_session_checkpoint_repository.rs
 ```
 
-### API Server Crate: `crates/sdkwork-birdcoder-api-server/`
+### API Server Crate: `crates/sdkwork-birdcoder-standalone-gateway/`
 
 ```
-crates/sdkwork-birdcoder-api-server/
+crates/sdkwork-birdcoder-standalone-gateway/
   Cargo.toml
   src/
     main.rs         (process startup only)
@@ -267,7 +267,7 @@ crates/sdkwork-birdcoder-tauri-host/
     bootstrap/
       mod.rs
       services.rs   (wire services for Tauri commands)
-    embedded_server.rs (start embedded Axum server using sdkwork-birdcoder-api-server)
+    embedded_server.rs (start embedded Axum server using sdkwork-birdcoder-standalone-gateway)
 ```
 
 ---
@@ -308,7 +308,7 @@ Create all 30 crate directories under `crates/` with `Cargo.toml` and empty `src
 - Create: `crates/sdkwork-ecosystem-skill-packages-repository-sqlite/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-runtime-model-config-repository-sqlite/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-commerce-membership-repository-sqlite/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-birdcoder-api-server/Cargo.toml`, `src/main.rs`, `src/lib.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`, `src/main.rs`, `src/lib.rs`
 - Create: `crates/sdkwork-birdcoder-service-host/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-birdcoder-tauri-host/Cargo.toml`, `src/lib.rs`
 
@@ -365,7 +365,7 @@ members = [
   "crates/sdkwork-runtime-model-config-repository-sqlite",
   "crates/sdkwork-commerce-membership-repository-sqlite",
   # New host/server crates
-  "crates/sdkwork-birdcoder-api-server",
+  "crates/sdkwork-birdcoder-standalone-gateway",
   "crates/sdkwork-birdcoder-service-host",
   "crates/sdkwork-birdcoder-tauri-host",
   # Relocated crates
@@ -604,12 +604,12 @@ cargo check -p sdkwork-commerce-membership-repository-sqlite
 Extract `ensure_sqlite_catalog_seed_data` (line 3147) and all schema migration helpers.
 
 **Files:**
-- Move to: `crates/sdkwork-birdcoder-api-server/src/bootstrap/database.rs` (or a shared migration crate)
+- Move to: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/database.rs` (or a shared migration crate)
 - Extract: `sqlite_column_exists`, `sqlite_column_is_not_null`, `ensure_sqlite_table_column`, `ensure_sqlite_table_column_is_not_null`, `backfill_workspace_business_columns` (lines 4514-4611)
 
 **Verification:**
 ```bash
-cargo check -p sdkwork-birdcoder-api-server
+cargo check -p sdkwork-birdcoder-standalone-gateway
 ```
 
 ---
@@ -694,7 +694,7 @@ cargo check --workspace
 The existing `sdkwork-appbase` crates provide `AppRequestContext`. Wire it as an Axum extractor.
 
 **Files:**
-- Create: `crates/sdkwork-birdcoder-api-server/src/bootstrap/routers.rs` (context injection middleware)
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs` (context injection middleware)
 - Modify: All route crate `handlers.rs` to consume `AppRequestContext` instead of raw headers
 
 **Design:**
@@ -719,7 +719,7 @@ async fn handler(
 
 **Verification:**
 ```bash
-cargo check -p sdkwork-birdcoder-api-server
+cargo check -p sdkwork-birdcoder-standalone-gateway
 ```
 
 #### Task 4.2: Create intelligence route crate
@@ -791,12 +791,12 @@ cargo check --workspace
 #### Task 4.4: Wire IAM integration via appbase
 
 **Files:**
-- Modify: `crates/sdkwork-birdcoder-api-server/Cargo.toml` (add appbase IAM deps)
-- Create: `crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs`
+- Modify: `crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml` (add appbase IAM deps)
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs`
   - Initialize `sdkwork_iam_context_service::IamContextService`
   - Set up IAM middleware that resolves `AppRequestContext` from tokens
   - Mount `sdkwork_routes_iam_app_api` routes for auth/OAuth/profile endpoints
-- Modify: `crates/sdkwork-birdcoder-api-server/src/bootstrap/routers.rs`
+- Modify: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs`
   - Mount IAM routes from appbase crate
 
 **What gets deleted:**
@@ -806,7 +806,7 @@ cargo check --workspace
 
 **Verification:**
 ```bash
-cargo check -p sdkwork-birdcoder-api-server
+cargo check -p sdkwork-birdcoder-standalone-gateway
 # Integration test: IAM login/session/refresh/logout flow works
 ```
 
@@ -819,36 +819,36 @@ cargo check -p sdkwork-birdcoder-api-server
 #### Task 5.1: Implement API server bootstrap
 
 **Files:**
-- Create: `crates/sdkwork-birdcoder-api-server/src/main.rs`
-- Create: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
-- Create: `crates/sdkwork-birdcoder-api-server/src/bootstrap/config.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/main.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/config.rs`
   - Extract: `BirdServerRuntimeConfigFile`, `BirdServerAuthorityConfigFile`, `AuthorityBootstrapConfig` (lines 1659-1678)
   - Extract: `resolve_authority_bootstrap` (line 4271)
-- Create: `crates/sdkwork-birdcoder-api-server/src/bootstrap/state.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/state.rs`
   - Construct `AppState` that holds service instances, realtime hub, etc.
-- Create: `crates/sdkwork-birdcoder-api-server/src/bootstrap/database.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/database.rs`
   - SQLite connection setup, schema migration, seed data
-- Create: `crates/sdkwork-birdcoder-api-server/src/bootstrap/repositories.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/repositories.rs`
   - Wire concrete SQLite repository implementations
-- Create: `crates/sdkwork-birdcoder-api-server/src/bootstrap/services.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/services.rs`
   - Wire service instances with repository ports
-- Create: `crates/sdkwork-birdcoder-api-server/src/bootstrap/adapters.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs`
   - Wire codeengine provider registry, git operations, realtime hub
-- Create: `crates/sdkwork-birdcoder-api-server/src/bootstrap/routers.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs`
   - Mount all route crates: `build_app_api_router()` = merge(system, runtime, intelligence, platform, content, ecosystem, commerce, iam)
   - Mount backend routes: `build_backend_api_router()` = merge(iam_backend, platform_backend)
   - Apply CORS middleware
-- Create: `crates/sdkwork-birdcoder-api-server/src/server/listen.rs`
-- Create: `crates/sdkwork-birdcoder-api-server/src/server/shutdown.rs`
-- Create: `crates/sdkwork-birdcoder-api-server/src/server/middleware.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/server/listen.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/server/shutdown.rs`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/server/middleware.rs`
   - Extract: `build_local_cors_layer` (line 24182)
-- Create: `crates/sdkwork-birdcoder-api-server/src/preflight/` (config, database, dependency_surfaces)
-- Create: `crates/sdkwork-birdcoder-api-server/src/health.rs`
-- Modify: `crates/sdkwork-birdcoder-api-server/Cargo.toml`
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/preflight/` (config, database, dependency_surfaces)
+- Create: `crates/sdkwork-birdcoder-standalone-gateway/src/health.rs`
+- Modify: `crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
 
 **Verification:**
 ```bash
-cargo build -p sdkwork-birdcoder-api-server
+cargo build -p sdkwork-birdcoder-standalone-gateway
 # Server starts, health endpoint responds
 ```
 
@@ -887,7 +887,7 @@ cargo check -p sdkwork-birdcoder-service-host
 - Create: `crates/sdkwork-birdcoder-tauri-host/src/adapters/filesystem.rs`
 - Create: `crates/sdkwork-birdcoder-tauri-host/src/bootstrap/services.rs`
 - Create: `crates/sdkwork-birdcoder-tauri-host/src/embedded_server.rs`
-  - Start embedded Axum server using `sdkwork-birdcoder-api-server`
+  - Start embedded Axum server using `sdkwork-birdcoder-standalone-gateway`
 - Modify: `crates/sdkwork-birdcoder-tauri-host/Cargo.toml`
 
 **Verification:**
@@ -922,7 +922,7 @@ The test module (lines 24222-32496) should be distributed:
 - Service unit tests → `crates/sdkwork-intelligence-coding-sessions-service/src/test_support/` and `tests/`
 - Repository tests → `crates/sdkwork-intelligence-coding-sessions-repository-sqlite/tests/`
 - Route integration tests → `crates/sdkwork-routes-intelligence-app-api/tests/`
-- API server bootstrap tests → `crates/sdkwork-birdcoder-api-server/tests/`
+- API server bootstrap tests → `crates/sdkwork-birdcoder-standalone-gateway/tests/`
 - Move test fixtures: `TestGitRepositoryFixture` → `crates/sdkwork-birdcoder-git/src/test_support/`
 - Move test fixtures: `FakeCodexCliGuard`, `FakeCodexHomeGuard` → `crates/sdkwork-birdcoder-codeengine/src/test_support/`
 
@@ -1034,7 +1034,7 @@ pnpm run check:arch
 ## Dependency Graph (Target State)
 
 ```
-sdkwork-birdcoder-api-server
+sdkwork-birdcoder-standalone-gateway
 ├── sdkwork-routes-system-app-api
 │   └── sdkwork-system-descriptor-service
 ├── sdkwork-routes-runtime-app-api
@@ -1075,7 +1075,7 @@ sdkwork-birdcoder-api-server
 └── sdkwork_birdcoder_errors
 
 sdkwork-birdcoder-tauri-host
-├── sdkwork-birdcoder-api-server (embedded server)
+├── sdkwork-birdcoder-standalone-gateway (embedded server)
 ├── sdkwork-birdcoder-service-host
 ├── sdkwork-terminal-* crates
 └── sdkwork_appbase_tauri_host

@@ -12,8 +12,8 @@ Make Rust host `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/capabiliti
 
 - `scripts/generate-rust-host-engine-catalog.ts`
 - `scripts/rust-host-engine-truth-contract.test.ts`
-- `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `crates/sdkwork-birdcoder-standalone-gateway/generated/engine-catalog.json`
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 - `package.json`
 - `docs/prompts/反复执行Step指令.md`
 - `docs/step/18C-Rust-Host-Engine-Truth-Artifact-Lane.md`
@@ -31,12 +31,12 @@ Make Rust host `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/capabiliti
 ## Closure Facts
 
 - `scripts/generate-rust-host-engine-catalog.ts` now materializes:
-  - `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
+  - `crates/sdkwork-birdcoder-standalone-gateway/generated/engine-catalog.json`
 - The generated artifact contains:
   - `engines`
   - `models`
 - Both sections derive from promoted `coding-server` truth, not a separate Rust-only source.
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs` now:
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs` now:
   - loads the generated artifact via `include_str!("../generated/engine-catalog.json")`
   - caches it behind `OnceLock`
   - serves engine/model route truth from the parsed shared artifact
@@ -56,7 +56,7 @@ Make Rust host `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/capabiliti
 
 - `pnpm.cmd run generate:rust-host-engine-catalog`
 - `pnpm.cmd run test:rust-host-engine-truth-contract`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
 - `pnpm.cmd run docs:build`
 - `pnpm.cmd run check:release-flow`
 

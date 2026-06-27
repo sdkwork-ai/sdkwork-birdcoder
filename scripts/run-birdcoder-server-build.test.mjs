@@ -20,7 +20,7 @@ assert.equal(defaultPlan.args[0], 'build');
 assert.equal(defaultPlan.args[1], '--manifest-path');
 assert.match(defaultPlan.args[2], /Cargo\.toml$/);
 assert.equal(defaultPlan.args[3], '-p');
-assert.equal(defaultPlan.args[4], 'sdkwork-birdcoder-api-server');
+assert.equal(defaultPlan.args[4], 'sdkwork-birdcoder-standalone-gateway');
 assert.ok(defaultPlan.args.includes('--release'));
 assert.equal(defaultPlan.cwd, process.cwd());
 assert.equal(defaultPlan.shell, false);

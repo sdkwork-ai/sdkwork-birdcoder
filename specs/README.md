@@ -23,6 +23,10 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 - Consumers should integrate through public exports, runtime entrypoints, SDK clients, or adapters declared in the manifest.
 - Generated SDK language outputs are represented at their SDK family root instead of duplicating local specs in generated folders.
 
+## Contract Artifacts
+
+- [coding-server-openapi-rust-defer-registry.json](./coding-server-openapi-rust-defer-registry.json) — machine-readable defer registry comparing the coding-server OpenAPI snapshot against BirdCoder product + federated `sdkwork-iam` host manifests. Regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`. The 15 commerce operations (`/api/v1/api-keys`, `/api/v1/notifications`, `/api/v1/usage`) are **commerce pre-launch deferred** (`deferredLanePolicy`): the OpenAPI contract ships first, Rust route crate implementation lands at commercial launch readiness (expected close: P3 commercial capability phase). See `docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md` §2b.
+
 ## Canonical Specs
 
 | Spec | Applies Because |

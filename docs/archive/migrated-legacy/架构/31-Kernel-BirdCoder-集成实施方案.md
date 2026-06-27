@@ -28,7 +28,7 @@ flowchart TB
   end
 
   subgraph BirdCoder_Server["BirdCoder 服务层"]
-    API["sdkwork-birdcoder-api-server"]
+    API["sdkwork-birdcoder-standalone-gateway"]
     CSS["coding-sessions-service"]
     CE_CRATE["sdkwork-birdcoder-codeengine<br/>dialect + native-session only"]
   end
@@ -72,7 +72,7 @@ flowchart TB
 
 | 文件 | 职责 |
 | --- | --- |
-| `crates/sdkwork-birdcoder-api-server/src/bootstrap/adapters.rs` | `KernelBridgeCodeEngineProvider` 实现 `CodeEngineProvider` |
+| `crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs` | `KernelBridgeCodeEngineProvider` 实现 `CodeEngineProvider` |
 
 已退役：`RegistryCodeEngineProvider`、codeengine 内 agent turn lane。
 

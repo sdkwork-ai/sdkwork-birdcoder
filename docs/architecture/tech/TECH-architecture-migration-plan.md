@@ -1,3 +1,9 @@
+> **STATUS: SUPERSEDED (2026-06-27).** This historical migration plan is preserved for traceability only.
+> It describes the repository state **before** the multi-surface consolidation completed.
+> The current commercial-readiness truth lives in [`TECH-2026-06-24-commercial-readiness-alignment.md`](TECH-2026-06-24-commercial-readiness-alignment.md).
+> The current package inventory truth lives in [`docs/core/packages.md`](../../core/packages.md) — the repository-root `packages/` now contains **1 shared package** (`sdkwork-birdcoder-chat-contracts`), not 13.
+> Do not rely on package counts, naming, directory inventories, or "current state" claims below; they reflect the repository at the time of writing (2026-06-24), not the present state.
+
 > Migrated from `docs/architecture-migration-plan.md` on 2026-06-24.
 > Owner: SDKWork maintainers
 

@@ -20,3 +20,17 @@ data:
   BIRDCODER_CODING_SERVER_SQLITE_FILE: "/var/lib/sdkwork-birdcoder/data.sqlite3"
   SDKWORK_BIRDCODER_APP_ROOT: "/opt/sdkwork-birdcoder"
   SDKWORK_OPENAPI_SNAPSHOT_PATH: "/opt/sdkwork-birdcoder/openapi/coding-server-v1.json"
+  {{- if .Values.observability }}
+  {{- with .Values.observability }}
+  RUST_LOG: {{ .logLevel | default "info" | quote }}
+  OTEL_TRACES_EXPORTER: {{ .tracesExporter | default "otlp" | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .otlpEndpoint | default "" | quote }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: {{ .otlpProtocol | default "grpc" | quote }}
+  OTEL_METRICS_EXPORTER: {{ .metricsExporter | default "prometheus" | quote }}
+  OTEL_LOGS_EXPORTER: {{ .logsExporter | default "otlp" | quote }}
+  {{- if .tracesSamplingRatio }}
+  OTEL_TRACES_SAMPLER: "parentbased_traceidratio"
+  OTEL_TRACES_SAMPLER_ARG: {{ .tracesSamplingRatio | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}

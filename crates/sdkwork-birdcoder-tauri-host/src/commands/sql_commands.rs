@@ -2,9 +2,48 @@ use rusqlite::{params_from_iter, types::Value as SqlValue, types::ValueRef};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Number as JsonNumber, Value as JsonValue};
 use std::collections::HashSet;
+use std::sync::OnceLock;
 use tauri::AppHandle;
 
 use crate::host::state::open_database;
+
+/// Embedded copy of `database/contract/prefix-registry.json` so the prefix
+/// whitelist is fixed at compile time and cannot be tampered with at runtime.
+const PREFIX_REGISTRY_JSON: &str =
+    include_str!("../../../../database/contract/prefix-registry.json");
+
+static REGISTERED_TABLE_PREFIXES: OnceLock<HashSet<String>> = OnceLock::new();
+
+#[derive(Deserialize)]
+struct PrefixRegistry {
+    prefixes: Vec<PrefixEntry>,
+}
+
+#[derive(Deserialize)]
+struct PrefixEntry {
+    prefix: String,
+}
+
+/// Returns the set of registered table-name prefixes loaded once from the
+/// embedded `prefix-registry.json`. Table names that do not start with one of
+/// these prefixes are rejected by the SQL plan validator.
+fn registered_table_prefixes() -> &'static HashSet<String> {
+    REGISTERED_TABLE_PREFIXES.get_or_init(|| {
+        let registry: PrefixRegistry = serde_json::from_str(PREFIX_REGISTRY_JSON)
+            .expect("embedded prefix-registry.json must be valid");
+        registry.prefixes.into_iter().map(|entry| entry.prefix).collect()
+    })
+}
+
+/// Checks that a table name starts with one of the registered prefixes from
+/// `database/contract/prefix-registry.json`. This replaces the previous
+/// heuristic identifier-only check with a strict prefix whitelist.
+fn is_registered_table_name(table_name: &str) -> bool {
+    let prefixes = registered_table_prefixes();
+    prefixes
+        .iter()
+        .any(|prefix| table_name.starts_with(prefix.as_str()))
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -131,6 +170,17 @@ fn read_local_sql_plan_allowed_tables(plan: &LocalSqlPlan) -> Result<Vec<String>
         .any(|table_name| !is_safe_local_sql_identifier(table_name))
     {
         return Err("local SQL plan metadata contains an unsafe table name".to_string());
+    }
+    // Enforce strict prefix whitelist: every declared table name must start
+    // with a prefix registered in database/contract/prefix-registry.json.
+    // This replaces the previous heuristic that only checked character safety.
+    if table_names
+        .iter()
+        .any(|table_name| !is_registered_table_name(table_name))
+    {
+        return Err(
+            "local SQL plan metadata contains a table name with an unregistered prefix".to_string(),
+        );
     }
     Ok(table_names)
 }

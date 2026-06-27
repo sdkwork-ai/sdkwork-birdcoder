@@ -9,6 +9,6 @@ name = "sdkwork-birdcoder-pc-server-host-shim"
 path = "src/main.rs"
 
 [dependencies]
-sdkwork-birdcoder-api-server = { path = "../../../../../../crates/sdkwork-birdcoder-api-server" }
+sdkwork-birdcoder-standalone-gateway = { path = "../../../../../../crates/sdkwork-birdcoder-standalone-gateway" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

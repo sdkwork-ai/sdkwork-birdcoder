@@ -10,7 +10,14 @@
     "postgres"
   ],
   "defaultEngine": "sqlite",
-  "tablePrefix": "birdcoder_",
+  "tablePrefixes": [
+    "ai_",
+    "commerce_",
+    "ops_",
+    "runtime_",
+    "studio_"
+  ],
+  "tablePrefixRegistry": "contract/prefix-registry.json",
   "contractVersion": "1.0.0",
   "baselineStrategy": "baseline-plus-migrations",
   "modules": [],

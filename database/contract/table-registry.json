@@ -223,6 +223,42 @@
       "owner": "birdcoder-platform",
       "compliance_level": "L2",
       "lifecycle_status": "active"
+    },
+    {
+      "table_name": "commerce_order",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "commerce_invoice",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "commerce_payment",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "commerce_usage_metering",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "commerce_api_key",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "commerce_notification",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
     }
   ]
 }

@@ -77,44 +77,13 @@ Flutter-specific packages are under `apps/sdkwork-birdcoder-flutter-mobile/packa
 - `sdkwork_birdcoder_flutter_mobile_host` — Flutter host
 - ... (9 total Flutter packages)
 
-### Foundation
+### Repository-Level Shared Packages
 
-- `@sdkwork/birdcoder-core`
-- `@sdkwork/birdcoder-types`
-- `@sdkwork/birdcoder-i18n`
-- `@sdkwork/birdcoder-infrastructure`
-- `@sdkwork/birdcoder-ui`
-- `@sdkwork/birdcoder-commons`
+The repository root `packages/` directory holds cross-surface shared contracts that are owned by this repository. As of the current release, the only repository-root shared package is:
 
-### Shell And Host Boundaries
+- `@sdkwork/birdcoder-chat-contracts` — Cross-surface chat contracts shared by PC, H5, and Flutter surfaces
 
-- `@sdkwork/birdcoder-pc-shell` — PC shell
-- `@sdkwork/birdcoder-pc-host-core` — PC host core
-- `@sdkwork/birdcoder-pc-host-studio` — PC host studio
-
-### Delivery Hosts
-
-- `@sdkwork/birdcoder-pc-web` — Web host
-- `@sdkwork/birdcoder-pc-desktop` — Tauri desktop host
-- `@sdkwork/birdcoder-pc-server` — Server host
-- `@sdkwork/birdcoder-distribution` — Distribution utilities
-
-### Product Modules
-
-- `@sdkwork/birdcoder-pc-code` — Code editor
-- `@sdkwork/birdcoder-pc-studio` — Studio
-- `@sdkwork/birdcoder-pc-projection` — Kernel event → coding_session projection
-- `@sdkwork/birdcoder-settings` — Settings
-- `@sdkwork/birdcoder-skills` — Skills
-- `@sdkwork/birdcoder-templates` — Templates
-- `@sdkwork/birdcoder-auth` — Auth
-- `@sdkwork/birdcoder-user` — User
-- `@sdkwork/birdcoder-iam`
-- `@sdkwork/birdcoder-chat`
-- `@sdkwork/birdcoder-chat-claude`
-- `@sdkwork/birdcoder-chat-codex`
-- `@sdkwork/birdcoder-chat-gemini`
-- `@sdkwork/birdcoder-chat-opencode`
+> Manifest honesty note: All `@sdkwork/birdcoder-*` product modules (auth, user, iam, chat adapters, settings, skills, templates, code, studio, distribution, etc.) live under their respective surface roots (`apps/sdkwork-birdcoder-pc/packages/`, `apps/sdkwork-birdcoder-h5/packages/`, `apps/sdkwork-birdcoder-flutter-mobile/packages/`) and are NOT duplicated at the repository root. Shared SDKWork platform packages (sdkwork-iam, sdkwork-appbase, sdkwork-ui, sdkwork-core, sdkwork-utils, etc.) are external workspace dependencies resolved through `pnpm-workspace.yaml` and are not part of this repository's owned package surface.
 
 ### Repository-Level Assets
 
@@ -130,6 +99,32 @@ Flutter-specific packages are under `apps/sdkwork-birdcoder-flutter-mobile/packa
 - `pnpm` 10
 - Rust and Cargo when working on desktop or native server hosts
 - Docker if you need container packaging, local PostgreSQL smoke, or deployment-oriented verification
+
+### SDKWork Platform Workspace Federation
+
+BirdCoder follows the SDKWork workspace-federation model. The repository consumes shared SDKWork platform packages (IAM, appbase, UI, core, search, terminal, drive, messaging, models, sdk-commons, utils) from sibling monorepos via `pnpm-workspace.yaml` `../sdkwork-*` relative path globs rather than published npm packages.
+
+For a complete end-to-end build, clone all required SDKWork platform repositories as siblings of this directory:
+
+```
+sdkwork-space/
+├── sdkwork-birdcoder/         <- this repository
+├── sdkwork-iam/               # IAM runtime, contracts, SDK, auth/user PC
+├── sdkwork-appbase/           # Application base runtime + i18n for PC React
+├── sdkwork-core/              # Core PC React runtime
+├── sdkwork-ui/                # UI component library for PC React
+├── sdkwork-search/            # Search contracts + PC React foundation
+├── sdkwork-terminal/          # Terminal PC packages + runtime SDK
+├── sdkwork-drive/             # Drive app SDK
+├── sdkwork-messaging/         # Messaging app SDK
+├── sdkwork-models/            # Models SDK
+├── sdkwork-sdk-commons/       # Common TypeScript SDK utilities
+└── sdkwork-utils/             # Shared utilities
+```
+
+CI handles the full federation automatically by checking out all required platform repositories before running `pnpm install --frozen-lockfile`. See `.github/workflows/ci.yml` for the canonical checkout order.
+
+For read-only source inspection without building, you can comment out the external `../sdkwork-*` entries in `pnpm-workspace.yaml`; TypeScript type resolution and `pnpm install` will then fail for any package that imports `@sdkwork/iam-*`, `@sdkwork/appbase-*`, `@sdkwork/ui`, `@sdkwork/core`, `@sdkwork/search-*`, `@sdkwork/terminal-*`, `@sdkwork/drive-*`, `@sdkwork/messaging-*`, `@sdkwork/models-*`, `@sdkwork/sdk-commons`, or `@sdkwork/utils`. Use this mode only for source reading.
 
 ## Quick Start
 
@@ -309,6 +304,38 @@ pnpm release:smoke:finalized
 Release assets are assembled under `artifacts/release/`. Finalization emits the release inventory and quality evidence used by downstream publication and rollback planning.
 
 For the full delivery contract, see [Release And Deployment](./docs/core/release-and-deployment.md).
+
+## Release Governance And Supply-Chain
+
+`.github/workflows/release-governance.yml` is the dedicated supply-chain governance workflow that satisfies `sdkwork.app.config.json` security policy (`checksumRequired`, `signatureRequired`, `sbomRequired`). It follows `sdkwork-specs/RELEASE_SPEC.md` and `sdkwork-specs/SUPPLY_CHAIN_SECURITY_SPEC.md` and runs alongside the thin `.github/workflows/package.yml` reusable packaging call.
+
+The governance workflow produces:
+
+- **SBOM** — SPDX SBOMs via `anchore/sbom-action` for server, PC, and H5 surfaces plus CycloneDX for Rust crates and `pnpm`/`npm` SBOM for the frontend workspace. Artifacts: `artifacts/sbom/birdcoder-server.spdx.json`, `birdcoder-pc.spdx.json`, `birdcoder-h5.spdx.json`.
+- **Cosign image signing** — keyless signing of the container image via the GitHub OIDC token (`COSIGN_EXPERIMENTAL=1`, no cosign key required), followed by signature verification.
+- **Trivy security scanning** — filesystem and container image scans at `CRITICAL,HIGH` severity, with SARIF results uploaded to the GitHub Security tab.
+- **Checksums** — SHA256 files for every release asset, attached to the GitHub Release.
+
+### macOS Codesign And Notarization
+
+The macOS codesign/notarize job is **opt-in**. Enable it by setting the repository variable `APPLE_SIGNING_ENABLED=true` and configuring the GitHub Secrets below. When disabled, the job is skipped so CI stays green for platforms that do not require macOS signing.
+
+Required GitHub Secrets for macOS signing:
+
+| Secret | Purpose |
+| --- | --- |
+| `APPLE_DEVID_CERT` | Base64-encoded Developer ID Application `.p12` certificate imported via `apple-actions/import-codesign-certs@v3`. |
+| `APPLE_DEVID_CERT_PASSWORD` | Password for the `.p12` certificate above. |
+| `APPLE_SIGN_IDENTITY` | Optional. Code-signing identity name (defaults to `Developer ID Application`). |
+| `APPLE_ID` | Apple ID used for `xcrun notarytool submit` (an app-specific password account). |
+| `APPLE_PASSWORD` | App-specific password for notarization (`xcrun notarytool`). |
+| `APPLE_TEAM_ID` | Apple Developer Team ID for notarization. |
+
+The job imports the certificates, builds the desktop bundle via `pnpm tauri:build`, deep-signs the `.app` and `.dmg` with hardened runtime (`codesign --deep --force --options runtime`), submits the `.dmg` to Apple notarization with `xcrun notarytool submit --wait`, and staples the ticket. Signing credentials live only in protected CI secrets; they are never committed to source.
+
+### Cosign And Container Signing
+
+Container images are signed keyless using the GitHub OIDC token. No `COSIGN_PRIVATE_KEY` is required for the default path; the `cosign sign --key env://` form is supported as an alternative when a cosign key is materialized from environment variables. Verification pins the certificate issuer to `https://token.actions.githubusercontent.com` and the GitHub Actions workflow identity.
 
 ## Documentation Map
 

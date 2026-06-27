@@ -1,0 +1,460 @@
+# Release Governance & Supply-Chain Evidence
+#
+# Follows sdkwork-specs/RELEASE_SPEC.md (sections 4 Release Evidence, 8 Acceptance
+# Checklist) and sdkwork-specs/SUPPLY_CHAIN_SECURITY_SPEC.md (sections 4 SBOM And
+# Provenance, 5 Signing And Checksums, 5.1 Runtime Target Supply-Chain Evidence).
+#
+# This workflow complements the thin .github/workflows/package.yml reusable
+# packaging call with GitHub Actions-level supply-chain governance that the
+# sdkwork-github-workflow framework executes through sdkwork.workflow.json
+# lifecycle steps. Per GITHUB_WORKFLOW_SPEC.md, package.yml stays a thin
+# reusable call; SBOM/cosign/trivy/macOS-sign/checksum governance lives here as
+# a dedicated supply-chain workflow so package.yml does not duplicate framework
+# packaging/release-upload/attestation logic.
+#
+# Satisfies sdkwork.app.config.json security policy:
+#   security.checksumRequired / signatureRequired / sbomRequired = true
+name: Release Governance
+
+on:
+  push:
+    tags:
+      - 'release-*'
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag or source ref to govern.
+        required: false
+        default: ''
+      image:
+        description: Container image reference (repo:tag) to sign and scan.
+        required: false
+        default: 'registry.sdkwork.com/apps/sdkwork-birdcoder:latest'
+      skip_macos_sign:
+        description: Skip the macOS codesign/notarization job.
+        required: false
+        default: 'false'
+      skip_cosign:
+        description: Skip the cosign image signing job.
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+  packages: read
+  id-token: write
+  security-events: write
+  attestations: write
+
+concurrency:
+  group: release-governance-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.event.release.tag_name || github.ref_name }}
+  IMAGE: ${{ github.event.inputs.image || 'registry.sdkwork.com/apps/sdkwork-birdcoder:latest' }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Task 1: SBOM generation (SPDX via anchore/sbom-action, CycloneDX via cargo,
+  # SPDX via pnpm/npm for the frontend workspace).
+  # Outputs: artifacts/sbom/birdcoder-server.spdx.json
+  #          artifacts/sbom/birdcoder-pc.spdx.json
+  #          artifacts/sbom/birdcoder-h5.spdx.json
+  # ---------------------------------------------------------------------------
+  sbom:
+    name: Generate SBOM evidence
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Expose workspace command wrappers
+        shell: bash
+        run: |
+          chmod +x "${GITHUB_WORKSPACE}/sdkwork-run-node" "${GITHUB_WORKSPACE}/sdkwork-run-pnpm" || true
+          printf '%s\n' "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.90.0
+
+      - name: Prepare SBOM output directory
+        shell: bash
+        run: mkdir -p artifacts/sbom
+
+      - name: Generate SPDX SBOM for server surface
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: artifacts/sbom/birdcoder-server.spdx.json
+          upload-artifact: false
+
+      - name: Generate SPDX SBOM for PC surface
+        uses: anchore/sbom-action@v0
+        with:
+          path: apps/sdkwork-birdcoder-pc
+          format: spdx-json
+          output-file: artifacts/sbom/birdcoder-pc.spdx.json
+          upload-artifact: false
+
+      - name: Generate SPDX SBOM for H5 surface
+        uses: anchore/sbom-action@v0
+        with:
+          path: apps/sdkwork-birdcoder-h5
+          format: spdx-json
+          output-file: artifacts/sbom/birdcoder-h5.spdx.json
+          upload-artifact: false
+
+      - name: Generate CycloneDX SBOM for Rust crate
+        shell: bash
+        continue-on-error: true
+        run: |
+          # cargo cyclonedx is optional ("if available"). Install lazily and emit
+          # CycloneDX BOMs alongside the SPDX evidence.
+          cargo install cargo-cyclonedx --locked || true
+          manifest="apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/Cargo.toml"
+          if cargo cyclonedx --help >/dev/null 2>&1 && [ -f "$manifest" ]; then
+            cargo cyclonedx -f json --output-pattern package --manifest-path "$manifest" || true
+          fi
+
+      - name: Generate frontend SPDX SBOM via pnpm/npm
+        shell: bash
+        continue-on-error: true
+        run: |
+          # pnpm sbom is not available in every pnpm release; fall back to npm sbom.
+          if pnpm sbom --sbom-format spdx >/tmp/pc.sbom.json 2>/dev/null; then
+            cp /tmp/pc.sbom.json artifacts/sbom/birdcoder-pc.npm.spdx.json
+          elif npm sbom --sbom-format spdx >/tmp/pc.sbom.json 2>/dev/null; then
+            cp /tmp/pc.sbom.json artifacts/sbom/birdcoder-pc.npm.spdx.json
+          fi
+
+      - name: Assert required SBOM artifacts exist
+        shell: bash
+        run: |
+          for f in birdcoder-server.spdx.json birdcoder-pc.spdx.json birdcoder-h5.spdx.json; do
+            if [ ! -s "artifacts/sbom/$f" ]; then
+              echo "::error title=Missing SBOM::Required SBOM artifact artifacts/sbom/$f is missing or empty."
+              exit 1
+            fi
+          done
+
+      - name: Upload SBOM workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-sbom
+          path: artifacts/sbom
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach SBOM assets to GitHub Release
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/release-')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$RELEASE_TAG" artifacts/sbom/birdcoder-server.spdx.json \
+            artifacts/sbom/birdcoder-pc.spdx.json artifacts/sbom/birdcoder-h5.spdx.json \
+            --clobber || echo "::warning title=SBOM upload::Could not attach SBOM to release $RELEASE_TAG"
+
+  # ---------------------------------------------------------------------------
+  # Task 3: Trivy security scanning (filesystem + container image), SARIF
+  # upload to the GitHub Security tab.
+  # Output: trivy-results.sarif
+  # ---------------------------------------------------------------------------
+  trivy:
+    name: Trivy security scan
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          format: sarif
+          output: trivy-results.sarif
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-fs
+
+      - name: Run Trivy container image scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: image
+          image-ref: ${{ env.IMAGE }}
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          format: sarif
+          output: trivy-image-results.sarif
+          ignore-unfixed: true
+
+      - name: Upload image scan SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-results.sarif
+          category: trivy-image
+
+      - name: Upload Trivy SARIF workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: |
+            trivy-results.sarif
+            trivy-image-results.sarif
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # Task 2: cosign image signing using GitHub OIDC (keyless, no cosign key).
+  # COSIGN_EXPERIMENTAL=1 enables keyless signing via the GitHub OIDC token.
+  # ---------------------------------------------------------------------------
+  cosign-sign:
+    name: Cosign image signing
+    runs-on: ubuntu-24.04
+    if: github.event.inputs.skip_cosign != 'true'
+    env:
+      COSIGN_EXPERIMENTAL: '1'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Resolve image digest
+        id: digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Prefer the immutable digest; fall back to the tag ref.
+          digest="$(docker buildx imagetools inspect "$IMAGE" --format '{{.Manifest.Digest}}' 2>/dev/null || true)"
+          if [ -n "$digest" ]; then
+            image_ref="${IMAGE%@*}@${digest}"
+          else
+            image_ref="$IMAGE"
+          fi
+          echo "image_ref=$image_ref" >> "$GITHUB_OUTPUT"
+          echo "Signing image reference: $image_ref"
+
+      - name: Sign image (keyless via GitHub OIDC)
+        shell: bash
+        run: |
+          # Keyless signing uses the GitHub OIDC token; no cosign private key is
+          # required. The alternative `cosign sign --key env://` form references a
+          # key materialized from COSIGN_PRIVATE_KEY/COSIGN_PASSWORD env vars when
+          # a cosign key is provided instead of keyless OIDC.
+          cosign sign --yes "${{ steps.digest.outputs.image_ref }}"
+
+      - name: Verify image signature
+        shell: bash
+        run: |
+          cosign verify "${{ steps.digest.outputs.image_ref }}" \
+            --certificate-identity-regexp "https://github.com/Sdkwork-Cloud/sdkwork-birdcoder/.github/workflows/.+@refs/tags/.+" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
+
+  # ---------------------------------------------------------------------------
+  # Task 4: macOS codesign + notarization. Opt-in: set repository variable
+  # APPLE_SIGNING_ENABLED=true and configure the APPLE_* GitHub Secrets.
+  # ---------------------------------------------------------------------------
+  macos-sign:
+    name: macOS codesign & notarize
+    runs-on: macos-15
+    if: github.event.inputs.skip_macos_sign != 'true' && vars.APPLE_SIGNING_ENABLED == 'true'
+    env:
+      # Hardened runtime + deep signing per SUPPLY_CHAIN_SECURITY_SPEC 5.1 desktop evidence.
+      CODESIGN_OPTIONS: --deep --force --options runtime
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Expose workspace command wrappers
+        shell: bash
+        run: |
+          chmod +x "${GITHUB_WORKSPACE}/sdkwork-run-node" "${GITHUB_WORKSPACE}/sdkwork-run-pnpm" || true
+          printf '%s\n' "$GITHUB_WORKSPACE" >> "$GITHUB_PATH"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.90.0
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Import Developer ID codesigning certificates
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-base64: ${{ secrets.APPLE_DEVID_CERT }}
+          p12-password: ${{ secrets.APPLE_DEVID_CERT_PASSWORD }}
+
+      - name: Build macOS desktop bundle
+        shell: bash
+        run: pnpm tauri:build
+
+      - name: Discover macOS app and dmg artifacts
+        id: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_path="$(find artifacts/release -name '*.app' -type d 2>/dev/null | head -n1 || true)"
+          dmg_path="$(find artifacts/release -name '*.dmg' -type f 2>/dev/null | head -n1 || true)"
+          echo "app_path=${app_path}" >> "$GITHUB_OUTPUT"
+          echo "dmg_path=${dmg_path}" >> "$GITHUB_OUTPUT"
+
+      - name: Codesign .app bundle (deep, hardened runtime)
+        if: steps.artifacts.outputs.app_path != ''
+        shell: bash
+        env:
+          APP_PATH: ${{ steps.artifacts.outputs.app_path }}
+          SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+        run: |
+          identity="${SIGN_IDENTITY:-Developer ID Application}"
+          codesign $CODESIGN_OPTIONS --sign "$identity" "$APP_PATH"
+          codesign --verify --strict --verbose=4 "$APP_PATH"
+
+      - name: Codesign .dmg (deep, hardened runtime)
+        if: steps.artifacts.outputs.dmg_path != ''
+        shell: bash
+        env:
+          DMG_PATH: ${{ steps.artifacts.outputs.dmg_path }}
+          SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+        run: |
+          identity="${SIGN_IDENTITY:-Developer ID Application}"
+          codesign $CODESIGN_OPTIONS --sign "$identity" "$DMG_PATH"
+          codesign --verify --strict --verbose=4 "$DMG_PATH"
+
+      - name: Submit .dmg for notarization (async wait)
+        if: steps.artifacts.outputs.dmg_path != ''
+        shell: bash
+        env:
+          DMG_PATH: ${{ steps.artifacts.outputs.dmg_path }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          # notarytool submits asynchronously; --wait blocks until the result is
+          # available so the job fails on a notarization rejection.
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$DMG_PATH" || true
+
+      - name: Upload signed macOS artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-signed
+          path: artifacts/release/**/*.app
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------
+  # Task 5: SHA256 checksum generation for all release assets.
+  # Output: artifacts/release/<binary>.sha256 (one per asset).
+  # ---------------------------------------------------------------------------
+  checksums:
+    name: Generate SHA256 checksums
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Prepare release asset directory
+        shell: bash
+        run: mkdir -p artifacts/release
+
+      - name: Download GitHub Release assets
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/release-')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Pull the published release assets so checksums cover the exact set
+          # users download. Falls through silently if the release has no assets.
+          gh release download "$RELEASE_TAG" \
+            --dir artifacts/release --clobber || true
+
+      - name: Generate SHA256 checksum for each asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          found=0
+          for asset in artifacts/release/*; do
+            [ -f "$asset" ] || continue
+            case "$asset" in
+              *.sha256) continue ;;
+            esac
+            (cd "$(dirname "$asset")" && sha256sum "$(basename "$asset")" > "$(basename "$asset").sha256")
+            found=1
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::warning title=Checksums::No release assets found to checksum in artifacts/release."
+          fi
+
+      - name: Upload checksums workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-checksums
+          path: artifacts/release/*.sha256
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Attach checksums to GitHub Release
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/release-')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          files=()
+          for f in artifacts/release/*.sha256; do files+=("$f"); done
+          if [ "${#files[@]}" -gt 0 ]; then
+            gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
+          fi

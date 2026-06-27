@@ -9,7 +9,7 @@
 
 ## Scope
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 - `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`
 - `docs/架构/09-安装-部署-发布标准.md`
 - `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md`

@@ -44,7 +44,7 @@ $repoCrates = @(
 
 # Host/server crates
 $hostCrates = @(
-    "sdkwork-birdcoder-api-server",
+    "sdkwork-birdcoder-standalone-gateway",
     "sdkwork-birdcoder-service-host",
     "sdkwork-birdcoder-tauri-host"
 )
@@ -97,9 +97,9 @@ authors.workspace = true
 }
 
 # Create main.rs for api-server
-$mainRs = Join-Path $rootDir "sdkwork-birdcoder-api-server\src\main.rs"
+$mainRs = Join-Path $rootDir "sdkwork-birdcoder-standalone-gateway\src\main.rs"
 if (-not (Test-Path $mainRs)) {
-    Set-Content -Path $mainRs -Value "fn main() {`n    println!(`"sdkwork-birdcoder-api-server`");`n}`n"
+    Set-Content -Path $mainRs -Value "fn main() {`n    println!(`"sdkwork-birdcoder-standalone-gateway`");`n}`n"
 }
 
 Write-Host "`nTotal crates scaffolded: $($allCrates.Count)"

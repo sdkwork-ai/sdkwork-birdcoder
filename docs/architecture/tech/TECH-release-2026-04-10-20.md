@@ -9,15 +9,15 @@
 
 ## Scope
 
-- [Cargo.toml](/<workspace-root>/sdkwork-birdcoder/crates/sdkwork-birdcoder-api-server/Cargo.toml)
-- [lib.rs](/<workspace-root>/sdkwork-birdcoder/crates/sdkwork-birdcoder-api-server/src/lib.rs)
+- [Cargo.toml](/<workspace-root>/sdkwork-birdcoder/crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml)
+- [lib.rs](/<workspace-root>/sdkwork-birdcoder/crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs)
 - [17-Coding-Server-App-Backend-SDK与控制台实现.md](/<workspace-root>/sdkwork-birdcoder/docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md)
 - [20-统一Rust-Coding-Server-API-协议标准.md](/<workspace-root>/sdkwork-birdcoder/docs/架构/20-统一Rust-Coding-Server-API-协议标准.md)
 - [反复执行Step指令.md](/<workspace-root>/sdkwork-birdcoder/docs/prompts/反复执行Step指令.md)
 
 ## Verification
 
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
 - `pnpm.cmd run check:server`
 - `pnpm.cmd run typecheck`
 - `pnpm.cmd run docs:build`

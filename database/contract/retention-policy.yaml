@@ -1,0 +1,46 @@
+retention_policy_version: 1
+kind: sdkwork.database.retention_policy
+module_id: birdcoder
+owner_team: birdcoder-platform
+default_retention_days: 365
+# Strategy values: compress-then-delete | cold-storage | delete | archive-then-delete
+default_archive_strategy: compress-then-delete
+# Cron expressions are interpreted in UTC.
+default_schedule: "0 1 * * *"
+tables:
+  - name: ai_coding_session_event
+    retention_days: 90
+    archive_strategy: compress-then-delete
+    archive_after_days: 30
+    schedule: "0 1 * * *"  # daily 01:00 UTC
+    notes: High-volume runtime event stream; compress older partitions before deletion.
+  - name: ai_coding_session_operation
+    retention_days: 90
+    archive_strategy: compress-then-delete
+    archive_after_days: 30
+    schedule: "0 1 * * *"
+    notes: Operation stream paired with session events.
+  - name: ops_audit_event
+    retention_days: 730  # compliance requirement: 2 years
+    archive_strategy: cold-storage
+    archive_after_days: 180
+    schedule: "0 2 * * 0"  # weekly Sunday 02:00 UTC
+    notes: Audit/compliance record; export to cold storage before purge.
+  - name: ops_release_record
+    retention_days: 1095  # compliance requirement: 3 years
+    archive_strategy: cold-storage
+    archive_after_days: 365
+    schedule: "0 2 * * 0"
+    notes: Release governance evidence; long-lived compliance retention.
+  - name: commerce_usage_metering
+    retention_days: 400
+    archive_strategy: compress-then-delete
+    archive_after_days: 90
+    schedule: "0 3 * * *"
+    notes: Usage metering rollups; retain across billing cycles then compress.
+  - name: commerce_notification
+    retention_days: 180
+    archive_strategy: delete
+    archive_after_days: 0
+    schedule: "0 3 * * *"
+    notes: Transient user notifications; purge after retention window.

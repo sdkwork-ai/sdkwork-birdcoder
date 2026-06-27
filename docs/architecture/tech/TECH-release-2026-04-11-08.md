@@ -10,7 +10,7 @@
 
 ## Scope
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 - `scripts/app-runtime-sdk-facade-governance-contract.test.ts`
 - `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md`
 - `docs/架构/09-安装-部署-发布标准.md`
@@ -23,8 +23,8 @@
 
 ## Verification
 
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_route_returns_created_session_and_makes_projection_readable`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_route_persists_into_sqlite_provider_authority`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml create_coding_session_route_returns_created_session_and_makes_projection_readable`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml create_coding_session_route_persists_into_sqlite_provider_authority`
 - `pnpm.cmd run typecheck`
 - `pnpm.cmd run docs:build`
 - `pnpm.cmd run check:release-flow`

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_mobile_core.dart';
 
+import 'theme_controller.dart';
+
 class AppProvider extends InheritedWidget {
   final BirdCoderFlutterBootstrapState bootstrapState;
+  final ThemeController themeController;
 
   const AppProvider({
     super.key,
     required this.bootstrapState,
+    required this.themeController,
     required super.child,
   });
 
@@ -24,6 +28,7 @@ class AppProvider extends InheritedWidget {
 
   @override
   bool updateShouldNotify(AppProvider oldWidget) {
-    return bootstrapState.apiBaseUrl != oldWidget.bootstrapState.apiBaseUrl;
+    return bootstrapState.apiBaseUrl != oldWidget.bootstrapState.apiBaseUrl ||
+        themeController != oldWidget.themeController;
   }
 }

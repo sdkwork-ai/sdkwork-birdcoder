@@ -298,13 +298,13 @@
   - unknown engine descriptor/capability lookups must stay explicit `null` instead of falling back to the default engine
   - `scripts/coding-server-engine-truth-contract.test.ts` makes that server-side truth promotion executable
 - The third Step 18 Rust-host-engine-truth slice is now closed:
-  - `scripts/generate-rust-host-engine-catalog.ts` materializes `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
+  - `scripts/generate-rust-host-engine-catalog.ts` materializes `crates/sdkwork-birdcoder-standalone-gateway/generated/engine-catalog.json`
   - Rust host loads that shared artifact via `include_str!("../generated/engine-catalog.json")` plus `OnceLock`
   - Rust host engine/model routes must no longer depend on local manual engine fixture helpers
   - `scripts/rust-host-engine-truth-contract.test.ts` makes shared-artifact adoption executable
 - The fourth Step 18 Rust-host-engine-route-parity slice is now closed:
   - Rust host route parity is executable for `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/capabilities`, and `/app/v3/api/models`
-  - `core_engine_catalog_routes_match_generated_shared_engine_catalog` compares live Rust HTTP payloads against `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
+  - `core_engine_catalog_routes_match_generated_shared_engine_catalog` compares live Rust HTTP payloads against `crates/sdkwork-birdcoder-standalone-gateway/generated/engine-catalog.json`
   - Rust route payload optionals must omit absent fields so shared artifact JSON shape and live route JSON shape stay identical
   - `pnpm.cmd run test:rust-host-engine-route-parity-contract` is part of `check:release-flow`
 - The fifth Step 18 engine-governance-promotion slice is now closed:
@@ -376,7 +376,7 @@
   - `pnpm.cmd run test:prompt-skill-template-evidence-repository-contract`
   - `pnpm.cmd run test:prompt-skill-template-evidence-consumer-contract`
   - `pnpm.cmd run test:coding-server-prompt-skill-template-evidence-consumer-contract`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
   - `pnpm.cmd run typecheck`
   - `pnpm.cmd run docs:build`
 - Current next serial closure:

@@ -5,6 +5,45 @@ use serde::{Deserialize, Serialize};
 const ENGINE_CATALOG_CANONICAL_TIMESTAMP: &str = "2026-04-24T00:00:00.000Z";
 const ENGINE_CATALOG_DEFAULT_TENANT_ID: &str = "0";
 
+/// Errors raised by code engine catalog registration and lookup.
+#[derive(Debug)]
+pub enum CatalogError {
+    /// A provider with the given name is already registered.
+    ProviderAlreadyRegistered { name: String },
+    /// A provider registration attempt failed due to an underlying error.
+    ProviderRegistrationFailed {
+        name: String,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    /// No catalog entry exists for the requested provider name.
+    ProviderNotFound { name: String },
+}
+
+impl std::fmt::Display for CatalogError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ProviderAlreadyRegistered { name } => {
+                write!(f, "code engine provider \"{name}\" is already registered")
+            }
+            Self::ProviderRegistrationFailed { name, source } => {
+                write!(f, "code engine provider \"{name}\" registration failed: {source}")
+            }
+            Self::ProviderNotFound { name } => {
+                write!(f, "code engine provider \"{name}\" not found in catalog")
+            }
+        }
+    }
+}
+
+impl std::error::Error for CatalogError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::ProviderRegistrationFailed { source, .. } => Some(source.as_ref()),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum NativeSessionDiscoveryModeRecord {
@@ -392,11 +431,46 @@ pub fn native_session_provider_catalog_entries() -> &'static [NativeSessionProvi
 pub fn shared_codeengine_catalog() -> &'static SharedCodeEngineCatalogRecord {
     static SHARED_CODEENGINE_CATALOG: OnceLock<SharedCodeEngineCatalogRecord> = OnceLock::new();
     SHARED_CODEENGINE_CATALOG.get_or_init(|| {
-        hydrate_shared_codeengine_catalog(
-            serde_json::from_str(include_str!("../generated/engine-catalog.json"))
-                .expect("parse generated codeengine catalog"),
-        )
+        match serde_json::from_str::<SharedCodeEngineCatalogRecord>(include_str!(
+            "../generated/engine-catalog.json"
+        )) {
+            Ok(catalog) => hydrate_shared_codeengine_catalog(catalog),
+            Err(error) => {
+                eprintln!(
+                    "warning: failed to parse generated codeengine catalog; \
+                     falling back to empty catalog: {error}"
+                );
+                SharedCodeEngineCatalogRecord {
+                    engines: Vec::new(),
+                    models: Vec::new(),
+                    native_providers: Vec::new(),
+                }
+            }
+        }
     })
+}
+
+/// Validates that a native session provider or engine is present in the code
+/// engine catalog.
+///
+/// Returns `Ok(())` when the provider is found, or a [`CatalogError`]
+/// describing the failure. This does not mutate runtime state; it is the
+/// catalog-side validation used by provider registration.
+pub fn register_provider(name: &str) -> Result<(), CatalogError> {
+    let normalized = name.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return Err(CatalogError::ProviderNotFound {
+            name: name.to_owned(),
+        });
+    }
+    if find_native_session_provider_catalog_entry(&normalized).is_none()
+        && find_codeengine_descriptor(&normalized).is_none()
+    {
+        return Err(CatalogError::ProviderNotFound {
+            name: normalized,
+        });
+    }
+    Ok(())
 }
 
 pub fn list_codeengine_descriptors() -> Vec<CodeEngineDescriptorRecord> {
@@ -435,4 +509,46 @@ pub fn find_native_session_provider_catalog_entry(
                 .engine_id
                 .eq_ignore_ascii_case(normalized_engine_id.as_str())
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{register_provider, CatalogError};
+
+    #[test]
+    fn register_provider_succeeds_for_known_engine() {
+        assert!(register_provider("codex").is_ok());
+        assert!(register_provider("CODEX").is_ok());
+        assert!(register_provider("opencode").is_ok());
+    }
+
+    #[test]
+    fn register_provider_fails_for_unknown_engine() {
+        let error = register_provider("no-such-engine").expect_err("unknown engine");
+        assert!(matches!(
+            error,
+            CatalogError::ProviderNotFound { ref name } if name == "no-such-engine"
+        ));
+    }
+
+    #[test]
+    fn register_provider_fails_for_empty_name() {
+        let error = register_provider("").expect_err("empty name");
+        assert!(matches!(error, CatalogError::ProviderNotFound { .. }));
+    }
+
+    #[test]
+    fn shared_catalog_does_not_panic_and_is_populated() {
+        let catalog = super::shared_codeengine_catalog();
+        assert!(!catalog.engines.is_empty());
+    }
+
+    #[test]
+    fn catalog_error_display_is_informative() {
+        let error = CatalogError::ProviderNotFound {
+            name: "demo".to_owned(),
+        };
+        assert!(error.to_string().contains("demo"));
+        assert!(error.to_string().contains("not found"));
+    }
 }

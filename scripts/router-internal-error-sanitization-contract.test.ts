@@ -20,7 +20,7 @@ const errorsLib = readFileSync(
   'utf8',
 );
 const authBootstrap = readFileSync(
-  path.join(repoRoot, 'crates/sdkwork-birdcoder-api-server/src/bootstrap/auth.rs'),
+  path.join(repoRoot, 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/auth.rs'),
   'utf8',
 );
 

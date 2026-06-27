@@ -13,7 +13,7 @@ Close real server behavior for `approvals.decisions.create`, promote it only whe
 
 ## Scope
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 - approval authority projection/persistence slice
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - `packages/sdkwork-birdcoder-infrastructure/src/services/defaultIdeServices.ts`

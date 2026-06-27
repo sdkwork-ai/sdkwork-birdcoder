@@ -1,0 +1,51 @@
+-- sdkwork:migration
+-- id: 0005_foreign_keys
+-- engine: sqlite
+-- module: birdcoder
+-- purpose: Enable foreign-key enforcement for SQLite (P1-17)
+-- reversible: true
+-- transactional: true
+-- lock: lightweight
+-- contract_version: 1.0.0
+--
+-- SQLite cannot add FK constraints to existing tables via ALTER TABLE; foreign
+-- keys must be declared inline in CREATE TABLE. The birdcoder baseline 0001 does
+-- not declare inline REFERENCES, so on SQLite the equivalent of the PostgreSQL
+-- 0005_foreign_keys constraints cannot be retrofitted through a migration.
+--
+-- Per DATABASE_FRAMEWORK_SPEC.md section 9 and the P1-17 task note ("无对应 SQLite
+-- 操作"), this migration therefore:
+--   1. Enables PRAGMA foreign_keys for the migration connection (documentary; the
+--      runtime pool MUST enable this pragma on every connection).
+--   2. Records the intended FK graph so a future baseline revision can declare the
+--      inline REFERENCES clauses and the drift engine can verify them.
+--
+-- The PostgreSQL twin migration (migrations/postgres/0005_foreign_keys.up.sql)
+-- materializes the actual ALTER TABLE ADD CONSTRAINT statements.
+
+PRAGMA foreign_keys = ON;
+
+-- Intended FK graph (mirrors migrations/postgres/0005_foreign_keys.up.sql):
+--   ai_coding_session_message.coding_session_id      -> ai_coding_session.id
+--   ai_coding_session_turn.coding_session_id         -> ai_coding_session.id
+--   ai_coding_session_event.coding_session_id        -> ai_coding_session.id
+--   ai_coding_session_artifact.coding_session_id     -> ai_coding_session.id
+--   ai_coding_session_runtime.coding_session_id      -> ai_coding_session.id
+--   ai_coding_session_checkpoint.coding_session_id   -> ai_coding_session.id
+--   ai_coding_session_operation.coding_session_id    -> ai_coding_session.id
+--   ai_coding_session_prompt_entry.coding_session_id -> ai_coding_session.id
+--   ai_skill_version.skill_package_id                -> ai_skill_package.id
+--   ai_skill_capability.skill_version_id             -> ai_skill_version.id
+--   ai_skill_installation.skill_version_id           -> ai_skill_version.id
+--   studio_project.workspace_id                      -> studio_workspace.id
+--   studio_project_content.project_id                -> studio_project.id
+--   studio_team_member.team_id                       -> studio_team.id
+--   studio_workspace_member.workspace_id             -> studio_workspace.id
+--   studio_project_collaborator.project_id           -> studio_project.id
+--   studio_app_template_version.app_template_id      -> studio_app_template.id
+--   studio_app_template_target_profile.app_template_version_id -> studio_app_template_version.id
+--   studio_app_template_preset.app_template_version_id          -> studio_app_template_version.id
+--   studio_app_template_instantiation.app_template_version_id   -> studio_app_template_version.id
+--   studio_deployment_record.target_id               -> studio_deployment_target.id
+--   commerce_invoice.order_id                        -> commerce_order.id
+--   commerce_payment.order_id                         -> commerce_order.id

@@ -92,7 +92,7 @@ Verify the page-layer runtime orchestration now passes.
 ### Task 4: Promote the Rust coding-server turn route from authority-only to runtime-producing
 
 **Files:**
-- Modify: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- Modify: `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 - Modify: `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts` only if TypeScript contract helpers must stay aligned
 - Modify: Rust tests covering `create_coding_session_turn`
 

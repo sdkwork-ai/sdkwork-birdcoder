@@ -9,7 +9,7 @@
 
 ## Scope
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - `packages/sdkwork-birdcoder-types/src/data.ts`
 - `packages/sdkwork-birdcoder-infrastructure/src/storage/providers.ts`
@@ -34,9 +34,9 @@
 
 ## Verification
 
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured`
 - `pnpm.cmd run test:split-sdk-client-facade-contract`
 - `pnpm.cmd run test:default-ide-services-audit-service-contract`
 - `pnpm.cmd run test:audit-admin-consumer-contract`

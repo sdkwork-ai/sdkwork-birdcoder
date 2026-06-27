@@ -11,7 +11,7 @@ SDKWork Birdcoder team.
   - `sdkwork-routes-<capability>-<surface>/`
   - `sdkwork-<domain>-<capability>-service/`
   - `sdkwork-<domain>-<capability>-repository-sqlx/`
-  - `sdkwork-<app>-api-server/`
+  - `sdkwork-<app>-standalone-gateway/`
   - `sdkwork-<app>-service-host/`
   - `sdkwork-<app>-native-host/`
   - `sdkwork-<app>-tauri-host/`

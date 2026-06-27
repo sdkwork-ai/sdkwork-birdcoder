@@ -30,31 +30,45 @@ assert.deepEqual(
   'Committed defer registry deferred routes must match live diff.',
 );
 
+// Commerce lane disposition (option 1: pre-launch deferred).
+// The 15 commerce operations (api-keys / notifications / usage) are designed in
+// the OpenAPI contract ahead of Rust route crate implementation. They are tracked
+// as pre-launch deferred until commercial capabilities reach launch readiness
+// (expected close: P3 commercial capability phase). See `deferredLanePolicy` in
+// the registry and docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md.
 assert.ok(
   liveRegistry.summary.iamFederationManifestRouteCount >= 80,
   'Defer registry must count federated sdkwork-iam manifest routes.',
 );
 assert.equal(
   liveRegistry.summary.contractOperationCount,
-  132,
-  'OpenAPI contract must expose 132 operations.',
+  147,
+  'OpenAPI contract must expose 147 operations (132 product/IAM + 15 commerce).',
 );
 assert.equal(
   liveRegistry.summary.implementedOperationCount,
   132,
-  'All OpenAPI operations must be implemented in product or federated IAM manifests.',
+  'Product and federated IAM manifests must implement 132 OpenAPI operations.',
 );
 assert.equal(
   liveRegistry.summary.deferredOperationCount,
-  0,
-  'Defer registry must not track residual OpenAPI gaps after teams lane closure.',
+  15,
+  'Commerce lane (api-keys / notifications / usage) is pre-launch deferred until commercial launch readiness.',
 );
 assert.equal(
   liveRegistry.summary.implementedOperationCount + liveRegistry.summary.deferredOperationCount,
   liveRegistry.summary.contractOperationCount,
 );
 
-assert.equal(liveRegistry.deferred.length, 0, 'Deferred route list must be empty when count is zero.');
+assert.equal(
+  liveRegistry.deferred.length,
+  15,
+  'Deferred route list must contain the 15 commerce pre-launch deferred operations.',
+);
+assert.ok(
+  liveRegistry.deferred.every((entry) => entry.reason === 'commerce-pre-launch-deferred'),
+  'Every deferred operation must belong to the commerce pre-launch deferred lane.',
+);
 
 const manifestGeneratorSource = fs.readFileSync(
   path.join(workspaceRootDir, 'scripts/generate-birdcoder-http-route-manifests.mjs'),
@@ -72,13 +86,13 @@ assert.match(
 );
 
 const iamBootstrapSource = fs.readFileSync(
-  path.join(workspaceRootDir, 'crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs'),
+  path.join(workspaceRootDir, 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs'),
   'utf8',
 );
 assert.match(
   iamBootstrapSource,
   /build_sdkwork_iam_backend_api_router_from_env/u,
-  'api-server must wire sdkwork-iam backend federation router.',
+  'standalone-gateway must wire sdkwork-iam backend federation router.',
 );
 
 const commercialTruthDoc = fs.readFileSync(

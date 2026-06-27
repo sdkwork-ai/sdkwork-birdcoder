@@ -142,9 +142,9 @@ export function runWorkspacePackageScriptRunnerContract() {
         '--manifest-path',
         '../../../../Cargo.toml',
         '-p',
-        'sdkwork-birdcoder-api-server',
+        'sdkwork-birdcoder-standalone-gateway',
       ],
-      'Workspace package-script runner must preserve the workspace api-server dev command.',
+      'Workspace package-script runner must preserve the workspace standalone-gateway dev command.',
     );
   }
 

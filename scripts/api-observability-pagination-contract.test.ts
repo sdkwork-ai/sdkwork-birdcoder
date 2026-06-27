@@ -132,7 +132,7 @@ const membershipHandlersSource = readFileSync(
   'utf8',
 );
 const authBootstrapSource = readFileSync(
-  new URL('../crates/sdkwork-birdcoder-api-server/src/bootstrap/auth.rs', import.meta.url),
+  new URL('../crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/auth.rs', import.meta.url),
   'utf8',
 );
 

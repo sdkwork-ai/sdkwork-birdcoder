@@ -27,7 +27,7 @@
 			<string>com.sdkwork.birdcoder.h5.auth</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>birdcoderh5</string>
+				<string>sdkwork.birdcoder</string>
 			</array>
 		</dict>
 	</array>
@@ -39,7 +39,7 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -56,5 +56,26 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>BirdCoder needs camera access to scan QR login codes and capture project thumbnail images.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>BirdCoder needs photo library access to attach screenshots to project documents and chat messages.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>BirdCoder needs photo library write access to save generated project artifacts and screenshots.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>BirdCoder needs microphone access for voice-driven coding session input.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>BirdCoder uses Face ID to unlock the local app session and authorize sensitive IAM actions.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>BirdCoder uses the local network to discover private BirdCoder coding servers on your LAN.</string>
 </dict>
 </plist>

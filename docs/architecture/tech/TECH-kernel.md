@@ -8,9 +8,9 @@
 按顺序读取：
 
 1. `specs/kernel-birdcoder-alignment.spec.json` — 任务状态机器真相
-2. `docs/架构/30-Kernel-BirdCoder-职责边界标准.md`
-3. `docs/架构/31-Kernel-BirdCoder-集成实施方案.md`
-4. `docs/架构/32-Kernel-BirdCoder-对齐验收与核对清单.md`
+2. `docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md`
+3. `docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md`
+4. `docs/architecture/tech/TECH-32-kernel-birdcoder.md`
 5. `crates/sdkwork-birdcoder-kernel-bridge/src/boundaries.rs`
 6. `git status` 与当前 diff
 
@@ -49,8 +49,8 @@ pnpm run check:sdkwork-birdcoder-structure
 1. 从 `specs/kernel-birdcoder-alignment.spec.json` 选取最高优先级未完成任务（gate 优先于 pending）。
 2. 先补失败测试或 alignment spec 证据，再改实现。
 3. 实现后运行 §3 全量或最小相关子集，**记录真实命令输出**。
-4. 任务完成时：将 spec 中 `status` 改为 `done`，同步 `docs/架构/32` 表格。
-5. 若拓扑或文件边界变化：更新 `docs/架构/31`。
+4. 任务完成时：将 spec 中 `status` 改为 `done`，同步 `docs/architecture/tech/TECH-32-kernel-birdcoder.md` 表格。
+5. 若拓扑或文件边界变化：更新 `docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md`。
 6. 结束回复须包含：已完成任务 ID、仍 pending 任务、下一轮建议命令。
 
 ## 5. Gate 与 Pending 判定
@@ -75,11 +75,11 @@ BirdCoder 侧仅消费 kernel API，不在本仓复制 agent 逻辑。
 
 - `specs/kernel-birdcoder-alignment.spec.json` 中全部 `gate: true` 任务为 `done`
 - §3 命令全部通过
-- `docs/架构/30–32` 与代码一致
+- `docs/architecture/tech/TECH-30` 至 `TECH-32` 与代码一致
 
 **生产就绪**另需 kernel 侧 KBA-K-02～KBA-K-04 均为 `done`（当前 alignment spec 已对齐）。
 
 ## 8. 与 Step 主线关系
 
-Kernel 对齐不替代 `docs/step/` 主链（`09 → 17 → coding-server`），但所有多引擎 turn 执行必须经过 kernel-bridge。若 Step 文档与 30–32 冲突，以 **30–32 + alignment spec** 为准并回写 Step。
+Kernel 对齐不替代 `docs/architecture/tech/` 主链（`09 → 17 → coding-server`），但所有多引擎 turn 执行必须经过 kernel-bridge。若 Step 文档与 30–32 冲突，以 **30–32 + alignment spec** 为准并回写 Step。
 

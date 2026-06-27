@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev:base": "node ../../../../scripts/run-cargo.mjs run --manifest-path ../../../../Cargo.toml -p sdkwork-birdcoder-api-server",
+    "dev:base": "node ../../../../scripts/run-cargo.mjs run --manifest-path ../../../../Cargo.toml -p sdkwork-birdcoder-standalone-gateway",
     "build:base": "node ../../../../scripts/run-birdcoder-server-build.mjs",
     "dev": "node ../../../../scripts/run-birdcoder-server-command.mjs dev --iam-mode server-private",
     "dev:private": "node ../../../../scripts/run-birdcoder-server-command.mjs dev --iam-mode server-private",

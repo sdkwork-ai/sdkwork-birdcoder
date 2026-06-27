@@ -1,3 +1,9 @@
+> **STATUS: SUPERSEDED (2026-06-27).** This historical alignment report is preserved for traceability only.
+> The "13 shared packages retained" outcome described below was the state at the time of writing (2026-06-24); the repository-root `packages/` now contains **1 shared package** (`sdkwork-birdcoder-chat-contracts`) after the 2026-06-27 manifestHonesty correction.
+> The current commercial-readiness truth lives in [`TECH-2026-06-24-commercial-readiness-alignment.md`](TECH-2026-06-24-commercial-readiness-alignment.md).
+> The current package inventory truth lives in [`docs/core/packages.md`](../../core/packages.md).
+> Do not rely on package counts, alignment percentages, or "current state" claims below.
+
 > Migrated from `docs/alignment-comprehensive-report.md` on 2026-06-24.
 > Owner: SDKWork maintainers
 

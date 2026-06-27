@@ -7,6 +7,34 @@ use std::time::UNIX_EPOCH;
 
 const USER_HOME_CONFIG_RELATIVE_ROOT: &str = ".sdkwork/birdcoder";
 
+/// Error type for filesystem path safety violations. Follows
+/// sdkwork-specs/SECURITY_SPEC.md sandbox principles: paths that escape the
+/// workspace root or traverse through symlinks must be rejected.
+#[derive(Debug)]
+pub enum FilesystemError {
+    /// A resolved path escapes the allowed workspace root (path traversal).
+    PathTraversal(String),
+    /// A symlink was encountered on the mutation path and blocked for safety.
+    SymlinkDetected(String),
+}
+
+impl std::fmt::Display for FilesystemError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FilesystemError::PathTraversal(path) => write!(
+                f,
+                "path traversal detected: resolved target escapes the workspace root: {path}"
+            ),
+            FilesystemError::SymlinkDetected(path) => write!(
+                f,
+                "symlink detected within the workspace path and blocked for safety: {path}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for FilesystemError {}
+
 static ALLOWED_FS_ROOTS: OnceLock<Mutex<HashSet<PathBuf>>> = OnceLock::new();
 
 pub fn register_allowed_fs_root(path: PathBuf) -> Result<(), String> {
@@ -24,18 +52,24 @@ pub fn register_allowed_fs_root(path: PathBuf) -> Result<(), String> {
     Ok(())
 }
 
+/// Fail-closed filesystem root validation.
+///
+/// Follows SECURITY_SPEC.md sandbox principles: when the root registry is not
+/// initialized or is empty, access is denied rather than granted. This prevents
+/// a race condition where filesystem commands could execute before
+/// `register_allowed_fs_root` has been called during startup.
 fn is_allowed_fs_root(path: &Path) -> bool {
     let Ok(canonical) = path.canonicalize() else {
         return false;
     };
     let Some(registry) = ALLOWED_FS_ROOTS.get() else {
-        return true;
+        return false;
     };
     let Ok(roots) = registry.lock() else {
         return false;
     };
     if roots.is_empty() {
-        return true;
+        return false;
     }
     roots
         .iter()
@@ -207,6 +241,67 @@ fn resolve_scoped_path(root_path: &str, relative_path: &str) -> Result<PathBuf, 
     Ok(root_directory.join(normalized_relative_path))
 }
 
+/// Validates that a target path stays within the allowed workspace root and
+/// does not traverse through symlinks. Uses `symlink_metadata` to detect
+/// symlinks on the target and `canonicalize` to resolve the real path before
+/// confirming containment within `root_canonical`.
+///
+/// Runs inside `spawn_blocking`, so `std::fs` is used as the sync equivalent
+/// of `tokio::fs::canonicalize` / `tokio::fs::symlink_metadata`.
+fn validate_mutation_path(
+    root_canonical: &Path,
+    target_path: &Path,
+) -> Result<PathBuf, FilesystemError> {
+    // Reject if the target path itself is a symlink.
+    if let Ok(metadata) = fs::symlink_metadata(target_path) {
+        if metadata.file_type().is_symlink() {
+            return Err(FilesystemError::SymlinkDetected(
+                target_path.display().to_string(),
+            ));
+        }
+    }
+
+    // Canonicalize the target to resolve any symlinks in parent directories.
+    // If the target does not exist yet (e.g. a new file), canonicalize the
+    // parent directory and reattach the file name.
+    let canonical_target = match target_path.canonicalize() {
+        Ok(canonical) => canonical,
+        Err(_) => {
+            let parent = target_path.parent().ok_or_else(|| {
+                FilesystemError::PathTraversal(target_path.display().to_string())
+            })?;
+            let canonical_parent = parent.canonicalize().map_err(|_| {
+                FilesystemError::PathTraversal(target_path.display().to_string())
+            })?;
+            let file_name = target_path.file_name().ok_or_else(|| {
+                FilesystemError::PathTraversal(target_path.display().to_string())
+            })?;
+            canonical_parent.join(file_name)
+        }
+    };
+
+    // Ensure the canonical target is still within the workspace root.
+    if !canonical_target.starts_with(root_canonical) {
+        return Err(FilesystemError::PathTraversal(
+            target_path.display().to_string(),
+        ));
+    }
+
+    Ok(canonical_target)
+}
+
+/// Resolves a scoped path and applies symlink / path-traversal validation
+/// for mutating operations (write, delete, rename).
+fn resolve_and_validate_mutation_path(
+    root_path: &str,
+    relative_path: &str,
+) -> Result<PathBuf, String> {
+    let root_directory = resolve_root_directory_path(root_path)?;
+    let normalized_relative_path = normalize_relative_path(relative_path)?;
+    let target_path = root_directory.join(&normalized_relative_path);
+    validate_mutation_path(&root_directory, &target_path).map_err(|error| error.to_string())
+}
+
 fn resolve_user_home_config_path(relative_path: &str) -> Result<PathBuf, String> {
     let normalized_relative_path = normalize_relative_path(relative_path)?;
     if !normalized_relative_path.starts_with(USER_HOME_CONFIG_RELATIVE_ROOT) {
@@ -267,9 +362,14 @@ fn build_directory_listing(
     })
 }
 
+/// Maximum recursion depth for directory snapshots. Prevents stack overflow
+/// from deeply nested directories or symlink loops.
+const MAX_DIRECTORY_SNAPSHOT_DEPTH: usize = 10;
+
 fn build_directory_snapshot(
     directory_path: &Path,
     virtual_path: &str,
+    depth: usize,
 ) -> Result<FileSystemNode, String> {
     let mut children = Vec::new();
     let entries = fs::read_dir(directory_path).map_err(|error| {
@@ -295,7 +395,22 @@ fn build_directory_snapshot(
         })?;
         let child_virtual_path = build_virtual_child_path(virtual_path, &entry_name);
         if entry_type.is_dir() {
-            children.push(build_directory_snapshot(&entry_path, &child_virtual_path)?);
+            // Stop recursing when the maximum depth is reached. The directory
+            // node is included with `children: None` to signal truncation.
+            if depth + 1 < MAX_DIRECTORY_SNAPSHOT_DEPTH {
+                children.push(build_directory_snapshot(
+                    &entry_path,
+                    &child_virtual_path,
+                    depth + 1,
+                )?);
+            } else {
+                children.push(FileSystemNode {
+                    name: entry_name,
+                    kind: "directory".to_string(),
+                    path: child_virtual_path,
+                    children: None,
+                });
+            }
         } else if entry_type.is_file() {
             children.push(FileSystemNode {
                 name: entry_name,
@@ -362,7 +477,7 @@ pub async fn fs_snapshot_folder(
     tauri::async_runtime::spawn_blocking(move || {
         let root_directory = resolve_root_directory_path(&root_path)?;
         let root_virtual_path = format!("/{}", resolve_root_directory_name(&root_directory));
-        let tree = build_directory_snapshot(&root_directory, &root_virtual_path)?;
+        let tree = build_directory_snapshot(&root_directory, &root_virtual_path, 0)?;;
         Ok(FileSystemSnapshotResponse {
             root_virtual_path,
             tree,
@@ -607,7 +722,7 @@ pub async fn fs_write_file(
     content: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let file_path = resolve_scoped_path(&root_path, &relative_path)?;
+        let file_path = resolve_and_validate_mutation_path(&root_path, &relative_path)?;
         fs::write(&file_path, content).map_err(|error| {
             format!(
                 "failed to write mounted file '{}': {error}",
@@ -711,7 +826,7 @@ pub async fn fs_delete_entry(
     recursive: bool,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let entry_path = resolve_scoped_path(&root_path, &relative_path)?;
+        let entry_path = resolve_and_validate_mutation_path(&root_path, &relative_path)?;
         let metadata = fs::metadata(&entry_path).map_err(|error| {
             format!(
                 "failed to inspect mounted entry '{}': {error}",
@@ -755,8 +870,8 @@ pub async fn fs_rename_entry(
     new_relative_path: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let old_path = resolve_scoped_path(&root_path, &old_relative_path)?;
-        let new_path = resolve_scoped_path(&root_path, &new_relative_path)?;
+        let old_path = resolve_and_validate_mutation_path(&root_path, &old_relative_path)?;
+        let new_path = resolve_and_validate_mutation_path(&root_path, &new_relative_path)?;
         let new_parent_directory = new_path.parent().ok_or_else(|| {
             format!(
                 "cannot rename mounted entry without a destination parent directory: {}",

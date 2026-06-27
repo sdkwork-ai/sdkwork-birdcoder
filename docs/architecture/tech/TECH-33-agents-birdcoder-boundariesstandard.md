@@ -25,7 +25,7 @@
 |---|---|---|
 | Agents facade | `sdkwork-agents-runtime-facade` | 产品运行时唯一 Rust 入口 |
 | BirdCoder adapter | `sdkwork-birdcoder-kernel-bridge` | 薄适配：coding_session 类型转换 + OpenCode live handler 注册 |
-| Server wiring | `sdkwork-birdcoder-api-server` | `KernelBridgeCodeEngineProvider` |
+| Server wiring | `sdkwork-birdcoder-standalone-gateway` | `KernelBridgeCodeEngineProvider` |
 | TS runtime | `@sdkwork/birdcoder-pc-codeengine` | `birdcoder-kernel-turn` 子进程 |
 
 ## 5. 验收

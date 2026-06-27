@@ -4,7 +4,7 @@ export const PC_WEB_DIST_REL = 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdc
 export const PC_DESKTOP_DIST_REL = 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/dist';
 export const PC_DESKTOP_TAURI_REL = 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri';
 export const WORKSPACE_CARGO_TARGET_REL = 'target';
-export const SERVER_CRATE_BINARY_NAME = 'sdkwork-birdcoder-api-server';
+export const SERVER_CRATE_BINARY_NAME = 'sdkwork-birdcoder-standalone-gateway';
 
 export function resolveReleaseBuildPath(rootDir, relativePath) {
   return path.join(rootDir, relativePath);

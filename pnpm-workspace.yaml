@@ -1,4 +1,7 @@
 packages:
+  # ===========================================================================
+  # BirdCoder-owned workspace packages (this repository)
+  # ===========================================================================
   # Shared cross-surface packages at repository root
   - 'packages/sdkwork-birdcoder-*'
   # PC app root packages
@@ -9,31 +12,88 @@ packages:
   # PC app root SDKs
   - 'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript'
   - 'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript'
+
+  # ===========================================================================
+  # SDKWork platform workspace federation (external sibling monorepos)
+  # ===========================================================================
+  # The following entries are EXTERNAL workspace dependencies from sibling
+  # SDKWork platform repositories. They use the `../sdkwork-*` relative path
+  # convention because SDKWork follows a workspace-federation model: each
+  # platform capability (IAM, appbase, UI, terminal, drive, messaging, models,
+  # utils, search, core) lives in its own governed monorepo, and application
+  # workspaces (like BirdCoder) consume them via pnpm workspace globs rather
+  # than published npm packages.
+  #
+  # COMPLETE BUILD PREREQUISITE:
+  #   To build this repository end-to-end, clone all required SDKWork platform
+  #   repositories as siblings of this directory:
+  #
+  #     sdkwork-space/
+  #     ├── sdkwork-birdcoder/         <- this repository
+  #     ├── sdkwork-iam/               # IAM runtime, contracts, SDK, auth/user PC
+  #     ├── sdkwork-appbase/           # Application base runtime + i18n for PC React
+  #     ├── sdkwork-core/              # Core PC React runtime
+  #     ├── sdkwork-ui/                # UI component library for PC React
+  #     ├── sdkwork-search/            # Search contracts + PC React foundation
+  #     ├── sdkwork-terminal/          # Terminal PC packages + runtime SDK
+  #     ├── sdkwork-drive/             # Drive app SDK
+  #     ├── sdkwork-messaging/         # Messaging app SDK
+  #     ├── sdkwork-models/            # Models SDK
+  #     ├── sdkwork-sdk-commons/       # Common TypeScript SDK utilities
+  #     └── sdkwork-utils/             # Shared utilities
+  #
+  # PARTIAL / READ-ONLY INSPECTION:
+  #   If you only need to inspect BirdCoder-owned code without building, you
+  #   can comment out the external paths below. TypeScript type resolution
+  #   and pnpm install will then fail for any package that imports
+  #   `@sdkwork/iam-*`, `@sdkwork/appbase-*`, `@sdkwork/ui`, `@sdkwork/core`,
+  #   `@sdkwork/search-*`, `@sdkwork/terminal-*`, `@sdkwork/drive-*`,
+  #   `@sdkwork/messaging-*`, `@sdkwork/models-*`, `@sdkwork/sdk-commons`, or
+  #   `@sdkwork/utils`. Use this mode only for source reading.
+  #
+  # CI handles the full federation automatically by checking out all required
+  # platform repositories before running `pnpm install --frozen-lockfile`.
+  # See `.github/workflows/ci.yml` for the canonical checkout order.
+  # ============================================================================
+
+  # --- sdkwork-iam (IAM runtime, contracts, SDK, auth/user PC packages) ---
   - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts'
   - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry'
   - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime'
   - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-adapter'
   - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports'
   - '../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service'
-  - '../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap'
   - '../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi'
   - '../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi'
-  - '../sdkwork-sdk-commons/sdkwork-sdk-common-typescript'
-  - '../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react'
-  - '../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react'
-  - '../sdkwork-search/packages/common/search/sdkwork-search-contracts'
-  - '../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react'
   - '../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react'
   - '../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react'
   - '../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react'
+
+  # --- sdkwork-appbase (application base runtime + i18n for PC React) ---
+  - '../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap'
+  - '../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react'
+  - '../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react'
+
+  # --- sdkwork-search (search contracts + PC React foundation) ---
+  - '../sdkwork-search/packages/common/search/sdkwork-search-contracts'
+  - '../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react'
+
+  # --- sdkwork-core, sdkwork-ui (PC React runtime + UI library) ---
   - '../sdkwork-core/sdkwork-core-pc-react'
   - '../sdkwork-ui/sdkwork-ui-pc-react'
+
+  # --- sdkwork-terminal (terminal PC packages + runtime SDK) ---
   - '../sdkwork-terminal/apps/sdkwork-terminal-pc'
   - '../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-*'
   - '../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript/generated/server-openapi'
+
+  # --- sdkwork-drive, sdkwork-messaging, sdkwork-models (app SDKs) ---
   - '../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript'
   - '../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi'
   - '../sdkwork-models/sdks/sdkwork-models-sdk/sdkwork-models-sdk-typescript'
+
+  # --- sdkwork-sdk-commons, sdkwork-utils (shared utilities) ---
+  - '../sdkwork-sdk-commons/sdkwork-sdk-common-typescript'
   - '../sdkwork-utils/packages/sdkwork-utils-typescript'
 
 catalog:

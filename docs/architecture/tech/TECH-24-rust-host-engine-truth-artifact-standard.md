@@ -14,7 +14,7 @@ Rust host must not maintain a parallel handwritten engine catalog. Engine descri
   - `listBirdCoderCodingServerEngines()`
   - `listBirdCoderCodingServerModels()`
 - Generated artifact:
-  - `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
+  - `crates/sdkwork-birdcoder-standalone-gateway/generated/engine-catalog.json`
 - Generator:
   - `scripts/generate-rust-host-engine-catalog.ts`
 - Rust host loading rule:
@@ -42,7 +42,7 @@ Rust host must not maintain a parallel handwritten engine catalog. Engine descri
 - Required verification:
   - `pnpm.cmd run generate:rust-host-engine-catalog`
   - `pnpm.cmd run test:rust-host-engine-truth-contract`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
   - `pnpm.cmd run docs:build`
   - `pnpm.cmd run check:release-flow`
 

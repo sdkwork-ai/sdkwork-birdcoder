@@ -8,11 +8,11 @@ function readText(relativePath) {
   return fs.readFileSync(path.join(rootDir, relativePath), 'utf8');
 }
 
-const routerSource = readText('crates/sdkwork-birdcoder-api-server/src/bootstrap/routers.rs');
-const mainSource = readText('crates/sdkwork-birdcoder-api-server/src/main.rs');
-const authSource = readText('crates/sdkwork-birdcoder-api-server/src/bootstrap/auth.rs');
-const observabilitySource = readText('crates/sdkwork-birdcoder-api-server/src/observability.rs');
-const smokeSource = readText('crates/sdkwork-birdcoder-api-server/tests/bootstrap_smoke.rs');
+const routerSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs');
+const mainSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/main.rs');
+const authSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/auth.rs');
+const observabilitySource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/observability.rs');
+const smokeSource = readText('crates/sdkwork-birdcoder-standalone-gateway/tests/bootstrap_smoke.rs');
 const valuesSource = readText('deployments/kubernetes/values.yaml');
 const configMapSource = readText('deployments/kubernetes/templates/configmap.yaml');
 

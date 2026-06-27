@@ -38,7 +38,7 @@ spec:
             - configMapRef:
                 name: {{ include "sdkwork-birdcoder.fullname" . }}
             - secretRef:
-                name: {{ include "sdkwork-birdcoder.fullname" . }}-auth
+                name: {{ if .Values.auth.existingSecret }}{{ .Values.auth.existingSecret }}{{ else }}{{ include "sdkwork-birdcoder.fullname" . }}-auth{{ end }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           resources:

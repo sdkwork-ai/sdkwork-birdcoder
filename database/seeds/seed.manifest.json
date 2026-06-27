@@ -6,16 +6,52 @@
   "activeLocales": ["zh-CN"],
   "profiles": {
     "minimal": {
-      "common": [],
+      "common": [
+        "001_bootstrap.sql",
+        "002_runtime_model_config.sql",
+        "003_studio_app_template.sql",
+        "004_commerce_membership_package.sql"
+      ],
       "locales": {
         "zh-CN": []
       }
     },
     "standard": {
-      "common": [],
+      "common": [
+        "001_bootstrap.sql",
+        "002_runtime_model_config.sql",
+        "003_studio_app_template.sql",
+        "004_commerce_membership_package.sql"
+      ],
       "locales": {
         "zh-CN": []
       }
     }
-  }
+  },
+  "seeds": [
+    {
+      "id": "001_bootstrap",
+      "name": "bootstrap sanity check",
+      "file": "common/001_bootstrap.sql",
+      "checksum": null
+    },
+    {
+      "id": "002_runtime_model_config",
+      "name": "default runtime model catalog",
+      "file": "common/002_runtime_model_config.sql",
+      "checksum": null
+    },
+    {
+      "id": "003_studio_app_template",
+      "name": "default studio app templates",
+      "file": "common/003_studio_app_template.sql",
+      "checksum": null
+    },
+    {
+      "id": "004_commerce_membership_package",
+      "name": "default commerce membership packages",
+      "file": "common/004_commerce_membership_package.sql",
+      "checksum": null
+    }
+  ]
 }

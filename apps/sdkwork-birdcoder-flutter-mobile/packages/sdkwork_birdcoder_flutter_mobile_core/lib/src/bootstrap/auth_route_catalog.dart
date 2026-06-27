@@ -24,13 +24,13 @@ class BirdCoderRouteDefinition {
 
 const _birdCoderProductRouteCatalog = <BirdCoderRouteDefinition>[
   BirdCoderRouteDefinition(
-    id: 'app.chat.index',
+    id: 'app.im.chat.index',
     path: '/',
     component: 'ChatPage',
     auth: BirdCoderRouteAuth.requiredAuth,
   ),
   BirdCoderRouteDefinition(
-    id: 'app.settings.index',
+    id: 'app.account.settings.index',
     path: '/settings',
     component: 'SettingsPage',
     auth: BirdCoderRouteAuth.requiredAuth,

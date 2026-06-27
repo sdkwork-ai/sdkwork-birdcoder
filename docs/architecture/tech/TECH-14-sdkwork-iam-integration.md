@@ -68,8 +68,8 @@ node scripts/birdcoder-iam-runtime-standard-contract.test.mjs
 node scripts/auth-ui-standard-contract.test.mjs
 node scripts/birdcoder-sdk-family-standard-contract.test.mjs
 node scripts/birdcoder-sdk-family-generated-contract.test.mjs
-cargo check --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml
-cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml
+cargo check --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml
+cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml
 cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml
 pnpm server:build
 ```

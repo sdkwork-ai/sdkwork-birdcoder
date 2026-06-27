@@ -9,7 +9,7 @@
 
 ## Scope
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - `packages/sdkwork-birdcoder-infrastructure/src/services/interfaces/IAppRuntimeWriteService.ts`
 - `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedAppRuntimeWriteService.ts`
@@ -28,7 +28,7 @@
 
 ## Verification
 
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml submit_approval_decision_route`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml submit_approval_decision_route`
 - `pnpm.cmd run test:app-runtime-write-sdk-client-contract`
 - `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
 - `pnpm.cmd run test:coding-session-approval-consumer-contract`

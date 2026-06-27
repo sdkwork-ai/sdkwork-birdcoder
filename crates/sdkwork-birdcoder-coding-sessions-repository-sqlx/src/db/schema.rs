@@ -2,6 +2,9 @@ pub const PROVIDER_AUTHORITY_SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS ai_coding_session (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -26,6 +29,9 @@ CREATE TABLE IF NOT EXISTS ai_coding_session (
 CREATE TABLE IF NOT EXISTS ai_coding_session_message (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -46,6 +52,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_message (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_runtime (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -64,6 +74,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_runtime (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_turn (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -79,6 +93,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_turn (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_event (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -93,6 +111,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_event (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_artifact (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -107,6 +129,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_artifact (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_checkpoint (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -120,6 +146,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_checkpoint (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_operation (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -134,6 +164,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_operation (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -145,20 +179,27 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
     use_count INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE INDEX IF NOT EXISTS idx_ai_coding_session_project_updated
-ON ai_coding_session(project_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_tenant_project_updated
+ON ai_coding_session(tenant_id, project_id, updated_at);
 
-CREATE INDEX IF NOT EXISTS idx_ai_coding_session_message_session_created
-ON ai_coding_session_message(coding_session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_tenant_user_updated
+ON ai_coding_session(tenant_id, user_id, updated_at);
 
-CREATE INDEX IF NOT EXISTS idx_ai_coding_session_prompt_entry_session_last_used
-ON ai_coding_session_prompt_entry(coding_session_id, last_used_at);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_message_tenant_session_created
+ON ai_coding_session_message(tenant_id, coding_session_id, created_at);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_prompt_entry_session_normalized_prompt
-ON ai_coding_session_prompt_entry(coding_session_id, normalized_prompt_text);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_prompt_entry_tenant_session_last_used
+ON ai_coding_session_prompt_entry(tenant_id, coding_session_id, last_used_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_prompt_entry_tenant_session_normalized_prompt
+ON ai_coding_session_prompt_entry(tenant_id, coding_session_id, normalized_prompt_text);
 
 CREATE TABLE IF NOT EXISTS ai_saved_prompt_entry (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -169,11 +210,11 @@ CREATE TABLE IF NOT EXISTS ai_saved_prompt_entry (
     use_count INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE INDEX IF NOT EXISTS idx_ai_saved_prompt_entry_last_saved
-ON ai_saved_prompt_entry(last_saved_at);
+CREATE INDEX IF NOT EXISTS idx_ai_saved_prompt_entry_tenant_user_last_saved
+ON ai_saved_prompt_entry(tenant_id, user_id, last_saved_at);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_saved_prompt_entry_normalized_prompt
-ON ai_saved_prompt_entry(normalized_prompt_text);
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_saved_prompt_entry_tenant_normalized_prompt
+ON ai_saved_prompt_entry(tenant_id, user_id, normalized_prompt_text);
 
 CREATE TABLE IF NOT EXISTS studio_workspace (
     id INTEGER PRIMARY KEY,
@@ -544,6 +585,9 @@ pub const SCHEMA_SQL: &str = r#"
 CREATE TABLE IF NOT EXISTS ai_coding_session (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -568,6 +612,9 @@ CREATE TABLE IF NOT EXISTS ai_coding_session (
 CREATE TABLE IF NOT EXISTS ai_coding_session_message (
     id TEXT PRIMARY KEY,
     uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -588,6 +635,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_message (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_runtime (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -606,6 +657,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_runtime (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_turn (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -621,6 +676,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_turn (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_event (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -635,6 +694,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_event (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_artifact (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -649,6 +712,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_artifact (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_checkpoint (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -662,6 +729,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_checkpoint (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_operation (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -676,6 +747,10 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_operation (
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
     id TEXT PRIMARY KEY,
+    uuid TEXT NULL,
+    tenant_id INTEGER NOT NULL DEFAULT 0,
+    organization_id INTEGER NOT NULL DEFAULT 0,
+    user_id INTEGER NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
@@ -687,15 +762,18 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
     use_count INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE INDEX IF NOT EXISTS idx_ai_coding_session_project_updated
-ON ai_coding_session(project_id, updated_at);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_tenant_project_updated
+ON ai_coding_session(tenant_id, project_id, updated_at);
 
-CREATE INDEX IF NOT EXISTS idx_ai_coding_session_message_session_created
-ON ai_coding_session_message(coding_session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_tenant_user_updated
+ON ai_coding_session(tenant_id, user_id, updated_at);
 
-CREATE INDEX IF NOT EXISTS idx_ai_coding_session_prompt_entry_session_last_used
-ON ai_coding_session_prompt_entry(coding_session_id, last_used_at);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_message_tenant_session_created
+ON ai_coding_session_message(tenant_id, coding_session_id, created_at);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_prompt_entry_session_normalized_prompt
-ON ai_coding_session_prompt_entry(coding_session_id, normalized_prompt_text);
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_prompt_entry_tenant_session_last_used
+ON ai_coding_session_prompt_entry(tenant_id, coding_session_id, last_used_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_prompt_entry_tenant_session_normalized_prompt
+ON ai_coding_session_prompt_entry(tenant_id, coding_session_id, normalized_prompt_text);
 "#;

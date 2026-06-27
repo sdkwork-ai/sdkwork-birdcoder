@@ -61,9 +61,9 @@ for (const crateDir of routeCrates) {
   }
 }
 
-const routeManifestBootstrap = read('crates/sdkwork-birdcoder-api-server/src/bootstrap/route_manifest.rs');
+const routeManifestBootstrap = read('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/route_manifest.rs');
 if (!routeManifestBootstrap.includes('birdcoder_product_app_api_route_manifest')) {
-  fail('api-server must compose product HttpRouteManifest from route crates');
+  fail('standalone-gateway must compose product HttpRouteManifest from route crates');
 }
 
 const appOpenApi = read('sdks/specs/openapi/birdcoder-app-v3.openapi.json');
@@ -86,26 +86,26 @@ if (appOpenApi.includes('coding-sessions')) {
   fail('birdcoder-app-v3.openapi.json must use lower_snake_case coding_sessions path segments');
 }
 
-const apiServerCargo = read('crates/sdkwork-birdcoder-api-server/Cargo.toml');
+const apiServerCargo = read('crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml');
 if (!apiServerCargo.includes('sdkwork-web-axum.workspace = true')) {
-  fail('sdkwork-birdcoder-api-server must depend on sdkwork-web-axum');
+  fail('sdkwork-birdcoder-standalone-gateway must depend on sdkwork-web-axum');
 }
 if (!apiServerCargo.includes('sdkwork-web-core')) {
-  fail('sdkwork-birdcoder-api-server must depend on sdkwork-web-core');
+  fail('sdkwork-birdcoder-standalone-gateway must depend on sdkwork-web-core');
 }
 
-const authBootstrap = read('crates/sdkwork-birdcoder-api-server/src/bootstrap/auth.rs');
+const authBootstrap = read('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/auth.rs');
 if (!authBootstrap.includes('build_web_framework_layer')) {
-  fail('api-server auth bootstrap must compose sdkwork-web-framework layer');
+  fail('standalone-gateway auth bootstrap must compose sdkwork-web-framework layer');
 }
 if (!authBootstrap.includes('with_web_request_context')) {
-  fail('api-server auth bootstrap must mount WebRequestContext middleware');
+  fail('standalone-gateway auth bootstrap must mount WebRequestContext middleware');
 }
 if (!authBootstrap.includes('birdcoder_product_app_api_route_manifest')) {
-  fail('api-server auth bootstrap must use product HttpRouteManifest');
+  fail('standalone-gateway auth bootstrap must use product HttpRouteManifest');
 }
 if (!authBootstrap.includes('SecurityPolicy')) {
-  fail('api-server auth bootstrap must configure SecurityPolicy/CorsPolicy via web-framework');
+  fail('standalone-gateway auth bootstrap must configure SecurityPolicy/CorsPolicy via web-framework');
 }
 
 const routerContext = read('crates/sdkwork-birdcoder-router-context/src/lib.rs');

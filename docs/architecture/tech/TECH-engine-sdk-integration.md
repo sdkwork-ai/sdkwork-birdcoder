@@ -16,7 +16,7 @@ As of the Kernel ↔ BirdCoder alignment (docs `架构/30–32`), **agent turn e
 | `@sdkwork/birdcoder-pc-codeengine` → `kernelRuntime.ts` | BirdCoder | `sendCanonicalEvents()` via kernel-turn subprocess |
 | `@sdkwork/birdcoder-pc-projection` | BirdCoder | Transcript, dialect, canonical projection only |
 | `sdkwork-birdcoder-codeengine` (Rust) | BirdCoder | Dialect + **native session catalog** only (no agent turn) |
-| `sdkwork-birdcoder-api-server` | BirdCoder | `KernelBridgeCodeEngineProvider` for coding-server turns |
+| `sdkwork-birdcoder-standalone-gateway` | BirdCoder | `KernelBridgeCodeEngineProvider` for coding-server turns |
 
 Retired BirdCoder surfaces:
 

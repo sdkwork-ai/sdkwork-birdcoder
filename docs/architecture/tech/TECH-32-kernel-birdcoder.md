@@ -39,7 +39,7 @@ pnpm run check:sdkwork-birdcoder-structure
 | ID | 标题 | 状态 | 验收命令 |
 | --- | --- | --- | --- |
 | KBA-BC-01 | kernel-bridge crate | done | `cargo test -p sdkwork-birdcoder-kernel-bridge` |
-| KBA-BC-02 | api-server KernelBridge 接线 | done | `test:engine-runtime-adapter` |
+| KBA-BC-02 | standalone-gateway KernelBridge 接线 | done | `test:engine-runtime-adapter` |
 | KBA-BC-03 | TS kernelRuntime | done | `test:engine-conformance` |
 | KBA-BC-04 | pc-projection / pc-chat 退役 | done | `test:birdcoder-kernel-integration-contract` |
 | KBA-BC-05 | codeengine 瘦身 | done | `test:codeengine-native-provider-completeness-contract` |

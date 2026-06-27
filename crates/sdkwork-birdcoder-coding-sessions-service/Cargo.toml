@@ -12,4 +12,5 @@ serde_json = { workspace = true }
 uuid = { workspace = true }
 time = { workspace = true }
 sdkwork-utils-rust.workspace = true
+tracing = "0.1"
 

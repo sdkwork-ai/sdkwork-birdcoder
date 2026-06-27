@@ -644,6 +644,13 @@ fn parse_codex_session_summary_fast(
     file_path: &Path,
     session_index: &BTreeMap<String, CodexSessionIndexEntry>,
 ) -> Result<Option<CodeEngineSessionSummaryRecord>, String> {
+    let _fs_span = tracing::debug_span!(
+        "fs.operation",
+        op = "read_session_summary",
+        path = %file_path.display(),
+    );
+    let _fs_guard = _fs_span.enter();
+
     let file = match File::open(file_path) {
         Ok(file) => file,
         Err(_) => return Ok(None),

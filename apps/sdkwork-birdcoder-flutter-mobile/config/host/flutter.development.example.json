@@ -3,7 +3,7 @@
   "androidPackageName": "com.sdkwork.birdcoder.mobile",
   "environment": "development",
   "deepLinks": {
-    "customScheme": "birdcoder",
+    "customScheme": "sdkwork.birdcoder",
     "oauthCallbackAuthority": "auth",
     "oauthCallbackPath": "/oauth/callback",
     "universalLinkHosts": [

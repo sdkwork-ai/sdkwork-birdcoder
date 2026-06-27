@@ -1,6 +1,6 @@
 export const BIRDCODER_H5_CHAT_ROUTE_CONTRIBUTIONS = [
   {
-    id: 'app.chat.index',
+    id: 'app.im.chat.index',
     path: '/',
     component: 'ChatPage',
     auth: 'required',
@@ -9,7 +9,7 @@ export const BIRDCODER_H5_CHAT_ROUTE_CONTRIBUTIONS = [
     tabLabelKey: 'route.chat',
   },
   {
-    id: 'app.settings.index',
+    id: 'app.account.settings.index',
     path: '/settings',
     component: 'SettingsPage',
     auth: 'required',

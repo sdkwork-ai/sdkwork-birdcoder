@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::OnceLock};
 use crate::{
     format_missing_native_session_provider_error, native_session_prefix_for_engine,
     resolve_native_session_engine_id, resolved_native_session_provider_registration,
-    CodeEngineApprovalDecisionRecord,
+    CatalogError, CodeEngineApprovalDecisionRecord,
     CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord,
     CodeEngineUserQuestionAnswerRecord, NativeSessionDiscoveryMode,
     NativeSessionProviderRegistration,
@@ -68,18 +68,22 @@ impl NativeSessionProviderRegistry {
     pub fn new_standard() -> Self {
         let mut providers: BTreeMap<String, Box<dyn NativeSessionProviderPlugin>> = BTreeMap::new();
 
-        register_catalog_provider(&mut providers, "codex", Box::new(crate::codex_provider::CodexCodeEngineProvider));
-        register_catalog_provider(
+        register_provider_into(
+            &mut providers,
+            "codex",
+            Box::new(crate::codex_provider::CodexCodeEngineProvider),
+        );
+        register_provider_into(
             &mut providers,
             "claude-code",
             Box::new(crate::claude_code_provider::ClaudeCodeEngineProvider),
         );
-        register_catalog_provider(
+        register_provider_into(
             &mut providers,
             "gemini",
             Box::new(crate::gemini_provider::GeminiCodeEngineProvider),
         );
-        register_catalog_provider(
+        register_provider_into(
             &mut providers,
             "opencode",
             Box::new(crate::opencode_provider::OpencodeCodeEngineProvider),
@@ -161,12 +165,91 @@ fn normalize_non_empty_string(value: Option<&str>) -> Option<String> {
     }
 }
 
-fn register_catalog_provider(
+fn register_provider_into(
     providers: &mut BTreeMap<String, Box<dyn NativeSessionProviderPlugin>>,
     engine_id: &'static str,
     provider: Box<dyn NativeSessionProviderPlugin>,
 ) {
-    if resolved_native_session_provider_registration(engine_id).is_ok() {
-        providers.insert(engine_id.to_owned(), provider);
+    if let Err(error) = register_catalog_provider(providers, engine_id, provider) {
+        eprintln!(
+            "warning: skipping code engine provider \"{engine_id}\": {error}"
+        );
+    }
+}
+
+fn register_catalog_provider(
+    providers: &mut BTreeMap<String, Box<dyn NativeSessionProviderPlugin>>,
+    engine_id: &'static str,
+    provider: Box<dyn NativeSessionProviderPlugin>,
+) -> Result<(), CatalogError> {
+    if providers.contains_key(engine_id) {
+        return Err(CatalogError::ProviderAlreadyRegistered {
+            name: engine_id.to_owned(),
+        });
+    }
+    if resolved_native_session_provider_registration(engine_id).is_err() {
+        return Err(CatalogError::ProviderNotFound {
+            name: engine_id.to_owned(),
+        });
+    }
+    providers.insert(engine_id.to_owned(), provider);
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        register_catalog_provider, NativeSessionProviderRegistry, NativeSessionProviderPlugin,
+    };
+    use crate::codex_provider::CodexCodeEngineProvider;
+    use crate::CatalogError;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn register_catalog_provider_succeeds_for_known_engine() {
+        let mut providers: BTreeMap<String, Box<dyn NativeSessionProviderPlugin>> = BTreeMap::new();
+        let result = register_catalog_provider(
+            &mut providers,
+            "codex",
+            Box::new(CodexCodeEngineProvider),
+        );
+        assert!(result.is_ok());
+        assert!(providers.contains_key("codex"));
+    }
+
+    #[test]
+    fn register_catalog_provider_rejects_duplicate() {
+        let mut providers: BTreeMap<String, Box<dyn NativeSessionProviderPlugin>> = BTreeMap::new();
+        register_catalog_provider(&mut providers, "codex", Box::new(CodexCodeEngineProvider))
+            .expect("first registration");
+        let error =
+            register_catalog_provider(&mut providers, "codex", Box::new(CodexCodeEngineProvider))
+                .expect_err("duplicate registration");
+        assert!(matches!(
+            error,
+            CatalogError::ProviderAlreadyRegistered { ref name } if name == "codex"
+        ));
+    }
+
+    #[test]
+    fn register_catalog_provider_rejects_unknown_engine() {
+        let mut providers: BTreeMap<String, Box<dyn NativeSessionProviderPlugin>> = BTreeMap::new();
+        let error = register_catalog_provider(
+            &mut providers,
+            "no-such-engine",
+            Box::new(CodexCodeEngineProvider),
+        )
+        .expect_err("unknown engine");
+        assert!(matches!(
+            error,
+            CatalogError::ProviderNotFound { ref name } if name == "no-such-engine"
+        ));
+        assert!(providers.is_empty());
+    }
+
+    #[test]
+    fn new_standard_boots_without_panic() {
+        let registry = NativeSessionProviderRegistry::new_standard();
+        assert!(registry.resolve_provider(Some("codex")).is_ok());
     }
 }

@@ -62,8 +62,8 @@
 ### Task 5: Rust Host Alignment
 
 **Files:**
-- Modify: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
-- Modify: `crates/sdkwork-birdcoder-api-server/Cargo.toml`
+- Modify: `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
+- Modify: `crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
 
 - [x] Standardize the response and request access-token header as `Access-Token`.
 - [x] Register missing standard IAM app routes with correct HTTP methods.
@@ -77,7 +77,7 @@
 - `node scripts/birdcoder-sdk-family-standard-contract.test.mjs`
 - `pnpm generate:sdk:birdcoder`
 - `pnpm typecheck`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
 - `pnpm server:build`
 
 - [x] Run focused contract, TypeScript, Rust, and build checks.
@@ -92,6 +92,6 @@
 - `pnpm --filter @sdkwork/birdcoder-auth typecheck`
 - `pnpm --filter @sdkwork/birdcoder-iam typecheck`
 - `pnpm --filter @sdkwork/birdcoder-user typecheck`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
 - `pnpm server:build`
 - `pnpm lint`

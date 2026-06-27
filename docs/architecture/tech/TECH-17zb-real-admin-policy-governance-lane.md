@@ -14,7 +14,7 @@ Turn `GET /backend/v3/api/iam/policies` from a `not_implemented` placeholder int
 ## Scope
 
 - dedicated policy entity, storage binding, and repository truth on shared provider/UoW
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - shared app/backend facade governance for `admin.listPolicies`
 - first backend policy-facing consumer in `packages/sdkwork-birdcoder-commons` or `packages/sdkwork-birdcoder-studio`
@@ -35,10 +35,10 @@ Turn `GET /backend/v3/api/iam/policies` from a `not_implemented` placeholder int
 - `pnpm.cmd run test:default-ide-services-admin-policy-service-contract`
 - `pnpm.cmd run test:admin-policy-consumer-contract`
 - `pnpm.cmd run test:sqlite-console-repository-contract`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
 - `pnpm.cmd run typecheck`
 - `pnpm.cmd run docs:build`
 - `pnpm.cmd run check:release-flow`

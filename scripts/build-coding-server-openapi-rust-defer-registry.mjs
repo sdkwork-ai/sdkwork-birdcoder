@@ -28,6 +28,15 @@ const IAM_FEDERATION_DEPENDENCIES = [
   'sdkwork_routes_iam_backend_api',
 ];
 
+// Commerce lane is pre-launch deferred: the OpenAPI contract ships the routes
+// ahead of the Rust route crate implementation. Rust handlers land when
+// commercial capabilities reach launch readiness (expected: P3 commercial
+// capability phase). All currently deferred operations belong to this lane.
+const COMMERCE_PRE_LAUNCH_DEFER_DATE = '2026-06-27';
+const COMMERCE_PRE_LAUNCH_DEFER_REASON = 'commerce-pre-launch-deferred';
+const COMMERCE_PRE_LAUNCH_DEFER_NOTE =
+  'Commerce lane deferred until commercial launch readiness. Routes are designed in OpenAPI but Rust route crate implementation pending.';
+
 function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(workspaceRootDir, relativePath), 'utf8'));
 }
@@ -184,14 +193,19 @@ export function buildCodingServerOpenApiRustDeferRegistry() {
 
   const deferred = contractOperations
     .filter((operation) => !hostRouteKeys.has(routeKey(operation.method, operation.path)))
-    .map((operation) => ({
-      method: operation.method,
-      path: operation.path,
-      operationId: operation.operationId,
-      surface: classifySurface(operation.path),
-      ownerLane: classifyOwnerLane(operation.path),
-      phase: 'pre-launch-deferred',
-    }));
+    .map((operation) => {
+      const surface = classifySurface(operation.path);
+      const ownerLane = classifyOwnerLane(operation.path);
+      return {
+        method: operation.method,
+        path: operation.path,
+        operationId: operation.operationId,
+        lane: `${surface}/${ownerLane}`,
+        reason: COMMERCE_PRE_LAUNCH_DEFER_REASON,
+        addedAt: COMMERCE_PRE_LAUNCH_DEFER_DATE,
+        note: COMMERCE_PRE_LAUNCH_DEFER_NOTE,
+      };
+    });
 
   const implemented = contractOperations
     .filter((operation) => hostRouteKeys.has(routeKey(operation.method, operation.path)))
@@ -217,10 +231,18 @@ export function buildCodingServerOpenApiRustDeferRegistry() {
     federation: {
       iamAppCrate: path.relative(workspaceRootDir, iamAppCrateRoot).replaceAll('\\', '/'),
       iamBackendCrate: path.relative(workspaceRootDir, iamBackendCrateRoot).replaceAll('\\', '/'),
-      wiredInApiServer: 'crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs',
+      wiredInApiServer: 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs',
     },
     rule:
-      'Deferred operations are absent from BirdCoder product manifests and federated sdkwork-iam manifests wired in api-server; remaining routes are intentionally phased per TECH-2026-06-24.',
+      'Deferred operations are absent from BirdCoder product manifests and federated sdkwork-iam manifests wired in standalone-gateway; remaining routes are intentionally phased per TECH-2026-06-24. The commerce lane (api-keys / notifications / usage) is pre-launch deferred: OpenAPI contracts ship first, Rust route crate implementation lands at commercial launch readiness.',
+    deferredLanePolicy: {
+      lane: 'commerce',
+      status: 'pre-launch-deferred',
+      reason:
+        'Commerce routes are designed in the OpenAPI contract ahead of Rust route crate implementation; Rust handlers land when commercial capabilities reach launch readiness.',
+      expectedClosePhase: 'P3 commercial capability',
+      addedAt: COMMERCE_PRE_LAUNCH_DEFER_DATE,
+    },
     implemented,
     deferred,
   };

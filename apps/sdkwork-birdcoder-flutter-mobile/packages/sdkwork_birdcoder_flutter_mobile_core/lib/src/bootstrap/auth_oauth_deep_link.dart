@@ -1,4 +1,4 @@
-const birdCoderMobileOAuthScheme = 'birdcoder';
+const birdCoderMobileOAuthScheme = 'sdkwork.birdcoder';
 const birdCoderOAuthCallbackAuthority = 'auth';
 const birdCoderOAuthCallbackPath = '/oauth/callback';
 

@@ -15,6 +15,7 @@ sdkwork-birdcoder-project-service = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
 sdkwork-web-contract = { workspace = true }
 sdkwork-web-core = { workspace = true }
+tracing = "0.1"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

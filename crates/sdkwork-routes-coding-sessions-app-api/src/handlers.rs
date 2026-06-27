@@ -74,6 +74,16 @@ pub async fn get_session(
     Ok(Json(build_data_envelope(session, request_id(&web))))
 }
 
+#[tracing::instrument(
+    name = "coding_session.create",
+    skip_all,
+    fields(
+        tenant_id = %iam.tenant_id,
+        user_id = %iam.user_id,
+        request_id = %web.request_id.0,
+        workspace_id = tracing::field::Empty,
+    ),
+)]
 pub async fn create_session(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
@@ -85,6 +95,7 @@ pub async fn create_session(
         state.service.create_session(&ctx, request.into()).await,
         request_trace_id(&web),
     )?;
+    tracing::Span::current().record("workspace_id", session.workspace_id.as_str());
     Ok((
         StatusCode::CREATED,
         Json(build_data_envelope(session, request_id(&web))),
@@ -147,6 +158,17 @@ pub async fn fork_session(
     ))
 }
 
+#[tracing::instrument(
+    name = "turn.execute",
+    skip_all,
+    fields(
+        tenant_id = %iam.tenant_id,
+        user_id = %iam.user_id,
+        request_id = %web.request_id.0,
+        session_id = %sessionId,
+        workspace_id = tracing::field::Empty,
+    ),
+)]
 pub async fn create_turn(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
@@ -162,6 +184,7 @@ pub async fn create_turn(
             .await,
         request_trace_id(&web),
     )?;
+    tracing::Span::current().record("workspace_id", pending.session.workspace_id.as_str());
     Ok((
         StatusCode::CREATED,
         Json(build_data_envelope(pending.turn, request_id(&web))),

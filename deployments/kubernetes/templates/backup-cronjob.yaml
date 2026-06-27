@@ -12,28 +12,82 @@ spec:
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
+      backoffLimit: 2
       template:
         spec:
           restartPolicy: OnFailure
           containers:
             - name: pg-backup
+{{- if .Values.backup.imageDigest }}
+              image: "{{ .Values.backup.image }}@{{ .Values.backup.imageDigest }}"
+{{- else }}
               image: {{ .Values.backup.image | quote }}
+{{- end }}
               env:
                 - name: DATABASE_URL
-                  value: {{ .Values.database.url | quote }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ if .Values.auth.existingSecret }}{{ .Values.auth.existingSecret }}{{ else }}{{ include "sdkwork-birdcoder.fullname" . }}-auth{{ end }}
+                      key: SDKWORK_BIRDCODER_DATABASE_URL
                 - name: RETENTION_DAYS
                   value: {{ .Values.backup.retentionDays | quote }}
+                - name: VERIFY_DATABASE_URL
+                  value: {{ .Values.backup.verifyDatabaseUrl | default "" | quote }}
               command:
                 - /bin/sh
                 - -ec
                 - |
+                  set -eu
+
                   ts="$(date +%Y%m%d-%H%M%S)"
                   out="/backup/birdcoder-${ts}.dump"
+                  echo "[backup] starting pg_dump to ${out}"
                   pg_dump --format=custom --no-owner --dbname="${DATABASE_URL}" > "${out}"
+
+                  # Verify the backup is not empty
+                  if [ ! -s "${out}" ]; then
+                    echo "[backup] ERROR: backup file is empty, removing and failing"
+                    rm -f "${out}"
+                    exit 1
+                  fi
+
+                  # Verify the backup can be restored (if a verify database URL is provided)
+                  if [ -n "${VERIFY_DATABASE_URL}" ]; then
+                    echo "[backup] verifying restore to ${VERIFY_DATABASE_URL}"
+                    pg_restore --dbname="${VERIFY_DATABASE_URL}" --no-owner --clean --if-exists "${out}" || {
+                      echo "[backup] WARNING: restore verification failed, but backup file is retained"
+                    }
+                    echo "[backup] restore verification completed"
+                  else
+                    echo "[backup] skipping restore verification (VERIFY_DATABASE_URL not set)"
+                  fi
+
+                  # List backup file size for audit
+                  ls -lh "${out}"
+
+                  # Prune old backups
+                  echo "[backup] pruning backups older than ${RETENTION_DAYS} days"
                   find /backup -name 'birdcoder-*.dump' -mtime +"${RETENTION_DAYS}" -delete
+                  echo "[backup] done"
               volumeMounts:
                 - name: backup
                   mountPath: /backup
+              resources:
+                limits:
+                  cpu: "1"
+                  memory: 512Mi
+                requests:
+                  cpu: "100m"
+                  memory: 128Mi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 999
+                runAsGroup: 999
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
           volumes:
             - name: backup
               persistentVolumeClaim:

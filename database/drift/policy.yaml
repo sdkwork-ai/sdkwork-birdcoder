@@ -1,6 +1,99 @@
 schemaVersion: 1
 kind: sdkwork.database.drift-policy
+module_id: birdcoder
+owner_team: birdcoder-platform
+contract_source: contract/schema.yaml
+
+# ---------------------------------------------------------------------------
+# Detection rules
+# ---------------------------------------------------------------------------
+# Diff codes follow DATABASE_FRAMEWORK_SPEC.md section 9.2. Each rule binds a
+# diff category to a response level. "warn" is reported but does not block;
+# "critical" blocks service startup and fails the release drift gate.
+detection:
+  # Schema-level: expected schema (contract + applied migrations) vs live schema.
+  schema_missing: critical
+  schema_extra: warn
+  engine_unsupported: critical
+
+  # Table-level
+  missing_table: critical
+  extra_table: warn
+  table_owner_mismatch: warn
+
+  # Column-level
+  missing_column: critical
+  extra_column: warn
+  type_mismatch: critical
+  nullability_mismatch: critical
+  default_mismatch: warn
+
+  # Index-level
+  missing_index: warn
+  extra_index: info
+  index_definition_mismatch: warn
+
+  # Constraint-level (PK / UK / CHECK / FK)
+  missing_constraint: critical
+  extra_constraint: warn
+  constraint_definition_mismatch: critical
+
+  # Migration governance
+  migration_pending: critical
+  migration_unknown: critical
+  checksum_mismatch: critical
+
+# ---------------------------------------------------------------------------
+# Detection frequency
+# ---------------------------------------------------------------------------
+schedule:
+  on_startup: true          # introspect + diff once during service bootstrap
+  daily: true               # scheduled daily introspection
+  daily_cron: "0 4 * * *"   # 04:00 UTC, off-peak
+  interval_sec: 60          # background refresh cadence (manifest driftCheckIntervalSec)
+  refresh_rate_limit_sec: 30  # minimum gap between forced ?refresh=true ops API calls
+
+# ---------------------------------------------------------------------------
+# Drift response
+# ---------------------------------------------------------------------------
+response:
+  # warn: reported, non-blocking. Service proceeds to OPERATIONAL.
+  warn:
+    block_startup: false
+    emit_metric: true
+    emit_log: true
+  # critical: blocks startup and fails release gate. Service MUST NOT enter
+  # OPERATIONAL when critical diffs are present (DATABASE_FRAMEWORK_SPEC.md 4.2).
+  critical:
+    block_startup: true
+    fail_release_gate: true
+    emit_metric: true
+    emit_log: true
+
+# ---------------------------------------------------------------------------
+# Report output
+# ---------------------------------------------------------------------------
+report:
+  format: json
+  shape: sdkwork.database.drift-report   # DATABASE_FRAMEWORK_SPEC.md 9.3
+  directory: logs
+  filename_pattern: drift-report-{date}.json  # {date} = YYYY-MM-DD (UTC)
+  archive_after_days: 30
+  redact_secrets: true                    # never expose credentials/row data (SPEC 9.4)
+
+# ---------------------------------------------------------------------------
+# Overrides (kept from the prior skeleton for compatibility)
+# ---------------------------------------------------------------------------
 rules:
   ignoreTables: []
   ignoreColumns: []
   severityOverrides: {}
+
+# ---------------------------------------------------------------------------
+# CI integration
+# ---------------------------------------------------------------------------
+# Wired into `pnpm check:arch` via scripts/database-drift-policy-contract.test.mjs
+# so a regressed/empty drift policy fails the architecture contract gate.
+ci:
+  contract_test: scripts/database-drift-policy-contract.test.mjs
+  gate: check:arch

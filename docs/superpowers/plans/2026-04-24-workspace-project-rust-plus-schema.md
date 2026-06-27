@@ -22,7 +22,7 @@
 ### Task 2: Align server Rust schema and migrations
 
 **Files:**
-- Modify: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- Modify: `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 
 - [ ] Add the missing `workspace/project` columns to the `CREATE TABLE` declarations.
 - [ ] Extend schema-upgrade column ensure lists so old SQLite files receive the new columns.
@@ -31,7 +31,7 @@
 ### Task 3: Align server payloads and CRUD paths
 
 **Files:**
-- Modify: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- Modify: `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 
 - [ ] Add the new fields to `WorkspacePayload`, `ProjectPayload`, `CreateWorkspaceRequest`, `UpdateWorkspaceRequest`, `CreateProjectRequest`, and `UpdateProjectRequest`.
 - [ ] Update workspace/project read queries plus row mappers to load the new fields.
@@ -49,8 +49,8 @@
 ### Task 5: Verify the slice
 
 **Files:**
-- Modify if needed: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- Modify if needed: `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 
 - [ ] Run `node scripts/rust-workspace-project-schema-parity-contract.test.mjs`.
-- [ ] Run `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml rust_sqlite_provider_schema_upgrade_adds_plus_business_columns -- --exact` if needed, or the nearest targeted Rust verification available after compile feedback.
+- [ ] Run `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml rust_sqlite_provider_schema_upgrade_adds_plus_business_columns -- --exact` if needed, or the nearest targeted Rust verification available after compile feedback.
 - [ ] Run any targeted TypeScript or contract verification needed only if Rust-facing API surface changes require it.

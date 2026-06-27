@@ -32,8 +32,9 @@ This is a multi-surface SDKWork application repository. Read `sdkwork.app.config
 
 ### Shared Packages
 
-- `packages/sdkwork-birdcoder-*` — Cross-surface shared packages (13 packages)
+- `packages/sdkwork-birdcoder-*` — Cross-surface shared contracts owned by this repository (currently 1 package: `sdkwork-birdcoder-chat-contracts`)
 - Each app root has its own surface-specific packages in `packages/`
+- Shared SDKWork platform packages (`sdkwork-iam`, `sdkwork-appbase`, `sdkwork-ui`, `sdkwork-core`, `sdkwork-utils`, etc.) are external workspace dependencies resolved through `pnpm-workspace.yaml`, not owned by this repository
 
 ## Local Dictionary Structure
 
@@ -117,34 +118,19 @@ Use the convention dictionary instead of broad context loading. Do not hand-edit
 
 Request human review before breaking SDKWORK standards, changing public naming, altering security/auth behavior, changing database migrations or production deployment config, deleting data/files, or changing generated SDK ownership. Surface unresolved spec paths, app identity conflicts, component ownership conflicts, and API authority ambiguity instead of guessing.
 
-## Existing Local Guidance
+## Additional Build Commands
 
-The repository-specific guidance below was preserved from the previous `AGENTS.md`. If it conflicts with the SDKWORK sections above or with `../sdkwork-specs/`, the SDKWORK standards win.
+- `pnpm install --frozen-lockfile`: install the workspace exactly as CI expects.
+- `pnpm dev:test`: start the test-mode web host.
+- `pnpm server:build`: build the Rust server host.
+- `pnpm tauri:dev` / `pnpm tauri:build`: run the desktop host.
+- `pnpm check:desktop` / `pnpm check:server` / `pnpm check:multi-mode`: verify target-specific delivery layers.
+- `pnpm docs:build`: build the VitePress documentation site.
 
-### Project Structure & Module Organization
-This workspace follows the SDKWork PC architecture standard. All PC-specific packages live in `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*` with package manifest names `@sdkwork/birdcoder-pc-*`. Foundational layers include `@sdkwork/birdcoder-pc-core`, `-pc-types`, `-pc-i18n`, `-pc-infrastructure`, `-pc-commons`, and `-pc-shell`. PC delivery targets include `@sdkwork/birdcoder-pc-web`, `-pc-desktop`, and `-pc-server`. PC product modules such as `@sdkwork/birdcoder-pc-code`, `-pc-studio`, `-pc-chat`, `-pc-skills`, `-pc-templates` keep BirdCoder PC business behavior isolated from the architecture shell. Deployment assets are in `deployments/`; release automation is in `scripts/release`; docs are in `docs/`.
+## Testing
 
-### Build, Test, and Development Commands
-- `pnpm install --frozen-lockfile` installs the workspace exactly as CI expects.
-- `pnpm dev` runs the web host locally; `pnpm dev:test` starts the test-mode web host.
-- `pnpm build` builds the shared workspace and web shell; `pnpm server:build` builds the Rust server host.
-- `pnpm tauri:dev` and `pnpm tauri:build` run the desktop host.
-- `pnpm lint` runs TypeScript, architecture, structure, CI, and release-flow checks.
-- `pnpm check:package-governance` validates scoped package naming, internal `workspace:*` dependencies, and root-owned shared dependency versions.
-- `pnpm check:desktop`, `pnpm check:server`, and `pnpm check:multi-mode` verify target-specific delivery layers.
-- `pnpm docs:build` builds the VitePress documentation site.
-
-### Coding Style & Naming Conventions
-Use TypeScript with 2-space indentation and keep exports centered in each package `src/index.ts`. React components and providers use `PascalCase`; hooks and helpers use `camelCase`. Directory names stay on `sdkwork-birdcoder-*`, package manifest names and import specifiers use `@sdkwork/birdcoder-*`, internal workspace dependencies use `workspace:*`, and repeated third-party versions must be governed from the root `pnpm-workspace.yaml` `catalog` instead of being re-versioned per package. Prefer editing standardized package layers instead of adding new root-level glue. Keep deployment and release metadata explicit: `platform`, `arch`, and `accelerator` are required naming dimensions.
-
-### Previous SDKWORK Standards Notes
-Before changing domains, APIs, SDK contracts, database schemas, reusable modules, frontend UI/service logic, app manifests, IAM/auth/permission behavior, deployment/runtime configuration, external integrations, events, observability, performance, privacy, or generated-client integration, read the canonical standards in `../sdkwork-specs/README.md` and then the relevant spec files under `../sdkwork-specs/`. Local conventions may extend these standards but must not contradict them.
-
-### Testing Guidelines
 Contract tests are script-based and live in `scripts/*.test.mjs` and `scripts/release/*.test.mjs`. Add focused tests beside the release or architecture script you change. Before submitting work, run at least `pnpm lint`; for release or deployment changes also run `pnpm check:release-flow` and the relevant `pnpm release:smoke:*` command.
 
-### Commit & Pull Request Guidelines
-Use short imperative commits with scope, for example `fix release asset manifest layout` or `chore align ci flow`. Pull requests should summarize the changed architecture area, list touched packages or deployment layers, include the exact verification commands run, and attach screenshots only for UI-visible shell changes.
+## Commit Guidelines
 
-### Security & Configuration Tips
-Keep secrets out of the repo. Use `.env.example` as the baseline, never commit real API keys, and prefer immutable container image tags or digests in release artifacts instead of mutable `latest` references.
+Use short imperative commits with scope, for example `fix release asset manifest layout` or `chore align ci flow`. Pull requests should summarize the changed architecture area, list touched packages or deployment layers, include the exact verification commands run, and attach screenshots only for UI-visible shell changes.

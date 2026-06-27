@@ -46,3 +46,7 @@ NUL
 .env.postgres
 .env.release.local
 configs/*.local.toml
+
+# SDKWork local runtime state
+.runtime/
+**/.runtime/

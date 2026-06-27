@@ -1,10 +1,19 @@
+// Approval & sandbox policy follows sdkwork-specs/SECURITY_SPEC.md sandbox
+// principles: the `--full-auto` flag, `danger-full-access` sandbox mode, and
+// `approval_policy="never"` (auto-approve every action) are prohibited because
+// they bypass sandbox boundaries. PowerShell ExecutionPolicy is never bypassed.
+// Mutating operations must run under `workspace-write` or stricter with an
+// approval policy of `on-failure` or `untrusted` so failures pause for review.
 use std::{
     env,
     ffi::OsString,
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
+    sync::atomic::{AtomicBool, Ordering},
+    sync::Arc,
     thread,
+    time::Duration,
 };
 
 use serde_json::{Map, Value};
@@ -18,6 +27,9 @@ use crate::{
 
 const CODEX_ENGINE_ID: &str = "codex";
 
+/// Default CLI execution timeout in seconds (5 minutes).
+const DEFAULT_CLI_TIMEOUT_SECS: u64 = 300;
+
 #[derive(Clone, Debug, Default)]
 pub struct CodexCliTurnRequest {
     pub prompt_text: String,
@@ -29,6 +41,9 @@ pub struct CodexCliTurnRequest {
     pub sandbox_mode: Option<String>,
     pub skip_git_repo_check: bool,
     pub ephemeral: bool,
+    /// Maximum wall-clock seconds the CLI may run before it is killed.
+    /// When `None`, falls back to `DEFAULT_CLI_TIMEOUT_SECS` (300 s).
+    pub timeout_secs: Option<u64>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -79,6 +94,42 @@ fn execute_codex_cli_turn_inner(
     let mut child = command
         .spawn()
         .map_err(|error| format!("spawn codex cli failed: {error}"))?;
+
+    // Watchdog: kill the child process if it exceeds the timeout.
+    let timeout_secs = request.timeout_secs.unwrap_or(DEFAULT_CLI_TIMEOUT_SECS);
+    let completed = Arc::new(AtomicBool::new(false));
+    let watchdog_completed = completed.clone();
+    let watchdog_killed = Arc::new(AtomicBool::new(false));
+    let watchdog_killed_flag = watchdog_killed.clone();
+    let watchdog_child_id = child.id();
+    let watchdog = thread::spawn(move || {
+        thread::sleep(Duration::from_secs(timeout_secs));
+        // If the main thread has already finished, do nothing.
+        if watchdog_completed.load(Ordering::SeqCst) {
+            return;
+        }
+        // Mark that the watchdog is killing the child.
+        watchdog_killed_flag.store(true, Ordering::SeqCst);
+        if let Some(pid) = watchdog_child_id {
+            #[cfg(unix)]
+            {
+                // SAFETY: pid is a valid process ID from child.id(). SIGTERM
+                // is the standard signal for graceful process termination.
+                unsafe {
+                    libc::kill(pid as i32, libc::SIGTERM);
+                }
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = Command::new("taskkill")
+                    .args(["/PID", &pid.to_string(), "/F", "/T"])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status();
+            }
+        }
+    });
+
     let stdout_pipe = child
         .stdout
         .take()
@@ -120,6 +171,18 @@ fn execute_codex_cli_turn_inner(
     let status = child
         .wait()
         .map_err(|error| format!("wait for codex cli failed: {error}"))?;
+
+    // Signal the watchdog that the child has exited.
+    completed.store(true, Ordering::SeqCst);
+    let _ = watchdog.join();
+
+    // Check if the CLI was killed by the watchdog timeout.
+    if watchdog_killed.load(Ordering::SeqCst) {
+        return Err(format!(
+            "codex cli timed out after {timeout_secs} seconds and was terminated"
+        ));
+    }
+
     let stderr = stderr_reader
         .join()
         .unwrap_or_else(|_| "Codex CLI stderr reader panicked.".to_owned());
@@ -162,9 +225,6 @@ fn build_codex_cli_turn_args(
     let should_expand_full_auto =
         request.full_auto && (sandbox_mode.is_some() || approval_policy.is_some());
 
-    if request.full_auto && !should_expand_full_auto {
-        args.push("--full-auto".into());
-    }
     if request.skip_git_repo_check {
         args.push("--skip-git-repo-check".into());
     }
@@ -190,7 +250,7 @@ fn build_codex_cli_turn_args(
 
     if let Some(approval_policy) = approval_policy.or_else(|| {
         if should_expand_full_auto {
-            Some("never".to_owned())
+            Some("on-failure".to_owned())
         } else {
             None
         }
@@ -668,12 +728,7 @@ fn create_windows_command_for_resolved_path(path: &Path) -> Command {
         }
         Some("ps1") => {
             let mut command = Command::new("powershell");
-            command
-                .arg("-NoProfile")
-                .arg("-ExecutionPolicy")
-                .arg("Bypass")
-                .arg("-File")
-                .arg(path);
+            command.arg("-NoProfile").arg("-File").arg(path);
             command
         }
         _ => Command::new(path),
@@ -826,11 +881,11 @@ fn normalize_codex_cli_sandbox_mode(value: Option<&str>) -> Result<Option<String
     match normalize_codex_cli_config_key(normalized.as_str()).as_str() {
         "readonly" => Ok(Some("read-only".to_owned())),
         "workspacewrite" => Ok(Some("workspace-write".to_owned())),
-        "dangerfullaccess" | "dangerouslybypassapprovalsandsandbox" | "none" => {
-            Ok(Some("danger-full-access".to_owned()))
-        }
+        "dangerfullaccess" | "dangerouslybypassapprovalsandsandbox" | "none" => Err(format!(
+            "Codex CLI sandbox mode \"{normalized}\" bypasses the sandbox and is prohibited under SECURITY_SPEC. Expected read-only or workspace-write."
+        )),
         _ => Err(format!(
-            "Unsupported Codex CLI sandbox mode \"{normalized}\". Expected read-only, workspace-write, or danger-full-access."
+            "Unsupported Codex CLI sandbox mode \"{normalized}\". Expected read-only or workspace-write."
         )),
     }
 }
@@ -841,12 +896,12 @@ fn normalize_codex_cli_approval_policy(value: Option<&str>) -> Result<Option<Str
     };
 
     match normalize_codex_cli_config_key(normalized.as_str()).as_str() {
-        "autoallow" | "never" => Ok(Some("never".to_owned())),
+        "autoallow" | "never" => Ok(Some("on-failure".to_owned())),
         "onrequest" => Ok(Some("on-request".to_owned())),
         "restricted" | "untrusted" | "unlesstrusted" => Ok(Some("untrusted".to_owned())),
         "releaseonly" | "onfailure" => Ok(Some("on-failure".to_owned())),
         _ => Err(format!(
-            "Unsupported Codex CLI approval policy \"{normalized}\". Expected AutoAllow, OnRequest, Restricted, ReleaseOnly, never, untrusted, on-failure, or on-request."
+            "Unsupported Codex CLI approval policy \"{normalized}\". Expected AutoAllow, OnRequest, Restricted, ReleaseOnly, untrusted, on-failure, or on-request."
         )),
     }
 }
@@ -913,6 +968,7 @@ mod tests {
                 sandbox_mode: Some("workspace_write".to_owned()),
                 skip_git_repo_check: true,
                 ephemeral: true,
+                timeout_secs: None,
             },
             Some("thread-1"),
         );

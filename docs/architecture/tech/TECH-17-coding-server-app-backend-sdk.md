@@ -139,7 +139,7 @@
 - `pnpm.cmd run test:sql-executor-table-repository-contract`
 - `pnpm.cmd run test:sql-executor-projection-repository-contract`
 - `cargo test --offline --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml`
-- `cargo test --offline --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+- `cargo test --offline --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
 - `pnpm.cmd run check:server`
 - `pnpm.cmd run typecheck`
 - `pnpm.cmd run docs:build`
@@ -364,7 +364,7 @@
 
 ## 26. Current Loop Addendum - Real App Runtime Create Session Turn Route
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs` now makes `POST /app/v3/api/coding_sessions/:id/turns` a real authority write route instead of `not_implemented`.
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs` now makes `POST /app/v3/api/coding_sessions/:id/turns` a real authority write route instead of `not_implemented`.
 - Rust host turn creation now:
   - validates `requestKind` plus `inputSummary`
   - returns `201 Created` with a real turn payload
@@ -372,9 +372,9 @@
   - persists `coding_session_turns`, `coding_session_events`, and `coding_session_operations` in sqlite-provider mode
   - refreshes `coding_sessions.updated_at` / `last_turn_at` plus runtime state before reloading provider-backed projections
 - Executable verification for this closure now includes:
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_turn_route_returns_created_turn_and_makes_projection_readable`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_turn_route_returns_not_found_for_missing_session`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml create_coding_session_turn_route_persists_into_sqlite_provider_authority`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml create_coding_session_turn_route_returns_created_turn_and_makes_projection_readable`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml create_coding_session_turn_route_returns_not_found_for_missing_session`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml create_coding_session_turn_route_persists_into_sqlite_provider_authority`
 - Follow-on closure from this point is now superseded by later Step 17 writebacks; the typed app runtime write SDK facade for `codingSessions.turns.create` and its first real consumer path are already closed.
 
 ## 27. Current Loop Addendum - Typed App Runtime Create Session Turn Facade And Consumer Adoption
@@ -400,7 +400,7 @@
 - app runtime SDK governance is now fully promoted for currently real app runtime routes:
   - promoted: `approvals.decisions.create`, `codingSessions.turns.create`, `codingSessions.create`, and the existing implemented app runtime read operations
   - excluded: none
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs` now makes `POST /app/v3/api/approvals/:approvalId/decision` a real authority write route instead of `not_implemented`.
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs` now makes `POST /app/v3/api/approvals/:approvalId/decision` a real authority write route instead of `not_implemented`.
 - Approval authority truth is now replayable in both execution modes:
   - demo/snapshot-backed host mutates shared projection authority
   - sqlite provider-backed host persists checkpoint/event/operation/turn state, then reloads projection truth from provider tables
@@ -408,7 +408,7 @@
 - `loadCodingSessionApprovalState()`, `submitCodingSessionApprovalDecision()`, and `useCodingSessionApprovalState()` now close the first real approval-facing consumer path on top of that facade.
 - Canonical approval-resolution replay now uses `operation.updated.payload.approvalDecision`; do not emit a duplicate `decision` event field.
 - Executable verification for this closure now includes:
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml submit_approval_decision_route`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml submit_approval_decision_route`
   - `pnpm.cmd run test:app-runtime-write-sdk-client-contract`
   - `pnpm.cmd run test:app-runtime-sdk-facade-governance-contract`
   - `pnpm.cmd run test:coding-session-approval-consumer-contract`
@@ -419,7 +419,7 @@
 
 ## 29. Current Loop Addendum - Real App Document Catalog Lane
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs` now makes `GET /app/v3/api/documents` a real authority read route instead of `not_implemented`.
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs` now makes `GET /app/v3/api/documents` a real authority read route instead of `not_implemented`.
 - Representative document catalog truth is now replayable in all current authority modes:
   - demo host reads `AppState.documents`
   - legacy sqlite `kv_store` materializes `table.sqlite.project-documents.v1` into provider-side `project_documents`
@@ -428,9 +428,9 @@
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and `sdkClients.ts` now promote `project_documents` into the shared repository/query/transport boundary instead of leaving documents on mock-only state.
 - `IDocumentService`, `ApiBackedDocumentService`, default IDE service composition, shared contexts, `loadDocuments()`, and `useDocuments()` now close the first document-facing consumer path on top of the shared app/backend facade.
 - Executable verification for this closure now includes:
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured`
   - `pnpm.cmd run test:split-sdk-client-facade-contract`
   - `pnpm.cmd run test:provider-backed-console-contract`
   - `pnpm.cmd run test:split-sdk-consumer-contract`
@@ -441,7 +441,7 @@
 
 ## 30. Current Loop Addendum - Real Admin Audit Lane
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs` now makes `GET /backend/v3/api/iam/audit_events` a real authority read route instead of `not_implemented`.
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs` now makes `GET /backend/v3/api/iam/audit_events` a real authority read route instead of `not_implemented`.
 - Representative audit catalog truth is now replayable in all current authority modes:
   - demo host reads in-process audit state
   - legacy sqlite `kv_store` materializes `table.sqlite.audit-events.v1` into provider-side `audit_events`
@@ -450,9 +450,9 @@
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and `sdkClients.ts` now promote `audit_events` into the shared repository/query/transport boundary instead of leaving audit reads on mock-only state.
 - `IAuditService`, `ApiBackedAuditService`, default IDE service composition, shared contexts, `loadAuditEvents()`, and `useAuditEvents()` now close the first audit-facing consumer path on top of the shared app/backend facade.
 - Executable verification for this closure now includes:
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured`
   - `pnpm.cmd run test:split-sdk-client-facade-contract`
   - `pnpm.cmd run test:default-ide-services-audit-service-contract`
   - `pnpm.cmd run test:audit-admin-consumer-contract`
@@ -464,7 +464,7 @@
 
 ## 31. Current Loop Addendum - Real App Deployment Catalog Lane
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs` now makes `GET /app/v3/api/deployments` a real authority read route instead of `not_implemented`.
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs` now makes `GET /app/v3/api/deployments` a real authority read route instead of `not_implemented`.
 - Representative deployment catalog truth is now replayable in all current authority modes:
   - demo host reads in-process deployment state
   - legacy sqlite `kv_store` materializes deployment payloads into provider-side `deployment_records`
@@ -473,9 +473,9 @@
 - `appConsoleRepository.ts`, `consoleQueries.ts`, and transport-backed app/backend client wiring now promote `deployment_records` through the shared repository/query/transport boundary instead of leaving deployment reads on mock-only state.
 - `IDeploymentService`, `ApiBackedDeploymentService`, default IDE service composition, shared contexts, `loadDeployments()`, and `useDeployments()` now close the first deployment-facing consumer path on top of the shared app/backend facade.
 - Executable verification for this closure now includes:
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
   - `pnpm.cmd run test:split-sdk-client-facade-contract`
   - `pnpm.cmd run test:provider-backed-console-contract`
   - `pnpm.cmd run test:sqlite-app/backend-repository-contract`
@@ -492,7 +492,7 @@
 
 ## 32. Current Loop Addendum - Real Admin Deployment Governance Lane
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs` now makes `GET /backend/v3/api/deployments` a real authority read route instead of `not_implemented`.
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs` now makes `GET /backend/v3/api/deployments` a real authority read route instead of `not_implemented`.
 - Representative backend deployment truth is now replayable in all current authority modes:
   - demo host reads in-process deployment state
   - legacy sqlite `kv_store` materializes deployment payloads into provider-side `deployment_records`
@@ -501,9 +501,9 @@
 - In-process transport plus the shared deployment query/repository layer now serve both app/backend deployment surfaces from one authority path without DTO drift.
 - `IAdminDeploymentService`, `ApiBackedAdminDeploymentService`, default IDE service composition, shared contexts, `loadAdminDeployments()`, and `useAdminDeployments()` now close the first backend deployment-facing consumer path on top of the shared app/backend facade.
 - Executable verification for this closure now includes:
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
   - `pnpm.cmd run test:split-sdk-client-facade-contract`
   - `pnpm.cmd run test:split-sdk-consumer-contract`
   - `pnpm.cmd run test:default-ide-services-admin-deployment-service-contract`
@@ -517,7 +517,7 @@
 
 ## 33. Current Loop Addendum - Real Admin Policy Governance Lane
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs` now makes `GET /backend/v3/api/iam/policies` a real authority read route instead of `not_implemented`.
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs` now makes `GET /backend/v3/api/iam/policies` a real authority read route instead of `not_implemented`.
 - Representative backend policy truth now converges on one dedicated governance authority path:
   - demo host: in-process policy state
   - legacy sqlite `kv_store`: `table.sqlite.governance-policies.v1` materialized into `governance_policies`
@@ -531,10 +531,10 @@
   - `pnpm.cmd run test:default-ide-services-admin-policy-service-contract`
   - `pnpm.cmd run test:admin-policy-consumer-contract`
   - `pnpm.cmd run test:sqlite-app/backend-repository-contract`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
   - `pnpm.cmd run typecheck`
 - `pnpm.cmd run docs:build`
 - `pnpm.cmd run check:release-flow`

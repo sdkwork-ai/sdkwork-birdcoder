@@ -31,8 +31,8 @@ assert.match(
 );
 assert.match(
   overlaySource,
-  /minReplicas: 2/u,
-  'PostgreSQL HA overlay must set database.engine to postgresql.',
+  /minReplicas: 3/u,
+  'PostgreSQL HA overlay must set autoscaling.minReplicas to 3 for HA quorum.',
 );
 assert.match(
   overlaySource,

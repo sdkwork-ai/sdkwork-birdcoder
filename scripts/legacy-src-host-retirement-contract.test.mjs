@@ -23,19 +23,19 @@ const srcHostCargo = fs.readFileSync(srcHostCargoPath, 'utf8');
 
 assert.match(
   pcServerPackageJson.scripts['dev:base'],
-  /sdkwork-birdcoder-api-server/u,
-  'PC server dev must run the workspace sdkwork-birdcoder-api-server crate.',
+  /sdkwork-birdcoder-standalone-gateway/u,
+  'PC server dev must run the workspace sdkwork-birdcoder-standalone-gateway crate.',
 );
 assert.match(
   pcServerPackageJson.scripts['build:base'],
   /run-birdcoder-server-build/u,
-  'PC server build must route through the canonical api-server build script.',
+  'PC server build must route through the canonical standalone-gateway build script.',
 );
 
 assert.match(
   rootPackageJson.scripts['check:server'],
-  /sdkwork-birdcoder-api-server/u,
-  'check:server must verify sdkwork-birdcoder-api-server instead of the retired src-host monolith.',
+  /sdkwork-birdcoder-standalone-gateway/u,
+  'check:server must verify sdkwork-birdcoder-standalone-gateway instead of the retired src-host monolith.',
 );
 assert.doesNotMatch(
   rootPackageJson.scripts['check:server'],
@@ -68,8 +68,8 @@ assert.doesNotMatch(
 );
 assert.match(
   srcHostCargo,
-  /sdkwork-birdcoder-api-server/u,
-  'src-host shim manifest must depend on sdkwork-birdcoder-api-server.',
+  /sdkwork-birdcoder-standalone-gateway/u,
+  'src-host shim manifest must depend on sdkwork-birdcoder-standalone-gateway.',
 );
 
 console.log('legacy src-host retirement contract passed.');

@@ -1,6 +1,9 @@
 image:
   repository: ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server
-  tag: release-local
+  # tag is used for development and testing only.
+  # Production deployments MUST set digest to an immutable SHA256 digest
+  # (e.g. sha256:abc123...) and leave tag empty.
+  tag: ""
   digest: ""
   pullPolicy: IfNotPresent
 
@@ -26,6 +29,8 @@ redis:
   database: 0
   keyPrefix: birdcoder
   tls: false
+  username: ""
+  password: ""
 
 ingress:
   enabled: false
@@ -40,11 +45,18 @@ runtime:
   deploymentProfile: cloud
   runtimeTarget: container
   environment: production
-  otelServiceName: sdkwork-birdcoder-api-server
+  otelServiceName: sdkwork-birdcoder-standalone-gateway
 
 auth:
   manageUsername: sdkwork-birdcoder-admin
   managePassword: ""
+  # existingSecret: when set, the Helm chart will NOT create a Secret resource.
+  # Instead, the deployment references a pre-provisioned secret (e.g. created
+  # by External Secrets Operator, Sealed Secrets, or cloud KMS). The secret
+  # must contain keys: manageUsername, managePassword, and optionally
+  # SDKWORK_BIRDCODER_DATABASE_URL, SDKWORK_BIRDCODER_REDIS_USERNAME,
+  # SDKWORK_BIRDCODER_REDIS_PASSWORD.
+  existingSecret: ""
 
 podSecurityContext:
   runAsNonRoot: true
@@ -82,7 +94,12 @@ autoscaling:
 
 podDisruptionBudget:
   enabled: true
+  # When replicaCount is 1 the PDB is skipped because a single-replica
+  # deployment cannot maintain availability during voluntary disruptions.
+  # Use maxUnavailable (preferred) or minAvailable to control how many pods
+  # can be disrupted during node maintenance.
   minAvailable: 1
+  maxUnavailable: ""
 
 networkPolicy:
   enabled: true
@@ -156,8 +173,29 @@ serviceMonitor:
   interval: 30s
   scrapeTimeout: 10s
 
+observability:
+  logLevel: info
+  tracesExporter: otlp
+  # Standalone/dev profile ships no OTLP collector. Production MUST inject the
+  # collector endpoint via `values-postgresql-ha.yaml` or an external secret
+  # (see `observability.otlpEndpoint` in that overlay).
+  otlpEndpoint: ""
+  otlpProtocol: grpc
+  metricsExporter: prometheus
+  logsExporter: otlp
+  # Default 10% trace sampling. Override with `observability.tracesSamplingRatio`.
+  # The ConfigMap emits OTEL_TRACES_SAMPLER=parentbased_traceidratio plus
+  # OTEL_TRACES_SAMPLER_ARG only when this value is non-empty.
+  tracesSamplingRatio: "0.1"
+
 backup:
   enabled: false
   schedule: "0 3 * * *"
   retentionDays: 14
+  # Production deployments MUST pin the backup image with an immutable digest.
+  # Set imageDigest to override the tag-based reference (e.g. sha256:abc123...).
   image: postgres:16-alpine
+  imageDigest: ""
+  # Optional: provide a test database URL for restore verification.
+  # When set, each backup job will attempt to restore to this database.
+  verifyDatabaseUrl: ""

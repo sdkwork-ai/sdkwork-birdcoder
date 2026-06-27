@@ -26,15 +26,15 @@ function resolveCargoWorkspaceCrateRoot(cargoTomlSource, dependencyKey) {
 const birdCoderCargoSource = readText(workspaceRoot, 'Cargo.toml');
 const birdCoderServerCargoSource = readText(
   workspaceRoot,
-  'crates/sdkwork-birdcoder-api-server/Cargo.toml',
+  'crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml',
 );
 const apiServerIamBootstrapSource = readText(
   workspaceRoot,
-  'crates/sdkwork-birdcoder-api-server/src/bootstrap/iam.rs',
+  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/iam.rs',
 );
 const apiServerRoutersSource = readText(
   workspaceRoot,
-  'crates/sdkwork-birdcoder-api-server/src/bootstrap/routers.rs',
+  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs',
 );
 
 const iamContextCrateRoot = resolveCargoWorkspaceCrateRoot(
@@ -75,39 +75,39 @@ for (const [requiredDependencyName, pattern] of [
   assert.match(
     birdCoderServerCargoSource,
     pattern,
-    `BirdCoder api-server must depend on the standard ${requiredDependencyName} crate.`,
+    `BirdCoder standalone-gateway must depend on the standard ${requiredDependencyName} crate.`,
   );
 }
 
 assert.match(
   apiServerIamBootstrapSource,
   /sdkwork_routes_iam_app_api::build_sdkwork_iam_app_api_router/u,
-  'BirdCoder api-server IAM bootstrap must wire the standard sdkwork-iam app router.',
+  'BirdCoder standalone-gateway IAM bootstrap must wire the standard sdkwork-iam app router.',
 );
 assert.match(
   apiServerIamBootstrapSource,
   /bootstrap_iam_database_from_env/u,
-  'BirdCoder api-server IAM bootstrap must bootstrap IAM schema before tenant application provisioning.',
+  'BirdCoder standalone-gateway IAM bootstrap must bootstrap IAM schema before tenant application provisioning.',
 );
 assert.match(
   apiServerIamBootstrapSource,
   /ensure_birdcoder_tenant_application_bootstrap/u,
-  'BirdCoder api-server IAM bootstrap must provision tenant applications before building the IAM router.',
+  'BirdCoder standalone-gateway IAM bootstrap must provision tenant applications before building the IAM router.',
 );
 assert.match(
   apiServerIamBootstrapSource,
   /ensure_tenant_application_from_app_root_with_env_and_fallback/u,
-  'BirdCoder api-server IAM bootstrap must delegate to the shared embedded bootstrap crate.',
+  'BirdCoder standalone-gateway IAM bootstrap must delegate to the shared embedded bootstrap crate.',
 );
 assert.match(
   apiServerIamBootstrapSource,
   /sdkwork_routes_iam_backend_api::build_sdkwork_iam_backend_api_router_from_env/u,
-  'BirdCoder api-server IAM bootstrap must wire the standard sdkwork-iam backend router.',
+  'BirdCoder standalone-gateway IAM bootstrap must wire the standard sdkwork-iam backend router.',
 );
 assert.match(
   apiServerRoutersSource,
   /wire_iam_routers/u,
-  'BirdCoder api-server router assembly must merge federated sdkwork-iam app and backend routers.',
+  'BirdCoder standalone-gateway router assembly must merge federated sdkwork-iam app and backend routers.',
 );
 
 for (const requiredIamCorePattern of [
@@ -161,7 +161,7 @@ for (const forbiddenBirdCoderIamPattern of [
   assert.doesNotMatch(
     apiServerIamBootstrapSource,
     forbiddenBirdCoderIamPattern,
-    'BirdCoder api-server IAM bootstrap must not publish bootstrap identity env injection.',
+    'BirdCoder standalone-gateway IAM bootstrap must not publish bootstrap identity env injection.',
   );
 }
 

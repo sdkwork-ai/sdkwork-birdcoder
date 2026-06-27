@@ -68,7 +68,7 @@ pnpm check:iam-standard
 pnpm check:sdk-family-standard
 pnpm generate:sdk:birdcoder
 pnpm check:sdk-family-generated
-cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml
+cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml
 cargo test --manifest-path packages/sdkwork-birdcoder-desktop/src-tauri/Cargo.toml
 ```
 

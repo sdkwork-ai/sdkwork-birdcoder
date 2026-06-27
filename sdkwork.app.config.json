@@ -315,13 +315,14 @@
     "standardOwner": "sdkwork-platform",
     "initializedAt": "2026-05-07T00:00:00Z",
     "preLaunch": true,
-    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-prelaunch-artifacts-pending",
+    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-ci-governance-wired-prelaunch-artifacts-pending-manifest-honesty-corrected",
     "commercialReadiness": {
-      "pcPrivateBeta": "openapi-132-of-132-iam-federation-teams-aligned",
+      "pcPrivateBeta": "openapi-100-paths-147-methods-iam-federation-teams-aligned",
       "enterpriseK8s": "postgresql-ha-backup-template-ci-smoke-iam-db-health-ping-aligned",
       "saasPublicCloud": "governance-regression-release-rehearsal-openapi-complete-prelaunch-artifacts-pending",
       "mobileProductParity": "h5-flutter-ci-smoke-capacitor-sync-android-assemble-aligned",
-      "manifestHonesty": "root-h5-flutter-draft-prelaunch-contract-gated"
+      "manifestHonesty": "root-1-shared-package-h5-flutter-draft-prelaunch-contract-gated",
+      "releaseGovernanceCI": "sbom-cosign-trivy-macos-signing-checksum-workflow-wired-pending-release-validation"
     }
   }
 }

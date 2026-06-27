@@ -55,8 +55,8 @@
 ### Task 4: Close the Rust host route on the same authority path
 
 **Files:**
-- Modify: `crates/sdkwork-birdcoder-api-server/src/lib.rs`
-- Test: targeted Rust route assertions in `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- Modify: `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
+- Test: targeted Rust route assertions in `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 
 - [ ] **Step 1: Write the failing Rust host route and OpenAPI assertions**
 - [ ] **Step 2: Run tests to verify they fail**

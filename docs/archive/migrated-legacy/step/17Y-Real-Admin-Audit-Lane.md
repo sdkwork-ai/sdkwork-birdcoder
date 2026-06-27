@@ -10,7 +10,7 @@ Turn `GET /backend/v3/api/audit` from a `not_implemented` placeholder into a rea
 
 ## Scope
 
-- `crates/sdkwork-birdcoder-api-server/src/lib.rs`
+- `crates/sdkwork-birdcoder-standalone-gateway/src/lib.rs`
 - representative audit authority slice on shared provider/UoW truth
 - `packages/sdkwork-birdcoder-types/src/server-api.ts`
 - shared app/backend facade governance for `admin.listAuditEvents`
@@ -27,9 +27,9 @@ Turn `GET /backend/v3/api/audit` from a `not_implemented` placeholder into a rea
 
 ## Verification
 
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
-- `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml representative_app_and_admin_real_list_routes_return_runtime_data -- --nocapture`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_sqlite_kv_store_when_configured -- --nocapture`
+- `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml build_app_loads_projection_state_from_direct_sqlite_provider_tables_when_configured -- --nocapture`
 - `pnpm.cmd run test:split-sdk-client-facade-contract`
 - `pnpm.cmd run test:default-ide-services-audit-service-contract`
 - `pnpm.cmd run test:audit-admin-consumer-contract`

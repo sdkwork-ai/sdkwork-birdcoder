@@ -80,6 +80,17 @@ impl CodingSessionService {
 
     // ── Create session ───────────────────────────────────────────────────
 
+    #[tracing::instrument(
+        name = "coding_session.create",
+        skip(self, ctx, request),
+        fields(
+            tenant_id = %ctx.tenant_id,
+            user_id = %ctx.user_id,
+            session_id = tracing::field::Empty,
+            workspace_id = tracing::field::Empty,
+        ),
+        err
+    )]
     pub async fn create_session(
         &self,
         ctx: &CodingSessionContext,
@@ -88,6 +99,10 @@ impl CodingSessionService {
         let input = Self::validate_create_session_request(request, self.engine_validator.as_ref())?;
 
         let session = self.repository.create_session(ctx, &input).await?;
+
+        tracing::Span::current()
+            .record("session_id", session.id.as_str())
+            .record("workspace_id", session.workspace_id.as_str());
 
         self.event_publisher
             .publish_coding_session_event(
@@ -189,12 +204,19 @@ impl CodingSessionService {
             ));
         }
 
-        let source_events = self.repository.list_events(ctx, &session_id).await.unwrap_or_default();
-
         let session = self
             .repository
             .fork_session(ctx, &session_id, &input)
             .await?;
+
+        // Copy conversation history (messages, turns, events, artifacts) from
+        // the source session to the forked session so the fork preserves the
+        // full transcript.
+        let copied_count = self
+            .repository
+            .copy_session_history(ctx, &session_id, &session.id)
+            .await
+            .unwrap_or(0);
 
         self.event_publisher
             .publish_coding_session_event(
@@ -208,7 +230,7 @@ impl CodingSessionService {
             )
             .await?;
 
-        let _ = source_events;
+        let _ = copied_count;
 
         Ok(session)
     }
@@ -292,6 +314,19 @@ impl CodingSessionService {
 
     // ── Create turn ──────────────────────────────────────────────────────
 
+    #[tracing::instrument(
+        name = "turn.execute",
+        skip(self, ctx, request),
+        fields(
+            tenant_id = %ctx.tenant_id,
+            user_id = %ctx.user_id,
+            session_id = %session_id,
+            workspace_id = tracing::field::Empty,
+            turn_id = tracing::field::Empty,
+            engine_id = tracing::field::Empty,
+        ),
+        err
+    )]
     pub async fn create_turn(
         &self,
         ctx: &CodingSessionContext,
@@ -305,7 +340,13 @@ impl CodingSessionService {
 
         let session = self.repository.get_session(ctx, &session_id).await?;
 
+        tracing::Span::current()
+            .record("workspace_id", session.workspace_id.as_str())
+            .record("engine_id", session.engine_id.as_str());
+
         let turn = self.repository.create_turn(ctx, &session_id, &input).await?;
+
+        tracing::Span::current().record("turn_id", turn.id.as_str());
 
         self.event_publisher
             .publish_coding_session_event(

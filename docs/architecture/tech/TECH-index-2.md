@@ -9,7 +9,7 @@ SDKWork BirdCoder is a super AI IDE workspace aligned with the Claw Studio archi
 
 - [Getting Started](./guide/getting-started.md)
 - [Architecture](./core/architecture.md)
-- [架构文档总览](./架构/README.md)
+- [架构文档总览](../README.md)
 - [Release And Deployment](./core/release-and-deployment.md)
 
 ## Delivery modes

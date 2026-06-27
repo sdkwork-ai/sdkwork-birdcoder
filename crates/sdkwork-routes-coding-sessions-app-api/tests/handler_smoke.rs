@@ -184,6 +184,7 @@ fn with_request_context(mut request: Request<Body>, iam: Option<IamAppContext>) 
             access_token_present: true,
             api_key_present: false,
             oauth_bearer_present: false,
+            agent_token_present: false,
         },
         principal: None,
         locale: None,

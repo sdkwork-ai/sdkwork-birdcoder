@@ -4,7 +4,7 @@
   <category android:name="android.intent.category.DEFAULT" />
   <category android:name="android.intent.category.BROWSABLE" />
   <data
-    android:scheme="birdcoder"
+    android:scheme="sdkwork.birdcoder"
     android:host="auth"
     android:pathPrefix="/oauth/callback" />
 </intent-filter>

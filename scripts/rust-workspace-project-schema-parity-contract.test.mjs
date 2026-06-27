@@ -7,7 +7,7 @@ import {
 
 const canonicalSqliteSchemaSource = readCanonicalSqliteSchemaBundle();
 const apiServerDatabaseSource = readCanonicalServerRustSource(
-  'crates/sdkwork-birdcoder-api-server/src/bootstrap/database.rs',
+  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/database.rs',
 );
 const databaseHostSource = readCanonicalServerRustSource(
   'crates/sdkwork-birdcoder-database-host/src/lib.rs',
@@ -346,12 +346,12 @@ for (const { label, source: rustSource } of sources) {
     assert.match(
       apiServerDatabaseSource,
       /bootstrap_database\(/,
-      'api-server database bootstrap must own database initialization.',
+      'standalone-gateway database bootstrap must own database initialization.',
     );
     assert.match(
       apiServerDatabaseSource,
       /sdkwork_birdcoder_database_host::bootstrap_birdcoder_database/,
-      'api-server database bootstrap must delegate schema lifecycle to sdkwork-birdcoder-database-host.',
+      'standalone-gateway database bootstrap must delegate schema lifecycle to sdkwork-birdcoder-database-host.',
     );
     assert.match(
       databaseHostSource,

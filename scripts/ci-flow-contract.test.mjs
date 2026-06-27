@@ -292,7 +292,7 @@ assert.match(
 assert.match(
   rootPackageJson.scripts['check:data-kernel'] ?? '',
   /canonical-server-realtime-event-publishers-contract\.test\.mjs/,
-  'Root quality scripts must forbid retired noop project/deployment event publishers on the canonical api-server.',
+  'Root quality scripts must forbid retired noop project/deployment event publishers on the canonical standalone-gateway.',
 );
 assert.match(
   rootPackageJson.scripts['check:data-kernel'] ?? '',

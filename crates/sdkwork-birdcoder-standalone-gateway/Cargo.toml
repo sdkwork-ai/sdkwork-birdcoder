@@ -1,0 +1,81 @@
+[package]
+name = "sdkwork-birdcoder-standalone-gateway"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+default-run = "sdkwork-birdcoder-standalone-gateway"
+
+[[bin]]
+name = "sdkwork-birdcoder-standalone-gateway"
+path = "src/main.rs"
+
+[dependencies]
+axum = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+time = { workspace = true }
+async-trait = { workspace = true }
+http = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rand = "0.8"
+sha2 = "0.10"
+hex = "0.4"
+sdkwork-web-bootstrap = { path = "../../../sdkwork-web-framework/crates/sdkwork-web-bootstrap", features = ["otel"] }
+
+# Route crates
+sdkwork-routes-system-app-api = { workspace = true }
+sdkwork-routes-engine-catalog-app-api = { workspace = true }
+sdkwork-routes-coding-sessions-app-api = { workspace = true }
+sdkwork-routes-workspace-app-api = { workspace = true }
+sdkwork-routes-document-app-api = { workspace = true }
+sdkwork-routes-skill-packages-app-api = { workspace = true }
+sdkwork-routes-membership-app-api = { workspace = true }
+sdkwork-routes-deployment-backend-api = { workspace = true }
+sdkwork_routes_iam_app_api = { workspace = true }
+sdkwork_routes_iam_backend_api = { workspace = true }
+sdkwork-web-axum.workspace = true
+sdkwork-web-core = { workspace = true }
+sdkwork-web-contract = { workspace = true }
+sdkwork_iam_web_adapter.workspace = true
+sdkwork_iam_embedded_application_bootstrap.workspace = true
+sdkwork_iam_database_host.workspace = true
+sdkwork_database_sqlx = { workspace = true }
+sdkwork_database_config = { workspace = true }
+sdkwork-birdcoder-database-host = { workspace = true }
+sqlx = { workspace = true }
+sdkwork-birdcoder-document-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-codeengine = { workspace = true }
+sdkwork-birdcoder-kernel-bridge = { workspace = true }
+sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-birdcoder-router-context = { workspace = true }
+
+# Service crates
+sdkwork-birdcoder-coding-sessions-service = { workspace = true }
+sdkwork-birdcoder-workspace-service = { workspace = true }
+sdkwork-birdcoder-project-service = { workspace = true }
+sdkwork-birdcoder-deployment-service = { workspace = true }
+sdkwork-birdcoder-engine-catalog-service = { workspace = true }
+sdkwork-birdcoder-native-sessions-service = { workspace = true }
+sdkwork-birdcoder-git = { workspace = true }
+sdkwork-birdcoder-skill-packages-service = { workspace = true }
+sdkwork-birdcoder-app-templates-service = { workspace = true }
+sdkwork-birdcoder-document-service = { workspace = true }
+sdkwork-birdcoder-membership-service = { workspace = true }
+sdkwork-birdcoder-system-descriptor-service = { workspace = true }
+
+# Repository crates
+sdkwork-birdcoder-coding-sessions-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-workspace-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-skill-packages-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-model-config-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-membership-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+tokio = { workspace = true }
+

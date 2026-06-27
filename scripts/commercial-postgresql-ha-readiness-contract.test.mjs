@@ -9,9 +9,9 @@ function readText(relativePath) {
 }
 
 const repositoriesSource = readText(
-  'crates/sdkwork-birdcoder-api-server/src/bootstrap/repositories.rs',
+  'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/repositories.rs',
 );
-const healthSource = readText('crates/sdkwork-birdcoder-api-server/src/health.rs');
+const healthSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/health.rs');
 const rootCargo = readText('Cargo.toml');
 const valuesSource = readText('deployments/kubernetes/values.yaml');
 const configMapSource = readText('deployments/kubernetes/templates/configmap.yaml');

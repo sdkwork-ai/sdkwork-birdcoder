@@ -7,7 +7,12 @@ compliance_level: L2
 engines:
   - sqlite
   - postgres
-table_prefix: ai_
+table_prefixes:
+  - ai_
+  - commerce_
+  - ops_
+  - runtime_
+  - studio_
 tables:
   - name: ai_coding_session
     lifecycle_status: active
@@ -118,5 +123,23 @@ tables:
     lifecycle_status: active
     owner: birdcoder-platform
   - name: commerce_membership_package
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: commerce_order
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: commerce_invoice
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: commerce_payment
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: commerce_usage_metering
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: commerce_api_key
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: commerce_notification
     lifecycle_status: active
     owner: birdcoder-platform

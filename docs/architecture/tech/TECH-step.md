@@ -7,9 +7,9 @@
 
 ## 1. 执行基线
 
-- 先读 `docs/架构/`、`docs/step/`、`docs/release/releases.json`、当前 `git status`。
+- 先读 `docs/architecture/`、`docs/architecture/tech/`、`docs/release/releases.json`、当前 `git status`。
 - 只以代码事实、测试事实、文档事实为准，禁止脑补“已完成”。
-- `core docs`、`docs/step/`、`docs/release/`、release assets 必须相互对齐，任何一处漂移都视为未闭环。
+- `core docs`、`docs/architecture/tech/`、`docs/release/`、release assets 必须相互对齐，任何一处漂移都视为未闭环。
 - 优先走最短串行闭环；能并行的批量并行，不能并行的明确串行原因。
 - 先批量完成当前批次可实现代码，再逐个 Step 进入测试、验收、回写，提升迭代效率。
 - 若当前动作不产生真实闭环，立即停止无效代码修改，先补失败测试、验证证据或文档事实。
@@ -301,13 +301,13 @@
   - unknown engine descriptor/capability lookups must stay explicit `null` instead of falling back to the default engine
   - `scripts/coding-server-engine-truth-contract.test.ts` makes that server-side truth promotion executable
 - The third Step 18 Rust-host-engine-truth slice is now closed:
-  - `scripts/generate-rust-host-engine-catalog.ts` materializes `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
+  - `scripts/generate-rust-host-engine-catalog.ts` materializes `crates/sdkwork-birdcoder-standalone-gateway/generated/engine-catalog.json`
   - Rust host loads that shared artifact via `include_str!("../generated/engine-catalog.json")` plus `OnceLock`
   - Rust host engine/model routes must no longer depend on local manual engine fixture helpers
   - `scripts/rust-host-engine-truth-contract.test.ts` makes shared-artifact adoption executable
 - The fourth Step 18 Rust-host-engine-route-parity slice is now closed:
   - Rust host route parity is executable for `/app/v3/api/engines`, `/app/v3/api/engines/:engineKey/capabilities`, and `/app/v3/api/models`
-  - `core_engine_catalog_routes_match_generated_shared_engine_catalog` compares live Rust HTTP payloads against `crates/sdkwork-birdcoder-api-server/generated/engine-catalog.json`
+  - `core_engine_catalog_routes_match_generated_shared_engine_catalog` compares live Rust HTTP payloads against `crates/sdkwork-birdcoder-standalone-gateway/generated/engine-catalog.json`
   - Rust route payload optionals must omit absent fields so shared artifact JSON shape and live route JSON shape stay identical
   - `pnpm.cmd run test:rust-host-engine-route-parity-contract` is part of `check:release-flow`
 - The fifth Step 18 engine-governance-promotion slice is now closed:
@@ -379,7 +379,7 @@
   - `pnpm.cmd run test:prompt-skill-template-evidence-repository-contract`
   - `pnpm.cmd run test:prompt-skill-template-evidence-consumer-contract`
   - `pnpm.cmd run test:coding-server-prompt-skill-template-evidence-consumer-contract`
-  - `cargo test --manifest-path crates/sdkwork-birdcoder-api-server/Cargo.toml`
+  - `cargo test --manifest-path crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`
   - `pnpm.cmd run typecheck`
   - `pnpm.cmd run docs:build`
 - Current next serial closure:
@@ -571,7 +571,7 @@
   - the declared `fast -> standard -> matrix -> release-flow -> ci-flow -> governance` topology remains unchanged; only the last stale contract expectations were realigned to the already-governed command truth
 59. The Step 17 live-docs truth-drift closure is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now freezes that Step 17 and architecture docs must not preserve already-closed OpenAPI/codegen, direct app/backend client, representative-placeholder-route, or PostgreSQL-blocker language
-  - `docs/step/17-Coding-Server-App-Backend-SDK与控制台实现.md` and `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md` now backwrite the final Step 17 truth: representative placeholder routes are `none`, Step 17 has no remaining non-environmental representative-route gap, and PostgreSQL live smoke already has a recorded DSN-backed `passed` report on this host
+  - `docs/architecture/tech/TECH-17-coding-server-app-backend-sdk.md` and `docs/architecture/tech/TECH-20-rust-coding-server-api-standard.md` now backwrite the final Step 17 truth: representative placeholder routes are `none`, Step 17 has no remaining non-environmental representative-route gap, and PostgreSQL live smoke already has a recorded DSN-backed `passed` report on this host
   - future loops must not reopen Step 17 doc drift without fresh failing evidence from the live docs contract or a fresh PostgreSQL rerun regression
 60. The PostgreSQL host-pass live-docs alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now freezes the current host-pass truth across architecture `09/10` and step `12/13/17D/17E-17ZB/18A-18G/19/19A` live docs and rejects stale current-state phrases such as `active environment gate`, `remains environment-gated`, `remains an independent environment gate`, or `blocked until first passed`
@@ -592,52 +592,52 @@
 63. The stale Step 16 and Step 18 next-target docs alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now freezes that Step 16 current-status docs must not keep `CP16-3` as the next serial target and architecture `19` must not keep the first persistence slice as an active remaining gap after the later consumer closures
   - the same live-docs contract now freezes that Step 18D and architecture `25` must not keep route-parity governance promotion as the next active target after that later promotion lane has already closed
-  - `docs/step/16-Prompt-SkillHub-AppTemplate-项目模板体系.md`, `docs/step/18D-Rust-Host-Engine-Route-Parity-Lane.md`, `docs/架构/19-统一会话运行时-Prompt-SkillHub-AppTemplate标准.md`, and `docs/架构/25-Rust-Host-Engine-Route-Parity-Standard.md` now backwrite those lanes as historical closed slices instead of current next-step truth
+  - `docs/architecture/tech/TECH-16-prompt-skillhub-apptemplate.md`, `docs/architecture/tech/TECH-rust-host-engine-route-parity-lane.md`, `docs/architecture/tech/TECH-19-prompt-skillhub-apptemplatestandard.md`, and `docs/architecture/tech/TECH-25-rust-host-engine-route-parity-standard.md` now backwrite those lanes as historical closed slices instead of current next-step truth
   - future loops must not reopen these Step 16 or Step 18 docs as active next targets unless fresh failing evidence appears on the corresponding closed lanes
 64. The architecture 09 coding-server maturity summary alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale Architecture 09 summary that still described Rust host as a minimal `/health` placeholder and Step 17/18 route or OpenAPI landing as future work
-  - `docs/架构/09-安装-部署-发布标准.md` now records the current truth: representative `app / backend` routes, canonical OpenAPI export and release evidence, and PostgreSQL host-pass truth are already closed on this host; representative placeholder routes are `none`
-  - `docs/step/09-server-runtime-openapi-桌面-服务双模落地.md` now backwrites that later closure as a historical Step 09 outcome instead of leaving Architecture 09 free to regress to the earlier placeholder summary
+  - `docs/architecture/tech/TECH-09-installation-deployment-releasestandard.md` now records the current truth: representative `app / backend` routes, canonical OpenAPI export and release evidence, and PostgreSQL host-pass truth are already closed on this host; representative placeholder routes are `none`
+  - `docs/architecture/tech/TECH-09-server-runtime-openapi.md` now backwrites that later closure as a historical Step 09 outcome instead of leaving Architecture 09 free to regress to the earlier placeholder summary
   - future loops must not reopen the Architecture 09 maturity summary unless fresh failing evidence appears on the same coding-server route, OpenAPI, or PostgreSQL host-pass closures
 65. The architecture README coding-server maturity summary alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale architecture README summary that still described Rust host as a minimal host skeleton and `app / backend` implementation as future work
-  - `docs/架构/README.md` now records the current truth: representative `app / backend` routes, canonical OpenAPI release evidence, representative placeholder routes `none`, and PostgreSQL host-pass truth are already closed on this host
-  - `docs/step/09-server-runtime-openapi-桌面-服务双模落地.md` now backwrites that the top-level architecture README must stay aligned with the same Step 09 maturity closure
+  - `docs/architecture/README.md` now records the current truth: representative `app / backend` routes, canonical OpenAPI release evidence, representative placeholder routes `none`, and PostgreSQL host-pass truth are already closed on this host
+  - `docs/architecture/tech/TECH-09-server-runtime-openapi.md` now backwrites that the top-level architecture README must stay aligned with the same Step 09 maturity closure
   - future loops must not reopen the architecture README maturity summary unless fresh failing evidence appears on the same coding-server route, OpenAPI, or PostgreSQL host-pass closures
 66. The architecture 11 industry-position maturity summary alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale Architecture 11 summary that still described `coding-server` as a minimal host skeleton and the multi-engine adapter/tool/server lane as not yet landed
-  - `docs/架构/11-行业对标与能力矩阵.md` now records the current truth: representative `app / backend` routes, canonical OpenAPI release evidence, and multi-engine canonical runtime are already closed; Step 18 only reopens on new engine onboarding or fresh failing evidence
-  - `docs/step/18-多Code-Engine-Adapter-统一工具协议闭环.md` now backwrites that active industry-comparison docs must not regress to the earlier minimal-host or open-mainline summary
+  - `docs/architecture/tech/TECH-legacy-11.md` now records the current truth: representative `app / backend` routes, canonical OpenAPI release evidence, and multi-engine canonical runtime are already closed; Step 18 only reopens on new engine onboarding or fresh failing evidence
+  - `docs/architecture/tech/TECH-18-code-engine-adapter.md` now backwrites that active industry-comparison docs must not regress to the earlier minimal-host or open-mainline summary
   - future loops must not reopen the Architecture 11 maturity summary unless fresh failing evidence appears on the same coding-server or Step 18 closures
 67. The architecture 22 and 23 Step 18 next-target alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale Architecture 22 summary that still treated shared engine descriptor / model-catalog promotion into `coding-server` as the next target after Step 18B had already closed
   - the same live-docs contract now rejects the stale Architecture 23 next target that still treated the later Rust host artifact-adoption and route-parity lanes as active work after Steps 18C and 18D had already closed
-  - `docs/架构/22-多Code-Engine源码镜像真相补充标准.md`, `docs/架构/23-Coding-Server-Engine-Truth-Promotion-Standard.md`, and `docs/step/18-多Code-Engine-Adapter-统一工具协议闭环.md` now backwrite those lanes as historical closed follow-ons instead of current next-target truth
+  - `docs/architecture/tech/TECH-22-code-engine-standard.md`, `docs/architecture/tech/TECH-23-coding-server-engine-truth-promotion-standard.md`, and `docs/architecture/tech/TECH-18-code-engine-adapter.md` now backwrite those lanes as historical closed follow-ons instead of current next-target truth
   - future loops must not reopen Architecture 22 or 23 as active Step 18 next targets unless fresh failing evidence appears on the same mirror-truth, promoted engine-truth, or Rust parity closures
 68. The architecture 24 Step 18 next-target alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale Architecture 24 next target that still treated the later HTTP-level Rust route-parity lane as active work after Step 18D had already closed
-  - `docs/架构/24-Rust-Host-Engine-Truth-Artifact-Standard.md` now records that the route-parity lane is already a closed historical follow-on instead of a current next target
-  - `docs/step/18-多Code-Engine-Adapter-统一工具协议闭环.md` now backwrites that active Rust artifact/parity architecture docs must not regress to the earlier Step 18C/18D next-target summary
+  - `docs/architecture/tech/TECH-24-rust-host-engine-truth-artifact-standard.md` now records that the route-parity lane is already a closed historical follow-on instead of a current next target
+  - `docs/architecture/tech/TECH-18-code-engine-adapter.md` now backwrites that active Rust artifact/parity architecture docs must not regress to the earlier Step 18C/18D next-target summary
   - future loops must not reopen Architecture 24 as an active Step 18 next target unless fresh failing evidence appears on the generated Rust engine artifact or route-parity closures
 69. The architecture 26 Step 18 next-target alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale Architecture 26 next target that still treated governance-regression and quality-matrix promotion as active work after Step 18F had already closed
-  - `docs/架构/26-Step-18-Engine-Governance-Release-Flow-Standard.md` now records that the later score-surface lane is already a closed historical follow-on instead of a current next target
-  - `docs/step/18-多Code-Engine-Adapter-统一工具协议闭环.md` now backwrites that active Step 18 governance architecture docs must not regress to the earlier Step 18E/18F next-target summary
+  - `docs/architecture/tech/TECH-26-step-18-engine-governance-release-flow-standard.md` now records that the later score-surface lane is already a closed historical follow-on instead of a current next target
+  - `docs/architecture/tech/TECH-18-code-engine-adapter.md` now backwrites that active Step 18 governance architecture docs must not regress to the earlier Step 18E/18F next-target summary
   - future loops must not reopen Architecture 26 as an active Step 18 next target unless fresh failing evidence appears on the release-flow-governed Step 18 quartet or its score-surface closures
 70. The architecture 27 and 28 PostgreSQL-recheck next-target alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale Architecture 27 and 28 next-target wording that still treated `after PostgreSQL live-smoke recheck` as the active serial prerequisite after PostgreSQL host-pass had already been recorded on this host
-  - `docs/架构/27-Step-18-Engine-Governance-Score-Surface-Standard.md` and `docs/架构/28-Governance-Regression-Deterministic-Baseline-Standard.md` now record that PostgreSQL live smoke already has a DSN-backed `passed` report on this host, so future loops must move to the next lowest-score non-environmental slice instead of reopening Step 18 score-surface or packaged-evidence work
-  - `docs/step/18-多Code-Engine-Adapter-统一工具协议闭环.md` and `docs/step/19-Governance-Regression-Deterministic-Baseline-Lane.md` now backwrite that active score-surface and deterministic-baseline docs must not regress to the earlier PostgreSQL-recheck next-target summary
+  - `docs/architecture/tech/TECH-27-step-18-engine-governance-score-surface-standard.md` and `docs/architecture/tech/TECH-28-governance-regression-deterministic-baseline-standard.md` now record that PostgreSQL live smoke already has a DSN-backed `passed` report on this host, so future loops must move to the next lowest-score non-environmental slice instead of reopening Step 18 score-surface or packaged-evidence work
+  - `docs/architecture/tech/TECH-18-code-engine-adapter.md` and `docs/architecture/tech/TECH-19-governance-regression-deterministic-baseline-lane.md` now backwrite that active score-surface and deterministic-baseline docs must not regress to the earlier PostgreSQL-recheck next-target summary
   - future loops must not reopen Architecture 27 or 28 as active PostgreSQL-recheck next targets unless fresh failing evidence appears on PostgreSQL host-pass truth or the already-closed score-surface / packaged-evidence lanes
 71. The architecture 29 packaged-evidence follow-on alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale Architecture 29 next-target wording that still treated carrying engine-governance context into packaged evidence as the current `Web Bundle` follow-on after Step 18G had already closed
-  - `docs/架构/29-Web-Bundle-Segmentation-And-Production-Build-Standard.md` now records that the packaged release-evidence handoff is already a closed historical follow-on, so future loops must move to the next lowest-score non-environmental slice instead of reopening bundle-boundary work unless fresh failing evidence appears on the governed bundle boundary or finalized `qualityEvidence` handoff itself
-  - `docs/step/19A-Web-Bundle-Segmentation-And-Production-Build-Lane.md` now backwrites that active Architecture 29 docs must not regress to the earlier packaged-evidence next-target summary
+  - `docs/architecture/29-Web-Bundle-Segmentation-And-Production-Build-Standard.md` now records that the packaged release-evidence handoff is already a closed historical follow-on, so future loops must move to the next lowest-score non-environmental slice instead of reopening bundle-boundary work unless fresh failing evidence appears on the governed bundle boundary or finalized `qualityEvidence` handoff itself
+  - `docs/architecture/tech/TECH-web-bundle-segmentation-and-production-build-lane.md` now backwrites that active Architecture 29 docs must not regress to the earlier packaged-evidence next-target summary
   - future loops must not reopen Architecture 29 as an active packaged-evidence next target unless fresh failing evidence appears on the governed bundle boundary or finalized `qualityEvidence` handoff itself
 72. The prompt and Step 12 PostgreSQL gate-history alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects the stale Step 12 wording that still treated DSN-backed `release:smoke:postgresql-live` as the current sole Step 17 environment gate after PostgreSQL host-pass had already been recorded on this host
   - `scripts/prompt-governance-contract.test.mjs` now rejects stale active-controller wording that restates PostgreSQL as the current sole Step 17 gate or current active environment gate inside `docs/prompts/反复执行Step指令.md`
-  - `docs/step/12-测试矩阵-质量门禁-回归自动化.md` and `docs/prompts/反复执行Step指令.md` now keep those earlier PostgreSQL blocked-state notes only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-13-04.md`
+  - `docs/architecture/tech/TECH-12-testing.md` and `docs/prompts/反复执行Step指令.md` now keep those earlier PostgreSQL blocked-state notes only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-13-04.md`
   - future loops must not reopen Step 12 or the prompt controller as active PostgreSQL gate blockers unless fresh failing evidence appears on PostgreSQL host-pass truth itself
 73. The prompt controller Step 12 follow-on and PostgreSQL host-pass alignment is now also closed:
   - `scripts/prompt-governance-contract.test.mjs` now rejects stale active-controller wording that still treats PostgreSQL host-pass as unmet, still treats the Step 12 `check:release-flow` nested-wrapper follow-on as current, or still treats PostgreSQL environment availability as the current lowest-score blocker after later prompt closures were already recorded
@@ -645,16 +645,16 @@
   - future loops must not reopen the prompt controller as if Step 12 nested-wrapper follow-ons or PostgreSQL environment availability were still current blockers unless fresh failing evidence appears on those already-closed lanes
 74. The architecture 09 and 20 engine-model next-target alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects stale active Architecture 09 and 20 wording that still treats real `engineCapabilities` / `models` server truth as the current next serial slice after that lane had already closed in `docs/release/release-2026-04-11-12.md`
-  - `docs/架构/09-安装-部署-发布标准.md` and `docs/架构/20-统一Rust-Coding-Server-API-协议标准.md` now keep those engine/model next-target notes only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-11-12.md`
+  - `docs/architecture/tech/TECH-09-installation-deployment-releasestandard.md` and `docs/architecture/tech/TECH-20-rust-coding-server-api-standard.md` now keep those engine/model next-target notes only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-11-12.md`
   - future loops must not reopen Architecture 09 or 20 as if the engine/model lane were still the current next serial slice unless fresh failing evidence appears on the already-closed engine/model route and direct app/backend client adoption lane
 75. The Step 13 nested-wrapper runtime-blocker history alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects stale Step 13 wording that still treats the `check:release-flow` nested `pnpm run` lane as the current runtime blocker after that lane had already closed in `docs/release/release-2026-04-13-02.md`
-  - `docs/step/13-发布就绪-github-flow-灰度回滚闭环.md` now keeps that nested-wrapper blocker note only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-13-02.md`
+  - `docs/architecture/tech/TECH-13-release-github-flow.md` now keeps that nested-wrapper blocker note only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-13-02.md`
   - future loops must not reopen Step 13 as if the nested-wrapper lane were still the current runtime blocker unless fresh failing evidence appears on the already-closed quality execution path
 76. The Step 06 and architecture 03 mainline-return history alignment is now also closed:
   - `scripts/live-docs-governance-baseline.test.mjs` now rejects stale active Step 06 and Architecture 03 wording that still treats “return to the `09 -> 17` mainline” as the current next serial closure after the later Step 17, Step 18, and Step `20` follow-on closures had already been recorded
   - `scripts/prompt-governance-contract.test.mjs` now rejects stale active-controller wording that still treats “return to the `09 -> 17` mainline” as the current next non-environmental slice inside `docs/prompts/反复执行Step指令.md`
-  - `docs/step/06-code视图-编辑器-文件系统重构.md`, `docs/架构/03-模块规划与边界.md`, and `docs/prompts/反复执行Step指令.md` now keep that mainline-return note only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-13-04.md`, `docs/release/release-2026-04-13-05.md`, and `docs/release/release-2026-04-13-08.md`
+  - `docs/architecture/tech/TECH-06-code.md`, `docs/architecture/tech/TECH-03-modulesplanningboundaries.md`, and `docs/prompts/反复执行Step指令.md` now keep that mainline-return note only as checkpoint-local history explicitly superseded by `docs/release/release-2026-04-13-04.md`, `docs/release/release-2026-04-13-05.md`, and `docs/release/release-2026-04-13-08.md`
   - future loops must not reopen Step 06, Architecture 03, or the prompt controller as if the `09 -> 17` mainline return were still the current next serial closure unless fresh failing evidence appears on those already-closed follow-on lanes
 77. The Step 19 governed Vite-host blocker classification is now also closed:
   - `scripts/governance-regression-report.test.mjs` now freezes that command-backed `[vite:define] spawn EPERM` outcomes must be reported as `blocked` `toolchain-platform` diagnostics instead of ordinary failed repository regressions

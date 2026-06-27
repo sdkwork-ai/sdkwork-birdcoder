@@ -111,25 +111,33 @@ assert.match(
 );
 
 const deferRegistry = JSON.parse(readText('specs/coding-server-openapi-rust-defer-registry.json'));
+// Commerce lane disposition: 15 commerce operations (api-keys / notifications /
+// usage) are pre-launch deferred. OpenAPI contract ships first; Rust route crate
+// implementation lands at commercial launch readiness (P3 commercial capability).
 assert.equal(
   deferRegistry.summary.contractOperationCount,
-  132,
-  'Defer registry must track the full OpenAPI contract.',
+  147,
+  'Defer registry must track the full OpenAPI contract including commerce lanes.',
 );
 assert.equal(
   deferRegistry.summary.implementedOperationCount,
   132,
-  'Defer registry must record full OpenAPI implementation coverage.',
+  'Defer registry must record implemented product + federated IAM coverage.',
 );
 assert.equal(
   deferRegistry.summary.deferredOperationCount,
-  0,
-  'Defer registry must not retain deferred OpenAPI operations after teams lane closure.',
+  15,
+  'Defer registry must track the 15 commerce pre-launch deferred operations.',
 );
 assert.match(
   commercialTruthDoc,
-  /132\/132|132 of 132|132 implemented/u,
-  'Commercial truth doc must record full OpenAPI implementation coverage.',
+  /132 of 147 implemented/u,
+  'Commercial truth doc must record implemented coverage against the commerce-inclusive contract.',
+);
+assert.match(
+  commercialTruthDoc,
+  /commerce pre-launch deferred/u,
+  'Commercial truth doc must describe the commerce pre-launch deferred lane.',
 );
 assert.doesNotMatch(
   commercialTruthDoc,
@@ -147,7 +155,7 @@ const iamRuntimeSource = readText(
 const wsSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/workspaceRealtimeClient.ts',
 );
-const routerSource = readText('crates/sdkwork-birdcoder-api-server/src/bootstrap/routers.rs');
+const routerSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs');
 
 assert.match(iamRuntimeSource, /startBirdCoderAppSessionRefreshLoop/u);
 assert.match(wsSource, /scheduleReconnect/u);

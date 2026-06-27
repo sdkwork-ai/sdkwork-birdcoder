@@ -3,7 +3,7 @@
   "androidPackageName": "com.sdkwork.birdcoder.h5",
   "environment": "test",
   "deepLinks": {
-    "customScheme": "birdcoderh5",
+    "customScheme": "sdkwork.birdcoder",
     "oauthCallbackAuthority": "auth",
     "oauthCallbackPath": "/oauth/callback",
     "universalLinkHosts": [

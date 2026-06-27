@@ -3,13 +3,13 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder
-Updated: 2026-06-24
+Updated: 2026-06-26
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## Document Map
 
-- [PRD-01-baseline-audit.md](PRD-01-baseline-audit.md)
-- [PRD-01-productdesignrequirementsscope.md](PRD-01-productdesignrequirementsscope.md)
+- [PRD-01 基线审计](PRD-01-baseline-audit.md)
+- [PRD-01 产品设计与需求范围](PRD-01-productdesignrequirementsscope.md)
 
 ## 1. Background And Problem
 
@@ -33,7 +33,7 @@ Detailed product scope lives in the linked PRD shards below.
 
 ## 4. Scope
 
-In scope: PC web/desktop shell, Rust api-server, OpenAPI app/backend routes, IAM federation,
+In scope: PC web/desktop shell, Rust standalone-gateway, OpenAPI app/backend routes, IAM federation,
 workspace realtime, operator runbooks, release rehearsal, H5/Flutter route parity.
 
 Out of scope until post-launch: public catalog install with synthetic artifacts, full PC feature
@@ -68,4 +68,4 @@ parity on mobile, admin/console product shells beyond configuration stubs.
 ## 9. Open Questions
 
 - iOS Capacitor headless assemble smoke timing on macOS CI runners
-- Timeline for extracting the 6461-line `@sdkwork/birdcoder-pc-server` module boundary
+- Further splitting the `openApiBuilder.ts` module (4672 lines, largest remaining pc-server module after the 2026-06-27 extraction of `index.ts` into 10 owned modules)

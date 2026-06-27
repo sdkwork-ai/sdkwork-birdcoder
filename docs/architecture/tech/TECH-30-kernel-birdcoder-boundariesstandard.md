@@ -25,7 +25,7 @@
 |---|---|---|
 | Agents facade | `sdkwork-agents-runtime-facade` | code engine bootstrap、turn、catalog、live interaction |
 | Rust adapter | `sdkwork-birdcoder-kernel-bridge` | 产品薄适配（prompt 构建、OpenCode live handler） |
-| Server wiring | `sdkwork-birdcoder-api-server` | `KernelBridgeCodeEngineProvider` 注入 coding-sessions service |
+| Server wiring | `sdkwork-birdcoder-standalone-gateway` | `KernelBridgeCodeEngineProvider` 注入 coding-sessions service |
 | TS runtime | `@sdkwork/birdcoder-pc-codeengine` → `kernelRuntime.ts` | `birdcoder-kernel-turn` 子进程 + `sendCanonicalEvents()` |
 | 投影 | `@sdkwork/birdcoder-pc-projection` | canonical event / transcript / dialect 消费，不执行 agent turn |
 

@@ -46,11 +46,11 @@ for (const relativePath of releaseScriptPaths) {
   }
 }
 
-assert.equal(SERVER_CRATE_BINARY_NAME, 'sdkwork-birdcoder-api-server');
+assert.equal(SERVER_CRATE_BINARY_NAME, 'sdkwork-birdcoder-standalone-gateway');
 assert.equal(
   readText('scripts/release/release-profiles.mjs').includes(`binaryName: SERVER_CRATE_BINARY_NAME`),
   true,
-  'Release profile must bind server binaryName to the workspace api-server crate.',
+  'Release profile must bind server binaryName to the workspace standalone-gateway crate.',
 );
 
 const pcWebPackageJsonPath = path.join(

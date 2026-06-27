@@ -8057,6 +8057,366 @@
           "meta"
         ],
         "additionalProperties": false
+      },
+      "CommerceApiKey": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "prefix": { "type": "string" },
+          "scopes": { "type": "array", "items": { "type": "string" } },
+          "status": { "type": "string" },
+          "lastUsedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "expiresAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "name", "prefix", "scopes", "status", "createdAt", "updatedAt"],
+        "additionalProperties": false
+      },
+      "CommerceApiKeyCreated": {
+        "type": "object",
+        "description": "API key creation response. The plaintext key is returned exactly once.",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "key": { "type": "string", "description": "Plaintext API key (bc_ prefix + base62). Store securely; never returned again." },
+          "prefix": { "type": "string" },
+          "scopes": { "type": "array", "items": { "type": "string" } },
+          "status": { "type": "string" },
+          "expiresAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "message": { "type": "string", "nullable": true }
+        },
+        "required": ["id", "name", "key", "prefix", "scopes", "status", "createdAt"],
+        "additionalProperties": false
+      },
+      "CommerceApiKeyRevoked": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "type": "string" },
+          "revokedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "status", "revokedAt"],
+        "additionalProperties": false
+      },
+      "CommerceCreateApiKeyRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "scopes": { "type": "array", "items": { "type": "string" }, "nullable": true },
+          "expiresInDays": { "type": "integer", "format": "int64", "nullable": true },
+          "workspaceId": { "type": "string", "nullable": true }
+        },
+        "required": ["name"],
+        "additionalProperties": false
+      },
+      "CommerceApiKeyEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceApiKey" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string", "description": "Server-generated request correlation identifier." },
+          "timestamp": { "type": "string", "format": "date-time", "description": "Response emission timestamp." }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceApiKeyListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CommerceApiKey" } },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiListMeta" },
+          "requestId": { "type": "string", "description": "Server-generated request correlation identifier." },
+          "timestamp": { "type": "string", "format": "date-time", "description": "Response emission timestamp." }
+        },
+        "required": ["requestId", "timestamp", "items", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceApiKeyCreatedEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceApiKeyCreated" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string", "description": "Server-generated request correlation identifier." },
+          "timestamp": { "type": "string", "format": "date-time", "description": "Response emission timestamp." }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceApiKeyRevokedEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceApiKeyRevoked" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string", "description": "Server-generated request correlation identifier." },
+          "timestamp": { "type": "string", "format": "date-time", "description": "Response emission timestamp." }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceMetricTotal": {
+        "type": "object",
+        "properties": {
+          "metricType": { "type": "string" },
+          "total": { "type": "integer", "format": "int64" }
+        },
+        "required": ["metricType", "total"],
+        "additionalProperties": false
+      },
+      "CommerceHistoryBucket": {
+        "type": "object",
+        "properties": {
+          "period": { "type": "string" },
+          "metricType": { "type": "string" },
+          "total": { "type": "integer", "format": "int64" }
+        },
+        "required": ["period", "metricType", "total"],
+        "additionalProperties": false
+      },
+      "CommerceCurrentPeriodUsage": {
+        "type": "object",
+        "properties": {
+          "periodStart": { "type": "string", "format": "date-time" },
+          "periodEnd": { "type": "string", "format": "date-time" },
+          "metrics": { "type": "array", "items": { "$ref": "#/components/schemas/CommerceMetricTotal" } }
+        },
+        "required": ["periodStart", "periodEnd", "metrics"],
+        "additionalProperties": false
+      },
+      "CommerceBreakdown": {
+        "type": "object",
+        "properties": {
+          "periodStart": { "type": "string", "format": "date-time" },
+          "periodEnd": { "type": "string", "format": "date-time" },
+          "metrics": { "type": "array", "items": { "$ref": "#/components/schemas/CommerceMetricTotal" } }
+        },
+        "required": ["periodStart", "periodEnd", "metrics"],
+        "additionalProperties": false
+      },
+      "CommerceQuotaStatus": {
+        "type": "object",
+        "properties": {
+          "metricType": { "type": "string" },
+          "used": { "type": "integer", "format": "int64" },
+          "limit": { "type": "integer", "format": "int64" },
+          "remaining": { "type": "integer", "format": "int64" },
+          "percentage": { "type": "number", "format": "double" },
+          "periodStart": { "type": "string", "format": "date-time" },
+          "periodEnd": { "type": "string", "format": "date-time" }
+        },
+        "required": ["metricType", "used", "limit", "remaining", "percentage", "periodStart", "periodEnd"],
+        "additionalProperties": false
+      },
+      "CommerceRecordUsageRequest": {
+        "type": "object",
+        "properties": {
+          "metricType": { "type": "string" },
+          "metricValue": { "type": "integer", "format": "int64" },
+          "workspaceId": { "type": "string", "nullable": true },
+          "metadata": { "nullable": true }
+        },
+        "required": ["metricType", "metricValue"],
+        "additionalProperties": false
+      },
+      "CommerceRecordUsageResponse": {
+        "type": "object",
+        "properties": {
+          "recorded": { "type": "boolean" },
+          "metricType": { "type": "string" },
+          "metricValue": { "type": "integer", "format": "int64" }
+        },
+        "required": ["recorded", "metricType", "metricValue"],
+        "additionalProperties": false
+      },
+      "CommerceCurrentPeriodUsageEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceCurrentPeriodUsage" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceBreakdownEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceBreakdown" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceQuotaStatusEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceQuotaStatus" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceRecordUsageEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceRecordUsageResponse" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceUsageHistoryListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CommerceHistoryBucket" } },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiListMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "items", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceNotification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "notificationType": { "type": "string" },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "status": { "type": "string" },
+          "readAt": { "type": "string", "format": "date-time", "nullable": true },
+          "sentAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "notificationType", "title", "content", "status", "createdAt", "updatedAt"],
+        "additionalProperties": false
+      },
+      "CommerceNotificationCreated": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "notificationType": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "string" },
+          "sentAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "notificationType", "title", "status", "sentAt"],
+        "additionalProperties": false
+      },
+      "CommerceNotificationRead": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "status": { "type": "string" },
+          "readAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "status", "readAt"],
+        "additionalProperties": false
+      },
+      "CommerceMarkAllRead": {
+        "type": "object",
+        "properties": {
+          "updated": { "type": "integer", "format": "int64" },
+          "status": { "type": "string" }
+        },
+        "required": ["updated", "status"],
+        "additionalProperties": false
+      },
+      "CommerceUnreadCount": {
+        "type": "object",
+        "properties": {
+          "unreadCount": { "type": "integer", "format": "int64" }
+        },
+        "required": ["unreadCount"],
+        "additionalProperties": false
+      },
+      "CommerceCreateNotificationRequest": {
+        "type": "object",
+        "properties": {
+          "notificationType": { "type": "string" },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "workspaceId": { "type": "string", "nullable": true },
+          "metadata": { "nullable": true }
+        },
+        "required": ["notificationType", "title", "content"],
+        "additionalProperties": false
+      },
+      "CommerceNotificationEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceNotification" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceNotificationListEnvelope": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/CommerceNotification" } },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiListMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "items", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceNotificationCreatedEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceNotificationCreated" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceNotificationReadEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceNotificationRead" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceMarkAllReadEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceMarkAllRead" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
+      },
+      "CommerceUnreadCountEnvelope": {
+        "type": "object",
+        "properties": {
+          "data": { "$ref": "#/components/schemas/CommerceUnreadCount" },
+          "meta": { "$ref": "#/components/schemas/BirdCoderApiMeta" },
+          "requestId": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["requestId", "timestamp", "data", "meta"],
+        "additionalProperties": false
       }
     }
   },
@@ -17178,6 +17538,593 @@
         "x-sdkwork-public": false,
         "x-sdkwork-resource": "iam.teams",
         "x-sdkwork-surface": "backend",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/api-keys": {
+      "post": {
+        "operationId": "commerce.apiKeys.create",
+        "summary": "Create a commerce API key",
+        "description": "Creates a new BirdCoder commerce API key. The plaintext key (bc_ prefix + base62) is returned exactly once. Requires the 'write' scope.",
+        "tags": ["commerce"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CommerceCreateApiKeyRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "API key created. The plaintext key is returned in the response body.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceApiKeyCreatedEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-scope": "write",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "get": {
+        "operationId": "commerce.apiKeys.list",
+        "summary": "List commerce API keys",
+        "description": "Lists all active commerce API keys for the authenticated tenant. Returns metadata only (no plaintext keys).",
+        "tags": ["commerce"],
+        "responses": {
+          "200": {
+            "description": "API keys returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceApiKeyListEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-scope": "read",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/api-keys/{id}": {
+      "delete": {
+        "operationId": "commerce.apiKeys.revoke",
+        "summary": "Revoke a commerce API key",
+        "description": "Revokes (soft-deletes) a commerce API key by id. The key immediately stops accepting requests.",
+        "tags": ["commerce"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key revoked successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceApiKeyRevokedEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-scope": "admin",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/api-keys/{id}/rotate": {
+      "post": {
+        "operationId": "commerce.apiKeys.rotate",
+        "summary": "Rotate a commerce API key",
+        "description": "Generates a new plaintext key for an existing API key. The old key is immediately invalidated. Requires the 'admin' scope.",
+        "tags": ["commerce"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key rotated. The new plaintext key is returned in the response body.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceApiKeyCreatedEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-scope": "admin",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/usage/record": {
+      "post": {
+        "operationId": "commerce.usage.record",
+        "summary": "Record usage metric",
+        "description": "Records a usage metric (token input/output, file system operations, API requests). Triggers quota enforcement and 80% warning notification when applicable.",
+        "tags": ["commerce"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CommerceRecordUsageRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Usage recorded successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceRecordUsageEnvelope" }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required — tenant quota exhausted for this metric.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-scope": "write",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/usage/current-period": {
+      "get": {
+        "operationId": "commerce.usage.currentPeriod",
+        "summary": "Get current-period usage totals",
+        "description": "Returns aggregated usage totals for the current calendar month, grouped by metric type.",
+        "tags": ["commerce"],
+        "responses": {
+          "200": {
+            "description": "Current-period usage returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceCurrentPeriodUsageEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-scope": "read",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/usage/history": {
+      "get": {
+        "operationId": "commerce.usage.history",
+        "summary": "Get monthly usage history",
+        "description": "Returns monthly usage history buckets. Supports an optional period filter and limit.",
+        "tags": ["commerce"],
+        "parameters": [
+          { "name": "period", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "format": "int32" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage history returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceUsageHistoryListEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-scope": "read",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/usage/breakdown": {
+      "get": {
+        "operationId": "commerce.usage.breakdown",
+        "summary": "Get per-metric usage breakdown",
+        "description": "Returns a per-metric breakdown of usage for the current period. Supports an optional metric filter.",
+        "tags": ["commerce"],
+        "parameters": [
+          { "name": "metric", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage breakdown returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceBreakdownEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-scope": "read",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/usage/quota": {
+      "get": {
+        "operationId": "commerce.usage.quota",
+        "summary": "Get quota status",
+        "description": "Returns the current quota status (used, limit, remaining, percentage) for a metric type. Returns 402 when the quota is exhausted.",
+        "tags": ["commerce"],
+        "parameters": [
+          { "name": "metric", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Quota status returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceQuotaStatusEnvelope" }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment Required — tenant quota exhausted for this metric.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-scope": "read",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/notifications": {
+      "post": {
+        "operationId": "commerce.notifications.send",
+        "summary": "Send a notification",
+        "description": "Creates and sends a notification to the authenticated user. Supported types: quota_warning, payment_received, subscription_renewed, api_key_expiring.",
+        "tags": ["commerce"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CommerceCreateNotificationRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Notification created successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceNotificationCreatedEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-scope": "write",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "get": {
+        "operationId": "commerce.notifications.list",
+        "summary": "List notifications",
+        "description": "Lists notifications for the authenticated user, optionally filtered by status. Ordered by created_at descending.",
+        "tags": ["commerce"],
+        "parameters": [
+          { "name": "status", "in": "query", "required": false, "schema": { "type": "string", "enum": ["unread", "read"] } },
+          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "format": "int32" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notifications returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceNotificationListEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-scope": "read",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "operationId": "commerce.notifications.unreadCount",
+        "summary": "Get unread notification count",
+        "description": "Returns the count of unread notifications for the authenticated user.",
+        "tags": ["commerce"],
+        "responses": {
+          "200": {
+            "description": "Unread count returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceUnreadCountEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-scope": "read",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "operationId": "commerce.notifications.markAllRead",
+        "summary": "Mark all notifications as read",
+        "description": "Marks all unread notifications for the authenticated user as read. Returns the number of notifications updated.",
+        "tags": ["commerce"],
+        "responses": {
+          "200": {
+            "description": "All notifications marked as read.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceMarkAllReadEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-scope": "write",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/notifications/{id}": {
+      "get": {
+        "operationId": "commerce.notifications.get",
+        "summary": "Get a notification",
+        "description": "Returns a single notification by id, scoped to the authenticated user.",
+        "tags": ["commerce"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceNotificationEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-scope": "read",
+        "x-sdkwork-surface": "commerce",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "post": {
+        "operationId": "commerce.notifications.markRead",
+        "summary": "Mark a notification as read",
+        "description": "Marks a single notification as read. Returns the updated notification.",
+        "tags": ["commerce"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notification marked as read.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CommerceNotificationReadEnvelope" }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/BirdCoderProblemEnvelope" }
+              }
+            }
+          }
+        },
+        "security": [{ "bearerAuth": [] }],
+        "x-sdkwork-auth-mode": "api-key",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-scope": "write",
+        "x-sdkwork-surface": "commerce",
         "x-sdkwork-tenant-scope": "tenant"
       }
     }

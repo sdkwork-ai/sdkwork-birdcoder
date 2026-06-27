@@ -1,39 +1,71 @@
-# PostgreSQL HA overlay for BirdCoder API server.
-# Apply on top of values.yaml after PostgreSQL is provisioned and baseline DDL is applied.
-#
-# Example:
-#   helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
-#     -f deployments/kubernetes/values.yaml \
-#     -f deployments/kubernetes/values-postgresql-ha.yaml \
-#     --set database.url='postgres://birdcoder:SECRET@postgresql:5432/birdcoder' \
-#     --set auth.managePassword='SECRET'
+# PostgreSQL HA overlay for SDKWork BirdCoder
+# Apply with: helm install sdkwork-birdcoder ./deployments/kubernetes -f deployments/kubernetes/values-postgresql-ha.yaml
+# Prerequisites:
+#   - PostgreSQL HA cluster (CloudNativePG or crunchydata postgres-operator)
+#   - Redis HA (redis-ha chart)
+#   - OpenTelemetry collector deployed in observability namespace
+# Required secrets:
+#   - birdcoder-database-url (PostgreSQL connection string)
+#   - birdcoder-redis-password (Redis auth password)
+# Compliance: HIGH_AVAILABILITY_SPEC.md SLO 99.9%
 
 replicaCount: 3
 
 database:
   engine: postgresql
-  # Provide the connection URL via --set or an external secret manager integration.
-  url: ""
+  url: ""  # 从 secret 注入
 
 realtime:
   backend: redis
 
 redis:
   enabled: true
-  host: redis
+  host: redis-master
   port: 6379
   database: 0
   keyPrefix: birdcoder
-  tls: false
-
-persistence:
-  enabled: false
+  tls: true
+  # 凭据从 secret 注入
 
 autoscaling:
   enabled: true
-  minReplicas: 2
+  minReplicas: 3
   maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 75
 
 podDisruptionBudget:
   enabled: true
-  minAvailable: 1
+  minAvailable: 2  # 至少保持 2 个副本可用
+
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # 每日 02:00 UTC 备份
+  retentionDays: 30
+  image: postgres:16-alpine
+  # imageDigest: 必须由部署方填入 immutable digest
+  verifyDatabaseUrl: ""  # 必须配置验证数据库
+
+observability:
+  logLevel: info
+  tracesExporter: otlp
+  otlpEndpoint: "http://otel-collector.observability.svc.cluster.local:4317"
+  otlpProtocol: grpc
+  metricsExporter: prometheus
+  logsExporter: otlp
+  tracesSamplingRatio: "0.1"
+
+resources:
+  limits:
+    cpu: "4"
+    memory: 8Gi
+  requests:
+    cpu: "1"
+    memory: 1Gi
+
+# SQLite PVC disabled in PostgreSQL HA mode: RWO PVC cannot be shared
+# across replicas. Data lives in the external PostgreSQL cluster.
+# storageClass is still consumed by the backup PVC template.
+persistence:
+  enabled: false
+  storageClass: "premium-rwo"

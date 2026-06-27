@@ -64,6 +64,16 @@ pub trait CodingSessionRepository: Send + Sync {
         input: &ForkCodingSessionInput,
     ) -> Result<CodingSessionPayload, CodingSessionError>;
 
+    /// Copies messages, turns, events, and artifacts from the source session to
+    /// the target session. Called after `fork_session` to preserve conversation
+    /// history in the forked session.
+    async fn copy_session_history(
+        &self,
+        ctx: &CodingSessionContext,
+        source_session_id: &str,
+        target_session_id: &str,
+    ) -> Result<usize, CodingSessionError>;
+
     async fn list_turns(
         &self,
         ctx: &CodingSessionContext,
