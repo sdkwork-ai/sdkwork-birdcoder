@@ -9,7 +9,7 @@ BirdCoder uses the canonical SDKWork IAM system end to end. The app layer no lon
 
 ## Architecture
 
-The runtime follows the Claw Router pattern:
+The runtime follows the SDKWork IAM standard pattern:
 
 - Generated app/backend SDK clients are the only remote business boundary.
 - App session tokens are stored as an IAM dual-token session: `authToken` plus `accessToken`.

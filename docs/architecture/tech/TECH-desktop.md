@@ -3,7 +3,7 @@
 
 # Desktop Runtime
 
-BirdCoder desktop delivery follows the same release-family role as Claw Studio: a Tauri-based desktop host with packageable artifacts, installer smoke, and packaged-launch smoke.
+BirdCoder desktop delivery is a Tauri-based desktop host with packageable artifacts, installer smoke, and packaged-launch smoke.
 
 ## Runtime shape
 
@@ -32,5 +32,5 @@ pnpm release:smoke:desktop-startup
 
 ## Product difference
 
-BirdCoder does not copy Claw Studio's OpenClaw runtime semantics. The desktop host only aligns to the same build and release architecture shape.
+BirdCoder follows the SDKWork desktop host standard for build and release architecture shape.
 

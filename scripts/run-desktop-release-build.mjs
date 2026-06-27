@@ -167,9 +167,9 @@ function resolveReleasePhasePlan({
         '[run-desktop-release-build] BirdCoder does not require extra Tauri target cache cleanup for release parity.',
         env,
       );
-    case 'prepare-openclaw':
+    case 'prepare-server':
       return createNoopPlan(
-        '[run-desktop-release-build] BirdCoder keeps the Claw desktop phase contract, but does not bundle the OpenClaw runtime.',
+        '[run-desktop-release-build] BirdCoder keeps the desktop phase contract.',
         env,
       );
     case 'bundle':
@@ -208,7 +208,7 @@ function resolveReleasePhasePlan({
         args: [],
         cwd: rootDir,
         env: { ...env },
-        phases: ['sync', 'prepare-target', 'prepare-openclaw', 'bundle'],
+        phases: ['sync', 'prepare-target', 'prepare-server', 'bundle'],
         shell: false,
       };
     default:

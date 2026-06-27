@@ -37,5 +37,5 @@
 ## Notes
 
 - This closes the first post-finalize preview-evidence smoke loop only. The next Step 07 focus is simulator/build parity on the same execution and evidence model.
-- GitHub reusable release workflow remains aligned with Claw Studio; the finalized preview-evidence smoke is currently a BirdCoder local/manual release gate.
+- GitHub reusable release workflow remains aligned with SDKWork; the finalized preview-evidence smoke is currently a BirdCoder local/manual release gate.
 

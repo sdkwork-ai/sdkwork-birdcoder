@@ -80,7 +80,6 @@ const requiredPaths = [
   'scripts/studio-simulator-execution-contract.test.ts',
   'scripts/studio-simulator-evidence-store-contract.test.ts',
   'scripts/studio-simulator-ui-contract.test.ts',
-  'scripts/run-claw-server-build.mjs',
   'scripts/run-birdcoder-server-build.mjs',
   'scripts/run-release-flow-check.mjs',
   'scripts/run-release-flow-check.test.mjs',
