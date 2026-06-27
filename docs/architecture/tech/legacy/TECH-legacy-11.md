@@ -1,0 +1,64 @@
+> Migrated from `docs/架构/11-行业对标与能力矩阵.md` on 2026-06-24.
+> Owner: SDKWork maintainers
+
+# 11-行业对标与能力矩阵
+
+## 1. 对标方向
+
+BirdCoder 不应单点模仿某一款工具，而应融合三类能力：
+
+- 终端代理型：命令执行、仓库推理、工具编排
+- IDE 原生型：编辑器体验、多文件协同、即时反馈
+- 企业工程型：权限、审计、部署、发布、治理
+
+## 2. 核心对标对象
+
+- Claude：代理式编码、工具驱动、长上下文协作
+- Codex：任务执行、结构化输出、持续线程与多轮修复
+- Gemini：tool registry、skill system、动态 instructions
+- Cursor / Windsurf：IDE 内联体验与规则系统
+- GitHub Copilot / JetBrains AI：企业 IDE 集成与组织级治理
+- OpenCode：开放式 SDK、事件化工作流、IDE 原生产物
+
+## 3. 四大目标引擎的直接启发
+
+| Engine | 官方主入口 | 可确认强项 | BirdCoder 必须继承的标准 |
+| --- | --- | --- | --- |
+| Codex | `@openai/codex-sdk` | `native thread / turn / item / event` 清晰，结构化输出明确 | provider-native 会话连续性、turn 边界、结构化结果、SDK 与协议双通道 |
+| Claude | `@anthropic-ai/claude-agent-sdk` | Agent SDK、tool progress、headless 与 session 双语义 | 官方 SDK 优先、审批与进度标准化、远程与本地统一 |
+| Gemini | `@google/gemini-cli-sdk` | `agent / session / tool / skill / context` 语义完整 | 统一 skill 注入、tool bridge、context assembly |
+| OpenCode | `@opencode-ai/sdk` | OpenAPI + SDK + `diff/todo/pty/question` 一等事件 | 事件与 artifact 并重、结构化 IDE 产物保真 |
+
+## 4. BirdCoder 当前站位
+
+- 强项：多宿主架构、release / smoke / governance 体系完整
+- 已冻结标准：共享 `types + kernel` 已固定 canonical engine key、descriptor、model catalog 与 `coding_session` 主命名
+- 当前成熟度：`coding-server` 代表性 `app / backend` 路由、canonical OpenAPI 发布证据与多引擎 canonical runtime 已闭环；Step 18 当前主线只在新增引擎接入或 fresh failing evidence 下重开。
+- 当前差距：provider 生产级接入仍停留在 `chat-*` mock facade，中间层尚未全面切换为官方 SDK 优先的 canonical runtime
+- 当前主任务：把多引擎标准持续固化到 adapter contract、live docs、release governance 与 conformance 证据链
+
+## 5. BirdCoder 目标能力矩阵
+
+| 维度 | 行业优秀做法 | BirdCoder 标准 |
+| --- | --- | --- |
+| 引擎接入 | 单工具深度绑定或少量适配 | 统一 SPI，中间层稳定，多 provider 并存 |
+| IDE 体验 | 编辑器或终端局部突出 | 编辑器、终端、预览、构建一体化 |
+| 工作流 | 偏聊天或偏补全 | 需求到发布全流程闭环 |
+| 交付形态 | 单机或 SaaS 为主 | Web、Desktop、Server、Docker、K8s 全覆盖 |
+| 治理能力 | 企业特性分散 | 权限、审计、配置、发布证据统一内建 |
+| 扩展能力 | 插件化程度不一 | Engine、Tool、Preview、Build 全链路可插拔 |
+
+## 6. 差异化要求
+
+- 不做单一模型前端，而做多引擎统一开发内核
+- 不把预览、模拟、测试外包给零散工具链，而做成第一层产品能力
+- 不把发布理解为脚本集合，而做成标准化 release system
+- 不让 provider 高级能力污染公共接口，而通过 extension lane 显式管理
+
+## 7. 评估标准
+
+- 是否已经形成“统一内核 + 统一 API + 统一体验”的产品壁垒
+- 是否可以在不重构业务层的前提下切换、扩展、替换底层引擎
+- 是否能够覆盖从编码到发布的完整专业开发链路
+- 是否在多宿主、多引擎和发布治理上形成明确优势
+

@@ -645,8 +645,8 @@ assert.match(
 );
 assert.match(
   desktopCargoTomlSource,
-  /^sdkwork-birdcoder-server\s*=\s*\{\s*workspace\s*=\s*true\s*\}$/m,
-  'Desktop Cargo manifest must depend on the local sdkwork-birdcoder-server crate so the desktop shell can bootstrap the embedded localhost API without requiring a separately managed sidecar process.',
+  /^sdkwork-birdcoder-standalone-gateway\s*=\s*\{\s*workspace\s*=\s*true\s*\}$/m,
+  'Desktop Cargo manifest must depend on the local sdkwork-birdcoder-standalone-gateway crate so the desktop shell can bootstrap the embedded localhost API without requiring a separately managed sidecar process.',
 );
 assert.doesNotMatch(
   desktopLibRsSource,

@@ -89,8 +89,8 @@ The repository root `packages/` directory holds cross-surface shared contracts t
 
 - [`docs/`](./docs/) for architecture, steps, prompts, release notes, and operator guidance
 - [`scripts/`](./scripts/) for verification, release orchestration, code generation, and governance automation
-- [`deploy/docker`](./deploy/docker/) for Docker delivery assets
-- [`deploy/kubernetes`](./deploy/kubernetes/) for Helm-compatible Kubernetes delivery assets
+- [`deployments/docker`](./deployments/docker/) for Docker delivery assets
+- [`deployments/kubernetes`](./deployments/kubernetes/) for Helm-compatible Kubernetes delivery assets
 - [`external/`](./external/) for engine source mirrors and protocol references used by integration work
 
 ## Prerequisites
@@ -346,8 +346,8 @@ Container images are signed keyless using the GitHub OIDC token. No `COSIGN_PRIV
 - [Package Topology](./docs/core/packages.md)
 - [Command Reference](./docs/reference/commands.md)
 - [Release And Deployment](./docs/core/release-and-deployment.md)
-- [Chinese Architecture Standards](./docs/架构/README.md)
-- [Step Execution Matrix](./docs/step/README.md)
+- Migrated Chinese Architecture Standards — see [`docs/archive/migrated-legacy/架构/README.md`](./docs/archive/migrated-legacy/架构/README.md)
+- Migrated Step Execution Matrix — see [`docs/archive/migrated-legacy/step/README.md`](./docs/archive/migrated-legacy/step/README.md)
 
 ## Auth UI Rule
 
@@ -359,7 +359,7 @@ When the desktop or web host is opened on a direct auth callback path such as `/
 
 - The default entrypoint is this English `README.md`.
 - The Simplified Chinese counterpart lives at [README.zh-CN.md](./README.zh-CN.md).
-- Most operational docs are written in English, while the full architecture and Step standards are maintained in Chinese under [`docs/架构`](./docs/架构) and [`docs/step`](./docs/step/).
+- Most operational docs are written in English, while the full architecture and Step standards are maintained in Chinese under [`docs/archive/migrated-legacy/架构`](./docs/archive/migrated-legacy/架构) and [`docs/archive/migrated-legacy/step`](./docs/archive/migrated-legacy/step/).
 
 ## SDKWork Documentation Contract
 

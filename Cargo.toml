@@ -109,7 +109,6 @@ sdkwork-birdcoder-sqlx-repository-pool = { path = "crates/sdkwork-birdcoder-sqlx
 
 # Host/server crates
 sdkwork-birdcoder-standalone-gateway = { path = "crates/sdkwork-birdcoder-standalone-gateway" }
-sdkwork-birdcoder-server = { package = "sdkwork-birdcoder-standalone-gateway", path = "crates/sdkwork-birdcoder-standalone-gateway" }
 sdkwork-birdcoder-service-host = { path = "crates/sdkwork-birdcoder-service-host" }
 sdkwork-birdcoder-tauri-host = { path = "crates/sdkwork-birdcoder-tauri-host" }
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-SDKWork BirdCoder follows the same multi-family release shape as Claw Studio while keeping BirdCoder business behavior unchanged.
+SDKWork BirdCoder follows the SDKWork multi-family release shape while keeping BirdCoder business behavior unchanged.
 
 The release flow produces:
 
