@@ -79,7 +79,7 @@
 | 16 | `sdkwork-ecosystem-skill-packages-service` | skill package listing, installation |
 | 17 | `sdkwork-ecosystem-app-templates-service` | template listing, instantiation |
 | 18 | `sdkwork-content-document-service` | document listing |
-| 19 | `sdkwork-commerce-membership-service` | membership current, package groups |
+| 19 | `sdkwork-membership-service` | membership current, package groups |
 | 20 | `sdkwork-system-descriptor-service` | system descriptor, route catalog, runtime metadata |
 
 #### Repository Crates (under `crates/`)
@@ -90,7 +90,7 @@
 | 22 | `sdkwork-platform-workspace-repository-sqlite` | workspace, project, document, deployment, release tables |
 | 23 | `sdkwork-ecosystem-skill-packages-repository-sqlite` | skill_package, version, capability, installation tables |
 | 24 | `sdkwork-runtime-model-config-repository-sqlite` | model_config KV store |
-| 25 | `sdkwork-commerce-membership-repository-sqlite` | membership tables |
+| 25 | `sdkwork-commerce (deleted)-membership-repository-sqlite` | membership tables |
 
 #### Host/Server Crates (under `crates/`)
 
@@ -301,13 +301,13 @@ Create all 30 crate directories under `crates/` with `Cargo.toml` and empty `src
 - Create: `crates/sdkwork-ecosystem-skill-packages-service/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-ecosystem-app-templates-service/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-content-document-service/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-commerce-membership-service/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-membership-service/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-system-descriptor-service/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-intelligence-coding-sessions-repository-sqlite/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-platform-workspace-repository-sqlite/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-ecosystem-skill-packages-repository-sqlite/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-runtime-model-config-repository-sqlite/Cargo.toml`, `src/lib.rs`
-- Create: `crates/sdkwork-commerce-membership-repository-sqlite/Cargo.toml`, `src/lib.rs`
+- Create: `crates/sdkwork-commerce (deleted)-membership-repository-sqlite/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-birdcoder-standalone-gateway/Cargo.toml`, `src/main.rs`, `src/lib.rs`
 - Create: `crates/sdkwork-birdcoder-service-host/Cargo.toml`, `src/lib.rs`
 - Create: `crates/sdkwork-birdcoder-tauri-host/Cargo.toml`, `src/lib.rs`
@@ -356,14 +356,14 @@ members = [
   "crates/sdkwork-ecosystem-skill-packages-service",
   "crates/sdkwork-ecosystem-app-templates-service",
   "crates/sdkwork-content-document-service",
-  "crates/sdkwork-commerce-membership-service",
+  "crates/sdkwork-membership-service",
   "crates/sdkwork-system-descriptor-service",
   # New repository crates
   "crates/sdkwork-intelligence-coding-sessions-repository-sqlite",
   "crates/sdkwork-platform-workspace-repository-sqlite",
   "crates/sdkwork-ecosystem-skill-packages-repository-sqlite",
   "crates/sdkwork-runtime-model-config-repository-sqlite",
-  "crates/sdkwork-commerce-membership-repository-sqlite",
+  "crates/sdkwork-commerce (deleted)-membership-repository-sqlite",
   # New host/server crates
   "crates/sdkwork-birdcoder-standalone-gateway",
   "crates/sdkwork-birdcoder-service-host",
@@ -386,13 +386,13 @@ cargo check --workspace  # All crates should compile (empty libs)
 **Files:**
 - Create: `crates/sdkwork-birdcoder-errors/Cargo.toml`
 - Create: `crates/sdkwork-birdcoder-errors/src/lib.rs`
-- Create: `crates/sdkwork-birdcoder-errors/src/problem_details.rs`
+- Create: `crates/sdkwork-birdcoder-errors/src/envelope.rs`
 
-Extract `ProblemDetailsPayload` and `ApiEnvelope`/`ApiListEnvelope` response wrappers into a shared errors crate that all route crates depend on. This implements RFC 9457 Problem Details.
+Centralize SDKWork HTTP envelopes and RFC 9457 problem mapping in `sdkwork-birdcoder-errors`, reusing `sdkwork-utils-rust` (`SdkWorkApiResponse`, `SdkWorkProblemDetail`, `SdkWorkPageData`) instead of local legacy wrappers.
 
 **Verification:**
 ```bash
-cargo check -p sdkwork-birdcoder-errors
+cargo test -p sdkwork-birdcoder-errors
 ```
 
 ---
@@ -507,7 +507,7 @@ Extract ecosystem, content, commerce, runtime, system types.
 - Create: `crates/sdkwork-ecosystem-skill-packages-service/src/domain/` (models, commands, results)
 - Create: `crates/sdkwork-ecosystem-app-templates-service/src/domain/`
 - Create: `crates/sdkwork-content-document-service/src/domain/`
-- Create: `crates/sdkwork-commerce-membership-service/src/domain/`
+- Create: `crates/sdkwork-membership-service/src/domain/`
 - Create: `crates/sdkwork-runtime-engine-catalog-service/src/domain/`
 - Create: `crates/sdkwork-runtime-native-sessions-service/src/domain/`
 - Create: `crates/sdkwork-system-descriptor-service/src/domain/`
@@ -589,14 +589,14 @@ cargo check -p sdkwork-platform-workspace-repository-sqlite
 **Files:**
 - Create: `crates/sdkwork-ecosystem-skill-packages-repository-sqlite/src/` (schema + repositories for `ai_skill_package*`, `studio_app_template*`)
 - Create: `crates/sdkwork-runtime-model-config-repository-sqlite/src/` (model config KV store)
-- Create: `crates/sdkwork-commerce-membership-repository-sqlite/src/` (membership tables)
+- Create: `crates/sdkwork-commerce (deleted)-membership-repository-sqlite/src/` (membership tables)
 - Modify: All corresponding `Cargo.toml` files
 
 **Verification:**
 ```bash
 cargo check -p sdkwork-ecosystem-skill-packages-repository-sqlite
 cargo check -p sdkwork-runtime-model-config-repository-sqlite
-cargo check -p sdkwork-commerce-membership-repository-sqlite
+cargo check -p sdkwork-commerce (deleted)-membership-repository-sqlite
 ```
 
 #### Task 2.4: Extract seed data and schema migration logic
@@ -670,7 +670,7 @@ cargo check -p sdkwork-platform-deployment-service
 #### Task 3.3: Implement remaining services
 
 **Files:**
-- Create service files for: `sdkwork-runtime-engine-catalog-service`, `sdkwork-runtime-native-sessions-service`, `sdkwork-ecosystem-skill-packages-service`, `sdkwork-ecosystem-app-templates-service`, `sdkwork-content-document-service`, `sdkwork-commerce-membership-service`, `sdkwork-system-descriptor-service`
+- Create service files for: `sdkwork-runtime-engine-catalog-service`, `sdkwork-runtime-native-sessions-service`, `sdkwork-ecosystem-skill-packages-service`, `sdkwork-ecosystem-app-templates-service`, `sdkwork-content-document-service`, `sdkwork-membership-service`, `sdkwork-system-descriptor-service`
 
 **Key extractions:**
 - Engine catalog: `build_engine_catalog` (line 3403), `build_model_config` (line 3456), `resolve_authoritative_engine_runtime_profile` (line 3549)
@@ -1064,8 +1064,8 @@ sdkwork-birdcoder-standalone-gateway
 │   └── sdkwork-ecosystem-app-templates-service
 │       └── sdkwork-ecosystem-skill-packages-repository-sqlite
 ├── sdkwork-routes-commerce-app-api
-│   └── sdkwork-commerce-membership-service
-│       └── sdkwork-commerce-membership-repository-sqlite
+│   └── sdkwork-membership-service
+│       └── sdkwork-commerce (deleted)-membership-repository-sqlite
 ├── sdkwork-routes-iam-backend-api (consumes appbase)
 │   └── sdkwork_routes_iam_backend_api (from sdkwork-appbase)
 ├── sdkwork-routes-platform-backend-api

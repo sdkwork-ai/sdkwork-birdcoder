@@ -75,26 +75,23 @@ export function buildRequestId(_seed: string): string {
   return createBirdCoderServerRequestId();
 }
 
-export function createEnvelope<T>(data: T, seed: string): BirdCoderApiEnvelope<T> {
+export function createEnvelope<T>(data: T): BirdCoderApiEnvelope<T> {
   return {
-    requestId: buildRequestId(seed),
-    timestamp: new Date().toISOString(),
-    data,
-    meta: {
-      version: BIRDCODER_CODING_SERVER_API_VERSION,
-    },
+    code: 0,
+    data: { item: data },
+    traceId: createBirdCoderServerRequestId(),
   };
 }
 
 export function createBirdCoderApprovalDecisionEnvelope(
   result: BirdCoderApprovalDecisionResult,
 ): BirdCoderApiEnvelope<BirdCoderApprovalDecisionResult> {
-  return createEnvelope(result, result.approvalId);
+  return createEnvelope(result);
 }
 
 export function createBirdCoderUserQuestionAnswerEnvelope(
   result: BirdCoderUserQuestionAnswerResult,
 ): BirdCoderApiEnvelope<BirdCoderUserQuestionAnswerResult> {
-  return createEnvelope(result, result.questionId);
+  return createEnvelope(result);
 }
 

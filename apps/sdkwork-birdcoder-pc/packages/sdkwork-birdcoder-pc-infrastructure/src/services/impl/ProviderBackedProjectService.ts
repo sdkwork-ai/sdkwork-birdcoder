@@ -1,5 +1,4 @@
 import { isBlank } from '@sdkwork/utils/string';
-import { randomBytes } from '@sdkwork/utils/id';
 import type {
   BirdCoderProjectSummary,
   BirdCoderChatMessage,
@@ -53,6 +52,7 @@ import {
   readBirdCoderProjectRootPathFromConfigData,
 } from '../projectContentConfigData.ts';
 import { createBirdCoderLocalBusinessUuid } from '../localBusinessUuid.ts';
+import { createBirdCoderLocalEntityId } from '../localEntityId.ts';
 
 function createTimestamp(): string {
   return new Date().toISOString();
@@ -65,13 +65,6 @@ const EMPTY_PERSISTED_CODING_SESSION_MESSAGES_BY_ID = new Map<
 >();
 const PUBLIC_TRANSCRIPT_SNAPSHOT_CACHE_MAX_ENTRIES = 256;
 const CACHED_CODING_SESSION_MESSAGE_INDEX_MAX_ENTRIES = 128;
-
-function createIdentifier(prefix: string): string {
-  void prefix;
-  const timestampPart = BigInt(Date.now()) * 1_000_000n;
-  const randomPart = BigInt(randomBytes(4).reduce((acc, byte) => acc * 256n + BigInt(byte), 0n) % 1_000_000n);
-  return (timestampPart + randomPart).toString();
-}
 
 function createUuid(): string {
   return createBirdCoderLocalBusinessUuid();
@@ -692,7 +685,7 @@ function createCodingSession(
   const selection = resolveRequiredCodingSessionSelection(options);
 
   return {
-    id: createIdentifier('coding-session'),
+    id: createBirdCoderLocalEntityId('coding-session'),
     workspaceId: projectRecord.workspaceId,
     projectId: projectRecord.id,
     title: title.trim() || 'New Session',
@@ -730,7 +723,7 @@ function createChatMessage(
       ? message.createdAt
       : createTimestamp();
   return {
-    id: normalizedMessageId || createIdentifier('message'),
+    id: normalizedMessageId || createBirdCoderLocalEntityId('message'),
     codingSessionId,
     turnId: message.turnId,
     role: message.role,
@@ -1109,7 +1102,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     }
 
     const now = createTimestamp();
-    const projectId = createIdentifier('project');
+    const projectId = createBirdCoderLocalEntityId('project');
     const projectBusinessName = buildBirdCoderProjectBusinessName({
       name: normalizedName,
       projectId,
@@ -1439,14 +1432,14 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       refresh: true,
     });
     const forkedSession = cloneCodingSession(sourceSession);
-    forkedSession.id = createIdentifier('coding-session');
+    forkedSession.id = createBirdCoderLocalEntityId('coding-session');
     forkedSession.title = newTitle?.trim() || `${sourceSession.title} (Fork)`;
     forkedSession.archived = false;
     forkedSession.unread = false;
     forkedSession.pinned = sourceSession.pinned;
     forkedSession.messages = sourceSession.messages.map((message) => ({
       ...cloneChatMessage(message),
-      id: createIdentifier('message'),
+      id: createBirdCoderLocalEntityId('message'),
       codingSessionId: '',
     }));
     const nextForkedSession = this.touchCodingSessionTranscript({

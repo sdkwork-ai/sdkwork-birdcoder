@@ -153,12 +153,9 @@ const IN_PROCESS_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY = 'codeEngineS
 
 function createEnvelope<TData>(data: TData): BirdCoderApiEnvelope<TData> {
   return {
-    requestId: createBirdCoderLocalServerRequestId(),
-    timestamp: new Date().toISOString(),
-    data,
-    meta: {
-      version: BIRDCODER_CODING_SERVER_API_VERSION,
-    },
+    code: 0,
+    data: { item: data },
+    traceId: createBirdCoderLocalServerRequestId(),
   };
 }
 
@@ -181,14 +178,16 @@ function createListEnvelope<TItem>(
       : 0;
   const pageBase = pageSize > 0 ? pageSize : Math.max(items.length, 1);
   return {
-    requestId: createBirdCoderLocalServerRequestId(),
-    timestamp: new Date().toISOString(),
-    items: [...items],
-    meta: {
-      page: Math.floor(offset / pageBase) + 1,
-      pageSize,
-      total,
-      version: BIRDCODER_CODING_SERVER_API_VERSION,
+    code: 0,
+    traceId: createBirdCoderLocalServerRequestId(),
+    data: {
+      items: [...items],
+      pageInfo: {
+        mode: 'offset',
+        page: Math.floor(offset / pageBase) + 1,
+        pageSize,
+        totalItems: String(total),
+      },
     },
   };
 }

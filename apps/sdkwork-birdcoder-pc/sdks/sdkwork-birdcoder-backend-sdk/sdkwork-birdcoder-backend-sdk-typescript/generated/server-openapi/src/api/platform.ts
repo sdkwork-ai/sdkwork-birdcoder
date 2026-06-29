@@ -1,7 +1,7 @@
 import { backendApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderDeploymentRecordSummaryListEnvelope, BirdCoderDeploymentTargetSummaryListEnvelope, BirdCoderReleaseSummaryListEnvelope } from '../types';
+import type { BirdCoderDeploymentRecordSummary, BirdCoderDeploymentTargetSummary, BirdCoderReleaseSummary, PageInfo } from '../types';
 
 
 export class PlatformReleasesApi {
@@ -13,8 +13,8 @@ export class PlatformReleasesApi {
 
 
 /** List releases */
-  async list(): Promise<BirdCoderReleaseSummaryListEnvelope> {
-    return this.client.get<BirdCoderReleaseSummaryListEnvelope>(backendApiPath(`/releases`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/releases`));
   }
 }
 
@@ -27,8 +27,8 @@ export class PlatformProjectsDeploymentTargetsApi {
 
 
 /** List deployment targets */
-  async list(projectId: string): Promise<BirdCoderDeploymentTargetSummaryListEnvelope> {
-    return this.client.get<BirdCoderDeploymentTargetSummaryListEnvelope>(backendApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/deployment_targets`));
+  async list(projectId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/deployment_targets`));
   }
 }
 
@@ -52,8 +52,8 @@ export class PlatformDeploymentGovernanceApi {
 
 
 /** List governed deployments */
-  async list(): Promise<BirdCoderDeploymentRecordSummaryListEnvelope> {
-    return this.client.get<BirdCoderDeploymentRecordSummaryListEnvelope>(backendApiPath(`/deployments`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(backendApiPath(`/deployments`));
   }
 }
 

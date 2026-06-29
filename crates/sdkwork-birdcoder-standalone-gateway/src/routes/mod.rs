@@ -18,16 +18,18 @@ pub mod notifications;
 pub mod usage;
 
 use axum::extract::{FromRequestParts, Request, State};
-use axum::http::request::Parts;
-use axum::http::{header, HeaderValue, StatusCode};
+use axum::http::{StatusCode, request::Parts};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use sqlx::AnyPool;
 use std::convert::Infallible;
 
 pub use sdkwork_birdcoder_errors::ProblemJsonBody;
-use sdkwork_birdcoder_errors::{problem_json, trace_id_from_request_id, ProblemDetailsPayload};
+use sdkwork_birdcoder_errors::{
+    trace_id_from_request_id, traced_legacy_problem, traced_platform_problem,
+};
 use sdkwork_birdcoder_router_context::WebRequestContext;
+use sdkwork_utils_rust::SdkWorkResultCode;
 
 use crate::server::middleware::rate_limit::RateLimitSubject;
 
@@ -86,18 +88,44 @@ fn trace_id_from_parts(parts: &Parts) -> Option<&str> {
         .and_then(|web| trace_id_from_request_id(web.request_id.0.as_str()))
 }
 
+fn traced_problem_for_code(
+    code: &str,
+    message: impl Into<String>,
+    trace_id: Option<&str>,
+) -> ProblemJsonBody {
+    match code {
+        "not_found" => traced_platform_problem(SdkWorkResultCode::NotFound, message, trace_id),
+        "invalid_input" => traced_platform_problem(
+            SdkWorkResultCode::ValidationError,
+            message,
+            trace_id,
+        ),
+        "forbidden" => traced_platform_problem(
+            SdkWorkResultCode::PermissionRequired,
+            message,
+            trace_id,
+        ),
+        "conflict" => traced_platform_problem(SdkWorkResultCode::Conflict, message, trace_id),
+        "rate_limited" => traced_platform_problem(
+            SdkWorkResultCode::RateLimitExceeded,
+            message,
+            trace_id,
+        ),
+        _ => traced_legacy_problem(code, message, trace_id),
+    }
+}
+
 /// Builds a Problem Details body tuple for handlers returning
 /// `Result<Json<_>, ProblemJsonBody>`. Accepts an explicit `trace_id` so
 /// handlers no longer need to take `&Request` directly.
 pub fn problem_with(
-    status: StatusCode,
+    _status: StatusCode,
     code: &str,
     message: impl Into<String>,
-    retryable: bool,
+    _retryable: bool,
     trace_id: Option<&str>,
 ) -> ProblemJsonBody {
-    let payload = ProblemDetailsPayload::new(code, message, retryable).with_trace_id(trace_id);
-    problem_json(status, payload)
+    traced_problem_for_code(code, message, trace_id)
 }
 
 /// Builds a Problem Details body tuple using the full `&Request` (used by
@@ -115,19 +143,13 @@ pub fn problem(
 
 /// Renders a Problem Details JSON response (used by middleware).
 pub fn problem_response(
-    status: StatusCode,
+    _status: StatusCode,
     code: &str,
     message: impl Into<String>,
-    retryable: bool,
+    _retryable: bool,
     request: &Request,
 ) -> Response {
-    let payload = ProblemDetailsPayload::new(code, message, retryable).with_trace_id(trace_id(request));
-    let mut response = (status, axum::Json(payload)).into_response();
-    response.headers_mut().insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static("application/problem+json"),
-    );
-    response
+    traced_problem_for_code(code, message, trace_id(request)).into_response()
 }
 
 /// Axum middleware that authenticates commerce requests with a BirdCoder API key

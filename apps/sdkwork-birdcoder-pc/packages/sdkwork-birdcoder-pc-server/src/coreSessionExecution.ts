@@ -423,12 +423,12 @@ export async function* streamBirdCoderCoreSessionEventEnvelopes(
         canonicalEvent,
       );
       events.push(event);
-      yield createEnvelope(event, event.id);
+      yield createEnvelope(event);
     }
   } catch (error) {
     const appendedFailureEvent = appendCoreSessionRunFailureEvent(resolvedRequest, events, error);
     if (appendedFailureEvent) {
-      yield createEnvelope(appendedFailureEvent, appendedFailureEvent.id);
+      yield createEnvelope(appendedFailureEvent);
     }
   }
 }

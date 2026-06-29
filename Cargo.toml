@@ -140,8 +140,7 @@ sdkwork-terminal-protocol = { path = "../sdkwork-terminal/apps/sdkwork-terminal-
 sdkwork-terminal-replay-store = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-replay-store" }
 sdkwork-terminal-session-runtime = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-session-runtime" }
 
-# sdkwork-kernel agent SPI (sibling checkout)
-sdkwork-agent-kernel = { path = "../sdkwork-kernel/sdkwork-agent-kernel" }
-sdkwork-code-kernel = { path = "../sdkwork-kernel/sdkwork-code-kernel" }
+# sdkwork-agents runtime facade — the ONLY product application entry to kernel agent SPI.
+# Product crates must NOT directly depend on sdkwork-agent-kernel or sdkwork-agent-provider-*.
 sdkwork-agents-runtime-facade = { path = "../sdkwork-agents/crates/sdkwork-agents-runtime-facade" }
 

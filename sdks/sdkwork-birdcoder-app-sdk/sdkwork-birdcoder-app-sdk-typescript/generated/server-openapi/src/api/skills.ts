@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderInstallSkillPackageRequest, BirdCoderSkillInstallationSummaryEnvelope, BirdCoderSkillPackageSummaryListEnvelope } from '../types';
+import type { BirdCoderInstallSkillPackageRequest, BirdCoderSkillInstallationSummary, BirdCoderSkillPackageSummary, PageInfo } from '../types';
 
 
 export class SkillsSkillPackagesInstallationsApi {
@@ -13,8 +13,8 @@ export class SkillsSkillPackagesInstallationsApi {
 
 
 /** Install skill package for a scope */
-  async create(packageId: string, body: BirdCoderInstallSkillPackageRequest): Promise<BirdCoderSkillInstallationSummaryEnvelope> {
-    return this.client.post<BirdCoderSkillInstallationSummaryEnvelope>(appApiPath(`/skill_packages/${serializePathParameter(packageId, { name: 'packageId', style: 'simple', explode: false })}/installations`), body, undefined, undefined, 'application/json');
+  async create(packageId: string, body: BirdCoderInstallSkillPackageRequest): Promise<BirdCoderSkillInstallationSummary> {
+    return this.client.post<BirdCoderSkillInstallationSummary>(appApiPath(`/skill_packages/${serializePathParameter(packageId, { name: 'packageId', style: 'simple', explode: false })}/installations`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -34,12 +34,12 @@ export class SkillsSkillPackagesApi {
 
 
 /** List skill packages */
-  async list(params?: SkillsSkillPackagesListParams): Promise<BirdCoderSkillPackageSummaryListEnvelope> {
+  async list(params?: SkillsSkillPackagesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'userId', value: params?.userId, style: 'form', explode: true, allowReserved: false },
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<BirdCoderSkillPackageSummaryListEnvelope>(appendQueryString(appApiPath(`/skill_packages`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/skill_packages`), query));
   }
 }
 

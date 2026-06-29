@@ -47,7 +47,7 @@
 - `packages/sdkwork-birdcoder-infrastructure/src/services/impl/ApiBackedProjectService.ts`
 - 统一 `app / backend` 路由矩阵与 OpenAPI seed。
 - 统一把 canonical engine runtime 投影为 `runtime / event / artifact / operation`。
-- 统一 SSE envelope：`requestId`、`timestamp`、`data`、`meta.version`。
+- 统一 SSE chunk 外壳：`SdkWorkApiResponse`（`code`、`data`、`traceId`）；事件载荷位于 `data.item`。
 - 增加最小 projection store，允许同一 `coding_session` 聚合多 turn 的 runtime、event、artifact、operation。
 - 增加 provider-scoped table repository 版 projection store，允许基于共享 data-kernel binding 读回 runtime、event、artifact、operation 快照。
 - 共享 data-kernel 已补齐 Node 直跑时的 in-memory fallback，使 provider 合同测试不依赖浏览器 `window.localStorage`。

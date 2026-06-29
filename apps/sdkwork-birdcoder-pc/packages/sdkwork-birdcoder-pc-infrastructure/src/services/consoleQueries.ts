@@ -1,5 +1,4 @@
 import { isBlank } from '@sdkwork/utils/string';
-import { randomBytes } from '@sdkwork/utils/id';
 import type {
   BirdCoderCreateProjectRequest,
   BirdCoderCreateWorkspaceRequest,
@@ -36,6 +35,7 @@ import {
   readBirdCoderProjectRootPathFromConfigData,
 } from './projectContentConfigData.ts';
 import { createBirdCoderLocalBusinessUuid } from './localBusinessUuid.ts';
+import { createBirdCoderLocalEntityId } from './localEntityId.ts';
 
 export interface BirdCoderConsoleQueries {
   createProject(
@@ -125,13 +125,6 @@ function filterByProjectId<
 
 function createTimestamp(): string {
   return new Date().toISOString();
-}
-
-function createIdentifier(prefix: string): string {
-  void prefix;
-  const timestampPart = BigInt(Date.now()) * 1_000_000n;
-  const randomPart = BigInt(randomBytes(4).reduce((acc, byte) => acc * 256n + BigInt(byte), 0n) % 1_000_000n);
-  return (timestampPart + randomPart).toString();
 }
 
 function createUuid(): string {
@@ -414,7 +407,7 @@ export function createBirdCoderConsoleQueries({
         normalizeOptionalText(request.createdByUserId) ?? ownerId;
       const now = createTimestamp();
       const workspaceRecord = await repositories.workspaces.save({
-        id: createIdentifier('workspace'),
+        id: createBirdCoderLocalEntityId('workspace'),
         uuid: createUuid(),
         tenantId: normalizeOptionalText(request.tenantId) ?? BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
         organizationId:
@@ -445,7 +438,7 @@ export function createBirdCoderConsoleQueries({
         updatedAt: now,
       });
 
-      const defaultTeamId = createIdentifier('team');
+      const defaultTeamId = createBirdCoderLocalEntityId('team');
       await repositories.teams.save({
         id: defaultTeamId,
         uuid: createUuid(),
@@ -465,7 +458,7 @@ export function createBirdCoderConsoleQueries({
         updatedAt: now,
       });
       await repositories.members.save({
-        id: createIdentifier('team-member'),
+        id: createBirdCoderLocalEntityId('team-member'),
         uuid: createUuid(),
         tenantId: workspaceRecord.tenantId,
         organizationId: workspaceRecord.organizationId,
@@ -672,7 +665,7 @@ export function createBirdCoderConsoleQueries({
         workspaceRecord.createdByUserId ??
         ownerId;
       const now = createTimestamp();
-      const projectId = createIdentifier('project');
+      const projectId = createBirdCoderLocalEntityId('project');
       const projectBusinessName = buildBirdCoderProjectBusinessName({
         name,
         projectId,

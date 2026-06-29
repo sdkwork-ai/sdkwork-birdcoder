@@ -1,7 +1,9 @@
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use serde::Serialize;
+use sdkwork_utils_rust::{
+    legacy_wire_result_code, uuid, SdkWorkProblemDetail, SdkWorkResultCode,
+};
 
 pub mod envelope;
 pub mod tenant_scope;
@@ -16,80 +18,69 @@ pub use envelope::{
     build_data_envelope, build_list_envelope, build_offset_list_envelope, ApiDataEnvelope,
     ApiListEnvelope, ApiListMeta, ApiMeta, BIRDCODER_CODING_SERVER_API_VERSION,
 };
+pub use sdkwork_utils_rust::SdkWorkProblemDetail as ProblemDetailsPayload;
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProblemDetailsPayload {
-    pub code: String,
-    pub message: String,
-    pub retryable: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub trace_id: Option<String>,
+pub fn resolve_trace_id(trace_id: Option<&str>) -> String {
+    trace_id
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(uuid)
 }
 
-impl ProblemDetailsPayload {
-    pub fn new(code: impl Into<String>, message: impl Into<String>, retryable: bool) -> Self {
-        Self {
-            code: code.into(),
-            message: message.into(),
-            retryable,
-            trace_id: None,
-        }
-    }
+pub fn platform_problem(
+    result_code: SdkWorkResultCode,
+    detail: impl Into<String>,
+    trace_id: Option<&str>,
+) -> SdkWorkProblemDetail {
+    SdkWorkProblemDetail::platform(result_code, detail, resolve_trace_id(trace_id))
+}
 
-    pub fn with_trace_id(mut self, trace_id: Option<&str>) -> Self {
-        self.trace_id = trace_id
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_owned);
-        self
-    }
+pub fn legacy_problem(
+    wire_code: &str,
+    detail: impl Into<String>,
+    trace_id: Option<&str>,
+) -> SdkWorkProblemDetail {
+    platform_problem(legacy_wire_result_code(wire_code), detail, trace_id)
 }
 
 #[derive(Debug)]
 pub struct AppError {
     pub status: StatusCode,
-    pub body: ProblemDetailsPayload,
+    pub body: SdkWorkProblemDetail,
 }
 
 impl AppError {
     pub fn not_found(message: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::NOT_FOUND,
-            body: ProblemDetailsPayload::new("not_found", message, false),
-        }
+        Self::platform(SdkWorkResultCode::NotFound, message)
     }
 
     pub fn bad_request(message: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::BAD_REQUEST,
-            body: ProblemDetailsPayload::new("invalid_input", message, false),
-        }
+        Self::platform(SdkWorkResultCode::ValidationError, message)
     }
 
     pub fn internal(message: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: ProblemDetailsPayload::new("internal", message, true),
-        }
+        Self::platform(SdkWorkResultCode::InternalError, message)
     }
 
     pub fn conflict(message: impl Into<String>) -> Self {
-        Self {
-            status: StatusCode::CONFLICT,
-            body: ProblemDetailsPayload::new("conflict", message, false),
-        }
+        Self::platform(SdkWorkResultCode::Conflict, message)
     }
 
     pub fn bad_gateway(message: impl Into<String>) -> Self {
+        Self::platform(SdkWorkResultCode::BadGateway, message)
+    }
+
+    pub fn platform(result_code: SdkWorkResultCode, message: impl Into<String>) -> Self {
         Self {
-            status: StatusCode::BAD_GATEWAY,
-            body: ProblemDetailsPayload::new("provider_error", message, true),
+            status: StatusCode::from_u16(result_code.http_status_code())
+                .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+            body: SdkWorkProblemDetail::platform(result_code, message, uuid()),
         }
     }
 
     pub fn with_trace_id(mut self, trace_id: Option<&str>) -> Self {
-        self.body = self.body.with_trace_id(trace_id);
+        self.body.trace_id = resolve_trace_id(trace_id);
         self
     }
 }
@@ -97,10 +88,10 @@ impl AppError {
 pub type ProblemJsonBody = (
     StatusCode,
     [(axum::http::header::HeaderName, HeaderValue); 1],
-    Json<ProblemDetailsPayload>,
+    Json<SdkWorkProblemDetail>,
 );
 
-pub fn problem_json(status: StatusCode, body: ProblemDetailsPayload) -> ProblemJsonBody {
+pub fn problem_json(status: StatusCode, body: SdkWorkProblemDetail) -> ProblemJsonBody {
     (
         status,
         [(
@@ -111,12 +102,38 @@ pub fn problem_json(status: StatusCode, body: ProblemDetailsPayload) -> ProblemJ
     )
 }
 
-pub fn traced_problem_json(
-    status: StatusCode,
-    body: ProblemDetailsPayload,
+pub fn traced_platform_problem(
+    result_code: SdkWorkResultCode,
+    detail: impl Into<String>,
     trace_id: Option<&str>,
 ) -> ProblemJsonBody {
-    problem_json(status, body.with_trace_id(trace_id))
+    problem_json(
+        StatusCode::from_u16(result_code.http_status_code())
+            .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+        platform_problem(result_code, detail, trace_id),
+    )
+}
+
+pub fn traced_legacy_problem(
+    wire_code: &str,
+    detail: impl Into<String>,
+    trace_id: Option<&str>,
+) -> ProblemJsonBody {
+    traced_platform_problem(legacy_wire_result_code(wire_code), detail, trace_id)
+}
+
+pub fn traced_problem_json(
+    status: StatusCode,
+    body: SdkWorkProblemDetail,
+    trace_id: Option<&str>,
+) -> ProblemJsonBody {
+    problem_json(
+        status,
+        SdkWorkProblemDetail {
+            trace_id: resolve_trace_id(trace_id.or(Some(body.trace_id.as_str()))),
+            ..body
+        },
+    )
 }
 
 impl IntoResponse for AppError {
@@ -157,26 +174,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn problem_payload_omits_empty_trace_id() {
-        let payload = ProblemDetailsPayload::new("internal", "failed", true).with_trace_id(None);
+    fn platform_problem_requires_trace_id() {
+        let payload = platform_problem(SdkWorkResultCode::InternalError, "failed", Some("req-123"));
         let json = serde_json::to_value(payload).expect("serialize payload");
-        assert!(json.get("traceId").is_none());
-    }
-
-    #[test]
-    fn problem_payload_includes_trace_id_when_present() {
-        let payload =
-            ProblemDetailsPayload::new("internal", "failed", true).with_trace_id(Some("req-123"));
-        let json = serde_json::to_value(payload).expect("serialize payload");
+        assert_eq!(json["code"], 50001);
         assert_eq!(json.get("traceId").and_then(|value| value.as_str()), Some("req-123"));
     }
 
     #[test]
-    fn client_safe_messages_are_stable() {
+    fn platform_problem_generates_trace_id_when_missing() {
+        let payload = platform_problem(SdkWorkResultCode::InternalError, "failed", None);
+        assert!(!payload.trace_id.is_empty());
+    }
+
+    #[test]
+    fn client_safe_messages_use_platform_codes() {
         assert_eq!(
-            client_safe_data_access_problem().message,
-            CLIENT_SAFE_DATA_ACCESS_MESSAGE
+            client_safe_data_access_problem().code,
+            SdkWorkResultCode::InternalError.as_i32()
         );
-        assert_eq!(client_safe_provider_problem().code, "provider_error");
+        assert_eq!(
+            client_safe_provider_problem().code,
+            SdkWorkResultCode::BadGateway.as_i32()
+        );
     }
 }

@@ -363,13 +363,13 @@ async fn list_workspaces_returns_ok_with_empty_inventory() {
         .await
         .expect("read list workspaces body");
     let json: serde_json::Value = serde_json::from_slice(&body).expect("parse list workspaces JSON");
-    assert_eq!(json["items"].as_array().map(Vec::len), Some(0));
-    assert_eq!(json["meta"]["total"], 0);
-    assert_eq!(json["meta"]["pageSize"], 20);
-    assert_eq!(json["meta"]["page"], 1);
-    assert_eq!(json["meta"]["version"], "v1");
-    assert_eq!(json["requestId"], "handler-smoke-request");
-    assert!(json["timestamp"].is_string());
+    assert_eq!(json["code"], 0);
+    assert_eq!(json["traceId"], "handler-smoke-request");
+    assert_eq!(json["data"]["items"].as_array().map(Vec::len), Some(0));
+    assert_eq!(json["data"]["pageInfo"]["mode"], "offset");
+    assert_eq!(json["data"]["pageInfo"]["pageSize"], 20);
+    assert_eq!(json["data"]["pageInfo"]["page"], 1);
+    assert_eq!(json["data"]["pageInfo"]["totalItems"], "0");
 }
 
 #[tokio::test]
@@ -409,6 +409,8 @@ async fn list_teams_returns_ok_with_empty_inventory() {
         .await
         .expect("read list teams body");
     let json: serde_json::Value = serde_json::from_slice(&body).expect("parse list teams JSON");
-    assert_eq!(json["items"].as_array().map(Vec::len), Some(0));
-    assert_eq!(json["meta"]["total"], 0);
+    assert_eq!(json["code"], 0);
+    assert_eq!(json["traceId"], "handler-smoke-request");
+    assert_eq!(json["data"]["items"].as_array().map(Vec::len), Some(0));
+    assert_eq!(json["data"]["pageInfo"]["totalItems"], "0");
 }

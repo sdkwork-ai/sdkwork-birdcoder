@@ -20,6 +20,14 @@ const externalTerminalAppsRootDir = path.join(
   'sdkwork-terminal',
   'apps',
 );
+const externalTerminalPcPackagesRootDir = path.join(
+  rootDir,
+  '..',
+  'sdkwork-terminal',
+  'apps',
+  'sdkwork-terminal-pc',
+  'packages',
+);
 const approvedExternalSdkworkLinkDirectories = new Map([
   [
     '@sdkwork/auth-pc-react',
@@ -43,6 +51,17 @@ const approvedExternalSdkworkLinkDirectories = new Map([
       'pc-react',
       'iam',
       'sdkwork-user-pc-react',
+    ),
+  ],
+  [
+    '@sdkwork/drive-app-sdk',
+    path.join(
+      rootDir,
+      '..',
+      'sdkwork-drive',
+      'sdks',
+      'sdkwork-drive-app-sdk',
+      'sdkwork-drive-app-sdk-typescript',
     ),
   ],
 ]);
@@ -74,17 +93,30 @@ function globSegmentToRegex(segment) {
 }
 
 function collectWorkspacePackageGlobs(workspaceConfigSource) {
-  const packagesMatch = workspaceConfigSource.match(/^packages:\s*\r?\n(?<body>(?:  (?:-|#) .*(?:\r?\n|$))+)/m);
-  assert.ok(packagesMatch?.groups?.body, 'pnpm-workspace.yaml must define a packages section.');
-
+  // Parse packages section line by line to handle all entries including external paths
+  const lines = workspaceConfigSource.split(/\r?\n/);
+  let inPackagesSection = false;
   const packageGlobs = [];
-  for (const line of packagesMatch.groups.body.split(/\r?\n/)) {
-    const match = line.match(/^  - ['"]([^'"]+)['"]\s*$/u);
-    if (!match) {
+
+  for (const line of lines) {
+    if (line.startsWith('packages:')) {
+      inPackagesSection = true;
       continue;
     }
-    packageGlobs.push(match[1]);
+    if (line.startsWith('catalog:')) {
+      // packages section ends when catalog: begins
+      break;
+    }
+    
+    if (inPackagesSection && line.startsWith('  - ')) {
+      const match = line.match(/^  - ['"]([^'"]+)['"]\s*$/u);
+      if (match) {
+        packageGlobs.push(match[1]);
+      }
+    }
   }
+
+  assert.ok(packageGlobs.length > 0, 'pnpm-workspace.yaml must define at least one package glob.');
   return packageGlobs;
 }
 
@@ -153,6 +185,13 @@ function normalizeManifestDependencyPath(rawPath) {
 function resolveApprovedExternalSdkworkLinkDirectory(dependencyName) {
   if (dependencyName === '@sdkwork/terminal-desktop') {
     return path.join(externalTerminalAppsRootDir, 'desktop');
+  }
+
+  if (/^@sdkwork\/terminal-pc-/u.test(dependencyName)) {
+    return path.join(
+      externalTerminalPcPackagesRootDir,
+      dependencyName.replace(/^@sdkwork\//u, 'sdkwork-'),
+    );
   }
 
   if (/^@sdkwork\/terminal-/u.test(dependencyName)) {

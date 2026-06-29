@@ -1,17 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::{BirdCoderApiListMeta, BirdCoderWorkspaceSummary};
-
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct BirdCoderWorkspaceSummaryListEnvelope {
-    pub items: Vec<BirdCoderWorkspaceSummary>,
+    pub code: i64,
 
-    pub meta: BirdCoderApiListMeta,
+    pub data: serde_json::Value,
 
-    /// Server-generated request correlation identifier.
-    #[serde(rename = "requestId")]
-    pub request_id: String,
-
-    /// Response emission timestamp.
-    pub timestamp: String,
+    /// Server-owned request correlation id.
+    #[serde(rename = "traceId")]
+    pub trace_id: String,
 }

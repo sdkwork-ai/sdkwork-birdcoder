@@ -193,10 +193,10 @@ async fn admin_teams_returns_ok_with_empty_inventory() {
         .await
         .expect("read admin teams body");
     let json: serde_json::Value = serde_json::from_slice(&body).expect("parse admin teams JSON");
-    assert_eq!(json["items"].as_array().map(Vec::len), Some(0));
-    assert_eq!(json["meta"]["total"], 0);
-    assert_eq!(json["meta"]["version"], "v1");
-    assert_eq!(json["requestId"], "handler-smoke-request");
+    assert_eq!(json["code"], 0);
+    assert_eq!(json["traceId"], "handler-smoke-request");
+    assert_eq!(json["data"]["items"].as_array().map(Vec::len), Some(0));
+    assert_eq!(json["data"]["pageInfo"]["totalItems"], "0");
 }
 
 #[tokio::test]

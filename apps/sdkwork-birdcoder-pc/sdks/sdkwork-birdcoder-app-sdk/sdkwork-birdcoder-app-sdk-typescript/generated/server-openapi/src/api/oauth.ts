@@ -1,8 +1,22 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderBooleanSuccessEnvelope, BirdCoderIamDeviceAuthorizationCreateRequest, BirdCoderIamDeviceAuthorizationEnvelope, BirdCoderIamDeviceAuthorizationPasswordCompletionRequest, BirdCoderIamDeviceAuthorizationScanRequest, BirdCoderIamOAuthAuthorizationCreateRequest, BirdCoderIamOAuthAuthorizationEnvelope, BirdCoderIamOAuthSessionCreateRequest, BirdCoderIamSessionEnvelope } from '../types';
+import type { BirdCoderBooleanSuccessResult, BirdCoderIamDeviceAuthorizationCreateRequest, BirdCoderIamDeviceAuthorizationPasswordCompletionRequest, BirdCoderIamDeviceAuthorizationScanRequest, BirdCoderIamDeviceAuthorizationSessionExchangeRequest, BirdCoderIamDeviceAuthorizationSummary, BirdCoderIamOAuthAuthorizationCreateRequest, BirdCoderIamOAuthAuthorizationSummary, BirdCoderIamOAuthSessionCreateRequest, BirdCoderIamSessionSummary } from '../types';
 
+
+export class OauthDeviceAuthorizationsSessionExchangesApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** Exchange SDKWork IAM OAuth device authorization for a session */
+  async create(deviceAuthorizationId: string, body: BirdCoderIamDeviceAuthorizationSessionExchangeRequest): Promise<BirdCoderIamSessionSummary> {
+    return this.client.post<BirdCoderIamSessionSummary>(appApiPath(`/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, { name: 'deviceAuthorizationId', style: 'simple', explode: false })}/session_exchanges`), body, undefined, undefined, 'application/json');
+  }
+}
 
 export class OauthDeviceAuthorizationsPasswordCompletionsApi {
   private client: HttpClient;
@@ -13,8 +27,8 @@ export class OauthDeviceAuthorizationsPasswordCompletionsApi {
 
 
 /** Complete SDKWork IAM OAuth device authorization with password */
-  async create(deviceAuthorizationId: string, body: BirdCoderIamDeviceAuthorizationPasswordCompletionRequest): Promise<BirdCoderIamSessionEnvelope> {
-    return this.client.post<BirdCoderIamSessionEnvelope>(appApiPath(`/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, { name: 'deviceAuthorizationId', style: 'simple', explode: false })}/password_completions`), body, undefined, undefined, 'application/json');
+  async create(deviceAuthorizationId: string, body: BirdCoderIamDeviceAuthorizationPasswordCompletionRequest): Promise<BirdCoderIamSessionSummary> {
+    return this.client.post<BirdCoderIamSessionSummary>(appApiPath(`/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, { name: 'deviceAuthorizationId', style: 'simple', explode: false })}/password_completions`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -27,8 +41,8 @@ export class OauthDeviceAuthorizationsScansApi {
 
 
 /** Create SDKWork IAM OAuth device authorization scan */
-  async create(deviceAuthorizationId: string, body?: BirdCoderIamDeviceAuthorizationScanRequest): Promise<BirdCoderBooleanSuccessEnvelope> {
-    return this.client.post<BirdCoderBooleanSuccessEnvelope>(appApiPath(`/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, { name: 'deviceAuthorizationId', style: 'simple', explode: false })}/scans`), body, undefined, undefined, 'application/json');
+  async create(deviceAuthorizationId: string, body?: BirdCoderIamDeviceAuthorizationScanRequest): Promise<BirdCoderBooleanSuccessResult> {
+    return this.client.post<BirdCoderBooleanSuccessResult>(appApiPath(`/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, { name: 'deviceAuthorizationId', style: 'simple', explode: false })}/scans`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -36,22 +50,24 @@ export class OauthDeviceAuthorizationsApi {
   private client: HttpClient;
   public readonly scans: OauthDeviceAuthorizationsScansApi;
   public readonly passwordCompletions: OauthDeviceAuthorizationsPasswordCompletionsApi;
+  public readonly sessionExchanges: OauthDeviceAuthorizationsSessionExchangesApi;
 
   constructor(client: HttpClient) {
     this.client = client;
     this.scans = new OauthDeviceAuthorizationsScansApi(client);
     this.passwordCompletions = new OauthDeviceAuthorizationsPasswordCompletionsApi(client);
+    this.sessionExchanges = new OauthDeviceAuthorizationsSessionExchangesApi(client);
   }
 
 
 /** Create SDKWork IAM OAuth device authorization */
-  async create(body: BirdCoderIamDeviceAuthorizationCreateRequest): Promise<BirdCoderIamDeviceAuthorizationEnvelope> {
-    return this.client.post<BirdCoderIamDeviceAuthorizationEnvelope>(appApiPath(`/oauth/device_authorizations`), body, undefined, undefined, 'application/json');
+  async create(body: BirdCoderIamDeviceAuthorizationCreateRequest): Promise<BirdCoderIamDeviceAuthorizationSummary> {
+    return this.client.post<BirdCoderIamDeviceAuthorizationSummary>(appApiPath(`/oauth/device_authorizations`), body, undefined, undefined, 'application/json');
   }
 
 /** Get SDKWork IAM OAuth device authorization */
-  async retrieve(deviceAuthorizationId: string): Promise<BirdCoderIamDeviceAuthorizationEnvelope> {
-    return this.client.get<BirdCoderIamDeviceAuthorizationEnvelope>(appApiPath(`/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, { name: 'deviceAuthorizationId', style: 'simple', explode: false })}`));
+  async retrieve(deviceAuthorizationId: string): Promise<BirdCoderIamDeviceAuthorizationSummary> {
+    return this.client.get<BirdCoderIamDeviceAuthorizationSummary>(appApiPath(`/oauth/device_authorizations/${serializePathParameter(deviceAuthorizationId, { name: 'deviceAuthorizationId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -64,8 +80,8 @@ export class OauthSessionsApi {
 
 
 /** Create SDKWork IAM session with OAuth authorization code */
-  async create(body: BirdCoderIamOAuthSessionCreateRequest): Promise<BirdCoderIamSessionEnvelope> {
-    return this.client.post<BirdCoderIamSessionEnvelope>(appApiPath(`/oauth/sessions`), body, undefined, undefined, 'application/json');
+  async create(body: BirdCoderIamOAuthSessionCreateRequest): Promise<BirdCoderIamSessionSummary> {
+    return this.client.post<BirdCoderIamSessionSummary>(appApiPath(`/oauth/sessions`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -78,8 +94,8 @@ export class OauthAuthorizationUrlsApi {
 
 
 /** Resolve OAuth authorization URL for SDKWork IAM sign-in */
-  async create(body: BirdCoderIamOAuthAuthorizationCreateRequest): Promise<BirdCoderIamOAuthAuthorizationEnvelope> {
-    return this.client.post<BirdCoderIamOAuthAuthorizationEnvelope>(appApiPath(`/oauth/authorization_urls`), body, undefined, undefined, 'application/json');
+  async create(body: BirdCoderIamOAuthAuthorizationCreateRequest): Promise<BirdCoderIamOAuthAuthorizationSummary> {
+    return this.client.post<BirdCoderIamOAuthAuthorizationSummary>(appApiPath(`/oauth/authorization_urls`), body, undefined, undefined, 'application/json');
   }
 }
 

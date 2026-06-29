@@ -32,7 +32,7 @@ export function resolveBirdCoderAuthDeploymentMode(): BirdCoderAuthDeploymentMod
       ),
     ) ?? 'private';
 
-  if (import.meta.env.PROD && resolved === 'local') {
+  if ((import.meta as ImportMeta & { env?: { PROD?: boolean } }).env?.PROD && resolved === 'local') {
     throw new Error(
       'Production builds must not ship with VITE_SDKWORK_DEPLOYMENT_MODE=local. Use private or saas.',
     );

@@ -462,6 +462,44 @@ function tsPropertyName(name) {
   return /^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(name) ? name : JSON.stringify(name);
 }
 
+function resolveComponentSchema(schema, schemas) {
+  if (!schema || typeof schema !== 'object') {
+    return schema;
+  }
+  if (schema.$ref) {
+    return schemas?.[schemaRefName(schema.$ref)] ?? schema;
+  }
+  return schema;
+}
+
+function mergeAllOfObjectSchema(schema, schemas) {
+  if (!Array.isArray(schema?.allOf) || schema.allOf.length === 0) {
+    return schema;
+  }
+
+  const merged = {
+    type: 'object',
+    properties: {},
+    required: [],
+  };
+  const required = new Set();
+
+  for (const part of schema.allOf) {
+    const resolved = resolveComponentSchema(part, schemas);
+    if (resolved?.properties && typeof resolved.properties === 'object') {
+      Object.assign(merged.properties, resolved.properties);
+    }
+    if (Array.isArray(resolved?.required)) {
+      for (const name of resolved.required) {
+        required.add(name);
+      }
+    }
+  }
+
+  merged.required = [...required];
+  return merged;
+}
+
 function tsTypeFromSchema(schema, fallback = 'unknown', options = {}) {
   if (!schema || typeof schema !== 'object') {
     return fallback;
@@ -469,6 +507,12 @@ function tsTypeFromSchema(schema, fallback = 'unknown', options = {}) {
   if (schema.$ref) {
     const refName = schemaRefName(schema.$ref);
     return options.namespaceRefs ? `${options.namespaceRefs}.${refName}` : refName;
+  }
+  if (Array.isArray(schema.allOf) && schema.allOf.length > 0) {
+    const merged = mergeAllOfObjectSchema(schema, options.schemas);
+    if (merged?.properties && Object.keys(merged.properties).length > 0) {
+      return tsTypeFromSchema(merged, fallback, options);
+    }
   }
   if (Array.isArray(schema.enum) && schema.enum.length > 0) {
     return schema.enum.map((value) => JSON.stringify(value)).join(' | ');
@@ -534,14 +578,15 @@ function collectQueryParameters(operation, options = {}) {
 function renderTsSchemas(schemas) {
   const chunks = [];
   for (const [schemaName, schema] of Object.entries(schemas ?? {}).sort(([left], [right]) => left.localeCompare(right))) {
-    const required = new Set(Array.isArray(schema.required) ? schema.required : []);
-    if (Array.isArray(schema.enum) && schema.enum.length > 0) {
-      chunks.push(`export type ${schemaName} = ${schema.enum.map((value) => JSON.stringify(value)).join(' | ')};`);
+    const normalized = mergeAllOfObjectSchema(schema, schemas);
+    const required = new Set(Array.isArray(normalized.required) ? normalized.required : []);
+    if (Array.isArray(normalized.enum) && normalized.enum.length > 0) {
+      chunks.push(`export type ${schemaName} = ${normalized.enum.map((value) => JSON.stringify(value)).join(' | ')};`);
       continue;
     }
 
-    if (schema.type === 'object' || schema.properties) {
-      const properties = Object.entries(schema.properties ?? {});
+    if (normalized.type === 'object' || normalized.properties) {
+      const properties = Object.entries(normalized.properties ?? {});
       if (properties.length === 0) {
         chunks.push(`export interface ${schemaName} extends Record<string, unknown> {}`);
         continue;
@@ -550,14 +595,14 @@ function renderTsSchemas(schemas) {
       const lines = [`export interface ${schemaName} {`];
       for (const [propertyName, propertySchema] of properties) {
         const optional = required.has(propertyName) ? '' : '?';
-        lines.push(`  ${tsPropertyName(propertyName)}${optional}: ${tsTypeFromSchema(propertySchema)};`);
+        lines.push(`  ${tsPropertyName(propertyName)}${optional}: ${tsTypeFromSchema(propertySchema, 'unknown', { schemas })};`);
       }
       lines.push('}');
       chunks.push(lines.join('\n'));
       continue;
     }
 
-    chunks.push(`export type ${schemaName} = ${tsTypeFromSchema(schema)};`);
+    chunks.push(`export type ${schemaName} = ${tsTypeFromSchema(normalized, 'unknown', { schemas })};`);
   }
   return chunks.join('\n\n');
 }
@@ -625,19 +670,16 @@ function buildOperationTree(operations, { includeTag = true } = {}) {
   return root;
 }
 
-function buildTsMethodParameters(operation, { defaults = false, namespaceTypes = '' } = {}) {
+function buildTsMethodParameters(operation, { defaults = false, namespaceTypes = '', schemas = {} } = {}) {
   const names = buildOperationTypeNames(operation);
   const hasPathParams = operation.pathParamNames.length > 0;
-  const queryParameters = collectQueryParameters(operation.operation);
+  const queryParameters = collectQueryParameters(operation.operation, { schemas });
   const hasQuery = queryParameters.length > 0;
   const hasRequiredQuery = queryParameters.some((parameter) => parameter.required);
   const hasBody = Boolean(operation.operation.requestBody);
-  const bodyType = operationRequestBodyType(operation.operation, {
-    namespaceRefs: namespaceTypes,
-  });
-  const responseType = operationResponseType(operation.operation, {
-    namespaceRefs: namespaceTypes,
-  });
+  const schemaOptions = { namespaceRefs: namespaceTypes, schemas };
+  const bodyType = operationRequestBodyType(operation.operation, schemaOptions);
+  const responseType = operationResponseType(operation.operation, schemaOptions);
 
   const parameters = [];
   const argumentFields = [];
@@ -674,11 +716,12 @@ function buildTsMethodParameters(operation, { defaults = false, namespaceTypes =
   };
 }
 
-function renderTsApiMethodImplementation(operation, indent) {
+function renderTsApiMethodImplementation(operation, indent, schemas) {
   const pad = ' '.repeat(indent);
   const { argumentSource, parameters, responseType } = buildTsMethodParameters(operation, {
     defaults: true,
     namespaceTypes: 'Types',
+    schemas,
   });
 
   return [
@@ -688,36 +731,37 @@ function renderTsApiMethodImplementation(operation, indent) {
   ].join('\n');
 }
 
-function renderTsApiImplementationTree(node, indent = 4) {
+function renderTsApiImplementationTree(node, indent = 4, schemas = {}) {
   const pad = ' '.repeat(indent);
   const entries = [];
   for (const [name, child] of [...node.children.entries()].sort(([left], [right]) => left.localeCompare(right))) {
     if (child.method) {
-      entries.push(renderTsApiMethodImplementation(child.method, indent));
+      entries.push(renderTsApiMethodImplementation(child.method, indent, schemas));
       continue;
     }
-    entries.push(`${pad}${tsPropertyName(name)}: {\n${renderTsApiImplementationTree(child, indent + 2)}\n${pad}}`);
+    entries.push(`${pad}${tsPropertyName(name)}: {\n${renderTsApiImplementationTree(child, indent + 2, schemas)}\n${pad}}`);
   }
   return entries.join(',\n');
 }
 
-function renderTsApiMethodSignature(operation, indent) {
+function renderTsApiMethodSignature(operation, indent, schemas) {
   const pad = ' '.repeat(indent);
   const { parameters, responseType } = buildTsMethodParameters(operation, {
     namespaceTypes: 'Types',
+    schemas,
   });
   return `${pad}${operation.operationId.split('.').at(-1)}(${parameters.join(', ')}): Promise<${responseType}>;`;
 }
 
-function renderTsApiInterfaceTree(node, indent = 2) {
+function renderTsApiInterfaceTree(node, indent = 2, schemas = {}) {
   const pad = ' '.repeat(indent);
   const entries = [];
   for (const [name, child] of [...node.children.entries()].sort(([left], [right]) => left.localeCompare(right))) {
     if (child.method) {
-      entries.push(renderTsApiMethodSignature(child.method, indent));
+      entries.push(renderTsApiMethodSignature(child.method, indent, schemas));
       continue;
     }
-    entries.push(`${pad}${tsPropertyName(name)}: {\n${renderTsApiInterfaceTree(child, indent + 2)}\n${pad}};`);
+    entries.push(`${pad}${tsPropertyName(name)}: {\n${renderTsApiInterfaceTree(child, indent + 2, schemas)}\n${pad}};`);
   }
   return entries.join('\n');
 }
@@ -940,12 +984,12 @@ export function createBirdcoderSdkOperationRequester({
 `;
 }
 
-function renderTypescriptApiSource(plan, tag, operations) {
+function renderTypescriptApiSource(plan, tag, operations, schemas) {
   const apiName = tagApiName(tag);
   const factoryName = tagApiFactoryName(tag);
   const tree = buildOperationTree(operations, { includeTag: false });
-  const implementationTree = renderTsApiImplementationTree(tree, 4);
-  const interfaceTree = renderTsApiInterfaceTree(tree, 2);
+  const implementationTree = renderTsApiImplementationTree(tree, 4, schemas);
+  const interfaceTree = renderTsApiInterfaceTree(tree, 2, schemas);
 
   return `// Generated by ${GENERATED_BY} from ${normalizeRelativePath(plan.input)}. Do not edit by hand.
 
@@ -1108,6 +1152,7 @@ function renderRustReadmeExamples(surface) {
 
 function generateTypescriptSources(plan, document, operations) {
   const tagGroups = groupOperationsByTag(operations);
+  const openApiSchemas = document.components?.schemas ?? {};
 
   const packageJson = `${JSON.stringify({
     name: plan.packageName,
@@ -1169,7 +1214,7 @@ ${renderTypescriptReadmeExamples(plan.surface)}
     [path.join('src', 'types', 'index.ts'), renderTypescriptTypesSource(plan, document, operations)],
     ...tagGroups.map(([tag, tagOperations]) => [
       path.join('src', 'api', `${tagApiFileName(tag)}.ts`),
-      renderTypescriptApiSource(plan, tag, tagOperations),
+      renderTypescriptApiSource(plan, tag, tagOperations, openApiSchemas),
     ]),
   ]);
 }

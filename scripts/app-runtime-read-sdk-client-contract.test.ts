@@ -5,27 +5,26 @@ const sdkClientsModulePath = new URL(
   import.meta.url,
 );
 
-function createEnvelope<TData>(data: TData, requestId: string) {
+function createResourceEnvelope<TData>(data: TData, traceId: string) {
   return {
-    requestId,
-    timestamp: '2026-04-11T09:00:00.000Z',
-    data,
-    meta: {
-      version: 'v1',
-    },
+    code: 0 as const,
+    traceId,
+    data: { item: data },
   };
 }
 
-function createListEnvelope<TItem>(items: readonly TItem[], requestId: string) {
+function createListEnvelope<TItem>(items: readonly TItem[], traceId: string) {
   return {
-    requestId,
-    timestamp: '2026-04-11T09:00:00.000Z',
-    items: [...items],
-    meta: {
-      page: 1,
-      pageSize: items.length,
-      total: items.length,
-      version: 'v1',
+    code: 0 as const,
+    traceId,
+    data: {
+      items: [...items],
+      pageInfo: {
+        mode: 'offset' as const,
+        page: 1,
+        pageSize: items.length,
+        totalItems: String(items.length),
+      },
     },
   };
 }
@@ -53,7 +52,7 @@ const client = createBirdCoderAppSdkApiClient({
 
       switch (request.path) {
         case '/app/v3/api/system/descriptor':
-          return createEnvelope(
+          return createResourceEnvelope(
             {
               apiVersion: 'v1',
               gateway: {
@@ -91,7 +90,7 @@ const client = createBirdCoderAppSdkApiClient({
             'req.app.descriptor',
           ) as TResponse;
         case '/app/v3/api/system/runtime':
-          return createEnvelope(
+          return createResourceEnvelope(
             {
               host: '127.0.0.1',
               port: 10240,
@@ -100,7 +99,7 @@ const client = createBirdCoderAppSdkApiClient({
             'req.app.runtime',
           ) as TResponse;
         case '/app/v3/api/system/health':
-          return createEnvelope(
+          return createResourceEnvelope(
             {
               status: 'healthy',
             },
@@ -140,7 +139,7 @@ const client = createBirdCoderAppSdkApiClient({
             'req.app.engines',
           ) as TResponse;
         case '/app/v3/api/engines/codex/capabilities':
-          return createEnvelope(
+          return createResourceEnvelope(
             {
               approvalCheckpoints: true,
               chat: true,
@@ -251,7 +250,7 @@ const client = createBirdCoderAppSdkApiClient({
             'req.app.native-sessions',
           ) as TResponse;
         case '/app/v3/api/native_sessions/session-generated-contract':
-          return createEnvelope(
+          return createResourceEnvelope(
             {
               summary: {
                 createdAt: '2026-04-17T00:00:00.000Z',
@@ -284,7 +283,7 @@ const client = createBirdCoderAppSdkApiClient({
             'req.app.native-session',
           ) as TResponse;
         case '/app/v3/api/operations/op-app-runtime-read':
-          return createEnvelope(
+          return createResourceEnvelope(
             {
               operationId: 'op-app-runtime-read',
               status: 'running',

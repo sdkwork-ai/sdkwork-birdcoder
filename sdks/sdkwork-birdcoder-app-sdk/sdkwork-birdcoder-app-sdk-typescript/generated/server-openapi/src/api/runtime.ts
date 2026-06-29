@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderCodeEngineModelConfigEnvelope, BirdCoderCodeEngineModelConfigSyncResultEnvelope, BirdCoderEngineCapabilityMatrixEnvelope, BirdCoderEngineDescriptorListEnvelope, BirdCoderModelCatalogEntryListEnvelope, BirdCoderNativeSessionDetailEnvelope, BirdCoderNativeSessionProviderSummaryListEnvelope, BirdCoderNativeSessionSummaryListEnvelope, BirdCoderSyncCodeEngineModelConfigRequest } from '../types';
+import type { BirdCoderCodeEngineModelConfig, BirdCoderCodeEngineModelConfigSyncResult, BirdCoderEngineCapabilityMatrix, BirdCoderEngineDescriptor, BirdCoderModelCatalogEntry, BirdCoderNativeSessionDetail, BirdCoderNativeSessionProviderSummary, BirdCoderNativeSessionSummary, BirdCoderSyncCodeEngineModelConfigRequest, PageInfo } from '../types';
 
 
 export class RuntimeModelsApi {
@@ -13,8 +13,8 @@ export class RuntimeModelsApi {
 
 
 /** List model catalog */
-  async list(): Promise<BirdCoderModelCatalogEntryListEnvelope> {
-    return this.client.get<BirdCoderModelCatalogEntryListEnvelope>(appApiPath(`/models`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/models`));
   }
 }
 
@@ -27,13 +27,13 @@ export class RuntimeModelConfigApi {
 
 
 /** Get code engine model configuration */
-  async retrieve(): Promise<BirdCoderCodeEngineModelConfigEnvelope> {
-    return this.client.get<BirdCoderCodeEngineModelConfigEnvelope>(appApiPath(`/model_config`));
+  async retrieve(): Promise<BirdCoderCodeEngineModelConfig> {
+    return this.client.get<BirdCoderCodeEngineModelConfig>(appApiPath(`/model_config`));
   }
 
 /** Sync code engine model configuration */
-  async sync(body: BirdCoderSyncCodeEngineModelConfigRequest): Promise<BirdCoderCodeEngineModelConfigSyncResultEnvelope> {
-    return this.client.put<BirdCoderCodeEngineModelConfigSyncResultEnvelope>(appApiPath(`/model_config`), body, undefined, undefined, 'application/json');
+  async sync(body: BirdCoderSyncCodeEngineModelConfigRequest): Promise<BirdCoderCodeEngineModelConfigSyncResult> {
+    return this.client.put<BirdCoderCodeEngineModelConfigSyncResult>(appApiPath(`/model_config`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -46,8 +46,8 @@ export class RuntimeNativeSessionProvidersApi {
 
 
 /** List registered native engine session providers */
-  async list(): Promise<BirdCoderNativeSessionProviderSummaryListEnvelope> {
-    return this.client.get<BirdCoderNativeSessionProviderSummaryListEnvelope>(appApiPath(`/native_session_providers`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/native_session_providers`));
   }
 }
 
@@ -74,17 +74,17 @@ export class RuntimeNativeSessionsApi {
 
 
 /** Get discovered native engine session detail */
-  async retrieve(id: string | number, params?: RuntimeNativeSessionsRetrieveParams): Promise<BirdCoderNativeSessionDetailEnvelope> {
+  async retrieve(id: string | number, params?: RuntimeNativeSessionsRetrieveParams): Promise<BirdCoderNativeSessionDetail> {
     const query = buildQueryString([
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
       { name: 'projectId', value: params?.projectId, style: 'form', explode: true, allowReserved: false },
       { name: 'engineId', value: params?.engineId, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<BirdCoderNativeSessionDetailEnvelope>(appendQueryString(appApiPath(`/native_sessions/${serializePathParameter(id, { name: 'id', style: 'simple', explode: false })}`), query));
+    return this.client.get<BirdCoderNativeSessionDetail>(appendQueryString(appApiPath(`/native_sessions/${serializePathParameter(id, { name: 'id', style: 'simple', explode: false })}`), query));
   }
 
 /** List discovered native engine sessions */
-  async list(params?: RuntimeNativeSessionsListParams): Promise<BirdCoderNativeSessionSummaryListEnvelope> {
+  async list(params?: RuntimeNativeSessionsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
       { name: 'projectId', value: params?.projectId, style: 'form', explode: true, allowReserved: false },
@@ -92,7 +92,7 @@ export class RuntimeNativeSessionsApi {
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<BirdCoderNativeSessionSummaryListEnvelope>(appendQueryString(appApiPath(`/native_sessions`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/native_sessions`), query));
   }
 }
 
@@ -105,8 +105,8 @@ export class RuntimeEnginesCapabilitiesApi {
 
 
 /** Get runtime capabilities for one engine */
-  async retrieve(engineKey: string): Promise<BirdCoderEngineCapabilityMatrixEnvelope> {
-    return this.client.get<BirdCoderEngineCapabilityMatrixEnvelope>(appApiPath(`/engines/${serializePathParameter(engineKey, { name: 'engineKey', style: 'simple', explode: false })}/capabilities`));
+  async retrieve(engineKey: string): Promise<BirdCoderEngineCapabilityMatrix> {
+    return this.client.get<BirdCoderEngineCapabilityMatrix>(appApiPath(`/engines/${serializePathParameter(engineKey, { name: 'engineKey', style: 'simple', explode: false })}/capabilities`));
   }
 }
 
@@ -121,8 +121,8 @@ export class RuntimeEnginesApi {
 
 
 /** List available engines */
-  async list(): Promise<BirdCoderEngineDescriptorListEnvelope> {
-    return this.client.get<BirdCoderEngineDescriptorListEnvelope>(appApiPath(`/engines`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/engines`));
   }
 }
 

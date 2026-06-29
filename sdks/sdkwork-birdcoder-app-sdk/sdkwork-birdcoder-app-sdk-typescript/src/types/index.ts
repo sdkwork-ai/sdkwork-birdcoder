@@ -41,28 +41,6 @@ export interface BirdCoderApiGatewaySurfaceSummary {
   routeCount: number;
 }
 
-export interface BirdCoderApiListMeta {
-  page: number;
-  pageSize: number;
-  total: number;
-  version: string;
-}
-
-export interface BirdCoderApiMeta {
-  page?: number;
-  pageSize?: number;
-  total?: number;
-  version: string;
-}
-
-export interface BirdCoderApiProblemDetails {
-  code: string;
-  message: string;
-  detail?: string;
-  retryable: boolean;
-  fieldErrors?: Record<string, string>;
-}
-
 export interface BirdCoderApiRouteCatalogEntry {
   authMode: "host" | "user" | "admin";
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -74,10 +52,9 @@ export interface BirdCoderApiRouteCatalogEntry {
 }
 
 export interface BirdCoderApiRouteCatalogEntryListEnvelope {
-  items: Array<BirdCoderApiRouteCatalogEntry>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderApprovalDecisionResult {
@@ -95,10 +72,9 @@ export interface BirdCoderApprovalDecisionResult {
 }
 
 export interface BirdCoderApprovalDecisionResultEnvelope {
-  data: BirdCoderApprovalDecisionResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderAppTemplateSummary {
@@ -125,10 +101,9 @@ export interface BirdCoderAppTemplateSummary {
 }
 
 export interface BirdCoderAppTemplateSummaryListEnvelope {
-  items: Array<BirdCoderAppTemplateSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderAuthenticatedUserSummary {
@@ -144,10 +119,9 @@ export interface BirdCoderAuthenticatedUserSummary {
 }
 
 export interface BirdCoderBooleanSuccessEnvelope {
-  data: BirdCoderBooleanSuccessResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderBooleanSuccessResult {
@@ -176,10 +150,9 @@ export interface BirdCoderCodeEngineModelConfigEngine {
 }
 
 export interface BirdCoderCodeEngineModelConfigEnvelope {
-  data: BirdCoderCodeEngineModelConfig;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCodeEngineModelConfigSyncResult {
@@ -191,10 +164,9 @@ export interface BirdCoderCodeEngineModelConfigSyncResult {
 }
 
 export interface BirdCoderCodeEngineModelConfigSyncResultEnvelope {
-  data: BirdCoderCodeEngineModelConfigSyncResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCodingServerDescriptor {
@@ -207,10 +179,9 @@ export interface BirdCoderCodingServerDescriptor {
 }
 
 export interface BirdCoderCodingServerDescriptorEnvelope {
-  data: BirdCoderCodingServerDescriptor;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCodingSessionArtifact {
@@ -226,10 +197,9 @@ export interface BirdCoderCodingSessionArtifact {
 }
 
 export interface BirdCoderCodingSessionArtifactListEnvelope {
-  items: Array<BirdCoderCodingSessionArtifact>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCodingSessionCheckpoint {
@@ -243,10 +213,9 @@ export interface BirdCoderCodingSessionCheckpoint {
 }
 
 export interface BirdCoderCodingSessionCheckpointListEnvelope {
-  items: Array<BirdCoderCodingSessionCheckpoint>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCodingSessionEvent {
@@ -261,10 +230,9 @@ export interface BirdCoderCodingSessionEvent {
 }
 
 export interface BirdCoderCodingSessionEventListEnvelope {
-  items: Array<BirdCoderCodingSessionEvent>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCodingSessionSummary {
@@ -285,17 +253,15 @@ export interface BirdCoderCodingSessionSummary {
 }
 
 export interface BirdCoderCodingSessionSummaryEnvelope {
-  data: BirdCoderCodingSessionSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCodingSessionSummaryListEnvelope {
-  items: Array<BirdCoderCodingSessionSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCodingSessionTurn {
@@ -316,10 +282,9 @@ export interface BirdCoderCodingSessionTurnCurrentFileContext {
 }
 
 export interface BirdCoderCodingSessionTurnEnvelope {
-  data: BirdCoderCodingSessionTurn;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCodingSessionTurnIdeContext {
@@ -348,10 +313,9 @@ export interface BirdCoderCommerceMembershipBenefitSummary {
 }
 
 export interface BirdCoderCommerceMembershipCurrentEnvelope {
-  data: BirdCoderCommerceMembershipCurrentSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCommerceMembershipCurrentSummary {
@@ -381,10 +345,9 @@ export interface BirdCoderCommerceMembershipPackageGroupSummary {
 }
 
 export interface BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope {
-  items: Array<BirdCoderCommerceMembershipPackageGroupSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCommerceMembershipPackageSummary {
@@ -410,10 +373,9 @@ export interface BirdCoderCoreHealthSummary {
 }
 
 export interface BirdCoderCoreHealthSummaryEnvelope {
-  data: BirdCoderCoreHealthSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCoreRuntimeSummary {
@@ -423,10 +385,9 @@ export interface BirdCoderCoreRuntimeSummary {
 }
 
 export interface BirdCoderCoreRuntimeSummaryEnvelope {
-  data: BirdCoderCoreRuntimeSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderCreateCodingSessionRequest {
@@ -464,7 +425,7 @@ export interface BirdCoderCreateProjectRequest {
   workspaceUuid?: string;
   tenantId?: string;
   organizationId?: string;
-  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
+  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
   userId?: string;
   parentId?: string;
   parentUuid?: string;
@@ -497,7 +458,7 @@ export interface BirdCoderCreateWorkspaceRequest {
   name: string;
   tenantId?: string;
   organizationId?: string;
-  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
+  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
   code?: string;
   title?: string;
   ownerId?: string;
@@ -524,17 +485,15 @@ export interface BirdCoderDeleteCodingSessionMessageResult {
 }
 
 export interface BirdCoderDeleteCodingSessionMessageResultEnvelope {
-  data: BirdCoderDeleteCodingSessionMessageResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderDeletedResourceEnvelope {
-  data: BirdCoderDeletedResourceResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderDeletedResourceResult {
@@ -558,10 +517,9 @@ export interface BirdCoderDeploymentRecordSummary {
 }
 
 export interface BirdCoderDeploymentRecordSummaryListEnvelope {
-  items: Array<BirdCoderDeploymentRecordSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderDeploymentTargetSummary {
@@ -579,10 +537,9 @@ export interface BirdCoderDeploymentTargetSummary {
 }
 
 export interface BirdCoderDeploymentTargetSummaryListEnvelope {
-  items: Array<BirdCoderDeploymentTargetSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderEditCodingSessionMessageRequest {
@@ -596,10 +553,9 @@ export interface BirdCoderEditCodingSessionMessageResult {
 }
 
 export interface BirdCoderEditCodingSessionMessageResultEnvelope {
-  data: BirdCoderEditCodingSessionMessageResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderEngineAccessLane {
@@ -640,10 +596,9 @@ export interface BirdCoderEngineCapabilityMatrix {
 }
 
 export interface BirdCoderEngineCapabilityMatrixEnvelope {
-  data: BirdCoderEngineCapabilityMatrix;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderEngineDescriptor {
@@ -668,10 +623,9 @@ export interface BirdCoderEngineDescriptor {
 }
 
 export interface BirdCoderEngineDescriptorListEnvelope {
-  items: Array<BirdCoderEngineDescriptor>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderEngineOfficialEntry {
@@ -721,8 +675,8 @@ export interface BirdCoderGitWorktreeSummary {
   isPrunable: boolean;
   label: string;
   lockedReason?: string;
-  path: string;
   prunableReason?: string;
+  path: string;
 }
 
 export interface BirdCoderIamCreateSessionRequest {
@@ -746,10 +700,9 @@ export interface BirdCoderIamDeviceAuthorizationCreateRequest {
 }
 
 export interface BirdCoderIamDeviceAuthorizationEnvelope {
-  data: BirdCoderIamDeviceAuthorizationSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamDeviceAuthorizationPasswordCompletionRequest {
@@ -783,10 +736,9 @@ export interface BirdCoderIamOAuthAuthorizationCreateRequest {
 }
 
 export interface BirdCoderIamOAuthAuthorizationEnvelope {
-  data: BirdCoderIamOAuthAuthorizationSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamOAuthAuthorizationSummary {
@@ -814,10 +766,9 @@ export interface BirdCoderIamOrganizationMemberSummary {
 }
 
 export interface BirdCoderIamOrganizationMemberSummaryListEnvelope {
-  items: Array<BirdCoderIamOrganizationMemberSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamOrganizationSummary {
@@ -833,10 +784,9 @@ export interface BirdCoderIamOrganizationSummary {
 }
 
 export interface BirdCoderIamOrganizationSummaryListEnvelope {
-  items: Array<BirdCoderIamOrganizationSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamPasswordResetCreateRequest {
@@ -867,10 +817,9 @@ export interface BirdCoderIamRegistrationCreateRequest {
 }
 
 export interface BirdCoderIamRuntimeSettingsEnvelope {
-  data: BirdCoderIamRuntimeSettingsSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamRuntimeSettingsSummary {
@@ -886,10 +835,9 @@ export interface BirdCoderIamRuntimeSettingsSummary {
 }
 
 export interface BirdCoderIamSessionEnvelope {
-  data: BirdCoderIamSessionSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamSessionSummary {
@@ -909,10 +857,9 @@ export interface BirdCoderIamUpdateCurrentSessionRequest {
 }
 
 export interface BirdCoderIamUserProfileEnvelope {
-  data: BirdCoderIamUserProfileSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamUserProfileSummary {
@@ -942,17 +889,15 @@ export interface BirdCoderIamUserRoleSummary {
 }
 
 export interface BirdCoderIamUserRoleSummaryListEnvelope {
-  items: Array<BirdCoderIamUserRoleSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamVerificationPolicyEnvelope {
-  data: BirdCoderIamVerificationPolicySummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamVerificationPolicySummary {
@@ -985,10 +930,9 @@ export interface BirdCoderModelCatalogEntry {
 }
 
 export interface BirdCoderModelCatalogEntryListEnvelope {
-  items: Array<BirdCoderModelCatalogEntry>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderNativeSessionCommand {
@@ -1009,10 +953,9 @@ export interface BirdCoderNativeSessionDetail {
 }
 
 export interface BirdCoderNativeSessionDetailEnvelope {
-  data: BirdCoderNativeSessionDetail;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderNativeSessionMessage {
@@ -1039,10 +982,9 @@ export interface BirdCoderNativeSessionProviderSummary {
 }
 
 export interface BirdCoderNativeSessionProviderSummaryListEnvelope {
-  items: Array<BirdCoderNativeSessionProviderSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderNativeSessionSummary {
@@ -1065,10 +1007,9 @@ export interface BirdCoderNativeSessionSummary {
 }
 
 export interface BirdCoderNativeSessionSummaryListEnvelope {
-  items: Array<BirdCoderNativeSessionSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderOperationDescriptor {
@@ -1080,17 +1021,9 @@ export interface BirdCoderOperationDescriptor {
 }
 
 export interface BirdCoderOperationDescriptorEnvelope {
-  data: BirdCoderOperationDescriptor;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderProblemEnvelope {
-  data: BirdCoderApiProblemDetails;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderProjectCollaboratorSummary {
@@ -1114,17 +1047,15 @@ export interface BirdCoderProjectCollaboratorSummary {
 }
 
 export interface BirdCoderProjectCollaboratorSummaryEnvelope {
-  data: BirdCoderProjectCollaboratorSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderProjectCollaboratorSummaryListEnvelope {
-  items: Array<BirdCoderProjectCollaboratorSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderProjectDocumentSummary {
@@ -1143,10 +1074,9 @@ export interface BirdCoderProjectDocumentSummary {
 }
 
 export interface BirdCoderProjectDocumentSummaryListEnvelope {
-  items: Array<BirdCoderProjectDocumentSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderProjectGitOverview {
@@ -1162,10 +1092,9 @@ export interface BirdCoderProjectGitOverview {
 }
 
 export interface BirdCoderProjectGitOverviewEnvelope {
-  data: BirdCoderProjectGitOverview;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderProjectPublishResult {
@@ -1175,10 +1104,9 @@ export interface BirdCoderProjectPublishResult {
 }
 
 export interface BirdCoderProjectPublishResultEnvelope {
-  data: BirdCoderProjectPublishResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderProjectSummary {
@@ -1187,7 +1115,7 @@ export interface BirdCoderProjectSummary {
   uuid?: string;
   tenantId?: string;
   organizationId?: string;
-  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
+  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
   workspaceId: string;
   workspaceUuid?: string;
   userId?: string;
@@ -1220,17 +1148,15 @@ export interface BirdCoderProjectSummary {
 }
 
 export interface BirdCoderProjectSummaryEnvelope {
-  data: BirdCoderProjectSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderProjectSummaryListEnvelope {
-  items: Array<BirdCoderProjectSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderPublishProjectRequest {
@@ -1305,10 +1231,9 @@ export interface BirdCoderSkillInstallationSummary {
 }
 
 export interface BirdCoderSkillInstallationSummaryEnvelope {
-  data: BirdCoderSkillInstallationSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderSkillPackageSummary {
@@ -1333,10 +1258,9 @@ export interface BirdCoderSkillPackageSummary {
 }
 
 export interface BirdCoderSkillPackageSummaryListEnvelope {
-  items: Array<BirdCoderSkillPackageSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderSubmitApprovalDecisionRequest {
@@ -1379,10 +1303,9 @@ export interface BirdCoderTeamSummary {
 }
 
 export interface BirdCoderTeamSummaryListEnvelope {
-  items: Array<BirdCoderTeamSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderUpdateCodingSessionRequest {
@@ -1402,7 +1325,7 @@ export interface BirdCoderUpdateCurrentUserProfileRequest {
 
 export interface BirdCoderUpdateProjectRequest {
   description?: string;
-  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
+  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
   userId?: string;
   parentId?: string;
   parentUuid?: string;
@@ -1430,7 +1353,7 @@ export interface BirdCoderUpdateProjectRequest {
 
 export interface BirdCoderUpdateWorkspaceRequest {
   description?: string;
-  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
+  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
   code?: string;
   title?: string;
   name?: string;
@@ -1487,10 +1410,9 @@ export interface BirdCoderUserQuestionAnswerResult {
 }
 
 export interface BirdCoderUserQuestionAnswerResultEnvelope {
-  data: BirdCoderUserQuestionAnswerResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderWorkspaceMemberSummary {
@@ -1513,17 +1435,15 @@ export interface BirdCoderWorkspaceMemberSummary {
 }
 
 export interface BirdCoderWorkspaceMemberSummaryEnvelope {
-  data: BirdCoderWorkspaceMemberSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderWorkspaceMemberSummaryListEnvelope {
-  items: Array<BirdCoderWorkspaceMemberSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderWorkspaceSummary {
@@ -1531,7 +1451,7 @@ export interface BirdCoderWorkspaceSummary {
   uuid?: string;
   tenantId?: string;
   organizationId?: string;
-  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
+  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
   code?: string;
   title?: string;
   name: string;
@@ -1557,17 +1477,41 @@ export interface BirdCoderWorkspaceSummary {
 }
 
 export interface BirdCoderWorkspaceSummaryEnvelope {
-  data: BirdCoderWorkspaceSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderWorkspaceSummaryListEnvelope {
-  items: Array<BirdCoderWorkspaceSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface PageInfo {
+  mode: "offset" | "cursor";
+  page?: number;
+  pageSize?: number;
+  totalItems?: string;
+  totalPages?: number;
+  nextCursor?: string;
+  hasMore?: boolean;
+}
+
+export interface ProblemDetail {
+  type: string;
+  title: string;
+  status: number;
+  detail?: string;
+  instance?: string;
+  code: number;
+  traceId: string;
+}
+
+export interface SdkWorkApiResponse {
+  code: 0;
+  data: unknown;
+  traceId: string;
 }
 
 export interface CollaborationWorkspaceTeamsListQuery extends Record<string, BirdcoderSdkQueryValue> {

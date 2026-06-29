@@ -1,5 +1,4 @@
 import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-pc-types';
-import { randomBytes } from '@sdkwork/utils/id';
 import type { IWorkspaceService } from '../interfaces/IWorkspaceService.ts';
 import type { BirdCoderTableRecordRepository } from '../../storage/dataKernel.ts';
 import type { BirdCoderWorkspaceRecord } from '../../storage/appConsoleRepository.ts';
@@ -10,16 +9,10 @@ import {
   createBirdCoderBootstrapWorkspaceRecord,
 } from '../../storage/bootstrapConsoleCatalog.ts';
 import { createBirdCoderLocalBusinessUuid } from '../localBusinessUuid.ts';
+import { createBirdCoderLocalEntityId } from '../localEntityId.ts';
 
 function createTimestamp(): string {
   return new Date().toISOString();
-}
-
-function createIdentifier(prefix: string): string {
-  void prefix;
-  const timestampPart = BigInt(Date.now()) * 1_000_000n;
-  const randomPart = BigInt(randomBytes(4).reduce((acc, byte) => acc * 256n + BigInt(byte), 0n) % 1_000_000n);
-  return (timestampPart + randomPart).toString();
 }
 
 function createUuid(): string {
@@ -87,7 +80,7 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
 
     const now = createTimestamp();
     const record = await this.repository.save({
-      id: createIdentifier('workspace'),
+      id: createBirdCoderLocalEntityId('workspace'),
       uuid: createUuid(),
       tenantId: BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
       organizationId: BIRDCODER_DEFAULT_LOCAL_ORGANIZATION_ID,

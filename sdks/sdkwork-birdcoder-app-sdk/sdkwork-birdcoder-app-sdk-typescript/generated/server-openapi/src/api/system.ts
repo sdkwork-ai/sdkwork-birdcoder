@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderApiRouteCatalogEntryListEnvelope, BirdCoderCodingServerDescriptorEnvelope, BirdCoderCoreHealthSummaryEnvelope, BirdCoderCoreRuntimeSummaryEnvelope, BirdCoderIamRuntimeSettingsEnvelope, BirdCoderIamVerificationPolicyEnvelope, BirdCoderOperationDescriptorEnvelope } from '../types';
+import type { BirdCoderApiRouteCatalogEntry, BirdCoderCodingServerDescriptor, BirdCoderCoreHealthSummary, BirdCoderCoreRuntimeSummary, BirdCoderIamRuntimeSettingsSummary, BirdCoderIamVerificationPolicySummary, BirdCoderOperationDescriptor, PageInfo } from '../types';
 
 
 export class SystemIamVerificationPolicyApi {
@@ -13,8 +13,8 @@ export class SystemIamVerificationPolicyApi {
 
 
 /** Get SDKWork IAM verification policy */
-  async retrieve(): Promise<BirdCoderIamVerificationPolicyEnvelope> {
-    return this.client.get<BirdCoderIamVerificationPolicyEnvelope>(appApiPath(`/system/iam/verification_policy`));
+  async retrieve(): Promise<BirdCoderIamVerificationPolicySummary> {
+    return this.client.get<BirdCoderIamVerificationPolicySummary>(appApiPath(`/system/iam/verification_policy`));
   }
 }
 
@@ -27,8 +27,8 @@ export class SystemIamRuntimeApi {
 
 
 /** Get SDKWork IAM runtime metadata */
-  async retrieve(): Promise<BirdCoderIamRuntimeSettingsEnvelope> {
-    return this.client.get<BirdCoderIamRuntimeSettingsEnvelope>(appApiPath(`/system/iam/runtime`));
+  async retrieve(): Promise<BirdCoderIamRuntimeSettingsSummary> {
+    return this.client.get<BirdCoderIamRuntimeSettingsSummary>(appApiPath(`/system/iam/runtime`));
   }
 }
 
@@ -54,8 +54,8 @@ export class SystemRuntimeApi {
 
 
 /** Get runtime metadata */
-  async retrieve(): Promise<BirdCoderCoreRuntimeSummaryEnvelope> {
-    return this.client.get<BirdCoderCoreRuntimeSummaryEnvelope>(appApiPath(`/system/runtime`));
+  async retrieve(): Promise<BirdCoderCoreRuntimeSummary> {
+    return this.client.get<BirdCoderCoreRuntimeSummary>(appApiPath(`/system/runtime`));
   }
 }
 
@@ -68,8 +68,8 @@ export class SystemRoutesApi {
 
 
 /** List unified API routes */
-  async list(): Promise<BirdCoderApiRouteCatalogEntryListEnvelope> {
-    return this.client.get<BirdCoderApiRouteCatalogEntryListEnvelope>(appApiPath(`/system/routes`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/system/routes`));
   }
 }
 
@@ -82,8 +82,8 @@ export class SystemOperationsApi {
 
 
 /** Get operation status */
-  async retrieve(operationId: string): Promise<BirdCoderOperationDescriptorEnvelope> {
-    return this.client.get<BirdCoderOperationDescriptorEnvelope>(appApiPath(`/operations/${serializePathParameter(operationId, { name: 'operationId', style: 'simple', explode: false })}`));
+  async retrieve(operationId: string): Promise<BirdCoderOperationDescriptor> {
+    return this.client.get<BirdCoderOperationDescriptor>(appApiPath(`/operations/${serializePathParameter(operationId, { name: 'operationId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -96,8 +96,8 @@ export class SystemHealthApi {
 
 
 /** Get coding-server health */
-  async retrieve(): Promise<BirdCoderCoreHealthSummaryEnvelope> {
-    return this.client.get<BirdCoderCoreHealthSummaryEnvelope>(appApiPath(`/system/health`));
+  async retrieve(): Promise<BirdCoderCoreHealthSummary> {
+    return this.client.get<BirdCoderCoreHealthSummary>(appApiPath(`/system/health`));
   }
 }
 
@@ -110,8 +110,8 @@ export class SystemDescriptorApi {
 
 
 /** Get coding-server descriptor */
-  async retrieve(): Promise<BirdCoderCodingServerDescriptorEnvelope> {
-    return this.client.get<BirdCoderCodingServerDescriptorEnvelope>(appApiPath(`/system/descriptor`));
+  async retrieve(): Promise<BirdCoderCodingServerDescriptor> {
+    return this.client.get<BirdCoderCodingServerDescriptor>(appApiPath(`/system/descriptor`));
   }
 }
 

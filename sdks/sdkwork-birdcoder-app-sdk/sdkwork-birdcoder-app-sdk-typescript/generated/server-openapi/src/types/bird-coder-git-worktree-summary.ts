@@ -8,6 +8,6 @@ export interface BirdCoderGitWorktreeSummary {
   isPrunable: boolean;
   label: string;
   lockedReason?: string;
-  path: string;
   prunableReason?: string;
+  path: string;
 }

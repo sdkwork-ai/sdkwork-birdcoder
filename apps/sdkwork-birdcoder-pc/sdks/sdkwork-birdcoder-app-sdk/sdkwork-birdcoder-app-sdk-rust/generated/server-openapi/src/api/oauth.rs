@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::api::paths::app_path;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderBooleanSuccessEnvelope, BirdCoderIamDeviceAuthorizationCreateRequest, BirdCoderIamDeviceAuthorizationEnvelope, BirdCoderIamDeviceAuthorizationPasswordCompletionRequest, BirdCoderIamDeviceAuthorizationScanRequest, BirdCoderIamOAuthAuthorizationCreateRequest, BirdCoderIamOAuthAuthorizationEnvelope, BirdCoderIamOAuthSessionCreateRequest, BirdCoderIamSessionEnvelope};
+use crate::models::{BirdCoderBooleanSuccessEnvelope, BirdCoderIamDeviceAuthorizationCreateRequest, BirdCoderIamDeviceAuthorizationEnvelope, BirdCoderIamDeviceAuthorizationPasswordCompletionRequest, BirdCoderIamDeviceAuthorizationScanRequest, BirdCoderIamDeviceAuthorizationSessionExchangeRequest, BirdCoderIamOAuthAuthorizationCreateRequest, BirdCoderIamOAuthAuthorizationEnvelope, BirdCoderIamOAuthSessionCreateRequest, BirdCoderIamSessionEnvelope};
 
 #[derive(Clone)]
 pub struct OauthApi {
@@ -47,6 +47,12 @@ impl OauthApi {
     /// Complete SDKWork IAM OAuth device authorization with password
     pub async fn device_authorizations_password_completions_create(&self, device_authorization_id: &str, body: &BirdCoderIamDeviceAuthorizationPasswordCompletionRequest) -> Result<BirdCoderIamSessionEnvelope, SdkworkError> {
         let path = app_path(&format!("/oauth/device_authorizations/{}/password_completions", serialize_path_parameter(device_authorization_id, PathParameterSpec::new("deviceAuthorizationId", "simple", false))));
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+    }
+
+    /// Exchange SDKWork IAM OAuth device authorization for a session
+    pub async fn device_authorizations_session_exchanges_create(&self, device_authorization_id: &str, body: &BirdCoderIamDeviceAuthorizationSessionExchangeRequest) -> Result<BirdCoderIamSessionEnvelope, SdkworkError> {
+        let path = app_path(&format!("/oauth/device_authorizations/{}/session_exchanges", serialize_path_parameter(device_authorization_id, PathParameterSpec::new("deviceAuthorizationId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 

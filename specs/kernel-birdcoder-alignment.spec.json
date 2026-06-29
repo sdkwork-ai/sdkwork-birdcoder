@@ -432,16 +432,15 @@
       "title": "OpenCode live approval / user-question 迁入 kernel bridge",
       "status": "done",
       "gate": false,
-      "notes": "live reply 经 kernel-bridge/live_interaction.rs 路由；opencode_provider 仅保留 catalog。",
+      "notes": "live reply 经 kernel-bridge/host.rs 路由；opencode_provider 仅保留 catalog。",
       "evidence": {
         "paths": [
-          "crates/sdkwork-birdcoder-kernel-bridge/src/live_interaction.rs",
           "crates/sdkwork-birdcoder-kernel-bridge/src/host.rs",
           "crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs"
         ],
         "requiredPatterns": [
           {
-            "file": "crates/sdkwork-birdcoder-kernel-bridge/src/live_interaction.rs",
+            "file": "crates/sdkwork-birdcoder-kernel-bridge/src/host.rs",
             "pattern": "submit_approval_decision"
           },
           {

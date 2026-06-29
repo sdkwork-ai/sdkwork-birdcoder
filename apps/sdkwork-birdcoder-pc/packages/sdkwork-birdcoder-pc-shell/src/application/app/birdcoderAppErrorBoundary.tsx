@@ -44,7 +44,9 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             {this.props.t('app.unexpectedError')}
           </p>
           <div className="bg-[#18181b] p-4 rounded-lg border border-white/10 w-full max-w-2xl overflow-auto text-sm text-red-400 font-mono">
-            {import.meta.env.PROD ? this.props.t('app.unexpectedErrorReload') : this.state.error?.toString()}
+            {(import.meta as ImportMeta & { env?: { PROD?: boolean } }).env?.PROD
+              ? this.props.t('app.unexpectedErrorReload')
+              : this.state.error?.toString()}
           </div>
           <button
             onClick={() => window.location.reload()}

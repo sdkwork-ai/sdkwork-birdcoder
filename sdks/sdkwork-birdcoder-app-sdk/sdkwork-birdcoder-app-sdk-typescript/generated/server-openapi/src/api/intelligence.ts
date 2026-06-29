@@ -1,8 +1,27 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderApprovalDecisionResultEnvelope, BirdCoderCodingSessionArtifactListEnvelope, BirdCoderCodingSessionCheckpointListEnvelope, BirdCoderCodingSessionEventListEnvelope, BirdCoderCodingSessionSummaryEnvelope, BirdCoderCodingSessionSummaryListEnvelope, BirdCoderCodingSessionTurnEnvelope, BirdCoderCreateCodingSessionRequest, BirdCoderCreateCodingSessionTurnRequest, BirdCoderDeletedResourceEnvelope, BirdCoderForkCodingSessionRequest, BirdCoderSubmitApprovalDecisionRequest, BirdCoderSubmitUserQuestionAnswerRequest, BirdCoderUpdateCodingSessionRequest, BirdCoderUserQuestionAnswerResultEnvelope } from '../types';
+import type { BirdCoderApprovalDecisionResult, BirdCoderCodingSessionArtifact, BirdCoderCodingSessionCheckpoint, BirdCoderCodingSessionEvent, BirdCoderCodingSessionSummary, BirdCoderCodingSessionTurn, BirdCoderCreateCodingSessionRequest, BirdCoderCreateCodingSessionTurnRequest, BirdCoderDeleteCodingSessionMessageResult, BirdCoderDeletedResourceResult, BirdCoderEditCodingSessionMessageRequest, BirdCoderEditCodingSessionMessageResult, BirdCoderForkCodingSessionRequest, BirdCoderSubmitApprovalDecisionRequest, BirdCoderSubmitUserQuestionAnswerRequest, BirdCoderUpdateCodingSessionRequest, BirdCoderUserQuestionAnswerResult, PageInfo } from '../types';
 
+
+export class IntelligenceCodingSessionsMessagesApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** Edit coding session message */
+  async update(sessionId: string, messageId: string, body: BirdCoderEditCodingSessionMessageRequest): Promise<BirdCoderEditCodingSessionMessageResult> {
+    return this.client.patch<BirdCoderEditCodingSessionMessageResult>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  }
+
+/** Delete coding session message */
+  async delete(sessionId: string, messageId: string): Promise<BirdCoderDeleteCodingSessionMessageResult> {
+    return this.client.delete<BirdCoderDeleteCodingSessionMessageResult>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}`));
+  }
+}
 
 export class IntelligenceCodingSessionsTurnsApi {
   private client: HttpClient;
@@ -13,8 +32,8 @@ export class IntelligenceCodingSessionsTurnsApi {
 
 
 /** Create coding session turn */
-  async create(sessionId: string, body: BirdCoderCreateCodingSessionTurnRequest): Promise<BirdCoderCodingSessionTurnEnvelope> {
-    return this.client.post<BirdCoderCodingSessionTurnEnvelope>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/turns`), body, undefined, undefined, 'application/json');
+  async create(sessionId: string, body: BirdCoderCreateCodingSessionTurnRequest): Promise<BirdCoderCodingSessionTurn> {
+    return this.client.post<BirdCoderCodingSessionTurn>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/turns`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -27,8 +46,8 @@ export class IntelligenceCodingSessionsArtifactsApi {
 
 
 /** List coding session artifacts */
-  async list(sessionId: string): Promise<BirdCoderCodingSessionArtifactListEnvelope> {
-    return this.client.get<BirdCoderCodingSessionArtifactListEnvelope>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/artifacts`));
+  async list(sessionId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/artifacts`));
   }
 }
 
@@ -41,8 +60,8 @@ export class IntelligenceCodingSessionsQuestionsAnswersApi {
 
 
 /** Submit user-question answer */
-  async create(sessionId: string, questionId: string, body: BirdCoderSubmitUserQuestionAnswerRequest): Promise<BirdCoderUserQuestionAnswerResultEnvelope> {
-    return this.client.post<BirdCoderUserQuestionAnswerResultEnvelope>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/questions/${serializePathParameter(questionId, { name: 'questionId', style: 'simple', explode: false })}/answer`), body, undefined, undefined, 'application/json');
+  async create(sessionId: string, questionId: string, body: BirdCoderSubmitUserQuestionAnswerRequest): Promise<BirdCoderUserQuestionAnswerResult> {
+    return this.client.post<BirdCoderUserQuestionAnswerResult>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/questions/${serializePathParameter(questionId, { name: 'questionId', style: 'simple', explode: false })}/answer`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -66,8 +85,8 @@ export class IntelligenceCodingSessionsCheckpointsApprovalApi {
 
 
 /** Submit approval decision */
-  async create(sessionId: string, checkpointId: string, body: BirdCoderSubmitApprovalDecisionRequest): Promise<BirdCoderApprovalDecisionResultEnvelope> {
-    return this.client.post<BirdCoderApprovalDecisionResultEnvelope>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/checkpoints/${serializePathParameter(checkpointId, { name: 'checkpointId', style: 'simple', explode: false })}/approval`), body, undefined, undefined, 'application/json');
+  async create(sessionId: string, checkpointId: string, body: BirdCoderSubmitApprovalDecisionRequest): Promise<BirdCoderApprovalDecisionResult> {
+    return this.client.post<BirdCoderApprovalDecisionResult>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/checkpoints/${serializePathParameter(checkpointId, { name: 'checkpointId', style: 'simple', explode: false })}/approval`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -82,8 +101,8 @@ export class IntelligenceCodingSessionsCheckpointsApi {
 
 
 /** List coding session checkpoints */
-  async list(sessionId: string): Promise<BirdCoderCodingSessionCheckpointListEnvelope> {
-    return this.client.get<BirdCoderCodingSessionCheckpointListEnvelope>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/checkpoints`));
+  async list(sessionId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/checkpoints`));
   }
 }
 
@@ -96,8 +115,8 @@ export class IntelligenceCodingSessionsEventsApi {
 
 
 /** Replay or subscribe to coding session events */
-  async list(sessionId: string): Promise<BirdCoderCodingSessionEventListEnvelope> {
-    return this.client.get<BirdCoderCodingSessionEventListEnvelope>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/events`));
+  async list(sessionId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/events`));
   }
 }
 
@@ -110,8 +129,8 @@ export class IntelligenceCodingSessionsForksApi {
 
 
 /** Fork coding session */
-  async create(sessionId: string, body?: BirdCoderForkCodingSessionRequest): Promise<BirdCoderCodingSessionSummaryEnvelope> {
-    return this.client.post<BirdCoderCodingSessionSummaryEnvelope>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/fork`), body, undefined, undefined, 'application/json');
+  async create(sessionId: string, body?: BirdCoderForkCodingSessionRequest): Promise<BirdCoderCodingSessionSummary> {
+    return this.client.post<BirdCoderCodingSessionSummary>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/fork`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -131,6 +150,7 @@ export class IntelligenceCodingSessionsApi {
   public readonly questions: IntelligenceCodingSessionsQuestionsApi;
   public readonly artifacts: IntelligenceCodingSessionsArtifactsApi;
   public readonly turns: IntelligenceCodingSessionsTurnsApi;
+  public readonly messages: IntelligenceCodingSessionsMessagesApi;
 
   constructor(client: HttpClient) {
     this.client = client;
@@ -140,26 +160,27 @@ export class IntelligenceCodingSessionsApi {
     this.questions = new IntelligenceCodingSessionsQuestionsApi(client);
     this.artifacts = new IntelligenceCodingSessionsArtifactsApi(client);
     this.turns = new IntelligenceCodingSessionsTurnsApi(client);
+    this.messages = new IntelligenceCodingSessionsMessagesApi(client);
   }
 
 
 /** Get coding session */
-  async retrieve(sessionId: string): Promise<BirdCoderCodingSessionSummaryEnvelope> {
-    return this.client.get<BirdCoderCodingSessionSummaryEnvelope>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}`));
+  async retrieve(sessionId: string): Promise<BirdCoderCodingSessionSummary> {
+    return this.client.get<BirdCoderCodingSessionSummary>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}`));
   }
 
 /** Delete coding session */
-  async delete(sessionId: string): Promise<BirdCoderDeletedResourceEnvelope> {
-    return this.client.delete<BirdCoderDeletedResourceEnvelope>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}`));
+  async delete(sessionId: string): Promise<BirdCoderDeletedResourceResult> {
+    return this.client.delete<BirdCoderDeletedResourceResult>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}`));
   }
 
 /** Update coding session */
-  async update(sessionId: string, body: BirdCoderUpdateCodingSessionRequest): Promise<BirdCoderCodingSessionSummaryEnvelope> {
-    return this.client.patch<BirdCoderCodingSessionSummaryEnvelope>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(sessionId: string, body: BirdCoderUpdateCodingSessionRequest): Promise<BirdCoderCodingSessionSummary> {
+    return this.client.patch<BirdCoderCodingSessionSummary>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
   }
 
 /** List coding sessions */
-  async list(params?: IntelligenceCodingSessionsListParams): Promise<BirdCoderCodingSessionSummaryListEnvelope> {
+  async list(params?: IntelligenceCodingSessionsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
       { name: 'projectId', value: params?.projectId, style: 'form', explode: true, allowReserved: false },
@@ -167,12 +188,12 @@ export class IntelligenceCodingSessionsApi {
       { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
       { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<BirdCoderCodingSessionSummaryListEnvelope>(appendQueryString(appApiPath(`/intelligence/coding_sessions`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/intelligence/coding_sessions`), query));
   }
 
 /** Create coding session */
-  async create(body: BirdCoderCreateCodingSessionRequest): Promise<BirdCoderCodingSessionSummaryEnvelope> {
-    return this.client.post<BirdCoderCodingSessionSummaryEnvelope>(appApiPath(`/intelligence/coding_sessions`), body, undefined, undefined, 'application/json');
+  async create(body: BirdCoderCreateCodingSessionRequest): Promise<BirdCoderCodingSessionSummary> {
+    return this.client.post<BirdCoderCodingSessionSummary>(appApiPath(`/intelligence/coding_sessions`), body, undefined, undefined, 'application/json');
   }
 }
 

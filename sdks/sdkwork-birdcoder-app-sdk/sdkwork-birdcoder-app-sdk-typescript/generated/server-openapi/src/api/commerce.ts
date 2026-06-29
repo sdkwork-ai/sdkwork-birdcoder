@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderCommerceMembershipCurrentEnvelope, BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope } from '../types';
+import type { BirdCoderCommerceMembershipCurrentSummary, BirdCoderCommerceMembershipPackageGroupSummary, PageInfo } from '../types';
 
 
 export class CommerceMembershipsPackageGroupsApi {
@@ -13,8 +13,8 @@ export class CommerceMembershipsPackageGroupsApi {
 
 
 /** List SDKWork commerce membership package groups */
-  async list(): Promise<BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope> {
-    return this.client.get<BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope>(appApiPath(`/memberships/package_groups`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/memberships/package_groups`));
   }
 }
 
@@ -27,8 +27,8 @@ export class CommerceMembershipsCurrentApi {
 
 
 /** Get current SDKWork commerce membership */
-  async retrieve(): Promise<BirdCoderCommerceMembershipCurrentEnvelope> {
-    return this.client.get<BirdCoderCommerceMembershipCurrentEnvelope>(appApiPath(`/memberships/current`));
+  async retrieve(): Promise<BirdCoderCommerceMembershipCurrentSummary> {
+    return this.client.get<BirdCoderCommerceMembershipCurrentSummary>(appApiPath(`/memberships/current`));
   }
 }
 

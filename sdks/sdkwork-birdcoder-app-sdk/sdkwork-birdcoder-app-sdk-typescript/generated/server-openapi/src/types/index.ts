@@ -1,9 +1,6 @@
 export * from './common';
 export type { BirdCoderApiGatewaySummary } from './bird-coder-api-gateway-summary';
 export type { BirdCoderApiGatewaySurfaceSummary } from './bird-coder-api-gateway-surface-summary';
-export type { BirdCoderApiListMeta } from './bird-coder-api-list-meta';
-export type { BirdCoderApiMeta } from './bird-coder-api-meta';
-export type { BirdCoderApiProblemDetails } from './bird-coder-api-problem-details';
 export type { BirdCoderApiRouteCatalogEntry } from './bird-coder-api-route-catalog-entry';
 export type { BirdCoderApiRouteCatalogEntryListEnvelope } from './bird-coder-api-route-catalog-entry-list-envelope';
 export type { BirdCoderAppTemplateSummary } from './bird-coder-app-template-summary';
@@ -52,11 +49,17 @@ export type { BirdCoderCreateProjectGitBranchRequest } from './bird-coder-create
 export type { BirdCoderCreateProjectGitWorktreeRequest } from './bird-coder-create-project-git-worktree-request';
 export type { BirdCoderCreateProjectRequest } from './bird-coder-create-project-request';
 export type { BirdCoderCreateWorkspaceRequest } from './bird-coder-create-workspace-request';
+export type { BirdCoderDeleteCodingSessionMessageResult } from './bird-coder-delete-coding-session-message-result';
+export type { BirdCoderDeleteCodingSessionMessageResultEnvelope } from './bird-coder-delete-coding-session-message-result-envelope';
 export type { BirdCoderDeletedResourceEnvelope } from './bird-coder-deleted-resource-envelope';
 export type { BirdCoderDeletedResourceResult } from './bird-coder-deleted-resource-result';
 export type { BirdCoderDeploymentRecordSummary } from './bird-coder-deployment-record-summary';
 export type { BirdCoderDeploymentRecordSummaryListEnvelope } from './bird-coder-deployment-record-summary-list-envelope';
 export type { BirdCoderDeploymentTargetSummary } from './bird-coder-deployment-target-summary';
+export type { BirdCoderDeploymentTargetSummaryListEnvelope } from './bird-coder-deployment-target-summary-list-envelope';
+export type { BirdCoderEditCodingSessionMessageRequest } from './bird-coder-edit-coding-session-message-request';
+export type { BirdCoderEditCodingSessionMessageResult } from './bird-coder-edit-coding-session-message-result';
+export type { BirdCoderEditCodingSessionMessageResultEnvelope } from './bird-coder-edit-coding-session-message-result-envelope';
 export type { BirdCoderEngineAccessLane } from './bird-coder-engine-access-lane';
 export type { BirdCoderEngineAccessPlan } from './bird-coder-engine-access-plan';
 export type { BirdCoderEngineCapabilityMatrix } from './bird-coder-engine-capability-matrix';
@@ -74,6 +77,7 @@ export type { BirdCoderIamDeviceAuthorizationCreateRequest } from './bird-coder-
 export type { BirdCoderIamDeviceAuthorizationEnvelope } from './bird-coder-iam-device-authorization-envelope';
 export type { BirdCoderIamDeviceAuthorizationPasswordCompletionRequest } from './bird-coder-iam-device-authorization-password-completion-request';
 export type { BirdCoderIamDeviceAuthorizationScanRequest } from './bird-coder-iam-device-authorization-scan-request';
+export type { BirdCoderIamDeviceAuthorizationSessionExchangeRequest } from './bird-coder-iam-device-authorization-session-exchange-request';
 export type { BirdCoderIamDeviceAuthorizationSummary } from './bird-coder-iam-device-authorization-summary';
 export type { BirdCoderIamOAuthAuthorizationCreateRequest } from './bird-coder-iam-oauth-authorization-create-request';
 export type { BirdCoderIamOAuthAuthorizationEnvelope } from './bird-coder-iam-oauth-authorization-envelope';
@@ -111,7 +115,6 @@ export type { BirdCoderNativeSessionSummary } from './bird-coder-native-session-
 export type { BirdCoderNativeSessionSummaryListEnvelope } from './bird-coder-native-session-summary-list-envelope';
 export type { BirdCoderOperationDescriptor } from './bird-coder-operation-descriptor';
 export type { BirdCoderOperationDescriptorEnvelope } from './bird-coder-operation-descriptor-envelope';
-export type { BirdCoderProblemEnvelope } from './bird-coder-problem-envelope';
 export type { BirdCoderProjectCollaboratorSummary } from './bird-coder-project-collaborator-summary';
 export type { BirdCoderProjectCollaboratorSummaryEnvelope } from './bird-coder-project-collaborator-summary-envelope';
 export type { BirdCoderProjectCollaboratorSummaryListEnvelope } from './bird-coder-project-collaborator-summary-list-envelope';
@@ -153,3 +156,6 @@ export type { BirdCoderWorkspaceMemberSummaryListEnvelope } from './bird-coder-w
 export type { BirdCoderWorkspaceSummary } from './bird-coder-workspace-summary';
 export type { BirdCoderWorkspaceSummaryEnvelope } from './bird-coder-workspace-summary-envelope';
 export type { BirdCoderWorkspaceSummaryListEnvelope } from './bird-coder-workspace-summary-list-envelope';
+export type { PageInfo } from './page-info';
+export type { ProblemDetail } from './problem-detail';
+export type { SdkWorkApiResponse } from './sdk-work-api-response';

@@ -129,7 +129,7 @@
       "gate": true,
       "evidence": {
         "paths": [
-          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/mcp_marketplace_http.rs",
+          "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/mcp_marketplace.rs",
           "../sdkwork-agents/crates/sdkwork-intelligence-agents-service/src/http.rs"
         ],
         "requiredPatterns": [

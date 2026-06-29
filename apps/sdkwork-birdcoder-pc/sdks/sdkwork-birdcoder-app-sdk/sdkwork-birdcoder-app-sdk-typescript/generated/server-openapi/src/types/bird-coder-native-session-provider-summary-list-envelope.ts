@@ -1,11 +1,9 @@
-import type { BirdCoderApiListMeta } from './bird-coder-api-list-meta';
 import type { BirdCoderNativeSessionProviderSummary } from './bird-coder-native-session-provider-summary';
+import type { PageInfo } from './page-info';
 
 export interface BirdCoderNativeSessionProviderSummaryListEnvelope {
-  items: BirdCoderNativeSessionProviderSummary[];
-  meta: BirdCoderApiListMeta;
-  /** Server-generated request correlation identifier. */
-  requestId: string;
-  /** Response emission timestamp. */
-  timestamp: string;
+  code: 0;
+  data: unknown & Record<string, unknown>;
+  /** Server-owned request correlation id. */
+  traceId: string;
 }

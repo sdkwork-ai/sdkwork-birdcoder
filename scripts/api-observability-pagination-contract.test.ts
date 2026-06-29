@@ -23,7 +23,7 @@ const sdkClientsSource = readFileSync(
 
 assert.match(
   errorsSource,
-  /pub trace_id: Option<String>/,
+  /SdkWorkProblemDetail|pub trace_id: String/,
   'BirdCoder shared API errors must expose traceId on problem payloads.',
 );
 assert.match(
@@ -44,9 +44,12 @@ const workspaceHandlersSource = readFileSync(
   new URL('../crates/sdkwork-routes-workspace-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
+const SHARED_PROBLEM_PAYLOAD_PATTERN =
+  /sdkwork_birdcoder_errors::|traced_platform_problem|traced_problem_json|traced_legacy_problem|SdkWorkProblemDetail|ProblemDetailsPayload/;
+
 assert.match(
   workspaceErrorSource,
-  /sdkwork_birdcoder_errors::(\{[\s\S]*ProblemDetailsPayload|ProblemDetailsPayload)/,
+  SHARED_PROBLEM_PAYLOAD_PATTERN,
   'Workspace API errors must use shared problem payloads with traceId support.',
 );
 assert.match(
@@ -107,7 +110,7 @@ assert.match(
 
 const openApiSource = readFileSync(
   new URL(
-    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts',
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/openApiOperationDefinitions.ts',
     import.meta.url,
   ),
   'utf8',
@@ -178,7 +181,7 @@ for (const crate of alignedRouterCrates) {
 
   assert.match(
     errorSource,
-    /sdkwork_birdcoder_errors::(\{[\s\S]*ProblemDetailsPayload|ProblemDetailsPayload)/,
+    SHARED_PROBLEM_PAYLOAD_PATTERN,
     `${crate} errors must use shared problem payloads with traceId support.`,
   );
   assert.match(

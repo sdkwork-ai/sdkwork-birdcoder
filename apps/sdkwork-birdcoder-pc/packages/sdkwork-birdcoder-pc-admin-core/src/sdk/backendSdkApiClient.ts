@@ -31,14 +31,26 @@ export interface CreateBirdCoderBackendSdkApiClientOptions {
   transport: BirdCoderApiTransport;
 }
 
-interface ListEnvelope<TItem> {
-  items: TItem[];
-}
-
 const DEFAULT_SDK_LIST_LIMIT = 20;
 
-function readItems<TItem>(envelope: ListEnvelope<TItem>): TItem[] {
-  return envelope.items;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object';
+}
+
+function readItems<TItem>(payload: unknown): TItem[] {
+  if (!isRecord(payload)) {
+    return [];
+  }
+
+  if (Array.isArray(payload.items)) {
+    return payload.items as TItem[];
+  }
+
+  if (isRecord(payload.data) && Array.isArray(payload.data.items)) {
+    return payload.data.items as TItem[];
+  }
+
+  return [];
 }
 
 function withDefaultListLimit<T extends { limit?: number }>(query: T): T {

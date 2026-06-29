@@ -47,4 +47,4 @@ Grafana dashboards are not bundled in-repo. Import panels for:
 
 ## Log correlation
 
-Problem JSON responses include optional `traceId`. Correlate with structured server logs using the same request ID emitted in API envelopes (`requestId`).
+Problem JSON responses include required numeric `code` and `traceId`. Correlate with structured server logs and success envelopes using the same `traceId` value.

@@ -28,9 +28,9 @@ pub struct BirdCoderGitWorktreeSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub locked_reason: Option<String>,
 
-    pub path: String,
-
     #[serde(rename = "prunableReason")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prunable_reason: Option<String>,
+
+    pub path: String,
 }

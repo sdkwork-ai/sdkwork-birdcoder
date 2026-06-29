@@ -2,9 +2,12 @@ use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
+use sdkwork_utils_rust::SdkWorkResultCode;
+
 use sdkwork_birdcoder_errors::{
     client_safe_data_access_problem, client_safe_event_publish_problem,
-    client_safe_internal_problem, client_safe_provider_problem,
+    client_safe_internal_problem, client_safe_provider_problem, platform_problem,
+    resolve_trace_id,
 };
 
 pub use sdkwork_birdcoder_errors::ProblemDetailsPayload;
@@ -19,40 +22,40 @@ impl AppError {
     pub fn not_found(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::NOT_FOUND,
-            body: ProblemDetailsPayload::new("not_found", message, false),
+            body: platform_problem(SdkWorkResultCode::NotFound, message, None),
         }
     }
 
     pub fn bad_request(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
-            body: ProblemDetailsPayload::new("invalid_input", message, false),
+            body: platform_problem(SdkWorkResultCode::ValidationError, message, None),
         }
     }
 
     pub fn internal(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::INTERNAL_SERVER_ERROR,
-            body: ProblemDetailsPayload::new("internal", message, true),
+            body: platform_problem(SdkWorkResultCode::InternalError, message, None),
         }
     }
 
     pub fn conflict(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::CONFLICT,
-            body: ProblemDetailsPayload::new("conflict", message, false),
+            body: platform_problem(SdkWorkResultCode::Conflict, message, None),
         }
     }
 
     pub fn bad_gateway(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::BAD_GATEWAY,
-            body: ProblemDetailsPayload::new("provider_error", message, true),
+            body: platform_problem(SdkWorkResultCode::BadGateway, message, None),
         }
     }
 
     pub fn with_trace_id(mut self, trace_id: Option<&str>) -> Self {
-        self.body = self.body.with_trace_id(trace_id);
+        self.body.trace_id = resolve_trace_id(trace_id);
         self
     }
 }

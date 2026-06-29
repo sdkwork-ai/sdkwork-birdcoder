@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderBooleanSuccessEnvelope, BirdCoderIamCreateSessionRequest, BirdCoderIamPasswordResetCreateRequest, BirdCoderIamPasswordResetRequestCreateRequest, BirdCoderIamRefreshSessionRequest, BirdCoderIamRegistrationCreateRequest, BirdCoderIamSessionEnvelope, BirdCoderIamUpdateCurrentSessionRequest } from '../types';
+import type { BirdCoderBooleanSuccessResult, BirdCoderIamCreateSessionRequest, BirdCoderIamPasswordResetCreateRequest, BirdCoderIamPasswordResetRequestCreateRequest, BirdCoderIamRefreshSessionRequest, BirdCoderIamRegistrationCreateRequest, BirdCoderIamSessionSummary, BirdCoderIamUpdateCurrentSessionRequest } from '../types';
 
 
 export class AuthSessionsCurrentApi {
@@ -13,18 +13,18 @@ export class AuthSessionsCurrentApi {
 
 
 /** Get current SDKWork IAM session */
-  async retrieve(): Promise<BirdCoderIamSessionEnvelope> {
-    return this.client.get<BirdCoderIamSessionEnvelope>(appApiPath(`/auth/sessions/current`));
+  async retrieve(): Promise<BirdCoderIamSessionSummary> {
+    return this.client.get<BirdCoderIamSessionSummary>(appApiPath(`/auth/sessions/current`));
   }
 
 /** Update current SDKWork IAM session */
-  async update(body?: BirdCoderIamUpdateCurrentSessionRequest): Promise<BirdCoderIamSessionEnvelope> {
-    return this.client.patch<BirdCoderIamSessionEnvelope>(appApiPath(`/auth/sessions/current`), body, undefined, undefined, 'application/json');
+  async update(body?: BirdCoderIamUpdateCurrentSessionRequest): Promise<BirdCoderIamSessionSummary> {
+    return this.client.patch<BirdCoderIamSessionSummary>(appApiPath(`/auth/sessions/current`), body, undefined, undefined, 'application/json');
   }
 
 /** Delete current SDKWork IAM session */
-  async delete(): Promise<BirdCoderBooleanSuccessEnvelope> {
-    return this.client.delete<BirdCoderBooleanSuccessEnvelope>(appApiPath(`/auth/sessions/current`));
+  async delete(): Promise<BirdCoderBooleanSuccessResult> {
+    return this.client.delete<BirdCoderBooleanSuccessResult>(appApiPath(`/auth/sessions/current`));
   }
 }
 
@@ -39,13 +39,13 @@ export class AuthSessionsApi {
 
 
 /** Create SDKWork IAM session */
-  async create(body: BirdCoderIamCreateSessionRequest): Promise<BirdCoderIamSessionEnvelope> {
-    return this.client.post<BirdCoderIamSessionEnvelope>(appApiPath(`/auth/sessions`), body, undefined, undefined, 'application/json');
+  async create(body: BirdCoderIamCreateSessionRequest): Promise<BirdCoderIamSessionSummary> {
+    return this.client.post<BirdCoderIamSessionSummary>(appApiPath(`/auth/sessions`), body, undefined, undefined, 'application/json');
   }
 
 /** Refresh SDKWork IAM session */
-  async refresh(body: BirdCoderIamRefreshSessionRequest): Promise<BirdCoderIamSessionEnvelope> {
-    return this.client.post<BirdCoderIamSessionEnvelope>(appApiPath(`/auth/sessions/refresh`), body, undefined, undefined, 'application/json');
+  async refresh(body: BirdCoderIamRefreshSessionRequest): Promise<BirdCoderIamSessionSummary> {
+    return this.client.post<BirdCoderIamSessionSummary>(appApiPath(`/auth/sessions/refresh`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -58,8 +58,8 @@ export class AuthRegistrationsApi {
 
 
 /** Register SDKWork IAM user */
-  async create(body: BirdCoderIamRegistrationCreateRequest): Promise<BirdCoderIamSessionEnvelope> {
-    return this.client.post<BirdCoderIamSessionEnvelope>(appApiPath(`/auth/registrations`), body, undefined, undefined, 'application/json');
+  async create(body: BirdCoderIamRegistrationCreateRequest): Promise<BirdCoderIamSessionSummary> {
+    return this.client.post<BirdCoderIamSessionSummary>(appApiPath(`/auth/registrations`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -72,8 +72,8 @@ export class AuthPasswordResetsApi {
 
 
 /** Reset SDKWork IAM password */
-  async create(body: BirdCoderIamPasswordResetCreateRequest): Promise<BirdCoderBooleanSuccessEnvelope> {
-    return this.client.post<BirdCoderBooleanSuccessEnvelope>(appApiPath(`/auth/password_resets`), body, undefined, undefined, 'application/json');
+  async create(body: BirdCoderIamPasswordResetCreateRequest): Promise<BirdCoderBooleanSuccessResult> {
+    return this.client.post<BirdCoderBooleanSuccessResult>(appApiPath(`/auth/password_resets`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -86,8 +86,8 @@ export class AuthPasswordResetRequestsApi {
 
 
 /** Create SDKWork IAM password reset request */
-  async create(body: BirdCoderIamPasswordResetRequestCreateRequest): Promise<BirdCoderBooleanSuccessEnvelope> {
-    return this.client.post<BirdCoderBooleanSuccessEnvelope>(appApiPath(`/auth/password_reset_requests`), body, undefined, undefined, 'application/json');
+  async create(body: BirdCoderIamPasswordResetRequestCreateRequest): Promise<BirdCoderBooleanSuccessResult> {
+    return this.client.post<BirdCoderBooleanSuccessResult>(appApiPath(`/auth/password_reset_requests`), body, undefined, undefined, 'application/json');
   }
 }
 

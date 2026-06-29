@@ -430,3 +430,11 @@ export declare function resolveSdkworkAuthVerificationPolicy(
 export declare function resolveSdkworkAuthRuntimeConfigFromMetadata(
   metadata?: unknown,
 ): SdkworkAuthRuntimeConfig;
+
+export interface SdkworkSessionAuthBrowserRootProps {
+  children?: React.ReactNode;
+}
+
+export declare function SdkworkSessionAuthBrowserRoot(
+  props: SdkworkSessionAuthBrowserRootProps,
+): ReactElement | null;

@@ -10,37 +10,156 @@
   },
   "status": "ok",
   "mode": "apply",
-  "hasChanges": false,
-  "hasDestructiveChanges": false,
-  "changeFingerprint": "75b8a5138ceb723a238e6256650127afdc3eb661d9f4e5c565d04aec4d35bd89",
+  "hasChanges": true,
+  "hasDestructiveChanges": true,
+  "changeFingerprint": "4c8e3f3343c421544e78b10b6036c8ab6348727359bb0e00e02eafa83c992c27",
   "changeImpact": {
     "schemaVersion": 1,
-    "areas": [],
-    "details": [],
-    "requiresVerification": false,
-    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
+    "areas": [
+      "models"
+    ],
+    "details": [
+      {
+        "area": "models",
+        "paths": [
+          "src/models/bird_coder_api_list_meta.rs",
+          "src/models/bird_coder_api_meta.rs",
+          "src/models/bird_coder_api_problem_details.rs",
+          "src/models/bird_coder_boolean_success_envelope.rs",
+          "src/models/bird_coder_deleted_resource_envelope.rs",
+          "src/models/bird_coder_deployment_record_summary_list_envelope.rs",
+          "src/models/bird_coder_deployment_target_summary_list_envelope.rs",
+          "src/models/bird_coder_iam_api_key_summary_list_envelope.rs",
+          "src/models/bird_coder_iam_audit_event_summary_list_envelope.rs",
+          "src/models/bird_coder_iam_organization_member_summary_envelope.rs",
+          "src/models/bird_coder_iam_organization_summary_envelope.rs",
+          "src/models/bird_coder_iam_permission_summary_envelope.rs",
+          "src/models/bird_coder_iam_permission_summary_list_envelope.rs",
+          "src/models/bird_coder_iam_policy_summary_envelope.rs",
+          "src/models/bird_coder_iam_policy_summary_list_envelope.rs",
+          "src/models/bird_coder_iam_role_permission_summary_envelope.rs",
+          "src/models/bird_coder_iam_role_permission_summary_list_envelope.rs",
+          "src/models/bird_coder_iam_role_summary_envelope.rs",
+          "src/models/bird_coder_iam_role_summary_list_envelope.rs",
+          "src/models/bird_coder_iam_security_event_summary_list_envelope.rs",
+          "src/models/bird_coder_iam_tenant_member_summary_envelope.rs",
+          "src/models/bird_coder_iam_tenant_member_summary_list_envelope.rs",
+          "src/models/bird_coder_iam_tenant_summary_envelope.rs",
+          "src/models/bird_coder_iam_tenant_summary_list_envelope.rs",
+          "src/models/bird_coder_iam_user_role_summary_envelope.rs",
+          "src/models/bird_coder_iam_user_summary_envelope.rs",
+          "src/models/bird_coder_iam_user_summary_list_envelope.rs",
+          "src/models/bird_coder_problem_envelope.rs",
+          "src/models/bird_coder_release_summary_list_envelope.rs",
+          "src/models/bird_coder_team_member_summary_list_envelope.rs",
+          "src/models/bird_coder_team_summary_list_envelope.rs",
+          "src/models/mod.rs",
+          "src/models/page_info.rs",
+          "src/models/problem_detail.rs",
+          "src/models/sdk_work_api_response.rs"
+        ]
+      }
+    ],
+    "requiresVerification": true,
+    "summary": "Detected impact areas: models. Verification is required."
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "low",
-    "nextAction": "skip",
+    "riskLevel": "high",
+    "nextAction": "verify",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "No actionable changes were detected. No apply or verification step is required.",
+    "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "no-actionable-changes"
+      "deleted-generated-files",
+      "manual-review-required",
+      "verification-required"
     ]
   },
   "executionHandoff": {
     "schemaVersion": 1,
-    "summary": "No further commands are required.",
-    "steps": []
+    "summary": "Run the required verification commands now.",
+    "steps": [
+      {
+        "id": "verify-check",
+        "title": "Unified package check",
+        "required": true,
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: models.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "rust",
+          "--project-dir",
+          ".",
+          "--action",
+          "check"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action check"
+      },
+      {
+        "id": "verify-build",
+        "title": "Unified package build",
+        "required": true,
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: models.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "rust",
+          "--project-dir",
+          ".",
+          "--action",
+          "build"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action build"
+      }
+    ]
   },
   "verificationPlan": {
-    "shouldRun": false,
-    "runPhase": "skip",
-    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
-    "steps": []
+    "shouldRun": true,
+    "runPhase": "now",
+    "summary": "Detected impact areas: models. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "steps": [
+      {
+        "id": "check",
+        "title": "Unified package check",
+        "required": true,
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: models.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "rust",
+          "--project-dir",
+          ".",
+          "--action",
+          "check"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action check"
+      },
+      {
+        "id": "build",
+        "title": "Unified package build",
+        "required": true,
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: models.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "rust",
+          "--project-dir",
+          ".",
+          "--action",
+          "build"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action build"
+      }
+    ]
   },
   "sdk": {
     "name": "sdkwork-birdcoder-backend-sdk",
@@ -56,24 +175,57 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 89,
-    "models": 69,
+    "totalFiles": 88,
+    "models": 68,
     "apis": 2,
-    "types": 71
+    "types": 70
   },
   "warnings": [],
   "syncSummary": {
     "dryRun": false,
     "controlPlaneEnabled": true,
-    "writtenFiles": 0,
+    "writtenFiles": 31,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 88,
-    "deletedGeneratedFiles": 0,
+    "skippedUnchangedGeneratedFiles": 56,
+    "deletedGeneratedFiles": 4,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "75b8a5138ceb723a238e6256650127afdc3eb661d9f4e5c565d04aec4d35bd89",
+    "changeFingerprint": "4c8e3f3343c421544e78b10b6036c8ab6348727359bb0e00e02eafa83c992c27",
     "changes": {
-      "createdGeneratedFiles": [],
-      "updatedGeneratedFiles": [],
+      "createdGeneratedFiles": [
+        "src/models/page_info.rs",
+        "src/models/problem_detail.rs",
+        "src/models/sdk_work_api_response.rs"
+      ],
+      "updatedGeneratedFiles": [
+        "src/models/bird_coder_boolean_success_envelope.rs",
+        "src/models/bird_coder_deleted_resource_envelope.rs",
+        "src/models/bird_coder_deployment_record_summary_list_envelope.rs",
+        "src/models/bird_coder_deployment_target_summary_list_envelope.rs",
+        "src/models/bird_coder_iam_api_key_summary_list_envelope.rs",
+        "src/models/bird_coder_iam_audit_event_summary_list_envelope.rs",
+        "src/models/bird_coder_iam_organization_member_summary_envelope.rs",
+        "src/models/bird_coder_iam_organization_summary_envelope.rs",
+        "src/models/bird_coder_iam_permission_summary_envelope.rs",
+        "src/models/bird_coder_iam_permission_summary_list_envelope.rs",
+        "src/models/bird_coder_iam_policy_summary_envelope.rs",
+        "src/models/bird_coder_iam_policy_summary_list_envelope.rs",
+        "src/models/bird_coder_iam_role_permission_summary_envelope.rs",
+        "src/models/bird_coder_iam_role_permission_summary_list_envelope.rs",
+        "src/models/bird_coder_iam_role_summary_envelope.rs",
+        "src/models/bird_coder_iam_role_summary_list_envelope.rs",
+        "src/models/bird_coder_iam_security_event_summary_list_envelope.rs",
+        "src/models/bird_coder_iam_tenant_member_summary_envelope.rs",
+        "src/models/bird_coder_iam_tenant_member_summary_list_envelope.rs",
+        "src/models/bird_coder_iam_tenant_summary_envelope.rs",
+        "src/models/bird_coder_iam_tenant_summary_list_envelope.rs",
+        "src/models/bird_coder_iam_user_role_summary_envelope.rs",
+        "src/models/bird_coder_iam_user_summary_envelope.rs",
+        "src/models/bird_coder_iam_user_summary_list_envelope.rs",
+        "src/models/bird_coder_release_summary_list_envelope.rs",
+        "src/models/bird_coder_team_member_summary_list_envelope.rs",
+        "src/models/bird_coder_team_summary_list_envelope.rs",
+        "src/models/mod.rs"
+      ],
       "unchangedGeneratedFiles": [
         "bin/publish-core.mjs",
         "bin/publish.ps1",
@@ -92,10 +244,6 @@
         "src/http/client.rs",
         "src/http/mod.rs",
         "src/lib.rs",
-        "src/models/bird_coder_api_list_meta.rs",
-        "src/models/bird_coder_api_meta.rs",
-        "src/models/bird_coder_api_problem_details.rs",
-        "src/models/bird_coder_boolean_success_envelope.rs",
         "src/models/bird_coder_boolean_success_result.rs",
         "src/models/bird_coder_create_iam_organization_member_request.rs",
         "src/models/bird_coder_create_iam_organization_request.rs",
@@ -107,51 +255,24 @@
         "src/models/bird_coder_create_iam_tenant_request.rs",
         "src/models/bird_coder_create_iam_user_request.rs",
         "src/models/bird_coder_create_iam_user_role_request.rs",
-        "src/models/bird_coder_deleted_resource_envelope.rs",
         "src/models/bird_coder_deleted_resource_result.rs",
-        "src/models/bird_coder_deployment_record_summary_list_envelope.rs",
         "src/models/bird_coder_deployment_record_summary.rs",
-        "src/models/bird_coder_deployment_target_summary_list_envelope.rs",
         "src/models/bird_coder_deployment_target_summary.rs",
-        "src/models/bird_coder_iam_api_key_summary_list_envelope.rs",
         "src/models/bird_coder_iam_api_key_summary.rs",
-        "src/models/bird_coder_iam_audit_event_summary_list_envelope.rs",
         "src/models/bird_coder_iam_audit_event_summary.rs",
-        "src/models/bird_coder_iam_organization_member_summary_envelope.rs",
         "src/models/bird_coder_iam_organization_member_summary.rs",
-        "src/models/bird_coder_iam_organization_summary_envelope.rs",
         "src/models/bird_coder_iam_organization_summary.rs",
-        "src/models/bird_coder_iam_permission_summary_envelope.rs",
-        "src/models/bird_coder_iam_permission_summary_list_envelope.rs",
         "src/models/bird_coder_iam_permission_summary.rs",
-        "src/models/bird_coder_iam_policy_summary_envelope.rs",
-        "src/models/bird_coder_iam_policy_summary_list_envelope.rs",
         "src/models/bird_coder_iam_policy_summary.rs",
-        "src/models/bird_coder_iam_role_permission_summary_envelope.rs",
-        "src/models/bird_coder_iam_role_permission_summary_list_envelope.rs",
         "src/models/bird_coder_iam_role_permission_summary.rs",
-        "src/models/bird_coder_iam_role_summary_envelope.rs",
-        "src/models/bird_coder_iam_role_summary_list_envelope.rs",
         "src/models/bird_coder_iam_role_summary.rs",
-        "src/models/bird_coder_iam_security_event_summary_list_envelope.rs",
         "src/models/bird_coder_iam_security_event_summary.rs",
-        "src/models/bird_coder_iam_tenant_member_summary_envelope.rs",
-        "src/models/bird_coder_iam_tenant_member_summary_list_envelope.rs",
         "src/models/bird_coder_iam_tenant_member_summary.rs",
-        "src/models/bird_coder_iam_tenant_summary_envelope.rs",
-        "src/models/bird_coder_iam_tenant_summary_list_envelope.rs",
         "src/models/bird_coder_iam_tenant_summary.rs",
-        "src/models/bird_coder_iam_user_role_summary_envelope.rs",
         "src/models/bird_coder_iam_user_role_summary.rs",
-        "src/models/bird_coder_iam_user_summary_envelope.rs",
-        "src/models/bird_coder_iam_user_summary_list_envelope.rs",
         "src/models/bird_coder_iam_user_summary.rs",
-        "src/models/bird_coder_problem_envelope.rs",
-        "src/models/bird_coder_release_summary_list_envelope.rs",
         "src/models/bird_coder_release_summary.rs",
-        "src/models/bird_coder_team_member_summary_list_envelope.rs",
         "src/models/bird_coder_team_member_summary.rs",
-        "src/models/bird_coder_team_summary_list_envelope.rs",
         "src/models/bird_coder_team_summary.rs",
         "src/models/bird_coder_update_iam_organization_member_request.rs",
         "src/models/bird_coder_update_iam_organization_request.rs",
@@ -161,10 +282,14 @@
         "src/models/bird_coder_update_iam_tenant_member_request.rs",
         "src/models/bird_coder_update_iam_tenant_request.rs",
         "src/models/bird_coder_update_iam_user_request.rs",
-        "src/models/common.rs",
-        "src/models/mod.rs"
+        "src/models/common.rs"
       ],
-      "deletedGeneratedFiles": [],
+      "deletedGeneratedFiles": [
+        "src/models/bird_coder_api_list_meta.rs",
+        "src/models/bird_coder_api_meta.rs",
+        "src/models/bird_coder_api_problem_details.rs",
+        "src/models/bird_coder_problem_envelope.rs"
+      ],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/README.md"
@@ -173,26 +298,108 @@
     },
     "impact": {
       "schemaVersion": 1,
-      "areas": [],
-      "details": [],
-      "requiresVerification": false,
-      "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
+      "areas": [
+        "models"
+      ],
+      "details": [
+        {
+          "area": "models",
+          "paths": [
+            "src/models/bird_coder_api_list_meta.rs",
+            "src/models/bird_coder_api_meta.rs",
+            "src/models/bird_coder_api_problem_details.rs",
+            "src/models/bird_coder_boolean_success_envelope.rs",
+            "src/models/bird_coder_deleted_resource_envelope.rs",
+            "src/models/bird_coder_deployment_record_summary_list_envelope.rs",
+            "src/models/bird_coder_deployment_target_summary_list_envelope.rs",
+            "src/models/bird_coder_iam_api_key_summary_list_envelope.rs",
+            "src/models/bird_coder_iam_audit_event_summary_list_envelope.rs",
+            "src/models/bird_coder_iam_organization_member_summary_envelope.rs",
+            "src/models/bird_coder_iam_organization_summary_envelope.rs",
+            "src/models/bird_coder_iam_permission_summary_envelope.rs",
+            "src/models/bird_coder_iam_permission_summary_list_envelope.rs",
+            "src/models/bird_coder_iam_policy_summary_envelope.rs",
+            "src/models/bird_coder_iam_policy_summary_list_envelope.rs",
+            "src/models/bird_coder_iam_role_permission_summary_envelope.rs",
+            "src/models/bird_coder_iam_role_permission_summary_list_envelope.rs",
+            "src/models/bird_coder_iam_role_summary_envelope.rs",
+            "src/models/bird_coder_iam_role_summary_list_envelope.rs",
+            "src/models/bird_coder_iam_security_event_summary_list_envelope.rs",
+            "src/models/bird_coder_iam_tenant_member_summary_envelope.rs",
+            "src/models/bird_coder_iam_tenant_member_summary_list_envelope.rs",
+            "src/models/bird_coder_iam_tenant_summary_envelope.rs",
+            "src/models/bird_coder_iam_tenant_summary_list_envelope.rs",
+            "src/models/bird_coder_iam_user_role_summary_envelope.rs",
+            "src/models/bird_coder_iam_user_summary_envelope.rs",
+            "src/models/bird_coder_iam_user_summary_list_envelope.rs",
+            "src/models/bird_coder_problem_envelope.rs",
+            "src/models/bird_coder_release_summary_list_envelope.rs",
+            "src/models/bird_coder_team_member_summary_list_envelope.rs",
+            "src/models/bird_coder_team_summary_list_envelope.rs",
+            "src/models/mod.rs",
+            "src/models/page_info.rs",
+            "src/models/problem_detail.rs",
+            "src/models/sdk_work_api_response.rs"
+          ]
+        }
+      ],
+      "requiresVerification": true,
+      "summary": "Detected impact areas: models. Verification is required."
     },
     "verificationPlan": {
-      "shouldRun": false,
-      "runPhase": "skip",
-      "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
-      "steps": []
+      "shouldRun": true,
+      "runPhase": "now",
+      "summary": "Detected impact areas: models. Verification is required. Run the required verification commands now against the generated SDK output.",
+      "steps": [
+        {
+          "id": "check",
+          "title": "Unified package check",
+          "required": true,
+          "rationale": "Validate the generated package with the unified publish helper. Triggered by: models.",
+          "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
+          "command": "node",
+          "args": [
+            "./bin/publish-core.mjs",
+            "--language",
+            "rust",
+            "--project-dir",
+            ".",
+            "--action",
+            "check"
+          ],
+          "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action check"
+        },
+        {
+          "id": "build",
+          "title": "Unified package build",
+          "required": true,
+          "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: models.",
+          "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
+          "command": "node",
+          "args": [
+            "./bin/publish-core.mjs",
+            "--language",
+            "rust",
+            "--project-dir",
+            ".",
+            "--action",
+            "build"
+          ],
+          "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action build"
+        }
+      ]
     },
     "executionDecision": {
       "schemaVersion": 1,
-      "riskLevel": "low",
-      "nextAction": "skip",
+      "riskLevel": "high",
+      "nextAction": "verify",
       "requiresManualReview": false,
       "applyRequiresExpectedFingerprint": false,
-      "summary": "No actionable changes were detected. No apply or verification step is required.",
+      "summary": "Changes have been applied. Run the required verification plan now.",
       "reasons": [
-        "no-actionable-changes"
+        "deleted-generated-files",
+        "manual-review-required",
+        "verification-required"
       ]
     },
     "backedUpFiles": [],

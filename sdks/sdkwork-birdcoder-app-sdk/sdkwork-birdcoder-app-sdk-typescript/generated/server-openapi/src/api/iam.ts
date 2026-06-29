@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderIamOrganizationMemberSummaryListEnvelope, BirdCoderIamOrganizationSummaryListEnvelope, BirdCoderIamUserProfileEnvelope, BirdCoderIamUserRoleSummaryListEnvelope, BirdCoderUpdateCurrentUserProfileRequest, BirdCoderUpsertWorkspaceMemberRequest, BirdCoderWorkspaceMemberSummaryEnvelope, BirdCoderWorkspaceMemberSummaryListEnvelope } from '../types';
+import type { BirdCoderIamOrganizationMemberSummary, BirdCoderIamOrganizationSummary, BirdCoderIamUserProfileSummary, BirdCoderIamUserRoleSummary, BirdCoderUpdateCurrentUserProfileRequest, BirdCoderUpsertWorkspaceMemberRequest, BirdCoderWorkspaceMemberSummary, PageInfo } from '../types';
 
 
 export class IamRoleBindingsApi {
@@ -13,8 +13,8 @@ export class IamRoleBindingsApi {
 
 
 /** List SDKWork IAM user role bindings */
-  async list(): Promise<BirdCoderIamUserRoleSummaryListEnvelope> {
-    return this.client.get<BirdCoderIamUserRoleSummaryListEnvelope>(appApiPath(`/iam/role_bindings`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/iam/role_bindings`));
   }
 }
 
@@ -27,8 +27,8 @@ export class IamOrganizationMembershipsApi {
 
 
 /** List SDKWork IAM organization memberships */
-  async list(): Promise<BirdCoderIamOrganizationMemberSummaryListEnvelope> {
-    return this.client.get<BirdCoderIamOrganizationMemberSummaryListEnvelope>(appApiPath(`/iam/organization_memberships`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/iam/organization_memberships`));
   }
 }
 
@@ -41,8 +41,8 @@ export class IamOrganizationsTreeApi {
 
 
 /** Get SDKWork IAM organization tree */
-  async retrieve(): Promise<BirdCoderIamOrganizationSummaryListEnvelope> {
-    return this.client.get<BirdCoderIamOrganizationSummaryListEnvelope>(appApiPath(`/iam/organizations/tree`));
+  async retrieve(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/iam/organizations/tree`));
   }
 }
 
@@ -57,8 +57,8 @@ export class IamOrganizationsApi {
 
 
 /** List SDKWork IAM organizations */
-  async list(): Promise<BirdCoderIamOrganizationSummaryListEnvelope> {
-    return this.client.get<BirdCoderIamOrganizationSummaryListEnvelope>(appApiPath(`/iam/organizations`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/iam/organizations`));
   }
 }
 
@@ -71,13 +71,13 @@ export class IamWorkspacesMembersApi {
 
 
 /** Upsert workspace member */
-  async upsert(workspaceId: string, body: BirdCoderUpsertWorkspaceMemberRequest): Promise<BirdCoderWorkspaceMemberSummaryEnvelope> {
-    return this.client.post<BirdCoderWorkspaceMemberSummaryEnvelope>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}/members`), body, undefined, undefined, 'application/json');
+  async upsert(workspaceId: string, body: BirdCoderUpsertWorkspaceMemberRequest): Promise<BirdCoderWorkspaceMemberSummary> {
+    return this.client.post<BirdCoderWorkspaceMemberSummary>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}/members`), body, undefined, undefined, 'application/json');
   }
 
 /** List workspace members */
-  async list(workspaceId: string): Promise<BirdCoderWorkspaceMemberSummaryListEnvelope> {
-    return this.client.get<BirdCoderWorkspaceMemberSummaryListEnvelope>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}/members`));
+  async list(workspaceId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}/members`));
   }
 }
 
@@ -101,13 +101,13 @@ export class IamUsersCurrentApi {
 
 
 /** Get current SDKWork IAM user */
-  async retrieve(): Promise<BirdCoderIamUserProfileEnvelope> {
-    return this.client.get<BirdCoderIamUserProfileEnvelope>(appApiPath(`/iam/users/current`));
+  async retrieve(): Promise<BirdCoderIamUserProfileSummary> {
+    return this.client.get<BirdCoderIamUserProfileSummary>(appApiPath(`/iam/users/current`));
   }
 
 /** Update current SDKWork IAM user profile */
-  async update(body: BirdCoderUpdateCurrentUserProfileRequest): Promise<BirdCoderIamUserProfileEnvelope> {
-    return this.client.patch<BirdCoderIamUserProfileEnvelope>(appApiPath(`/iam/users/current`), body, undefined, undefined, 'application/json');
+  async update(body: BirdCoderUpdateCurrentUserProfileRequest): Promise<BirdCoderIamUserProfileSummary> {
+    return this.client.patch<BirdCoderIamUserProfileSummary>(appApiPath(`/iam/users/current`), body, undefined, undefined, 'application/json');
   }
 }
 

@@ -1,6 +1,7 @@
 import {
   BIRDCODER_CODING_SERVER_API_PREFIXES,
   BIRDCODER_CODING_SERVER_API_VERSION,
+  type BirdCoderApiEnvelope,
   type BirdCoderApiListEnvelope,
   type BirdCoderApiQueryValue,
   type BirdCoderApiTransport,
@@ -41,23 +42,25 @@ export function createListEnvelope<TItem>(
   items: readonly TItem[],
 ): BirdCoderApiListEnvelope<TItem> {
   return {
-    requestId: createBirdCoderLocalServerRequestId(),
-    timestamp: new Date().toISOString(),
-    items: [...items],
-    meta: {
-      page: 1,
-      pageSize: items.length,
-      total: items.length,
-      version: BIRDCODER_CODING_SERVER_API_VERSION,
+    code: 0,
+    traceId: createBirdCoderLocalServerRequestId(),
+    data: {
+      items: [...items],
+      pageInfo: {
+        mode: 'offset',
+        page: 1,
+        pageSize: items.length,
+        totalItems: String(items.length),
+      },
     },
   };
 }
 
-export function createEnvelope<TData>(data: TData) {
+export function createEnvelope<TData>(data: TData): BirdCoderApiEnvelope<TData> {
   return {
-    requestId: createBirdCoderLocalServerRequestId(),
-    timestamp: new Date().toISOString(),
-    data,
+    code: 0,
+    traceId: createBirdCoderLocalServerRequestId(),
+    data: { item: data },
   };
 }
 

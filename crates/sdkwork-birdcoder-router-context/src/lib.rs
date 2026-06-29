@@ -3,7 +3,7 @@ use axum::http::request::Parts;
 use axum::http::StatusCode;
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_deployment_service::context::DeploymentContext;
-use sdkwork_birdcoder_errors::{problem_json, ProblemDetailsPayload};
+use sdkwork_birdcoder_errors::{traced_legacy_problem, ProblemDetailsPayload};
 use sdkwork_birdcoder_project_service::context::ProjectContext;
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_iam_context_service::IamAppContext;
@@ -32,10 +32,7 @@ where
             .get::<IamAppContext>()
             .cloned()
             .map(RequiredIamContext)
-            .ok_or(problem_json(
-                StatusCode::UNAUTHORIZED,
-                ProblemDetailsPayload::new("unauthorized", "session required", false),
-            ))
+            .ok_or(traced_legacy_problem("unauthorized", "session required", None))
     }
 }
 

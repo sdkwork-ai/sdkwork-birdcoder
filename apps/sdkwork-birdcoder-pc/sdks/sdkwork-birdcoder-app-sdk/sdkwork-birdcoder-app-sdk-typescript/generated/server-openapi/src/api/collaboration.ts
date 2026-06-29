@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderTeamSummaryListEnvelope } from '../types';
+import type { BirdCoderTeamSummary, PageInfo } from '../types';
 
 
 export interface CollaborationWorkspaceTeamsListParams {
@@ -18,12 +18,12 @@ export class CollaborationWorkspaceTeamsApi {
 
 
 /** List workspace teams */
-  async list(params?: CollaborationWorkspaceTeamsListParams): Promise<BirdCoderTeamSummaryListEnvelope> {
+  async list(params?: CollaborationWorkspaceTeamsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'userId', value: params?.userId, style: 'form', explode: true, allowReserved: false },
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<BirdCoderTeamSummaryListEnvelope>(appendQueryString(appApiPath(`/teams`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/teams`), query));
   }
 }
 

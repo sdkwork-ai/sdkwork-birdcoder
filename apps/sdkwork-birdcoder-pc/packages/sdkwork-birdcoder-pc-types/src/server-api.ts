@@ -52,6 +52,37 @@ export interface BirdCoderApiTransport {
   request<TResponse>(request: BirdCoderApiTransportRequest): Promise<TResponse>;
 }
 
+export interface BirdCoderPageInfo {
+  mode: 'offset' | 'cursor';
+  page?: number;
+  pageSize?: number;
+  totalItems?: string;
+  totalPages?: number;
+  nextCursor?: string;
+  hasMore?: boolean;
+}
+
+export interface BirdCoderSdkWorkResourceData<T> {
+  item: T;
+}
+
+export interface BirdCoderSdkWorkPageData<T> {
+  items: T[];
+  pageInfo: BirdCoderPageInfo;
+}
+
+/** Canonical HTTP success envelope (`API_SPEC.md` §15.1). */
+export interface BirdCoderSdkWorkApiResponse<TData> {
+  code: 0;
+  data: TData;
+  traceId: string;
+}
+
+export type BirdCoderApiEnvelope<T> = BirdCoderSdkWorkApiResponse<BirdCoderSdkWorkResourceData<T>>;
+
+export type BirdCoderApiListEnvelope<T> = BirdCoderSdkWorkApiResponse<BirdCoderSdkWorkPageData<T>>;
+
+/** @deprecated Use BirdCoderSdkWorkApiResponse page/resource shapes instead of legacy meta/timestamp roots. */
 export interface BirdCoderApiMeta {
   page?: number;
   pageSize?: number;
@@ -59,26 +90,14 @@ export interface BirdCoderApiMeta {
   version: string;
 }
 
-export interface BirdCoderApiEnvelope<T> {
-  requestId: string;
-  timestamp: string;
-  data: T;
-  meta: BirdCoderApiMeta;
-}
-
-export interface BirdCoderApiListEnvelope<T> {
-  requestId: string;
-  timestamp: string;
-  items: T[];
-  meta: Required<Pick<BirdCoderApiMeta, 'page' | 'pageSize' | 'total' | 'version'>>;
-}
-
 export interface BirdCoderApiProblemDetails {
-  code: string;
-  message: string;
+  type: string;
+  title: string;
+  status: number;
   detail?: string;
-  retryable: boolean;
-  fieldErrors?: Record<string, string>;
+  instance?: string;
+  code: number;
+  traceId: string;
 }
 
 export interface BirdCoderApiRouteDefinition {

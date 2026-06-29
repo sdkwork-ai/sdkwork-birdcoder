@@ -828,6 +828,9 @@ importers:
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-ai-cli:
     dependencies:
+      '@sdkwork/terminal-pc-i18n':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-i18n
       '@sdkwork/terminal-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-types
@@ -919,6 +922,9 @@ importers:
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-diagnostics:
     dependencies:
+      '@sdkwork/terminal-pc-i18n':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-i18n
       '@sdkwork/terminal-pc-ui':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-ui
@@ -969,6 +975,9 @@ importers:
       '@sdkwork/terminal-pc-contracts':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-contracts
+      '@sdkwork/terminal-pc-i18n':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-i18n
       '@sdkwork/terminal-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-types
@@ -981,6 +990,9 @@ importers:
       '@sdkwork/terminal-pc-contracts':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-contracts
+      '@sdkwork/terminal-pc-i18n':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-i18n
       '@sdkwork/terminal-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-types
@@ -990,67 +1002,28 @@ importers:
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-settings:
     dependencies:
+      '@sdkwork/terminal-pc-i18n':
+        specifier: workspace:*
+        version: link:../sdkwork-terminal-pc-i18n
       '@sdkwork/terminal-pc-ui':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-ui
 
   ../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell:
     dependencies:
-      '@sdkwork/terminal-pc-infrastructure':
-        specifier: workspace:*
-        version: link:../sdkwork-terminal-pc-infrastructure
-    devDependencies:
-      '@sdkwork/terminal-pc-ai-cli':
-        specifier: workspace:*
-        version: link:../sdkwork-terminal-pc-ai-cli
       '@sdkwork/terminal-pc-commons':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-commons
       '@sdkwork/terminal-pc-core':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-core
-      '@sdkwork/terminal-pc-diagnostics':
+      '@sdkwork/terminal-pc-infrastructure':
         specifier: workspace:*
-        version: link:../sdkwork-terminal-pc-diagnostics
-      '@sdkwork/terminal-pc-i18n':
-        specifier: workspace:*
-        version: link:../sdkwork-terminal-pc-i18n
-      '@sdkwork/terminal-pc-resources':
-        specifier: workspace:*
-        version: link:../sdkwork-terminal-pc-resources
-      '@sdkwork/terminal-pc-sessions':
-        specifier: workspace:*
-        version: link:../sdkwork-terminal-pc-sessions
-      '@sdkwork/terminal-pc-settings':
-        specifier: workspace:*
-        version: link:../sdkwork-terminal-pc-settings
+        version: link:../sdkwork-terminal-pc-infrastructure
       '@sdkwork/terminal-pc-types':
         specifier: workspace:*
         version: link:../sdkwork-terminal-pc-types
-      '@sdkwork/terminal-pc-ui':
-        specifier: workspace:*
-        version: link:../sdkwork-terminal-pc-ui
-      '@sdkwork/terminal-pc-workbench':
-        specifier: workspace:*
-        version: link:../sdkwork-terminal-pc-workbench
-      '@xterm/addon-canvas':
-        specifier: ^0.7.0
-        version: 0.7.0(@xterm/xterm@5.5.0)
-      '@xterm/addon-fit':
-        specifier: ^0.10.0
-        version: 0.10.0(@xterm/xterm@5.5.0)
-      '@xterm/addon-search':
-        specifier: ^0.16.0
-        version: 0.16.0
-      '@xterm/addon-unicode11':
-        specifier: ^0.8.0
-        version: 0.8.0(@xterm/xterm@5.5.0)
-      '@xterm/addon-web-links':
-        specifier: ^0.11.0
-        version: 0.11.0(@xterm/xterm@5.5.0)
-      '@xterm/xterm':
-        specifier: ^5.5.0
-        version: 5.5.0
+    devDependencies:
       typescript:
         specifier: ^5.8.2
         version: 5.9.3

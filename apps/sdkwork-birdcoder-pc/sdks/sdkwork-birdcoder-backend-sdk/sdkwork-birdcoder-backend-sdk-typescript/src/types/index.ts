@@ -23,33 +23,10 @@ export interface BirdcoderSdkOperationDescriptor {
   tenantScope: string;
 }
 
-export interface BirdCoderApiListMeta {
-  page: number;
-  pageSize: number;
-  total: number;
-  version: string;
-}
-
-export interface BirdCoderApiMeta {
-  page?: number;
-  pageSize?: number;
-  total?: number;
-  version: string;
-}
-
-export interface BirdCoderApiProblemDetails {
-  code: string;
-  message: string;
-  detail?: string;
-  retryable: boolean;
-  fieldErrors?: Record<string, string>;
-}
-
 export interface BirdCoderBooleanSuccessEnvelope {
-  data: BirdCoderBooleanSuccessResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderBooleanSuccessResult {
@@ -116,10 +93,9 @@ export interface BirdCoderCreateIamUserRoleRequest {
 }
 
 export interface BirdCoderDeletedResourceEnvelope {
-  data: BirdCoderDeletedResourceResult;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderDeletedResourceResult {
@@ -143,10 +119,9 @@ export interface BirdCoderDeploymentRecordSummary {
 }
 
 export interface BirdCoderDeploymentRecordSummaryListEnvelope {
-  items: Array<BirdCoderDeploymentRecordSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderDeploymentTargetSummary {
@@ -164,10 +139,9 @@ export interface BirdCoderDeploymentTargetSummary {
 }
 
 export interface BirdCoderDeploymentTargetSummaryListEnvelope {
-  items: Array<BirdCoderDeploymentTargetSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamApiKeySummary {
@@ -183,10 +157,9 @@ export interface BirdCoderIamApiKeySummary {
 }
 
 export interface BirdCoderIamApiKeySummaryListEnvelope {
-  items: Array<BirdCoderIamApiKeySummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamAuditEventSummary {
@@ -206,10 +179,9 @@ export interface BirdCoderIamAuditEventSummary {
 }
 
 export interface BirdCoderIamAuditEventSummaryListEnvelope {
-  items: Array<BirdCoderIamAuditEventSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamOrganizationMemberSummary {
@@ -225,10 +197,9 @@ export interface BirdCoderIamOrganizationMemberSummary {
 }
 
 export interface BirdCoderIamOrganizationMemberSummaryEnvelope {
-  data: BirdCoderIamOrganizationMemberSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamOrganizationSummary {
@@ -244,10 +215,9 @@ export interface BirdCoderIamOrganizationSummary {
 }
 
 export interface BirdCoderIamOrganizationSummaryEnvelope {
-  data: BirdCoderIamOrganizationSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamPermissionSummary {
@@ -260,17 +230,15 @@ export interface BirdCoderIamPermissionSummary {
 }
 
 export interface BirdCoderIamPermissionSummaryEnvelope {
-  data: BirdCoderIamPermissionSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamPermissionSummaryListEnvelope {
-  items: Array<BirdCoderIamPermissionSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamPolicySummary {
@@ -285,17 +253,15 @@ export interface BirdCoderIamPolicySummary {
 }
 
 export interface BirdCoderIamPolicySummaryEnvelope {
-  data: BirdCoderIamPolicySummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamPolicySummaryListEnvelope {
-  items: Array<BirdCoderIamPolicySummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamRolePermissionSummary {
@@ -307,17 +273,15 @@ export interface BirdCoderIamRolePermissionSummary {
 }
 
 export interface BirdCoderIamRolePermissionSummaryEnvelope {
-  data: BirdCoderIamRolePermissionSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamRolePermissionSummaryListEnvelope {
-  items: Array<BirdCoderIamRolePermissionSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamRoleSummary {
@@ -331,17 +295,15 @@ export interface BirdCoderIamRoleSummary {
 }
 
 export interface BirdCoderIamRoleSummaryEnvelope {
-  data: BirdCoderIamRoleSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamRoleSummaryListEnvelope {
-  items: Array<BirdCoderIamRoleSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamSecurityEventSummary {
@@ -356,10 +318,9 @@ export interface BirdCoderIamSecurityEventSummary {
 }
 
 export interface BirdCoderIamSecurityEventSummaryListEnvelope {
-  items: Array<BirdCoderIamSecurityEventSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamTenantMemberSummary {
@@ -374,17 +335,15 @@ export interface BirdCoderIamTenantMemberSummary {
 }
 
 export interface BirdCoderIamTenantMemberSummaryEnvelope {
-  data: BirdCoderIamTenantMemberSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamTenantMemberSummaryListEnvelope {
-  items: Array<BirdCoderIamTenantMemberSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamTenantSummary {
@@ -397,17 +356,15 @@ export interface BirdCoderIamTenantSummary {
 }
 
 export interface BirdCoderIamTenantSummaryEnvelope {
-  data: BirdCoderIamTenantSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamTenantSummaryListEnvelope {
-  items: Array<BirdCoderIamTenantSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamUserRoleSummary {
@@ -421,10 +378,9 @@ export interface BirdCoderIamUserRoleSummary {
 }
 
 export interface BirdCoderIamUserRoleSummaryEnvelope {
-  data: BirdCoderIamUserRoleSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamUserSummary {
@@ -443,24 +399,15 @@ export interface BirdCoderIamUserSummary {
 }
 
 export interface BirdCoderIamUserSummaryEnvelope {
-  data: BirdCoderIamUserSummary;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderIamUserSummaryListEnvelope {
-  items: Array<BirdCoderIamUserSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
-}
-
-export interface BirdCoderProblemEnvelope {
-  data: BirdCoderApiProblemDetails;
-  meta: BirdCoderApiMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderReleaseSummary {
@@ -478,10 +425,9 @@ export interface BirdCoderReleaseSummary {
 }
 
 export interface BirdCoderReleaseSummaryListEnvelope {
-  items: Array<BirdCoderReleaseSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderTeamMemberSummary {
@@ -500,10 +446,9 @@ export interface BirdCoderTeamMemberSummary {
 }
 
 export interface BirdCoderTeamMemberSummaryListEnvelope {
-  items: Array<BirdCoderTeamMemberSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderTeamSummary {
@@ -526,10 +471,9 @@ export interface BirdCoderTeamSummary {
 }
 
 export interface BirdCoderTeamSummaryListEnvelope {
-  items: Array<BirdCoderTeamSummary>;
-  meta: BirdCoderApiListMeta;
-  requestId: string;
-  timestamp: string;
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
 }
 
 export interface BirdCoderUpdateIamOrganizationMemberRequest {
@@ -581,6 +525,32 @@ export interface BirdCoderUpdateIamUserRequest {
   displayName?: string;
   avatarUrl?: string;
   status?: string;
+}
+
+export interface PageInfo {
+  mode: "offset" | "cursor";
+  page?: number;
+  pageSize?: number;
+  totalItems?: string;
+  totalPages?: number;
+  nextCursor?: string;
+  hasMore?: boolean;
+}
+
+export interface ProblemDetail {
+  type: string;
+  title: string;
+  status: number;
+  detail?: string;
+  instance?: string;
+  code: number;
+  traceId: string;
+}
+
+export interface SdkWorkApiResponse {
+  code: 0;
+  data: unknown;
+  traceId: string;
 }
 
 export interface IamApiKeysRevokePathParams {

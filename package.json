@@ -306,7 +306,7 @@
     "check:ci-flow": "node scripts/ci-flow-contract.test.mjs",
     "check:multi-mode": "node scripts/run-workspace-package-script.mjs . check:desktop && node scripts/run-workspace-package-script.mjs . check:server && node scripts/run-workspace-package-script.mjs . check:release-flow",
     "prepare:shared-sdk": "node scripts/prepare-shared-sdk-packages.mjs",
-    "generate:openapi:coding-server": "node --experimental-strip-types scripts/coding-server-openapi-export.ts",
+    "generate:openapi:coding-server": "node scripts/run-local-tsx.mjs scripts/coding-server-openapi-export.ts",
     "generate:sdk:birdcoder": "node scripts/sync-birdcoder-sdk-openapi.mjs && node scripts/generate-birdcoder-sdk-family.mjs",
     "generate:sdk:birdcoder:standard": "node scripts/sync-birdcoder-sdk-openapi.mjs && node scripts/generate-birdcoder-sdkgen-family.mjs",
     "generate:sdk:birdcoder:flutter-mobile": "node scripts/generate-birdcoder-flutter-mobile-sdk-family.mjs",

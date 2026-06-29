@@ -16,8 +16,8 @@ Rust host must prove that the live HTTP engine/model routes emit the same JSON t
 - Route parity rules:
   - `GET /app/v3/api/engines` -> `items === generated.engines`
   - `GET /app/v3/api/models` -> `items === generated.models`
-  - `GET /app/v3/api/engines/:engineKey/capabilities` -> `data === generated.engines[*].capabilityMatrix`
-  - `meta.version === CODING_SERVER_API_VERSION`
+  - `GET /app/v3/api/engines/:engineKey/capabilities` -> `data.item === generated.engines[*].capabilityMatrix`
+  - list responses use SdkWork list envelopes (`code === 0`, `data.items`, `data.pageInfo`, `traceId`)
 - Serialization rule:
   - absent optionals must be omitted, not serialized as `null`
 - Governance carrier:

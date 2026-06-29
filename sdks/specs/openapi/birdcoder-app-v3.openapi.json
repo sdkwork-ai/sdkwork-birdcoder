@@ -98,7 +98,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -108,7 +108,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -118,7 +118,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -178,7 +178,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -188,7 +188,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -198,7 +198,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -268,7 +268,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -278,7 +278,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -288,7 +288,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -298,7 +298,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -399,7 +399,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -409,7 +409,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -468,7 +468,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -478,7 +478,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -488,7 +488,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -539,7 +539,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -601,7 +601,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -611,7 +611,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -662,7 +662,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -734,7 +734,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -744,7 +744,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -754,7 +754,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -764,7 +764,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -856,7 +856,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -866,7 +866,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -876,7 +876,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -927,7 +927,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -937,7 +937,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1038,7 +1038,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1048,7 +1048,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1110,7 +1110,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1120,7 +1120,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1130,7 +1130,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1181,7 +1181,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1232,7 +1232,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1291,7 +1291,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1342,7 +1342,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1404,7 +1404,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1414,7 +1414,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1495,7 +1495,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1505,7 +1505,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1515,7 +1515,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1596,7 +1596,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1606,7 +1606,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1616,7 +1616,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1667,7 +1667,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1718,7 +1718,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1780,7 +1780,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1790,7 +1790,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1852,7 +1852,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1862,7 +1862,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1934,7 +1934,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1944,7 +1944,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1954,7 +1954,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -1964,7 +1964,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2045,7 +2045,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2055,7 +2055,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2065,7 +2065,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2075,7 +2075,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2144,7 +2144,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2154,7 +2154,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2164,7 +2164,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2215,7 +2215,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2260,7 +2260,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2315,7 +2315,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2325,7 +2325,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2380,7 +2380,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2390,7 +2390,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2400,7 +2400,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2455,7 +2455,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2465,7 +2465,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2521,7 +2521,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2531,7 +2531,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2597,7 +2597,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2607,7 +2607,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2673,7 +2673,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2683,7 +2683,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2693,7 +2693,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2759,7 +2759,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2769,7 +2769,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2779,7 +2779,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2789,7 +2789,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2799,7 +2799,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2854,7 +2854,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2864,7 +2864,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2919,7 +2919,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2929,7 +2929,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2939,7 +2939,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -2994,7 +2994,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3004,7 +3004,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3059,7 +3059,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3069,7 +3069,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3079,7 +3079,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3124,7 +3124,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3183,7 +3183,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3232,7 +3232,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3293,7 +3293,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3303,7 +3303,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3313,7 +3313,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3358,7 +3358,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3417,7 +3417,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3468,7 +3468,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3529,7 +3529,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3539,7 +3539,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3549,7 +3549,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3642,7 +3642,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3724,7 +3724,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3734,7 +3734,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3744,7 +3744,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3804,7 +3804,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3814,7 +3814,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3875,7 +3875,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3885,7 +3885,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -3962,7 +3962,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4044,7 +4044,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4054,7 +4054,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4064,7 +4064,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4124,7 +4124,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4134,7 +4134,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4196,7 +4196,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4206,7 +4206,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4266,7 +4266,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4276,7 +4276,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4346,7 +4346,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4356,7 +4356,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4366,7 +4366,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4428,7 +4428,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4438,7 +4438,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4498,7 +4498,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4508,7 +4508,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4578,7 +4578,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4588,7 +4588,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4598,7 +4598,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4661,7 +4661,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4671,7 +4671,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4681,7 +4681,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4691,7 +4691,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4743,7 +4743,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4805,7 +4805,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4815,7 +4815,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4866,7 +4866,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4928,7 +4928,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -4938,7 +4938,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5010,7 +5010,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5020,7 +5020,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5030,7 +5030,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5102,7 +5102,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5112,7 +5112,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5122,7 +5122,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5194,7 +5194,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5204,7 +5204,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5214,7 +5214,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5286,7 +5286,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5296,7 +5296,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5306,7 +5306,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5378,7 +5378,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5388,7 +5388,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5398,7 +5398,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5470,7 +5470,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5480,7 +5480,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5490,7 +5490,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5552,7 +5552,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5562,7 +5562,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5572,7 +5572,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5644,7 +5644,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5654,7 +5654,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5664,7 +5664,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5736,7 +5736,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5746,7 +5746,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5815,7 +5815,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5884,7 +5884,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5935,7 +5935,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -5986,7 +5986,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -6037,7 +6037,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -6088,7 +6088,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -6139,7 +6139,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -6190,7 +6190,7 @@
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProblemEnvelope"
+                  "$ref": "#/components/schemas/ProblemDetail"
                 }
               }
             }
@@ -6325,86 +6325,6 @@
         ],
         "additionalProperties": false
       },
-      "BirdCoderApiListMeta": {
-        "type": "object",
-        "properties": {
-          "page": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "pageSize": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "total": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "version": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "page",
-          "pageSize",
-          "total",
-          "version"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderApiMeta": {
-        "type": "object",
-        "properties": {
-          "page": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "pageSize": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "total": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "version": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "version"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderApiProblemDetails": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "detail": {
-            "type": "string"
-          },
-          "retryable": {
-            "type": "boolean"
-          },
-          "fieldErrors": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "code",
-          "message",
-          "retryable"
-        ],
-        "additionalProperties": false
-      },
       "BirdCoderApiRouteCatalogEntry": {
         "type": "object",
         "properties": {
@@ -6458,34 +6378,39 @@
         "additionalProperties": false
       },
       "BirdCoderApiRouteCatalogEntryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderApiRouteCatalogEntry"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderApiRouteCatalogEntry"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderAppTemplateSummary": {
         "type": "object",
@@ -6580,34 +6505,39 @@
         "additionalProperties": false
       },
       "BirdCoderAppTemplateSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderAppTemplateSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderAppTemplateSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderApprovalDecisionResult": {
         "type": "object",
@@ -6683,31 +6613,32 @@
         "additionalProperties": false
       },
       "BirdCoderApprovalDecisionResultEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderApprovalDecisionResult"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderApprovalDecisionResult"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderAuthenticatedUserSummary": {
         "type": "object",
@@ -6753,31 +6684,32 @@
         "additionalProperties": false
       },
       "BirdCoderBooleanSuccessEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderBooleanSuccessResult"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderBooleanSuccessResult"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderBooleanSuccessResult": {
         "type": "object",
@@ -6882,31 +6814,32 @@
         "additionalProperties": false
       },
       "BirdCoderCodeEngineModelConfigEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderCodeEngineModelConfig"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCodeEngineModelConfig"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCodeEngineModelConfigSyncResult": {
         "type": "object",
@@ -6947,31 +6880,32 @@
         "additionalProperties": false
       },
       "BirdCoderCodeEngineModelConfigSyncResultEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderCodeEngineModelConfigSyncResult"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCodeEngineModelConfigSyncResult"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCodingServerDescriptor": {
         "type": "object",
@@ -7021,31 +6955,32 @@
         "additionalProperties": false
       },
       "BirdCoderCodingServerDescriptorEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderCodingServerDescriptor"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCodingServerDescriptor"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCodingSessionArtifact": {
         "type": "object",
@@ -7110,34 +7045,39 @@
         "additionalProperties": false
       },
       "BirdCoderCodingSessionArtifactListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderCodingSessionArtifact"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderCodingSessionArtifact"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCodingSessionCheckpoint": {
         "type": "object",
@@ -7183,34 +7123,39 @@
         "additionalProperties": false
       },
       "BirdCoderCodingSessionCheckpointListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderCodingSessionCheckpoint"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderCodingSessionCheckpoint"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCodingSessionEvent": {
         "type": "object",
@@ -7270,34 +7215,39 @@
         "additionalProperties": false
       },
       "BirdCoderCodingSessionEventListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderCodingSessionEvent"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderCodingSessionEvent"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCodingSessionSummary": {
         "type": "object",
@@ -7390,61 +7340,67 @@
         "additionalProperties": false
       },
       "BirdCoderCodingSessionSummaryEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderCodingSessionSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCodingSessionSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCodingSessionSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderCodingSessionSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderCodingSessionSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCodingSessionTurn": {
         "type": "object",
@@ -7518,31 +7474,32 @@
         "additionalProperties": false
       },
       "BirdCoderCodingSessionTurnEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderCodingSessionTurn"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCodingSessionTurn"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCodingSessionTurnIdeContext": {
         "type": "object",
@@ -7621,31 +7578,32 @@
         "additionalProperties": false
       },
       "BirdCoderCommerceMembershipCurrentEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderCommerceMembershipCurrentSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceMembershipCurrentSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCommerceMembershipCurrentSummary": {
         "type": "object",
@@ -7770,34 +7728,39 @@
         "additionalProperties": false
       },
       "BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderCommerceMembershipPackageGroupSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderCommerceMembershipPackageGroupSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCommerceMembershipPackageSummary": {
         "type": "object",
@@ -7881,31 +7844,32 @@
         "additionalProperties": false
       },
       "BirdCoderCoreHealthSummaryEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderCoreHealthSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCoreHealthSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCoreRuntimeSummary": {
         "type": "object",
@@ -7929,31 +7893,32 @@
         "additionalProperties": false
       },
       "BirdCoderCoreRuntimeSummaryEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderCoreRuntimeSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCoreRuntimeSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderCreateCodingSessionRequest": {
         "type": "object",
@@ -8087,11 +8052,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
+              "workspace",
+              "project",
+              "user",
+              "team",
+              "organization"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -8204,11 +8169,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
+              "workspace",
+              "project",
+              "user",
+              "team",
+              "organization"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -8296,58 +8261,60 @@
         "additionalProperties": false
       },
       "BirdCoderDeleteCodingSessionMessageResultEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderDeleteCodingSessionMessageResult"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderDeleteCodingSessionMessageResult"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderDeletedResourceEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderDeletedResourceResult"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderDeletedResourceResult"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderDeletedResourceResult": {
         "type": "object",
@@ -8424,34 +8391,39 @@
         "additionalProperties": false
       },
       "BirdCoderDeploymentRecordSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderDeploymentRecordSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderDeploymentRecordSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderDeploymentTargetSummary": {
         "type": "object",
@@ -8509,34 +8481,39 @@
         "additionalProperties": false
       },
       "BirdCoderDeploymentTargetSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderDeploymentTargetSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderDeploymentTargetSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderEditCodingSessionMessageRequest": {
         "type": "object",
@@ -8571,31 +8548,32 @@
         "additionalProperties": false
       },
       "BirdCoderEditCodingSessionMessageResultEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderEditCodingSessionMessageResult"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderEditCodingSessionMessageResult"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderEngineAccessLane": {
         "type": "object",
@@ -8774,31 +8752,32 @@
         "additionalProperties": false
       },
       "BirdCoderEngineCapabilityMatrixEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderEngineCapabilityMatrix"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderEngineCapabilityMatrix"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderEngineDescriptor": {
         "type": "object",
@@ -8911,34 +8890,39 @@
         "additionalProperties": false
       },
       "BirdCoderEngineDescriptorListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderEngineDescriptor"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderEngineDescriptor"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderEngineOfficialEntry": {
         "type": "object",
@@ -9130,10 +9114,10 @@
           "lockedReason": {
             "type": "string"
           },
-          "path": {
+          "prunableReason": {
             "type": "string"
           },
-          "prunableReason": {
+          "path": {
             "type": "string"
           }
         },
@@ -9228,31 +9212,32 @@
         "additionalProperties": false
       },
       "BirdCoderIamDeviceAuthorizationEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderIamDeviceAuthorizationSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderIamDeviceAuthorizationPasswordCompletionRequest": {
         "type": "object",
@@ -9355,31 +9340,32 @@
         "additionalProperties": false
       },
       "BirdCoderIamOAuthAuthorizationEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderIamOAuthAuthorizationSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderIamOAuthAuthorizationSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderIamOAuthAuthorizationSummary": {
         "type": "object",
@@ -9468,34 +9454,39 @@
         "additionalProperties": false
       },
       "BirdCoderIamOrganizationMemberSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderIamOrganizationMemberSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderIamOrganizationMemberSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderIamOrganizationSummary": {
         "type": "object",
@@ -9541,34 +9532,39 @@
         "additionalProperties": false
       },
       "BirdCoderIamOrganizationSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderIamOrganizationSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderIamOrganizationSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderIamPasswordResetCreateRequest": {
         "type": "object",
@@ -9660,31 +9656,32 @@
         "additionalProperties": false
       },
       "BirdCoderIamRuntimeSettingsEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderIamRuntimeSettingsSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderIamRuntimeSettingsSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderIamRuntimeSettingsSummary": {
         "type": "object",
@@ -9767,31 +9764,32 @@
         "additionalProperties": false
       },
       "BirdCoderIamSessionEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderIamSessionSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderIamSessionSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderIamSessionSummary": {
         "type": "object",
@@ -9843,31 +9841,32 @@
         "additionalProperties": false
       },
       "BirdCoderIamUserProfileEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderIamUserProfileSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderIamUserProfileSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderIamUserProfileSummary": {
         "type": "object",
@@ -9965,61 +9964,67 @@
         "additionalProperties": false
       },
       "BirdCoderIamUserRoleSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderIamUserRoleSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderIamUserRoleSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderIamVerificationPolicyEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderIamVerificationPolicySummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderIamVerificationPolicySummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderIamVerificationPolicySummary": {
         "type": "object",
@@ -10198,34 +10203,39 @@
         "additionalProperties": false
       },
       "BirdCoderModelCatalogEntryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderModelCatalogEntry"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderModelCatalogEntry"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderNativeSessionCommand": {
         "type": "object",
@@ -10308,31 +10318,32 @@
         "additionalProperties": false
       },
       "BirdCoderNativeSessionDetailEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderNativeSessionDetail"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderNativeSessionDetail"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderNativeSessionMessage": {
         "type": "object",
@@ -10494,34 +10505,39 @@
         "additionalProperties": false
       },
       "BirdCoderNativeSessionProviderSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderNativeSessionProviderSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderNativeSessionProviderSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderNativeSessionSummary": {
         "type": "object",
@@ -10631,34 +10647,39 @@
         "additionalProperties": false
       },
       "BirdCoderNativeSessionSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderNativeSessionSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderNativeSessionSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderOperationDescriptor": {
         "type": "object",
@@ -10702,58 +10723,32 @@
         "additionalProperties": false
       },
       "BirdCoderOperationDescriptorEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderOperationDescriptor"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderOperationDescriptor"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderProblemEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderApiProblemDetails"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
-          }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderProjectCollaboratorSummary": {
         "type": "object",
@@ -10835,61 +10830,67 @@
         "additionalProperties": false
       },
       "BirdCoderProjectCollaboratorSummaryEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderProjectCollaboratorSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderProjectCollaboratorSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderProjectCollaboratorSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderProjectCollaboratorSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderProjectCollaboratorSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderProjectDocumentSummary": {
         "type": "object",
@@ -10957,34 +10958,39 @@
         "additionalProperties": false
       },
       "BirdCoderProjectDocumentSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderProjectDocumentSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderProjectDocumentSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderProjectGitOverview": {
         "type": "object",
@@ -11037,31 +11043,32 @@
         "additionalProperties": false
       },
       "BirdCoderProjectGitOverviewEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderProjectGitOverview"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderProjectGitOverview"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderProjectPublishResult": {
         "type": "object",
@@ -11084,31 +11091,32 @@
         "additionalProperties": false
       },
       "BirdCoderProjectPublishResultEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderProjectPublishResult"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderProjectPublishResult"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderProjectSummary": {
         "type": "object",
@@ -11132,11 +11140,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
+              "workspace",
+              "project",
+              "user",
+              "team",
+              "organization"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -11256,61 +11264,67 @@
         "additionalProperties": false
       },
       "BirdCoderProjectSummaryEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderProjectSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderProjectSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderProjectSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderProjectSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderProjectSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderPublishProjectRequest": {
         "type": "object",
@@ -11561,31 +11575,32 @@
         "additionalProperties": false
       },
       "BirdCoderSkillInstallationSummaryEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderSkillInstallationSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderSkillInstallationSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderSkillPackageSummary": {
         "type": "object",
@@ -11664,34 +11679,39 @@
         "additionalProperties": false
       },
       "BirdCoderSkillPackageSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderSkillPackageSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderSkillPackageSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderSubmitApprovalDecisionRequest": {
         "type": "object",
@@ -11824,34 +11844,39 @@
         "additionalProperties": false
       },
       "BirdCoderTeamSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderTeamSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderTeamSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderUpdateCodingSessionRequest": {
         "type": "object",
@@ -11913,11 +11938,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
+              "workspace",
+              "project",
+              "user",
+              "team",
+              "organization"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -12011,11 +12036,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
+              "workspace",
+              "project",
+              "user",
+              "team",
+              "organization"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -12251,31 +12276,32 @@
         "additionalProperties": false
       },
       "BirdCoderUserQuestionAnswerResultEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderUserQuestionAnswerResult"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderUserQuestionAnswerResult"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderWorkspaceMemberSummary": {
         "type": "object",
@@ -12353,61 +12379,67 @@
         "additionalProperties": false
       },
       "BirdCoderWorkspaceMemberSummaryEnvelope": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderWorkspaceMemberSummary"
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderWorkspaceMemberSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderWorkspaceMemberSummaryListEnvelope": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderWorkspaceMemberSummary"
-            }
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
-          },
-          "requestId": {
-            "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderWorkspaceMemberSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
-        ],
-        "additionalProperties": false
+        ]
       },
       "BirdCoderWorkspaceSummary": {
         "type": "object",
@@ -12427,11 +12459,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
+              "workspace",
+              "project",
+              "user",
+              "team",
+              "organization"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -12527,59 +12559,167 @@
         "additionalProperties": false
       },
       "BirdCoderWorkspaceSummaryEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderWorkspaceSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderWorkspaceSummaryListEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderWorkspaceSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PageInfo": {
         "type": "object",
         "properties": {
-          "data": {
-            "$ref": "#/components/schemas/BirdCoderWorkspaceSummary"
-          },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiMeta"
-          },
-          "requestId": {
+          "mode": {
             "type": "string",
-            "description": "Server-generated request correlation identifier."
+            "enum": [
+              "offset",
+              "cursor"
+            ]
           },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "totalItems": {
+            "type": "string"
+          },
+          "totalPages": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "nextCursor": {
+            "type": "string"
+          },
+          "hasMore": {
+            "type": "boolean"
           }
         },
         "required": [
-          "requestId",
-          "timestamp",
-          "data",
-          "meta"
+          "mode"
         ],
         "additionalProperties": false
       },
-      "BirdCoderWorkspaceSummaryListEnvelope": {
+      "ProblemDetail": {
         "type": "object",
         "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BirdCoderWorkspaceSummary"
-            }
+          "type": {
+            "type": "string"
           },
-          "meta": {
-            "$ref": "#/components/schemas/BirdCoderApiListMeta"
+          "title": {
+            "type": "string"
           },
-          "requestId": {
+          "status": {
+            "type": "integer",
+            "minimum": 100
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "code": {
+            "type": "integer",
+            "minimum": 40001
+          },
+          "traceId": {
             "type": "string",
-            "description": "Server-generated request correlation identifier."
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Response emission timestamp."
+            "description": "Server-owned request correlation id."
           }
         },
         "required": [
-          "requestId",
-          "timestamp",
-          "items",
-          "meta"
+          "type",
+          "title",
+          "status",
+          "code",
+          "traceId"
+        ],
+        "additionalProperties": true
+      },
+      "SdkWorkApiResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+              0
+            ],
+            "default": 0,
+            "minimum": 0,
+            "maximum": 0
+          },
+          "data": {
+            "description": "Operation-specific payload typed per response schema."
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Server-owned request correlation id."
+          }
+        },
+        "required": [
+          "code",
+          "data",
+          "traceId"
         ],
         "additionalProperties": false
       }

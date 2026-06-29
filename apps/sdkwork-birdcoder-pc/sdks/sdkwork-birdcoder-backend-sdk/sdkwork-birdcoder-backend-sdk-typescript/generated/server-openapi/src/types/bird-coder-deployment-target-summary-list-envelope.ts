@@ -1,11 +1,9 @@
-import type { BirdCoderApiListMeta } from './bird-coder-api-list-meta';
 import type { BirdCoderDeploymentTargetSummary } from './bird-coder-deployment-target-summary';
+import type { PageInfo } from './page-info';
 
 export interface BirdCoderDeploymentTargetSummaryListEnvelope {
-  items: BirdCoderDeploymentTargetSummary[];
-  meta: BirdCoderApiListMeta;
-  /** Server-generated request correlation identifier. */
-  requestId: string;
-  /** Response emission timestamp. */
-  timestamp: string;
+  code: 0;
+  data: unknown & Record<string, unknown>;
+  /** Server-owned request correlation id. */
+  traceId: string;
 }

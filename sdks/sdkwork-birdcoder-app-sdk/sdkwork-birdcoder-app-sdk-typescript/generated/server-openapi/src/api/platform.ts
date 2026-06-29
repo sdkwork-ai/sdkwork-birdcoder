@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderCommitProjectGitChangesRequest, BirdCoderCreateProjectGitBranchRequest, BirdCoderCreateProjectGitWorktreeRequest, BirdCoderCreateProjectRequest, BirdCoderCreateWorkspaceRequest, BirdCoderDeletedResourceEnvelope, BirdCoderDeploymentRecordSummaryListEnvelope, BirdCoderProblemEnvelope, BirdCoderProjectCollaboratorSummaryEnvelope, BirdCoderProjectCollaboratorSummaryListEnvelope, BirdCoderProjectGitOverviewEnvelope, BirdCoderProjectPublishResultEnvelope, BirdCoderProjectSummaryEnvelope, BirdCoderProjectSummaryListEnvelope, BirdCoderPublishProjectRequest, BirdCoderPushProjectGitBranchRequest, BirdCoderRemoveProjectGitWorktreeRequest, BirdCoderSwitchProjectGitBranchRequest, BirdCoderUpdateProjectRequest, BirdCoderUpdateWorkspaceRequest, BirdCoderUpsertProjectCollaboratorRequest, BirdCoderWorkspaceSummaryEnvelope, BirdCoderWorkspaceSummaryListEnvelope } from '../types';
+import type { BirdCoderCommitProjectGitChangesRequest, BirdCoderCreateProjectGitBranchRequest, BirdCoderCreateProjectGitWorktreeRequest, BirdCoderCreateProjectRequest, BirdCoderCreateWorkspaceRequest, BirdCoderDeletedResourceResult, BirdCoderDeploymentRecordSummary, BirdCoderDeploymentTargetSummary, BirdCoderProjectCollaboratorSummary, BirdCoderProjectGitOverview, BirdCoderProjectPublishResult, BirdCoderProjectSummary, BirdCoderPublishProjectRequest, BirdCoderPushProjectGitBranchRequest, BirdCoderRemoveProjectGitWorktreeRequest, BirdCoderSwitchProjectGitBranchRequest, BirdCoderUpdateProjectRequest, BirdCoderUpdateWorkspaceRequest, BirdCoderUpsertProjectCollaboratorRequest, BirdCoderWorkspaceSummary, PageInfo, ProblemDetail } from '../types';
 
 
 export class PlatformDeploymentsApi {
@@ -13,8 +13,8 @@ export class PlatformDeploymentsApi {
 
 
 /** List deployments */
-  async list(): Promise<BirdCoderDeploymentRecordSummaryListEnvelope> {
-    return this.client.get<BirdCoderDeploymentRecordSummaryListEnvelope>(appApiPath(`/deployments`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/deployments`));
   }
 }
 
@@ -31,16 +31,18 @@ export class PlatformWorkspacesRealtimeApi {
 
 
 /** Subscribe to workspace realtime invalidation events */
-  async subscribe(workspaceId: string, params?: PlatformWorkspacesRealtimeSubscribeParams): Promise<BirdCoderProblemEnvelope> {
+  async subscribe(workspaceId: string, params?: PlatformWorkspacesRealtimeSubscribeParams): Promise<ProblemDetail> {
     const query = buildQueryString([
       { name: 'sessionId', value: params?.sessionId, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<BirdCoderProblemEnvelope>(appendQueryString(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}/realtime`), query));
+    return this.client.get<ProblemDetail>(appendQueryString(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}/realtime`), query));
   }
 }
 
 export interface PlatformWorkspacesListParams {
   userId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export class PlatformWorkspacesApi {
@@ -54,26 +56,33 @@ export class PlatformWorkspacesApi {
 
 
 /** Create workspace */
-  async create(body: BirdCoderCreateWorkspaceRequest): Promise<BirdCoderWorkspaceSummaryEnvelope> {
-    return this.client.post<BirdCoderWorkspaceSummaryEnvelope>(appApiPath(`/workspaces`), body, undefined, undefined, 'application/json');
+  async create(body: BirdCoderCreateWorkspaceRequest): Promise<BirdCoderWorkspaceSummary> {
+    return this.client.post<BirdCoderWorkspaceSummary>(appApiPath(`/workspaces`), body, undefined, undefined, 'application/json');
   }
 
 /** List workspaces */
-  async list(params?: PlatformWorkspacesListParams): Promise<BirdCoderWorkspaceSummaryListEnvelope> {
+  async list(params?: PlatformWorkspacesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'userId', value: params?.userId, style: 'form', explode: true, allowReserved: false },
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<BirdCoderWorkspaceSummaryListEnvelope>(appendQueryString(appApiPath(`/workspaces`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/workspaces`), query));
   }
 
 /** Delete workspace */
-  async delete(workspaceId: string): Promise<BirdCoderDeletedResourceEnvelope> {
-    return this.client.delete<BirdCoderDeletedResourceEnvelope>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}`));
+  async delete(workspaceId: string): Promise<BirdCoderDeletedResourceResult> {
+    return this.client.delete<BirdCoderDeletedResourceResult>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}`));
+  }
+
+/** Get workspace */
+  async retrieve(workspaceId: string): Promise<BirdCoderWorkspaceSummary> {
+    return this.client.get<BirdCoderWorkspaceSummary>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}`));
   }
 
 /** Update workspace */
-  async update(workspaceId: string, body: BirdCoderUpdateWorkspaceRequest): Promise<BirdCoderWorkspaceSummaryEnvelope> {
-    return this.client.patch<BirdCoderWorkspaceSummaryEnvelope>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(workspaceId: string, body: BirdCoderUpdateWorkspaceRequest): Promise<BirdCoderWorkspaceSummary> {
+    return this.client.patch<BirdCoderWorkspaceSummary>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -86,8 +95,8 @@ export class PlatformProjectsPublishApi {
 
 
 /** Publish project release flow */
-  async create(projectId: string, body?: BirdCoderPublishProjectRequest): Promise<BirdCoderProjectPublishResultEnvelope> {
-    return this.client.post<BirdCoderProjectPublishResultEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/publish`), body, undefined, undefined, 'application/json');
+  async create(projectId: string, body?: BirdCoderPublishProjectRequest): Promise<BirdCoderProjectPublishResult> {
+    return this.client.post<BirdCoderProjectPublishResult>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/publish`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -100,8 +109,8 @@ export class PlatformProjectsGitWorktreePruneApi {
 
 
 /** Prune project Git worktrees */
-  async create(projectId: string): Promise<BirdCoderProjectGitOverviewEnvelope> {
-    return this.client.post<BirdCoderProjectGitOverviewEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/worktree_prune`));
+  async create(projectId: string): Promise<BirdCoderProjectGitOverview> {
+    return this.client.post<BirdCoderProjectGitOverview>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/worktree_prune`));
   }
 }
 
@@ -114,8 +123,8 @@ export class PlatformProjectsGitWorktreeRemovalsApi {
 
 
 /** Remove project Git worktree */
-  async create(projectId: string, body: BirdCoderRemoveProjectGitWorktreeRequest): Promise<BirdCoderProjectGitOverviewEnvelope> {
-    return this.client.post<BirdCoderProjectGitOverviewEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/worktree_removals`), body, undefined, undefined, 'application/json');
+  async create(projectId: string, body: BirdCoderRemoveProjectGitWorktreeRequest): Promise<BirdCoderProjectGitOverview> {
+    return this.client.post<BirdCoderProjectGitOverview>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/worktree_removals`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -128,8 +137,8 @@ export class PlatformProjectsGitWorktreesApi {
 
 
 /** Create project Git worktree */
-  async create(projectId: string, body: BirdCoderCreateProjectGitWorktreeRequest): Promise<BirdCoderProjectGitOverviewEnvelope> {
-    return this.client.post<BirdCoderProjectGitOverviewEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/worktrees`), body, undefined, undefined, 'application/json');
+  async create(projectId: string, body: BirdCoderCreateProjectGitWorktreeRequest): Promise<BirdCoderProjectGitOverview> {
+    return this.client.post<BirdCoderProjectGitOverview>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/worktrees`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -142,8 +151,8 @@ export class PlatformProjectsGitPushesApi {
 
 
 /** Push project Git branch */
-  async create(projectId: string, body?: BirdCoderPushProjectGitBranchRequest): Promise<BirdCoderProjectGitOverviewEnvelope> {
-    return this.client.post<BirdCoderProjectGitOverviewEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/pushes`), body, undefined, undefined, 'application/json');
+  async create(projectId: string, body?: BirdCoderPushProjectGitBranchRequest): Promise<BirdCoderProjectGitOverview> {
+    return this.client.post<BirdCoderProjectGitOverview>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/pushes`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -156,8 +165,8 @@ export class PlatformProjectsGitCommitsApi {
 
 
 /** Commit project Git changes */
-  async create(projectId: string, body: BirdCoderCommitProjectGitChangesRequest): Promise<BirdCoderProjectGitOverviewEnvelope> {
-    return this.client.post<BirdCoderProjectGitOverviewEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/commits`), body, undefined, undefined, 'application/json');
+  async create(projectId: string, body: BirdCoderCommitProjectGitChangesRequest): Promise<BirdCoderProjectGitOverview> {
+    return this.client.post<BirdCoderProjectGitOverview>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/commits`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -170,8 +179,8 @@ export class PlatformProjectsGitBranchSwitchApi {
 
 
 /** Switch project Git branch */
-  async create(projectId: string, body: BirdCoderSwitchProjectGitBranchRequest): Promise<BirdCoderProjectGitOverviewEnvelope> {
-    return this.client.post<BirdCoderProjectGitOverviewEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/branch_switch`), body, undefined, undefined, 'application/json');
+  async create(projectId: string, body: BirdCoderSwitchProjectGitBranchRequest): Promise<BirdCoderProjectGitOverview> {
+    return this.client.post<BirdCoderProjectGitOverview>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/branch_switch`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -184,8 +193,8 @@ export class PlatformProjectsGitBranchesApi {
 
 
 /** Create project Git branch */
-  async create(projectId: string, body: BirdCoderCreateProjectGitBranchRequest): Promise<BirdCoderProjectGitOverviewEnvelope> {
-    return this.client.post<BirdCoderProjectGitOverviewEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/branches`), body, undefined, undefined, 'application/json');
+  async create(projectId: string, body: BirdCoderCreateProjectGitBranchRequest): Promise<BirdCoderProjectGitOverview> {
+    return this.client.post<BirdCoderProjectGitOverview>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/branches`), body, undefined, undefined, 'application/json');
   }
 }
 
@@ -198,8 +207,8 @@ export class PlatformProjectsGitOverviewApi {
 
 
 /** Get project Git overview */
-  async retrieve(projectId: string): Promise<BirdCoderProjectGitOverviewEnvelope> {
-    return this.client.get<BirdCoderProjectGitOverviewEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/overview`));
+  async retrieve(projectId: string): Promise<BirdCoderProjectGitOverview> {
+    return this.client.get<BirdCoderProjectGitOverview>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/overview`));
   }
 }
 
@@ -228,6 +237,20 @@ export class PlatformProjectsGitApi {
 
 }
 
+export class PlatformProjectsDeploymentTargetsApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** List project deployment targets */
+  async list(projectId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/deployment_targets`));
+  }
+}
+
 export class PlatformProjectsCollaboratorsApi {
   private client: HttpClient;
 
@@ -237,13 +260,13 @@ export class PlatformProjectsCollaboratorsApi {
 
 
 /** Upsert project collaborator */
-  async upsert(projectId: string, body: BirdCoderUpsertProjectCollaboratorRequest): Promise<BirdCoderProjectCollaboratorSummaryEnvelope> {
-    return this.client.post<BirdCoderProjectCollaboratorSummaryEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/collaborators`), body, undefined, undefined, 'application/json');
+  async upsert(projectId: string, body: BirdCoderUpsertProjectCollaboratorRequest): Promise<BirdCoderProjectCollaboratorSummary> {
+    return this.client.post<BirdCoderProjectCollaboratorSummary>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/collaborators`), body, undefined, undefined, 'application/json');
   }
 
 /** List project collaborators */
-  async list(projectId: string): Promise<BirdCoderProjectCollaboratorSummaryListEnvelope> {
-    return this.client.get<BirdCoderProjectCollaboratorSummaryListEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/collaborators`));
+  async list(projectId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/collaborators`));
   }
 }
 
@@ -251,50 +274,56 @@ export interface PlatformProjectsListParams {
   userId?: string;
   workspaceId?: string;
   rootPath?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export class PlatformProjectsApi {
   private client: HttpClient;
   public readonly collaborators: PlatformProjectsCollaboratorsApi;
+  public readonly deploymentTargets: PlatformProjectsDeploymentTargetsApi;
   public readonly git: PlatformProjectsGitApi;
   public readonly publish: PlatformProjectsPublishApi;
 
   constructor(client: HttpClient) {
     this.client = client;
     this.collaborators = new PlatformProjectsCollaboratorsApi(client);
+    this.deploymentTargets = new PlatformProjectsDeploymentTargetsApi(client);
     this.git = new PlatformProjectsGitApi(client);
     this.publish = new PlatformProjectsPublishApi(client);
   }
 
 
 /** Create project */
-  async create(body: BirdCoderCreateProjectRequest): Promise<BirdCoderProjectSummaryEnvelope> {
-    return this.client.post<BirdCoderProjectSummaryEnvelope>(appApiPath(`/projects`), body, undefined, undefined, 'application/json');
+  async create(body: BirdCoderCreateProjectRequest): Promise<BirdCoderProjectSummary> {
+    return this.client.post<BirdCoderProjectSummary>(appApiPath(`/projects`), body, undefined, undefined, 'application/json');
   }
 
 /** List projects */
-  async list(params?: PlatformProjectsListParams): Promise<BirdCoderProjectSummaryListEnvelope> {
+  async list(params?: PlatformProjectsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'userId', value: params?.userId, style: 'form', explode: true, allowReserved: false },
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
       { name: 'rootPath', value: params?.rootPath, style: 'form', explode: true, allowReserved: false },
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
     ]);
-    return this.client.get<BirdCoderProjectSummaryListEnvelope>(appendQueryString(appApiPath(`/projects`), query));
+    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/projects`), query));
   }
 
 /** Delete project */
-  async delete(projectId: string): Promise<BirdCoderDeletedResourceEnvelope> {
-    return this.client.delete<BirdCoderDeletedResourceEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}`));
+  async delete(projectId: string): Promise<BirdCoderDeletedResourceResult> {
+    return this.client.delete<BirdCoderDeletedResourceResult>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}`));
   }
 
 /** Get project */
-  async retrieve(projectId: string): Promise<BirdCoderProjectSummaryEnvelope> {
-    return this.client.get<BirdCoderProjectSummaryEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}`));
+  async retrieve(projectId: string): Promise<BirdCoderProjectSummary> {
+    return this.client.get<BirdCoderProjectSummary>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}`));
   }
 
 /** Update project */
-  async update(projectId: string, body: BirdCoderUpdateProjectRequest): Promise<BirdCoderProjectSummaryEnvelope> {
-    return this.client.patch<BirdCoderProjectSummaryEnvelope>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
+  async update(projectId: string, body: BirdCoderUpdateProjectRequest): Promise<BirdCoderProjectSummary> {
+    return this.client.patch<BirdCoderProjectSummary>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}`), body, undefined, undefined, 'application/json');
   }
 }
 

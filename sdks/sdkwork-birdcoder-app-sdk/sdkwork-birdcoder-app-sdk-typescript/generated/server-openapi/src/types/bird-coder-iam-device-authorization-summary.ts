@@ -1,7 +1,9 @@
 export interface BirdCoderIamDeviceAuthorizationSummary {
   deviceAuthorizationId: string;
   expiresAt?: string;
+  pollSecret?: string;
   qrContent?: string;
   qrUrl?: string;
-  status: 'pending' | 'scanned' | 'confirmed' | 'expired';
+  sessionReady?: boolean;
+  status: 'pending' | 'scanned' | 'confirmed' | 'completed' | 'expired' | 'cancelled' | 'failed';
 }

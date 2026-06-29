@@ -36,6 +36,10 @@ const splitModules = [
   'runtimeBindings.ts',
   'domainQueries.ts',
   'openApiBuilder.ts',
+  'openApiBuilders.ts',
+  'openApiSchemas.ts',
+  'openApiOperationDefinitions.ts',
+  'openApiDocument.ts',
   'coreSessionExecution.ts',
   'eventEnvelopes.ts',
 ];

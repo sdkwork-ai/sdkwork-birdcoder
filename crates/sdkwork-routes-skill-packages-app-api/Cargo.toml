@@ -12,6 +12,7 @@ serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["sqlite"] }
 sdkwork-birdcoder-skill-packages-service = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-utils-rust.workspace = true
 sdkwork-birdcoder-skill-packages-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-app-templates-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-app-templates-service = { workspace = true }

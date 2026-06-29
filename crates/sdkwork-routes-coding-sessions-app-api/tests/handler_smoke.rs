@@ -260,13 +260,13 @@ async fn list_sessions_returns_ok_with_empty_inventory() {
         .await
         .expect("read list sessions body");
     let json: serde_json::Value = serde_json::from_slice(&body).expect("parse list sessions JSON");
-    assert_eq!(json["items"].as_array().map(Vec::len), Some(0));
-    assert_eq!(json["meta"]["total"], 0);
-    assert_eq!(json["meta"]["pageSize"], 20);
-    assert_eq!(json["meta"]["page"], 1);
-    assert_eq!(json["meta"]["version"], "v1");
-    assert_eq!(json["requestId"], "handler-smoke-request");
-    assert!(json["timestamp"].is_string());
+    assert_eq!(json["code"], 0);
+    assert_eq!(json["traceId"], "handler-smoke-request");
+    assert_eq!(json["data"]["items"].as_array().map(Vec::len), Some(0));
+    assert_eq!(json["data"]["pageInfo"]["mode"], "offset");
+    assert_eq!(json["data"]["pageInfo"]["pageSize"], 20);
+    assert_eq!(json["data"]["pageInfo"]["page"], 1);
+    assert_eq!(json["data"]["pageInfo"]["totalItems"], "0");
 }
 
 #[tokio::test]
@@ -320,10 +320,9 @@ async fn create_session_returns_201_with_session_payload() {
         .await
         .expect("read create session body");
     let json: serde_json::Value = serde_json::from_slice(&body).expect("parse create session JSON");
-    assert_eq!(json["data"]["workspaceId"], "101");
-    assert_eq!(json["data"]["projectId"], "project-smoke");
-    assert_eq!(json["data"]["title"], "Handler smoke session");
-    assert_eq!(json["meta"]["version"], "v1");
-    assert_eq!(json["requestId"], "handler-smoke-request");
-    assert!(json["timestamp"].is_string());
+    assert_eq!(json["code"], 0);
+    assert_eq!(json["traceId"], "handler-smoke-request");
+    assert_eq!(json["data"]["item"]["workspaceId"], "101");
+    assert_eq!(json["data"]["item"]["projectId"], "project-smoke");
+    assert_eq!(json["data"]["item"]["title"], "Handler smoke session");
 }

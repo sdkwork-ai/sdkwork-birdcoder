@@ -51,6 +51,7 @@ sdkwork-birdcoder-document-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-codeengine = { workspace = true }
 sdkwork-birdcoder-kernel-bridge = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-utils-rust.workspace = true
 sdkwork-birdcoder-router-context = { workspace = true }
 
 # Service crates

@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderAppTemplateSummaryListEnvelope } from '../types';
+import type { BirdCoderAppTemplateSummary, PageInfo } from '../types';
 
 
 export class TemplatesAppTemplatesApi {
@@ -13,8 +13,8 @@ export class TemplatesAppTemplatesApi {
 
 
 /** List app templates */
-  async list(): Promise<BirdCoderAppTemplateSummaryListEnvelope> {
-    return this.client.get<BirdCoderAppTemplateSummaryListEnvelope>(appApiPath(`/app_templates`));
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/app_templates`));
   }
 }
 

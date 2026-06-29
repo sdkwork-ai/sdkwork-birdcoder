@@ -325,30 +325,55 @@ type BirdCoderTokenManagerAwareClient<TClient> = TClient & {
 export type BirdCoderTokenManagerAwareAppSdkClient =
   BirdCoderTokenManagerAwareClient<BirdcoderAppSdkClient>;
 
-interface DataEnvelope<TData> {
-  data: TData;
-}
-
-interface ListEnvelope<TItem> {
-  items: TItem[];
-}
-
 type GeneratedCodeEngineKey = NonNullable<IntelligenceCodingSessionsListQuery['engineId']>;
+type GeneratedDataScope = NonNullable<GeneratedBirdCoderCreateWorkspaceRequest['dataScope']>;
 
-function readData<TData>(envelope: DataEnvelope<TData>): TData {
-  return envelope.data;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object';
 }
 
-function readItems<TItem>(envelope: ListEnvelope<TItem>): TItem[] {
-  return envelope.items;
+function readData<TData>(payload: unknown): TData {
+  if (!isRecord(payload)) {
+    return payload as TData;
+  }
+
+  if ('data' in payload) {
+    const data = payload.data;
+    if (isRecord(data) && 'item' in data) {
+      return data.item as TData;
+    }
+    return data as TData;
+  }
+
+  if ('item' in payload) {
+    return payload.item as TData;
+  }
+
+  return payload as TData;
 }
 
-function readCanonicalData<TData>(envelope: DataEnvelope<unknown>): TData {
-  return envelope.data as TData;
+function readItems<TItem>(payload: unknown): TItem[] {
+  if (!isRecord(payload)) {
+    return [];
+  }
+
+  if (Array.isArray(payload.items)) {
+    return payload.items as TItem[];
+  }
+
+  if (isRecord(payload.data) && Array.isArray(payload.data.items)) {
+    return payload.data.items as TItem[];
+  }
+
+  return [];
 }
 
-function readCanonicalItems<TItem>(envelope: ListEnvelope<unknown>): TItem[] {
-  return envelope.items as TItem[];
+function readCanonicalData<TData>(payload: unknown): TData {
+  return readData<TData>(payload);
+}
+
+function readCanonicalItems<TItem>(payload: unknown): TItem[] {
+  return readItems<TItem>(payload);
 }
 
 const DEFAULT_SDK_LIST_LIMIT = 20;
@@ -361,19 +386,32 @@ function toGeneratedCodeEngineKey(value: string | undefined): GeneratedCodeEngin
   return value ? (value as GeneratedCodeEngineKey) : undefined;
 }
 
+const LEGACY_DATA_SCOPE_TO_GENERATED: Record<string, GeneratedDataScope> = {
+  DEFAULT: 'workspace',
+  PRIVATE: 'user',
+  ORGANIZATION: 'organization',
+  TENANT: 'workspace',
+  PUBLIC: 'workspace',
+};
+
 function toGeneratedDataScope(
   dataScope: string | undefined,
 ): GeneratedBirdCoderCreateWorkspaceRequest['dataScope'] {
+  if (!dataScope) {
+    return undefined;
+  }
+
   if (
-    dataScope === 'DEFAULT' ||
-    dataScope === 'PRIVATE' ||
-    dataScope === 'ORGANIZATION' ||
-    dataScope === 'TENANT' ||
-    dataScope === 'PUBLIC'
+    dataScope === 'workspace' ||
+    dataScope === 'project' ||
+    dataScope === 'user' ||
+    dataScope === 'team' ||
+    dataScope === 'organization'
   ) {
     return dataScope;
   }
-  return undefined;
+
+  return LEGACY_DATA_SCOPE_TO_GENERATED[dataScope];
 }
 
 function toGeneratedCreateWorkspaceRequest(

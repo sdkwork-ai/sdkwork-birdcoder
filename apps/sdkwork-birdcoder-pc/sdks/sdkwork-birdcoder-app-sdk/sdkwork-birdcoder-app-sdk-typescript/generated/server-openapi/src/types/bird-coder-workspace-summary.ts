@@ -4,7 +4,7 @@ export interface BirdCoderWorkspaceSummary {
   tenantId?: string;
   organizationId?: string;
   /** DATABASE_SPEC.md standard data scope. */
-  dataScope?: 'DEFAULT' | 'PRIVATE' | 'ORGANIZATION' | 'TENANT' | 'PUBLIC';
+  dataScope?: 'workspace' | 'project' | 'user' | 'team' | 'organization';
   code?: string;
   title?: string;
   name: string;
