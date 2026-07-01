@@ -122,7 +122,7 @@ assert.match(
 );
 assert.match(
   chatRouteContributionsSource,
-  /app\.settings\.index/u,
+  /app\.account\.settings\.index/u,
   'h5-chat must declare the settings screen route identity.',
 );
 assert.match(

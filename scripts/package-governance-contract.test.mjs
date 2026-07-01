@@ -3,9 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+import {
+  collectBirdcoderApplicationPackageManifests,
+} from './lib/birdcoder-package-scan-roots.mjs';
 
 const rootDir = process.cwd();
-const packagesDir = path.join(rootDir, 'packages');
 const workspaceConfigPath = path.join(rootDir, 'pnpm-workspace.yaml');
 const dependencySections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 const externalTerminalPackagesRootDir = path.join(
@@ -71,16 +73,9 @@ function readJson(relativePath) {
 }
 
 function collectWorkspaceManifests() {
-  return fs.readdirSync(packagesDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((dirName) => fs.existsSync(path.join(packagesDir, dirName, 'package.json')))
-    .sort()
-    .map((dirName) => ({
-      dirName,
-      relativePath: path.join('packages', dirName, 'package.json'),
-      manifest: readJson(path.join('packages', dirName, 'package.json')),
-    }));
+  return collectBirdcoderApplicationPackageManifests(rootDir, (absolutePath) =>
+    JSON.parse(fs.readFileSync(absolutePath, 'utf8')),
+  );
 }
 
 function readPackageJson(packageJsonPath) {
@@ -255,8 +250,18 @@ assert.ok(
 );
 assert.match(
   workspaceConfigSource,
-  /^packages:\s*\r?\n(?:  #.*\r?\n)*  - 'packages\/sdkwork-birdcoder-\*'/m,
-  'pnpm-workspace.yaml must target packages/sdkwork-birdcoder-*.',
+  /^packages:\s*\r?\n(?:  #.*\r?\n)*  - 'apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-\*'/m,
+  'pnpm-workspace.yaml must target apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*.',
+);
+assert.match(
+  workspaceConfigSource,
+  /  - 'apps\/sdkwork-birdcoder-h5\/packages\/sdkwork-birdcoder-h5-\*'/,
+  'pnpm-workspace.yaml must target apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*.',
+);
+assert.doesNotMatch(
+  workspaceConfigSource,
+  /packages\/sdkwork-birdcoder-\*/,
+  'pnpm-workspace.yaml must not retain the retired root packages/sdkwork-birdcoder-* workspace glob.',
 );
 assert.doesNotMatch(
   workspaceConfigSource,

@@ -10,6 +10,7 @@ windows = ["main"]
 permissions = [
   # Core framework permissions
   "core:default",
+  "default",
   "shell:allow-open",
 
   # Window control permissions

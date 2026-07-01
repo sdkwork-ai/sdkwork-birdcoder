@@ -408,7 +408,7 @@ function buildBuildCommands(target) {
   if (target.family === 'server' || target.family === 'container') {
     return [
       nodeCommand(['scripts/run-claw-server-build.mjs', '--target', target.target]),
-      nodeCommand(['--experimental-strip-types', 'scripts/coding-server-openapi-export.ts']),
+      nodeCommand(['scripts/run-local-tsx.mjs', 'scripts/coding-server-openapi-export.ts']),
       pnpmCommand(['build']),
     ];
   }

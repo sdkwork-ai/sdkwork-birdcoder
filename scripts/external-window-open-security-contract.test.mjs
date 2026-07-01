@@ -4,10 +4,18 @@ import path from 'node:path';
 import process from 'node:process';
 
 const rootDir = process.cwd();
-const packageDir = path.join(rootDir, 'packages');
+const scanRoots = [
+  path.join(rootDir, 'apps/sdkwork-birdcoder-pc/packages'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-h5/packages'),
+  path.join(rootDir, 'apps/sdkwork-birdcoder-common/packages'),
+];
 const sourcePaths = [];
 
 function collectSourcePaths(directory) {
+  if (!fs.existsSync(directory)) {
+    return;
+  }
+
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const entryPath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
@@ -21,7 +29,9 @@ function collectSourcePaths(directory) {
   }
 }
 
-collectSourcePaths(packageDir);
+for (const scanRoot of scanRoots) {
+  collectSourcePaths(scanRoot);
+}
 
 const insecureWindowOpenCalls = [];
 const insecureBlankAnchorTags = [];

@@ -20,7 +20,7 @@ const apiBackedProjectServiceSource = fs.readFileSync(
   'utf8',
 );
 const serverOpenApiSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url),
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/openApiSchemas.ts', import.meta.url),
   'utf8',
 );
 

@@ -5,7 +5,7 @@ edition = "2021"
 description = "BirdCoder adapter for sdkwork-agents runtime facade"
 
 [dependencies]
-sdkwork-agents-runtime-facade = { path = "../../../sdkwork-agents/crates/sdkwork-agents-runtime-facade" }
+sdkwork-agents-runtime-facade = { workspace = true }
 sdkwork-birdcoder-codeengine = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

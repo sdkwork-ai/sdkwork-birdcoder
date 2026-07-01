@@ -386,10 +386,35 @@ export default defineConfig(({ mode }) => {
           if (
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/runtime/defaultIdeServices.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesRuntime.ts',
             ])
           ) {
             return 'birdcoder-runtime-config';
+          }
+
+          if (
+            isAnySourcePath([
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesRuntime.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/lazyDefaultIdeServices.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
+            ])
+          ) {
+            return 'birdcoder-platform-api-client';
+          }
+
+          if (
+            isAnySourcePath([
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/appbasePcAuthRuntime.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/appbasePcAuthSessionBridge.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/attachSdkworkSdkSessionAuthBoundary.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/createSdkworkSessionAuthUnauthorizedIntegration.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/handleSdkworkSessionAuthUnauthorizedError.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/sdkSessionAuthError.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/sessionAuthUnauthorized.ts',
+              '/sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/sessionAuthUnauthorizedEnv.ts',
+            ])
+          ) {
+            return 'birdcoder-platform-api-client';
           }
 
           if (
@@ -642,6 +667,10 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesRuntime.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/lazyDefaultIdeServices.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionToken.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionRefresh.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSdkTransport.ts',
@@ -652,7 +681,8 @@ export default defineConfig(({ mode }) => {
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sessionService.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkTransportShared.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdcoderMobileChatApi.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeAuthService.ts',
               '/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/',
               '/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/',
             ])
@@ -672,25 +702,8 @@ export default defineConfig(({ mode }) => {
 
           if (
             isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/lazyDefaultIdeServices.ts',
-            ])
-          ) {
-            return 'birdcoder-platform-runtime';
-          }
-
-          if (
-            isAnySourcePath([
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeAuthService.ts',
-            ])
-          ) {
-            return 'birdcoder-platform-runtime';
-          }
-
-          if (
-            isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts',
+              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/bootstrapConsoleCatalog.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionPromptEntryRepository.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts',
@@ -766,7 +779,6 @@ export default defineConfig(({ mode }) => {
               '/packages/sdkwork-birdcoder-pc-commons/src/utils/EventBus.ts',
               '/packages/sdkwork-birdcoder-pc-commons/src/hooks/useDebounce.ts',
               '/packages/sdkwork-birdcoder-pc-commons/src/',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/',
             ])
           ) {
             return 'birdcoder-platform-runtime';

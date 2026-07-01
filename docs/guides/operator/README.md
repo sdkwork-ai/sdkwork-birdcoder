@@ -2,7 +2,7 @@
 
 Status: active  
 Owner: SDKWork maintainers  
-Updated: 2026-06-24  
+Updated: 2026-06-29  
 Specs: `DEPLOYMENT_SPEC.md`, `OBSERVABILITY_SPEC.md`, `DATABASE_FRAMEWORK_SPEC.md`, `RELEASE_SPEC.md`
 
 This guide is the production operator entrypoint for SDKWork BirdCoder. It replaces stub placeholders and must stay aligned with `sdkwork.app.config.json` commercial readiness metadata.
@@ -24,14 +24,17 @@ This guide is the production operator entrypoint for SDKWork BirdCoder. It repla
 - [Incident response](incident-response.md)
 - [First governed release checklist](first-governed-release.md)
 
-## Commercial readiness truth (2026-06-24)
+## Commercial readiness truth (2026-06-29)
 
 | Lane | Status | Evidence |
 | --- | --- | --- |
-| PC private beta | **Ready** | Session auth redirect, structured HTTP 401, proactive IAM refresh, workspace WS reconnect |
+| OpenAPI contract | **Complete** | 153 operations implemented, 0 deferred (`specs/coding-server-openapi-rust-defer-registry.json`) |
+| PC private beta | **Ready** | Session auth redirect, structured HTTP 401, proactive IAM refresh, workspace WS reconnect, Universal chat + Drive |
+| Mobile chat | **API-backed** | H5 + Flutter persist through generated app SDK; Flutter Drive attachments deferred until Dart `drive-app-sdk` consumer |
 | Enterprise K8s | **Pending env smoke** | PostgreSQL HA overlay + AnyPool repositories wired; requires DSN-backed smoke in target cluster |
-| SaaS public cloud | **Rehearsal aligned** | `release:fixture:ready` + `release:candidate:dry-run` in CI; production signing/SBOM pending first real publish |
+| SaaS public cloud | **Rehearsal aligned** | `release:fixture:ready` + `release:candidate:dry-run` + `release:plan` in CI; production signing/SBOM pending first real publish |
 | Mobile parity | **CI smoke aligned** | H5 typecheck/build, Capacitor sync, Android `assembleDebug`, Flutter analyze/test (`mobile-surfaces` CI job) |
+| Manifest honesty | **Four surfaces gated** | Root + PC + H5 + Flutter `sdkwork.app.config.json` stay DRAFT/preLaunch with disabled install packages (`surface-manifest-parity-contract`) |
 
 ## Mandatory verification before production cutover
 

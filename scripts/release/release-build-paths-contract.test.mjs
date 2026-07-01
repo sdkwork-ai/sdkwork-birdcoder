@@ -6,6 +6,9 @@ import {
   PC_DESKTOP_DIST_REL,
   PC_DESKTOP_TAURI_REL,
   PC_WEB_DIST_REL,
+  resolveHostReleasePlatform,
+  resolveServerBinaryCandidates,
+  resolveServerBinaryFileName,
   SERVER_CRATE_BINARY_NAME,
   WORKSPACE_CARGO_TARGET_REL,
 } from './release-build-paths.mjs';
@@ -82,5 +85,34 @@ assert.match(
   /path\.join\(rootDir, ['"]deployments['"], ['"]docker['"]\)/u,
   'Container packaging must copy Docker build context from deployments/docker.',
 );
+
+assert.equal(resolveHostReleasePlatform('win32'), 'windows');
+assert.equal(resolveHostReleasePlatform('darwin'), 'macos');
+assert.equal(resolveHostReleasePlatform('linux'), 'linux');
+assert.equal(
+  resolveServerBinaryFileName(SERVER_CRATE_BINARY_NAME, { platform: 'linux' }),
+  SERVER_CRATE_BINARY_NAME,
+);
+assert.equal(
+  resolveServerBinaryFileName(SERVER_CRATE_BINARY_NAME, { platform: 'windows' }),
+  `${SERVER_CRATE_BINARY_NAME}.exe`,
+);
+
+const linuxContainerCandidates = resolveServerBinaryCandidates(rootDir, {
+  platform: 'linux',
+  target: 'x86_64-unknown-linux-gnu',
+});
+assert.equal(linuxContainerCandidates.binaryFileName, SERVER_CRATE_BINARY_NAME);
+if (process.platform === 'win32') {
+  assert.ok(
+    linuxContainerCandidates.candidatePaths.some((candidatePath) => candidatePath.endsWith(`${SERVER_CRATE_BINARY_NAME}.exe`)),
+    'Linux container packaging on Windows must fall back to the host-native server binary when cross-compiled output is absent.',
+  );
+} else {
+  assert.ok(
+    linuxContainerCandidates.candidatePaths.some((candidatePath) => candidatePath.endsWith(SERVER_CRATE_BINARY_NAME)),
+    'Linux container packaging must resolve the native server binary path.',
+  );
+}
 
 console.log('release build paths contract passed.');

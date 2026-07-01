@@ -1867,6 +1867,53 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         required: ['id', 'projectId', 'documentKind', 'title', 'slug', 'status'],
       },
     ),
+    BirdCoderChatConversationSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        title: createOpenApiStringSchema(),
+        ownerUserId: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'title', 'ownerUserId', 'createdAt', 'updatedAt'],
+      },
+    ),
+    BirdCoderChatMessageSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        conversationId: createOpenApiStringSchema(),
+        role: createOpenApiStringSchema(),
+        content: createOpenApiStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'conversationId', 'role', 'content', 'createdAt'],
+      },
+    ),
+    BirdCoderCreateChatConversationRequest: createOpenApiObjectSchema(
+      {
+        title: createOpenApiStringSchema(),
+      },
+      {},
+    ),
+    BirdCoderCreateChatMessageRequest: createOpenApiObjectSchema(
+      {
+        role: createOpenApiStringSchema(),
+        content: createOpenApiStringSchema(),
+      },
+      {
+        required: ['role', 'content'],
+      },
+    ),
+    BirdCoderDeleteChatConversationResult: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+      },
+      {
+        required: ['id'],
+      },
+    ),
     BirdCoderTeamSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
@@ -2511,6 +2558,21 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     ),
     BirdCoderProjectDocumentSummaryListEnvelope: createOpenApiListEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderProjectDocumentSummary'),
+    ),
+    BirdCoderChatConversationSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderChatConversationSummary'),
+    ),
+    BirdCoderChatConversationSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderChatConversationSummary'),
+    ),
+    BirdCoderChatMessageSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderChatMessageSummary'),
+    ),
+    BirdCoderChatMessageSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderChatMessageSummary'),
+    ),
+    BirdCoderDeleteChatConversationEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderDeleteChatConversationResult'),
     ),
     BirdCoderTeamSummaryListEnvelope: createOpenApiListEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderTeamSummary'),

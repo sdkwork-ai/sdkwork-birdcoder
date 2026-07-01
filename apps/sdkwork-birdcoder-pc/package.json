@@ -48,5 +48,9 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "node ../../scripts/run-pc-playwright-e2e.mjs",
     "test:config": "node ../../scripts/run-quality-fast-check.mjs"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "tailwindcss": "catalog:"
   }
 }

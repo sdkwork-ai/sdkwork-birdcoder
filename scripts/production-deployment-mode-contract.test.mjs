@@ -21,7 +21,7 @@ const productionRuntimeEnv = readJson(
 
 assert.match(
   authPolicySource,
-  /import\.meta\.env\.PROD && resolved === 'local'/u,
+  /import\.meta[\s\S]*?\.env\?\.PROD && resolved === 'local'/u,
   'Auth access policy must fail fast when production builds bake in local deployment mode.',
 );
 

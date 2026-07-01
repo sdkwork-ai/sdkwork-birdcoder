@@ -10,6 +10,17 @@ export function resolveReleaseBuildPath(rootDir, relativePath) {
   return path.join(rootDir, relativePath);
 }
 
+export function resolveHostReleasePlatform(platform = process.platform) {
+  if (platform === 'win32') {
+    return 'windows';
+  }
+  if (platform === 'darwin') {
+    return 'macos';
+  }
+
+  return platform;
+}
+
 export function resolveServerBinaryFileName(binaryName, { targetTriple = '', platform = '' } = {}) {
   const normalizedBinaryName = String(binaryName ?? '').trim();
   const normalizedTargetTriple = String(targetTriple ?? '').trim().toLowerCase();
@@ -38,7 +49,21 @@ export function resolveServerBinaryCandidates(rootDir, descriptor, binaryName = 
     candidatePaths.push(path.join(serverTargetRoot, normalizedTarget, 'release', binaryFileName));
   }
   candidatePaths.push(path.join(serverTargetRoot, 'release', binaryFileName));
-  return { binaryFileName, candidatePaths };
+
+  const hostBinaryFileName = resolveServerBinaryFileName(binaryName, {
+    platform: resolveHostReleasePlatform(),
+  });
+  if (hostBinaryFileName !== binaryFileName) {
+    candidatePaths.push(path.join(serverTargetRoot, 'release', hostBinaryFileName));
+    if (normalizedTarget) {
+      candidatePaths.push(path.join(serverTargetRoot, normalizedTarget, 'release', hostBinaryFileName));
+    }
+  }
+
+  return {
+    binaryFileName,
+    candidatePaths: [...new Set(candidatePaths)],
+  };
 }
 
 export function resolveDesktopBundleOutputRoot(rootDir, target = '') {

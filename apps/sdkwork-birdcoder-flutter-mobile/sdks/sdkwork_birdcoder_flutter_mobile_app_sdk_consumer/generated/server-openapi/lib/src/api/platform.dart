@@ -117,6 +117,15 @@ class PlatformApi {
     })();
   }
 
+  /// Get workspace
+  Future<BirdCoderWorkspaceSummaryEnvelope?> workspacesRetrieve(String workspaceId) async {
+    final response = await _client.get(ApiPaths.appPath('/workspaces/${serializePathParameter(workspaceId, const PathParameterSpec('workspaceId', 'simple', false))}'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderWorkspaceSummaryEnvelope.fromJson(map);
+    })();
+  }
+
   /// Update workspace
   Future<BirdCoderWorkspaceSummaryEnvelope?> workspacesUpdate(String workspaceId, BirdCoderUpdateWorkspaceRequest body) async {
     final payload = body.toJson();
@@ -128,14 +137,14 @@ class PlatformApi {
   }
 
   /// Subscribe to workspace realtime invalidation events
-  Future<BirdCoderProblemEnvelope?> workspacesRealtimeSubscribe(String workspaceId, [String? sessionId]) async {
+  Future<ProblemDetail?> workspacesRealtimeSubscribe(String workspaceId, [String? sessionId]) async {
     final query = buildQueryString([
       QueryParameterSpec('sessionId', sessionId, 'form', true, false, null)
     ]);
     final response = await _client.get(ApiPaths.appendQueryString(ApiPaths.appPath('/workspaces/${serializePathParameter(workspaceId, const PathParameterSpec('workspaceId', 'simple', false))}/realtime'), query));
     return (() {
       final map = sdkworkResponseAsMap(response);
-      return map == null ? null : BirdCoderProblemEnvelope.fromJson(map);
+      return map == null ? null : ProblemDetail.fromJson(map);
     })();
   }
 
@@ -145,6 +154,15 @@ class PlatformApi {
     return (() {
       final map = sdkworkResponseAsMap(response);
       return map == null ? null : BirdCoderDeploymentRecordSummaryListEnvelope.fromJson(map);
+    })();
+  }
+
+  /// List project deployment targets
+  Future<BirdCoderDeploymentTargetSummaryListEnvelope?> projectsDeploymentTargetsList(String projectId) async {
+    final response = await _client.get(ApiPaths.appPath('/projects/${serializePathParameter(projectId, const PathParameterSpec('projectId', 'simple', false))}/deployment_targets'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderDeploymentTargetSummaryListEnvelope.fromJson(map);
     })();
   }
 

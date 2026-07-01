@@ -214,7 +214,7 @@ function assertSearchPcReactAliases(aliases, label) {
   );
   assert.equal(
     searchSubpathAlias.replacement,
-    dependencyPath('sdkwork-search', 'packages/pc-react/foundation/sdkwork-search-pc-react/src/$1'),
+    dependencyPath('sdkwork-search', 'apps/sdkwork-search-pc/packages/sdkwork-search-pc-react/src/$1'),
     `${label} must resolve @sdkwork/search-pc-react subpaths from the sdkwork-search workspace dependency root, not the retired sdkwork-appbase copy.`,
   );
 
@@ -225,7 +225,7 @@ function assertSearchPcReactAliases(aliases, label) {
   );
   assert.equal(
     searchRootAlias.replacement,
-    dependencyPath('sdkwork-search', 'packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts'),
+    dependencyPath('sdkwork-search', 'apps/sdkwork-search-pc/packages/sdkwork-search-pc-react/src/index.ts'),
     `${label} must resolve @sdkwork/search-pc-react from the sdkwork-search workspace dependency root, not the retired sdkwork-appbase copy.`,
   );
 
@@ -236,7 +236,7 @@ function assertSearchPcReactAliases(aliases, label) {
   );
   assert.equal(
     searchContractsAlias.replacement,
-    dependencyPath('sdkwork-search', 'packages/common/search/sdkwork-search-contracts/src/index.ts'),
+    dependencyPath('sdkwork-search', 'apps/sdkwork-search-common/packages/sdkwork-search-contracts/src/index.ts'),
     `${label} must resolve @sdkwork/search-contracts from the sdkwork-search workspace dependency root so the search PC package can build from source.`,
   );
 }
@@ -456,7 +456,6 @@ assertLucideRollupWarningFilter(
 const webManualChunks = webConfig.build?.rollupOptions?.output?.manualChunks;
 assert.equal(typeof webManualChunks, 'function', 'Web Vite config must expose manual chunk governance.');
 for (const platformRuntimeModuleId of [
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-state/src/index.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts',
 ]) {
@@ -470,9 +469,14 @@ for (const platformApiClientModuleId of [
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionToken.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSdkTransport.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appRuntimeTransport.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesRuntime.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/lazyDefaultIdeServices.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServices.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeServerSession.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sessionService.ts',
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/birdcoderMobileChatApi.ts',
 ]) {
   assert.equal(
     webManualChunks(platformApiClientModuleId),
@@ -522,6 +526,11 @@ assert.equal(
   webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/bootstrapConsoleCatalog.ts'),
   'birdcoder-platform-storage',
   'Web Vite config must keep bootstrap storage catalog helpers in the storage chunk so provider-backed services do not depend back on platform orchestration.',
+);
+assert.equal(
+  webManualChunks('/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts'),
+  'birdcoder-platform-storage',
+  'Web Vite config must keep console query helpers with storage repositories to avoid api-client/platform-runtime circular chunk edges.',
 );
 for (const terminalDesktopModuleId of [
   '/repo/sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/index.ts',

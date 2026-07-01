@@ -339,6 +339,48 @@ export function getResolvedBirdCoderAppApiContract(): BirdCoderAppApiContract {
       'List project deployment targets',
     ),
     documents: createRoute('app', 'user', 'GET', '/app/v3/api/documents', 'List project documents'),
+    chatConversations: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/chat/conversations',
+      'List chat conversations',
+    ),
+    createChatConversation: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/chat/conversations',
+      'Create chat conversation',
+    ),
+    chatConversation: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/chat/conversations/:conversationId',
+      'Get chat conversation',
+    ),
+    deleteChatConversation: createRoute(
+      'app',
+      'user',
+      'DELETE',
+      '/app/v3/api/chat/conversations/:conversationId',
+      'Delete chat conversation',
+    ),
+    chatMessages: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/chat/conversations/:conversationId/messages',
+      'List chat messages',
+    ),
+    createChatMessage: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/chat/conversations/:conversationId/messages',
+      'Create chat message',
+    ),
     project: createRoute('app', 'user', 'GET', '/app/v3/api/projects/:projectId', 'Get project'),
     workspace: createRoute(
       'app',
@@ -569,6 +611,133 @@ export const BACKEND_API_CONTRACT: BirdCoderBackendApiContract = {
   teams: createRoute('backend', 'admin', 'GET', '/backend/v3/api/iam/teams', 'List teams'),
 };
 
+export const COMMERCE_API_CONTRACT: Record<string, BirdCoderApiRouteDefinition> = {
+  commerceApiKeysCreate: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'POST',
+    operationId: 'commerce.apiKeys.create',
+    path: '/api/v1/api-keys',
+    surface: 'app',
+    summary: 'Create BirdCoder commerce API key',
+  }),
+  commerceApiKeysList: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'GET',
+    operationId: 'commerce.apiKeys.list',
+    path: '/api/v1/api-keys',
+    surface: 'app',
+    summary: 'List BirdCoder commerce API keys',
+  }),
+  commerceApiKeysRevoke: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'DELETE',
+    operationId: 'commerce.apiKeys.revoke',
+    path: '/api/v1/api-keys/:id',
+    surface: 'app',
+    summary: 'Revoke BirdCoder commerce API key',
+  }),
+  commerceApiKeysRotate: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'POST',
+    operationId: 'commerce.apiKeys.rotate',
+    path: '/api/v1/api-keys/:id/rotate',
+    surface: 'app',
+    summary: 'Rotate BirdCoder commerce API key',
+  }),
+  commerceNotificationsList: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'GET',
+    operationId: 'commerce.notifications.list',
+    path: '/api/v1/notifications',
+    surface: 'app',
+    summary: 'List BirdCoder commerce notifications',
+  }),
+  commerceNotificationsGet: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'GET',
+    operationId: 'commerce.notifications.get',
+    path: '/api/v1/notifications/:id',
+    surface: 'app',
+    summary: 'Get BirdCoder commerce notification',
+  }),
+  commerceNotificationsUnreadCount: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'GET',
+    operationId: 'commerce.notifications.unreadCount',
+    path: '/api/v1/notifications/unread-count',
+    surface: 'app',
+    summary: 'Get BirdCoder commerce unread notification count',
+  }),
+  commerceNotificationsSend: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'POST',
+    operationId: 'commerce.notifications.send',
+    path: '/api/v1/notifications',
+    surface: 'app',
+    summary: 'Send BirdCoder commerce notification',
+  }),
+  commerceNotificationsMarkRead: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'POST',
+    operationId: 'commerce.notifications.markRead',
+    path: '/api/v1/notifications/:id/read',
+    surface: 'app',
+    summary: 'Mark BirdCoder commerce notification as read',
+  }),
+  commerceNotificationsMarkAllRead: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'POST',
+    operationId: 'commerce.notifications.markAllRead',
+    path: '/api/v1/notifications/read-all',
+    surface: 'app',
+    summary: 'Mark all BirdCoder commerce notifications as read',
+  }),
+  commerceUsageRecord: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'POST',
+    operationId: 'commerce.usage.record',
+    path: '/api/v1/usage/record',
+    surface: 'app',
+    summary: 'Record BirdCoder commerce usage event',
+  }),
+  commerceUsageCurrentPeriod: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'GET',
+    operationId: 'commerce.usage.currentPeriod',
+    path: '/api/v1/usage/current-period',
+    surface: 'app',
+    summary: 'Get BirdCoder commerce usage for current period',
+  }),
+  commerceUsageHistory: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'GET',
+    operationId: 'commerce.usage.history',
+    path: '/api/v1/usage/history',
+    surface: 'app',
+    summary: 'List BirdCoder commerce usage history',
+  }),
+  commerceUsageBreakdown: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'GET',
+    operationId: 'commerce.usage.breakdown',
+    path: '/api/v1/usage/breakdown',
+    surface: 'app',
+    summary: 'Get BirdCoder commerce usage breakdown',
+  }),
+  commerceUsageQuota: toBirdCoderApiRouteDefinition({
+    authMode: 'admin',
+    method: 'GET',
+    operationId: 'commerce.usage.quota',
+    path: '/api/v1/usage/quota',
+    surface: 'app',
+    summary: 'Get BirdCoder commerce usage quota',
+  }),
+};
+
+export function getBirdCoderCommerceApiContract(): Record<string, BirdCoderApiRouteDefinition> {
+  return COMMERCE_API_CONTRACT;
+}
+
 export function getBirdCoderAppRuntimeApiContract(): BirdCoderAppRuntimeApiContract {
   return APP_RUNTIME_API_CONTRACT;
 }
@@ -586,6 +755,7 @@ export function listBirdCoderCodingServerRoutes(): BirdCoderApiRouteDefinition[]
     ...Object.values(APP_RUNTIME_API_CONTRACT),
     ...Object.values(getResolvedBirdCoderAppApiContract()),
     ...Object.values(BACKEND_API_CONTRACT),
+    ...Object.values(COMMERCE_API_CONTRACT),
   ];
   const routesByMethodAndPath = new Map<string, BirdCoderApiRouteDefinition>();
 

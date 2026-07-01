@@ -186,7 +186,7 @@
         "highlights": [
           "Flutter mobile application",
           "iOS and Android support",
-          "SDKWork App Standard v3 configuration"
+          "App SDK chat persistence wired through generated Dart SDK"
         ],
         "packageIds": [
           "android-universal-standalone-mobile-aab",
@@ -215,6 +215,6 @@
     "standardOwner": "sdkwork-platform",
     "initializedAt": "2026-06-13T00:00:00Z",
     "preLaunch": true,
-    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-prelaunch-artifacts-pending"
+    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-ci-governance-wired-prelaunch-artifacts-pending-manifest-honesty-corrected"
   }
 }

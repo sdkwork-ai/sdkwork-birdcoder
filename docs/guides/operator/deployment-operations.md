@@ -58,8 +58,8 @@ helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
 
 - Live snapshot: `GET /openapi.json` (unauthenticated)
 - Canonical export artifact: `artifacts/openapi/coding-server-v1.json`
-- Contract route count: **147 operations** (product routers + federated `sdkwork-iam` app/backend routers in standalone-gateway); **132 implemented**, **15 commerce pre-launch deferred** (`/api/v1/api-keys`, `/api/v1/notifications`, `/api/v1/usage`)
-- Defer registry: `specs/coding-server-openapi-rust-defer-registry.json` — **132 of 147 implemented**, **15 deferred** (regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`); see `TECH-2026-06-24-commercial-readiness-alignment.md` §2b for the commerce pre-launch deferred lane policy
+- Contract route count: **153 operations** (product routers + federated `sdkwork-iam` app/backend routers + commerce gateway routes + chat routes in standalone-gateway); **153 implemented**, **0 deferred**
+- Defer registry: `specs/coding-server-openapi-rust-defer-registry.json` — **153 of 153 implemented**, **0 deferred**
 
 ## Session/auth operations note
 

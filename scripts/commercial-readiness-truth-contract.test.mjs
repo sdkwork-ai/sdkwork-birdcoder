@@ -70,6 +70,16 @@ assert.match(
   /Backup and restore/u,
   'Operator README must link backup runbook.',
 );
+assert.match(
+  operatorReadme,
+  /153 operations|153 of 153/u,
+  'Operator README must record OpenAPI 153-operation completeness.',
+);
+assert.match(
+  operatorReadme,
+  /surface-manifest-parity|Four surfaces gated/u,
+  'Operator README must reference four-surface manifest parity.',
+);
 
 const appConfig = JSON.parse(readText('sdkwork.app.config.json'));
 assert.match(
@@ -89,13 +99,13 @@ assert.match(
 );
 assert.match(
   String(appConfig.metadata?.commercialReadiness?.mobileProductParity ?? ''),
-  /h5|flutter|capacitor|ci|android-assemble/u,
-  'sdkwork.app.config.json must record mobile CI smoke alignment.',
+  /h5|flutter|chat|capacitor|ci|android-assemble/u,
+  'sdkwork.app.config.json must record mobile chat and CI smoke alignment.',
 );
 assert.match(
   String(appConfig.metadata?.commercialReadiness?.manifestHonesty ?? ''),
-  /draft|prelaunch|manifest/u,
-  'sdkwork.app.config.json must record unified manifest preLaunch honesty.',
+  /draft|prelaunch|manifest|pc|h5|flutter/u,
+  'sdkwork.app.config.json must record unified manifest preLaunch honesty across PC/H5/Flutter surfaces.',
 );
 assert.equal(appConfig.publish?.preLaunch, true, 'Root manifest must declare preLaunch while publish.status is DRAFT.');
 assert.equal(appConfig.metadata?.preLaunch, true, 'Root manifest metadata must declare preLaunch.');
@@ -111,33 +121,30 @@ assert.match(
 );
 
 const deferRegistry = JSON.parse(readText('specs/coding-server-openapi-rust-defer-registry.json'));
-// Commerce lane disposition: 15 commerce operations (api-keys / notifications /
-// usage) are pre-launch deferred. OpenAPI contract ships first; Rust route crate
-// implementation lands at commercial launch readiness (P3 commercial capability).
 assert.equal(
   deferRegistry.summary.contractOperationCount,
-  147,
-  'Defer registry must track the full OpenAPI contract including commerce lanes.',
+  153,
+  'Defer registry must track the full OpenAPI contract including chat and commerce lanes.',
 );
 assert.equal(
   deferRegistry.summary.implementedOperationCount,
-  132,
-  'Defer registry must record implemented product + federated IAM coverage.',
+  153,
+  'Defer registry must record full product, federated IAM, commerce gateway, and chat coverage.',
 );
 assert.equal(
   deferRegistry.summary.deferredOperationCount,
-  15,
-  'Defer registry must track the 15 commerce pre-launch deferred operations.',
+  0,
+  'Defer registry must not track any deferred OpenAPI operations.',
 );
 assert.match(
   commercialTruthDoc,
-  /132 of 147 implemented/u,
-  'Commercial truth doc must record implemented coverage against the commerce-inclusive contract.',
+  /153 of 153 implemented|153 operations.*0 deferred|deferredOperationCount.*0/u,
+  'Commercial truth doc must record full OpenAPI implementation with zero deferred operations.',
 );
-assert.match(
+assert.doesNotMatch(
   commercialTruthDoc,
   /commerce pre-launch deferred/u,
-  'Commercial truth doc must describe the commerce pre-launch deferred lane.',
+  'Commercial truth doc must not describe stale commerce defer lane.',
 );
 assert.doesNotMatch(
   commercialTruthDoc,
@@ -180,6 +187,11 @@ assert.match(
   /first-governed-release|first \*\*real\*\* governed release/u,
   'Commercial truth doc must reference the governed real-release publish checklist.',
 );
+assert.match(
+  commercialTruthDoc,
+  /surface-manifest-parity/u,
+  'Commercial truth doc must reference surface manifest parity contract.',
+);
 
 for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {
   const relativePath = path.relative(rootDir, manifestPath);
@@ -193,6 +205,16 @@ for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {
     manifest.publish?.preLaunch,
     true,
     `${relativePath} must declare publish.preLaunch while preLaunch artifacts are pending.`,
+  );
+  assert.match(
+    String(manifest.metadata?.releaseEvidenceStatus ?? ''),
+    /contract-gates-green/u,
+    `${relativePath} must record contract-gates-green release evidence status.`,
+  );
+  assert.match(
+    String(manifest.metadata?.releaseEvidenceStatus ?? ''),
+    /prelaunch-artifacts-pending/u,
+    `${relativePath} must record prelaunch-artifacts-pending honesty.`,
   );
 }
 

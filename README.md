@@ -1,4 +1,5 @@
 # SDKWork BirdCoder
+repository-kind: application
 
 **English** | [Simplified Chinese](./README.zh-CN.md)
 

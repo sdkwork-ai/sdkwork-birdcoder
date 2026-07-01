@@ -12,152 +12,39 @@ List<dynamic>? _sdkworkAsList(dynamic value) {
   return value is List ? value : null;
 }
 
-class BirdCoderApiListMeta {
-  final int page;
-  final int pageSize;
-  final int total;
-  final String version;
+class BirdCoderBooleanSuccessEnvelope {
+  final int code;
+  final dynamic data;
+  final String traceId;
 
-  BirdCoderApiListMeta({
-    required this.page,
-    required this.pageSize,
-    required this.total,
-    required this.version
-  });
-
-  factory BirdCoderApiListMeta.fromJson(Map<String, dynamic> json) {
-    return BirdCoderApiListMeta(
-      page: (() {
-        final value = json['page'];
-        if (value is! int) {
-          throw FormatException('BirdCoderApiListMeta.page is required');
-        }
-        return value;
-      })(),
-      pageSize: (() {
-        final value = json['pageSize'];
-        if (value is! int) {
-          throw FormatException('BirdCoderApiListMeta.pageSize is required');
-        }
-        return value;
-      })(),
-      total: (() {
-        final value = json['total'];
-        if (value is! int) {
-          throw FormatException('BirdCoderApiListMeta.total is required');
-        }
-        return value;
-      })(),
-      version: (() {
-        final value = json['version']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderApiListMeta.version is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'page': page,
-      'pageSize': pageSize,
-      'total': total,
-      'version': version,
-    };
-  }
-}
-
-class BirdCoderApiMeta {
-  final int? page;
-  final int? pageSize;
-  final int? total;
-  final String version;
-
-  BirdCoderApiMeta({
-    this.page,
-    this.pageSize,
-    this.total,
-    required this.version
-  });
-
-  factory BirdCoderApiMeta.fromJson(Map<String, dynamic> json) {
-    return BirdCoderApiMeta(
-      page: json['page'] is int ? json['page'] : null,
-      pageSize: json['pageSize'] is int ? json['pageSize'] : null,
-      total: json['total'] is int ? json['total'] : null,
-      version: (() {
-        final value = json['version']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderApiMeta.version is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'page': page,
-      'pageSize': pageSize,
-      'total': total,
-      'version': version,
-    };
-  }
-}
-
-class BirdCoderApiProblemDetails {
-  final String code;
-  final String message;
-  final String? detail;
-  final bool retryable;
-  final Map<String, String>? fieldErrors;
-
-  BirdCoderApiProblemDetails({
+  BirdCoderBooleanSuccessEnvelope({
     required this.code,
-    required this.message,
-    this.detail,
-    required this.retryable,
-    this.fieldErrors
+    required this.data,
+    required this.traceId
   });
 
-  factory BirdCoderApiProblemDetails.fromJson(Map<String, dynamic> json) {
-    return BirdCoderApiProblemDetails(
+  factory BirdCoderBooleanSuccessEnvelope.fromJson(Map<String, dynamic> json) {
+    return BirdCoderBooleanSuccessEnvelope(
       code: (() {
-        final value = json['code']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderApiProblemDetails.code is required');
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderBooleanSuccessEnvelope.code is required');
         }
         return value;
       })(),
-      message: (() {
-        final value = json['message']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderApiProblemDetails.message is required');
-        }
-        return value;
-      })(),
-      detail: json['detail']?.toString(),
-      retryable: (() {
-        final value = json['retryable'];
-        if (value is! bool) {
-          throw FormatException('BirdCoderApiProblemDetails.retryable is required');
-        }
-        return value;
-      })(),
-      fieldErrors: (() {
-        final map = _sdkworkAsMap(json['fieldErrors']);
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
         if (map == null) {
-          return null;
+          throw FormatException('BirdCoderBooleanSuccessEnvelope.data is required');
         }
-        final result = <String, String>{};
-        map.forEach((key, item) {
-          final deserialized = item?.toString();
-          if (deserialized is String) {
-            result[key] = deserialized;
-          }
-        });
-        return result;
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('BirdCoderBooleanSuccessEnvelope.traceId is required');
+        }
+        return value;
       })()
     );
   }
@@ -165,66 +52,8 @@ class BirdCoderApiProblemDetails {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'code': code,
-      'message': message,
-      'detail': detail,
-      'retryable': retryable,
-      'fieldErrors': fieldErrors?.map((key, item) => MapEntry(key, item)),
-    };
-  }
-}
-
-class BirdCoderBooleanSuccessEnvelope {
-  final BirdCoderBooleanSuccessResult data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
-
-  BirdCoderBooleanSuccessEnvelope({
-    required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
-  });
-
-  factory BirdCoderBooleanSuccessEnvelope.fromJson(Map<String, dynamic> json) {
-    return BirdCoderBooleanSuccessEnvelope(
-      data: (() {
-        final map = _sdkworkAsMap(json['data']);
-        if (map == null) {
-          throw FormatException('BirdCoderBooleanSuccessEnvelope.data is required');
-        }
-        return BirdCoderBooleanSuccessResult.fromJson(map);
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderBooleanSuccessEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderBooleanSuccessEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderBooleanSuccessEnvelope.timestamp is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -658,45 +487,36 @@ class BirdCoderCreateIamUserRoleRequest {
 }
 
 class BirdCoderDeletedResourceEnvelope {
-  final BirdCoderDeletedResourceResult data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderDeletedResourceEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderDeletedResourceEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderDeletedResourceEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderDeletedResourceEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderDeletedResourceEnvelope.data is required');
         }
-        return BirdCoderDeletedResourceResult.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderDeletedResourceEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderDeletedResourceEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeletedResourceEnvelope.timestamp is required');
+          throw FormatException('BirdCoderDeletedResourceEnvelope.traceId is required');
         }
         return value;
       })()
@@ -705,10 +525,9 @@ class BirdCoderDeletedResourceEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -832,51 +651,36 @@ class BirdCoderDeploymentRecordSummary {
 }
 
 class BirdCoderDeploymentRecordSummaryListEnvelope {
-  final List<BirdCoderDeploymentRecordSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderDeploymentRecordSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderDeploymentRecordSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderDeploymentRecordSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderDeploymentRecordSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderDeploymentRecordSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderDeploymentRecordSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderDeploymentRecordSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeploymentRecordSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderDeploymentRecordSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderDeploymentRecordSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderDeploymentRecordSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderDeploymentRecordSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -885,10 +689,9 @@ class BirdCoderDeploymentRecordSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -990,51 +793,36 @@ class BirdCoderDeploymentTargetSummary {
 }
 
 class BirdCoderDeploymentTargetSummaryListEnvelope {
-  final List<BirdCoderDeploymentTargetSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderDeploymentTargetSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderDeploymentTargetSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderDeploymentTargetSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderDeploymentTargetSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderDeploymentTargetSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderDeploymentTargetSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderDeploymentTargetSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderDeploymentTargetSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderDeploymentTargetSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderDeploymentTargetSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderDeploymentTargetSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderDeploymentTargetSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -1043,10 +831,9 @@ class BirdCoderDeploymentTargetSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -1143,51 +930,36 @@ class BirdCoderIamApiKeySummary {
 }
 
 class BirdCoderIamApiKeySummaryListEnvelope {
-  final List<BirdCoderIamApiKeySummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamApiKeySummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderIamApiKeySummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamApiKeySummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderIamApiKeySummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderIamApiKeySummary.fromJson(map);
-      })())
-            .whereType<BirdCoderIamApiKeySummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamApiKeySummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamApiKeySummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamApiKeySummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderIamApiKeySummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamApiKeySummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamApiKeySummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -1196,10 +968,9 @@ class BirdCoderIamApiKeySummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -1315,51 +1086,36 @@ class BirdCoderIamAuditEventSummary {
 }
 
 class BirdCoderIamAuditEventSummaryListEnvelope {
-  final List<BirdCoderIamAuditEventSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamAuditEventSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderIamAuditEventSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamAuditEventSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderIamAuditEventSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderIamAuditEventSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderIamAuditEventSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamAuditEventSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamAuditEventSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamAuditEventSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderIamAuditEventSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamAuditEventSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamAuditEventSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -1368,10 +1124,9 @@ class BirdCoderIamAuditEventSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -1465,45 +1220,36 @@ class BirdCoderIamOrganizationMemberSummary {
 }
 
 class BirdCoderIamOrganizationMemberSummaryEnvelope {
-  final BirdCoderIamOrganizationMemberSummary data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamOrganizationMemberSummaryEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderIamOrganizationMemberSummaryEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamOrganizationMemberSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamOrganizationMemberSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderIamOrganizationMemberSummaryEnvelope.data is required');
         }
-        return BirdCoderIamOrganizationMemberSummary.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamOrganizationMemberSummaryEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamOrganizationMemberSummaryEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamOrganizationMemberSummaryEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamOrganizationMemberSummaryEnvelope.traceId is required');
         }
         return value;
       })()
@@ -1512,10 +1258,9 @@ class BirdCoderIamOrganizationMemberSummaryEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -1609,45 +1354,36 @@ class BirdCoderIamOrganizationSummary {
 }
 
 class BirdCoderIamOrganizationSummaryEnvelope {
-  final BirdCoderIamOrganizationSummary data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamOrganizationSummaryEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderIamOrganizationSummaryEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamOrganizationSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamOrganizationSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderIamOrganizationSummaryEnvelope.data is required');
         }
-        return BirdCoderIamOrganizationSummary.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamOrganizationSummaryEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamOrganizationSummaryEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamOrganizationSummaryEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamOrganizationSummaryEnvelope.traceId is required');
         }
         return value;
       })()
@@ -1656,10 +1392,9 @@ class BirdCoderIamOrganizationSummaryEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -1735,45 +1470,36 @@ class BirdCoderIamPermissionSummary {
 }
 
 class BirdCoderIamPermissionSummaryEnvelope {
-  final BirdCoderIamPermissionSummary data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamPermissionSummaryEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderIamPermissionSummaryEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamPermissionSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamPermissionSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderIamPermissionSummaryEnvelope.data is required');
         }
-        return BirdCoderIamPermissionSummary.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamPermissionSummaryEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamPermissionSummaryEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamPermissionSummaryEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamPermissionSummaryEnvelope.traceId is required');
         }
         return value;
       })()
@@ -1782,60 +1508,44 @@ class BirdCoderIamPermissionSummaryEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
 
 class BirdCoderIamPermissionSummaryListEnvelope {
-  final List<BirdCoderIamPermissionSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamPermissionSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderIamPermissionSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamPermissionSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderIamPermissionSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderIamPermissionSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderIamPermissionSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamPermissionSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamPermissionSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamPermissionSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderIamPermissionSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamPermissionSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamPermissionSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -1844,10 +1554,9 @@ class BirdCoderIamPermissionSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -1937,45 +1646,36 @@ class BirdCoderIamPolicySummary {
 }
 
 class BirdCoderIamPolicySummaryEnvelope {
-  final BirdCoderIamPolicySummary data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamPolicySummaryEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderIamPolicySummaryEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamPolicySummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamPolicySummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderIamPolicySummaryEnvelope.data is required');
         }
-        return BirdCoderIamPolicySummary.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamPolicySummaryEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamPolicySummaryEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamPolicySummaryEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamPolicySummaryEnvelope.traceId is required');
         }
         return value;
       })()
@@ -1984,60 +1684,44 @@ class BirdCoderIamPolicySummaryEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
 
 class BirdCoderIamPolicySummaryListEnvelope {
-  final List<BirdCoderIamPolicySummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamPolicySummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderIamPolicySummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamPolicySummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderIamPolicySummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderIamPolicySummary.fromJson(map);
-      })())
-            .whereType<BirdCoderIamPolicySummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamPolicySummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamPolicySummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamPolicySummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderIamPolicySummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamPolicySummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamPolicySummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -2046,10 +1730,9 @@ class BirdCoderIamPolicySummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -2115,45 +1798,36 @@ class BirdCoderIamRolePermissionSummary {
 }
 
 class BirdCoderIamRolePermissionSummaryEnvelope {
-  final BirdCoderIamRolePermissionSummary data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamRolePermissionSummaryEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderIamRolePermissionSummaryEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamRolePermissionSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamRolePermissionSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderIamRolePermissionSummaryEnvelope.data is required');
         }
-        return BirdCoderIamRolePermissionSummary.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamRolePermissionSummaryEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamRolePermissionSummaryEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamRolePermissionSummaryEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamRolePermissionSummaryEnvelope.traceId is required');
         }
         return value;
       })()
@@ -2162,60 +1836,44 @@ class BirdCoderIamRolePermissionSummaryEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
 
 class BirdCoderIamRolePermissionSummaryListEnvelope {
-  final List<BirdCoderIamRolePermissionSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamRolePermissionSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderIamRolePermissionSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamRolePermissionSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderIamRolePermissionSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderIamRolePermissionSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderIamRolePermissionSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamRolePermissionSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamRolePermissionSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamRolePermissionSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderIamRolePermissionSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamRolePermissionSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamRolePermissionSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -2224,10 +1882,9 @@ class BirdCoderIamRolePermissionSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -2307,45 +1964,36 @@ class BirdCoderIamRoleSummary {
 }
 
 class BirdCoderIamRoleSummaryEnvelope {
-  final BirdCoderIamRoleSummary data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamRoleSummaryEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderIamRoleSummaryEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamRoleSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamRoleSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderIamRoleSummaryEnvelope.data is required');
         }
-        return BirdCoderIamRoleSummary.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamRoleSummaryEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamRoleSummaryEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamRoleSummaryEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamRoleSummaryEnvelope.traceId is required');
         }
         return value;
       })()
@@ -2354,60 +2002,44 @@ class BirdCoderIamRoleSummaryEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
 
 class BirdCoderIamRoleSummaryListEnvelope {
-  final List<BirdCoderIamRoleSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamRoleSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderIamRoleSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamRoleSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderIamRoleSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderIamRoleSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderIamRoleSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamRoleSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamRoleSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamRoleSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderIamRoleSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamRoleSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamRoleSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -2416,10 +2048,9 @@ class BirdCoderIamRoleSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -2509,51 +2140,36 @@ class BirdCoderIamSecurityEventSummary {
 }
 
 class BirdCoderIamSecurityEventSummaryListEnvelope {
-  final List<BirdCoderIamSecurityEventSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamSecurityEventSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderIamSecurityEventSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamSecurityEventSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderIamSecurityEventSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderIamSecurityEventSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderIamSecurityEventSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamSecurityEventSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamSecurityEventSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamSecurityEventSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderIamSecurityEventSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamSecurityEventSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamSecurityEventSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -2562,10 +2178,9 @@ class BirdCoderIamSecurityEventSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -2649,45 +2264,36 @@ class BirdCoderIamTenantMemberSummary {
 }
 
 class BirdCoderIamTenantMemberSummaryEnvelope {
-  final BirdCoderIamTenantMemberSummary data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamTenantMemberSummaryEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderIamTenantMemberSummaryEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamTenantMemberSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamTenantMemberSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderIamTenantMemberSummaryEnvelope.data is required');
         }
-        return BirdCoderIamTenantMemberSummary.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamTenantMemberSummaryEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamTenantMemberSummaryEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamTenantMemberSummaryEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamTenantMemberSummaryEnvelope.traceId is required');
         }
         return value;
       })()
@@ -2696,60 +2302,44 @@ class BirdCoderIamTenantMemberSummaryEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
 
 class BirdCoderIamTenantMemberSummaryListEnvelope {
-  final List<BirdCoderIamTenantMemberSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamTenantMemberSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderIamTenantMemberSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamTenantMemberSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderIamTenantMemberSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderIamTenantMemberSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderIamTenantMemberSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamTenantMemberSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamTenantMemberSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamTenantMemberSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderIamTenantMemberSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamTenantMemberSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamTenantMemberSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -2758,10 +2348,9 @@ class BirdCoderIamTenantMemberSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -2831,45 +2420,36 @@ class BirdCoderIamTenantSummary {
 }
 
 class BirdCoderIamTenantSummaryEnvelope {
-  final BirdCoderIamTenantSummary data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamTenantSummaryEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderIamTenantSummaryEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamTenantSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamTenantSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderIamTenantSummaryEnvelope.data is required');
         }
-        return BirdCoderIamTenantSummary.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamTenantSummaryEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamTenantSummaryEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamTenantSummaryEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamTenantSummaryEnvelope.traceId is required');
         }
         return value;
       })()
@@ -2878,60 +2458,44 @@ class BirdCoderIamTenantSummaryEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
 
 class BirdCoderIamTenantSummaryListEnvelope {
-  final List<BirdCoderIamTenantSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamTenantSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderIamTenantSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamTenantSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderIamTenantSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderIamTenantSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderIamTenantSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamTenantSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamTenantSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamTenantSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderIamTenantSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamTenantSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamTenantSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -2940,10 +2504,9 @@ class BirdCoderIamTenantSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -3029,45 +2592,36 @@ class BirdCoderIamUserRoleSummary {
 }
 
 class BirdCoderIamUserRoleSummaryEnvelope {
-  final BirdCoderIamUserRoleSummary data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamUserRoleSummaryEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderIamUserRoleSummaryEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamUserRoleSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamUserRoleSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderIamUserRoleSummaryEnvelope.data is required');
         }
-        return BirdCoderIamUserRoleSummary.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamUserRoleSummaryEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamUserRoleSummaryEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamUserRoleSummaryEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamUserRoleSummaryEnvelope.traceId is required');
         }
         return value;
       })()
@@ -3076,10 +2630,9 @@ class BirdCoderIamUserRoleSummaryEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -3185,45 +2738,36 @@ class BirdCoderIamUserSummary {
 }
 
 class BirdCoderIamUserSummaryEnvelope {
-  final BirdCoderIamUserSummary data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamUserSummaryEnvelope({
+    required this.code,
     required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.traceId
   });
 
   factory BirdCoderIamUserSummaryEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamUserSummaryEnvelope(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamUserSummaryEnvelope.code is required');
+        }
+        return value;
+      })(),
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
           throw FormatException('BirdCoderIamUserSummaryEnvelope.data is required');
         }
-        return BirdCoderIamUserSummary.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamUserSummaryEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderIamUserSummaryEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamUserSummaryEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamUserSummaryEnvelope.traceId is required');
         }
         return value;
       })()
@@ -3232,116 +2776,44 @@ class BirdCoderIamUserSummaryEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
 
 class BirdCoderIamUserSummaryListEnvelope {
-  final List<BirdCoderIamUserSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderIamUserSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderIamUserSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderIamUserSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderIamUserSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderIamUserSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderIamUserSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderIamUserSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamUserSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderIamUserSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderIamUserSummaryListEnvelope.timestamp is required');
-        }
-        return value;
-      })()
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
-    };
-  }
-}
-
-class BirdCoderProblemEnvelope {
-  final BirdCoderApiProblemDetails data;
-  final BirdCoderApiMeta meta;
-  final String requestId;
-  final String timestamp;
-
-  BirdCoderProblemEnvelope({
-    required this.data,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
-  });
-
-  factory BirdCoderProblemEnvelope.fromJson(Map<String, dynamic> json) {
-    return BirdCoderProblemEnvelope(
       data: (() {
         final map = _sdkworkAsMap(json['data']);
         if (map == null) {
-          throw FormatException('BirdCoderProblemEnvelope.data is required');
+          throw FormatException('BirdCoderIamUserSummaryListEnvelope.data is required');
         }
-        return BirdCoderApiProblemDetails.fromJson(map);
+        return map;
       })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderProblemEnvelope.meta is required');
-        }
-        return BirdCoderApiMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderProblemEnvelope.requestId is required');
-        }
-        return value;
-      })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderProblemEnvelope.timestamp is required');
+          throw FormatException('BirdCoderIamUserSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -3350,10 +2822,9 @@ class BirdCoderProblemEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'data': data.toJson(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -3449,51 +2920,36 @@ class BirdCoderReleaseSummary {
 }
 
 class BirdCoderReleaseSummaryListEnvelope {
-  final List<BirdCoderReleaseSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderReleaseSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderReleaseSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderReleaseSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderReleaseSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderReleaseSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderReleaseSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderReleaseSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderReleaseSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderReleaseSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderReleaseSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderReleaseSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderReleaseSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -3502,10 +2958,9 @@ class BirdCoderReleaseSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -3605,51 +3060,36 @@ class BirdCoderTeamMemberSummary {
 }
 
 class BirdCoderTeamMemberSummaryListEnvelope {
-  final List<BirdCoderTeamMemberSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderTeamMemberSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderTeamMemberSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderTeamMemberSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderTeamMemberSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderTeamMemberSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderTeamMemberSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderTeamMemberSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderTeamMemberSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderTeamMemberSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderTeamMemberSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderTeamMemberSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderTeamMemberSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -3658,10 +3098,9 @@ class BirdCoderTeamMemberSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -3771,51 +3210,36 @@ class BirdCoderTeamSummary {
 }
 
 class BirdCoderTeamSummaryListEnvelope {
-  final List<BirdCoderTeamSummary> items;
-  final BirdCoderApiListMeta meta;
-  final String requestId;
-  final String timestamp;
+  final int code;
+  final dynamic data;
+  final String traceId;
 
   BirdCoderTeamSummaryListEnvelope({
-    required this.items,
-    required this.meta,
-    required this.requestId,
-    required this.timestamp
+    required this.code,
+    required this.data,
+    required this.traceId
   });
 
   factory BirdCoderTeamSummaryListEnvelope.fromJson(Map<String, dynamic> json) {
     return BirdCoderTeamSummaryListEnvelope(
-      items: (() {
-        final list = _sdkworkAsList(json['items']);
-        if (list == null) {
-          throw FormatException('BirdCoderTeamSummaryListEnvelope.items is required');
-        }
-        return list
-            .map((item) => (() {
-        final map = _sdkworkAsMap(item);
-        return map == null ? null : BirdCoderTeamSummary.fromJson(map);
-      })())
-            .whereType<BirdCoderTeamSummary>()
-            .toList();
-      })(),
-      meta: (() {
-        final map = _sdkworkAsMap(json['meta']);
-        if (map == null) {
-          throw FormatException('BirdCoderTeamSummaryListEnvelope.meta is required');
-        }
-        return BirdCoderApiListMeta.fromJson(map);
-      })(),
-      requestId: (() {
-        final value = json['requestId']?.toString();
-        if (value == null) {
-          throw FormatException('BirdCoderTeamSummaryListEnvelope.requestId is required');
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('BirdCoderTeamSummaryListEnvelope.code is required');
         }
         return value;
       })(),
-      timestamp: (() {
-        final value = json['timestamp']?.toString();
+      data: (() {
+        final map = _sdkworkAsMap(json['data']);
+        if (map == null) {
+          throw FormatException('BirdCoderTeamSummaryListEnvelope.data is required');
+        }
+        return map;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
         if (value == null) {
-          throw FormatException('BirdCoderTeamSummaryListEnvelope.timestamp is required');
+          throw FormatException('BirdCoderTeamSummaryListEnvelope.traceId is required');
         }
         return value;
       })()
@@ -3824,10 +3248,9 @@ class BirdCoderTeamSummaryListEnvelope {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'items': items.map((item) => item.toJson()).toList(),
-      'meta': meta.toJson(),
-      'requestId': requestId,
-      'timestamp': timestamp,
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }
@@ -4064,6 +3487,170 @@ class BirdCoderUpdateIamUserRequest {
       'displayName': displayName,
       'avatarUrl': avatarUrl,
       'status': status,
+    };
+  }
+}
+
+class PageInfo {
+  final String mode;
+  final int? page;
+  final int? pageSize;
+  final String? totalItems;
+  final int? totalPages;
+  final String? nextCursor;
+  final bool? hasMore;
+
+  PageInfo({
+    required this.mode,
+    this.page,
+    this.pageSize,
+    this.totalItems,
+    this.totalPages,
+    this.nextCursor,
+    this.hasMore
+  });
+
+  factory PageInfo.fromJson(Map<String, dynamic> json) {
+    return PageInfo(
+      mode: (() {
+        final value = json['mode']?.toString();
+        if (value == null) {
+          throw FormatException('PageInfo.mode is required');
+        }
+        return value;
+      })(),
+      page: json['page'] is int ? json['page'] : null,
+      pageSize: json['pageSize'] is int ? json['pageSize'] : null,
+      totalItems: json['totalItems']?.toString(),
+      totalPages: json['totalPages'] is int ? json['totalPages'] : null,
+      nextCursor: json['nextCursor']?.toString(),
+      hasMore: json['hasMore'] is bool ? json['hasMore'] : null
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'mode': mode,
+      'page': page,
+      'pageSize': pageSize,
+      'totalItems': totalItems,
+      'totalPages': totalPages,
+      'nextCursor': nextCursor,
+      'hasMore': hasMore,
+    };
+  }
+}
+
+class ProblemDetail {
+  final String type;
+  final String title;
+  final int status;
+  final String? detail;
+  final String? instance;
+  final int code;
+  final String traceId;
+
+  ProblemDetail({
+    required this.type,
+    required this.title,
+    required this.status,
+    this.detail,
+    this.instance,
+    required this.code,
+    required this.traceId
+  });
+
+  factory ProblemDetail.fromJson(Map<String, dynamic> json) {
+    return ProblemDetail(
+      type: (() {
+        final value = json['type']?.toString();
+        if (value == null) {
+          throw FormatException('ProblemDetail.type is required');
+        }
+        return value;
+      })(),
+      title: (() {
+        final value = json['title']?.toString();
+        if (value == null) {
+          throw FormatException('ProblemDetail.title is required');
+        }
+        return value;
+      })(),
+      status: (() {
+        final value = json['status'];
+        if (value is! int) {
+          throw FormatException('ProblemDetail.status is required');
+        }
+        return value;
+      })(),
+      detail: json['detail']?.toString(),
+      instance: json['instance']?.toString(),
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('ProblemDetail.code is required');
+        }
+        return value;
+      })(),
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('ProblemDetail.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'type': type,
+      'title': title,
+      'status': status,
+      'detail': detail,
+      'instance': instance,
+      'code': code,
+      'traceId': traceId,
+    };
+  }
+}
+
+class SdkWorkApiResponse {
+  final int code;
+  final dynamic data;
+  final String traceId;
+
+  SdkWorkApiResponse({
+    required this.code,
+    required this.data,
+    required this.traceId
+  });
+
+  factory SdkWorkApiResponse.fromJson(Map<String, dynamic> json) {
+    return SdkWorkApiResponse(
+      code: (() {
+        final value = json['code'];
+        if (value is! int) {
+          throw FormatException('SdkWorkApiResponse.code is required');
+        }
+        return value;
+      })(),
+      data: json['data'],
+      traceId: (() {
+        final value = json['traceId']?.toString();
+        if (value == null) {
+          throw FormatException('SdkWorkApiResponse.traceId is required');
+        }
+        return value;
+      })()
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'code': code,
+      'data': data,
+      'traceId': traceId,
     };
   }
 }

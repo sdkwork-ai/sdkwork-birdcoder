@@ -5,6 +5,10 @@ import {
   type BirdCoderDefaultIdeSharedRuntime,
   type CreateBirdCoderDefaultIdeServicesOptions,
 } from './defaultIdeServicesShared.ts';
+export type {
+  BirdCoderDefaultIdeServiceKey,
+  BirdCoderDefaultIdeServices,
+} from './defaultIdeServicesShared.ts';
 import {
   createBirdCoderAdminIdeServices,
   createUnavailableAdminDeploymentService,

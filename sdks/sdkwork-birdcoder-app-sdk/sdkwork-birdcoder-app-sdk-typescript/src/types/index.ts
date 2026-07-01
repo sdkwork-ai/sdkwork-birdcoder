@@ -128,6 +128,46 @@ export interface BirdCoderBooleanSuccessResult {
   success: boolean;
 }
 
+export interface BirdCoderChatConversationSummary {
+  id: string;
+  title: string;
+  ownerUserId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BirdCoderChatConversationSummaryEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderChatConversationSummaryListEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderChatMessageSummary {
+  id: string;
+  conversationId: string;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface BirdCoderChatMessageSummaryEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderChatMessageSummaryListEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
 export interface BirdCoderCodeEngineModelConfig {
   schemaVersion: number;
   source: string;
@@ -390,6 +430,15 @@ export interface BirdCoderCoreRuntimeSummaryEnvelope {
   traceId: string;
 }
 
+export interface BirdCoderCreateChatConversationRequest {
+  title?: string;
+}
+
+export interface BirdCoderCreateChatMessageRequest {
+  role: string;
+  content: string;
+}
+
 export interface BirdCoderCreateCodingSessionRequest {
   workspaceId: string;
   projectId: string;
@@ -477,6 +526,16 @@ export interface BirdCoderCreateWorkspaceRequest {
   settings?: Record<string, unknown>;
   isPublic?: boolean;
   isTemplate?: boolean;
+}
+
+export interface BirdCoderDeleteChatConversationEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderDeleteChatConversationResult {
+  id: string;
 }
 
 export interface BirdCoderDeleteCodingSessionMessageResult {
@@ -1726,6 +1785,22 @@ export interface SkillsSkillPackagesInstallationsCreatePathParams {
 export interface SkillsSkillPackagesListQuery extends Record<string, BirdcoderSdkQueryValue> {
   userId?: string;
   workspaceId?: string;
+}
+
+export interface SystemChatConversationsDeletePathParams {
+  conversationId: string;
+}
+
+export interface SystemChatConversationsMessagesCreatePathParams {
+  conversationId: string;
+}
+
+export interface SystemChatConversationsMessagesListPathParams {
+  conversationId: string;
+}
+
+export interface SystemChatConversationsRetrievePathParams {
+  conversationId: string;
 }
 
 export interface SystemOperationsRetrievePathParams {
@@ -3003,6 +3078,110 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "resource": "ecosystem.skillPackages",
     "summary": "List skill packages",
     "tag": "skills",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "system.chat.conversations.create",
+    "method": "POST",
+    "operationId": "chat.conversations.create",
+    "path": "/app/v3/api/chat/conversations",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "system",
+    "permission": "system.chat.conversations.create",
+    "public": false,
+    "resource": "system.chat.conversations",
+    "summary": "Create chat conversation",
+    "tag": "system",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "system.chat.conversations.delete",
+    "method": "DELETE",
+    "operationId": "chat.conversations.delete",
+    "path": "/app/v3/api/chat/conversations/{conversationId}",
+    "pathParamNames": [
+      "conversationId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "system",
+    "permission": "system.chat.conversations.delete",
+    "public": false,
+    "resource": "system.chat.conversations",
+    "summary": "Delete chat conversation",
+    "tag": "system",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "system.chat.conversations.list",
+    "method": "GET",
+    "operationId": "chat.conversations.list",
+    "path": "/app/v3/api/chat/conversations",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "system",
+    "permission": "system.chat.conversations.read",
+    "public": false,
+    "resource": "system.chat.conversations",
+    "summary": "List chat conversations",
+    "tag": "system",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "system.chat.conversations.messages.create",
+    "method": "POST",
+    "operationId": "chat.conversations.messages.create",
+    "path": "/app/v3/api/chat/conversations/{conversationId}/messages",
+    "pathParamNames": [
+      "conversationId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "system",
+    "permission": "system.chat.conversations.messages.create",
+    "public": false,
+    "resource": "system.chat.conversations.messages",
+    "summary": "Create chat message",
+    "tag": "system",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "system.chat.conversations.messages.list",
+    "method": "GET",
+    "operationId": "chat.conversations.messages.list",
+    "path": "/app/v3/api/chat/conversations/{conversationId}/messages",
+    "pathParamNames": [
+      "conversationId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "system",
+    "permission": "system.chat.conversations.messages.read",
+    "public": false,
+    "resource": "system.chat.conversations.messages",
+    "summary": "List chat messages",
+    "tag": "system",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "system.chat.conversations.retrieve",
+    "method": "GET",
+    "operationId": "chat.conversations.retrieve",
+    "path": "/app/v3/api/chat/conversations/{conversationId}",
+    "pathParamNames": [
+      "conversationId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "system",
+    "permission": "system.chat.conversations.read",
+    "public": false,
+    "resource": "system.chat.conversations",
+    "summary": "Get chat conversation",
+    "tag": "system",
     "tenantScope": "tenant"
   },
   {

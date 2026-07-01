@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
+import { resolveBirdcoderApplicationPackageRoots } from './lib/birdcoder-package-scan-roots.mjs';
 
 const rootDir = process.cwd();
-const packagesDir = path.join(rootDir, 'packages');
 const skipDirectories = new Set(['node_modules', 'dist', 'target', '.git', '.turbo', '.next']);
 const violations = [];
 
@@ -95,8 +95,10 @@ function pushViolation(filePath, sourceFile, node, message) {
   });
 }
 
-if (fs.existsSync(packagesDir)) {
-  walk(packagesDir);
+for (const packageRoot of resolveBirdcoderApplicationPackageRoots(rootDir)) {
+  if (fs.existsSync(packageRoot)) {
+    walk(packageRoot);
+  }
 }
 
 if (violations.length > 0) {

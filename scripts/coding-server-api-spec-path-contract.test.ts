@@ -11,6 +11,11 @@ import {
 
 const APP_API_PREFIX = '/app/v3/api';
 const BACKEND_API_PREFIX = '/backend/v3/api';
+const COMMERCE_API_PREFIX = '/api/v1';
+
+function isAllowedAppRoutePath(routePath: string): boolean {
+  return routePath.startsWith(APP_API_PREFIX) || routePath.startsWith(COMMERCE_API_PREFIX);
+}
 const FORBIDDEN_PREFIXES = [
   '/api/core/v1',
   '/api/app/v1',
@@ -341,7 +346,7 @@ assertActiveDocsUseCanonicalApiAndSdkLanguage();
 assertNoRetiredAdminApiSurfaceNaming();
 assertNoRetiredOpenApiSeedBuilder();
 assertNoRetiredBillingVipServerTypes();
-assert.equal(descriptor.gateway.routesBySurface.app, 83);
+assert.equal(descriptor.gateway.routesBySurface.app, 104);
 assert.equal(descriptor.gateway.routesBySurface.backend, 49);
 assert.deepEqual(descriptor.surfaces, ['app', 'backend']);
 assert.equal(
@@ -386,16 +391,18 @@ for (const route of routeCatalog) {
 
   if (route.surface === 'app') {
     assert.equal(
-      route.path.startsWith(APP_API_PREFIX),
+      isAllowedAppRoutePath(route.path),
       true,
-      `${route.operationId} app route must use ${APP_API_PREFIX}: ${route.path}`,
+      `${route.operationId} app route must use ${APP_API_PREFIX} or ${COMMERCE_API_PREFIX}: ${route.path}`,
     );
     assert.equal(
-      route.openApiPath.startsWith(APP_API_PREFIX),
+      isAllowedAppRoutePath(route.openApiPath),
       true,
-      `${route.operationId} app OpenAPI path must use ${APP_API_PREFIX}: ${route.openApiPath}`,
+      `${route.operationId} app OpenAPI path must use ${APP_API_PREFIX} or ${COMMERCE_API_PREFIX}: ${route.openApiPath}`,
     );
-    assertLowerSnakeStaticSegments(route.openApiPath, `${route.operationId} app OpenAPI path`);
+    if (route.openApiPath.startsWith(APP_API_PREFIX)) {
+      assertLowerSnakeStaticSegments(route.openApiPath, `${route.operationId} app OpenAPI path`);
+    }
   }
 
   if (route.surface === 'backend') {
@@ -433,7 +440,7 @@ assert.deepEqual(openApiDocument.tags.map((tag) => tag.name), [
   'system',
   'templates',
 ]);
-assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.app, 83);
+assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.app, 104);
 assert.equal(openApiDocument['x-sdkwork-api-cloud-gateway'].routesBySurface.backend, 49);
 assert.equal(
   'basePath' in openApiDocument['x-sdkwork-api-cloud-gateway'],

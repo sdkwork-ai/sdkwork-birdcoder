@@ -128,6 +128,9 @@ on:
       sdkwork_kernel_ref:
         description: sdkwork-kernel commit/ref.
         required: false
+      sdkwork_agents_ref:
+        description: sdkwork-agents commit/ref.
+        required: false
 
 permissions:
   contents: write
@@ -215,6 +218,7 @@ jobs:
           "SDKWORK_UTILS_REF": "${{ github.event.inputs.sdkwork_utils_ref || vars.SDKWORK_UTILS_REF }}",
           "SDKWORK_APP_TOPOLOGY_REF": "${{ github.event.inputs.sdkwork_app_topology_ref || vars.SDKWORK_APP_TOPOLOGY_REF }}",
           "SDKWORK_MODELS_REF": "${{ github.event.inputs.sdkwork_models_ref || vars.SDKWORK_MODELS_REF }}",
-          "SDKWORK_KERNEL_REF": "${{ github.event.inputs.sdkwork_kernel_ref || vars.SDKWORK_KERNEL_REF }}"
+          "SDKWORK_KERNEL_REF": "${{ github.event.inputs.sdkwork_kernel_ref || vars.SDKWORK_KERNEL_REF }}",
+          "SDKWORK_AGENTS_REF": "${{ github.event.inputs.sdkwork_agents_ref || vars.SDKWORK_AGENTS_REF }}"
         }
     secrets: inherit

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-h5-console-core",
+    "type": "typescript-package",
+    "root": "apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-console-core",
+    "domain": "birdcoder",
+    "capability": "core",
+    "surface": "console",
+    "languages": [
+      "typescript"
+    ],
+    "generated": false
+  },
+  "contracts": {
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk-typescript",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      },
+      {
+        "workspace": "sdkwork-drive-app-sdk-typescript",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      },
+      {
+        "workspace": "sdkwork-iam-app-sdk-typescript",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      },
+      {
+        "workspace": "sdkwork-messaging-app-sdk-typescript",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      }
+    ],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": []
+  }
+}

@@ -83,6 +83,27 @@ const universalChat = read(
 if (!universalChat.includes('uploadBirdCoderChatAttachmentToDrive')) {
   fail('UniversalChat must upload composer attachments through Drive');
 }
+
+const h5ChatPage = read('apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-chat/src/screens/ChatPage.tsx');
+if (!h5ChatPage.includes('uploadBirdCoderChatAttachmentToDrive')) {
+  fail('H5 ChatPage must upload attachments through Drive');
+}
+if (h5ChatPage.includes('readFileAsDataUrl')) {
+  fail('H5 ChatPage must not embed chat attachments as inline data URLs');
+}
+
+const flutterChatPage = read('apps/sdkwork-birdcoder-flutter-mobile/lib/pages/chat_page.dart');
+if (flutterChatPage.includes('readFileAsDataUrl') || /\bdata:[^'"]+;base64,/u.test(flutterChatPage)) {
+  fail('Flutter ChatPage must not embed chat attachments as inline data URLs');
+}
+if (flutterChatPage.includes('uploadBirdCoderChatAttachmentToDrive')) {
+  fail('Flutter ChatPage must not call Drive upload until a governed Dart drive-app-sdk consumer exists');
+}
+
+const commercialTruthDoc = read('docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md');
+if (!/Flutter Drive attachments.*defer|defer until.*drive-app-sdk/u.test(commercialTruthDoc)) {
+  fail('Commercial truth doc must explicitly defer Flutter Drive attachments until Dart drive-app-sdk exists');
+}
 if (universalChat.includes('readFileAsDataUrl')) {
   fail('UniversalChat must not embed chat image attachments as inline data URLs');
 }

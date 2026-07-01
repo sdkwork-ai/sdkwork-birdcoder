@@ -207,7 +207,7 @@
         "highlights": [
           "H5 mobile web application",
           "Capacitor iOS/Android support",
-          "SDKWork App Standard v3 configuration"
+          "App SDK chat persistence and Drive attachment upload wired"
         ],
         "packageIds": [
           "h5-universal-cloud-mobile-zip",
@@ -237,6 +237,6 @@
     "standardOwner": "sdkwork-platform",
     "initializedAt": "2026-06-13T00:00:00Z",
     "preLaunch": true,
-    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-prelaunch-artifacts-pending"
+    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-ci-governance-wired-prelaunch-artifacts-pending-manifest-honesty-corrected"
   }
 }

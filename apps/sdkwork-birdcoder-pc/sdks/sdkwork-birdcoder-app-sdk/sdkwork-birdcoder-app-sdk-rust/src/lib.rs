@@ -1442,6 +1442,114 @@ pub mod skills {
 }
 
 pub mod system {
+    pub mod chat {
+        pub mod conversations {
+            pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "system",
+                key: "system.chat.conversations.create",
+                method: "POST",
+                operation_id: "chat.conversations.create",
+                path: "/app/v3/api/chat/conversations",
+                path_param_names: &[],
+                permission: Some("system.chat.conversations.create"),
+                public: false,
+                resource: "system.chat.conversations",
+                summary: "Create chat conversation",
+                tag: "system",
+                tenant_scope: "tenant",
+            };
+
+            pub const DELETE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "system",
+                key: "system.chat.conversations.delete",
+                method: "DELETE",
+                operation_id: "chat.conversations.delete",
+                path: "/app/v3/api/chat/conversations/{conversationId}",
+                path_param_names: &["conversationId"],
+                permission: Some("system.chat.conversations.delete"),
+                public: false,
+                resource: "system.chat.conversations",
+                summary: "Delete chat conversation",
+                tag: "system",
+                tenant_scope: "tenant",
+            };
+
+            pub const LIST: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "system",
+                key: "system.chat.conversations.list",
+                method: "GET",
+                operation_id: "chat.conversations.list",
+                path: "/app/v3/api/chat/conversations",
+                path_param_names: &[],
+                permission: Some("system.chat.conversations.read"),
+                public: false,
+                resource: "system.chat.conversations",
+                summary: "List chat conversations",
+                tag: "system",
+                tenant_scope: "tenant",
+            };
+
+            pub mod messages {
+                pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+                    data_scope: "organization",
+                    deployment: "all",
+                    domain: "system",
+                    key: "system.chat.conversations.messages.create",
+                    method: "POST",
+                    operation_id: "chat.conversations.messages.create",
+                    path: "/app/v3/api/chat/conversations/{conversationId}/messages",
+                    path_param_names: &["conversationId"],
+                    permission: Some("system.chat.conversations.messages.create"),
+                    public: false,
+                    resource: "system.chat.conversations.messages",
+                    summary: "Create chat message",
+                    tag: "system",
+                    tenant_scope: "tenant",
+                };
+
+                pub const LIST: crate::SdkOperation = crate::SdkOperation {
+                    data_scope: "organization",
+                    deployment: "all",
+                    domain: "system",
+                    key: "system.chat.conversations.messages.list",
+                    method: "GET",
+                    operation_id: "chat.conversations.messages.list",
+                    path: "/app/v3/api/chat/conversations/{conversationId}/messages",
+                    path_param_names: &["conversationId"],
+                    permission: Some("system.chat.conversations.messages.read"),
+                    public: false,
+                    resource: "system.chat.conversations.messages",
+                    summary: "List chat messages",
+                    tag: "system",
+                    tenant_scope: "tenant",
+                };
+            }
+
+            pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+                data_scope: "organization",
+                deployment: "all",
+                domain: "system",
+                key: "system.chat.conversations.retrieve",
+                method: "GET",
+                operation_id: "chat.conversations.retrieve",
+                path: "/app/v3/api/chat/conversations/{conversationId}",
+                path_param_names: &["conversationId"],
+                permission: Some("system.chat.conversations.read"),
+                public: false,
+                resource: "system.chat.conversations",
+                summary: "Get chat conversation",
+                tag: "system",
+                tenant_scope: "tenant",
+            };
+        }
+    }
+
     pub mod descriptor {
         pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
             data_scope: "platform",
@@ -1675,6 +1783,12 @@ pub const OPERATIONS: &[SdkOperation] = &[
     runtime::native_sessions::RETRIEVE,
     skills::skill_packages::installations::CREATE,
     skills::skill_packages::LIST,
+    system::chat::conversations::CREATE,
+    system::chat::conversations::DELETE,
+    system::chat::conversations::LIST,
+    system::chat::conversations::messages::CREATE,
+    system::chat::conversations::messages::LIST,
+    system::chat::conversations::RETRIEVE,
     system::descriptor::RETRIEVE,
     system::health::RETRIEVE,
     system::iam::runtime::RETRIEVE,

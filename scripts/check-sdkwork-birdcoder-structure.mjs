@@ -2,9 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+import { resolveBirdcoderApplicationPackageRoots } from './lib/birdcoder-package-scan-roots.mjs';
 
 const rootDir = process.cwd();
-const packagesDir = path.join(rootDir, 'packages');
 const workspaceConfigPath = path.join(rootDir, 'pnpm-workspace.yaml');
 
 const requiredPackages = [
@@ -323,14 +323,19 @@ function assertWorkspaceTargetsBirdCoderPackages() {
   }
 
   const source = fs.readFileSync(workspaceConfigPath, 'utf8');
-  const birdcoderGlobs = source.match(/'packages\/sdkwork-birdcoder-\*'/g) ?? [];
+  const pcGlob = source.match(/'apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-\*'/g) ?? [];
+  const h5Glob = source.match(/'apps\/sdkwork-birdcoder-h5\/packages\/sdkwork-birdcoder-h5-\*'/g) ?? [];
 
-  if (birdcoderGlobs.length !== 1) {
-    errors.push("pnpm-workspace.yaml must include exactly one 'packages/sdkwork-birdcoder-*' workspace glob.");
+  if (pcGlob.length !== 1) {
+    errors.push("pnpm-workspace.yaml must include exactly one 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*' workspace glob.");
   }
 
-  if (source.includes("'packages/*'")) {
-    errors.push("pnpm-workspace.yaml must not include the legacy 'packages/*' workspace glob.");
+  if (h5Glob.length !== 1) {
+    errors.push("pnpm-workspace.yaml must include exactly one 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*' workspace glob.");
+  }
+
+  if (source.includes("'packages/*'") || source.includes("'packages/sdkwork-birdcoder-*'")) {
+    errors.push('pnpm-workspace.yaml must not include retired root packages/* or packages/sdkwork-birdcoder-* workspace globs.');
   }
 
   if (source.includes('sdkwork-bird-') || source.includes('sdkwork-ide-') || source.includes('@sdkwork/bird-')) {
@@ -339,19 +344,26 @@ function assertWorkspaceTargetsBirdCoderPackages() {
 }
 
 function assertNoLegacyPackageDirs() {
-  if (!fs.existsSync(packagesDir)) {
-    errors.push('Missing packages directory.');
-    return;
+  const legacyDirs = [];
+
+  for (const packageRoot of resolveBirdcoderApplicationPackageRoots(rootDir)) {
+    if (!fs.existsSync(packageRoot)) {
+      continue;
+    }
+
+    for (const entry of fs.readdirSync(packageRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      if (entry.name.startsWith('sdkwork-bird-') || entry.name.startsWith('sdkwork-ide-')) {
+        legacyDirs.push(path.relative(rootDir, path.join(packageRoot, entry.name)).split(path.sep).join('/'));
+      }
+    }
   }
 
-  const legacyDirs = fs
-    .readdirSync(packagesDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && (entry.name.startsWith('sdkwork-bird-') || entry.name.startsWith('sdkwork-ide-')))
-    .map((entry) => entry.name)
-    .sort();
-
-  for (const dirName of legacyDirs) {
-    errors.push(`Legacy package directory must be removed: packages/${dirName}`);
+  for (const relativeDir of legacyDirs.sort()) {
+    errors.push(`Legacy package directory must be removed: ${relativeDir}`);
   }
 }
 

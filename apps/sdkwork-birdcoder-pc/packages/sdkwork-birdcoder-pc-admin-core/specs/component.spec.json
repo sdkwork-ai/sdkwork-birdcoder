@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-pc-admin-core",
+    "displayName": "SDKWork Birdcoder PC Admin Core",
+    "version": "0.1.0",
+    "type": "typescript-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core",
+    "domain": "platform",
+    "capability": "admin-core",
+    "surface": "backend-admin",
+    "languages": [
+      "typescript"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "package.json"
+    ]
+  },
+  "contracts": {
+    "publicExports": [
+      "."
+    ],
+    "sdkClients": [],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-birdcoder-backend-sdk",
+        "surface": "backend-api",
+        "credentialMode": "authenticated-backend-admin"
+      },
+      {
+        "workspace": "sdkwork-iam-backend-sdk",
+        "surface": "backend-api",
+        "credentialMode": "authenticated-backend-admin"
+      }
+    ]
+  }
+}

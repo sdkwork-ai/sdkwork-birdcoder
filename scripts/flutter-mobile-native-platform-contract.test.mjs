@@ -47,8 +47,8 @@ assert.equal(
 
 assert.match(
   androidManifest,
-  /android:scheme="birdcoder"/u,
-  'Android manifest must declare the birdcoder OAuth custom scheme.',
+  /android:scheme="sdkwork\.birdcoder"/u,
+  'Android manifest must declare the sdkwork.birdcoder OAuth custom scheme.',
 );
 assert.match(
   androidManifest,
@@ -68,8 +68,8 @@ assert.match(
 
 assert.match(
   iosInfoPlist,
-  /<string>birdcoder<\/string>/u,
-  'iOS Info.plist must declare the birdcoder URL scheme.',
+  /<string>sdkwork\.birdcoder<\/string>/u,
+  'iOS Info.plist must declare the sdkwork.birdcoder URL scheme.',
 );
 assert.match(
   iosEntitlements,

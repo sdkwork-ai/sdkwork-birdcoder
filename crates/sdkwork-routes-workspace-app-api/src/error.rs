@@ -6,8 +6,8 @@ use sdkwork_utils_rust::SdkWorkResultCode;
 
 use sdkwork_birdcoder_errors::{
     client_safe_data_access_problem, client_safe_event_publish_problem,
-    client_safe_internal_problem, traced_legacy_problem, traced_platform_problem,
-    traced_problem_json,
+    client_safe_internal_problem, platform_problem, traced_legacy_problem,
+    traced_platform_problem, traced_problem_json,
 };
 
 pub use sdkwork_birdcoder_errors::ProblemJsonBody;
@@ -17,7 +17,11 @@ pub fn forbidden(message: impl Into<String>, trace_id: Option<&str>) -> ProblemJ
 }
 
 pub fn map_rate_limited(message: impl Into<String>, trace_id: Option<&str>) -> ProblemJsonBody {
-    traced_platform_problem(SdkWorkResultCode::RateLimitExceeded, message, trace_id)
+    traced_problem_json(
+        StatusCode::TOO_MANY_REQUESTS,
+        platform_problem(SdkWorkResultCode::RateLimitExceeded, message, trace_id),
+        trace_id,
+    )
 }
 
 pub fn map_workspace_error(error: WorkspaceError, trace_id: Option<&str>) -> ProblemJsonBody {

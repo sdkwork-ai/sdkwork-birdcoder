@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-h5-core",
+    "displayName": "SDKWork BirdCoder H5 Core",
+    "version": "0.1.0",
+    "type": "typescript-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-core",
+    "domain": "platform",
+    "capability": "core",
+    "surface": "app",
+    "languages": [
+      "typescript"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "package.json"
+    ]
+  },
+  "contracts": {
+    "publicExports": [
+      ".",
+      "./sdk",
+      "./modules",
+      "./host",
+      "./session",
+      "./composition"
+    ],
+    "sdkClients": [],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk-typescript",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-drive-app-sdk-typescript",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-iam-app-sdk-typescript",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-messaging-app-sdk-typescript",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      }
+    ]
+  }
+}

@@ -60,6 +60,10 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'sessionId',
     'BirdCoder coding session identifier.',
   );
+  const conversationIdPathParameter = createOpenApiPathParameter(
+    'conversationId',
+    'BirdCoder chat conversation identifier.',
+  );
   const messageIdPathParameter = createOpenApiPathParameter(
     'messageId',
     'BirdCoder coding session message identifier.',
@@ -1035,6 +1039,70 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successStatus: '200',
         successDescription: 'Project documents returned successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectDocumentSummaryListEnvelope'),
+      }),
+    },
+    'chat.conversations.list': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Chat conversations returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderChatConversationSummaryListEnvelope'),
+      }),
+    },
+    'chat.conversations.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateChatConversationRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '201',
+        successDescription: 'Chat conversation created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderChatConversationSummaryEnvelope'),
+      }),
+    },
+    'chat.conversations.retrieve': {
+      parameters: [conversationIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Chat conversation returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderChatConversationSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Chat conversation was not found.'),
+        },
+      }),
+    },
+    'chat.conversations.delete': {
+      parameters: [conversationIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Chat conversation deleted successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderDeleteChatConversationEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Chat conversation was not found.'),
+        },
+      }),
+    },
+    'chat.conversations.messages.list': {
+      parameters: [conversationIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Chat messages returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderChatMessageSummaryListEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Chat conversation was not found.'),
+        },
+      }),
+    },
+    'chat.conversations.messages.create': {
+      parameters: [conversationIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateChatMessageRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '201',
+        successDescription: 'Chat message created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderChatMessageSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Chat conversation was not found.'),
+        },
       }),
     },
     'workspaceTeams.list': {

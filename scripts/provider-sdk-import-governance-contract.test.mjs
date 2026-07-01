@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { collectBirdcoderApplicationPackageManifests } from './lib/birdcoder-package-scan-roots.mjs';
 
 const rootDir = process.cwd();
-const packagesDir = path.join(rootDir, 'packages');
 const officialSdkPackages = [
   '@anthropic-ai/claude-agent-sdk',
   '@google/gemini-cli-sdk',
@@ -92,24 +92,16 @@ function scanPackageSources(packageDir, packageName) {
   }
 }
 
-assert.ok(fs.existsSync(packagesDir), 'packages directory must exist');
+const workspacePackages = collectBirdcoderApplicationPackageManifests(rootDir, readJson)
+  .filter(({ dirName }) => dirName.startsWith('sdkwork-birdcoder-'));
 
-for (const entry of fs.readdirSync(packagesDir, { withFileTypes: true })) {
-  if (!entry.isDirectory() || !entry.name.startsWith('sdkwork-birdcoder-')) {
-    continue;
-  }
-
-  const packageDir = path.join(packagesDir, entry.name);
-  const packageJsonPath = path.join(packageDir, 'package.json');
-  if (!fs.existsSync(packageJsonPath)) {
-    continue;
-  }
-
-  const packageJson = readJson(packageJsonPath);
-  const packageName = String(packageJson.name ?? entry.name);
+for (const { dirName, relativePath, manifest } of workspacePackages) {
+  const packageDir = path.join(rootDir, path.dirname(relativePath));
+  const packageJsonPath = path.join(rootDir, relativePath);
+  const packageName = String(manifest.name ?? dirName);
 
   for (const section of dependencySections) {
-    const dependencies = packageJson[section];
+    const dependencies = manifest[section];
     if (!dependencies || typeof dependencies !== 'object') {
       continue;
     }

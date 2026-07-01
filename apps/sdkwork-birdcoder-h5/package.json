@@ -9,6 +9,8 @@
     "@sdkwork/birdcoder-h5-commons": "workspace:*",
     "@sdkwork/birdcoder-h5-core": "workspace:*",
     "@sdkwork/birdcoder-h5-shell": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
+    "tailwindcss": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-router-dom": "catalog:"

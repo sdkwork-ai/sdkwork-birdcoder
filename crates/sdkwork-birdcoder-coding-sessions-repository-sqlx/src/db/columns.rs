@@ -67,6 +67,7 @@ pub mod runtime {
 pub mod turn {
     pub const TABLE: &str = "ai_coding_session_turn";
     pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
     pub const CREATED_AT: &str = "created_at";
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";
@@ -83,6 +84,7 @@ pub mod turn {
 pub mod event {
     pub const TABLE: &str = "ai_coding_session_event";
     pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
     pub const CREATED_AT: &str = "created_at";
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";
@@ -98,6 +100,7 @@ pub mod event {
 pub mod artifact {
     pub const TABLE: &str = "ai_coding_session_artifact";
     pub const ID: &str = "id";
+    pub const UUID: &str = "uuid";
     pub const CREATED_AT: &str = "created_at";
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";

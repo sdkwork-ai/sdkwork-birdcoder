@@ -27,9 +27,9 @@ import {
 import { type AuthTokenManager } from '@sdkwork/sdk-common';
 import {
   handleSdkworkSessionAuthUnauthorizedError,
-  isSdkworkSdkSessionAuthError,
   resetSdkworkSessionAuthRedirectState,
-} from '@sdkwork/auth-runtime-pc-react';
+} from '@sdkwork/auth-runtime-pc-react/handleSdkworkSessionAuthUnauthorizedError';
+import { isSdkworkSdkSessionAuthError } from '@sdkwork/auth-runtime-pc-react/sdkSessionAuthError';
 import {
   getBirdCoderGlobalTokenManager as getCoreBirdCoderGlobalTokenManager,
   setBirdCoderGlobalTokenManager,

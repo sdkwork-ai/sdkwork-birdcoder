@@ -2,9 +2,10 @@ import {
   createSdkworkAppbasePcAuthRuntime,
   type SdkworkAppbasePcAuthRuntimeComposition,
   type SdkworkAppbasePcAuthRuntimeSdkClient,
-} from '@sdkwork/auth-runtime-pc-react';
+} from '@sdkwork/auth-runtime-pc-react/appbasePcAuthRuntime';
 import type { IamRuntime } from '@sdkwork/iam-runtime';
 import { createAppbaseAppSdkClient } from '@sdkwork/birdcoder-pc-core/sdk';
+import { isBlank } from '@sdkwork/utils/string';
 import { BIRDCODER_DEFAULT_LOCAL_API_BASE_URL } from '@sdkwork/birdcoder-pc-host-core';
 import { createDriveAppClient, type SdkworkDriveAppClient } from '@sdkwork/drive-app-sdk';
 import { createClient as createMessagingAppSdkClient } from '@sdkwork/messaging-app-sdk';
@@ -229,7 +230,14 @@ export function readBirdCoderRuntimeEnv(name: string): string | undefined {
     env?: Record<string, string | boolean | undefined>;
   };
   const value = meta.env?.[name];
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+  return readNonBlankString(value);
+}
+
+function readNonBlankString(value: unknown): string | undefined {
+  if (typeof value !== 'string' || isBlank(value)) {
+    return undefined;
+  }
+  return value.trim();
 }
 
 function readRuntimeEnvFromWindow(name: string): string | undefined {
@@ -246,7 +254,7 @@ function readRuntimeEnvFromWindow(name: string): string | undefined {
     runtimeWindow.__BIRDCODER_ENV__?.[name] ??
     runtimeWindow.__SDKWORK_H5_REACT_ENV__?.[name] ??
     runtimeWindow.__SDKWORK_PC_REACT_ENV__?.[name];
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+  return readNonBlankString(value);
 }
 
 function readIamDeploymentMode(): 'local' | 'private' | 'saas' | undefined {

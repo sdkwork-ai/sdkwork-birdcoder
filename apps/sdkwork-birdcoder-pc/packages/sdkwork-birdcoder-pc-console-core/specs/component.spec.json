@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "@sdkwork/birdcoder-pc-console-core",
+    "displayName": "SDKWork Birdcoder PC Console Core",
+    "version": "0.1.0",
+    "type": "typescript-package",
+    "root": "sdkwork-birdcoder/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-console-core",
+    "domain": "platform",
+    "capability": "console-core",
+    "surface": "console",
+    "languages": [
+      "typescript"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "package.json"
+    ]
+  },
+  "contracts": {
+    "publicExports": [
+      "."
+    ],
+    "sdkClients": [],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk-typescript",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      },
+      {
+        "workspace": "sdkwork-drive-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-drive-app-sdk-typescript",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      },
+      {
+        "workspace": "sdkwork-iam-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-iam-app-sdk-typescript",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      },
+      {
+        "workspace": "sdkwork-messaging-app-sdk",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api"
+      },
+      {
+        "workspace": "sdkwork-messaging-app-sdk-typescript",
+        "surface": "open-api",
+        "credentialMode": "protected-open-api-flexible"
+      }
+    ]
+  }
+}

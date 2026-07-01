@@ -4662,6 +4662,102 @@
         ],
         "additionalProperties": false
       },
+      "BirdCoderChatConversationSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "ownerUserId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "ownerUserId",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderChatMessageSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "conversationId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "role",
+          "content",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateChatConversationRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BirdCoderCreateChatMessageRequest": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderDeleteChatConversationResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderTeamSummary": {
         "type": "object",
         "properties": {
@@ -7453,6 +7549,160 @@
                 "required": [
                   "items",
                   "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderChatConversationSummaryListEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderChatConversationSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderChatConversationSummaryEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderChatConversationSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderChatMessageSummaryListEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderChatMessageSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderChatMessageSummaryEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderChatMessageSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderDeleteChatConversationEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderDeleteChatConversationResult"
+                  }
+                },
+                "required": [
+                  "item"
                 ],
                 "additionalProperties": false
               }
@@ -12975,6 +13225,386 @@
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
+    "/app/v3/api/chat/conversations": {
+      "get": {
+        "operationId": "chat.conversations.list",
+        "summary": "List chat conversations",
+        "description": "List chat conversations. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat conversations returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderChatConversationSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-permission": "system.chat.conversations.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "system.chat.conversations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "post": {
+        "operationId": "chat.conversations.create",
+        "summary": "Create chat conversation",
+        "description": "Create chat conversation. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "system"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateChatConversationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Chat conversation created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderChatConversationSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-permission": "system.chat.conversations.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "system.chat.conversations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/app/v3/api/chat/conversations/{conversationId}": {
+      "get": {
+        "operationId": "chat.conversations.retrieve",
+        "summary": "Get chat conversation",
+        "description": "Get chat conversation. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder chat conversation identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat conversation returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderChatConversationSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat conversation was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-permission": "system.chat.conversations.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "system.chat.conversations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "delete": {
+        "operationId": "chat.conversations.delete",
+        "summary": "Delete chat conversation",
+        "description": "Delete chat conversation. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder chat conversation identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat conversation deleted successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderDeleteChatConversationEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat conversation was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-permission": "system.chat.conversations.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "system.chat.conversations",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/app/v3/api/chat/conversations/{conversationId}/messages": {
+      "get": {
+        "operationId": "chat.conversations.messages.list",
+        "summary": "List chat messages",
+        "description": "List chat messages. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder chat conversation identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chat messages returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderChatMessageSummaryListEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat conversation was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-permission": "system.chat.conversations.messages.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "system.chat.conversations.messages",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "post": {
+        "operationId": "chat.conversations.messages.create",
+        "summary": "Create chat message",
+        "description": "Create chat message. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder chat conversation identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateChatMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Chat message created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderChatMessageSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chat conversation was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "system",
+        "x-sdkwork-permission": "system.chat.conversations.messages.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "system.chat.conversations.messages",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
     "/app/v3/api/projects/{projectId}/git/overview": {
       "get": {
         "operationId": "projects.git.overview.retrieve",
@@ -17524,6 +18154,602 @@
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
+    },
+    "/api/v1/api-keys": {
+      "post": {
+        "operationId": "commerce.apiKeys.create",
+        "summary": "Create BirdCoder commerce API key",
+        "description": "Create BirdCoder commerce API key. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.apiKeys.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "get": {
+        "operationId": "commerce.apiKeys.list",
+        "summary": "List BirdCoder commerce API keys",
+        "description": "List BirdCoder commerce API keys. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.apiKeys.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/api-keys/{id}": {
+      "delete": {
+        "operationId": "commerce.apiKeys.revoke",
+        "summary": "Revoke BirdCoder commerce API key",
+        "description": "Revoke BirdCoder commerce API key. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.apiKeys.delete",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/api-keys/{id}/rotate": {
+      "post": {
+        "operationId": "commerce.apiKeys.rotate",
+        "summary": "Rotate BirdCoder commerce API key",
+        "description": "Rotate BirdCoder commerce API key. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.apiKeys.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "operationId": "commerce.notifications.list",
+        "summary": "List BirdCoder commerce notifications",
+        "description": "List BirdCoder commerce notifications. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.notifications.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      },
+      "post": {
+        "operationId": "commerce.notifications.send",
+        "summary": "Send BirdCoder commerce notification",
+        "description": "Send BirdCoder commerce notification. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.notifications.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/notifications/{id}": {
+      "get": {
+        "operationId": "commerce.notifications.get",
+        "summary": "Get BirdCoder commerce notification",
+        "description": "Get BirdCoder commerce notification. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.notifications.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "operationId": "commerce.notifications.unreadCount",
+        "summary": "Get BirdCoder commerce unread notification count",
+        "description": "Get BirdCoder commerce unread notification count. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.notifications.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "post": {
+        "operationId": "commerce.notifications.markRead",
+        "summary": "Mark BirdCoder commerce notification as read",
+        "description": "Mark BirdCoder commerce notification as read. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.notifications.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/notifications/read-all": {
+      "post": {
+        "operationId": "commerce.notifications.markAllRead",
+        "summary": "Mark all BirdCoder commerce notifications as read",
+        "description": "Mark all BirdCoder commerce notifications as read. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.notifications.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/usage/record": {
+      "post": {
+        "operationId": "commerce.usage.record",
+        "summary": "Record BirdCoder commerce usage event",
+        "description": "Record BirdCoder commerce usage event. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.usage.create",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/usage/current-period": {
+      "get": {
+        "operationId": "commerce.usage.currentPeriod",
+        "summary": "Get BirdCoder commerce usage for current period",
+        "description": "Get BirdCoder commerce usage for current period. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.usage.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/usage/history": {
+      "get": {
+        "operationId": "commerce.usage.history",
+        "summary": "List BirdCoder commerce usage history",
+        "description": "List BirdCoder commerce usage history. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.usage.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/usage/breakdown": {
+      "get": {
+        "operationId": "commerce.usage.breakdown",
+        "summary": "Get BirdCoder commerce usage breakdown",
+        "description": "Get BirdCoder commerce usage breakdown. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.usage.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
+    },
+    "/api/v1/usage/quota": {
+      "get": {
+        "operationId": "commerce.usage.quota",
+        "summary": "Get BirdCoder commerce usage quota",
+        "description": "Get BirdCoder commerce usage quota. Requires an authenticated BirdCoder admin session.",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [],
+            "sdkworkAccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "admin",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.usage.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant"
+      }
     }
   },
   "x-sdkwork-api-cloud-gateway": {
@@ -17533,9 +18759,9 @@
     "docsPath": "/docs",
     "liveOpenApiPath": "/openapi.json",
     "routeCatalogPath": "/app/v3/api/system/routes",
-    "routeCount": 132,
+    "routeCount": 153,
     "routesBySurface": {
-      "app": 83,
+      "app": 104,
       "backend": 49
     },
     "surfaces": [
@@ -17544,7 +18770,7 @@
         "basePath": "/app/v3/api",
         "description": "Application-facing coding runtime, workspace, project, collaboration, and IAM routes.",
         "name": "app",
-        "routeCount": 83
+        "routeCount": 104
       },
       {
         "authMode": "admin",

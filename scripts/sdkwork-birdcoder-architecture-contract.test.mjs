@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { resolveBirdcoderApplicationPackageRoots } from './lib/birdcoder-package-scan-roots.mjs';
 
 import { buildCanonicalDocPathIndex, resolveCanonicalDocPath } from './lib/canonical-doc-paths.mjs';
 
@@ -626,11 +627,9 @@ function collectPackageJsonFiles(packagesRoot) {
     .filter((absolutePath) => fs.existsSync(absolutePath));
 }
 
-const packageJsonFiles = [
-  ...collectPackageJsonFiles(path.join(rootDir, 'packages')),
-  ...collectPackageJsonFiles(pcPackagesDir),
-  ...collectPackageJsonFiles(h5PackagesDir),
-];
+const packageJsonFiles = resolveBirdcoderApplicationPackageRoots(rootDir).flatMap((packageRoot) =>
+  collectPackageJsonFiles(packageRoot),
+);
 
 for (const absolutePath of packageJsonFiles) {
   const source = fs.readFileSync(absolutePath, 'utf8');

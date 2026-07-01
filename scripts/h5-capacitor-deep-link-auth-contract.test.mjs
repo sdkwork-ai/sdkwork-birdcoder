@@ -27,7 +27,11 @@ for (const fileName of [
     `${fileName} must declare androidPackageName.`,
   );
   assert.ok(config.deepLinks, `${fileName} must declare deepLinks metadata.`);
-  assert.equal(config.deepLinks.customScheme, 'birdcoderh5', `${fileName} must declare birdcoderh5 custom scheme.`);
+  assert.equal(
+    config.deepLinks.customScheme,
+    'sdkwork.birdcoder',
+    `${fileName} must declare sdkwork.birdcoder custom scheme.`,
+  );
 }
 
 const coreOAuthSource = read(

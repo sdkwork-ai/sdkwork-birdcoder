@@ -6,6 +6,7 @@ members = [
     "crates/sdkwork-routes-coding-sessions-app-api",
     "crates/sdkwork-routes-workspace-app-api",
     "crates/sdkwork-routes-document-app-api",
+    "crates/sdkwork-routes-chat-app-api",
     "crates/sdkwork-routes-skill-packages-app-api",
     "crates/sdkwork-routes-membership-app-api",
     "crates/sdkwork-routes-deployment-backend-api",
@@ -20,6 +21,7 @@ members = [
     "crates/sdkwork-birdcoder-skill-packages-service",
     "crates/sdkwork-birdcoder-app-templates-service",
     "crates/sdkwork-birdcoder-document-service",
+    "crates/sdkwork-birdcoder-chat-service",
     "crates/sdkwork-birdcoder-membership-service",
     "crates/sdkwork-birdcoder-system-descriptor-service",
     # Repository crates
@@ -30,6 +32,7 @@ members = [
     "crates/sdkwork-birdcoder-model-config-repository-sqlx",
     "crates/sdkwork-birdcoder-membership-repository-sqlx",
     "crates/sdkwork-birdcoder-document-repository-sqlx",
+    "crates/sdkwork-birdcoder-chat-repository-sqlx",
     "crates/sdkwork-birdcoder-sqlx-repository-pool",
     "crates/sdkwork-birdcoder-database-host",
     # Host/server crates
@@ -57,6 +60,8 @@ license = "Commercial"
 authors = ["sdkwork"]
 
 [workspace.dependencies]
+sdkwork-web-bootstrap = { path = "../sdkwork-web-framework/crates/sdkwork-web-bootstrap" }
+sdkwork-agents-runtime-facade = { path = "../sdkwork-agents/crates/sdkwork-agents-runtime-facade" }
 # Common third-party dependencies
 axum = "0.8"
 serde = { version = "1", features = ["derive"] }
@@ -80,6 +85,7 @@ sdkwork-routes-engine-catalog-app-api = { path = "crates/sdkwork-routes-engine-c
 sdkwork-routes-coding-sessions-app-api = { path = "crates/sdkwork-routes-coding-sessions-app-api" }
 sdkwork-routes-workspace-app-api = { path = "crates/sdkwork-routes-workspace-app-api" }
 sdkwork-routes-document-app-api = { path = "crates/sdkwork-routes-document-app-api" }
+sdkwork-routes-chat-app-api = { path = "crates/sdkwork-routes-chat-app-api" }
 sdkwork-routes-skill-packages-app-api = { path = "crates/sdkwork-routes-skill-packages-app-api" }
 sdkwork-routes-membership-app-api = { path = "crates/sdkwork-routes-membership-app-api" }
 sdkwork-routes-deployment-backend-api = { path = "crates/sdkwork-routes-deployment-backend-api" }
@@ -94,6 +100,7 @@ sdkwork-birdcoder-deployment-service = { path = "crates/sdkwork-birdcoder-deploy
 sdkwork-birdcoder-skill-packages-service = { path = "crates/sdkwork-birdcoder-skill-packages-service" }
 sdkwork-birdcoder-app-templates-service = { path = "crates/sdkwork-birdcoder-app-templates-service" }
 sdkwork-birdcoder-document-service = { path = "crates/sdkwork-birdcoder-document-service" }
+sdkwork-birdcoder-chat-service = { path = "crates/sdkwork-birdcoder-chat-service" }
 sdkwork-birdcoder-membership-service = { path = "crates/sdkwork-birdcoder-membership-service" }
 sdkwork-birdcoder-system-descriptor-service = { path = "crates/sdkwork-birdcoder-system-descriptor-service" }
 
@@ -105,6 +112,7 @@ sdkwork-birdcoder-app-templates-repository-sqlx = { path = "crates/sdkwork-birdc
 sdkwork-birdcoder-model-config-repository-sqlx = { path = "crates/sdkwork-birdcoder-model-config-repository-sqlx" }
 sdkwork-birdcoder-membership-repository-sqlx = { path = "crates/sdkwork-birdcoder-membership-repository-sqlx" }
 sdkwork-birdcoder-document-repository-sqlx = { path = "crates/sdkwork-birdcoder-document-repository-sqlx" }
+sdkwork-birdcoder-chat-repository-sqlx = { path = "crates/sdkwork-birdcoder-chat-repository-sqlx" }
 sdkwork-birdcoder-sqlx-repository-pool = { path = "crates/sdkwork-birdcoder-sqlx-repository-pool" }
 
 # Host/server crates
@@ -139,8 +147,4 @@ sdkwork-terminal-pty-runtime = { path = "../sdkwork-terminal/apps/sdkwork-termin
 sdkwork-terminal-protocol = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-protocol" }
 sdkwork-terminal-replay-store = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-replay-store" }
 sdkwork-terminal-session-runtime = { path = "../sdkwork-terminal/apps/sdkwork-terminal-pc/crates/sdkwork-terminal-session-runtime" }
-
-# sdkwork-agents runtime facade — the ONLY product application entry to kernel agent SPI.
-# Product crates must NOT directly depend on sdkwork-agent-kernel or sdkwork-agent-provider-*.
-sdkwork-agents-runtime-facade = { path = "../sdkwork-agents/crates/sdkwork-agents-runtime-facade" }
 

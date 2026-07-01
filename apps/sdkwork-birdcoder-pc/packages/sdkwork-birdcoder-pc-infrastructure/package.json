@@ -83,6 +83,10 @@
       "import": "./src/services/sdkClients.ts",
       "types": "./src/services/sdkClients.ts"
     },
+    "./services/lazyDefaultIdeServices": {
+      "import": "./src/services/lazyDefaultIdeServices.ts",
+      "types": "./src/services/lazyDefaultIdeServices.ts"
+    },
     "./bootstrap/appSessionPersistenceBinding": {
       "import": "./src/bootstrap/appSessionPersistenceBinding.ts",
       "types": "./src/bootstrap/appSessionPersistenceBinding.ts"
@@ -92,6 +96,7 @@
     "@sdkwork/iam-app-sdk": "workspace:*",
     "@sdkwork/iam-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-app-sdk": "workspace:*",
+    "@sdkwork/birdcoder-chat-contracts": "workspace:*",
     "@sdkwork/birdcoder-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-pc-admin-core": "workspace:*",
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",

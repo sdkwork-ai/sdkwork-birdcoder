@@ -112,8 +112,7 @@
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [],
-    "routeManifest": null,
-    "dependencyComposition": "specs/dependency.composition.json"
+    "routeManifest": null
   },
   "verification": {
     "commands": [

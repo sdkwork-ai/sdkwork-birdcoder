@@ -14,11 +14,12 @@ import { uuid } from '@sdkwork/utils/id';
 export const H5_CHAT_VERSION = '0.1.0';
 
 export function createChatMessage(
-  role: 'user' | 'assistant',
+  role: 'user' | 'assistant' | 'system',
   content: string,
+  id?: string,
 ): import('@sdkwork/birdcoder-chat-contracts').BirdCoderChatMessageRecord {
   return {
-    id: uuid(),
+    id: id ?? uuid(),
     role,
     content,
     createdAt: new Date().toISOString(),

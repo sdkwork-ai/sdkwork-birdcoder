@@ -3,10 +3,19 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+import {
+  BIRDCODER_APPLICATION_PACKAGE_ROOTS,
+  collectBirdcoderApplicationPackageManifests,
+} from './lib/birdcoder-package-scan-roots.mjs';
 
 const rootDir = process.cwd();
-const packagesDir = path.join(rootDir, 'packages');
-const sourceRoots = ['src', 'packages', 'scripts'];
+const sourceRoots = [
+  'src',
+  'scripts',
+  'apps/sdkwork-birdcoder-pc/src',
+  'apps/sdkwork-birdcoder-h5/src',
+  ...BIRDCODER_APPLICATION_PACKAGE_ROOTS,
+];
 const sourceExtensions = new Set([
   '.cjs',
   '.cts',
@@ -35,16 +44,9 @@ function readJson(relativePath) {
 }
 
 function collectWorkspacePackages() {
-  return fs.readdirSync(packagesDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .filter((dirName) => fs.existsSync(path.join(packagesDir, dirName, 'package.json')))
-    .sort()
-    .map((dirName) => ({
-      dirName,
-      relativePath: path.join('packages', dirName, 'package.json'),
-      manifest: readJson(path.join('packages', dirName, 'package.json')),
-    }));
+  return collectBirdcoderApplicationPackageManifests(rootDir, (absolutePath) =>
+    JSON.parse(fs.readFileSync(absolutePath, 'utf8')),
+  );
 }
 
 function collectSourceFiles(directoryPath, relativeDirectoryPath, results) {

@@ -20,7 +20,7 @@ pub fn execute_kernel_turn(
         native_session_id: request.native_session_id.clone(),
         prompt,
     };
-    let output = execute_code_engine_turn(slot, &input)?;
+    let output = execute_code_engine_turn(slot, &input).map_err(|error| error.to_string())?;
     Ok(CodeEngineTurnResultRecord {
         assistant_content: output.assistant_content,
         native_session_id: output.native_session_id,

@@ -24,7 +24,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rand = "0.8"
 sha2 = "0.10"
 hex = "0.4"
-sdkwork-web-bootstrap = { path = "../../../sdkwork-web-framework/crates/sdkwork-web-bootstrap", features = ["otel"] }
+sdkwork-web-bootstrap = { workspace = true, features = ["otel"] }
 
 # Route crates
 sdkwork-routes-system-app-api = { workspace = true }
@@ -32,6 +32,7 @@ sdkwork-routes-engine-catalog-app-api = { workspace = true }
 sdkwork-routes-coding-sessions-app-api = { workspace = true }
 sdkwork-routes-workspace-app-api = { workspace = true }
 sdkwork-routes-document-app-api = { workspace = true }
+sdkwork-routes-chat-app-api = { workspace = true }
 sdkwork-routes-skill-packages-app-api = { workspace = true }
 sdkwork-routes-membership-app-api = { workspace = true }
 sdkwork-routes-deployment-backend-api = { workspace = true }

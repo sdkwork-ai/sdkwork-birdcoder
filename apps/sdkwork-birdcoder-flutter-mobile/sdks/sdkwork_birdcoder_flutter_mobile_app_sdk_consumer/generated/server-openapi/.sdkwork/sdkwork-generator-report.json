@@ -12,7 +12,7 @@
   "mode": "apply",
   "hasChanges": true,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "6b05980ab52781233cfca93e184ef019e5e207e7825d6e844042be3f6e92cd94",
+  "changeFingerprint": "63ec5006144a98a93f4dc9a8908d359a9fe327204091f36943d3605dc97adabd",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
@@ -23,7 +23,8 @@
       {
         "area": "api-surface",
         "paths": [
-          "lib/src/api/oauth.dart"
+          "lib/src/api/platform.dart",
+          "lib/src/api/system.dart"
         ]
       },
       {
@@ -111,7 +112,7 @@
   },
   "stats": {
     "totalFiles": 29,
-    "models": 160,
+    "models": 170,
     "apis": 12,
     "types": 1
   },
@@ -119,16 +120,17 @@
   "syncSummary": {
     "dryRun": false,
     "controlPlaneEnabled": true,
-    "writtenFiles": 2,
+    "writtenFiles": 3,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 26,
+    "skippedUnchangedGeneratedFiles": 25,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "6b05980ab52781233cfca93e184ef019e5e207e7825d6e844042be3f6e92cd94",
+    "changeFingerprint": "63ec5006144a98a93f4dc9a8908d359a9fe327204091f36943d3605dc97adabd",
     "changes": {
       "createdGeneratedFiles": [],
       "updatedGeneratedFiles": [
-        "lib/src/api/oauth.dart",
+        "lib/src/api/platform.dart",
+        "lib/src/api/system.dart",
         "lib/src/models.dart"
       ],
       "unchangedGeneratedFiles": [
@@ -145,12 +147,11 @@
         "lib/src/api/content.dart",
         "lib/src/api/iam.dart",
         "lib/src/api/intelligence.dart",
+        "lib/src/api/oauth.dart",
         "lib/src/api/paths.dart",
-        "lib/src/api/platform.dart",
         "lib/src/api/response_helpers.dart",
         "lib/src/api/runtime.dart",
         "lib/src/api/skills.dart",
-        "lib/src/api/system.dart",
         "lib/src/api/templates.dart",
         "lib/src/http/client.dart",
         "LICENSE",
@@ -176,7 +177,8 @@
         {
           "area": "api-surface",
           "paths": [
-            "lib/src/api/oauth.dart"
+            "lib/src/api/platform.dart",
+            "lib/src/api/system.dart"
           ]
         },
         {

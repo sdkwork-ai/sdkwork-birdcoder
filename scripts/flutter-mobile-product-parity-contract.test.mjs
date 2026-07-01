@@ -16,8 +16,8 @@ const appShell = read('apps/sdkwork-birdcoder-flutter-mobile/lib/shell/app_shell
 const appDart = read('apps/sdkwork-birdcoder-flutter-mobile/lib/app.dart');
 const routeFactory = read('apps/sdkwork-birdcoder-flutter-mobile/lib/routing/route_page_factory.dart');
 
-assert.match(routeCatalog, /app\.chat\.index/u, 'Flutter route catalog must include chat route.');
-assert.match(routeCatalog, /app\.settings\.index/u, 'Flutter route catalog must include settings route.');
+assert.match(routeCatalog, /app\.im\.chat\.index/u, 'Flutter route catalog must include chat route.');
+assert.match(routeCatalog, /app\.account\.settings\.index/u, 'Flutter route catalog must include settings route.');
 assert.match(routeFactory, /buildBirdCoderRoutePageForPath/u, 'Flutter routing must resolve pages from the route catalog.');
 assert.match(appRouter, /buildBirdCoderRoutePageForPath/u, 'App router must delegate product routes to the route page factory.');
 assert.match(appShell, /pushReplacementNamed/u, 'App shell bottom navigation must navigate between catalog routes.');

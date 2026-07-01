@@ -29,7 +29,11 @@ for (const fileName of hostConfigs) {
     `${fileName} must declare androidPackageName.`,
   );
   assert.ok(config.deepLinks, `${fileName} must declare deepLinks metadata.`);
-  assert.equal(config.deepLinks.customScheme, 'birdcoder', `${fileName} must declare birdcoder custom scheme.`);
+  assert.equal(
+    config.deepLinks.customScheme,
+    'sdkwork.birdcoder',
+    `${fileName} must declare sdkwork.birdcoder custom scheme.`,
+  );
   assert.equal(
     config.deepLinks.oauthCallbackAuthority,
     'auth',
@@ -53,8 +57,16 @@ const iosSnippet = read(
   'apps/sdkwork-birdcoder-flutter-mobile/config/host/native/ios/deep-link-capabilities.snippet.plist',
 );
 
-assert.match(androidSnippet, /android:scheme="birdcoder"/u, 'Android deep link snippet must declare birdcoder scheme.');
-assert.match(iosSnippet, /birdcoder/u, 'iOS deep link snippet must declare birdcoder URL scheme.');
+assert.match(
+  androidSnippet,
+  /android:scheme="sdkwork\.birdcoder"/u,
+  'Android deep link snippet must declare sdkwork.birdcoder scheme.',
+);
+assert.match(
+  iosSnippet,
+  /sdkwork\.birdcoder/u,
+  'iOS deep link snippet must declare sdkwork.birdcoder URL scheme.',
+);
 
 const oauthDeepLinkSource = read(
   'apps/sdkwork-birdcoder-flutter-mobile/packages/sdkwork_birdcoder_flutter_mobile_core/lib/src/bootstrap/auth_oauth_deep_link.dart',

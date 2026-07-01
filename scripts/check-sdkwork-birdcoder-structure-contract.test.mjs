@@ -42,7 +42,12 @@ function createStructureFixtureWorkspace({ scripts }) {
   writeWorkspaceFile(
     fixtureRootDir,
     'pnpm-workspace.yaml',
-    "packages:\n  - 'packages/sdkwork-birdcoder-*'\n",
+    [
+      "packages:",
+      "  - 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*'",
+      "  - 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*'",
+      '',
+    ].join('\n'),
   );
   writeWorkspaceFile(
     fixtureRootDir,

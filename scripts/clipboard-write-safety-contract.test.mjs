@@ -1,30 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { walkBirdcoderApplicationPackageFiles } from './lib/birdcoder-package-scan-roots.mjs';
 
 const rootDir = process.cwd();
-const packagesDir = path.join(rootDir, 'packages');
 const clipboardUtilityRelativePath = 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/clipboard.ts';
 const clipboardUtilityPath = path.join(rootDir, clipboardUtilityRelativePath);
-
-function listSourceFiles(directory) {
-  const entries = fs.readdirSync(directory, { withFileTypes: true });
-  const files = [];
-
-  for (const entry of entries) {
-    const absolutePath = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listSourceFiles(absolutePath));
-      continue;
-    }
-
-    if (/\.(?:ts|tsx)$/u.test(entry.name)) {
-      files.push(absolutePath);
-    }
-  }
-
-  return files;
-}
 
 assert.equal(
   fs.existsSync(clipboardUtilityPath),
@@ -52,10 +33,22 @@ assert.match(
   'Shared clipboard utility must catch Clipboard API failures so copy actions never create unhandled promise rejections.',
 );
 
-const rawClipboardWriteCallers = listSourceFiles(packagesDir)
-  .filter((sourcePath) => path.resolve(sourcePath) !== path.resolve(clipboardUtilityPath))
-  .filter((sourcePath) => fs.readFileSync(sourcePath, 'utf8').includes('navigator.clipboard.writeText'))
-  .map((sourcePath) => path.relative(rootDir, sourcePath).replaceAll(path.sep, '/'));
+const rawClipboardWriteCallers = [];
+walkBirdcoderApplicationPackageFiles(rootDir, (sourcePath) => {
+  if (!/\.(?:ts|tsx)$/u.test(sourcePath)) {
+    return;
+  }
+
+  if (path.resolve(sourcePath) === path.resolve(clipboardUtilityPath)) {
+    return;
+  }
+
+  if (!fs.readFileSync(sourcePath, 'utf8').includes('navigator.clipboard.writeText')) {
+    return;
+  }
+
+  rawClipboardWriteCallers.push(path.relative(rootDir, sourcePath).replaceAll(path.sep, '/'));
+});
 
 assert.deepEqual(
   rawClipboardWriteCallers,

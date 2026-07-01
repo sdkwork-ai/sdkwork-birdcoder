@@ -37,6 +37,7 @@
     "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
     "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*",
-    "@sdkwork/sdk-common": "workspace:*"
+    "@sdkwork/sdk-common": "workspace:*",
+    "@sdkwork/utils": "workspace:*"
   }
 }

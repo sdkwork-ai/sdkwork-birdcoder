@@ -17,9 +17,9 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/app/v3/api/system/routes',
-    routeCount: 132,
+    routeCount: 153,
     routesBySurface: {
-      app: 83,
+      app: 104,
       backend: 49,
     },
     surfaces: [
@@ -28,7 +28,7 @@ assert.deepEqual(descriptor, {
         basePath: '/app/v3/api',
         description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
         name: 'app',
-        routeCount: 83,
+        routeCount: 104,
       },
       {
         authMode: 'admin',
@@ -222,11 +222,16 @@ assert.equal(admin.releases.path, '/backend/v3/api/releases');
 assert.equal(admin.deployments.path, '/backend/v3/api/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 132, 'coding-server should expose the full app/backend route matrix');
+assert.equal(routes.length, 153, 'coding-server should expose the full app/backend/commerce route matrix');
 assert.equal(
-  routes.every((route) => route.path.startsWith('/app/v3/api') || route.path.startsWith('/backend/v3/api')),
+  routes.every(
+    (route) =>
+      route.path.startsWith('/app/v3/api')
+      || route.path.startsWith('/backend/v3/api')
+      || route.path.startsWith('/api/v1'),
+  ),
   true,
-  'all coding-server routes must stay inside the unified app/backend prefixes',
+  'all coding-server routes must stay inside the unified app/backend/commerce prefixes',
 );
 
 const routeCatalog = listBirdCoderCodingServerRouteCatalogEntries();
@@ -269,8 +274,9 @@ for (const oldAppbasePath of [
 assert.equal(
   routeCatalog.every(
     (route) =>
-      route.openApiPath.startsWith('/app/v3/api') ||
-      route.openApiPath.startsWith('/backend/v3/api'),
+      route.openApiPath.startsWith('/app/v3/api')
+      || route.openApiPath.startsWith('/backend/v3/api')
+      || route.openApiPath.startsWith('/api/v1'),
   ),
   true,
   'route catalog must emit normalized OpenAPI path templates',

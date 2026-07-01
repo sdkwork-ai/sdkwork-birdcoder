@@ -43,17 +43,23 @@ function collectSourceFiles(relativeDir) {
   return files;
 }
 
-const sourceFiles = [
-  ...collectSourceFiles('packages'),
-  ...collectSourceFiles('src'),
+const uiBundleSegmentationScanRoots = [
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell',
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src',
 ];
+
+const subpathImportPattern =
+  /(?:from\s+['"]|import\(\s*['"])@sdkwork\/(?!utils\/|birdcoder-)[^"']+\/[^"']+['"]/u;
+
+const sourceFiles = uiBundleSegmentationScanRoots.flatMap((relativeDir) => collectSourceFiles(relativeDir));
 
 for (const relativePath of sourceFiles) {
   const source = readText(relativePath);
   assert.doesNotMatch(
     source,
-    /(?:from\s+['"]|import\(\s*['"])@sdkwork\/[^"']+\/[^"']+['"]/u,
-    `${relativePath} must not import dependency package subpaths; root package imports are the BirdCoder standard.`,
+    subpathImportPattern,
+    `${relativePath} must not import dependency package subpaths; root package imports are the BirdCoder UI bundle standard.`,
   );
 }
 

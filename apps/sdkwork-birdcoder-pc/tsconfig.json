@@ -21,6 +21,12 @@
       "@sdkwork/birdcoder-backend-sdk": [
         "sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts"
       ],
+      "@sdkwork/birdcoder-chat-contracts": [
+        "../sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-chat-contracts/*": [
+        "../sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/*"
+      ],
       "@sdkwork/iam-app-sdk": [
         "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts"
       ],
@@ -105,6 +111,9 @@
       ],
       "@sdkwork/birdcoder-pc-infrastructure": [
         "packages/sdkwork-birdcoder-pc-infrastructure/src/index.ts"
+      ],
+      "@sdkwork/birdcoder-pc-infrastructure/services/lazyDefaultIdeServices": [
+        "packages/sdkwork-birdcoder-pc-infrastructure/src/services/lazyDefaultIdeServices.ts"
       ],
       "@sdkwork/birdcoder-pc-commons/*": [
         "packages/sdkwork-birdcoder-pc-commons/src/*.ts",

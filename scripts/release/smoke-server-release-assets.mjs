@@ -7,7 +7,10 @@ import { pathToFileURL } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 
 import { RELEASE_ASSET_MANIFEST_FILE_NAME } from './release-profiles.mjs';
-import { SERVER_CRATE_BINARY_NAME } from './release-build-paths.mjs';
+import {
+  resolveServerBinaryFileName,
+  SERVER_CRATE_BINARY_NAME,
+} from './release-build-paths.mjs';
 import { writeReleaseSmokeReport } from './release-smoke-contract.mjs';
 
 function readOptionValue(argv, index, flag) {
@@ -62,19 +65,21 @@ function readTarGzEntryPaths(archivePath) {
   return entryPaths;
 }
 
-function resolveExpectedServerBinaryName(target = '') {
-  return String(target ?? '').toLowerCase().includes('windows')
-    ? `${SERVER_CRATE_BINARY_NAME}.exe`
-    : SERVER_CRATE_BINARY_NAME;
+function resolveExpectedServerBinaryName({ target = '', platform = '' } = {}) {
+  return resolveServerBinaryFileName(SERVER_CRATE_BINARY_NAME, {
+    targetTriple: target,
+    platform: normalizePlatform(platform),
+  });
 }
 
 function assertServerBinaryPresent({
   archivePath,
   archiveRelativePath,
   target,
+  platform,
 }) {
   const bundleRoot = path.posix.basename(archiveRelativePath.replaceAll('\\', '/'), '.tar.gz');
-  const expectedBinaryPath = `${bundleRoot}/server/bin/${resolveExpectedServerBinaryName(target)}`;
+  const expectedBinaryPath = `${bundleRoot}/server/bin/${resolveExpectedServerBinaryName({ target, platform })}`;
   const entryPaths = readTarGzEntryPaths(archivePath);
   if (!entryPaths.includes(expectedBinaryPath)) {
     throw new Error(`Server release archive is missing compiled server binary: ${expectedBinaryPath}`);
@@ -149,6 +154,7 @@ export function smokeServerReleaseAssets({
     archivePath,
     archiveRelativePath,
     target,
+    platform: normalizedPlatform,
   });
 
   const artifactRelativePaths = Array.isArray(manifest.artifacts)

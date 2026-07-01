@@ -110,19 +110,19 @@ fn execute_codex_cli_turn_inner(
         }
         // Mark that the watchdog is killing the child.
         watchdog_killed_flag.store(true, Ordering::SeqCst);
-        if let Some(pid) = watchdog_child_id {
+        if watchdog_child_id != 0 {
             #[cfg(unix)]
             {
                 // SAFETY: pid is a valid process ID from child.id(). SIGTERM
                 // is the standard signal for graceful process termination.
                 unsafe {
-                    libc::kill(pid as i32, libc::SIGTERM);
+                    libc::kill(watchdog_child_id as i32, libc::SIGTERM);
                 }
             }
             #[cfg(not(unix))]
             {
                 let _ = Command::new("taskkill")
-                    .args(["/PID", &pid.to_string(), "/F", "/T"])
+                    .args(["/PID", &watchdog_child_id.to_string(), "/F", "/T"])
                     .stdout(Stdio::null())
                     .stderr(Stdio::null())
                     .status();

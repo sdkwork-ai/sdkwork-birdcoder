@@ -10,6 +10,7 @@ export 'bootstrap/bootstrap_state.dart';
 export 'bootstrap/environment.dart';
 export 'bootstrap/iam_auth_service.dart';
 export 'bootstrap/iam_runtime.dart';
+export 'bootstrap/birdcoder_mobile_chat_api.dart';
 export 'bootstrap/sdk_clients.dart';
 export 'bootstrap/token_manager.dart' show
     BirdCoderTokenManager,

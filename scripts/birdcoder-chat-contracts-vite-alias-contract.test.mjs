@@ -18,7 +18,7 @@ const h5ViteConfigSource = fs.readFileSync(
 );
 const chatContractsEntry = path.join(
   workspaceRootDir,
-  'packages/sdkwork-birdcoder-chat-contracts/src/index.ts',
+  'apps/sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/index.ts',
 );
 
 assert.ok(
@@ -28,8 +28,8 @@ assert.ok(
 
 assert.match(
   vitePluginsSource,
-  /@sdkwork\/birdcoder-chat-contracts['"][\s\S]*packages\/sdkwork-birdcoder-chat-contracts\/src\/index\.ts/u,
-  'Vite workspace aliases must resolve @sdkwork/birdcoder-chat-contracts to the repository-root shared package.',
+  /@sdkwork\/birdcoder-chat-contracts['"][\s\S]*apps\/sdkwork-birdcoder-common\/packages\/sdkwork-birdcoder-chat-contracts\/src\/index\.ts/u,
+  'Vite workspace aliases must resolve @sdkwork/birdcoder-chat-contracts to the BirdCoder common shared package.',
 );
 
 assert.doesNotMatch(

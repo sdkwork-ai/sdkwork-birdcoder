@@ -89,8 +89,7 @@
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [],
-    "routeManifest": null,
-    "dependencyComposition": "specs/dependency.composition.json"
+    "routeManifest": null
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative.",

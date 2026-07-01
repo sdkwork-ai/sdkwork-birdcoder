@@ -47,5 +47,165 @@
       "standalone"
     ],
     "defaultDeploymentProfile": "cloud"
+  },
+  "publish": {
+    "status": "DRAFT",
+    "preLaunch": true,
+    "installSkill": {
+      "name": "sdkwork-skills-app"
+    },
+    "platforms": [
+      "WEB",
+      "DESKTOP",
+      "DESKTOP_WINDOWS",
+      "DESKTOP_MACOS",
+      "DESKTOP_LINUX"
+    ],
+    "installPlatforms": [
+      "WEB",
+      "DESKTOP_WINDOWS",
+      "DESKTOP_MACOS",
+      "DESKTOP_LINUX"
+    ],
+    "defaultPackageId": "web-universal-cloud-browser-zip",
+    "storeUrl": "https://sdkwork.com/apps/sdkwork-birdcoder",
+    "stores": [],
+    "config": {
+      "workspaceRoot": "apps/sdkwork-birdcoder-pc",
+      "framework": "react-tauri",
+      "managedBy": "sdkwork-app-standard-v3"
+    }
+  },
+  "artifacts": {
+    "installConfig": {
+      "defaultPackageId": "web-universal-cloud-browser-zip",
+      "installCommand": "sdkwork install sdkwork-birdcoder",
+      "launchCommand": "sdkwork open sdkwork-birdcoder",
+      "uninstallCommand": "sdkwork uninstall sdkwork-birdcoder",
+      "packages": [
+        {
+          "id": "web-universal-cloud-browser-zip",
+          "name": "SDKWork Birdcoder Web Bundle",
+          "sourceType": "WEB_URL",
+          "packageFormat": "ZIP",
+          "platform": "WEB",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/STABLE/0.1.0/web.zip",
+          "enabled": false,
+          "metadata": {
+            "preLaunch": true,
+            "artifactPending": true
+          },
+          "architecture": "universal",
+          "deploymentProfile": "cloud",
+          "runtimeTarget": "browser"
+        },
+        {
+          "id": "windows-x64-standalone-desktop-zip",
+          "name": "SDKWork Birdcoder Windows Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "ZIP",
+          "platform": "DESKTOP_WINDOWS",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/STABLE/0.1.0/windows/x64/app.zip",
+          "enabled": false,
+          "metadata": {
+            "preLaunch": true,
+            "artifactPending": true
+          },
+          "architecture": "x64",
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "desktop"
+        },
+        {
+          "id": "macos-universal-standalone-desktop-dmg",
+          "name": "SDKWork Birdcoder macOS Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "DMG",
+          "platform": "DESKTOP_MACOS",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/STABLE/0.1.0/macos/universal/app.dmg",
+          "enabled": false,
+          "metadata": {
+            "preLaunch": true,
+            "artifactPending": true
+          },
+          "architecture": "universal",
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "desktop"
+        },
+        {
+          "id": "linux-x64-standalone-desktop-appimage",
+          "name": "SDKWork Birdcoder Linux Bundle",
+          "sourceType": "BINARY_URL",
+          "packageFormat": "APPIMAGE",
+          "platform": "DESKTOP_LINUX",
+          "url": "https://cdn.sdkwork.com/apps/sdkwork-birdcoder/STABLE/0.1.0/linux/generic/x64/app.AppImage",
+          "enabled": false,
+          "metadata": {
+            "preLaunch": true,
+            "artifactPending": true,
+            "linux": {
+              "distro": "generic"
+            }
+          },
+          "architecture": "x64",
+          "deploymentProfile": "standalone",
+          "runtimeTarget": "desktop"
+        }
+      ],
+      "metadata": {
+        "workspaceRoot": "apps/sdkwork-birdcoder-pc",
+        "framework": "react-tauri",
+        "packageManager": "pnpm@10.30.2",
+        "preLaunch": true
+      }
+    }
+  },
+  "release": {
+    "currentVersion": "0.1.0",
+    "defaultChannel": "STABLE",
+    "latest": {
+      "STABLE": "0.1.0"
+    },
+    "notes": [
+      {
+        "version": "0.1.0",
+        "releaseChannel": "STABLE",
+        "title": "SDKWork Birdcoder PC 0.1.0",
+        "summary": "Pre-launch scaffold — install packages remain disabled until release artifacts are published.",
+        "content": "SDKWork BirdCoder PC has not launched publicly. Artifact URLs and checksums are withheld until the first governed release build completes.",
+        "highlights": [
+          "Browser and Tauri desktop surfaces",
+          "OpenAPI contract complete: 153 operations, 0 deferred",
+          "Universal chat and Drive attachment upload wired on PC shell"
+        ],
+        "packageIds": [
+          "web-universal-cloud-browser-zip",
+          "windows-x64-standalone-desktop-zip",
+          "macos-universal-standalone-desktop-dmg",
+          "linux-x64-standalone-desktop-appimage"
+        ],
+        "publishedAt": "2026-05-07T00:00:00Z",
+        "current": false,
+        "forceUpdate": false,
+        "minSupportedVersion": "0.1.0",
+        "metadata": {}
+      }
+    ]
+  },
+  "security": {
+    "checksumRequired": true,
+    "signatureRequired": true,
+    "sbomRequired": true
+  },
+  "devApp": {
+    "build": {
+      "targets": []
+    },
+    "sourceRoot": "apps/sdkwork-birdcoder-pc"
+  },
+  "metadata": {
+    "standardOwner": "sdkwork-platform",
+    "initializedAt": "2026-05-07T00:00:00Z",
+    "preLaunch": true,
+    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-ci-governance-wired-prelaunch-artifacts-pending-manifest-honesty-corrected"
   }
 }

@@ -246,6 +246,9 @@ export function getOpenApiTagForOperationId(operationId: string): string {
   if (/^memberships\./u.test(normalizedOperationId)) {
     return 'commerce';
   }
+  if (/^commerce\./u.test(normalizedOperationId)) {
+    return 'commerce';
+  }
   if (
     /^(?:codingSessions)\b/u.test(
       normalizedOperationId,
@@ -571,6 +574,18 @@ export function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): stri
     ['POST /app/v3/api/skill_packages/:packageId/installations', 'skillPackages.installations.create'],
     ['GET /app/v3/api/app_templates', 'appTemplates.list'],
     ['GET /app/v3/api/documents', 'documents.list'],
+    ['GET /app/v3/api/chat/conversations', 'chat.conversations.list'],
+    ['POST /app/v3/api/chat/conversations', 'chat.conversations.create'],
+    ['GET /app/v3/api/chat/conversations/:conversationId', 'chat.conversations.retrieve'],
+    ['DELETE /app/v3/api/chat/conversations/:conversationId', 'chat.conversations.delete'],
+    [
+      'GET /app/v3/api/chat/conversations/:conversationId/messages',
+      'chat.conversations.messages.list',
+    ],
+    [
+      'POST /app/v3/api/chat/conversations/:conversationId/messages',
+      'chat.conversations.messages.create',
+    ],
     ['GET /app/v3/api/teams', 'workspaceTeams.list'],
     ['GET /app/v3/api/workspaces/:workspaceId/members', 'workspaces.members.list'],
     ['POST /app/v3/api/workspaces/:workspaceId/members', 'workspaces.members.upsert'],

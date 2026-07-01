@@ -31,8 +31,6 @@ const governedFiles = [
   'tsconfig.runtime.json',
   'apps/sdkwork-birdcoder-pc/tsconfig.json',
   'apps/sdkwork-birdcoder-pc/tsconfig.runtime.json',
-  'apps/sdkwork-birdcoder-pc/pnpm-workspace.yaml',
-  'apps/sdkwork-birdcoder-h5/pnpm-workspace.yaml',
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/styles/index.css',
   'apps/sdkwork-birdcoder-pc/src/index.css',
   'scripts/create-birdcoder-vite-plugins.mjs',

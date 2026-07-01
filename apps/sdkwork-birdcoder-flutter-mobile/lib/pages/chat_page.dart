@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:sdkwork_birdcoder_flutter_mobile_chat/sdkwork_birdcoder_flutter_mobile_chat.dart';
+import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_mobile_core.dart';
 
-/// Mobile chat surface wired through the canonical Flutter route catalog.
-///
-/// State is local until the backend chat API is wired through
-/// `@sdkwork/birdcoder-chat-shared`. Send/history calls are mocked today.
+import '../l10n/generated/app_localizations.dart';
+import '../providers/app_provider.dart';
+
+/// Mobile chat surface wired through the BirdCoder app SDK chat conversation API.
 class ChatPage extends StatefulWidget {
   const ChatPage({super.key});
 
@@ -17,14 +18,19 @@ class _ChatPageState extends State<ChatPage> {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _inputFocusNode = FocusNode();
   final List<ChatMessage> _messages = <ChatMessage>[];
+  String? _conversationId;
   bool _isLoadingHistory = false;
   bool _isSending = false;
   String? _lastError;
 
+  BirdCoderFlutterSdkClients get _sdkClients => AppProvider.of(context).sdkClients;
+
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadHistory();
+    });
   }
 
   @override
@@ -35,36 +41,42 @@ class _ChatPageState extends State<ChatPage> {
     super.dispose();
   }
 
-  // Mock history loader. Future integration target:
-  // `@sdkwork/birdcoder-chat-shared` backend chat API.
+  DateTime _parseTimestamp(String value) {
+    return DateTime.tryParse(value) ?? DateTime.now();
+  }
+
+  ChatMessage _toChatMessage(BirdCoderMobileChatMessageRecord record) {
+    return ChatMessage(
+      id: record.id,
+      role: record.role,
+      content: record.content,
+      timestamp: _parseTimestamp(record.createdAt),
+    );
+  }
+
   Future<void> _loadHistory() async {
     setState(() {
       _isLoadingHistory = true;
       _lastError = null;
     });
     try {
-      await Future<void>.delayed(const Duration(milliseconds: 600));
-      if (!mounted) return;
-      final now = DateTime.now();
+      final id = await ensureBirdCoderMobileChatConversation(_sdkClients);
+      final history = await listBirdCoderMobileChatMessages(_sdkClients, id);
+      if (!mounted) {
+        return;
+      }
       setState(() {
+        _conversationId = id;
         _messages
-          ..add(ChatMessage(
-            id: 'history-welcome',
-            role: 'assistant',
-            content: 'Hi! I am BirdCoder. How can I help you today?',
-            timestamp: now.subtract(const Duration(minutes: 5)),
-          ))
-          ..add(ChatMessage(
-            id: 'history-hint',
-            role: 'assistant',
-            content: 'Ask me about code, files, or SDK workflows.',
-            timestamp: now.subtract(const Duration(minutes: 4)),
-          ));
+          ..clear()
+          ..addAll(history.map(_toChatMessage));
         _isLoadingHistory = false;
       });
       _scrollToBottom();
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _lastError = 'Failed to load chat history.';
         _isLoadingHistory = false;
@@ -72,40 +84,41 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  // Mock send. Future integration target:
-  // `@sdkwork/birdcoder-chat-shared` backend chat API.
   Future<void> _sendMessage() async {
     final text = _inputController.text.trim();
-    if (text.isEmpty || _isSending) return;
+    final conversationId = _conversationId;
+    if (text.isEmpty || _isSending || conversationId == null) {
+      return;
+    }
 
     setState(() {
-      _messages.add(ChatMessage.create(role: 'user', content: text));
       _isSending = true;
       _lastError = null;
     });
     _inputController.clear();
     _inputFocusNode.requestFocus();
-    _scrollToBottom();
 
     try {
-      await Future<void>.delayed(const Duration(milliseconds: 800));
-      if (!mounted) return;
-      final now = DateTime.now();
+      final saved = await sendBirdCoderMobileChatMessage(
+        _sdkClients,
+        conversationId,
+        text,
+      );
+      if (!mounted) {
+        return;
+      }
       setState(() {
-        _messages.add(ChatMessage(
-          id: now.millisecondsSinceEpoch.toString(),
-          role: 'assistant',
-          content: 'Mock reply to "$text". '
-              'Backend chat API will be wired through @sdkwork/birdcoder-chat-shared.',
-          timestamp: now,
-        ));
+        _messages.add(_toChatMessage(saved));
         _isSending = false;
       });
       _scrollToBottom();
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
-        _lastError = 'Failed to send message.';
+        _lastError = l10n.chat_send_failed;
         _isSending = false;
       });
     }
@@ -113,7 +126,9 @@ class _ChatPageState extends State<ChatPage> {
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
+      if (!_scrollController.hasClients) {
+        return;
+      }
       _scrollController.animateTo(
         _scrollController.position.maxScrollExtent,
         duration: const Duration(milliseconds: 220),
@@ -128,17 +143,20 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: <Widget>[
         Expanded(
           child: _isLoadingHistory
-              ? _buildLoading(theme)
+              ? _buildLoading(theme, l10n)
               : _messages.isEmpty
-                  ? _buildEmpty(theme)
+                  ? _buildEmpty(theme, l10n)
                   : ListView.builder(
                       controller: _scrollController,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       itemCount: _messages.length,
                       itemBuilder: (BuildContext context, int index) =>
                           _ChatMessageBubble(
@@ -148,27 +166,27 @@ class _ChatPageState extends State<ChatPage> {
                     ),
         ),
         if (_lastError != null) _buildErrorBar(theme, _lastError!),
-        _buildComposer(theme),
+        _buildComposer(theme, l10n),
       ],
     );
   }
 
-  Widget _buildLoading(ThemeData theme) => Center(
+  Widget _buildLoading(ThemeData theme, AppLocalizations l10n) => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             const CircularProgressIndicator(),
             const SizedBox(height: 12),
-            Text('Loading chat history...', style: theme.textTheme.bodyMedium),
+            Text(l10n.chat_loading_history, style: theme.textTheme.bodyMedium),
           ],
         ),
       );
 
-  Widget _buildEmpty(ThemeData theme) => Center(
+  Widget _buildEmpty(ThemeData theme, AppLocalizations l10n) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'No messages yet. Start a conversation below.',
+            l10n.chat_empty,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -182,8 +200,11 @@ class _ChatPageState extends State<ChatPage> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: <Widget>[
-              Icon(Icons.error_outline,
-                  size: 18, color: theme.colorScheme.onErrorContainer),
+              Icon(
+                Icons.error_outline,
+                size: 18,
+                color: theme.colorScheme.onErrorContainer,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -194,8 +215,11 @@ class _ChatPageState extends State<ChatPage> {
               ),
               IconButton(
                 tooltip: 'Retry',
-                icon: Icon(Icons.refresh,
-                    size: 18, color: theme.colorScheme.onErrorContainer),
+                icon: Icon(
+                  Icons.refresh,
+                  size: 18,
+                  color: theme.colorScheme.onErrorContainer,
+                ),
                 onPressed: _isLoadingHistory ? null : _loadHistory,
               ),
             ],
@@ -203,8 +227,9 @@ class _ChatPageState extends State<ChatPage> {
         ),
       );
 
-  Widget _buildComposer(ThemeData theme) {
+  Widget _buildComposer(ThemeData theme, AppLocalizations l10n) {
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final canSend = _conversationId != null && !_isSending;
     return SafeArea(
       top: false,
       child: Padding(
@@ -219,9 +244,9 @@ class _ChatPageState extends State<ChatPage> {
                 textInputAction: TextInputAction.send,
                 minLines: 1,
                 maxLines: 5,
-                enabled: !_isSending,
+                enabled: canSend,
                 decoration: InputDecoration(
-                  hintText: 'Send a message...',
+                  hintText: l10n.chat_input_placeholder,
                   border: const OutlineInputBorder(),
                   filled: true,
                   fillColor: theme.colorScheme.surfaceContainerHighest,
@@ -231,8 +256,8 @@ class _ChatPageState extends State<ChatPage> {
             ),
             const SizedBox(width: 8),
             IconButton.filled(
-              tooltip: 'Send',
-              onPressed: _isSending ? null : _sendMessage,
+              tooltip: l10n.chat_send,
+              onPressed: canSend ? _sendMessage : null,
               icon: _isSending
                   ? SizedBox(
                       width: 18,
@@ -274,8 +299,7 @@ class _ChatMessageBubble extends StatelessWidget {
           constraints: BoxConstraints(
             maxWidth: MediaQuery.sizeOf(context).width * 0.78,
           ),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             color: bubbleColor,
             borderRadius: BorderRadius.only(

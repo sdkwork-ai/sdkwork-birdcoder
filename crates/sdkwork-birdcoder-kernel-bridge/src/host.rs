@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use sdkwork_agents_runtime_facade::{
     AgentsCodeEngineHost, ApprovalDecision, EngineLiveInteraction, LiveInteractionRegistry,
-    UserQuestionAnswer,
+    RuntimeFacadeError, UserQuestionAnswer,
 };
 use sdkwork_birdcoder_codeengine::{
     find_codeengine_descriptor, reject_opencode_question_request, reply_opencode_permission_request,
@@ -15,23 +15,26 @@ use crate::turn_executor::execute_kernel_turn;
 struct OpenCodeLiveInteraction;
 
 impl EngineLiveInteraction for OpenCodeLiveInteraction {
-    fn submit_approval(&self, decision: &ApprovalDecision) -> Result<(), String> {
+    fn submit_approval(&self, decision: &ApprovalDecision) -> Result<(), RuntimeFacadeError> {
         reply_opencode_permission_request(
             decision.approval_id.as_str(),
             decision.decision.as_str(),
             decision.reason.as_deref(),
         )
+        .map_err(RuntimeFacadeError::Handler)
     }
 
-    fn submit_user_question(&self, answer: &UserQuestionAnswer) -> Result<(), String> {
+    fn submit_user_question(&self, answer: &UserQuestionAnswer) -> Result<(), RuntimeFacadeError> {
         if answer.rejected {
-            return reject_opencode_question_request(answer.question_id.as_str());
+            return reject_opencode_question_request(answer.question_id.as_str())
+                .map_err(RuntimeFacadeError::Handler);
         }
         reply_opencode_question_request(
             answer.question_id.as_str(),
             answer.answer.as_str(),
             answer.option_label.as_deref(),
         )
+        .map_err(RuntimeFacadeError::Handler)
     }
 }
 
@@ -92,6 +95,7 @@ impl BirdcoderKernelHost {
                 reason: decision.reason.clone(),
             },
         )
+        .map_err(|error| error.to_string())
     }
 
     pub fn submit_user_question_answer(
@@ -110,6 +114,7 @@ impl BirdcoderKernelHost {
                 option_label: answer.option_label.clone(),
             },
         )
+        .map_err(|error| error.to_string())
     }
 
     pub fn validate_engine_id(&self, engine_id: &str) -> Result<(), String> {

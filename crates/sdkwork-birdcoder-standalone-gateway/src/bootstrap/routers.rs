@@ -3,6 +3,7 @@ use axum::Router;
 use sdkwork_web_core::{HttpMetricsDimensions, HttpMetricsRegistry};
 
 use sdkwork_routes_coding_sessions_app_api::handlers::CodingSessionsAppState;
+use sdkwork_routes_chat_app_api::handlers::ChatAppState;
 use sdkwork_routes_deployment_backend_api::DeploymentBackendAppState;
 use sdkwork_routes_document_app_api::DocumentAppState;
 use sdkwork_routes_engine_catalog_app_api::EngineCatalogAppState;
@@ -113,6 +114,9 @@ pub async fn build_router(
     let document_router = sdkwork_routes_document_app_api::build_document_app_router()
         .with_state(DocumentAppState::new(state.repositories.any_pool.clone()));
 
+    let chat_router = sdkwork_routes_chat_app_api::build_chat_app_router()
+        .with_state(ChatAppState::new(state.repositories.any_pool.clone()));
+
     let skill_packages_router = sdkwork_routes_skill_packages_app_api::build_skill_packages_app_router()
         .with_state(SkillPackagesAppState::new(
             state.repositories.any_pool.clone(),
@@ -141,6 +145,7 @@ pub async fn build_router(
         .merge(intelligence_router)
         .merge(workspace_router)
         .merge(document_router)
+        .merge(chat_router)
         .merge(skill_packages_router)
         .merge(membership_router)
         .merge(deployment_backend_router)

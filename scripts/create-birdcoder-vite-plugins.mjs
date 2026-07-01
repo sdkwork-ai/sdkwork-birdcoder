@@ -347,19 +347,19 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: /^@sdkwork\/search-pc-react\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-search', 'packages/pc-react/foundation/sdkwork-search-pc-react/src/$1'),
+      replacement: resolveDependencyPath('sdkwork-search', 'apps/sdkwork-search-pc/packages/sdkwork-search-pc-react/src/$1'),
     },
     {
       find: '@sdkwork/search-pc-react',
-      replacement: resolveDependencyPath('sdkwork-search', 'packages/pc-react/foundation/sdkwork-search-pc-react/src/index.ts'),
+      replacement: resolveDependencyPath('sdkwork-search', 'apps/sdkwork-search-pc/packages/sdkwork-search-pc-react/src/index.ts'),
     },
     {
       find: /^@sdkwork\/search-contracts\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-search', 'packages/common/search/sdkwork-search-contracts/src/$1'),
+      replacement: resolveDependencyPath('sdkwork-search', 'apps/sdkwork-search-common/packages/sdkwork-search-contracts/src/$1'),
     },
     {
       find: '@sdkwork/search-contracts',
-      replacement: resolveDependencyPath('sdkwork-search', 'packages/common/search/sdkwork-search-contracts/src/index.ts'),
+      replacement: resolveDependencyPath('sdkwork-search', 'apps/sdkwork-search-common/packages/sdkwork-search-contracts/src/index.ts'),
     },
     {
       find: /^@sdkwork\/ui-pc-react\/(.+)$/u,
@@ -385,11 +385,17 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: /^@sdkwork\/birdcoder-chat-contracts\/(.+)$/u,
-      replacement: path.resolve(workspaceRootDir, 'packages/sdkwork-birdcoder-chat-contracts/src/$1'),
+      replacement: path.resolve(
+        workspaceRootDir,
+        'apps/sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/$1',
+      ),
     },
     {
       find: '@sdkwork/birdcoder-chat-contracts',
-      replacement: path.resolve(workspaceRootDir, 'packages/sdkwork-birdcoder-chat-contracts/src/index.ts'),
+      replacement: path.resolve(
+        workspaceRootDir,
+        'apps/sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/index.ts',
+      ),
     },
     {
       find: '@sdkwork/drive-app-sdk',

@@ -1,10 +1,10 @@
 # First Governed Release (Pre-Launch → Publish)
 
-Updated: 2026-06-24  
+Updated: 2026-06-30  
 Status: active operator checklist  
 Specs: `RELEASE_SPEC.md`, `TECH-09-installation-deployment-releasestandard.md`
 
-BirdCoder remains **pre-launch** (`publish.status: DRAFT`, `metadata.preLaunch: true`). Install packages in `sdkwork.app.config.json` stay **disabled** until this checklist completes with **real** build artifacts — not synthetic rehearsal fixtures.
+BirdCoder remains **pre-launch** (`publish.status: DRAFT`, `metadata.preLaunch: true`) across **four governed manifests**: root `sdkwork.app.config.json` plus surface manifests under `apps/sdkwork-birdcoder-{pc,h5,flutter-mobile}/`. Install packages stay **disabled** until this checklist completes with **real** build artifacts — not synthetic rehearsal fixtures.
 
 ## 1. Rehearsal gates (must be green before real packaging)
 
@@ -14,6 +14,7 @@ These prove the release pipeline shape without claiming production artifacts:
 pnpm lint
 pnpm check:arch
 pnpm check:server
+pnpm release:plan
 pnpm release:fixture:ready
 pnpm release:candidate:dry-run
 pnpm release:rehearsal:verify   # expect status "blocked" until artifacts/release/ is populated
@@ -52,10 +53,10 @@ Outputs land under `artifacts/release/` with `release-manifest.json`, `SHA256SUM
 
 Only after `pnpm release:assert-ready` passes against **real** `artifacts/release/`:
 
-1. Copy checksums from `SHA256SUMS.txt` into each enabled install package entry (no placeholders).
+1. Copy checksums from `SHA256SUMS.txt` into each enabled install package entry across root and surface manifests (no placeholders).
 2. Set `enabled: true` per package that has a verified artifact URL.
-3. Set `publish.status` to the governed publish state approved by release owners.
-4. Set `metadata.preLaunch` and `publish.preLaunch` to `false`.
+3. Set `publish.status` to the governed publish state approved by release owners on **all four manifests** (root + PC + H5 + Flutter).
+4. Set `metadata.preLaunch` and `publish.preLaunch` to `false` on all four manifests.
 5. Update `metadata.releaseEvidenceStatus` to reference the release tag and attestation paths.
 6. Run `node scripts/app-manifest-pre-launch-contract.test.mjs` — it must be updated or replaced with a post-launch contract before packages can stay enabled.
 

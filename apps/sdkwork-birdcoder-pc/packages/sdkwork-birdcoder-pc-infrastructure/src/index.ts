@@ -20,6 +20,7 @@ export * from './services/lazyDefaultIdeServices.ts';
 export * from './services/appSessionToken.ts';
 export * from './services/iamRuntime.ts';
 export * from './services/birdcoderDriveUpload.ts';
+export * from './services/birdcoderMobileChatApi.ts';
 export * from './services/sessionService.ts';
 export * from './services/sdkClients.ts';
 export * from './services/sdkTransportShared.ts';

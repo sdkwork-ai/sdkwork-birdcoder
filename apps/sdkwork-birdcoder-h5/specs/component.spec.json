@@ -90,13 +90,31 @@
       "package.json#scripts.dev"
     ],
     "sdkClients": [],
-    "sdkDependencies": [],
+    "sdkDependencies": [
+      {
+        "workspace": "sdkwork-birdcoder-app-sdk-typescript",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-iam-app-sdk-typescript",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      },
+      {
+        "workspace": "sdkwork-drive-app-sdk-typescript",
+        "surface": "app-api",
+        "credentialMode": "authenticated-app-api",
+        "required": true
+      }
+    ],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
     "events": [],
     "configKeys": [],
-    "routeManifest": null,
-    "dependencyComposition": "specs/dependency.composition.json"
+    "routeManifest": null
   },
   "integration": {
     "authority": "Root SDKWork specs remain authoritative.",

@@ -222,8 +222,19 @@ assertNoMatch(
 );
 assertMatch(
   iamRuntimeSource,
+  /from ['"]@sdkwork\/birdcoder-pc-core\/sdk['"]/u,
+  'BirdCoder IAM runtime must construct the appbase app SDK client through pc-core sdk composition, not the product app SDK as the login authority.',
+);
+const pcCoreIamSdk = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/sdk/iam-app-sdk.ts');
+assertMatch(
+  pcCoreIamSdk,
   /from ['"]@sdkwork\/iam-app-sdk['"]/u,
-  'BirdCoder IAM runtime must construct the appbase app SDK client, not use the product app SDK as the login authority.',
+  'pc-core sdk iam-app-sdk module must re-export the canonical @sdkwork/iam-app-sdk client factory.',
+);
+assertMatch(
+  iamRuntimeSource,
+  /createAppbaseAppSdkClient/u,
+  'BirdCoder IAM runtime must call createAppbaseAppSdkClient for appbase login authority.',
 );
 assertNoMatch(
   iamRuntimeSource,
@@ -232,8 +243,8 @@ assertNoMatch(
 );
 assertMatch(
   iamRuntimeSource,
-  /from ['"]@sdkwork\/auth-runtime-pc-react['"]/u,
-  'BirdCoder IAM runtime must consume the high-level appbase PC auth runtime factory.',
+  /from ['"]@sdkwork\/auth-runtime-pc-react(?:\/appbasePcAuthRuntime)?['"]/u,
+  'BirdCoder IAM runtime must consume the high-level appbase PC auth runtime factory via the canonical auth-runtime package entry or its appbasePcAuthRuntime subpath.',
 );
 assertMatch(
   iamRuntimeSource,

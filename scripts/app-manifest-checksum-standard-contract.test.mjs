@@ -46,6 +46,7 @@ function assertManifestChecksumPolicy(manifestPath) {
 assertManifestChecksumPolicy('sdkwork.app.config.json');
 
 for (const scaffoldManifestPath of [
+  'apps/sdkwork-birdcoder-pc/sdkwork.app.config.json',
   'apps/sdkwork-birdcoder-h5/sdkwork.app.config.json',
   'apps/sdkwork-birdcoder-flutter-mobile/sdkwork.app.config.json',
 ]) {

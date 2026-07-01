@@ -72,7 +72,7 @@
     },
     {
       "path": "lib/src/api/platform.dart",
-      "sha256": "e5ef12e1b28f37fffa206aa6218cd401964ede14dccde236f789a5851889e1eb"
+      "sha256": "7fc1e5f254fd9f1cb0d4b8e39e1c697e690e55001bd86f9aac00f9624ac44a83"
     },
     {
       "path": "lib/src/api/response_helpers.dart",
@@ -88,7 +88,7 @@
     },
     {
       "path": "lib/src/api/system.dart",
-      "sha256": "eb5e611beb51aaea90c2bfde1793b393757c90e56d9a5f50256159c269f634e6"
+      "sha256": "4f0606c03d7ea6e5186c1786c919ed2b983a845dc4fa34fc036a647f53cde32e"
     },
     {
       "path": "lib/src/api/templates.dart",
@@ -100,7 +100,7 @@
     },
     {
       "path": "lib/src/models.dart",
-      "sha256": "3de1c1008f804f6304ae085f2f2db0892ed540a8b916e4887220dbb907d4719d"
+      "sha256": "3eb6483abf17710c432741cc2f3747b2e17edc9dfb532c004f503361461eecca"
     },
     {
       "path": "LICENSE",

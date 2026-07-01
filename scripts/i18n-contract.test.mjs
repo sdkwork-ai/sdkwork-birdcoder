@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
+import { resolveBirdcoderApplicationPackageRoots } from './lib/birdcoder-package-scan-roots.mjs';
 
 const rootDir = process.cwd();
 
@@ -88,9 +89,11 @@ const translationKeys = Object.fromEntries(
 
 const sourceFiles = [];
 collectSourceFiles(path.join(rootDir, 'src'), sourceFiles);
-collectSourceFiles(path.join(rootDir, 'packages'), sourceFiles);
+for (const packageRoot of resolveBirdcoderApplicationPackageRoots(rootDir)) {
+  collectSourceFiles(packageRoot, sourceFiles);
+}
 collectSourceFiles(path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'src'), sourceFiles);
-collectSourceFiles(path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages'), sourceFiles);
+collectSourceFiles(path.join(rootDir, 'apps', 'sdkwork-birdcoder-h5', 'src'), sourceFiles);
 
 const forbiddenProductUiLiterals = [
   'Validating SDKWork session',

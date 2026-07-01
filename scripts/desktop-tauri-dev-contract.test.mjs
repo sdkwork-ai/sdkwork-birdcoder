@@ -64,13 +64,12 @@ const desktopLibRsPath = path.join(
 const desktopCapabilityPath = path.join(
   rootDir,
   'apps',
-    'sdkwork-birdcoder-pc',
-    'packages',
-  
+  'sdkwork-birdcoder-pc',
+  'packages',
   'sdkwork-birdcoder-pc-desktop',
   'src-tauri',
   'capabilities',
-  'default.json',
+  'default.toml',
 );
 const desktopAppPermissionsPath = path.join(
   rootDir,
@@ -672,15 +671,15 @@ assert.ok(
   fs.existsSync(desktopCapabilityPath),
   'Desktop Tauri app must declare a capability file for the main BirdCoder window so non-default commands do not fail with runtime "not allowed" errors.',
 );
-const desktopCapability = JSON.parse(fs.readFileSync(desktopCapabilityPath, 'utf8'));
-assert.equal(
-  desktopCapability.identifier,
-  'default',
+const desktopCapabilitySource = fs.readFileSync(desktopCapabilityPath, 'utf8');
+assert.match(
+  desktopCapabilitySource,
+  /identifier\s*=\s*"default"/,
   'Desktop main-window capability must expose a stable default identifier.',
 );
-assert.deepEqual(
-  desktopCapability.windows,
-  ['main'],
+assert.match(
+  desktopCapabilitySource,
+  /windows\s*=\s*\["main"\]/,
   'Desktop main-window capability must target the explicit "main" Tauri window label.',
 );
 for (const permission of [
@@ -693,23 +692,17 @@ for (const permission of [
   'core:window:allow-close',
 ]) {
   assert.ok(
-    desktopCapability.permissions.includes(permission),
+    desktopCapabilitySource.includes(`"${permission}"`),
     `Desktop main-window capability must include ${permission}.`,
   );
 }
 assert.ok(
-  !desktopCapability.permissions.includes('dialog:allow-open'),
+  !desktopCapabilitySource.includes('"dialog:allow-open"'),
   'Desktop main-window capability must not include dialog:allow-open after folder-open moves behind the BirdCoder desktop picker command.',
 );
-const shellExecutePermissionEntry = desktopCapability.permissions.find(
-  (permissionEntry) =>
-    typeof permissionEntry === 'object' &&
-    permissionEntry !== null &&
-    permissionEntry.identifier === 'shell:allow-execute',
-);
-assert.equal(
-  shellExecutePermissionEntry,
-  undefined,
+assert.doesNotMatch(
+  desktopCapabilitySource,
+  /identifier\s*=\s*"shell:allow-execute"/,
   'Desktop main-window capability must not expose Tauri shell execution because workbench Git and terminal actions use typed application bridges instead of plugin-shell Command.create.',
 );
 assert.doesNotMatch(

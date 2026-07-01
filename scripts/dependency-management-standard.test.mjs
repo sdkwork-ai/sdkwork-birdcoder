@@ -7,6 +7,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const expectedDependencyIds = [
   'sdkwork-appbase',
   'sdkwork-iam',
+  'sdkwork-agents',
   'sdkwork-core',
   'sdkwork-ui',
   'sdkwork-drive',
@@ -21,6 +22,7 @@ const expectedDependencyIds = [
   'sdkwork-app-topology',
   'sdkwork-models',
   'sdkwork-kernel',
+  'sdkwork-agents',
 ];
 const sourceDependencyFiles = [
   'package.json',

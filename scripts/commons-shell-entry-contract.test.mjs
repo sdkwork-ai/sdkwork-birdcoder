@@ -48,8 +48,8 @@ assert.match(
 );
 assert.match(
   defaultIdeServicesLoaderSource,
-  /from ['"]@sdkwork\/birdcoder-pc-infrastructure['"]/u,
-  '@sdkwork/birdcoder-pc-commons defaultIdeServicesLoader must resolve BirdCoder IDE services from the infrastructure root entry.',
+  /from ['"]@sdkwork\/birdcoder-pc-infrastructure\/services\/lazyDefaultIdeServices['"]/u,
+  '@sdkwork/birdcoder-pc-commons defaultIdeServicesLoader must resolve BirdCoder IDE services from the lazyDefaultIdeServices subpath to avoid barrel-induced chunk cycles.',
 );
 
 for (const relativePath of [

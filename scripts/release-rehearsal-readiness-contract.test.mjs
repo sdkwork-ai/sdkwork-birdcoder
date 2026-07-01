@@ -26,6 +26,11 @@ assert.equal(
   'node scripts/release/candidate-dry-run.mjs',
   'Root package.json must expose release:candidate:dry-run for commercial rehearsal.',
 );
+assert.equal(
+  packageJson.scripts['release:plan'],
+  'node scripts/release/local-release-command.mjs plan',
+  'Root package.json must expose release:plan for governed release planning.',
+);
 
 assert.match(
   ciWorkflow,
@@ -36,6 +41,25 @@ assert.match(
   ciWorkflow,
   /release-candidate-dry-run-evidence/u,
   'CI must upload release candidate dry-run evidence artifact.',
+);
+
+const operatorReadme = read('docs/guides/operator/README.md');
+const governedReleaseRunbook = read('docs/guides/operator/first-governed-release.md');
+
+assert.match(
+  operatorReadme,
+  /153 operations|153 of 153/u,
+  'Operator README must record OpenAPI 153-operation completeness.',
+);
+assert.match(
+  operatorReadme,
+  /surface-manifest-parity|Four surfaces gated/u,
+  'Operator README must reference four-surface manifest parity.',
+);
+assert.match(
+  governedReleaseRunbook,
+  /apps\/sdkwork-birdcoder-\{pc,h5,flutter-mobile\}/u,
+  'Governed release runbook must reference all surface manifests.',
 );
 
 assert.match(
@@ -57,8 +81,13 @@ assert.match(
 
 assert.match(
   commercialTruthDoc,
-  /release:fixture:ready|release:candidate:dry-run|release rehearsal/u,
+  /release:fixture:ready|release:candidate:dry-run|release:plan|release rehearsal/u,
   'Commercial truth doc must document governed release rehearsal entrypoints.',
+);
+assert.match(
+  commercialTruthDoc,
+  /surface-manifest-parity/u,
+  'Commercial truth doc must reference surface manifest parity contract.',
 );
 
 console.log('release rehearsal readiness contract passed.');

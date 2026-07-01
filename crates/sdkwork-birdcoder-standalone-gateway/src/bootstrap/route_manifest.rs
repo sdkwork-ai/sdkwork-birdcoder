@@ -12,6 +12,7 @@ fn birdcoder_product_app_api_routes_slice() -> &'static [HttpRoute] {
             sdkwork_routes_coding_sessions_app_api::manifest::CODING_SESSIONS_APP_API_ROUTES,
             sdkwork_routes_workspace_app_api::manifest::WORKSPACE_APP_API_ROUTES,
             sdkwork_routes_document_app_api::manifest::DOCUMENT_APP_API_ROUTES,
+            sdkwork_routes_chat_app_api::manifest::CHAT_APP_API_ROUTES,
             sdkwork_routes_skill_packages_app_api::manifest::SKILL_PACKAGES_APP_API_ROUTES,
             sdkwork_routes_membership_app_api::manifest::MEMBERSHIP_APP_API_ROUTES,
             sdkwork_routes_deployment_backend_api::manifest::DEPLOYMENT_BACKEND_API_ROUTES,

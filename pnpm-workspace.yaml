@@ -1,13 +1,19 @@
 packages:
+  - "apps/sdkwork-birdcoder-common"
+  - "apps/sdkwork-birdcoder-common/packages/*"
+  - "apps/sdkwork-birdcoder-flutter-mobile"
+  - "apps/sdkwork-birdcoder-flutter-mobile/packages/*"
+  - "apps/sdkwork-birdcoder-h5"
+  - "apps/sdkwork-birdcoder-h5/packages/*"
+  - "apps/sdkwork-birdcoder-pc"
+  - "apps/sdkwork-birdcoder-pc/packages/*"
   # ===========================================================================
   # BirdCoder-owned workspace packages (this repository)
   # ===========================================================================
   # Shared cross-surface packages at repository root
-  - 'packages/sdkwork-birdcoder-*'
   # PC app root packages
   - 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*'
   # H5 app root packages
-  - 'apps/sdkwork-birdcoder-h5'
   - 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*'
   # PC app root SDKs
   - 'apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript'
@@ -17,7 +23,7 @@ packages:
   # SDKWork platform workspace federation (external sibling monorepos)
   # ===========================================================================
   # The following entries are EXTERNAL workspace dependencies from sibling
-  # SDKWork platform repositories. They use the `../sdkwork-*` relative path
+  # SDKWork platform repositories use a sibling relative-path workspace federation model.
   # convention because SDKWork follows a workspace-federation model: each
   # platform capability (IAM, appbase, UI, terminal, drive, messaging, models,
   # utils, search, core) lives in its own governed monorepo, and application
@@ -75,8 +81,8 @@ packages:
   - '../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react'
 
   # --- sdkwork-search (search contracts + PC React foundation) ---
-  - '../sdkwork-search/packages/common/search/sdkwork-search-contracts'
-  - '../sdkwork-search/packages/pc-react/foundation/sdkwork-search-pc-react'
+  - '../sdkwork-search/apps/sdkwork-search-common/packages/sdkwork-search-contracts'
+  - '../sdkwork-search/apps/sdkwork-search-pc/packages/sdkwork-search-pc-react'
 
   # --- sdkwork-core, sdkwork-ui (PC React runtime + UI library) ---
   - '../sdkwork-core/sdkwork-core-pc-react'
@@ -95,6 +101,9 @@ packages:
   # --- sdkwork-sdk-commons, sdkwork-utils (shared utilities) ---
   - '../sdkwork-sdk-commons/sdkwork-sdk-common-typescript'
   - '../sdkwork-utils/packages/sdkwork-utils-typescript'
+
+  # --- sdkwork-app-topology (runtime topology profiles and gateway bundles) ---
+  - '../sdkwork-app-topology'
 
 catalog:
   '@anthropic-ai/claude-agent-sdk': ^0.2.87
@@ -201,4 +210,3 @@ catalog:
   vite: ^6.2.0
   vite-plugin-dts: ^4.5.4
   yaml: ^2.4.2
-

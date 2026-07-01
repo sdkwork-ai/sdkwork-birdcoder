@@ -8,7 +8,10 @@ import {
 
 const workspaceRustSource = readCanonicalServerRustSource(CANONICAL_DOMAIN_RUST_PATHS.workspaceDomainResults);
 const projectRustSource = readCanonicalServerRustSource(CANONICAL_DOMAIN_RUST_PATHS.projectDomainResults);
-const openApiPath = new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url);
+const openApiPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/openApiSchemas.ts',
+  import.meta.url,
+);
 
 const openApiSource = await readFile(openApiPath, 'utf8');
 

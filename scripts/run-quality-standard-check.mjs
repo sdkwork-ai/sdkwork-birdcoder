@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { runCommandSequence } from './run-command-sequence.mjs';
 
 export const QUALITY_STANDARD_CHECK_COMMANDS = [
+  'node scripts/run-workspace-package-script.mjs . check:quality:mobile',
   'node scripts/run-workspace-package-script.mjs . check:desktop',
   'node scripts/run-workspace-package-script.mjs . check:server',
   'node scripts/run-workspace-package-script.mjs . check:web-vite-build',

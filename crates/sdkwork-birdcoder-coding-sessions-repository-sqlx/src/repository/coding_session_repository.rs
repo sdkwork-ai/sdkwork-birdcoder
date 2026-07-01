@@ -610,8 +610,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
             map_sqlx_error(
                 sqlx::query(&format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                     VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+                     VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     columns::message::TABLE,
                     columns::message::ID,
                     columns::message::UUID,
@@ -684,8 +684,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
             map_sqlx_error(
                 sqlx::query(&format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                     VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+                     VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?)",
                     columns::turn::TABLE,
                     columns::turn::ID,
                     columns::turn::UUID,
@@ -743,7 +743,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
             map_sqlx_error(
                 sqlx::query(&format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
                      VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)",
                     columns::event::TABLE,
                     columns::event::ID,
@@ -802,7 +802,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
             map_sqlx_error(
                 sqlx::query(&format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
                      VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)",
                     columns::artifact::TABLE,
                     columns::artifact::ID,

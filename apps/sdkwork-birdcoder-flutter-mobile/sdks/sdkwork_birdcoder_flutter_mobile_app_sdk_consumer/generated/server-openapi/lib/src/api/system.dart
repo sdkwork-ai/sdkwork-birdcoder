@@ -72,6 +72,62 @@ class SystemApi {
       return map == null ? null : BirdCoderIamVerificationPolicyEnvelope.fromJson(map);
     })();
   }
+
+  /// List chat conversations
+  Future<BirdCoderChatConversationSummaryListEnvelope?> chatConversationsList() async {
+    final response = await _client.get(ApiPaths.appPath('/chat/conversations'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderChatConversationSummaryListEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Create chat conversation
+  Future<BirdCoderChatConversationSummaryEnvelope?> chatConversationsCreate(BirdCoderCreateChatConversationRequest body) async {
+    final payload = body.toJson();
+    final response = await _client.post(ApiPaths.appPath('/chat/conversations'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderChatConversationSummaryEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Get chat conversation
+  Future<BirdCoderChatConversationSummaryEnvelope?> chatConversationsRetrieve(String conversationId) async {
+    final response = await _client.get(ApiPaths.appPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderChatConversationSummaryEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Delete chat conversation
+  Future<BirdCoderDeleteChatConversationEnvelope?> chatConversationsDelete(String conversationId) async {
+    final response = await _client.delete(ApiPaths.appPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderDeleteChatConversationEnvelope.fromJson(map);
+    })();
+  }
+
+  /// List chat messages
+  Future<BirdCoderChatMessageSummaryListEnvelope?> chatConversationsMessagesList(String conversationId) async {
+    final response = await _client.get(ApiPaths.appPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/messages'));
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderChatMessageSummaryListEnvelope.fromJson(map);
+    })();
+  }
+
+  /// Create chat message
+  Future<BirdCoderChatMessageSummaryEnvelope?> chatConversationsMessagesCreate(String conversationId, BirdCoderCreateChatMessageRequest body) async {
+    final payload = body.toJson();
+    final response = await _client.post(ApiPaths.appPath('/chat/conversations/${serializePathParameter(conversationId, const PathParameterSpec('conversationId', 'simple', false))}/messages'), body: payload, contentType: 'application/json');
+    return (() {
+      final map = sdkworkResponseAsMap(response);
+      return map == null ? null : BirdCoderChatMessageSummaryEnvelope.fromJson(map);
+    })();
+  }
 }
 
 class PathParameterSpec {

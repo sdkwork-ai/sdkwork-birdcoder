@@ -2,71 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import zlib from 'node:zlib';
 
 import { smokeDeploymentReleaseAssets } from './smoke-deployment-release-assets.mjs';
 import { SERVER_CRATE_BINARY_NAME } from './release-build-paths.mjs';
-
-function formatTarOctal(value, width) {
-  return `${value.toString(8).padStart(width - 2, '0')}\0 `;
-}
-
-function createTarHeader({
-  name,
-  size,
-  type = '0',
-} = {}) {
-  const header = Buffer.alloc(512, 0);
-  Buffer.from(String(name ?? '').slice(0, 100), 'utf8').copy(header, 0);
-  Buffer.from(formatTarOctal(0o755, 8), 'utf8').copy(header, 100);
-  Buffer.from(formatTarOctal(0, 8), 'utf8').copy(header, 108);
-  Buffer.from(formatTarOctal(0, 8), 'utf8').copy(header, 116);
-  Buffer.from(formatTarOctal(size, 12), 'utf8').copy(header, 124);
-  Buffer.from(formatTarOctal(0, 12), 'utf8').copy(header, 136);
-  header.fill(0x20, 148, 156);
-  header.write(String(type ?? '0').slice(0, 1), 156, 1, 'utf8');
-  Buffer.from('ustar\0', 'utf8').copy(header, 257);
-  Buffer.from('00', 'utf8').copy(header, 263);
-
-  let checksum = 0;
-  for (const value of header.values()) {
-    checksum += value;
-  }
-  Buffer.from(formatTarOctal(checksum, 8), 'utf8').copy(header, 148);
-
-  return header;
-}
-
-function createTarRecord({
-  name,
-  content = '',
-  type = '0',
-} = {}) {
-  const contentBuffer = Buffer.isBuffer(content)
-    ? content
-    : Buffer.from(String(content ?? ''), 'utf8');
-  const paddingSize = (512 - (contentBuffer.length % 512)) % 512;
-
-  return Buffer.concat([
-    createTarHeader({
-      name,
-      size: contentBuffer.length,
-      type,
-    }),
-    contentBuffer,
-    Buffer.alloc(paddingSize, 0),
-  ]);
-}
-
-function writeTarGzArchive(archivePath, records) {
-  fs.writeFileSync(
-    archivePath,
-    zlib.gzipSync(Buffer.concat([
-      ...records,
-      Buffer.alloc(1024, 0),
-    ])),
-  );
-}
+import { createTarRecord, writeTarGzArchive } from './release-tar-test-fixtures.mjs';
 
 const releaseAssetsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-deployment-smoke-'));
 

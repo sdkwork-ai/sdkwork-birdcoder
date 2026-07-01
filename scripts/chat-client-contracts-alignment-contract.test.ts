@@ -5,7 +5,7 @@ import {
   BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES,
   BIRDCODER_CHAT_MESSAGE_ROLES,
   BIRDCODER_CHAT_MESSAGE_VIEW_KINDS,
-} from '../packages/sdkwork-birdcoder-chat-contracts/src/index.ts';
+} from '../apps/sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/index.ts';
 
 import {
   BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES as PC_CONTENT_BLOCK_TYPES,
