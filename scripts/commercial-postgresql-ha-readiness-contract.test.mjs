@@ -65,6 +65,16 @@ assert.doesNotMatch(
   'App runtime transport must not depend on backend SDK operation catalogs.',
 );
 assert.match(
+  readText('crates/sdkwork-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
+  /pub struct RedisRateLimitStore/u,
+  'HA commerce rate limiting must ship a Redis-backed RateLimitStore.',
+);
+assert.match(
+  readText('crates/sdkwork-birdcoder-standalone-gateway/src/health.rs'),
+  /redis::cmd\("PING"\)/u,
+  'Readiness checks must PING Redis when realtime backend is redis.',
+);
+assert.match(
   appRuntimeTransportSource,
   /BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_OPERATIONS/u,
   'App runtime transport must derive route catalogs from canonical OpenAPI operations in pc-types.',

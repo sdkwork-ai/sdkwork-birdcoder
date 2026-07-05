@@ -1,15 +1,12 @@
-use std::collections::BTreeMap;
-
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
-use sqlx::{Executor, Row};
+use sqlx::{Row, Transaction};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::db::columns;
-use crate::db::rows::*;
-use crate::error::{map_sqlx_error, RepositoryError};
+use crate::error::map_sqlx_error;
 use crate::repository::sqlx_helpers::ensure_session_in_tenant_scope;
 
 fn now_iso() -> String {
@@ -18,16 +15,32 @@ fn now_iso() -> String {
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
 }
 
-pub async fn copy_session_history_on<'c, E>(
+pub async fn copy_session_history_on_pool(
     pool: &sqlx::AnyPool,
-    executor: E,
     ctx: &CodingSessionContext,
     source_session_id: &str,
     target_session_id: &str,
-) -> Result<usize, CodingSessionError>
-where
-    E: Executor<'c, Database = sqlx::Any>,
-{
+) -> Result<usize, CodingSessionError> {
+    let mut tx = map_sqlx_error(pool.begin().await)?;
+    let copied = copy_session_history_in_transaction(
+        pool,
+        &mut tx,
+        ctx,
+        source_session_id,
+        target_session_id,
+    )
+    .await?;
+    map_sqlx_error(tx.commit().await)?;
+    Ok(copied)
+}
+
+pub async fn copy_session_history_in_transaction(
+    pool: &sqlx::AnyPool,
+    tx: &mut Transaction<'_, sqlx::Any>,
+    ctx: &CodingSessionContext,
+    source_session_id: &str,
+    target_session_id: &str,
+) -> Result<usize, CodingSessionError> {
     ensure_session_in_tenant_scope(pool, ctx, source_session_id).await?;
     ensure_session_in_tenant_scope(pool, ctx, target_session_id).await?;
 
@@ -42,7 +55,7 @@ where
             columns::message::CREATED_AT,
         ))
         .bind(source_session_id)
-        .fetch_all(&executor)
+        .fetch_all(pool)
         .await,
     )?;
 
@@ -104,7 +117,7 @@ where
             .bind(&file_changes_json)
             .bind(&commands_json)
             .bind(&task_progress_json)
-            .execute(&executor)
+            .execute(&mut **tx)
             .await,
         )?;
         total_copied += 1;
@@ -118,7 +131,7 @@ where
             columns::turn::CREATED_AT,
         ))
         .bind(source_session_id)
-        .fetch_all(&executor)
+        .fetch_all(pool)
         .await,
     )?;
 
@@ -160,7 +173,7 @@ where
             .bind(&input_summary)
             .bind(&started_at)
             .bind(&completed_at)
-            .execute(&executor)
+            .execute(&mut **tx)
             .await,
         )?;
         total_copied += 1;
@@ -174,7 +187,7 @@ where
             columns::event::SEQUENCE_NO,
         ))
         .bind(source_session_id)
-        .fetch_all(&executor)
+        .fetch_all(pool)
         .await,
     )?;
 
@@ -213,7 +226,7 @@ where
             .bind(&event_kind)
             .bind(sequence_no)
             .bind(&payload_json)
-            .execute(&executor)
+            .execute(&mut **tx)
             .await,
         )?;
         total_copied += 1;
@@ -227,7 +240,7 @@ where
             columns::artifact::CREATED_AT,
         ))
         .bind(source_session_id)
-        .fetch_all(&executor)
+        .fetch_all(pool)
         .await,
     )?;
 
@@ -268,7 +281,7 @@ where
             .bind(&title)
             .bind(&blob_ref)
             .bind(&metadata_json)
-            .execute(&executor)
+            .execute(&mut **tx)
             .await,
         )?;
         total_copied += 1;

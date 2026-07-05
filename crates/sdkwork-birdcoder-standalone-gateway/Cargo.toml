@@ -56,6 +56,7 @@ sdkwork-birdcoder-errors = { workspace = true }
 sdkwork-birdcoder-commerce-quota = { workspace = true }
 sdkwork-utils-rust.workspace = true
 sdkwork-birdcoder-router-context = { workspace = true }
+redis = { workspace = true }
 
 # Service crates
 sdkwork-birdcoder-coding-sessions-service = { workspace = true }
@@ -80,7 +81,6 @@ sdkwork-birdcoder-model-config-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-membership-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-commerce-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
-redis = { workspace = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

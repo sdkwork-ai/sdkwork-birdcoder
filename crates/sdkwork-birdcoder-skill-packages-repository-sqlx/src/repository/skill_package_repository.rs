@@ -1,12 +1,17 @@
 use sqlx::{AnyPool, Row};
 
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{IS_NOT_DELETED, qualified_is_not_deleted};
+
 use crate::db::columns;
 use crate::db::rows::{SkillCapabilityRow, SkillInstallationRow, SkillPackageRow, SkillVersionRow};
 use crate::error::RepositoryError;
 
+const CATALOG_PAGE_LIMIT: i64 = 200;
+const CAPABILITY_CATALOG_LIMIT: i64 = 500;
+
 pub async fn list_skill_packages(pool: &AnyPool) -> Result<Vec<SkillPackageRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE is_deleted = 0 ORDER BY slug LIMIT 200",
+        "SELECT {} FROM {} WHERE {IS_NOT_DELETED} ORDER BY slug LIMIT {CATALOG_PAGE_LIMIT}",
         ALL_PACKAGE_COLUMNS,
         columns::skill_package::TABLE,
     );
@@ -22,7 +27,7 @@ pub async fn get_skill_package_by_id(
     id: &str,
 ) -> Result<SkillPackageRow, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE id = ?1 AND is_deleted = 0",
+        "SELECT {} FROM {} WHERE id = ?1 AND {IS_NOT_DELETED}",
         ALL_PACKAGE_COLUMNS,
         columns::skill_package::TABLE,
     );
@@ -42,7 +47,8 @@ pub async fn list_skill_versions_by_package(
     package_id: &str,
 ) -> Result<Vec<SkillVersionRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE skill_package_id = ?1 AND is_deleted = 0 ORDER BY created_at DESC",
+        "SELECT {} FROM {} WHERE skill_package_id = ?1 AND {IS_NOT_DELETED} \
+         ORDER BY created_at DESC LIMIT {CATALOG_PAGE_LIMIT}",
         ALL_VERSION_COLUMNS,
         columns::skill_version::TABLE,
     );
@@ -58,7 +64,8 @@ pub async fn list_skill_capabilities_by_version(
     version_id: &str,
 ) -> Result<Vec<SkillCapabilityRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE skill_version_id = ?1 AND is_deleted = 0",
+        "SELECT {} FROM {} WHERE skill_version_id = ?1 AND {IS_NOT_DELETED} \
+         LIMIT {CATALOG_PAGE_LIMIT}",
         ALL_CAPABILITY_COLUMNS,
         columns::skill_capability::TABLE,
     );
@@ -73,7 +80,7 @@ pub async fn list_all_skill_capabilities(
     pool: &AnyPool,
 ) -> Result<Vec<SkillCapabilityRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE is_deleted = 0 LIMIT 500",
+        "SELECT {} FROM {} WHERE {IS_NOT_DELETED} LIMIT {CAPABILITY_CATALOG_LIMIT}",
         ALL_CAPABILITY_COLUMNS,
         columns::skill_capability::TABLE,
     );
@@ -88,7 +95,7 @@ pub async fn list_skill_installations(
     pool: &AnyPool,
 ) -> Result<Vec<SkillInstallationRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE is_deleted = 0 LIMIT 200",
+        "SELECT {} FROM {} WHERE {IS_NOT_DELETED} LIMIT {CATALOG_PAGE_LIMIT}",
         ALL_INSTALLATION_COLUMNS,
         columns::skill_installation::TABLE,
     );
@@ -149,12 +156,14 @@ pub async fn find_skill_installation_for_scope(
         .map(|column| format!("i.{column}"))
         .collect::<Vec<_>>()
         .join(", ");
+    let installation_deleted = qualified_is_not_deleted("i");
+    let version_deleted = qualified_is_not_deleted("v");
     let sql = format!(
         "SELECT {installation_columns}, v.skill_package_id \
          FROM {} i \
          INNER JOIN {} v ON v.id = i.skill_version_id \
          WHERE i.scope_type = ?1 AND i.scope_id = ?2 AND v.skill_package_id = ?3 \
-           AND i.is_deleted = 0 AND v.is_deleted = 0 \
+           AND {installation_deleted} AND {version_deleted} \
          ORDER BY i.installed_at DESC LIMIT 1",
         columns::skill_installation::TABLE,
         columns::skill_version::TABLE,
@@ -188,7 +197,7 @@ pub async fn scope_exists(
         return Ok(false);
     };
     let sql = format!(
-        "SELECT 1 FROM {table} WHERE id = ?1 AND tenant_id = ?2 AND is_deleted = 0 LIMIT 1"
+        "SELECT 1 FROM {table} WHERE id = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED} LIMIT 1"
     );
     let row = sqlx::query(&sql)
         .bind(scope_id)

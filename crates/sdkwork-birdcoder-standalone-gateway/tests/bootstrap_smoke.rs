@@ -20,6 +20,35 @@ fn smoke_config(sqlite_name: &str) -> sdkwork_birdcoder_standalone_gateway::boot
     }
 }
 
+async fn liveness_endpoint_returns_alive_status() {
+    let config = smoke_config("bootstrap-smoke-liveness.db");
+
+    let app = sdkwork_birdcoder_standalone_gateway::bootstrap::build_app(&config)
+        .await
+        .expect("build_app should succeed with valid config");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/health/live")
+                .body(Body::empty())
+                .expect("build liveness request"),
+        )
+        .await
+        .expect("serve liveness request");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read liveness body");
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("parse liveness JSON");
+    assert_eq!(json["status"], "alive");
+    assert_eq!(json["liveness"], true);
+
+    let _ = std::fs::remove_file(&config.sqlite_file);
+}
+
 #[tokio::test]
 async fn health_endpoint_returns_healthy_status() {
     let config = smoke_config("bootstrap-smoke-health.db");

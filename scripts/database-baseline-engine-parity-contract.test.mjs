@@ -1,41 +1,64 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const sqliteBaseline = fs.readFileSync(
-  path.join(root, 'database/ddl/baseline/sqlite/0001_birdcoder_baseline.sql'),
-  'utf8',
-);
-const postgresBaseline = fs.readFileSync(
-  path.join(root, 'database/ddl/baseline/postgres/0001_birdcoder_baseline.sql'),
-  'utf8',
-);
+const rootDir = process.cwd();
 
-function tableNames(sql) {
-  const names = new Set();
-  for (const match of sql.matchAll(/CREATE TABLE IF NOT EXISTS\s+([a-z0-9_]+)/gi)) {
-    names.add(match[1].toLowerCase());
-  }
-  return names;
+function read(relativePath) {
+  const absolutePath = path.join(rootDir, relativePath);
+  assert.ok(fs.existsSync(absolutePath), `${relativePath} must exist`);
+  return fs.readFileSync(absolutePath, 'utf8');
 }
 
-const sqliteTables = tableNames(sqliteBaseline);
-const postgresTables = tableNames(postgresBaseline);
+function extractTableNames(sql) {
+  return [...sql.matchAll(/CREATE TABLE IF NOT EXISTS ([a-z0-9_]+)/gi)]
+    .map((match) => match[1])
+    .sort();
+}
 
-assert.equal(
-  sqliteTables.size,
-  postgresTables.size,
-  `sqlite/postgres baseline table count mismatch (${sqliteTables.size} vs ${postgresTables.size})`,
+const sqliteBaseline = read('database/ddl/baseline/sqlite/0001_birdcoder_baseline.sql');
+const postgresBaseline = read('database/ddl/baseline/postgres/0001_birdcoder_baseline.sql');
+
+const sqliteTables = extractTableNames(sqliteBaseline);
+const postgresTables = extractTableNames(postgresBaseline);
+
+assert.deepEqual(
+  postgresTables,
+  sqliteTables,
+  'PostgreSQL and SQLite baselines must declare the same table inventory',
 );
 
-for (const table of sqliteTables) {
-  assert.ok(postgresTables.has(table), `postgres baseline missing table ${table}`);
+const schemaYaml = read('database/contract/schema.yaml');
+const tableRegistry = JSON.parse(read('database/contract/table-registry.json'));
+
+const registryTableNames = tableRegistry.tables.map((entry) => entry.table_name).sort();
+
+assert.deepEqual(
+  registryTableNames,
+  sqliteTables,
+  'table-registry.json must match baseline table inventory',
+);
+
+for (const prefix of ['chat_']) {
+  assert.match(schemaYaml, new RegExp(`- ${prefix}`), `schema.yaml must register ${prefix} prefix`);
 }
 
-for (const table of postgresTables) {
-  assert.ok(sqliteTables.has(table), `sqlite baseline missing table ${table}`);
-}
+assert.match(
+  schemaYaml,
+  /- name: chat_conversation/,
+  'schema.yaml must list chat_conversation',
+);
+assert.match(
+  schemaYaml,
+  /- name: chat_message/,
+  'schema.yaml must list chat_message',
+);
 
-console.log(`database baseline engine parity contract passed (${sqliteTables.size} tables)`);
+const dialectSource = read('crates/sdkwork-birdcoder-sqlx-repository-pool/src/dialect.rs');
+assert.match(
+  dialectSource,
+  /is_deleted IS NOT TRUE/,
+  'sqlx repository dialect must use cross-engine soft-delete predicate',
+);
+
+console.log('database baseline engine parity contract passed.');

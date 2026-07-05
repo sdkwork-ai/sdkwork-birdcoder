@@ -273,6 +273,85 @@ impl RateLimitStore for InMemoryRateLimitStore {
     }
 }
 
+/// Redis-backed fixed-window rate limit store for HA multi-replica deployments.
+#[derive(Clone, Debug)]
+pub struct RedisRateLimitStore {
+    client: redis::Client,
+    key_prefix: String,
+}
+
+impl RedisRateLimitStore {
+    pub fn try_new(redis_url: &str) -> Result<Self, String> {
+        let client = redis::Client::open(redis_url)
+            .map_err(|error| format!("open Redis rate-limit client failed: {error}"))?;
+        Ok(Self {
+            client,
+            key_prefix: "birdcoder:ratelimit".to_string(),
+        })
+    }
+
+    fn redis_key(&self, dimension: RateLimitDimension<'_>, window_id: u64) -> String {
+        format!(
+            "{}:{}:{}:{}",
+            self.key_prefix,
+            dimension.bucket_label(),
+            dimension.key(),
+            window_id
+        )
+    }
+}
+
+#[async_trait]
+impl RateLimitStore for RedisRateLimitStore {
+    async fn check(&self, dimension: RateLimitDimension<'_>, limit: u32) -> RateLimitDecision {
+        if limit == 0 {
+            return (true, 0, 0, RATE_LIMIT_WINDOW_SECS);
+        }
+
+        let window_id = current_rate_limit_window_id();
+        let key = self.redis_key(dimension, window_id);
+        let reset_in_secs = rate_limit_reset_in_secs();
+
+        let mut connection = match self.client.get_multiplexed_async_connection().await {
+            Ok(connection) => connection,
+            Err(error) => {
+                tracing::warn!(error = %error, "Redis rate-limit check failed; allowing request");
+                return (true, limit, limit, reset_in_secs);
+            }
+        };
+
+        let count: u32 = match redis::cmd("INCR")
+            .arg(&key)
+            .query_async(&mut connection)
+            .await
+        {
+            Ok(count) => count,
+            Err(error) => {
+                tracing::warn!(error = %error, "Redis rate-limit INCR failed; allowing request");
+                return (true, limit, limit, reset_in_secs);
+            }
+        };
+
+        if count == 1 {
+            let _: Result<(), _> = redis::cmd("EXPIRE")
+                .arg(&key)
+                .arg(RATE_LIMIT_WINDOW_SECS.saturating_add(5))
+                .query_async(&mut connection)
+                .await;
+        }
+
+        let allowed = count <= limit;
+        let remaining = if allowed {
+            limit.saturating_sub(count)
+        } else {
+            0
+        };
+        (allowed, limit, remaining, reset_in_secs)
+    }
+
+    async fn evict_expired(&self) {}
+}
+
 /// Helper for [`InMemoryRateLimitStore::evict_expired`]: retains only counters
 /// whose window start is still within the rate-limit window.
 async fn evict_map(
@@ -301,24 +380,34 @@ impl std::fmt::Debug for RateLimitState {
 }
 
 impl RateLimitState {
-    /// Builds state from the rate limit config. When `config.redis_url` is set
-    /// but no distributed store is registered, a startup `tracing::warn` is
-    /// emitted and the in-memory store is used so multi-replica deployments
-    /// surface the divergence instead of silently under-limiting.
+    /// Builds state from the rate limit config. When `config.redis_url` is set,
+    /// [`RedisRateLimitStore`] is used; connection failures fall back to the
+    /// in-memory store with a startup warning.
     pub fn new(config: RateLimitConfig) -> Self {
-        if let Some(redis_url) = config.redis_url.as_ref() {
-            tracing::warn!(
-                redis_url = %redis_url,
-                "BIRDCODER_RATE_LIMIT_REDIS_URL is set but no distributed RateLimitStore is registered. \
-                 Falling back to InMemoryRateLimitStore; multi-replica deployments will NOT share \
-                 rate-limit counters. Wire a Redis-backed RateLimitStore via RateLimitState::with_store \
-                 before public release.",
-            );
-        }
-        Self {
-            config,
-            store: Arc::new(InMemoryRateLimitStore::new()),
-        }
+        let store: Arc<dyn RateLimitStore> = if let Some(redis_url) = config.redis_url.clone() {
+            match RedisRateLimitStore::try_new(&redis_url) {
+                Ok(store) => {
+                    tracing::info!(
+                        redis_url = %redis_url,
+                        "BIRDCODER rate limit store using Redis"
+                    );
+                    Arc::new(store)
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        redis_url = %redis_url,
+                        error = %error,
+                        "BIRDCODER_RATE_LIMIT_REDIS_URL is set but Redis rate-limit store failed to initialize. \
+                         Falling back to InMemoryRateLimitStore; multi-replica deployments will NOT share \
+                         rate-limit counters.",
+                    );
+                    Arc::new(InMemoryRateLimitStore::new())
+                }
+            }
+        } else {
+            Arc::new(InMemoryRateLimitStore::new())
+        };
+        Self { config, store }
     }
 
     /// Builds state with a custom [`RateLimitStore`] implementation. Use this

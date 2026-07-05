@@ -675,19 +675,40 @@ function createDescriptor(hostMode: BirdCoderHostMode): BirdCoderCodingServerDes
   };
 }
 
+const PROJECT_PAGE_SIZE = 200;
+const MAX_PROJECT_PAGES = 50;
+
+async function listProjectsForSessionIndex(
+  projectService: Pick<IProjectService, 'getProjects'>,
+  workspaceId?: string,
+): Promise<Awaited<ReturnType<IProjectService['getProjects']>>> {
+  const projects: Awaited<ReturnType<IProjectService['getProjects']>> = [];
+  for (let page = 0; page < MAX_PROJECT_PAGES; page += 1) {
+    const batch = await projectService.getProjects(workspaceId, {
+      limit: PROJECT_PAGE_SIZE,
+      offset: page * PROJECT_PAGE_SIZE,
+    });
+    if (batch.length === 0) {
+      break;
+    }
+    projects.push(...batch);
+    if (batch.length < PROJECT_PAGE_SIZE) {
+      break;
+    }
+  }
+  return projects;
+}
+
 async function collectCodingSessionsFromProjects(
   projectService: Pick<IProjectService, 'getProjectById' | 'getProjects'>,
   codingSessionProjectIndex: Map<string, { projectId: string; workspaceId: string }>,
   knownWorkspaceIds: Set<string>,
   request: BirdCoderListCodingSessionsRequest | BirdCoderListNativeSessionsRequest = {},
 ): Promise<BirdCoderCodingSession[]> {
-  // Session list pagination is applied after global sort via `paginateItems`.
-  // Project fetches must not reuse session limit/offset or sessions in later
-  // project pages would be invisible to the in-process runtime.
-  const projects = await projectService.getProjects(request.workspaceId, {
-    limit: 200,
-    offset: 0,
-  });
+  const projects = await listProjectsForSessionIndex(
+    projectService,
+    request.workspaceId,
+  );
   const sessions: BirdCoderCodingSession[] = [];
 
   for (const project of projects) {

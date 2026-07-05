@@ -3,11 +3,12 @@ pub mod handlers;
 pub mod manifest;
 pub mod mapper;
 pub mod paths;
-mod realtime_config;
+pub mod realtime_config;
 pub mod realtime_hub;
 pub mod routes;
 
 pub use handlers::WorkspaceAppState;
 pub use manifest::workspace_app_api_route_manifest;
+pub use realtime_config::{realtime_backend_from_env, resolve_redis_config, RealtimeBackendKind};
 pub use realtime_hub::WorkspaceRealtimeHub;
 pub use routes::build_workspace_app_router;

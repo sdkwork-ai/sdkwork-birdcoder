@@ -353,6 +353,11 @@ pub fn run() {
             desktop_session_resize,
             desktop_session_terminate,
         ])
-        .run(tauri::generate_context!())
-        .expect("failed to run SDKWork BirdCoder desktop");
+        .build(tauri::generate_context!())
+        .expect("failed to build SDKWork BirdCoder desktop")
+        .run(|_app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                host::request_embedded_api_shutdown();
+            }
+        });
 }

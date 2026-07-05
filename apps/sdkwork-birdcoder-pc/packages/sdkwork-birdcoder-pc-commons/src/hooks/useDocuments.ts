@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { BirdCoderProjectDocumentSummary } from '@sdkwork/birdcoder-pc-types';
-import type { IDocumentService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import type { DocumentListOptions, IDocumentService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
+
+const DEFAULT_DOCUMENT_PAGE_SIZE = 200;
 
 export async function loadDocuments(
   documentService: Pick<IDocumentService, 'getDocuments'>,
+  options: DocumentListOptions = {},
 ): Promise<BirdCoderProjectDocumentSummary[]> {
-  return documentService.getDocuments();
+  return documentService.getDocuments({
+    limit: options.limit ?? DEFAULT_DOCUMENT_PAGE_SIZE,
+    ...options,
+  });
 }
 
 export function useDocuments() {

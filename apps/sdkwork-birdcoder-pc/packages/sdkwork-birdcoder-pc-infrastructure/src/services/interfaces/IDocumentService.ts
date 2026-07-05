@@ -1,5 +1,11 @@
 import type { BirdCoderProjectDocumentSummary } from '@sdkwork/birdcoder-pc-types';
 
+export interface DocumentListOptions {
+  projectId?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface IDocumentService {
-  getDocuments(): Promise<BirdCoderProjectDocumentSummary[]>;
+  getDocuments(options?: DocumentListOptions): Promise<BirdCoderProjectDocumentSummary[]>;
 }

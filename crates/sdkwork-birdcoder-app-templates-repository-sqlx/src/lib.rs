@@ -3,6 +3,8 @@ use sqlx::{AnyPool, Row};
 use sdkwork_birdcoder_app_templates_service::domain::models::AppTemplatePayload;
 use sdkwork_birdcoder_app_templates_service::service::app_template_service::AppTemplateRepository;
 
+const SOFT_DELETE: &str = "is_deleted IS NOT TRUE";
+
 #[derive(Clone)]
 pub struct SqliteAppTemplateRepository {
     pool: AnyPool,
@@ -17,7 +19,7 @@ impl SqliteAppTemplateRepository {
 #[async_trait::async_trait]
 impl AppTemplateRepository for SqliteAppTemplateRepository {
     async fn list_templates(&self) -> Result<Vec<AppTemplatePayload>, String> {
-        let rows = sqlx::query(
+        let sql = format!(
             r#"
             SELECT
                 t.id,
@@ -37,26 +39,24 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
             FROM studio_app_template t
             INNER JOIN studio_app_template_version v
                 ON v.app_template_id = t.id
-                AND v.is_deleted = 0
+                AND v.{SOFT_DELETE}
             LEFT JOIN studio_app_template_preset p
                 ON p.app_template_version_id = v.id
-                AND p.is_deleted = 0
-            WHERE t.is_deleted = 0
+                AND p.{SOFT_DELETE}
+            WHERE t.{SOFT_DELETE}
                 AND v.id = (
                     SELECT v2.id
                     FROM studio_app_template_version v2
                     WHERE v2.app_template_id = t.id
-                        AND v2.is_deleted = 0
+                        AND v2.{SOFT_DELETE}
                     ORDER BY v2.created_at DESC
                     LIMIT 1
                 )
             ORDER BY t.slug
-            -- Templates are a bounded catalog. LIMIT 200 matches the max page_size
-            -- per spec and prevents unbounded result sets from causing OOM when the
-            -- catalog grows large.
             LIMIT 200
             "#,
-        )
+        );
+        let rows = sqlx::query(&sql)
         .fetch_all(&self.pool)
         .await
         .map_err(|error| error.to_string())?;
@@ -72,7 +72,7 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
     }
 
     async fn find_template_by_id(&self, template_id: &str) -> Result<Option<AppTemplatePayload>, String> {
-        let row = sqlx::query(
+        let sql = format!(
             r#"
             SELECT
                 t.id,
@@ -92,23 +92,24 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
             FROM studio_app_template t
             INNER JOIN studio_app_template_version v
                 ON v.app_template_id = t.id
-                AND v.is_deleted = 0
+                AND v.{SOFT_DELETE}
             LEFT JOIN studio_app_template_preset p
                 ON p.app_template_version_id = v.id
-                AND p.is_deleted = 0
-            WHERE t.is_deleted = 0
+                AND p.{SOFT_DELETE}
+            WHERE t.{SOFT_DELETE}
                 AND t.id = ?1
                 AND v.id = (
                     SELECT v2.id
                     FROM studio_app_template_version v2
                     WHERE v2.app_template_id = t.id
-                        AND v2.is_deleted = 0
+                        AND v2.{SOFT_DELETE}
                     ORDER BY v2.created_at DESC
                     LIMIT 1
                 )
             LIMIT 1
             "#,
-        )
+        );
+        let row = sqlx::query(&sql)
         .bind(template_id)
         .fetch_optional(&self.pool)
         .await
@@ -125,15 +126,17 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
 }
 
 async fn list_target_profiles(pool: &AnyPool, version_id: &str) -> Result<Vec<String>, String> {
-    let rows = sqlx::query(
+    let sql = format!(
         r#"
         SELECT profile_key
         FROM studio_app_template_target_profile
         WHERE app_template_version_id = ?1
-            AND is_deleted = 0
+            AND {SOFT_DELETE}
         ORDER BY profile_key
+        LIMIT 200
         "#,
-    )
+    );
+    let rows = sqlx::query(&sql)
     .bind(version_id)
     .fetch_all(pool)
     .await

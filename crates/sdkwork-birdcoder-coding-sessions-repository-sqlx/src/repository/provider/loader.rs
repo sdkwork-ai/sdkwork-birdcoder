@@ -1,5 +1,7 @@
 use sqlx::{AnyPool, Row};
 
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{IS_NOT_DELETED, qualified_is_not_deleted};
+
 use super::payload_types::{ProjectPayload, WorkspacePayload};
 use super::sql_helpers::{
     sqlx_row_optional_data_scope_value, sqlx_row_optional_project_type_value,
@@ -15,7 +17,7 @@ use super::string_helpers::{
 pub async fn load_provider_workspace_payloads(
     pool: &AnyPool,
 ) -> Result<Vec<WorkspacePayload>, String> {
-    let rows = sqlx::query(
+    let sql = format!(
         r#"
             SELECT
                 id,
@@ -46,15 +48,12 @@ pub async fn load_provider_workspace_payloads(
                 ,
                 data_scope
             FROM studio_workspace AS workspaces
-            WHERE is_deleted = 0
+            WHERE {IS_NOT_DELETED}
             ORDER BY updated_at DESC, id ASC
-            -- Provider bootstrap cap: at most 500 workspaces are loaded into memory
-            -- during provider initialization. If more workspaces exist, the caller must
-            -- paginate via the list API in a follow-up request. This hard cap prevents
-            -- OOM when the workspace catalog grows unbounded.
             LIMIT 500
             "#,
-    )
+    );
+    let rows = sqlx::query(&sql)
     .fetch_all(pool)
     .await
     .map_err(|error| format!("query workspaces failed: {error}"))?;
@@ -154,7 +153,8 @@ pub async fn load_provider_workspace_payloads(
 pub async fn load_provider_project_payloads(
     pool: &AnyPool,
 ) -> Result<Vec<ProjectPayload>, String> {
-    let rows = sqlx::query(
+    let project_deleted = qualified_is_not_deleted("projects");
+    let sql = format!(
         r#"
             SELECT
                 projects.id,
@@ -191,15 +191,12 @@ pub async fn load_provider_project_payloads(
             FROM studio_project AS projects
             LEFT JOIN studio_project_content AS project_contents
               ON project_contents.project_id = projects.id
-            WHERE projects.is_deleted = 0
+            WHERE {project_deleted}
             ORDER BY projects.updated_at DESC, projects.id ASC
-            -- Provider bootstrap cap: at most 1000 projects are loaded into memory
-            -- during provider initialization. If more projects exist, the caller must
-            -- paginate via the list API in a follow-up request. This hard cap prevents
-            -- OOM when the project catalog grows unbounded.
             LIMIT 1000
             "#,
-    )
+    );
+    let rows = sqlx::query(&sql)
     .fetch_all(pool)
     .await
     .map_err(|error| format!("query projects failed: {error}"))?;

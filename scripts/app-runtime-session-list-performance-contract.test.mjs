@@ -57,7 +57,11 @@ const collectCodingSessionsSource = readFunctionBody('collectCodingSessionsFromP
 
 assert.match(
   collectCodingSessionsSource,
-  /const sessions: BirdCoderCodingSession\[\] = \[\];/,
+  /listProjectsForSessionIndex/,
+  'App runtime session listing must page through projects before collecting sessions.',
+);
+
+assert.match(
   'App runtime session listing must collect sessions into one array without chained filter/flatMap intermediates.',
 );
 

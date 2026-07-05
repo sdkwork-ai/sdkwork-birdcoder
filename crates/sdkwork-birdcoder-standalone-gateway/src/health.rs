@@ -3,6 +3,9 @@ use std::sync::OnceLock;
 use axum::http::StatusCode;
 use axum::Json;
 use sdkwork_database_sqlx::DatabasePool;
+use sdkwork_routes_workspace_app_api::{
+    realtime_backend_from_env, resolve_redis_config, RealtimeBackendKind,
+};
 use serde::Serialize;
 use serde_json::{json, Value};
 
@@ -74,7 +77,7 @@ async fn load_iam_pool() -> Option<DatabasePool> {
 pub async fn health_state(database_pool: &DatabasePool) -> HealthState {
     let database = check_database_connectivity(database_pool).await;
     let iam_database = check_iam_database_connectivity().await;
-    let realtime = realtime_ok();
+    let realtime = check_realtime_readiness().await;
     let readiness = ReadinessState {
         database,
         iam_database,
@@ -165,7 +168,7 @@ pub async fn build_health_payload(pool: &DatabasePool) -> Value {
         "engine": pool_engine_label(pool),
     });
     let iam_value = iam_database_payload();
-    let realtime_value = realtime_payload();
+    let realtime_value = realtime_payload().await;
     json!({
         "status": state.status,
         "liveness": state.liveness,
@@ -192,51 +195,49 @@ fn iam_database_payload() -> Value {
 }
 
 fn realtime_config() -> RealtimeConfig {
-    let backend = std::env::var("SDKWORK_BIRDCODER_REALTIME_BACKEND")
-        .unwrap_or_else(|_| "memory".to_string());
-    let normalized = backend.trim().to_ascii_lowercase();
-    let redis_enabled = std::env::var("SDKWORK_BIRDCODER_REDIS_ENABLED")
-        .map(|value| {
-            matches!(
-                value.trim().to_ascii_lowercase().as_str(),
-                "1" | "true" | "yes" | "on"
-            )
-        })
-        .unwrap_or(false);
-    let is_redis = normalized == "redis" || redis_enabled;
-    let ok = if is_redis {
-        let host = std::env::var("SDKWORK_BIRDCODER_REDIS_HOST")
-            .ok()
-            .map(|value| !value.trim().is_empty())
-            .unwrap_or(false);
-        let port = std::env::var("SDKWORK_BIRDCODER_REDIS_PORT")
-            .ok()
-            .and_then(|value| value.trim().parse::<u16>().ok())
-            .is_some();
-        host && port
-    } else {
-        true
+    let backend = match realtime_backend_from_env() {
+        RealtimeBackendKind::Redis => "redis",
+        RealtimeBackendKind::Memory => "memory",
     };
-    RealtimeConfig {
-        backend: if is_redis { "redis" } else { "memory" },
-        ok,
+    RealtimeConfig { backend }
+}
+
+async fn check_realtime_readiness() -> bool {
+    if realtime_backend_from_env() != RealtimeBackendKind::Redis {
+        return true;
     }
+
+    let redis_config = match resolve_redis_config() {
+        Ok(config) => config,
+        Err(_) => return false,
+    };
+
+    let client = match redis::Client::open(redis_config.url.as_str()) {
+        Ok(client) => client,
+        Err(_) => return false,
+    };
+
+    let mut connection = match client.get_multiplexed_async_connection().await {
+        Ok(connection) => connection,
+        Err(_) => return false,
+    };
+
+    redis::cmd("PING")
+        .query_async::<String>(&mut connection)
+        .await
+        .is_ok()
 }
 
 struct RealtimeConfig {
     backend: &'static str,
-    ok: bool,
 }
 
-fn realtime_ok() -> bool {
-    realtime_config().ok
-}
-
-fn realtime_payload() -> Value {
+async fn realtime_payload() -> Value {
     let config = realtime_config();
+    let ok = check_realtime_readiness().await;
     json!({
         "backend": config.backend,
-        "ok": config.ok,
+        "ok": ok,
     })
 }
 

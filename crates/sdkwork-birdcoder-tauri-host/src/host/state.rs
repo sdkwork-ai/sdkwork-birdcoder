@@ -16,6 +16,7 @@ static EMBEDDED_RUNTIME_CONFIG: OnceLock<DesktopRuntimeConfig> = OnceLock::new()
 static EMBEDDED_RUNTIME_STARTUP: OnceLock<
     tokio::sync::OnceCell<Result<DesktopRuntimeConfig, String>>,
 > = OnceLock::new();
+static EMBEDDED_API_SHUTDOWN: OnceLock<tokio::sync::watch::Sender<bool>> = OnceLock::new();
 
 #[derive(Clone, Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -167,6 +168,9 @@ pub fn start_embedded_coding_server(app: &AppHandle) -> Result<DesktopRuntimeCon
         .set_nonblocking(true)
         .map_err(|error| format!("failed to configure embedded BirdCoder API listener: {error}"))?;
 
+    let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+    let _ = EMBEDDED_API_SHUTDOWN.set(shutdown_tx);
+
     tauri::async_runtime::spawn(async move {
         let listener = match tokio::net::TcpListener::from_std(listener) {
             Ok(listener) => listener,
@@ -176,7 +180,15 @@ pub fn start_embedded_coding_server(app: &AppHandle) -> Result<DesktopRuntimeCon
             }
         };
 
-        if let Err(error) = axum::serve(listener, router).await {
+        let mut shutdown_rx = shutdown_rx;
+        let shutdown = async move {
+            let _ = shutdown_rx.changed().await;
+        };
+
+        if let Err(error) = axum::serve(listener, router)
+            .with_graceful_shutdown(shutdown)
+            .await
+        {
             eprintln!("embedded BirdCoder API stopped unexpectedly: {error}");
         }
     });
@@ -208,6 +220,13 @@ pub fn spawn_embedded_coding_server_startup(app: AppHandle) {
             eprintln!("failed to start embedded BirdCoder API: {error}");
         }
     });
+}
+
+/// Signals the embedded Axum server to drain in-flight requests before desktop exit.
+pub fn request_embedded_api_shutdown() {
+    if let Some(shutdown_tx) = EMBEDDED_API_SHUTDOWN.get() {
+        let _ = shutdown_tx.send(true);
+    }
 }
 
 fn print_embedded_api_startup_summary(api_base_url: &str) {

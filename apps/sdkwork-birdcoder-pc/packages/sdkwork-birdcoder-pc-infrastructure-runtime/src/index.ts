@@ -13,6 +13,6 @@ export { canSubscribeBirdCoderWorkspaceRealtime, subscribeBirdCoderWorkspaceReal
 
 // Re-export service interfaces for shared package compatibility
 export type { IDeploymentService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IDeploymentService';
-export type { IDocumentService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IDocumentService';
+export type { DocumentListOptions, IDocumentService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IDocumentService';
 export type { IAppRuntimeReadService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAppRuntimeReadService';
 export type { IAppRuntimeWriteService } from '@sdkwork/birdcoder-pc-infrastructure/services/interfaces/IAppRuntimeWriteService';

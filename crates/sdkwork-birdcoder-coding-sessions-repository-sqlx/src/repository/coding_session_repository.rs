@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use sqlx::{AnyPool, Executor, Row};
+use sqlx::{AnyPool, Row};
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
     CreateCodingSessionInput, CreateCodingSessionTurnInput, EditCodingSessionMessageInput,
@@ -171,26 +171,6 @@ impl SqliteCodingSessionRepository {
         .map_err(|error| RepositoryError::Update(error.to_string()))?;
 
         Ok(())
-    }
-
-    async fn copy_session_history_on<'c, E>(
-        &self,
-        executor: E,
-        ctx: &CodingSessionContext,
-        source_session_id: &str,
-        target_session_id: &str,
-    ) -> Result<usize, CodingSessionError>
-    where
-        E: Executor<'c, Database = sqlx::Any>,
-    {
-        session_history_copy::copy_session_history_on(
-            &self.pool,
-            executor,
-            ctx,
-            source_session_id,
-            target_session_id,
-        )
-        .await
     }
 }
 
@@ -598,9 +578,14 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             transcript_updated_at: None,
         };
 
-        if let Err(error) = self
-            .copy_session_history_on(&mut tx, ctx, session_id, &new_id)
-            .await
+        if let Err(error) = session_history_copy::copy_session_history_in_transaction(
+            &self.pool,
+            &mut tx,
+            ctx,
+            session_id,
+            &new_id,
+        )
+        .await
         {
             let _ = tx.rollback().await;
             return Err(error);
@@ -616,8 +601,13 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         source_session_id: &str,
         target_session_id: &str,
     ) -> Result<usize, CodingSessionError> {
-        self.copy_session_history_on(&self.pool, ctx, source_session_id, target_session_id)
-            .await
+        session_history_copy::copy_session_history_on_pool(
+            &self.pool,
+            ctx,
+            source_session_id,
+            target_session_id,
+        )
+        .await
     }
 
     async fn list_turns(
@@ -629,10 +619,9 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
         let rows = map_sqlx_error(
             sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
+                "SELECT * FROM {} WHERE {} = ? AND {IS_NOT_DELETED} ORDER BY {} ASC LIMIT 500",
                 columns::turn::TABLE,
                 columns::turn::CODING_SESSION_ID,
-                columns::turn::IS_DELETED,
                 columns::turn::CREATED_AT,
             ))
             .bind(session_id)

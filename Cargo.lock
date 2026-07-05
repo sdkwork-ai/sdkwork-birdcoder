@@ -4738,6 +4738,7 @@ dependencies = [
  "hex",
  "http",
  "rand 0.8.6",
+ "redis",
  "sdkwork-birdcoder-app-templates-service",
  "sdkwork-birdcoder-codeengine",
  "sdkwork-birdcoder-coding-sessions-repository-sqlx",

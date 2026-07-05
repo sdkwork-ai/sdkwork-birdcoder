@@ -7,7 +7,7 @@ authors.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-sqlx = { workspace = true, features = ["sqlite"] }
+sqlx = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
@@ -15,6 +15,7 @@ time = { workspace = true }
 tokio = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
 sdkwork-birdcoder-skill-packages-service = { workspace = true }
+sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
 
 
 
