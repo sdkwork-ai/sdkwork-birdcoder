@@ -7,6 +7,7 @@ use sdkwork_birdcoder_chat_service::domain::models::{
 };
 use sdkwork_birdcoder_chat_service::service::chat_service::ChatRepository;
 use sdkwork_birdcoder_errors::require_scoped_tenant_id;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{IS_NOT_DELETED, SET_SOFT_DELETED};
 
 #[derive(Clone)]
 pub struct SqliteChatRepository {
@@ -60,7 +61,7 @@ impl ChatRepository for SqliteChatRepository {
         let tenant_id = Self::require_tenant_id(&ctx.tenant_id)?;
         let count_row = sqlx::query(
             "SELECT COUNT(*) AS total FROM chat_conversation \
-             WHERE tenant_id = ?1 AND owner_user_id = ?2 AND is_deleted = 0",
+             WHERE tenant_id = ?1 AND owner_user_id = ?2 AND {IS_NOT_DELETED}",
         )
         .bind(tenant_id)
         .bind(&ctx.user_id)
@@ -72,7 +73,7 @@ impl ChatRepository for SqliteChatRepository {
         let rows = sqlx::query(
             "SELECT id, title, owner_user_id, created_at, updated_at \
              FROM chat_conversation \
-             WHERE tenant_id = ?1 AND owner_user_id = ?2 AND is_deleted = 0 \
+             WHERE tenant_id = ?1 AND owner_user_id = ?2 AND {IS_NOT_DELETED} \
              ORDER BY updated_at DESC LIMIT ?3 OFFSET ?4",
         )
         .bind(tenant_id)
@@ -122,7 +123,7 @@ impl ChatRepository for SqliteChatRepository {
         let row = sqlx::query(
             "SELECT id, title, owner_user_id, created_at, updated_at \
              FROM chat_conversation \
-             WHERE id = ?1 AND tenant_id = ?2 AND is_deleted = 0",
+             WHERE id = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED}",
         )
         .bind(conversation_id)
         .bind(tenant_id)
@@ -144,8 +145,8 @@ impl ChatRepository for SqliteChatRepository {
         let tenant_id = Self::require_tenant_id(&ctx.tenant_id)?;
         let now = Self::now_iso();
         let result = sqlx::query(
-            "UPDATE chat_conversation SET is_deleted = 1, updated_at = ?1 \
-             WHERE id = ?2 AND tenant_id = ?3 AND owner_user_id = ?4 AND is_deleted = 0",
+            "UPDATE chat_conversation SET {SET_SOFT_DELETED}, updated_at = ?1 \
+             WHERE id = ?2 AND tenant_id = ?3 AND owner_user_id = ?4 AND {IS_NOT_DELETED}",
         )
         .bind(now)
         .bind(conversation_id)
@@ -169,7 +170,7 @@ impl ChatRepository for SqliteChatRepository {
         let tenant_id = Self::require_tenant_id(&ctx.tenant_id)?;
         let count_row = sqlx::query(
             "SELECT COUNT(*) AS total FROM chat_message \
-             WHERE conversation_id = ?1 AND tenant_id = ?2 AND is_deleted = 0",
+             WHERE conversation_id = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED}",
         )
         .bind(conversation_id)
         .bind(tenant_id)
@@ -181,7 +182,7 @@ impl ChatRepository for SqliteChatRepository {
         let rows = sqlx::query(
             "SELECT id, conversation_id, role, content, created_at \
              FROM chat_message \
-             WHERE conversation_id = ?1 AND tenant_id = ?2 AND is_deleted = 0 \
+             WHERE conversation_id = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED} \
              ORDER BY created_at ASC LIMIT ?3 OFFSET ?4",
         )
         .bind(conversation_id)
@@ -224,7 +225,7 @@ impl ChatRepository for SqliteChatRepository {
         let now = Self::now_iso();
         sqlx::query(
             "UPDATE chat_conversation SET updated_at = ?1 \
-             WHERE id = ?2 AND tenant_id = ?3 AND is_deleted = 0",
+             WHERE id = ?2 AND tenant_id = ?3 AND {IS_NOT_DELETED}",
         )
         .bind(now)
         .bind(conversation_id)

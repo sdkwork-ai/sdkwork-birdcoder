@@ -117,7 +117,7 @@ probes:
   liveness:
     enabled: true
     httpGet:
-      path: /health
+      path: /health/live
       port: 18989
     initialDelaySeconds: 15
     periodSeconds: 30

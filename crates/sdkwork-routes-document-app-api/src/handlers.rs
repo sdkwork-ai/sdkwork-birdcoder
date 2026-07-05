@@ -4,9 +4,11 @@ use sqlx::AnyPool;
 
 use sdkwork_birdcoder_document_repository_sqlx::SqliteDocumentRepository;
 use sdkwork_birdcoder_document_service::domain::models::DocumentPayload;
-use sdkwork_birdcoder_document_service::service::document_service::DocumentService;
+use sdkwork_birdcoder_document_service::service::document_service::{
+    DocumentListQuery as DocumentListServiceQuery, DocumentService,
+};
 use sdkwork_birdcoder_errors::{
-    build_list_envelope, trace_id_from_request_id, ApiListEnvelope,
+    build_offset_list_envelope, trace_id_from_request_id, ApiListEnvelope,
 };
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 
@@ -50,12 +52,22 @@ pub async fn list_documents(
         .list_documents(
             query.project_id.as_deref(),
             Some(iam.tenant_id.as_str()),
+            &DocumentListServiceQuery {
+                offset: query.offset,
+                limit: query.limit,
+            },
         )
         .await
     {
-        Ok(items) => {
-            let total = items.len();
-            Ok(Json(build_list_envelope(items, total, request_id(&web))))
+        Ok(page) => {
+            let (offset, page_size) = query.normalized_pagination();
+            Ok(Json(build_offset_list_envelope(
+                page.items,
+                offset,
+                page_size,
+                page.total,
+                request_id(&web),
+            )))
         }
         Err(e) => Err(error::map_service_error(e, trace_id)),
     }

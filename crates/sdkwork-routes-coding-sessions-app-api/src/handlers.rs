@@ -18,9 +18,8 @@ use sdkwork_birdcoder_router_context::{coding_session_context, RequiredIamContex
 use crate::error::{trace_service_error, AppError};
 use crate::mapper::request::{
     CreateCodingSessionRequest, CreateCodingSessionTurnRequest, EditCodingSessionMessageRequest,
-    ForkCodingSessionRequest,
-    ListSessionsQuery, SubmitApprovalDecisionRequest, SubmitUserQuestionAnswerRequest,
-    UpdateCodingSessionRequest,
+    ForkCodingSessionRequest, ListSessionsQuery, SessionChildListQuery,
+    SubmitApprovalDecisionRequest, SubmitUserQuestionAnswerRequest, UpdateCodingSessionRequest,
 };
 use crate::mapper::response::DeleteResponse;
 
@@ -236,14 +235,24 @@ pub async fn list_events(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
+    Query(query): Query<SessionChildListQuery>,
 ) -> Result<Json<ApiListEnvelope<CodingSessionEventPayload>>, AppError> {
+    let (offset, page_size) = query.normalized_pagination();
     let ctx = coding_session_context(&iam);
-    let events = trace_service_error(
-        state.service.list_events(&ctx, &sessionId).await,
+    let (events, total) = trace_service_error(
+        state
+            .service
+            .list_events(&ctx, &sessionId, offset, page_size)
+            .await,
         request_trace_id(&web),
     )?;
-    let total = events.len();
-    Ok(Json(build_list_envelope(events, total, request_id(&web))))
+    Ok(Json(build_offset_list_envelope(
+        events,
+        offset,
+        page_size,
+        total,
+        request_id(&web),
+    )))
 }
 
 pub async fn list_artifacts(
@@ -251,14 +260,24 @@ pub async fn list_artifacts(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
+    Query(query): Query<SessionChildListQuery>,
 ) -> Result<Json<ApiListEnvelope<CodingSessionArtifactPayload>>, AppError> {
+    let (offset, page_size) = query.normalized_pagination();
     let ctx = coding_session_context(&iam);
-    let artifacts = trace_service_error(
-        state.service.list_artifacts(&ctx, &sessionId).await,
+    let (artifacts, total) = trace_service_error(
+        state
+            .service
+            .list_artifacts(&ctx, &sessionId, offset, page_size)
+            .await,
         request_trace_id(&web),
     )?;
-    let total = artifacts.len();
-    Ok(Json(build_list_envelope(artifacts, total, request_id(&web))))
+    Ok(Json(build_offset_list_envelope(
+        artifacts,
+        offset,
+        page_size,
+        total,
+        request_id(&web),
+    )))
 }
 
 pub async fn list_checkpoints(
@@ -266,14 +285,24 @@ pub async fn list_checkpoints(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Path(sessionId): Path<String>,
+    Query(query): Query<SessionChildListQuery>,
 ) -> Result<Json<ApiListEnvelope<CodingSessionCheckpointPayload>>, AppError> {
+    let (offset, page_size) = query.normalized_pagination();
     let ctx = coding_session_context(&iam);
-    let checkpoints = trace_service_error(
-        state.service.list_checkpoints(&ctx, &sessionId).await,
+    let (checkpoints, total) = trace_service_error(
+        state
+            .service
+            .list_checkpoints(&ctx, &sessionId, offset, page_size)
+            .await,
         request_trace_id(&web),
     )?;
-    let total = checkpoints.len();
-    Ok(Json(build_list_envelope(checkpoints, total, request_id(&web))))
+    Ok(Json(build_offset_list_envelope(
+        checkpoints,
+        offset,
+        page_size,
+        total,
+        request_id(&web),
+    )))
 }
 
 pub async fn submit_approval_decision(

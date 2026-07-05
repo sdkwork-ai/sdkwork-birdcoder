@@ -1,5 +1,8 @@
 use sqlx::AnyPool;
 
+use sdkwork_birdcoder_project_service::pagination::MAX_LIST_PAGE_SIZE;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
+
 use crate::db::columns;
 use crate::db::rows::{MembershipPackageRow, MembershipRow, PackageGroupRow};
 use crate::error::RepositoryError;
@@ -10,7 +13,7 @@ pub async fn get_current_membership(
     owner_user_id: &str,
 ) -> Result<MembershipRow, RepositoryError> {
     let mut sql = format!(
-        "SELECT {} FROM {} WHERE owner_user_id = ?1 AND is_deleted = 0",
+        "SELECT {} FROM {} WHERE owner_user_id = ?1 AND {IS_NOT_DELETED}",
         ALL_MEMBERSHIP_COLUMNS,
         columns::membership::TABLE,
     );
@@ -43,7 +46,7 @@ pub async fn get_current_membership(
 
 pub async fn list_package_groups(pool: &AnyPool) -> Result<Vec<PackageGroupRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE is_deleted = 0 ORDER BY sort_weight LIMIT 200",
+        "SELECT {} FROM {} WHERE {IS_NOT_DELETED} ORDER BY sort_weight LIMIT 200",
         ALL_GROUP_COLUMNS,
         columns::package_group::TABLE,
     );
@@ -59,7 +62,7 @@ pub async fn list_packages_by_group(
     group_id: &str,
 ) -> Result<Vec<MembershipPackageRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE group_id = ?1 AND is_deleted = 0 ORDER BY sort_weight",
+        "SELECT {} FROM {} WHERE group_id = ?1 AND {IS_NOT_DELETED} ORDER BY sort_weight LIMIT {MAX_LIST_PAGE_SIZE}",
         ALL_PACKAGE_COLUMNS,
         columns::membership_package::TABLE,
     );

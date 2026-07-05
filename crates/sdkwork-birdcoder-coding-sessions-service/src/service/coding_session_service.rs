@@ -209,15 +209,6 @@ impl CodingSessionService {
             .fork_session(ctx, &session_id, &input)
             .await?;
 
-        // Copy conversation history (messages, turns, events, artifacts) from
-        // the source session to the forked session so the fork preserves the
-        // full transcript.
-        let copied_count = self
-            .repository
-            .copy_session_history(ctx, &session_id, &session.id)
-            .await
-            .unwrap_or(0);
-
         self.event_publisher
             .publish_coding_session_event(
                 ctx,
@@ -229,8 +220,6 @@ impl CodingSessionService {
                 ),
             )
             .await?;
-
-        let _ = copied_count;
 
         Ok(session)
     }
@@ -447,12 +436,16 @@ impl CodingSessionService {
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-    ) -> Result<Vec<CodingSessionEventPayload>, CodingSessionError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<CodingSessionEventPayload>, usize), CodingSessionError> {
         let session_id = normalize_required_string(session_id)
             .ok_or_else(|| CodingSessionError::InvalidInput("session_id is required.".into()))?;
 
         self.repository.get_session(ctx, &session_id).await?;
-        self.repository.list_events(ctx, &session_id).await
+        self.repository
+            .list_events(ctx, &session_id, offset, limit)
+            .await
     }
 
     // ── List artifacts ───────────────────────────────────────────────────
@@ -461,12 +454,16 @@ impl CodingSessionService {
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-    ) -> Result<Vec<CodingSessionArtifactPayload>, CodingSessionError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<CodingSessionArtifactPayload>, usize), CodingSessionError> {
         let session_id = normalize_required_string(session_id)
             .ok_or_else(|| CodingSessionError::InvalidInput("session_id is required.".into()))?;
 
         self.repository.get_session(ctx, &session_id).await?;
-        self.repository.list_artifacts(ctx, &session_id).await
+        self.repository
+            .list_artifacts(ctx, &session_id, offset, limit)
+            .await
     }
 
     // ── List checkpoints ─────────────────────────────────────────────────
@@ -475,12 +472,16 @@ impl CodingSessionService {
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-    ) -> Result<Vec<CodingSessionCheckpointPayload>, CodingSessionError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<CodingSessionCheckpointPayload>, usize), CodingSessionError> {
         let session_id = normalize_required_string(session_id)
             .ok_or_else(|| CodingSessionError::InvalidInput("session_id is required.".into()))?;
 
         self.repository.get_session(ctx, &session_id).await?;
-        self.repository.list_checkpoints(ctx, &session_id).await
+        self.repository
+            .list_checkpoints(ctx, &session_id, offset, limit)
+            .await
     }
 
     // ── Submit approval decision ─────────────────────────────────────────

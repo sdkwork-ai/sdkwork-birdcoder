@@ -11,4 +11,5 @@ sqlx = { workspace = true }
 time = { workspace = true }
 sdkwork-birdcoder-chat-service = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
 sdkwork-utils-rust.workspace = true

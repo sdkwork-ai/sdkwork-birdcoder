@@ -113,19 +113,25 @@ pub trait CodingSessionRepository: Send + Sync {
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-    ) -> Result<Vec<CodingSessionEventPayload>, CodingSessionError>;
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<CodingSessionEventPayload>, usize), CodingSessionError>;
 
     async fn list_artifacts(
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-    ) -> Result<Vec<CodingSessionArtifactPayload>, CodingSessionError>;
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<CodingSessionArtifactPayload>, usize), CodingSessionError>;
 
     async fn list_checkpoints(
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-    ) -> Result<Vec<CodingSessionCheckpointPayload>, CodingSessionError>;
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<CodingSessionCheckpointPayload>, usize), CodingSessionError>;
 
     async fn submit_approval_decision(
         &self,

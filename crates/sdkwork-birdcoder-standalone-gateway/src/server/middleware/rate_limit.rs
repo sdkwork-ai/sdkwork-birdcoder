@@ -30,6 +30,8 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use tokio::sync::Mutex;
 
+use sdkwork_utils_rust::trusted_proxy::{extract_client_ip as resolve_trusted_client_ip, TrustedProxyConfig};
+
 use crate::bootstrap::config::BirdServerConfig;
 
 pub const DEFAULT_GLOBAL_PER_IP_PER_MIN: u32 = 100;
@@ -322,34 +324,20 @@ pub fn is_rate_limit_excluded(path: &str) -> bool {
 }
 
 fn extract_client_ip(request: &Request) -> String {
-    if let Some(forwarded) = request.headers().get("x-forwarded-for") {
-        if let Ok(value) = forwarded.to_str() {
-            if let Some(first) = value.split(',').next() {
-                let trimmed = first.trim();
-                if !trimmed.is_empty() {
-                    return trimmed.to_string();
-                }
-            }
-        }
-    }
-    if let Some(forwarded) = request.headers().get("forwarded") {
-        if let Ok(value) = forwarded.to_str() {
-            for part in value.split(';') {
-                let trimmed = part.trim();
-                if let Some(rest) = trimmed.strip_prefix("for=") {
-                    let candidate = rest.trim_matches(&['"', '[', ']', ' '][..]);
-                    if !candidate.is_empty() {
-                        return candidate.to_string();
-                    }
-                }
-            }
-        }
-    }
-    request
+    static TRUSTED_PROXIES: std::sync::OnceLock<TrustedProxyConfig> = std::sync::OnceLock::new();
+    let config = TRUSTED_PROXIES.get_or_init(TrustedProxyConfig::from_env);
+    let peer = request
         .extensions()
         .get::<ConnectInfo<SocketAddr>>()
-        .map(|info| info.0.ip().to_string())
-        .unwrap_or_else(|| "0.0.0.0".to_string())
+        .map(|info| info.0.ip());
+    let ip = resolve_trusted_client_ip(peer, |name| {
+        request
+            .headers()
+            .get(name)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned)
+    }, config);
+    ip.to_string()
 }
 
 /// Extracts a stable API key bucket identifier from the `Authorization: Bearer bc_...`

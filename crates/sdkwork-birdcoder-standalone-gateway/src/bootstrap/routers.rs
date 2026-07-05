@@ -165,6 +165,10 @@ pub async fn build_router(
         .merge(build_protected_app_router(protected, config, metrics.clone()).await?)
         .route("/openapi.json", axum::routing::get(openapi::serve_openapi_json))
         .route(
+            "/health/live",
+            axum::routing::get(|| async { health::liveness_check() }),
+        )
+        .route(
             "/health",
             axum::routing::get(move || {
                 let database_pool = database_pool.clone();

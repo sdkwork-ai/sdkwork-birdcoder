@@ -1,3 +1,5 @@
+pub mod dialect;
+
 use sdkwork_database_config::DatabaseEngine;
 use sdkwork_database_sqlx::{create_any_pool_from_config, DatabasePool};
 use sqlx::AnyPool;

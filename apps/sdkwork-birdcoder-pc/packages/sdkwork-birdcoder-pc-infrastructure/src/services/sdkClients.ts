@@ -186,7 +186,7 @@ export interface BirdCoderAppSdkApiClient {
   ): Promise<BirdCoderCodingSessionSummary[]>;
   listDeployments(): Promise<BirdCoderDeploymentRecordSummary[]>;
   listDeploymentTargets(projectId: string): Promise<BirdCoderDeploymentTargetSummary[]>;
-  listDocuments(): Promise<BirdCoderProjectDocumentSummary[]>;
+  listDocuments(options: { projectId?: string; limit?: number; offset?: number } = {}): Promise<BirdCoderProjectDocumentSummary[]>;
   listEngines(): Promise<BirdCoderEngineDescriptor[]>;
   listModels(): Promise<BirdCoderModelCatalogEntry[]>;
   listNativeSessionProviders(): Promise<BirdCoderNativeSessionProviderSummary[]>;
@@ -997,8 +997,15 @@ export function createBirdCoderAppSdkApiClient({
     async pruneProjectGitWorktrees(projectId) {
       return readData(await client.platform.projects.git.worktreePrune.create({ projectId }));
     },
-    async listDocuments() {
-      return readItems(await client.content.documents.list());
+    async listDocuments(options = {}) {
+      const scoped = withDefaultListLimit(options);
+      return readItems(
+        await client.content.documents.list({
+          ...(options.projectId ? { projectId: options.projectId } : {}),
+          limit: scoped.limit,
+          ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+        }),
+      );
     },
     async listDeployments() {
       return readItems(await client.platform.deployments.list());

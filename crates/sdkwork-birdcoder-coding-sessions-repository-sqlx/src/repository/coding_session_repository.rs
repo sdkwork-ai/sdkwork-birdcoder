@@ -7,6 +7,7 @@ use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
     ForkCodingSessionInput, SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
     UpdateCodingSessionInput,
 };
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
 use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
@@ -554,8 +555,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         .await
         .map_err(|e| RepositoryError::Insert(e.to_string()))?;
 
-        Ok(CodingSessionPayload {
-            id: new_id,
+        let payload = CodingSessionPayload {
+            id: new_id.clone(),
             workspace_id: original.workspace_id,
             project_id: original.project_id,
             title,
@@ -570,7 +571,17 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             runtime_status: None,
             sort_timestamp,
             transcript_updated_at: None,
-        })
+        };
+
+        if let Err(error) = self
+            .copy_session_history(ctx, session_id, &new_id)
+            .await
+        {
+            let _ = self.delete_session(ctx, &new_id).await;
+            return Err(error);
+        }
+
+        Ok(payload)
     }
 
     async fn copy_session_history(
@@ -1094,85 +1105,147 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-    ) -> Result<Vec<CodingSessionEventPayload>, CodingSessionError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<CodingSessionEventPayload>, usize), CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+
+        let where_sql = format!(
+            " WHERE {} = ? AND {}",
+            columns::event::CODING_SESSION_ID,
+            IS_NOT_DELETED,
+        );
+        let total = map_sqlx_error(
+            sqlx::query_scalar::<_, i64>(&format!(
+                "SELECT COUNT(*) AS total FROM {}{}",
+                columns::event::TABLE,
+                where_sql
+            ))
+            .bind(session_id)
+            .fetch_one(&self.pool)
+            .await,
+        )? as usize;
 
         let rows = map_sqlx_error(
             sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
+                "SELECT * FROM {}{} ORDER BY {} ASC LIMIT ? OFFSET ?",
                 columns::event::TABLE,
-                columns::event::CODING_SESSION_ID,
-                columns::event::IS_DELETED,
+                where_sql,
                 columns::event::SEQUENCE_NO,
             ))
             .bind(session_id)
+            .bind(limit as i64)
+            .bind(offset as i64)
             .fetch_all(&self.pool)
             .await,
         )?;
 
-        rows.iter()
+        let items = rows
+            .iter()
             .map(|row| {
                 Ok(row_mapper::event_row_to_payload(map_sqlx_error(EventRow::from_row(row))?))
             })
-            .collect()
+            .collect::<Result<Vec<_>, CodingSessionError>>()?;
+
+        Ok((items, total))
     }
 
     async fn list_artifacts(
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-    ) -> Result<Vec<CodingSessionArtifactPayload>, CodingSessionError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<CodingSessionArtifactPayload>, usize), CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+
+        let where_sql = format!(
+            " WHERE {} = ? AND {}",
+            columns::artifact::CODING_SESSION_ID,
+            IS_NOT_DELETED,
+        );
+        let total = map_sqlx_error(
+            sqlx::query_scalar::<_, i64>(&format!(
+                "SELECT COUNT(*) AS total FROM {}{}",
+                columns::artifact::TABLE,
+                where_sql
+            ))
+            .bind(session_id)
+            .fetch_one(&self.pool)
+            .await,
+        )? as usize;
 
         let rows = map_sqlx_error(
             sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
+                "SELECT * FROM {}{} ORDER BY {} ASC LIMIT ? OFFSET ?",
                 columns::artifact::TABLE,
-                columns::artifact::CODING_SESSION_ID,
-                columns::artifact::IS_DELETED,
+                where_sql,
                 columns::artifact::CREATED_AT,
             ))
             .bind(session_id)
+            .bind(limit as i64)
+            .bind(offset as i64)
             .fetch_all(&self.pool)
             .await,
         )?;
 
-        rows.iter()
+        let items = rows
+            .iter()
             .map(|row| {
-                Ok(row_mapper::artifact_row_to_payload(map_sqlx_error(ArtifactRow::from_row(
-                    row,
-                ))?))
+                Ok(row_mapper::artifact_row_to_payload(map_sqlx_error(ArtifactRow::from_row(row))?))
             })
-            .collect()
+            .collect::<Result<Vec<_>, CodingSessionError>>()?;
+
+        Ok((items, total))
     }
 
     async fn list_checkpoints(
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-    ) -> Result<Vec<CodingSessionCheckpointPayload>, CodingSessionError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<CodingSessionCheckpointPayload>, usize), CodingSessionError> {
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
+
+        let where_sql = format!(
+            " WHERE {} = ? AND {}",
+            columns::checkpoint::CODING_SESSION_ID,
+            IS_NOT_DELETED,
+        );
+        let total = map_sqlx_error(
+            sqlx::query_scalar::<_, i64>(&format!(
+                "SELECT COUNT(*) AS total FROM {}{}",
+                columns::checkpoint::TABLE,
+                where_sql
+            ))
+            .bind(session_id)
+            .fetch_one(&self.pool)
+            .await,
+        )? as usize;
 
         let rows = map_sqlx_error(
             sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
+                "SELECT * FROM {}{} ORDER BY {} ASC LIMIT ? OFFSET ?",
                 columns::checkpoint::TABLE,
-                columns::checkpoint::CODING_SESSION_ID,
-                columns::checkpoint::IS_DELETED,
+                where_sql,
                 columns::checkpoint::CREATED_AT,
             ))
             .bind(session_id)
+            .bind(limit as i64)
+            .bind(offset as i64)
             .fetch_all(&self.pool)
             .await,
         )?;
 
-        rows.iter()
+        let items = rows
+            .iter()
             .map(|row| {
-                Ok(row_mapper::checkpoint_row_to_payload(map_sqlx_error(
-                    CheckpointRow::from_row(row),
-                )?))
+                Ok(row_mapper::checkpoint_row_to_payload(map_sqlx_error(CheckpointRow::from_row(row))?))
             })
-            .collect()
+            .collect::<Result<Vec<_>, CodingSessionError>>()?;
+
+        Ok((items, total))
     }
 
     async fn submit_approval_decision(

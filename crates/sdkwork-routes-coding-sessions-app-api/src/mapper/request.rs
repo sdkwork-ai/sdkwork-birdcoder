@@ -18,6 +18,19 @@ pub(crate) fn normalize_list_pagination(
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SessionChildListQuery {
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+}
+
+impl SessionChildListQuery {
+    pub fn normalized_pagination(&self) -> (usize, usize) {
+        normalize_list_pagination(self.offset, self.limit)
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ListSessionsQuery {
     pub workspace_id: Option<String>,
     pub project_id: Option<String>,

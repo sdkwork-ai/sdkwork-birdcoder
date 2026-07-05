@@ -5,13 +5,26 @@ use sdkwork_utils_rust::{is_blank, trim as trim_string};
 
 // ── Repository trait ─────────────────────────────────────────────────
 
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DocumentListQuery {
+    pub offset: Option<usize>,
+    pub limit: Option<usize>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DocumentListPage {
+    pub items: Vec<DocumentPayload>,
+    pub total: usize,
+}
+
 #[async_trait::async_trait]
 pub trait DocumentRepository: Send + Sync {
     async fn list_documents(
         &self,
         project_id: Option<&str>,
         tenant_id: Option<&str>,
-    ) -> Result<Vec<DocumentPayload>, String>;
+        query: &DocumentListQuery,
+    ) -> Result<DocumentListPage, String>;
 
     async fn find_document_by_id(
         &self,
@@ -36,9 +49,10 @@ impl<R: DocumentRepository> DocumentService<R> {
         &self,
         project_id: Option<&str>,
         tenant_id: Option<&str>,
-    ) -> Result<Vec<DocumentPayload>, DocumentError> {
+        query: &DocumentListQuery,
+    ) -> Result<DocumentListPage, DocumentError> {
         self.repository
-            .list_documents(project_id, tenant_id)
+            .list_documents(project_id, tenant_id, query)
             .await
             .map_err(DocumentError::Repository)
     }

@@ -139,13 +139,23 @@ fn pool_engine_label(pool: &DatabasePool) -> &'static str {
 pub async fn health_check(pool: DatabasePool) -> (StatusCode, Json<Value>) {
     let state = health_state(&pool).await;
     let payload = build_health_payload(&pool).await;
-    let healthy = state.liveness && state.status == "healthy";
-    let status_code = if healthy {
+    let ready = state.readiness.database && state.readiness.iam_database && state.readiness.realtime;
+    let status_code = if ready && state.status == "healthy" {
         StatusCode::OK
     } else {
         StatusCode::SERVICE_UNAVAILABLE
     };
     (status_code, Json(payload))
+}
+
+pub fn liveness_check() -> (StatusCode, Json<Value>) {
+    (
+        StatusCode::OK,
+        Json(json!({
+            "status": "alive",
+            "liveness": true,
+        })),
+    )
 }
 
 pub async fn build_health_payload(pool: &DatabasePool) -> Value {

@@ -1,8 +1,12 @@
 use sqlx::{AnyPool, Row};
 
 use sdkwork_birdcoder_document_service::domain::models::DocumentPayload;
-use sdkwork_birdcoder_document_service::service::document_service::DocumentRepository;
+use sdkwork_birdcoder_document_service::service::document_service::{
+    DocumentListQuery, DocumentRepository,
+};
 use sdkwork_birdcoder_errors::require_scoped_tenant_id;
+use sdkwork_birdcoder_project_service::pagination::clamp_list_page_size;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
 
 #[derive(Clone)]
 pub struct SqliteDocumentRepository {
@@ -50,23 +54,48 @@ impl DocumentRepository for SqliteDocumentRepository {
         &self,
         project_id: Option<&str>,
         tenant_id: Option<&str>,
-    ) -> Result<Vec<DocumentPayload>, String> {
+        query: &DocumentListQuery,
+    ) -> Result<sdkwork_birdcoder_document_service::service::document_service::DocumentListPage, String> {
         let tenant_id = Self::require_tenant_id(tenant_id)?;
-        let sql = "SELECT id, uuid, tenant_id, organization_id, created_at, updated_at, project_id, document_kind, title, slug, body_ref, status \
-             FROM studio_project_document WHERE (?1 IS NULL OR project_id = ?1) AND is_deleted = 0 AND tenant_id = ?2 \
-             ORDER BY created_at DESC";
+        let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+        let filter_sql = format!(
+            " WHERE (?1 IS NULL OR project_id = ?1) AND {IS_NOT_DELETED} AND tenant_id = ?2"
+        );
 
-        let rows = sqlx::query(sql)
+        let count_sql = format!(
+            "SELECT COUNT(*) AS total FROM studio_project_document{filter_sql}"
+        );
+        let total = sqlx::query_scalar::<_, i64>(&count_sql)
             .bind(project_id)
             .bind(tenant_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| e.to_string())? as usize;
+
+        let list_sql = format!(
+            "SELECT id, uuid, tenant_id, organization_id, created_at, updated_at, project_id, document_kind, title, slug, body_ref, status \
+             FROM studio_project_document{filter_sql} ORDER BY created_at DESC LIMIT ?3 OFFSET ?4"
+        );
+
+        let rows = sqlx::query(&list_sql)
+            .bind(project_id)
+            .bind(tenant_id)
+            .bind(limit as i64)
+            .bind(offset as i64)
             .fetch_all(&self.pool)
             .await
             .map_err(|e| e.to_string())?;
 
-        rows.iter()
+        let items = rows
+            .iter()
             .map(Self::map_row)
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+
+        Ok(sdkwork_birdcoder_document_service::service::document_service::DocumentListPage {
+            items,
+            total,
+        })
     }
 
     async fn find_document_by_id(
@@ -75,10 +104,12 @@ impl DocumentRepository for SqliteDocumentRepository {
         tenant_id: Option<&str>,
     ) -> Result<Option<DocumentPayload>, String> {
         let tenant_id = Self::require_tenant_id(tenant_id)?;
-        let sql = "SELECT id, uuid, tenant_id, organization_id, created_at, updated_at, project_id, document_kind, title, slug, body_ref, status \
-             FROM studio_project_document WHERE id = ?1 AND is_deleted = 0 AND tenant_id = ?2";
+        let sql = format!(
+            "SELECT id, uuid, tenant_id, organization_id, created_at, updated_at, project_id, document_kind, title, slug, body_ref, status \
+             FROM studio_project_document WHERE id = ?1 AND {IS_NOT_DELETED} AND tenant_id = ?2"
+        );
 
-        let row = sqlx::query(sql)
+        let row = sqlx::query(&sql)
             .bind(document_id)
             .bind(tenant_id)
             .fetch_optional(&self.pool)

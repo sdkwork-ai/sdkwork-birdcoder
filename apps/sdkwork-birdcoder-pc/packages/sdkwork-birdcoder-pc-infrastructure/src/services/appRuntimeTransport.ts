@@ -62,7 +62,7 @@ import {
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import { resolveRequiredCodingSessionSelection } from './codingSessionSelection.ts';
 import { createBirdCoderLocalServerRequestId } from './localServerRequestId.ts';
-import { randomString } from '@sdkwork/utils/id';
+import { randomString, paginateItems } from '@sdkwork/utils';
 
 export interface CreateBirdCoderInProcessAppRuntimeTransportOptions {
   hostMode?: BirdCoderHostMode;
@@ -483,6 +483,83 @@ function buildProjectionEvents(
   return events;
 }
 
+function readFileChangePath(fileChange: unknown): string | undefined {
+  const record = readRecord(fileChange);
+  if (!record) {
+    return undefined;
+  }
+  const pathValue =
+    typeof record.path === 'string'
+      ? record.path
+      : typeof record.filePath === 'string'
+        ? record.filePath
+        : undefined;
+  return normalizeText(pathValue);
+}
+
+function buildProjectionArtifacts(
+  session: BirdCoderCodingSession,
+): BirdCoderCodingSessionArtifact[] {
+  const messages = getOrderedCodingSessionMessages(session.messages);
+  const artifacts: BirdCoderCodingSessionArtifact[] = [];
+
+  for (const message of messages) {
+    const turnId = normalizeText(message.turnId) ?? session.id;
+    for (const [index, fileChange] of (message.fileChanges ?? []).entries()) {
+      const path = readFileChangePath(fileChange);
+      if (!path) {
+        continue;
+      }
+      artifacts.push({
+        id: `${session.id}:${message.id}:artifact:${index}`,
+        codingSessionId: session.id,
+        turnId,
+        kind: 'patch',
+        status: 'ready',
+        title: path,
+        blobRef: path,
+        metadata: readRecord(fileChange) ?? {},
+        createdAt: message.createdAt,
+      });
+    }
+  }
+
+  return artifacts;
+}
+
+function buildProjectionCheckpoints(
+  session: BirdCoderCodingSession,
+): BirdCoderCodingSessionCheckpoint[] {
+  const messages = getOrderedCodingSessionMessages(session.messages);
+  const checkpoints: BirdCoderCodingSessionCheckpoint[] = [];
+
+  for (const message of messages) {
+    const turnId = normalizeText(message.turnId);
+    for (const [index, command] of (message.commands ?? []).entries()) {
+      const commandRecord = readRecord(command);
+      if (!commandRecord) {
+        continue;
+      }
+      const requiresApproval = commandRecord.requiresApproval === true;
+      const requiresReply = commandRecord.requiresReply === true;
+      if (!requiresApproval && !requiresReply) {
+        continue;
+      }
+      checkpoints.push({
+        id: `${session.id}:${message.id}:checkpoint:${index}`,
+        codingSessionId: session.id,
+        runtimeId: resolveTurnRuntimeId(session.id, turnId),
+        checkpointKind: requiresApproval ? 'approval' : 'snapshot',
+        resumable: true,
+        state: commandRecord,
+        createdAt: message.createdAt,
+      });
+    }
+  }
+
+  return checkpoints;
+}
+
 function matchOperationPath(
   template: string,
   actualPath: string,
@@ -598,15 +675,18 @@ function createDescriptor(hostMode: BirdCoderHostMode): BirdCoderCodingServerDes
   };
 }
 
-async function listCodingSessionsFromProjects(
+async function collectCodingSessionsFromProjects(
   projectService: Pick<IProjectService, 'getProjectById' | 'getProjects'>,
   codingSessionProjectIndex: Map<string, { projectId: string; workspaceId: string }>,
   knownWorkspaceIds: Set<string>,
   request: BirdCoderListCodingSessionsRequest | BirdCoderListNativeSessionsRequest = {},
 ): Promise<BirdCoderCodingSession[]> {
+  // Session list pagination is applied after global sort via `paginateItems`.
+  // Project fetches must not reuse session limit/offset or sessions in later
+  // project pages would be invisible to the in-process runtime.
   const projects = await projectService.getProjects(request.workspaceId, {
-    limit: request.limit,
-    offset: request.offset,
+    limit: 200,
+    offset: 0,
   });
   const sessions: BirdCoderCodingSession[] = [];
 
@@ -853,7 +933,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
         case 'codingSessions.list': {
           const limit = normalizeLimit(request.query?.limit);
           const offset = normalizeOffset(request.query?.offset);
-          const codingSessions = await listCodingSessionsFromProjects(
+          const codingSessions = await collectCodingSessionsFromProjects(
             projectService,
             codingSessionProjectIndex,
             knownWorkspaceIds,
@@ -865,10 +945,11 @@ export function createBirdCoderInProcessAppRuntimeTransport({
               offset,
             },
           );
-          return createListEnvelope(codingSessions.map(toCodingSessionSummary), {
-            offset: offset ?? 0,
-            pageSize: limit ?? codingSessions.length,
-            total: codingSessions.length,
+          const page = paginateItems(codingSessions, { limit, offset });
+          return createListEnvelope(page.items.map(toCodingSessionSummary), {
+            offset: page.offset,
+            pageSize: page.pageSize,
+            total: page.total,
           }) as TResponse;
         }
         case 'codingSessions.retrieve': {
@@ -883,7 +964,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
         case 'nativeSessions.list': {
           const limit = normalizeLimit(request.query?.limit);
           const offset = normalizeOffset(request.query?.offset);
-          const codingSessions = await listCodingSessionsFromProjects(
+          const codingSessions = await collectCodingSessionsFromProjects(
             projectService,
             codingSessionProjectIndex,
             knownWorkspaceIds,
@@ -895,10 +976,11 @@ export function createBirdCoderInProcessAppRuntimeTransport({
               offset,
             },
           );
-          return createListEnvelope(codingSessions.map(toNativeSessionSummary), {
-            offset: offset ?? 0,
-            pageSize: limit ?? codingSessions.length,
-            total: codingSessions.length,
+          const page = paginateItems(codingSessions, { limit, offset });
+          return createListEnvelope(page.items.map(toNativeSessionSummary), {
+            offset: page.offset,
+            pageSize: page.pageSize,
+            total: page.total,
           }) as TResponse;
         }
         case 'nativeSessions.retrieve': {
@@ -916,18 +998,53 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           }) as TResponse;
         }
         case 'codingSessions.events.list': {
+          const limit = normalizeLimit(request.query?.limit);
+          const offset = normalizeOffset(request.query?.offset);
           const codingSession = await getCodingSessionTranscriptById(
             projectService,
             codingSessionProjectIndex,
             knownWorkspaceIds,
             resolveCodingSessionPathParam(resolvedOperation.pathParams),
           );
-          return createListEnvelope(buildProjectionEvents(codingSession)) as TResponse;
+          const page = paginateItems(buildProjectionEvents(codingSession), { limit, offset });
+          return createListEnvelope(page.items, {
+            offset: page.offset,
+            pageSize: page.pageSize,
+            total: page.total,
+          }) as TResponse;
         }
-        case 'codingSessions.artifacts.list':
-          return createListEnvelope<BirdCoderCodingSessionArtifact>([]) as TResponse;
-        case 'codingSessions.checkpoints.list':
-          return createListEnvelope<BirdCoderCodingSessionCheckpoint>([]) as TResponse;
+        case 'codingSessions.artifacts.list': {
+          const limit = normalizeLimit(request.query?.limit);
+          const offset = normalizeOffset(request.query?.offset);
+          const codingSession = await getCodingSessionTranscriptById(
+            projectService,
+            codingSessionProjectIndex,
+            knownWorkspaceIds,
+            resolveCodingSessionPathParam(resolvedOperation.pathParams),
+          );
+          const page = paginateItems(buildProjectionArtifacts(codingSession), { limit, offset });
+          return createListEnvelope(page.items, {
+            offset: page.offset,
+            pageSize: page.pageSize,
+            total: page.total,
+          }) as TResponse;
+        }
+        case 'codingSessions.checkpoints.list': {
+          const limit = normalizeLimit(request.query?.limit);
+          const offset = normalizeOffset(request.query?.offset);
+          const codingSession = await getCodingSessionTranscriptById(
+            projectService,
+            codingSessionProjectIndex,
+            knownWorkspaceIds,
+            resolveCodingSessionPathParam(resolvedOperation.pathParams),
+          );
+          const page = paginateItems(buildProjectionCheckpoints(codingSession), { limit, offset });
+          return createListEnvelope(page.items, {
+            offset: page.offset,
+            pageSize: page.pageSize,
+            total: page.total,
+          }) as TResponse;
+        }
         case 'codingSessions.create': {
           const body = readRequestBody<BirdCoderCreateCodingSessionRequest>(request);
           const selection = resolveRequiredCodingSessionSelection({

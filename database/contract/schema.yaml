@@ -9,6 +9,7 @@ engines:
   - postgres
 table_prefixes:
   - ai_
+  - chat_
   - commerce_
   - ops_
   - runtime_
@@ -141,5 +142,11 @@ tables:
     lifecycle_status: active
     owner: birdcoder-platform
   - name: commerce_notification
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: chat_conversation
+    lifecycle_status: active
+    owner: birdcoder-platform
+  - name: chat_message
     lifecycle_status: active
     owner: birdcoder-platform

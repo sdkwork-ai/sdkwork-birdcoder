@@ -429,12 +429,17 @@ fn build_directory_snapshot(
     })
 }
 
+const DEFAULT_FS_READ_FILE_MAX_BYTES: usize = 8 * 1024 * 1024;
+
 fn read_mounted_file_to_string(
     file_path: &Path,
     max_bytes: Option<usize>,
 ) -> Result<String, String> {
     use std::io::Read;
-    if let Some(max_bytes) = max_bytes.filter(|value| *value > 0) {
+    let max_bytes = max_bytes
+        .filter(|value| *value > 0)
+        .unwrap_or(DEFAULT_FS_READ_FILE_MAX_BYTES);
+    if max_bytes > 0 {
         let file = fs::File::open(file_path).map_err(|error| {
             format!(
                 "failed to open mounted file '{}': {error}",
@@ -452,12 +457,7 @@ fn read_mounted_file_to_string(
             })?;
         return Ok(String::from_utf8_lossy(&buffer).into_owned());
     }
-    fs::read_to_string(file_path).map_err(|error| {
-        format!(
-            "failed to read mounted file '{}': {error}",
-            file_path.display()
-        )
-    })
+    Err("max_bytes must be greater than zero".to_string())
 }
 
 fn build_entry_revision(metadata: &fs::Metadata) -> Result<String, String> {

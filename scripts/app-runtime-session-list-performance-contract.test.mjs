@@ -53,34 +53,34 @@ function readSwitchCaseBody(operationId) {
   return appRuntimeTransportSource.slice(caseStart, nextCaseStart);
 }
 
-const listAllCodingSessionsSource = readFunctionBody('listAllCodingSessions');
+const collectCodingSessionsSource = readFunctionBody('collectCodingSessionsFromProjects');
 
 assert.match(
-  listAllCodingSessionsSource,
+  collectCodingSessionsSource,
   /const sessions: BirdCoderCodingSession\[\] = \[\];/,
   'App runtime session listing must collect sessions into one array without chained filter/flatMap intermediates.',
 );
 
 assert.match(
-  listAllCodingSessionsSource,
+  collectCodingSessionsSource,
   /for \(const project of projects\)/,
   'App runtime session listing must scan projects with one imperative pass.',
 );
 
 assert.match(
-  listAllCodingSessionsSource,
+  collectCodingSessionsSource,
   /for \(const codingSession of project\.codingSessions\)/,
   'App runtime session listing must scan coding sessions with one imperative pass.',
 );
 
 assert.match(
-  listAllCodingSessionsSource,
+  collectCodingSessionsSource,
   /sessions\.push\(codingSession\);/,
   'App runtime session listing must append matching sessions directly to the collected page source.',
 );
 
 assert.doesNotMatch(
-  listAllCodingSessionsSource,
+  collectCodingSessionsSource,
   /\.flatMap\(/,
   'App runtime session listing must not allocate flatMap intermediates on large workspaces.',
 );
