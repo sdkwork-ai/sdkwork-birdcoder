@@ -17,6 +17,11 @@ pub const SET_SOFT_DELETED: &str = "is_deleted = TRUE";
 /// Portable active-row literal for `INSERT` bind parameters (`0` on SQLite, `false` on PG).
 pub const INSERT_NOT_DELETED: i64 = 0;
 
+/// Portable SQL for `sqlx::query` against `AnyPool` (normalizes `?1` placeholders).
+pub fn any_sql(template: &str) -> String {
+    prepare_sql(template)
+}
+
 /// Normalize SQL templates for `sqlx::AnyPool` execution.
 pub fn prepare_sql(template: &str) -> String {
     normalize_any_placeholders(template)

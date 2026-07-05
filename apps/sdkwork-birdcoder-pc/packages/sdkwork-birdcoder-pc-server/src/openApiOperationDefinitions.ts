@@ -1029,7 +1029,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'projects.collaborators.list': {
-      parameters: [projectIdPathParameter],
+      parameters: [projectIdPathParameter, limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Project collaborators returned successfully.',
@@ -1124,6 +1124,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'appTemplates.list': {
+      parameters: [limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'App template catalog returned successfully.',
@@ -1210,7 +1211,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'workspaces.members.list': {
-      parameters: [workspaceIdPathParameter],
+      parameters: [workspaceIdPathParameter, limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Workspace members returned successfully.',
@@ -1255,6 +1256,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'deployments.list': {
+      parameters: [limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Deployment inventory returned successfully.',
@@ -1825,7 +1827,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'projects.deploymentTargets.list': {
-      parameters: [projectIdPathParameter],
+      parameters: [projectIdPathParameter, limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Deployment targets returned successfully.',

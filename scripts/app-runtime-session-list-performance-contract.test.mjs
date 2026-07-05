@@ -62,6 +62,8 @@ assert.match(
 );
 
 assert.match(
+  collectCodingSessionsSource,
+  /const sessions: BirdCoderCodingSession\[\] = \[\];/,
   'App runtime session listing must collect sessions into one array without chained filter/flatMap intermediates.',
 );
 

@@ -186,7 +186,7 @@ export interface BirdCoderAppSdkApiClient {
   ): Promise<BirdCoderCodingSessionSummary[]>;
   listDeployments(): Promise<BirdCoderDeploymentRecordSummary[]>;
   listDeploymentTargets(projectId: string): Promise<BirdCoderDeploymentTargetSummary[]>;
-  listDocuments(options: { projectId?: string; limit?: number; offset?: number } = {}): Promise<BirdCoderProjectDocumentSummary[]>;
+  listDocuments(options?: { projectId?: string; limit?: number; offset?: number }): Promise<BirdCoderProjectDocumentSummary[]>;
   listEngines(): Promise<BirdCoderEngineDescriptor[]>;
   listModels(): Promise<BirdCoderModelCatalogEntry[]>;
   listNativeSessionProviders(): Promise<BirdCoderNativeSessionProviderSummary[]>;

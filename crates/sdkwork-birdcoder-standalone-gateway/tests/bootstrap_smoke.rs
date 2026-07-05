@@ -205,6 +205,38 @@ async fn build_app_exposes_public_iam_runtime() {
 }
 
 #[tokio::test]
+async fn build_app_bootstraps_postgresql_when_configured() {
+    let database_url = std::env::var("SDKWORK_BIRDCODER_DATABASE_URL")
+        .ok()
+        .filter(|value| value.to_ascii_lowercase().contains("postgres"));
+    let engine = std::env::var("SDKWORK_BIRDCODER_DATABASE_ENGINE")
+        .ok()
+        .filter(|value| value.to_ascii_lowercase().contains("postgres"));
+    if database_url.is_none() || engine.is_none() {
+        return;
+    }
+
+    let config = smoke_config("bootstrap-smoke-postgres-unused.db");
+    let app = sdkwork_birdcoder_standalone_gateway::bootstrap::build_app(&config)
+        .await
+        .expect("build_app should bootstrap against configured PostgreSQL");
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/health/live")
+                .body(Body::empty())
+                .expect("build liveness request"),
+        )
+        .await
+        .expect("serve liveness request");
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let _ = std::fs::remove_file(&config.sqlite_file);
+}
+
+#[tokio::test]
 async fn build_app_with_invalid_sqlite_target_fails_gracefully() {
     let sqlite_dir = std::env::temp_dir().join("bootstrap-smoke-invalid-sqlite-target");
     let _ = std::fs::remove_dir_all(&sqlite_dir);

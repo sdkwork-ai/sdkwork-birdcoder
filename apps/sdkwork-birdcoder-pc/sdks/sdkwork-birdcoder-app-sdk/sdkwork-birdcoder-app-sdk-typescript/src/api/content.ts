@@ -9,31 +9,18 @@ import type * as Types from '../types/index.ts';
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 
 
-export interface ContentDocumentsListQuery {
-  projectId?: string;
-  limit?: number;
-  offset?: number;
-}
-
 export interface ContentApi {
   documents: {
-    list(
-      query?: ContentDocumentsListQuery,
-      options?: BirdcoderSdkRequestOptions,
-    ): Promise<Types.BirdCoderProjectDocumentSummaryListEnvelope>;
+    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectDocumentSummaryListEnvelope>;
   };
 }
 
 export function createContentApi(requestOperation: BirdcoderSdkRequestOperation): ContentApi {
   return {
     documents: {
-      list(query: ContentDocumentsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderProjectDocumentSummaryListEnvelope>(
-          'content.documents.list',
-          { query },
-          options,
-        );
-      },
-    },
+      list(options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderProjectDocumentSummaryListEnvelope>("content.documents.list", {}, options);
+      }
+    }
   };
 }

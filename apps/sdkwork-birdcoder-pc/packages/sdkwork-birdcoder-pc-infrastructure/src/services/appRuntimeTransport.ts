@@ -515,7 +515,7 @@ function buildProjectionArtifacts(
         codingSessionId: session.id,
         turnId,
         kind: 'patch',
-        status: 'ready',
+        status: 'sealed',
         title: path,
         blobRef: path,
         metadata: readRecord(fileChange) ?? {},
@@ -677,6 +677,7 @@ function createDescriptor(hostMode: BirdCoderHostMode): BirdCoderCodingServerDes
 
 const PROJECT_PAGE_SIZE = 200;
 const MAX_PROJECT_PAGES = 50;
+const MAX_COLLECTED_CODING_SESSIONS = 10_000;
 
 async function listProjectsForSessionIndex(
   projectService: Pick<IProjectService, 'getProjects'>,
@@ -724,7 +725,13 @@ async function collectCodingSessionsFromProjects(
       });
       if (isRequestedProject && (!request.engineId || codingSession.engineId === request.engineId)) {
         sessions.push(codingSession);
+        if (sessions.length >= MAX_COLLECTED_CODING_SESSIONS) {
+          break;
+        }
       }
+    }
+    if (sessions.length >= MAX_COLLECTED_CODING_SESSIONS) {
+      break;
     }
   }
   sessions.sort(compareCodingSessions);

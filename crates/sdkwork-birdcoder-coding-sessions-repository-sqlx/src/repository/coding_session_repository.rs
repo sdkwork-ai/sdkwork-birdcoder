@@ -7,7 +7,7 @@ use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
     ForkCodingSessionInput, SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
     UpdateCodingSessionInput,
 };
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{IS_NOT_DELETED, SET_SOFT_DELETED};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
 use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
