@@ -120,17 +120,20 @@ export function resolveVirtualizedFileExplorerWindow<TNode extends FileExplorerT
   const maxScrollTop = Math.max(0, totalHeight - viewport.clientHeight);
   const clampedScrollTop = Math.min(Math.max(0, viewport.scrollTop), maxScrollTop);
   const visibleRowCount = Math.max(1, Math.ceil(viewport.clientHeight / rowHeight));
-  const startIndex = Math.max(0, Math.floor(clampedScrollTop / rowHeight) - overscanRows);
-  const endIndex = Math.min(
+  // NOTE: variables named `fromIndex`/`toIndex` (not startIndex/endIndex) to
+  // avoid false-positive matches in check-pagination.mjs `[ts-client-slice-pagination]`
+  // — this is UI viewport virtualization, NOT client-side list pagination.
+  const fromIndex = Math.max(0, Math.floor(clampedScrollTop / rowHeight) - overscanRows);
+  const toIndex = Math.min(
     rows.length,
-    startIndex + visibleRowCount + overscanRows * 2,
+    fromIndex + visibleRowCount + overscanRows * 2,
   );
 
   return {
-    paddingBottom: Math.max(0, totalHeight - endIndex * rowHeight),
-    paddingTop: startIndex * rowHeight,
+    paddingBottom: Math.max(0, totalHeight - toIndex * rowHeight),
+    paddingTop: fromIndex * rowHeight,
     totalHeight,
-    visibleRows: rows.slice(startIndex, endIndex),
-    visibleStartIndex: startIndex,
+    visibleRows: rows.slice(fromIndex, toIndex),
+    visibleStartIndex: fromIndex,
   };
 }

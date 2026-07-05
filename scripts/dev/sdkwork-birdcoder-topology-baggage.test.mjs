@@ -25,7 +25,7 @@ const skipPathFragments = [
   '/dist/',
   '/external/',
   'sdkwork-birdcoder-topology-baggage.test.mjs',
-  'docs/topology-standard.md',
+  'docs/architecture/topology-standard.md',
   'scripts/birdcoder-iam-env.mjs',
   'scripts/lib/birdcoder-topology.mjs',
 ];
@@ -153,6 +153,9 @@ assert.ok(
   fs.existsSync(path.join(repoRoot, 'scripts/lib/birdcoder-topology.mjs')),
   'birdcoder topology adapter required',
 );
-assert.ok(fs.existsSync(path.join(repoRoot, 'docs/topology-standard.md')), 'topology-standard doc required');
+assert.ok(
+  fs.existsSync(path.join(repoRoot, 'docs/architecture/topology-standard.md')),
+  'topology-standard doc required',
+);
 
 console.log('[sdkwork-birdcoder-topology-baggage] ok');

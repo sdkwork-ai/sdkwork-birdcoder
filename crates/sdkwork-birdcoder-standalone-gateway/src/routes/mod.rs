@@ -105,6 +105,11 @@ fn traced_problem_for_code(
             message,
             trace_id,
         ),
+        "unauthorized" => traced_platform_problem(
+            SdkWorkResultCode::AuthenticationRequired,
+            message,
+            trace_id,
+        ),
         "conflict" => traced_platform_problem(SdkWorkResultCode::Conflict, message, trace_id),
         "rate_limited" => traced_platform_problem(
             SdkWorkResultCode::RateLimitExceeded,

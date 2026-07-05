@@ -1,0 +1,11 @@
+[package]
+name = "sdkwork-birdcoder-commerce-repository-sqlx"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+sqlx = { workspace = true }
+sdkwork-birdcoder-commerce-service = { workspace = true }

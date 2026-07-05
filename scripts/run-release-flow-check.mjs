@@ -44,7 +44,7 @@ export const RELEASE_FLOW_CHECK_COMMANDS = [
   'node --experimental-strip-types scripts/postgresql-live-smoke-contract.test.ts',
   'node scripts/live-docs-governance-baseline.test.mjs',
   'node scripts/release-docs-api-sdk-standard-contract.test.mjs',
-  'node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
+  'node scripts/run-local-tsx.mjs scripts/coding-server-api-spec-path-contract.test.ts',
   'node scripts/quality-loop-scoreboard-contract.test.mjs',
   'node scripts/release/local-release-command.test.mjs',
   'node scripts/release/rollback-plan-command.test.mjs',

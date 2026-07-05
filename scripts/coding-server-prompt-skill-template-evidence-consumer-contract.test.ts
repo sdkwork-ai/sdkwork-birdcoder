@@ -10,17 +10,27 @@ const serverIndexPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts',
   import.meta.url,
 );
+const coreSessionExecutionPath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/coreSessionExecution.ts',
+  import.meta.url,
+);
 const serverIndexSource = fs.readFileSync(serverIndexPath, 'utf8');
+const coreSessionExecutionSource = fs.readFileSync(coreSessionExecutionPath, 'utf8');
 
 assert.match(
   serverIndexSource,
-  /export async function executeBirdCoderCoreSessionRun/u,
-  'coding-server module must expose the canonical core-session execution entrypoint.',
+  /export \* from '\.\/coreSessionExecution\.ts'/u,
+  'coding-server index must re-export core session execution entrypoints.',
 );
 assert.match(
-  serverIndexSource,
+  coreSessionExecutionSource,
+  /export async function executeBirdCoderCoreSessionRun/u,
+  'coding-server coreSessionExecution module must expose the canonical core-session execution entrypoint.',
+);
+assert.match(
+  coreSessionExecutionSource,
   /export async function persistBirdCoderCoreSessionRunProjection/u,
-  'coding-server module must expose the canonical core-session projection persistence entrypoint.',
+  'coding-server coreSessionExecution module must expose the canonical core-session projection persistence entrypoint.',
 );
 
 const provider = createBirdCoderStorageProvider('sqlite');

@@ -1,7 +1,8 @@
 {
-  "name": "@sdkwork/birdcoder-backend-sdk",
+  "name": "sdkwork-birdcoder-backend-sdk-generated-typescript",
   "version": "0.1.0",
   "private": true,
+  "sdkworkRole": "transport",
   "description": "Generator-owned TypeScript transport SDK for sdkwork-birdcoder-backend-sdk.",
   "author": "SDKWork Team",
   "license": "MIT",

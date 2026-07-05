@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "language": "typescript",
   "sdkType": "backend",
-  "packageName": "@sdkwork/birdcoder-backend-sdk",
+  "packageName": "sdkwork-birdcoder-backend-sdk-generated-typescript",
+  "transportPackageName": "sdkwork-birdcoder-backend-sdk-generated-typescript",
+  "consumerPackageName": "@sdkwork/birdcoder-backend-sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

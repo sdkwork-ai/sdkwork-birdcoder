@@ -77,29 +77,50 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         &self,
         ctx: &DeploymentContext,
         project_id: &str,
-    ) -> Result<Vec<DeploymentPayload>, DeploymentError> {
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<DeploymentPayload>, usize), DeploymentError> {
+        let tenant_id = require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
+            DeploymentError::Forbidden("A valid tenant scope is required.".to_owned())
+        })?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+        let rows = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             deployment_record::TABLE,
             deployment_record::PROJECT_ID,
             deployment_record::IS_DELETED,
-        );
-        let tenant_id = append_required_tenant_filter(ctx, deployment_record::TENANT_ID, &mut sql)?;
+            deployment_record::TENANT_ID,
+        ))
+        .bind(project_id)
+        .bind(tenant_id)
+        .bind(limit as i64)
+        .bind(offset as i64)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
-        let rows = sqlx::query(&sql)
-            .bind(project_id)
-            .bind(tenant_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
-
-        rows.iter()
+        let items: Vec<DeploymentPayload> = rows
+            .iter()
             .map(|row| {
                 DeploymentRecordRow::from_row(row)
                     .map(|r| row_mapper::deployment_record_row_to_payload(&r))
                     .map_err(|e| DeploymentError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
+            deployment_record::TABLE,
+            deployment_record::PROJECT_ID,
+            deployment_record::IS_DELETED,
+            deployment_record::TENANT_ID,
+        ))
+        .bind(project_id)
+        .bind(tenant_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn find_deployment_target_by_id(
@@ -136,29 +157,50 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         &self,
         ctx: &DeploymentContext,
         project_id: &str,
-    ) -> Result<Vec<DeploymentTargetPayload>, DeploymentError> {
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<DeploymentTargetPayload>, usize), DeploymentError> {
+        let tenant_id = require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
+            DeploymentError::Forbidden("A valid tenant scope is required.".to_owned())
+        })?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+        let rows = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             deployment_target::TABLE,
             deployment_target::PROJECT_ID,
             deployment_target::IS_DELETED,
-        );
-        let tenant_id = append_required_tenant_filter(ctx, deployment_target::TENANT_ID, &mut sql)?;
+            deployment_target::TENANT_ID,
+        ))
+        .bind(project_id)
+        .bind(tenant_id)
+        .bind(limit as i64)
+        .bind(offset as i64)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
-        let rows = sqlx::query(&sql)
-            .bind(project_id)
-            .bind(tenant_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
-
-        rows.iter()
+        let items: Vec<DeploymentTargetPayload> = rows
+            .iter()
             .map(|row| {
                 DeploymentTargetRow::from_row(row)
                     .map(|r| row_mapper::deployment_target_row_to_payload(&r))
                     .map_err(|e| DeploymentError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
+            deployment_target::TABLE,
+            deployment_target::PROJECT_ID,
+            deployment_target::IS_DELETED,
+            deployment_target::TENANT_ID,
+        ))
+        .bind(project_id)
+        .bind(tenant_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn find_release_by_id(
@@ -195,9 +237,16 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         &self,
         ctx: &DeploymentContext,
         project_id: &str,
-    ) -> Result<Vec<ReleasePayload>, DeploymentError> {
-        let mut sql = format!(
-            "SELECT r.* FROM {} r INNER JOIN {} d ON r.{} = d.{} WHERE d.{} = ? AND r.{} = 0 AND d.{} = 0",
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<ReleasePayload>, usize), DeploymentError> {
+        let tenant_id = require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
+            DeploymentError::Forbidden("A valid tenant scope is required.".to_owned())
+        })?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL. Bind order:
+        // project_id, tenant_id, limit, offset.
+        let rows = sqlx::query(&format!(
+            "SELECT r.* FROM {} r INNER JOIN {} d ON r.{} = d.{} WHERE d.{} = ? AND r.{} = 0 AND d.{} = 0 AND d.{} = ? ORDER BY r.{} DESC LIMIT ? OFFSET ?",
             release_record::TABLE,
             deployment_record::TABLE,
             release_record::ID,
@@ -205,27 +254,43 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             deployment_record::PROJECT_ID,
             release_record::IS_DELETED,
             deployment_record::IS_DELETED,
-        );
-        let tenant_id = append_required_tenant_filter(
-            ctx,
-            &format!("d.{}", deployment_record::TENANT_ID),
-            &mut sql,
-        )?;
+            deployment_record::TENANT_ID,
+            release_record::ID,
+        ))
+        .bind(project_id)
+        .bind(tenant_id)
+        .bind(limit as i64)
+        .bind(offset as i64)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
-        let rows = sqlx::query(&sql)
-            .bind(project_id)
-            .bind(tenant_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
-
-        rows.iter()
+        let items: Vec<ReleasePayload> = rows
+            .iter()
             .map(|row| {
                 ReleaseRecordRow::from_row(row)
                     .map(|r| row_mapper::release_record_row_to_payload(&r))
                     .map_err(|e| DeploymentError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} r INNER JOIN {} d ON r.{} = d.{} WHERE d.{} = ? AND r.{} = 0 AND d.{} = 0 AND d.{} = ?",
+            release_record::TABLE,
+            deployment_record::TABLE,
+            release_record::ID,
+            deployment_record::RELEASE_RECORD_ID,
+            deployment_record::PROJECT_ID,
+            release_record::IS_DELETED,
+            deployment_record::IS_DELETED,
+            deployment_record::TENANT_ID,
+        ))
+        .bind(project_id)
+        .bind(tenant_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn list_audit_logs(
@@ -233,31 +298,54 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         ctx: &DeploymentContext,
         scope_type: &str,
         scope_id: &str,
-    ) -> Result<Vec<AuditPayload>, DeploymentError> {
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<AuditPayload>, usize), DeploymentError> {
+        let tenant_id = require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
+            DeploymentError::Forbidden("A valid tenant scope is required.".to_owned())
+        })?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+        let rows = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             audit_event::TABLE,
             audit_event::SCOPE_TYPE,
             audit_event::SCOPE_ID,
             audit_event::IS_DELETED,
-        );
-        let tenant_id = append_required_tenant_filter(ctx, audit_event::TENANT_ID, &mut sql)?;
+            audit_event::TENANT_ID,
+        ))
+        .bind(scope_type)
+        .bind(scope_id)
+        .bind(tenant_id)
+        .bind(limit as i64)
+        .bind(offset as i64)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
-        let rows = sqlx::query(&sql)
-            .bind(scope_type)
-            .bind(scope_id)
-            .bind(tenant_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
-
-        rows.iter()
+        let items: Vec<AuditPayload> = rows
+            .iter()
             .map(|row| {
                 AuditEventRow::from_row(row)
                     .map(|r| row_mapper::audit_event_row_to_payload(&r))
                     .map_err(|e| DeploymentError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = ? AND {} = 0 AND {} = ?",
+            audit_event::TABLE,
+            audit_event::SCOPE_TYPE,
+            audit_event::SCOPE_ID,
+            audit_event::IS_DELETED,
+            audit_event::TENANT_ID,
+        ))
+        .bind(scope_type)
+        .bind(scope_id)
+        .bind(tenant_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn list_policies(
@@ -265,109 +353,189 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         ctx: &DeploymentContext,
         scope_type: &str,
         scope_id: &str,
-    ) -> Result<Vec<PolicyPayload>, DeploymentError> {
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<PolicyPayload>, usize), DeploymentError> {
+        let tenant_id = require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
+            DeploymentError::Forbidden("A valid tenant scope is required.".to_owned())
+        })?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+        let rows = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             governance_policy::TABLE,
             governance_policy::SCOPE_TYPE,
             governance_policy::SCOPE_ID,
             governance_policy::IS_DELETED,
-        );
-        let tenant_id = append_required_tenant_filter(ctx, governance_policy::TENANT_ID, &mut sql)?;
+            governance_policy::TENANT_ID,
+        ))
+        .bind(scope_type)
+        .bind(scope_id)
+        .bind(tenant_id)
+        .bind(limit as i64)
+        .bind(offset as i64)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
-        let rows = sqlx::query(&sql)
-            .bind(scope_type)
-            .bind(scope_id)
-            .bind(tenant_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
-
-        rows.iter()
+        let items: Vec<PolicyPayload> = rows
+            .iter()
             .map(|row| {
                 GovernancePolicyRow::from_row(row)
                     .map(|r| row_mapper::governance_policy_row_to_payload(&r))
                     .map_err(|e| DeploymentError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = ? AND {} = 0 AND {} = ?",
+            governance_policy::TABLE,
+            governance_policy::SCOPE_TYPE,
+            governance_policy::SCOPE_ID,
+            governance_policy::IS_DELETED,
+            governance_policy::TENANT_ID,
+        ))
+        .bind(scope_type)
+        .bind(scope_id)
+        .bind(tenant_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn list_deployments(
         &self,
         ctx: &DeploymentContext,
-    ) -> Result<Vec<DeploymentPayload>, DeploymentError> {
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = 0",
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<DeploymentPayload>, usize), DeploymentError> {
+        let tenant_id = require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
+            DeploymentError::Forbidden("A valid tenant scope is required.".to_owned())
+        })?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+        let rows = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             deployment_record::TABLE,
             deployment_record::IS_DELETED,
-        );
-        let tenant_id = append_required_tenant_filter(ctx, deployment_record::TENANT_ID, &mut sql)?;
+            deployment_record::TENANT_ID,
+        ))
+        .bind(tenant_id)
+        .bind(limit as i64)
+        .bind(offset as i64)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
-        let rows = sqlx::query(&sql)
-            .bind(tenant_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
-
-        rows.iter()
+        let items: Vec<DeploymentPayload> = rows
+            .iter()
             .map(|row| {
                 DeploymentRecordRow::from_row(row)
                     .map(|r| row_mapper::deployment_record_row_to_payload(&r))
                     .map_err(|e| DeploymentError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = 0 AND {} = ?",
+            deployment_record::TABLE,
+            deployment_record::IS_DELETED,
+            deployment_record::TENANT_ID,
+        ))
+        .bind(tenant_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn list_deployment_targets(
         &self,
         ctx: &DeploymentContext,
-    ) -> Result<Vec<DeploymentTargetPayload>, DeploymentError> {
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = 0",
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<DeploymentTargetPayload>, usize), DeploymentError> {
+        let tenant_id = require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
+            DeploymentError::Forbidden("A valid tenant scope is required.".to_owned())
+        })?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+        let rows = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             deployment_target::TABLE,
             deployment_target::IS_DELETED,
-        );
-        let tenant_id = append_required_tenant_filter(ctx, deployment_target::TENANT_ID, &mut sql)?;
+            deployment_target::TENANT_ID,
+        ))
+        .bind(tenant_id)
+        .bind(limit as i64)
+        .bind(offset as i64)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
-        let rows = sqlx::query(&sql)
-            .bind(tenant_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
-
-        rows.iter()
+        let items: Vec<DeploymentTargetPayload> = rows
+            .iter()
             .map(|row| {
                 DeploymentTargetRow::from_row(row)
                     .map(|r| row_mapper::deployment_target_row_to_payload(&r))
                     .map_err(|e| DeploymentError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = 0 AND {} = ?",
+            deployment_target::TABLE,
+            deployment_target::IS_DELETED,
+            deployment_target::TENANT_ID,
+        ))
+        .bind(tenant_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn list_releases(
         &self,
         ctx: &DeploymentContext,
-    ) -> Result<Vec<ReleasePayload>, DeploymentError> {
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = 0",
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<ReleasePayload>, usize), DeploymentError> {
+        let tenant_id = require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
+            DeploymentError::Forbidden("A valid tenant scope is required.".to_owned())
+        })?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+        let rows = sqlx::query(&format!(
+            "SELECT * FROM {} WHERE {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             release_record::TABLE,
             release_record::IS_DELETED,
-        );
-        let tenant_id = append_required_tenant_filter(ctx, release_record::TENANT_ID, &mut sql)?;
+            release_record::TENANT_ID,
+        ))
+        .bind(tenant_id)
+        .bind(limit as i64)
+        .bind(offset as i64)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
 
-        let rows = sqlx::query(&sql)
-            .bind(tenant_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| DeploymentError::Repository(e.to_string()))?;
-
-        rows.iter()
+        let items: Vec<ReleasePayload> = rows
+            .iter()
             .map(|row| {
                 ReleaseRecordRow::from_row(row)
                     .map(|r| row_mapper::release_record_row_to_payload(&r))
                     .map_err(|e| DeploymentError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = 0 AND {} = ?",
+            release_record::TABLE,
+            release_record::IS_DELETED,
+            release_record::TENANT_ID,
+        ))
+        .bind(tenant_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| DeploymentError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn create_deployment_target(

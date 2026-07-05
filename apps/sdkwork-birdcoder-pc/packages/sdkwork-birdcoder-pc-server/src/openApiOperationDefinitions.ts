@@ -123,6 +123,18 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'membershipId',
     'SDKWork IAM organization membership identifier.',
   );
+  const commerceOrderIdPathParameter = createOpenApiPathParameter(
+    'orderId',
+    'SDKWork commerce order identifier.',
+  );
+  const commerceInvoiceIdPathParameter = createOpenApiPathParameter(
+    'invoiceId',
+    'SDKWork commerce invoice identifier.',
+  );
+  const commercePaymentIdPathParameter = createOpenApiPathParameter(
+    'paymentId',
+    'SDKWork commerce payment identifier.',
+  );
   const roleBindingIdPathParameter = createOpenApiPathParameter(
     'roleBindingId',
     'SDKWork IAM role binding identifier.',
@@ -720,6 +732,90 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference(
           'BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope',
         ),
+      }),
+    },
+    'commerce.orders.list': {
+      parameters: [limitParameter, offsetParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork commerce orders returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceOrderSummaryListEnvelope'),
+      }),
+    },
+    'commerce.orders.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateCommerceOrderRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '201',
+        successDescription: 'SDKWork commerce order created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceOrderSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork commerce order request is invalid.'),
+        },
+      }),
+    },
+    'commerce.orders.retrieve': {
+      parameters: [commerceOrderIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork commerce order returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceOrderSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork commerce order was not found.'),
+        },
+      }),
+    },
+    'commerce.invoices.list': {
+      parameters: [limitParameter, offsetParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork commerce invoices returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceInvoiceSummaryListEnvelope'),
+      }),
+    },
+    'commerce.invoices.retrieve': {
+      parameters: [commerceInvoiceIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork commerce invoice returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceInvoiceSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork commerce invoice was not found.'),
+        },
+      }),
+    },
+    'commerce.payments.list': {
+      parameters: [limitParameter, offsetParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork commerce payments returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommercePaymentSummaryListEnvelope'),
+      }),
+    },
+    'commerce.payments.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateCommercePaymentRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '201',
+        successDescription: 'SDKWork commerce payment created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommercePaymentSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork commerce payment request is invalid.'),
+          '404': createProblemResponse('SDKWork commerce order was not found.'),
+        },
+      }),
+    },
+    'commerce.payments.retrieve': {
+      parameters: [commercePaymentIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork commerce payment returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommercePaymentSummaryEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('SDKWork commerce payment was not found.'),
+        },
       }),
     },
     'workspaces.list': {

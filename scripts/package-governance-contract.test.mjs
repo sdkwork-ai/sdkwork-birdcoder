@@ -250,13 +250,23 @@ assert.ok(
 );
 assert.match(
   workspaceConfigSource,
-  /^packages:\s*\r?\n(?:  #.*\r?\n)*  - 'apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-\*'/m,
+  /  - 'apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-\*'/,
   'pnpm-workspace.yaml must target apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*.',
 );
 assert.match(
   workspaceConfigSource,
   /  - 'apps\/sdkwork-birdcoder-h5\/packages\/sdkwork-birdcoder-h5-\*'/,
   'pnpm-workspace.yaml must target apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*.',
+);
+assert.match(
+  workspaceConfigSource,
+  /  - "apps\/sdkwork-birdcoder-common"/,
+  'pnpm-workspace.yaml must include apps/sdkwork-birdcoder-common for cross-surface packages.',
+);
+assert.match(
+  workspaceConfigSource,
+  /  - "apps\/sdkwork-birdcoder-flutter-mobile"/,
+  'pnpm-workspace.yaml must include apps/sdkwork-birdcoder-flutter-mobile.',
 );
 assert.doesNotMatch(
   workspaceConfigSource,
@@ -265,8 +275,8 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   workspaceConfigSource,
-  /packages\/\*/,
-  'pnpm-workspace.yaml must not fall back to the legacy packages/* workspace glob.',
+  /^  - ['"]packages\/\*['"]/m,
+  'pnpm-workspace.yaml must not fall back to the legacy root packages/* workspace glob.',
 );
 
 for (const { dirName, relativePath, manifest } of workspacePackages) {
@@ -280,7 +290,16 @@ for (const { dirName, relativePath, manifest } of workspacePackages) {
 }
 
 const thirdPartyUsage = new Map();
-const expectedWorkspaceTypecheckScript = 'node ../../scripts/run-local-typescript.mjs --noEmit';
+
+function expectedTypecheckScript(relativePath) {
+  const packageDir = path.dirname(relativePath).replace(/\\/g, '/');
+  if (packageDir === '.') {
+    return 'node scripts/run-local-typescript.mjs --noEmit';
+  }
+  const depth = packageDir.split('/').length;
+  const prefix = `${'../'.repeat(depth)}scripts/run-local-typescript.mjs`;
+  return `node ${prefix} --noEmit`;
+}
 
 for (const { relativePath, manifest } of [
   { relativePath: 'package.json', manifest: rootPackageJson },
@@ -334,7 +353,7 @@ for (const { relativePath, manifest } of [
   if (relativePath !== 'package.json' && typeof manifest.scripts?.typecheck === 'string') {
     assert.equal(
       manifest.scripts.typecheck,
-      expectedWorkspaceTypecheckScript,
+      expectedTypecheckScript(relativePath),
       `${relativePath} must route typecheck through the workspace-local TypeScript runner instead of shelling out to a bare tsc binary.`,
     );
   }

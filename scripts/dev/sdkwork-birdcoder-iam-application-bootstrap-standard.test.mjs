@@ -16,14 +16,20 @@ const apiServerCargo = read('crates/sdkwork-birdcoder-standalone-gateway/Cargo.t
 const workspaceCargo = read('Cargo.toml');
 const topologySource = read('scripts/lib/birdcoder-topology.mjs');
 const sharedBootstrapSource = read(
-  'crates/sdkwork-iam-embedded-application-bootstrap/src/runtime.rs',
+  'crates/sdkwork-iam-web-adapter/src/embedded_bootstrap.rs',
   iamRepoRoot,
 );
 
 assert.match(
   bootstrapSource,
-  /ensure_tenant_application_from_app_root_with_env_and_fallback/u,
+  /ensure_tenant_application_from_app_root/u,
   'Birdcoder IAM bootstrap must delegate to the shared embedded bootstrap crate.',
+);
+
+assert.match(
+  bootstrapSource,
+  /resolve_birdcoder_app_root/u,
+  'Birdcoder IAM bootstrap must provision tenant applications from the BirdCoder repository manifest.',
 );
 
 assert.match(

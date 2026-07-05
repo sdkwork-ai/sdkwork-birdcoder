@@ -22,6 +22,14 @@ const kernelBridgeSource = readFileSync(
   path.join(root, 'crates/sdkwork-birdcoder-kernel-bridge/src/engine_registry.rs'),
   'utf8',
 );
-assert.match(kernelBridgeSource, /opencode/);
+const agentsFacadeSource = readFileSync(
+  path.join(root, '../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/code_engines.rs'),
+  'utf8',
+);
+
+assert.match(kernelBridgeSource, /sdkwork_agents_runtime_facade/);
+assert.match(kernelBridgeSource, /canonical_code_engine_keys\(\)/);
+assert.match(kernelBridgeSource, /bootstrap_code_engine\(/);
+assert.match(agentsFacadeSource, /"opencode"/);
 
 console.log('opencode official sdk bridge contract passed.');

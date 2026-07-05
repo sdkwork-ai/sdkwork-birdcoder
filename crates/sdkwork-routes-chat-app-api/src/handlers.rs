@@ -6,7 +6,7 @@ use sqlx::AnyPool;
 use sdkwork_birdcoder_chat_repository_sqlx::SqliteChatRepository;
 use sdkwork_birdcoder_chat_service::context::ChatContext;
 use sdkwork_birdcoder_chat_service::domain::models::{
-    ChatConversationPayload, ChatListQuery, ChatMessagePayload,
+    ChatConversationPayload, ChatListQuery, ChatMessagePayload, CreateChatMessageCommand,
 };
 use sdkwork_birdcoder_chat_service::service::chat_service::ChatService;
 use sdkwork_birdcoder_errors::{
@@ -15,6 +15,7 @@ use sdkwork_birdcoder_errors::{
 };
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 use sdkwork_iam_context_service::IamAppContext;
+use sdkwork_birdcoder_kernel_bridge::generate_mobile_chat_assistant_reply;
 
 use crate::error;
 use crate::mapper::request::{
@@ -170,15 +171,54 @@ pub async fn create_message(
 ) -> Result<(StatusCode, Json<ApiDataEnvelope<ChatMessagePayload>>), error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = chat_context(&iam);
+    let command: CreateChatMessageCommand = body.into();
+    let is_user_message = command.role.trim().eq_ignore_ascii_case("user");
     match state
         .service
-        .create_message(&ctx, conversation_id.as_str(), body.into())
+        .create_message(&ctx, conversation_id.as_str(), command)
         .await
     {
-        Ok(item) => Ok((
-            StatusCode::CREATED,
-            Json(build_data_envelope(item, request_id(&web))),
-        )),
+        Ok(item) => {
+            if is_user_message {
+                persist_mobile_chat_assistant_reply(
+                    &state,
+                    &ctx,
+                    conversation_id.as_str(),
+                    item.content.as_str(),
+                )
+                .await;
+            }
+            Ok((
+                StatusCode::CREATED,
+                Json(build_data_envelope(item, request_id(&web))),
+            ))
+        }
         Err(service_error) => Err(error::map_service_error(service_error, trace_id)),
+    }
+}
+
+async fn persist_mobile_chat_assistant_reply(
+    state: &ChatAppState,
+    ctx: &ChatContext,
+    conversation_id: &str,
+    user_content: &str,
+) {
+    let assistant_content = match generate_mobile_chat_assistant_reply(user_content) {
+        Ok(content) => content,
+        Err(error) => {
+            tracing::warn!(%error, "mobile chat assistant generation failed");
+            return;
+        }
+    };
+    let assistant_command = CreateChatMessageCommand {
+        role: "assistant".to_string(),
+        content: assistant_content,
+    };
+    if let Err(error) = state
+        .service
+        .create_message(ctx, conversation_id, assistant_command)
+        .await
+    {
+        tracing::warn!(error = ?error, "failed to persist mobile chat assistant reply");
     }
 }

@@ -22,16 +22,20 @@ export interface CapacitorPreferencesPort {
  * implementation. On Capacitor native platforms this adapter is backed by
  * `@capacitor/preferences`, which stores values in platform-default
  * non-encrypted storage (NSUserDefaults on iOS, SharedPreferences on
- * Android). Any token, refresh token, or PII written through this adapter
- * is therefore stored in plaintext at rest on the device.
+ * Android).
+ *
+ * SECURITY MITIGATION (in effect): The caller (`storeAppSessionFromResult`
+ * in `@sdkwork/birdcoder-pc-core`) strips `refreshToken` before persistence
+ * via `serializeForPersistence`. Only short-lived `accessToken`/`authToken`
+ * (plus `expiresAt`/`sessionId`/`storedAt` for SSO bootstrap) are written
+ * through this adapter. Long-lived `refreshToken` is held only in memory
+ * and is never persisted to disk. As a result, an attacker who extracts the
+ * persisted JSON from device storage cannot mint new access tokens after
+ * the short-lived `accessToken` expires; the user must re-authenticate.
  *
  * Until a Keychain/Keystore-backed adapter (e.g. `@capacitor-community/
  * secure-storage` or `cordova-plugin-secure-storage-echo`) is wired in,
- * this adapter MUST NOT be used to persist long-lived credentials. Use it
- * only for short-lived in-memory bootstrapping values that the secure
- * browser session already tolerates, and prefer `createBrowserSecureStorage
- * Adapter` whenever a real secure session storage is available.
- *
+ * this adapter remains unsuitable for persisting long-lived credentials.
  * A `console.warn` is emitted on first native-mode use so that any token
  * leakage through this path surfaces during development and governance
  * checks.
@@ -50,8 +54,8 @@ export function createCapacitorSecureStorageAdapter(options: {
   if (typeof console !== 'undefined' && typeof console.warn === 'function') {
     console.warn(
       '[BirdCoder] capacitorSecureStorageAdapter is backed by @capacitor/preferences (plaintext storage). ' +
-        'Do not persist long-lived credentials through this adapter on native platforms; ' +
-        'migrate to a Keychain/Keystore-backed secure storage adapter before public release.',
+        'Long-lived refreshToken is stripped before persistence; only short-lived accessToken/authToken are written. ' +
+        'Migrate to a Keychain/Keystore-backed adapter before persisting any long-lived credentials.',
     );
   }
 

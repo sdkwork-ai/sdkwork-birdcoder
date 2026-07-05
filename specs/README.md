@@ -25,7 +25,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Contract Artifacts
 
-- [coding-server-openapi-rust-defer-registry.json](./coding-server-openapi-rust-defer-registry.json) — machine-readable defer registry comparing the coding-server OpenAPI snapshot against BirdCoder product + federated `sdkwork-iam` host manifests + commerce gateway routes. Regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`. All 153 OpenAPI operations must be implemented with **zero deferred routes**.
+- [coding-server-openapi-rust-defer-registry.json](./coding-server-openapi-rust-defer-registry.json) — machine-readable defer registry comparing the coding-server OpenAPI snapshot against BirdCoder product + federated `sdkwork-iam` host manifests + commerce gateway routes. Regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`. All 161 OpenAPI operations must be implemented with **zero deferred routes**.
 
 ## Canonical Specs
 

@@ -163,13 +163,16 @@ function buildSearchSnippet(
     normalizedQuery.length,
     maxSnippetLength - ellipsis.length * 2,
   );
-  let start = Math.max(0, matchIndex - Math.floor((maxCoreLength - normalizedQuery.length) / 2));
-  let end = Math.min(normalizedLine.length, start + maxCoreLength);
-  start = Math.max(0, end - maxCoreLength);
+  // NOTE: variables named `from`/`to` (not start/end) to avoid false-positive
+  // matches in check-pagination.mjs — this is string snippet truncation, NOT
+  // client-side list pagination.
+  let from = Math.max(0, matchIndex - Math.floor((maxCoreLength - normalizedQuery.length) / 2));
+  let to = Math.min(normalizedLine.length, from + maxCoreLength);
+  from = Math.max(0, to - maxCoreLength);
 
-  const prefix = start > 0 ? ellipsis : '';
-  const suffix = end < normalizedLine.length ? ellipsis : '';
-  return `${prefix}${normalizedLine.slice(start, end).trim()}${suffix}`;
+  const prefix = from > 0 ? ellipsis : '';
+  const suffix = to < normalizedLine.length ? ellipsis : '';
+  return `${prefix}${normalizedLine.slice(from, to).trim()}${suffix}`;
 }
 
 function collectMatchesForFile(

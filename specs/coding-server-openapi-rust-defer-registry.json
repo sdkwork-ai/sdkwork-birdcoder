@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-06-29",
+  "updatedAt": "2026-07-04",
   "openApiSnapshotPath": "deployments/server-windows/x64/openapi/coding-server-v1.json",
   "summary": {
-    "contractOperationCount": 153,
-    "rustProductManifestRouteCount": 71,
+    "contractOperationCount": 161,
+    "rustProductManifestRouteCount": 79,
     "iamFederationManifestRouteCount": 196,
     "commerceGatewayRouteCount": 15,
-    "hostManifestRouteCount": 282,
-    "implementedOperationCount": 153,
+    "hostManifestRouteCount": 290,
+    "implementedOperationCount": 161,
     "deferredOperationCount": 0
   },
   "federation": {
@@ -191,6 +191,42 @@
       "method": "GET",
       "path": "/app/v3/api/chat/conversations/{conversationId}/messages",
       "operationId": "chat.conversations.messages.list",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
+      "path": "/app/v3/api/commerce/invoices",
+      "operationId": "commerce.invoices.list",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
+      "path": "/app/v3/api/commerce/invoices/{invoiceId}",
+      "operationId": "commerce.invoices.retrieve",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
+      "path": "/app/v3/api/commerce/orders",
+      "operationId": "commerce.orders.list",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
+      "path": "/app/v3/api/commerce/orders/{orderId}",
+      "operationId": "commerce.orders.retrieve",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
+      "path": "/app/v3/api/commerce/payments",
+      "operationId": "commerce.payments.list",
+      "surface": "app"
+    },
+    {
+      "method": "GET",
+      "path": "/app/v3/api/commerce/payments/{paymentId}",
+      "operationId": "commerce.payments.retrieve",
       "surface": "app"
     },
     {
@@ -719,6 +755,18 @@
       "method": "POST",
       "path": "/app/v3/api/chat/conversations/{conversationId}/messages",
       "operationId": "chat.conversations.messages.create",
+      "surface": "app"
+    },
+    {
+      "method": "POST",
+      "path": "/app/v3/api/commerce/orders",
+      "operationId": "commerce.orders.create",
+      "surface": "app"
+    },
+    {
+      "method": "POST",
+      "path": "/app/v3/api/commerce/payments",
+      "operationId": "commerce.payments.create",
       "surface": "app"
     },
     {

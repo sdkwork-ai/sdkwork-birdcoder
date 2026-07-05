@@ -163,7 +163,10 @@ async fn test_state_with_seeded_workspace(workspace_id: i64) -> CodingSessionsAp
         Arc::new(StubEngineValidator),
     );
 
-    CodingSessionsAppState { service }
+    CodingSessionsAppState {
+        service,
+        commerce_pool: None,
+    }
 }
 
 async fn test_state() -> CodingSessionsAppState {

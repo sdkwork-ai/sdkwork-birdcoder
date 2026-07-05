@@ -89,8 +89,13 @@ assert.match(
 );
 assert.match(
   workspaceHandlersSource,
+  /clamp_list_page_size\(/,
+  'Workspace list handlers must apply server-side pagination clamping (default page_size=20, max=200) at the route layer.',
+);
+assert.doesNotMatch(
+  workspaceHandlersSource,
   /paginate_vec\(/,
-  'Workspace list handlers must apply server-side pagination defaults.',
+  'Workspace list handlers must not use the removed in-memory paginate_vec helper (PAGINATION_SPEC.md §2 forbids in-memory skip/take).',
 );
 assert.match(
   sdkClientsSource,

@@ -32,42 +32,54 @@ impl DeploymentService {
     pub async fn list_deployments(
         &self,
         ctx: &DeploymentContext,
-    ) -> Result<Vec<DeploymentPayload>, DeploymentError> {
-        self.repository.list_deployments(ctx).await
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<DeploymentPayload>, usize), DeploymentError> {
+        self.repository.list_deployments(ctx, offset, limit).await
     }
 
     pub async fn list_deployments_by_project(
         &self,
         ctx: &DeploymentContext,
         project_id: &str,
-    ) -> Result<Vec<DeploymentPayload>, DeploymentError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<DeploymentPayload>, usize), DeploymentError> {
         self.repository
-            .list_deployments_by_project(ctx, project_id)
+            .list_deployments_by_project(ctx, project_id, offset, limit)
             .await
     }
 
     pub async fn list_deployment_targets(
         &self,
         ctx: &DeploymentContext,
-    ) -> Result<Vec<DeploymentTargetPayload>, DeploymentError> {
-        self.repository.list_deployment_targets(ctx).await
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<DeploymentTargetPayload>, usize), DeploymentError> {
+        self.repository
+            .list_deployment_targets(ctx, offset, limit)
+            .await
     }
 
     pub async fn list_deployment_targets_by_project(
         &self,
         ctx: &DeploymentContext,
         project_id: &str,
-    ) -> Result<Vec<DeploymentTargetPayload>, DeploymentError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<DeploymentTargetPayload>, usize), DeploymentError> {
         self.repository
-            .list_deployment_targets_by_project(ctx, project_id)
+            .list_deployment_targets_by_project(ctx, project_id, offset, limit)
             .await
     }
 
     pub async fn list_releases(
         &self,
         ctx: &DeploymentContext,
-    ) -> Result<Vec<ReleasePayload>, DeploymentError> {
-        self.repository.list_releases(ctx).await
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<ReleasePayload>, usize), DeploymentError> {
+        self.repository.list_releases(ctx, offset, limit).await
     }
 
     pub async fn list_audit_logs(
@@ -75,9 +87,11 @@ impl DeploymentService {
         ctx: &DeploymentContext,
         scope_type: &str,
         scope_id: &str,
-    ) -> Result<Vec<AuditPayload>, DeploymentError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<AuditPayload>, usize), DeploymentError> {
         self.repository
-            .list_audit_logs(ctx, scope_type, scope_id)
+            .list_audit_logs(ctx, scope_type, scope_id, offset, limit)
             .await
     }
 
@@ -86,9 +100,11 @@ impl DeploymentService {
         ctx: &DeploymentContext,
         scope_type: &str,
         scope_id: &str,
-    ) -> Result<Vec<PolicyPayload>, DeploymentError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<PolicyPayload>, usize), DeploymentError> {
         self.repository
-            .list_policies(ctx, scope_type, scope_id)
+            .list_policies(ctx, scope_type, scope_id, offset, limit)
             .await
     }
 
@@ -136,10 +152,23 @@ impl DeploymentService {
             .map(str::trim)
             .filter(|s| !s.is_empty());
 
-        let active_targets = self
+        // `publish_project` is a domain command (not a paginated list
+        // endpoint) that needs to inspect existing active targets for the
+        // project. Use the `MAX_LIST_PAGE_SIZE` bound (200) so the SQL
+        // query stays bounded per `PAGINATION_SPEC.md` §2 — projects with
+        // more than 200 targets are an extreme edge case and would warrant
+        // a dedicated lookup method.
+        const PUBLISH_TARGET_LOOKUP_PAGE_SIZE: usize = 200;
+        let (active_targets, _total) = self
             .repository
-            .list_deployment_targets_by_project(ctx, &command.project_id)
-            .await?
+            .list_deployment_targets_by_project(
+                ctx,
+                &command.project_id,
+                0,
+                PUBLISH_TARGET_LOOKUP_PAGE_SIZE,
+            )
+            .await?;
+        let active_targets = active_targets
             .into_iter()
             .filter(|target| target.status == "active")
             .collect::<Vec<_>>();

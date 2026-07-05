@@ -1180,7 +1180,16 @@ function createBirdCoderProjectRepository({
             buildProjectListByWorkspaceIdsPlan(providerId, normalizedWorkspaceIds),
           );
           return normalizeProjectRows(result.rows ?? []);
-        } catch {
+        } catch (error) {
+          // Log the unexpected SQL plan execution failure so it is visible in
+          // diagnostics instead of being silently swallowed. The fallback below
+          // preserves backward compatibility for storages that report support
+          // but fail at runtime (e.g. migration in progress); it delegates to
+          // repository.list() which is itself bounded by buildListPlan's LIMIT.
+          console.warn(
+            'BirdCoder listProjectsByWorkspaceIds SQL plan failed; falling back to repository.list()',
+            error,
+          );
         }
       }
 
@@ -1223,7 +1232,16 @@ function createBirdCoderProjectContentRepository({
             buildProjectContentListByProjectIdsPlan(providerId, normalizedProjectIds),
           );
           return normalizeProjectContentRows(result.rows ?? []);
-        } catch {
+        } catch (error) {
+          // Log the unexpected SQL plan execution failure so it is visible in
+          // diagnostics instead of being silently swallowed. The fallback below
+          // preserves backward compatibility for storages that report support
+          // but fail at runtime (e.g. migration in progress); it delegates to
+          // repository.list() which is itself bounded by buildListPlan's LIMIT.
+          console.warn(
+            'BirdCoder listProjectContentsByProjectIds SQL plan failed; falling back to repository.list()',
+            error,
+          );
         }
       }
 

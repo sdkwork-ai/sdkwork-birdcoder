@@ -12,6 +12,7 @@
   "defaultEngine": "sqlite",
   "tablePrefixes": [
     "ai_",
+    "chat_",
     "commerce_",
     "ops_",
     "runtime_",

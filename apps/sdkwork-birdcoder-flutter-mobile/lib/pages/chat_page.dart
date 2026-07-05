@@ -99,16 +99,19 @@ class _ChatPageState extends State<ChatPage> {
     _inputFocusNode.requestFocus();
 
     try {
-      final saved = await sendBirdCoderMobileChatMessage(
+      await sendBirdCoderMobileChatMessage(
         _sdkClients,
         conversationId,
         text,
       );
+      final history = await listBirdCoderMobileChatMessages(_sdkClients, conversationId);
       if (!mounted) {
         return;
       }
       setState(() {
-        _messages.add(_toChatMessage(saved));
+        _messages
+          ..clear()
+          ..addAll(history.map(_toChatMessage));
         _isSending = false;
       });
       _scrollToBottom();

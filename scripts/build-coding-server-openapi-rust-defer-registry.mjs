@@ -21,6 +21,7 @@ const RUST_PRODUCT_ROUTE_CRATES = [
   'crates/sdkwork-routes-engine-catalog-app-api',
   'crates/sdkwork-routes-skill-packages-app-api',
   'crates/sdkwork-routes-membership-app-api',
+  'crates/sdkwork-routes-commerce-app-api',
   'crates/sdkwork-routes-deployment-backend-api',
 ];
 

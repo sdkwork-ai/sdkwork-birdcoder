@@ -6,10 +6,10 @@ use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_list_envelope, build_offset_list_envelope, trace_id_from_request_id,
+    build_data_envelope, build_offset_list_envelope, trace_id_from_request_id,
     ApiDataEnvelope, ApiListEnvelope,
 };
-use sdkwork_birdcoder_project_service::pagination::paginate_vec;
+use sdkwork_birdcoder_project_service::pagination::clamp_list_page_size;
 use sdkwork_birdcoder_router_context::{
     deployment_context, project_context, workspace_context, RequiredIamContext, WebRequestContext,
 };
@@ -46,7 +46,8 @@ use sdkwork_birdcoder_deployment_service::service::deployment_service::Deploymen
 use crate::error;
 use crate::mapper::request::{
     CreateGitBranchBody, CreateGitWorktreeBody, CreateProjectBody, CreateWorkspaceBody,
-    CommitGitChangesBody, ProjectListQuery, ProjectPathParams, PublishProjectBody,
+    CommitGitChangesBody, DeploymentListQuery, DeploymentTargetListQuery, MemberListQuery,
+    ProjectCollaboratorListQuery, ProjectListQuery, ProjectPathParams, PublishProjectBody,
     PushGitBranchBody, RemoveGitWorktreeBody, SwitchGitBranchBody, TeamListQuery,
     UpdateProjectBody, UpdateWorkspaceBody, UpsertProjectCollaboratorBody, UpsertWorkspaceMemberBody,
     WorkspaceListQuery, WorkspacePathParams,
@@ -95,25 +96,27 @@ pub async fn list_workspaces(
             ));
         }
     }
+    // PAGINATION_SPEC.md §3: normalize page_size at the route layer;
+    // repository pushes LIMIT/OFFSET down to SQL (§2/§5).
+    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
     let scoped = WorkspaceScopedQuery {
         root_path: None,
         user_id: Some(iam.user_id.clone()),
         workspace_id: None,
+        pagination: sdkwork_birdcoder_workspace_service::domain::models::ListPagination {
+            offset: Some(offset as i64),
+            limit: Some(limit as i64),
+        },
     };
     let trace_id = request_trace_id(&web);
     match state.workspace_service.list_workspaces(&ctx, &scoped).await {
-        Ok(workspaces) => {
-            let (items, offset, limit, total) =
-                paginate_vec(workspaces, query.offset, query.limit);
-            let page_size = limit.unwrap_or(sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE);
-            Ok(Json(build_offset_list_envelope(
-                items,
-                offset,
-                page_size,
-                total,
-                request_id(&web),
-            )))
-        }
+        Ok((items, total)) => Ok(Json(build_offset_list_envelope(
+            items,
+            offset,
+            limit,
+            total,
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_workspace_error(e, trace_id)),
     }
 }
@@ -219,7 +222,7 @@ pub async fn delete_workspace(
     }
 }
 
-pub async fn subscribe_workspace_realtime(
+pub(crate) async fn subscribe_workspace_realtime(
     ws: WebSocketUpgrade,
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
@@ -318,13 +321,22 @@ pub async fn list_workspace_members(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
+    Query(query): Query<MemberListQuery>,
 ) -> Result<Json<ApiListEnvelope<WorkspaceMemberPayload>>, error::ProblemJsonBody> {
     let ctx = workspace_context(&iam);
-    match state.workspace_service.list_workspace_members(&ctx, &params.workspace_id).await {
-        Ok(members) => {
-            let total = members.len();
-            Ok(Json(build_list_envelope(members, total, request_id(&web))))
-        }
+    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    match state
+        .workspace_service
+        .list_workspace_members(&ctx, &params.workspace_id, offset, limit)
+        .await
+    {
+        Ok((items, total)) => Ok(Json(build_offset_list_envelope(
+            items,
+            offset,
+            limit,
+            total,
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
 }
@@ -374,31 +386,38 @@ pub async fn list_projects(
         .ensure_workspace_access(&workspace_ctx, workspace_id)
         .await
         .map_err(|error| error::map_workspace_error(error, trace_id))?;
-    match state.project_service.list_projects(&ctx, workspace_id).await {
-        Ok(mut projects) => {
-            if let Some(root_path) = query.root_path.as_deref() {
-                projects.retain(|project| project.root_path.as_deref() == Some(root_path));
-            }
-            if let Some(user_id) = query.user_id.as_deref() {
-                if user_id != iam.user_id {
-                    return Err(error::forbidden(
-                        "Project listing is limited to the authenticated user.",
-                        trace_id,
-                    ));
-                }
-                projects.retain(|project| project.user_id.as_deref() == Some(user_id));
-            }
-            let (items, offset, limit, total) =
-                paginate_vec(projects, query.offset, query.limit);
-            let page_size = limit.unwrap_or(sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE);
-            Ok(Json(build_offset_list_envelope(
-                items,
-                offset,
-                page_size,
-                total,
-                request_id(&web),
-            )))
+    // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET and root_path/user_id
+    // filters down to SQL — never collect-then-slice in process memory.
+    // Validate user_id scoping BEFORE calling the service so we fail fast
+    // without materializing rows we would have to discard.
+    if let Some(user_id) = query.user_id.as_deref() {
+        if user_id != iam.user_id {
+            return Err(error::forbidden(
+                "Project listing is limited to the authenticated user.",
+                trace_id,
+            ));
         }
+    }
+    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    match state
+        .project_service
+        .list_projects(
+            &ctx,
+            workspace_id,
+            query.root_path.as_deref(),
+            query.user_id.as_deref(),
+            offset,
+            limit,
+        )
+        .await
+    {
+        Ok((items, total)) => Ok(Json(build_offset_list_envelope(
+            items,
+            offset,
+            limit,
+            total,
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_project_error(e, trace_id)),
     }
 }
@@ -655,17 +674,28 @@ pub async fn list_project_collaborators(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
+    Query(query): Query<ProjectCollaboratorListQuery>,
 ) -> Result<
     Json<ApiListEnvelope<ProjectCollaboratorPayload>>,
     error::ProblemJsonBody,
 > {
     let ctx = project_context(&iam);
-    match state.project_service.list_project_collaborators(&ctx, &params.project_id).await {
-        Ok(collaborators) => {
-            let total = collaborators.len();
-            Ok(Json(build_list_envelope(collaborators, total, request_id(&web))))
-        }
-        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
+    let trace_id = request_trace_id(&web);
+    // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    match state
+        .project_service
+        .list_project_collaborators(&ctx, &params.project_id, offset, limit)
+        .await
+    {
+        Ok((items, total)) => Ok(Json(build_offset_list_envelope(
+            items,
+            offset,
+            limit,
+            total,
+            request_id(&web),
+        ))),
+        Err(e) => Err(error::map_project_error(e, trace_id)),
     }
 }
 
@@ -701,17 +731,28 @@ pub async fn list_deployments(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
+    Query(query): Query<DeploymentListQuery>,
 ) -> Result<
     Json<ApiListEnvelope<DeploymentPayload>>,
     error::ProblemJsonBody,
 > {
     let ctx = deployment_context(&iam);
-    match state.deployment_service.list_deployments(&ctx).await {
-        Ok(deployments) => {
-            let total = deployments.len();
-            Ok(Json(build_list_envelope(deployments, total, request_id(&web))))
-        }
-        Err(e) => Err(error::map_deployment_error(e, request_trace_id(&web))),
+    let trace_id = request_trace_id(&web);
+    // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    match state
+        .deployment_service
+        .list_deployments(&ctx, offset, limit)
+        .await
+    {
+        Ok((items, total)) => Ok(Json(build_offset_list_envelope(
+            items,
+            offset,
+            limit,
+            total,
+            request_id(&web),
+        ))),
+        Err(e) => Err(error::map_deployment_error(e, trace_id)),
     }
 }
 
@@ -720,21 +761,28 @@ pub async fn list_project_deployment_targets(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
+    Query(query): Query<DeploymentTargetListQuery>,
 ) -> Result<
     Json<ApiListEnvelope<DeploymentTargetPayload>>,
     error::ProblemJsonBody,
 > {
     let ctx = deployment_context(&iam);
+    let trace_id = request_trace_id(&web);
+    // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
     match state
         .deployment_service
-        .list_deployment_targets_by_project(&ctx, &params.project_id)
+        .list_deployment_targets_by_project(&ctx, &params.project_id, offset, limit)
         .await
     {
-        Ok(targets) => {
-            let total = targets.len();
-            Ok(Json(build_list_envelope(targets, total, request_id(&web))))
-        }
-        Err(e) => Err(error::map_deployment_error(e, request_trace_id(&web))),
+        Ok((items, total)) => Ok(Json(build_offset_list_envelope(
+            items,
+            offset,
+            limit,
+            total,
+            request_id(&web),
+        ))),
+        Err(e) => Err(error::map_deployment_error(e, trace_id)),
     }
 }
 
@@ -801,19 +849,26 @@ pub async fn list_teams(
 
     let ctx = workspace_context(&iam);
     let trace_id = request_trace_id(&web);
+    // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
+    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
     match state
         .team_service
         .list_teams(
             &ctx,
             query.workspace_id.as_deref(),
             query.user_id.as_deref(),
+            offset,
+            limit,
         )
         .await
     {
-        Ok(teams) => {
-            let total = teams.len();
-            Ok(Json(build_list_envelope(teams, total, request_id(&web))))
-        }
+        Ok((items, total)) => Ok(Json(build_offset_list_envelope(
+            items,
+            offset,
+            limit,
+            total,
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_workspace_error(e, trace_id)),
     }
 }

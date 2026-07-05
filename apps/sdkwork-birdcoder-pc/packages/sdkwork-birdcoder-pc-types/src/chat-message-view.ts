@@ -7,12 +7,16 @@ import {
   BIRDCODER_CHAT_MESSAGE_VIEW_KINDS,
   type BirdCoderChatMessageContentBlockType,
   type BirdCoderChatMessageViewKind,
+  type BirdCoderChatMessageRecord,
+  type BirdCoderChatMessageRole,
 } from '@sdkwork/birdcoder-chat-contracts';
 export {
   BIRDCODER_CHAT_MESSAGE_CONTENT_BLOCK_TYPES,
   BIRDCODER_CHAT_MESSAGE_VIEW_KINDS,
   type BirdCoderChatMessageContentBlockType,
   type BirdCoderChatMessageViewKind,
+  type BirdCoderChatMessageRecord,
+  type BirdCoderChatMessageRole,
 };
 import {
   hasParsedFileUpdateSummary,

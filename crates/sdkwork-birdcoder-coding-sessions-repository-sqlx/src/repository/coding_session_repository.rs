@@ -206,11 +206,20 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         select_sql.push_str(&filter_sql);
         select_sql.push_str(" ORDER BY s.sort_timestamp DESC");
 
-        if let Some(limit) = query.limit {
-            select_sql.push_str(&format!(" LIMIT {limit}"));
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL as bind
+        // parameters instead of string interpolation. Although `usize` cannot
+        // produce SQL injection here, parameterized binding is required for
+        // plan-cache stability and to keep a single code pattern across all
+        // paginated repositories. The route layer has already normalized
+        // limit/offset via `clamp_list_page_size`, so both values are
+        // guaranteed to be present.
+        let limit_value = query.limit.map(|value| value as i64);
+        let offset_value = query.offset.map(|value| value as i64);
+        if limit_value.is_some() {
+            select_sql.push_str(" LIMIT ?");
         }
-        if let Some(offset) = query.offset {
-            select_sql.push_str(&format!(" OFFSET {offset}"));
+        if offset_value.is_some() {
+            select_sql.push_str(" OFFSET ?");
         }
 
         let mut list_query = sqlx::query(&select_sql);
@@ -224,6 +233,12 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             list_query = list_query.bind(workspace_id);
         }
         list_query = list_query.bind(tenant_id);
+        if let Some(limit) = limit_value {
+            list_query = list_query.bind(limit);
+        }
+        if let Some(offset) = offset_value {
+            list_query = list_query.bind(offset);
+        }
         let rows = map_sqlx_error(list_query.fetch_all(&self.pool).await)?;
 
         let mut items = Vec::new();

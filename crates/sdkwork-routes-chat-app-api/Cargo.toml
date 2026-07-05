@@ -9,9 +9,11 @@ authors.workspace = true
 axum = { workspace = true }
 serde = { workspace = true }
 sqlx = { workspace = true }
+tracing = "0.1"
 sdkwork-birdcoder-chat-service = { workspace = true }
 sdkwork-birdcoder-chat-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-birdcoder-kernel-bridge = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
 sdkwork_iam_context_service.workspace = true
 sdkwork-utils-rust.workspace = true

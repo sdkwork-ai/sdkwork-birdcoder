@@ -2,19 +2,18 @@ use std::path::PathBuf;
 
 use axum::Router;
 use sdkwork_iam_embedded_application_bootstrap::{
-    ensure_tenant_application_from_app_root_with_env_and_fallback, resolve_bootstrap_environment,
+    ensure_tenant_application_from_app_root, resolve_bootstrap_environment,
+    EmbeddedApplicationBootstrapOptions,
 };
 
 pub async fn ensure_birdcoder_tenant_application_bootstrap() -> Result<(), String> {
     let app_root = resolve_birdcoder_app_root();
     sdkwork_iam_database_host::unified_postgres_env::apply_unified_claw_postgres_env(&app_root);
-    ensure_tenant_application_from_app_root_with_env_and_fallback(
-        resolve_bootstrap_environment().as_str(),
-        app_root,
-        None,
-        &[],
-    )
-    .await
+    let options = EmbeddedApplicationBootstrapOptions {
+        environment: resolve_bootstrap_environment(),
+        ..EmbeddedApplicationBootstrapOptions::default()
+    };
+    ensure_tenant_application_from_app_root(app_root.as_path(), &options, None, &[]).await
 }
 
 pub async fn wire_iam_app_router() -> Result<Router, String> {

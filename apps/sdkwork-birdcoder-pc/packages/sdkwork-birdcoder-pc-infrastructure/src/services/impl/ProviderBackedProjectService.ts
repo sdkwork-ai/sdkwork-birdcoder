@@ -22,6 +22,7 @@ import type { IProjectSessionMirror } from '../interfaces/IProjectSessionMirror.
 import type {
   BirdCoderCodingSessionMirrorSnapshot,
   BirdCoderProjectMirrorSnapshot,
+  BirdCoderServiceListPagination,
   CreateCodingSessionOptions,
   CreateCodingSessionMessageInput,
   CreateProjectOptions,
@@ -931,7 +932,10 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     }
   }
 
-  async getProjects(workspaceId?: string): Promise<BirdCoderProject[]> {
+  async getProjects(
+    workspaceId?: string,
+    _pagination?: BirdCoderServiceListPagination,
+  ): Promise<BirdCoderProject[]> {
     const filteredRecords = workspaceId
       ? await this.listProjectRecordsByWorkspaceId(workspaceId)
       : await this.repository.list();

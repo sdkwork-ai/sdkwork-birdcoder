@@ -50,8 +50,16 @@ export type CreateCodingSessionMessageInput =
   Omit<BirdCoderChatMessage, 'codingSessionId' | 'createdAt' | 'id'> &
     Partial<Pick<BirdCoderChatMessage, 'createdAt' | 'id'>>;
 
+export interface BirdCoderServiceListPagination {
+  limit?: number;
+  offset?: number;
+}
+
 export interface IProjectService {
-  getProjects(workspaceId?: string): Promise<BirdCoderProject[]>;
+  getProjects(
+    workspaceId?: string,
+    pagination?: BirdCoderServiceListPagination,
+  ): Promise<BirdCoderProject[]>;
   getProjectById(projectId: string): Promise<BirdCoderProject | null>;
   getProjectByPath(workspaceId: string, path: string): Promise<BirdCoderProject | null>;
   invalidateProjectReadCache?(scope?: {

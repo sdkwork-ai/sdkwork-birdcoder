@@ -340,6 +340,32 @@ export interface BirdCoderCodingSessionTurnOptions {
   maxTokens?: number;
 }
 
+export interface BirdCoderCommerceInvoiceSummary {
+  id: string;
+  invoiceNo: string;
+  orderId: string;
+  userId: string;
+  amount: string;
+  tax: string;
+  status: string;
+  issuedAt?: string | unknown;
+  pdfUrl?: string | unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BirdCoderCommerceInvoiceSummaryEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderCommerceInvoiceSummaryListEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
 export interface BirdCoderCommerceMembershipBenefitSummary {
   id: string;
   name: string;
@@ -404,6 +430,62 @@ export interface BirdCoderCommerceMembershipPackageSummary {
   tags: Array<string>;
 }
 
+export interface BirdCoderCommerceOrderSummary {
+  id: string;
+  workspaceId?: string | unknown;
+  orderNo: string;
+  userId: string;
+  packageId: string;
+  amount: string;
+  currency: string;
+  status: string;
+  paidAt?: string | unknown;
+  refundAt?: string | unknown;
+  metadata: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BirdCoderCommerceOrderSummaryEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderCommerceOrderSummaryListEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderCommercePaymentSummary {
+  id: string;
+  paymentNo: string;
+  orderId: string;
+  userId: string;
+  channel: string;
+  channelTransactionId?: string | unknown;
+  amount: string;
+  status: string;
+  paidAt?: string | unknown;
+  refundAt?: string | unknown;
+  metadata: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BirdCoderCommercePaymentSummaryEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
+export interface BirdCoderCommercePaymentSummaryListEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
 export interface BirdCoderCommitProjectGitChangesRequest {
   message: string;
 }
@@ -457,6 +539,22 @@ export interface BirdCoderCreateCodingSessionTurnRequest {
   stream?: boolean;
   ideContext?: BirdCoderCodingSessionTurnIdeContext;
   options?: BirdCoderCodingSessionTurnOptions;
+}
+
+export interface BirdCoderCreateCommerceOrderRequest {
+  packageId: string;
+  amount: string;
+  currency?: string;
+  workspaceId?: string;
+  metadata?: string;
+}
+
+export interface BirdCoderCreateCommercePaymentRequest {
+  orderId: string;
+  channel: string;
+  amount?: string;
+  channelTransactionId?: string;
+  metadata?: string;
 }
 
 export interface BirdCoderCreateProjectGitBranchRequest {
@@ -1578,6 +1676,33 @@ export interface CollaborationWorkspaceTeamsListQuery extends Record<string, Bir
   workspaceId?: string;
 }
 
+export interface CommerceInvoicesListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
+}
+
+export interface CommerceInvoicesRetrievePathParams {
+  invoiceId: string;
+}
+
+export interface CommerceOrdersListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
+}
+
+export interface CommerceOrdersRetrievePathParams {
+  orderId: string;
+}
+
+export interface CommercePaymentsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
+}
+
+export interface CommercePaymentsRetrievePathParams {
+  paymentId: string;
+}
+
 export interface IamWorkspacesMembersListPathParams {
   workspaceId: string;
 }
@@ -1945,6 +2070,140 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "resource": "collaboration.workspaceTeams",
     "summary": "List workspace teams",
     "tag": "collaboration",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.invoices.list",
+    "method": "GET",
+    "operationId": "commerce.invoices.list",
+    "path": "/app/v3/api/commerce/invoices",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "commerce.invoices.read",
+    "public": false,
+    "resource": "commerce.invoices",
+    "summary": "List SDKWork commerce invoices",
+    "tag": "commerce",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.invoices.retrieve",
+    "method": "GET",
+    "operationId": "commerce.invoices.retrieve",
+    "path": "/app/v3/api/commerce/invoices/{invoiceId}",
+    "pathParamNames": [
+      "invoiceId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "commerce.invoices.read",
+    "public": false,
+    "resource": "commerce.invoices",
+    "summary": "Get SDKWork commerce invoice",
+    "tag": "commerce",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.orders.create",
+    "method": "POST",
+    "operationId": "commerce.orders.create",
+    "path": "/app/v3/api/commerce/orders",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "commerce.orders.create",
+    "public": false,
+    "resource": "commerce.orders",
+    "summary": "Create SDKWork commerce order",
+    "tag": "commerce",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.orders.list",
+    "method": "GET",
+    "operationId": "commerce.orders.list",
+    "path": "/app/v3/api/commerce/orders",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "commerce.orders.read",
+    "public": false,
+    "resource": "commerce.orders",
+    "summary": "List SDKWork commerce orders",
+    "tag": "commerce",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.orders.retrieve",
+    "method": "GET",
+    "operationId": "commerce.orders.retrieve",
+    "path": "/app/v3/api/commerce/orders/{orderId}",
+    "pathParamNames": [
+      "orderId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "commerce.orders.read",
+    "public": false,
+    "resource": "commerce.orders",
+    "summary": "Get SDKWork commerce order",
+    "tag": "commerce",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.payments.create",
+    "method": "POST",
+    "operationId": "commerce.payments.create",
+    "path": "/app/v3/api/commerce/payments",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "commerce.payments.create",
+    "public": false,
+    "resource": "commerce.payments",
+    "summary": "Create SDKWork commerce payment",
+    "tag": "commerce",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.payments.list",
+    "method": "GET",
+    "operationId": "commerce.payments.list",
+    "path": "/app/v3/api/commerce/payments",
+    "pathParamNames": [],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "commerce.payments.read",
+    "public": false,
+    "resource": "commerce.payments",
+    "summary": "List SDKWork commerce payments",
+    "tag": "commerce",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.payments.retrieve",
+    "method": "GET",
+    "operationId": "commerce.payments.retrieve",
+    "path": "/app/v3/api/commerce/payments/{paymentId}",
+    "pathParamNames": [
+      "paymentId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "commerce.payments.read",
+    "public": false,
+    "resource": "commerce.payments",
+    "summary": "Get SDKWork commerce payment",
+    "tag": "commerce",
     "tenantScope": "tenant"
   },
   {

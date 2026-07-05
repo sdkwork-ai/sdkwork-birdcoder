@@ -2,6 +2,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 
+use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
     CodingSessionEventPayload, CodingSessionPayload, CodingSessionTurnPayload,
@@ -9,10 +10,9 @@ use sdkwork_birdcoder_coding_sessions_service::domain::results::{
 };
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_list_envelope, build_offset_list_envelope, trace_id_from_request_id,
-    ApiDataEnvelope, ApiListEnvelope,
+    build_data_envelope, build_list_envelope, build_offset_list_envelope,
+    trace_id_from_request_id, ApiDataEnvelope, ApiListEnvelope,
 };
-use sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE;
 use sdkwork_birdcoder_router_context::{coding_session_context, RequiredIamContext, WebRequestContext};
 
 use crate::error::{trace_service_error, AppError};
@@ -27,6 +27,7 @@ use crate::mapper::response::DeleteResponse;
 #[derive(Clone)]
 pub struct CodingSessionsAppState {
     pub service: CodingSessionService,
+    pub commerce_pool: Option<sqlx::AnyPool>,
 }
 
 fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
@@ -43,9 +44,13 @@ pub async fn list_sessions(
     State(state): State<CodingSessionsAppState>,
     Query(query): Query<ListSessionsQuery>,
 ) -> Result<Json<ApiListEnvelope<CodingSessionPayload>>, AppError> {
-    let offset = query.offset.unwrap_or(0);
-    let page_size = query.limit.unwrap_or(DEFAULT_LIST_PAGE_SIZE);
-    let service_query = query.into();
+    // PAGINATION_SPEC.md §3: normalize at the route layer so both the SQL
+    // push-down (via CodingSessionListQuery) and the envelope's pageInfo
+    // report identical values. Previously the envelope echoed the raw
+    // request values while the SQL used clamped values, causing the values
+    // reported to clients to diverge from the actual query.
+    let (offset, page_size) = query.normalized_pagination();
+    let service_query: CodingSessionListQuery = query.into();
     let ctx = coding_session_context(&iam);
     let page = trace_service_error(
         state.service.list_sessions(&ctx, &service_query).await,
@@ -176,6 +181,21 @@ pub async fn create_turn(
     Path(sessionId): Path<String>,
     Json(request): Json<CreateCodingSessionTurnRequest>,
 ) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionTurnPayload>>), AppError> {
+    if let Some(pool) = &state.commerce_pool {
+        let trace = request_trace_id(&web);
+        let tenant_id = sdkwork_birdcoder_commerce_quota::parse_numeric_tenant_id(&iam.tenant_id)
+            .map_err(AppError::from_quota_error)
+            .map_err(|error| error.with_trace_id(trace))?;
+        sdkwork_birdcoder_commerce_quota::check_tenant_quota(
+            pool,
+            tenant_id,
+            sdkwork_birdcoder_commerce_quota::METRIC_API_REQUESTS,
+        )
+        .await
+        .map_err(AppError::from_quota_error)
+        .map_err(|error| error.with_trace_id(trace))?;
+    }
+
     let ctx = coding_session_context(&iam);
     let pending = trace_service_error(
         state
@@ -184,6 +204,26 @@ pub async fn create_turn(
             .await,
         request_trace_id(&web),
     )?;
+    if let Some(pool) = &state.commerce_pool {
+        if let (Ok(tenant_id), Ok(user_id)) = (
+            sdkwork_birdcoder_commerce_quota::parse_numeric_tenant_id(&iam.tenant_id),
+            sdkwork_birdcoder_commerce_quota::parse_numeric_user_id(&iam.user_id),
+        ) {
+            if let Err(error) = sdkwork_birdcoder_commerce_quota::record_tenant_usage(
+                pool,
+                tenant_id,
+                Some(pending.session.workspace_id.as_str()),
+                user_id,
+                sdkwork_birdcoder_commerce_quota::METRIC_API_REQUESTS,
+                1,
+                Some("{\"surface\":\"codingSessions.turns.create\"}"),
+            )
+            .await
+            {
+                tracing::warn!(%error, "failed to record coding session turn usage");
+            }
+        }
+    }
     tracing::Span::current().record("workspace_id", pending.session.workspace_id.as_str());
     Ok((
         StatusCode::CREATED,

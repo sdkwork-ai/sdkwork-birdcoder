@@ -162,6 +162,21 @@ const crates = [
     ],
   },
   {
+    crateDir: 'crates/sdkwork-routes-commerce-app-api',
+    fnName: 'commerce_app_api_route_manifest',
+    routesConst: 'COMMERCE_APP_API_ROUTES',
+    routes: [
+      ['Get', 'ORDERS_PATH', 'commerce'],
+      ['Post', 'ORDERS_PATH', 'commerce'],
+      ['Get', 'ORDER_PATH', 'commerce'],
+      ['Get', 'INVOICES_PATH', 'commerce'],
+      ['Get', 'INVOICE_PATH', 'commerce'],
+      ['Get', 'PAYMENTS_PATH', 'commerce'],
+      ['Post', 'PAYMENTS_PATH', 'commerce'],
+      ['Get', 'PAYMENT_PATH', 'commerce'],
+    ],
+  },
+  {
     crateDir: 'crates/sdkwork-routes-deployment-backend-api',
     fnName: 'deployment_backend_api_route_manifest',
     routesConst: 'DEPLOYMENT_BACKEND_API_ROUTES',

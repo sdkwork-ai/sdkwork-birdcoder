@@ -3,101 +3,79 @@
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder
-Updated: 2026-06-27
+Updated: 2026-07-04
 Parent: [PRD.md](PRD.md)
 
-本分片记录 SDKWork BirdCoder 的商业化就绪度基线审计结果，作为修复路线图的输入依据。
+本分片记录 SDKWork BirdCoder 的商业化就绪度基线审计框架与开放差距摘要。
 
-> **Authoritative truth pointer:** 商业化就绪度的当前权威快照为 [`docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md`](../../architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md)。2026-06-29 再评估在该基线之上闭环 OpenAPI 153/0、移动端 chat 持久化、commerce/chat 路由与 manifest 诚实性；历史 P0/P1 条目以该 TECH 文档 Phase 记录为准。
+> **Authoritative truth pointer:** 商业化就绪度的当前权威快照为 [`docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md`](../../architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md)。具体 Phase 闭环状态、OpenAPI 161/0 注册表、manifest 诚实性、以及各 surface 就绪度以 TECH 文档为准。
 
 ## 1. 审计背景
 
-SDKWork BirdCoder 是面向专业开发者的 AI 编码协作平台，承载多面应用体系：
+SDKWork BirdCoder 是面向专业开发者的 AI 编码协作平台，承载 PC / H5 / Flutter 多面应用体系与 Rust standalone-gateway 后端。
 
-- PC 端（React + Tauri，`apps/sdkwork-birdcoder-pc/`）— 浏览器 Web 与桌面 Tauri 双交付形态
-- H5 端（Capacitor，`apps/sdkwork-birdcoder-h5/`）— 移动 Web / Capacitor 原生壳
-- Flutter 移动端（`apps/sdkwork-birdcoder-flutter-mobile/`）— 三端之一，已在 `sdkwork.app.config.json` 的 `commercialReadiness` 与 `manifestHonesty` 中以草稿/预发布状态登记，应用根目录含 `lib/`、`packages/`、`sdks/`，主题切换与 chat UI 已接入并通过 app SDK 持久化（详见 TECH 文档 §15）
-- Rust 服务端 — `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/` 提供本地 API 服务主机
-
-当前 `sdkwork.app.config.json` 整体处于 `DRAFT` / `preLaunch: true`，安装包均 `enabled: false`（`artifactPending: true`），尚未具备商业化落地能力。本次审计目的是在首个 governed release 之前量化就绪度差距并给出修复路线图。
+当前 `sdkwork.app.config.json` 处于 `DRAFT` / `preLaunch: true`，安装包均 `enabled: false`（`artifactPending: true`）。在首个 governed release 完成前，不具备公开商业化落地能力。
 
 ## 2. 审计范围
 
-审计覆盖以下维度：
+功能完整性、性能、安全、高可用、数据契约、移动端、设计、文档——均对照 `sdkwork-specs` 标准执行。
 
-- 功能完整性 — 三端功能覆盖、AI 编码会话、引擎集成、商业化域
-- 性能 — 延迟预算、并发能力、资源占用
-- 安全 — sandbox、RBAC、token 模型、capabilities、审计
-- 高可用 — 数据库 HA、SLO、备份恢复
-- 数据契约 — 表前缀、种子、drift policy、迁移生命周期
-- 移动端 — i18n、原生能力覆盖、Capacitor/Flutter 路线
-- 设计 — 视觉与交互专业度
-- 文档 — Canon 完整性、引用一致性
+## 3. 审计结果摘要（2026-07-04）
 
-## 3. 审计标准
+| 指标 | 当前状态 |
+| --- | --- |
+| 商业化就绪度评分 | **5.5 / 10**（工程治理强；发布证据与 commerce 业务层待补齐） |
+| OpenAPI Rust 对齐 | **161 / 161 已实现，0 deferred** |
+| P0 阻断项 | **已闭环** |
+| P1 严重项 | **修复中**（commerce 订单/发票/支付服务、真实 release 证据、iOS CI） |
+| Manifest 诚实性 | **DRAFT/preLaunch，安装包 disabled** |
 
-审计依据 `sdkwork-specs` 仓库标准，重点引用：
+## 4. 2026-07-04 工程闭环
 
-- `SOUL.md`、`AGENTS_SPEC.md` — 执行契约与字典解析
-- `SECURITY_SPEC.md` — token、sandbox、tenant 隔离、capabilities
-- `DATABASE_SPEC.md`、`DATABASE_FRAMEWORK_SPEC.md` — 表契约、迁移、种子、drift 生命周期
-- `RELEASE_SPEC.md`、`SUPPLY_CHAIN_SECURITY_SPEC.md` — 发布证据、SBOM、签名、checksum
-- `IAM_SPEC.md`、`IAM_LOGIN_INTEGRATION_SPEC.md` — 双 token、tenant/organization/user 三元主体隔离
-- `APP_PC_ARCHITECTURE_SPEC.md`、`DESKTOP_APP_ARCHITECTURE_SPEC.md` — PC/Tauri 架构与 capabilities
-- `APP_H5_ARCHITECTURE_SPEC.md`、`FLUTTER_APP_MOBILE_ARCHITECTURE_SPEC.md` — H5/Flutter 架构对齐
-- `DOCUMENTATION_SPEC.md` — Canon 布局与 PRD 分片规则
+| 项 | 状态 |
+| --- | --- |
+| Commerce 配额共享 crate | `sdkwork-birdcoder-commerce-quota`；turn 创建前校验 + 成功后记录 `METRIC_API_REQUESTS` |
+| 移动端 chat 助手回复 | `generate_mobile_chat_assistant_reply`（kernel-bridge）；H5/Flutter 发送后重载历史 |
+| H5 chat i18n | `chatPageMessages.ts`（en / zh-Hans / zh-Hant） |
+| Code engine provider | 标准 provider 去除 `panic!`，结构化 registration |
+| Workspace 治理 | `pnpm-workspace.yaml` 含 common/flutter/h5/pc 显式 app root + 架构限定 glob |
 
-## 4. 审计结果摘要
-
-- 商业化就绪度评分：当前 **2.5 / 10**；按修复路线图执行后预估可达 **7 / 10**（commercial launch 门槛）
-- P0 阻断项：**12 个**（已闭环）
-- P1 严重项：**14 个**（修复中）
-- P2 改进项：**9 个**
-- P3 优化项：**6 个**
-
-`sdkwork.app.config.json` 的 `commercialReadiness` 现状佐证该评分：`pcPrivateBeta` 报告 OpenAPI `100-paths-153-methods-iam-federation-teams-chat-aligned`（153/153 操作已实现，0 deferred），但 `saasPublicCloud` 仍为 `prelaunch-artifacts-pending`，`releaseGovernanceCI` 为 `pending-release-validation`。
-
-## 5. 核心问题清单（按维度）
+## 5. 核心开放差距
 
 ### 5.1 功能
 
-- H5 / Flutter 功能对齐：H5 与 Flutter 均已接入 chat UI 并通过 `@sdkwork/birdcoder-app-sdk` / Dart app SDK 持久化会话与消息；AI 编码会话核心能力与 Flutter Drive 附件上传仍待后续迭代
-- 商业化域缺失：`database.manifest.json` 已声明 `commerce_` 表前缀，但 order / invoice / payment / usage metering / API key / notification 等业务模块尚未落地
-- AI 编码会话核心能力（multi-turn、文件系统操作、终端集成、git overview）尚未在 H5/Flutter 对齐
+- Commerce 业务层：usage metering 与 api-keys 已落地；order / invoice / payment 业务服务待实现
+- 移动端 IDE parity：编码会话 multi-turn、终端、git overview 尚未在三端对齐
+- Flutter Drive 附件 lane 仍 defer
 
 ### 5.2 安全
 
-- `codex.rs` 旁路：PC 服务端存在绕过标准 web-framework / generated SDK 边界的直接调用路径
-- Tauri host capabilities 缺失：`sdkwork-birdcoder-pc-desktop/src-tauri` 未声明完整的 native capability 白名单，sandbox 边界不完整
-- 双 token JWT 与 tenant/organization/user 三元主体隔离在部分路径未闭环
+- Web 会话 `sessionStorage` 需在 SaaS 模式评估 httpOnly cookie 迁移
+- Tauri 路径级 sandbox 需持续强化
 
 ### 5.3 高可用
 
-- SQLite 单写：`database.manifest.json` `defaultEngine: "sqlite"`，单写者模型无法支撑商业并发
-- PostgreSQL HA overlay 缺失：`commercialReadiness.enterpriseK8s` 仅为 `postgresql-ha-backup-template-ci-smoke` 模板级，未落地真实 HA 与备份演练
+- PostgreSQL HA overlay 为模板级；生产备份演练未完成
+- 默认 SQLite 引擎限 standalone；SaaS 必须 PostgreSQL
 
 ### 5.4 数据契约
 
-- tablePrefix 冲突：`database.manifest.json` 声明 `ai_ / commerce_ / ops_ / runtime_ / studio_` 前缀与 `contract/prefix-registry.json`、`contract/table-registry.json` 双轨登记，存在冲突与权威不清风险
-- 种子缺失：`database/seeds/common/` 与各 locale 目录（en-US / ja-JP / de-DE / fr-FR / ru-RU / ko-KR）仅 `.gitkeep`，仅 `zh-CN` 为 active，locale-aware 种子基本为空
-- drift policy 空骨架：`database/drift/policy.yaml` 仅含空数组（`ignoreTables: []`、`ignoreColumns: []`、`severityOverrides: {}`），无生效规则
+- locale-aware 种子除 `zh-CN` 外仍基本为空
 
 ### 5.5 移动端
 
-- i18n 缺失：移动端未建立 message catalog，未对齐 `I18N_SPEC.md`
-- 原生能力覆盖 2 / 15：Capacitor / Flutter 原生插件覆盖严重不足
+- H5/Flutter chat i18n 基础 catalog 已补齐；全局 `I18N_SPEC.md` catalog 体系仍需扩展
+- iOS Capacitor headless build CI 待接入
 
 ## 6. 修复路线图
 
-路线图分四阶段，总计约 8 周：
-
-| 阶段 | 时间窗口 | 目标 |
-| --- | --- | --- |
-| 阶段 1 | 2026-06-27 ~ 2026-07-15 | P0 阻断项闭环（已闭环） |
-| 阶段 2 | 2026-07-16 ~ 2026-08-05 | P1 闭环 + P2 打磨 |
-| 阶段 3 | 2026-08-06 ~ 2026-08-15 | P3 商业化能力补齐 |
-| 阶段 4 | 2026-08-12 ~ 2026-08-15 | Beta release smoke 验收 |
+| 阶段 | 目标 |
+| --- | --- |
+| 阶段 1 | P0 阻断项闭环（**已完成**） |
+| 阶段 2 | P1 闭环 + P2 打磨（**进行中**） |
+| 阶段 3 | Commerce 业务服务 + governed release 证据 |
+| 阶段 4 | Beta smoke 与 manifest 安装包启用 |
 
 ## 7. 结论
 
-当前 SDKWork BirdCoder 不具备商业化落地能力：核心评分 2.5/10，`sdkwork.app.config.json` 仍处于 `DRAFT` / `preLaunch`，安装包均未启用。需按上述四阶段路线图执行 8 周，使就绪度达到 7/10 commercial launch 门槛后，方可进入首个 governed release。
+工程治理与 OpenAPI 契约已显著对齐 sdkwork-specs，但 **尚未具备公开商业化落地能力**。需完成 governed release（`release:assert-ready`）、commerce 业务闭环与生产 HA 演练后，方可进入 commercial launch（目标 **7 / 10**）。

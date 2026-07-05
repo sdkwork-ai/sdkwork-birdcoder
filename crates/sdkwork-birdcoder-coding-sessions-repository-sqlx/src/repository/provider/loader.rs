@@ -48,6 +48,11 @@ pub async fn load_provider_workspace_payloads(
             FROM studio_workspace AS workspaces
             WHERE is_deleted = 0
             ORDER BY updated_at DESC, id ASC
+            -- Provider bootstrap cap: at most 500 workspaces are loaded into memory
+            -- during provider initialization. If more workspaces exist, the caller must
+            -- paginate via the list API in a follow-up request. This hard cap prevents
+            -- OOM when the workspace catalog grows unbounded.
+            LIMIT 500
             "#,
     )
     .fetch_all(pool)
@@ -188,6 +193,11 @@ pub async fn load_provider_project_payloads(
               ON project_contents.project_id = projects.id
             WHERE projects.is_deleted = 0
             ORDER BY projects.updated_at DESC, projects.id ASC
+            -- Provider bootstrap cap: at most 1000 projects are loaded into memory
+            -- during provider initialization. If more projects exist, the caller must
+            -- paginate via the list API in a follow-up request. This hard cap prevents
+            -- OOM when the project catalog grows unbounded.
+            LIMIT 1000
             "#,
     )
     .fetch_all(pool)

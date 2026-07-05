@@ -293,7 +293,7 @@ assert.equal(
 );
 assert.equal(
   rootPackageJson.scripts?.['test:coding-server-api-spec-path-contract'],
-  'node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
+  'node scripts/run-local-tsx.mjs scripts/coding-server-api-spec-path-contract.test.ts',
   'Root package must expose the API_SPEC path contract so app/backend prefix drift cannot bypass repository governance.',
 );
 assert.equal(

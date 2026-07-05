@@ -7,7 +7,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { applyTopologyProfileToEnv } from './lib/birdcoder-topology.mjs';
-import { mergeRepoDevBootstrapAccessTokenEnv } from '../../sdkwork-iam/scripts/dev/create-dev-bootstrap-access-token-env.mjs';
+import { mergeRepoDevBootstrapAccessTokenEnv } from './lib/birdcoder-dev-bootstrap-access-token-env.mjs';
 import {
   normalizeViteMode,
   resolveWorkspaceRootDir,
@@ -174,6 +174,9 @@ function setEnvDefault(env, key, value) {
 
 function sqliteDatabaseUrl(filePath) {
   const normalized = String(filePath).replace(/\\/g, '/');
+  if (/^[A-Za-z]:\//.test(normalized) || normalized.startsWith('/')) {
+    return `sqlite:///${normalized}?mode=rwc`;
+  }
   return `sqlite://${normalized}?mode=rwc`;
 }
 

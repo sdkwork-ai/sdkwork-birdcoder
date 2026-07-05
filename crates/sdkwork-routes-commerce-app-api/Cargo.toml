@@ -1,0 +1,22 @@
+[package]
+name = "sdkwork-routes-commerce-app-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+serde = { workspace = true }
+sqlx = { workspace = true }
+sdkwork-birdcoder-commerce-service = { workspace = true }
+sdkwork-birdcoder-commerce-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-birdcoder-router-context = { workspace = true }
+sdkwork_iam_context_service.workspace = true
+sdkwork-utils-rust.workspace = true
+sdkwork-web-contract = { workspace = true }
+sdkwork-web-core = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

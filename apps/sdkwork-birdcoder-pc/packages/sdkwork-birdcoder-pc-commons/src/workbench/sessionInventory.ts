@@ -75,8 +75,6 @@ export interface ListStoredSessionInventoryOptions {
 
 export interface BuildProjectBackedSessionInventoryOptions {
   includeGlobal?: boolean;
-  limit?: number;
-  offset?: number;
   projectId?: string | null;
   projects: readonly BirdCoderProject[];
   terminalSessions?: readonly TerminalSessionRecord[];
@@ -239,11 +237,7 @@ export async function listStoredCodingSessions(
     options.projectId === undefined
       ? records
       : records.filter((session) => session.projectId === (options.projectId?.trim() ?? ''));
-  const offset = Math.max(options.offset ?? 0, 0);
-  const pagedRecords = offset > 0 ? filteredRecords.slice(offset) : filteredRecords;
-  return typeof options.limit === 'number'
-    ? pagedRecords.slice(0, Math.max(options.limit, 0))
-    : pagedRecords;
+  return filteredRecords;
 }
 
 function isProjectScopedCodingSession(summary: BirdCoderCodingSessionSummary): boolean {
@@ -509,12 +503,7 @@ export function buildProjectBackedSessionInventory(
 
   records.sort(compareSessionInventoryRecords);
 
-  const offset = Math.max(options.offset ?? 0, 0);
-  if (typeof options.limit === 'number') {
-    return records.slice(offset, offset + Math.max(options.limit, 0));
-  }
-
-  return offset > 0 ? records.slice(offset) : records;
+  return records;
 }
 
 export async function listProjectBackedSessionInventory(
@@ -546,8 +535,6 @@ export async function listStoredSessionInventory(
     options.appRuntimeReadService
       ? Promise.resolve([] as BirdCoderCodingSessionSummary[])
       : listStoredCodingSessions({
-        limit: undefined,
-        offset: options.offset,
         projectId: options.projectId,
       }),
     listAuthorityBackedCodingSessions(options),
@@ -573,11 +560,6 @@ export async function listStoredSessionInventory(
     ...codingSessions,
   ].sort(compareSessionInventoryRecords);
 
-  const offset = Math.max(options.offset ?? 0, 0);
-  if (typeof options.limit === 'number') {
-    return records.slice(offset, offset + Math.max(options.limit, 0));
-  }
-
-  return offset > 0 ? records.slice(offset) : records;
+  return records;
 }
 

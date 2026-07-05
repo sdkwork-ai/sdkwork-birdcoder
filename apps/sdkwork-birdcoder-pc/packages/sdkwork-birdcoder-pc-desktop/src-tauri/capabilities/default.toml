@@ -1,9 +1,21 @@
-# Tauri 2 capability for the main BirdCoder desktop window.
+# Tauri 2 capability for the main BirdCoder desktop PRODUCTION window.
 # Follows sdkwork-specs/SECURITY_SPEC.md: every command permission is declared
 # explicitly so the allowlist is auditable. High-risk mutating commands
 # (fs_write_file, fs_delete_entry, local_sql_execute_plan,
 # desktop_local_shell_exec) are listed individually rather than through a broad
 # permission set, making their exposure explicit and reviewable.
+#
+# Capability differentiation (per SECURITY_SPEC.md):
+# - Production build (this file): targets window "main", grants full
+#   permissions including filesystem write/delete and local shell execution.
+# - Test/dev build (capabilities/test.toml): targets window "main-test"
+#   (see tauri.test.conf.json), restricts to read-only filesystem and
+#   non-destructive host bridges. High-risk mutating commands are excluded
+#   so test/dev builds run with least privilege.
+#
+# When adding a new high-risk mutating command, declare it here in
+# production and intentionally EXCLUDE it from test.toml so the test
+# capability stays least-privilege.
 identifier = "default"
 description = "Default desktop capability for the main BirdCoder window. Explicitly allowlists every Tauri command permission including high-risk mutating operations."
 windows = ["main"]

@@ -107,7 +107,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         &self,
         ctx: &WorkspaceContext,
         query: &WorkspaceScopedQuery,
-    ) -> Result<Vec<WorkspacePayload>, WorkspaceError> {
+    ) -> Result<(Vec<WorkspacePayload>, usize), WorkspaceError> {
         let tenant_id = Self::scoped_tenant_id(ctx)?;
         let access_user_id = if let Some(requested_user_id) = query.user_id.as_deref() {
             if requested_user_id != ctx.user_id {
@@ -120,6 +120,16 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             Self::scoped_user_id(ctx)?
         };
 
+        // PAGINATION_SPEC.md §2/§5: push `LIMIT`/`OFFSET` down to SQL — never
+        // collect-then-slice in process memory. Default page_size=20, max=200
+        // is enforced by `ListPagination::normalize` (called at the route
+        // layer via `clamp_list_page_size`); the repository trusts the
+        // bounded values passed through `WorkspaceScopedQuery.pagination`.
+        let (offset, limit) = query.pagination.normalize(
+            sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE as i64,
+            sdkwork_birdcoder_project_service::pagination::MAX_LIST_PAGE_SIZE as i64,
+        );
+
         let mut sql = format!(
             "SELECT * FROM {} WHERE {} = 0 AND {} = ? AND {}",
             col::TABLE,
@@ -130,6 +140,9 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         if query.workspace_id.is_some() {
             sql.push_str(&format!(" AND {} = ?", col::ID));
         }
+        // Append LIMIT/OFFSET last so bind order stays: tenant, user, user,
+        // [workspace_id], limit, offset.
+        sql.push_str(" ORDER BY id DESC LIMIT ? OFFSET ?");
 
         let mut q = sqlx::query(&sql)
             .bind(tenant_id)
@@ -138,19 +151,47 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         if let Some(ref wid) = query.workspace_id {
             q = q.bind(wid.as_str());
         }
+        q = q.bind(limit).bind(offset);
 
         let rows = q
             .fetch_all(&self.pool)
             .await
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
-        rows.iter()
+        let items: Vec<WorkspacePayload> = rows
+            .iter()
             .map(|row| {
                 WorkspaceRow::from_row(row)
                     .map(|r| row_mapper::workspace_row_to_payload(&r))
                     .map_err(|e| WorkspaceError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        // Total count via a parallel COUNT(*) using the same WHERE predicates
+        // (minus the LIMIT/OFFSET). This keeps `pageInfo.totalItems` accurate
+        // without materializing the full result set.
+        let mut count_sql = format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = 0 AND {} = ? AND {}",
+            col::TABLE,
+            col::IS_DELETED,
+            col::TENANT_ID,
+            Self::workspace_access_predicate(None),
+        );
+        if query.workspace_id.is_some() {
+            count_sql.push_str(&format!(" AND {} = ?", col::ID));
+        }
+        let mut count_q = sqlx::query_scalar::<_, i64>(&count_sql)
+            .bind(tenant_id)
+            .bind(access_user_id)
+            .bind(access_user_id);
+        if let Some(ref wid) = query.workspace_id {
+            count_q = count_q.bind(wid.as_str());
+        }
+        let total: i64 = count_q
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn create_workspace(
@@ -392,29 +433,48 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         &self,
         ctx: &WorkspaceContext,
         workspace_id: &str,
-    ) -> Result<Vec<WorkspaceMemberPayload>, WorkspaceError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<WorkspaceMemberPayload>, usize), WorkspaceError> {
         self.ensure_workspace_access(ctx, workspace_id).await?;
         let wid: i64 = workspace_id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} DESC LIMIT ? OFFSET ?",
             member_col::TABLE,
             member_col::WORKSPACE_ID,
             member_col::IS_DELETED,
+            member_col::ID,
         ))
         .bind(wid)
+        .bind(limit as i64)
+        .bind(offset as i64)
         .fetch_all(&self.pool)
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
-        rows.iter()
+        let items: Vec<WorkspaceMemberPayload> = rows
+            .iter()
             .map(|row| {
                 WorkspaceMemberRow::from_row(row)
                     .map(|r| row_mapper::workspace_member_row_to_payload(&r))
                     .map_err(|e| WorkspaceError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0",
+            member_col::TABLE,
+            member_col::WORKSPACE_ID,
+            member_col::IS_DELETED,
+        ))
+        .bind(wid)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn upsert_workspace_member(

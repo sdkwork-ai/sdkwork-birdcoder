@@ -31,7 +31,7 @@ impl WorkspaceService {
         &self,
         ctx: &WorkspaceContext,
         query: &WorkspaceScopedQuery,
-    ) -> Result<Vec<WorkspacePayload>, WorkspaceError> {
+    ) -> Result<(Vec<WorkspacePayload>, usize), WorkspaceError> {
         self.repository.list_workspaces(ctx, query).await
     }
 
@@ -134,14 +134,16 @@ impl WorkspaceService {
         &self,
         ctx: &WorkspaceContext,
         workspace_id: &str,
-    ) -> Result<Vec<WorkspaceMemberPayload>, WorkspaceError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<WorkspaceMemberPayload>, usize), WorkspaceError> {
         if is_blank(Some(workspace_id)) {
             return Err(WorkspaceError::InvalidInput(
                 "workspaceId is required.".to_owned(),
             ));
         }
         self.repository
-            .list_workspace_members(ctx, workspace_id)
+            .list_workspace_members(ctx, workspace_id, offset, limit)
             .await
     }
 

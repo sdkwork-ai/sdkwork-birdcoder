@@ -333,7 +333,8 @@ CREATE TABLE IF NOT EXISTS studio_project_content (
     content_data TEXT NULL,
     metadata TEXT NULL,
     content_version TEXT NOT NULL,
-    content_hash TEXT NULL
+    content_hash TEXT NULL,
+    is_deleted INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_studio_project_content_tenant_project_id
@@ -918,7 +919,10 @@ CREATE TABLE IF NOT EXISTS commerce_usage_metering (
     workspace_id TEXT NULL,
     user_id INTEGER NOT NULL,
     metric_type TEXT NOT NULL,
-    metric_value NUMERIC NOT NULL DEFAULT 0,
+    -- INTEGER type aligns with the i64 used in code (commerce-quota and
+    -- usage.rs). Avoid NUMERIC affinity which silently accepts decimals and
+    -- then loses precision through SUM(CAST(... AS INTEGER)).
+    metric_value INTEGER NOT NULL DEFAULT 0,
     period_start TEXT NOT NULL,
     period_end TEXT NOT NULL,
     metadata TEXT NOT NULL DEFAULT '{}',
@@ -1220,3 +1224,11 @@ CREATE TABLE IF NOT EXISTS chat_message (
 
 CREATE INDEX IF NOT EXISTS idx_chat_message_conversation_created
 ON chat_message(conversation_id, created_at);
+
+-- Tenant-scoped lookup index: chat_message queries always filter by both
+-- tenant_id and conversation_id (see SqliteChatRepository::list_messages and
+-- ::create_message). Without this composite index, tenant isolation filters
+-- would require a full scan on chat_message(conversation_id) for tenants with
+-- many cross-tenant conversations.
+CREATE INDEX IF NOT EXISTS idx_chat_message_tenant_conversation_created
+ON chat_message(tenant_id, conversation_id, created_at);

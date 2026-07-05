@@ -39,6 +39,14 @@ const serverEntrySourcePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts',
   import.meta.url,
 );
+const runtimeBindingsSourcePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/runtimeBindings.ts',
+  import.meta.url,
+);
+const serverConstantsSourcePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/serverConstants.ts',
+  import.meta.url,
+);
 const serverRuntimeDefaultIdeServicesRuntimeModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/node_modules/@sdkwork/birdcoder-pc-infrastructure/src/services/defaultIdeServicesRuntime.ts',
   import.meta.url,
@@ -189,23 +197,30 @@ try {
 
   resetDefaultBirdCoderIdeServicesRuntimeForTests();
   const serverIndexSource = readFileSync(serverEntrySourcePath, 'utf8');
+  const runtimeBindingsSource = readFileSync(runtimeBindingsSourcePath, 'utf8');
+  const serverConstantsSource = readFileSync(serverConstantsSourcePath, 'utf8');
   assert.match(
     serverIndexSource,
-    /export async function bindBirdCoderServerRuntimeTransport\(/u,
-    'coding-server entry must continue to expose the canonical runtime transport binder.',
+    /export \* from '\.\/runtimeBindings\.ts'/u,
+    'coding-server entry must re-export the canonical runtime transport binding module.',
   );
   assert.match(
-    serverIndexSource,
+    runtimeBindingsSource,
+    /export async function bindBirdCoderServerRuntimeTransport\(/u,
+    'coding-server runtime bindings must expose the canonical runtime transport binder.',
+  );
+  assert.match(
+    runtimeBindingsSource,
     /const host = options\.host \?\? resolveServerRuntime\(options\.distributionId\);/u,
     'server runtime binding must continue to derive the host descriptor from the canonical server runtime resolver when no host override is supplied.',
   );
   assert.match(
-    serverIndexSource,
+    serverConstantsSource,
     /cn:\s*'https:\/\/cn\.sdkwork\.local\/birdcoder'/u,
-    'server runtime binding must keep the cn runtime transport base URL normalized to the canonical authority host.',
+    'server runtime constants must keep the cn runtime transport base URL normalized to the canonical authority host.',
   );
   assert.match(
-    serverIndexSource,
+    runtimeBindingsSource,
     /options\.apiBaseUrl \?\?\s*\(options\.host \? undefined : BIRD_SERVER_RUNTIME_TRANSPORT_BASE_URLS\[distributionId\]\)/u,
     'server runtime binding must continue to prefer the canonical runtime transport base URL when only a distribution id is supplied.',
   );

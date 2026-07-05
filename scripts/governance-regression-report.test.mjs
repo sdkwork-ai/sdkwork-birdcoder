@@ -426,7 +426,7 @@ assert.deepEqual(
     'pnpm run test:coding-server-prompt-skill-template-evidence-consumer-contract',
     'pnpm run test:postgresql-live-smoke-contract',
     'node scripts/live-docs-governance-baseline.test.mjs',
-    'node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
+    'node scripts/run-local-tsx.mjs scripts/coding-server-api-spec-path-contract.test.ts',
     'node scripts/quality-loop-scoreboard-contract.test.mjs',
     'node scripts/release/local-release-command.test.mjs',
     'node scripts/release/rollback-plan-command.test.mjs',

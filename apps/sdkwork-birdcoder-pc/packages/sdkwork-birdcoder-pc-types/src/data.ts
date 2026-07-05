@@ -1721,9 +1721,9 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineExactEntity(
     'app',
-    'plus_app',
+    'platform_app',
     'studio',
-    'Application root aligned with spring-ai-plus PlusApp.',
+    'Application root aligned with spring-ai-plus platform_app.',
     [
       { name: 'id', logicalType: 'id' },
       { name: 'uuid', logicalType: 'text' },
@@ -5675,7 +5675,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'app_template',
-    'studio_app_template',
+    'platform_app_template',
     'studio',
     'Application template root.',
     [
@@ -5687,7 +5687,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'app_template_version',
-    'studio_app_template_version',
+    'platform_app_template_version',
     'studio',
     'Application template version.',
     [
@@ -5699,7 +5699,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'app_template_target_profile',
-    'studio_app_template_target_profile',
+    'platform_app_template_target_profile',
     'studio',
     'Target profile of a template version.',
     [
@@ -5712,7 +5712,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'app_template_preset',
-    'studio_app_template_preset',
+    'platform_app_template_preset',
     'studio',
     'Template preset variant.',
     [
@@ -5724,7 +5724,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
   defineEntity(
     'app_template_instantiation',
-    'studio_app_template_instantiation',
+    'platform_app_template_instantiation',
     'studio',
     'Concrete project instantiated from a template.',
     [

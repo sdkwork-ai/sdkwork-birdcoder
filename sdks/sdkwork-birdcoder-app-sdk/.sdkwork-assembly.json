@@ -1,48 +1,31 @@
 {
   "workspace": "sdkwork-birdcoder-app-sdk",
-  "title": "SDKWork BirdCoder App API SDK",
-  "apiVersion": "0.1.0",
-  "openapiVersion": "3.1.0",
-  "authoritySpec": "openapi/sdkwork-birdcoder-app-api.openapi.json",
-  "generationInputSpec": "openapi/sdkwork-birdcoder-app-api.sdkgen.json",
-  "derivedSpecs": {
-    "default": "openapi/sdkwork-birdcoder-app-api.sdkgen.json"
-  },
   "sdkOwner": "sdkwork-birdcoder",
   "apiAuthority": "sdkwork-birdcoder-app-api",
+  "authoritySpec": "openapi/sdkwork-birdcoder-app-api.openapi.json",
+  "generationInputSpec": "openapi/sdkwork-birdcoder-app-api.sdkgen.json",
+  "apiVersion": "0.1.0",
   "discoverySurface": {
     "sdkTarget": "app",
     "apiPrefix": "/app/v3/api",
-    "schemaUrl": "/app/v3/openapi.json",
-    "generatedProtocols": [
-      "http-openapi"
-    ],
-    "manualTransports": []
+    "generatedProtocols": ["http-openapi"]
   },
   "languages": [
     {
       "language": "typescript",
       "workspace": "sdkwork-birdcoder-app-sdk-typescript",
-      "generationState": "materialized",
-      "releaseState": "not_published",
-      "packagePath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi",
-      "manifestPath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi/package.json",
       "name": "@sdkwork/birdcoder-app-sdk",
-      "version": "0.1.0",
-      "description": "Generator-owned TypeScript transport SDK for the SDKWork BirdCoder App API.",
-      "generatedPath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi"
+      "generatedPath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi",
+      "generationState": "materialized",
+      "version": "0.1.0"
     },
     {
       "language": "rust",
       "workspace": "sdkwork-birdcoder-app-sdk-rust",
-      "generationState": "materialized",
-      "releaseState": "not_published",
-      "packagePath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi",
-      "manifestPath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi/Cargo.toml",
       "name": "sdkwork-birdcoder-app-sdk",
-      "version": "0.1.0",
-      "description": "Generator-owned Rust transport SDK for the SDKWork BirdCoder App API.",
-      "generatedPath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi"
+      "generatedPath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi",
+      "generationState": "materialized",
+      "version": "0.1.0"
     }
   ],
   "sdkDependencies": [
@@ -84,9 +67,5 @@
         "typescript": "@sdkwork/messaging-app-sdk"
       }
     }
-  ],
-  "metadata": {
-    "managedBy": "sdkwork-birdcoder-sdkwork-sdk-migration",
-    "standardVersion": "2026-06-06"
-  }
+  ]
 }

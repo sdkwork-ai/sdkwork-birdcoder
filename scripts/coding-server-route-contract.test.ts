@@ -17,9 +17,9 @@ assert.deepEqual(descriptor, {
     liveOpenApiPath: '/openapi.json',
     openApiPath: '/openapi/coding-server-v1.json',
     routeCatalogPath: '/app/v3/api/system/routes',
-    routeCount: 153,
+    routeCount: 161,
     routesBySurface: {
-      app: 104,
+      app: 112,
       backend: 49,
     },
     surfaces: [
@@ -28,7 +28,7 @@ assert.deepEqual(descriptor, {
         basePath: '/app/v3/api',
         description: 'Application-facing coding runtime, workspace, project, collaboration, and IAM routes.',
         name: 'app',
-        routeCount: 104,
+        routeCount: 112,
       },
       {
         authMode: 'admin',
@@ -222,7 +222,7 @@ assert.equal(admin.releases.path, '/backend/v3/api/releases');
 assert.equal(admin.deployments.path, '/backend/v3/api/deployments');
 
 const routes = listBirdCoderCodingServerRoutes();
-assert.equal(routes.length, 153, 'coding-server should expose the full app/backend/commerce route matrix');
+assert.equal(routes.length, 161, 'coding-server should expose the full app/backend/commerce route matrix');
 assert.equal(
   routes.every(
     (route) =>

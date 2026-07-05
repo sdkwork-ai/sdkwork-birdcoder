@@ -98,7 +98,9 @@ impl SqliteTeamRepository {
         ctx: &WorkspaceContext,
         workspace_id: Option<&str>,
         user_id: Option<&str>,
-    ) -> Result<Vec<TeamPayload>, WorkspaceError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<TeamPayload>, usize), WorkspaceError> {
         let tenant_id = scoped_tenant_id(ctx)?;
         let uid = user_id
             .map(|value| {
@@ -108,43 +110,42 @@ impl SqliteTeamRepository {
             })
             .transpose()?;
 
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET and all filter
+        // predicates down to SQL — never collect-then-slice in process
+        // memory. Build the SELECT and COUNT(*) with the same WHERE
+        // predicates (minus LIMIT/OFFSET) so `pageInfo.totalItems` stays
+        // accurate without materializing the full result set.
+        let mut sql = String::from("SELECT t.* FROM ");
+        sql.push_str(col::TABLE);
+        sql.push_str(" t WHERE t.");
+        sql.push_str(col::IS_DELETED);
+        sql.push_str(" = 0 AND t.");
+        sql.push_str(col::TENANT_ID);
+        sql.push_str(" = ?");
+
+        let mut count_sql = String::from("SELECT COUNT(*) FROM ");
+        count_sql.push_str(col::TABLE);
+        count_sql.push_str(" t WHERE t.");
+        count_sql.push_str(col::IS_DELETED);
+        count_sql.push_str(" = 0 AND t.");
+        count_sql.push_str(col::TENANT_ID);
+        count_sql.push_str(" = ?");
+
+        let mut wid: Option<i64> = None;
         if let Some(workspace_id) = workspace_id {
-            let wid: i64 = workspace_id.parse().map_err(|_| {
+            let parsed_wid: i64 = workspace_id.parse().map_err(|_| {
                 WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
             })?;
-            let mut sql = format!(
-                "SELECT t.* FROM {} t WHERE t.{} = ? AND t.{} = 0 AND t.{} = ?",
-                col::TABLE,
-                col::WORKSPACE_ID,
-                col::IS_DELETED,
-                col::TENANT_ID,
-            );
-            if let Some(parsed) = uid {
-                sql.push_str(&format!(
-                    " AND (t.{} = ? OR EXISTS (SELECT 1 FROM {} m WHERE m.{} = t.{} AND m.{} = ? AND m.{} = 0))",
-                    col::OWNER_ID,
-                    member_col::TABLE,
-                    member_col::TEAM_ID,
-                    col::ID,
-                    member_col::USER_ID,
-                    member_col::IS_DELETED,
-                ));
-                let mut query = sqlx::query(&sql).bind(wid).bind(tenant_id).bind(parsed).bind(parsed);
-                return Self::collect_team_rows(query.fetch_all(&self.pool).await);
-            }
-
-            let query = sqlx::query(&sql).bind(wid).bind(tenant_id);
-            return Self::collect_team_rows(query.fetch_all(&self.pool).await);
+            sql.push_str(" AND t.");
+            sql.push_str(col::WORKSPACE_ID);
+            sql.push_str(" = ?");
+            count_sql.push_str(" AND t.");
+            count_sql.push_str(col::WORKSPACE_ID);
+            count_sql.push_str(" = ?");
+            wid = Some(parsed_wid);
         }
-
-        let mut sql = format!(
-            "SELECT t.* FROM {} t WHERE t.{} = 0 AND t.{} = ?",
-            col::TABLE,
-            col::IS_DELETED,
-            col::TENANT_ID,
-        );
-
-        if let Some(parsed) = uid {
+        if let Some(parsed_uid) = uid {
+            let _ = parsed_uid;
             sql.push_str(&format!(
                 " AND (t.{} = ? OR EXISTS (SELECT 1 FROM {} m WHERE m.{} = t.{} AND m.{} = ? AND m.{} = 0))",
                 col::OWNER_ID,
@@ -154,25 +155,55 @@ impl SqliteTeamRepository {
                 member_col::USER_ID,
                 member_col::IS_DELETED,
             ));
-            let mut query = sqlx::query(&sql).bind(tenant_id).bind(parsed).bind(parsed);
-            return Self::collect_team_rows(query.fetch_all(&self.pool).await);
+            count_sql.push_str(&format!(
+                " AND (t.{} = ? OR EXISTS (SELECT 1 FROM {} m WHERE m.{} = t.{} AND m.{} = ? AND m.{} = 0))",
+                col::OWNER_ID,
+                member_col::TABLE,
+                member_col::TEAM_ID,
+                col::ID,
+                member_col::USER_ID,
+                member_col::IS_DELETED,
+            ));
         }
+        // Append LIMIT/OFFSET last so bind order stays: tenant_id,
+        // [workspace_id], [owner_id, member_user_id], limit, offset.
+        sql.push_str(" ORDER BY t.id DESC LIMIT ? OFFSET ?");
 
-        let query = sqlx::query(&sql).bind(tenant_id);
-        Self::collect_team_rows(query.fetch_all(&self.pool).await)
-    }
+        let mut q = sqlx::query(&sql).bind(tenant_id);
+        if let Some(parsed_wid) = wid {
+            q = q.bind(parsed_wid);
+        }
+        if let Some(parsed_uid) = uid {
+            q = q.bind(parsed_uid).bind(parsed_uid);
+        }
+        q = q.bind(limit as i64).bind(offset as i64);
 
-    fn collect_team_rows(
-        rows: Result<Vec<sqlx::any::AnyRow>, sqlx::Error>,
-    ) -> Result<Vec<TeamPayload>, WorkspaceError> {
-        let rows = rows.map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        rows.iter()
+        let rows = q
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+
+        let items: Vec<TeamPayload> = rows
+            .iter()
             .map(|row| {
                 TeamRow::from_row(row)
                     .map(|r| row_mapper::team_row_to_payload(&r))
                     .map_err(|e| WorkspaceError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let mut count_q = sqlx::query_scalar::<_, i64>(&count_sql).bind(tenant_id);
+        if let Some(parsed_wid) = wid {
+            count_q = count_q.bind(parsed_wid);
+        }
+        if let Some(parsed_uid) = uid {
+            count_q = count_q.bind(parsed_uid).bind(parsed_uid);
+        }
+        let total: i64 = count_q
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     pub async fn create_team(
@@ -251,31 +282,50 @@ impl SqliteTeamRepository {
         &self,
         ctx: &WorkspaceContext,
         team_id: &str,
-    ) -> Result<Vec<TeamMemberPayload>, WorkspaceError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<TeamMemberPayload>, usize), WorkspaceError> {
         if self.find_team_by_id(ctx, team_id).await?.is_none() {
             return Err(WorkspaceError::NotFound(format!("team {team_id} not found")));
         }
         let tid: i64 = team_id
             .parse()
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid team_id: {team_id}")))?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} DESC LIMIT ? OFFSET ?",
             member_col::TABLE,
             member_col::TEAM_ID,
             member_col::IS_DELETED,
+            member_col::ID,
         ))
         .bind(tid)
+        .bind(limit as i64)
+        .bind(offset as i64)
         .fetch_all(&self.pool)
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
-        rows.iter()
+        let items: Vec<TeamMemberPayload> = rows
+            .iter()
             .map(|row| {
                 TeamMemberRow::from_row(row)
                     .map(|r| row_mapper::team_member_row_to_payload(&r))
                     .map_err(|e| WorkspaceError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0",
+            member_col::TABLE,
+            member_col::TEAM_ID,
+            member_col::IS_DELETED,
+        ))
+        .bind(tid)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     pub async fn add_team_member(
@@ -375,15 +425,19 @@ impl sdkwork_birdcoder_workspace_service::ports::team::TeamRepository for Sqlite
         ctx: &WorkspaceContext,
         workspace_id: Option<&str>,
         user_id: Option<&str>,
-    ) -> Result<Vec<TeamPayload>, WorkspaceError> {
-        SqliteTeamRepository::list_teams(self, ctx, workspace_id, user_id).await
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<TeamPayload>, usize), WorkspaceError> {
+        SqliteTeamRepository::list_teams(self, ctx, workspace_id, user_id, offset, limit).await
     }
 
     async fn list_team_members(
         &self,
         ctx: &WorkspaceContext,
         team_id: &str,
-    ) -> Result<Vec<TeamMemberPayload>, WorkspaceError> {
-        SqliteTeamRepository::list_team_members(self, ctx, team_id).await
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<TeamMemberPayload>, usize), WorkspaceError> {
+        SqliteTeamRepository::list_team_members(self, ctx, team_id, offset, limit).await
     }
 }

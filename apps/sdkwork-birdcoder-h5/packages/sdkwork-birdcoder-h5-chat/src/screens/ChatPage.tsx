@@ -9,8 +9,15 @@ import {
   uploadBirdCoderChatAttachmentToDrive,
 } from '@sdkwork/birdcoder-h5-core/sdk';
 import { createChatMessage } from '../index.ts';
+import { resolveChatPageMessages } from '../messages/chatPageMessages.ts';
+import { useBirdCoderSettings } from '../state/settingsState.tsx';
 
 export function ChatPage() {
+  const { state: settings } = useBirdCoderSettings();
+  const messagesCopy = useMemo(
+    () => resolveChatPageMessages(settings.language),
+    [settings.language],
+  );
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState(() => [] as ReturnType<typeof createChatMessage>[]);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -48,8 +55,8 @@ export function ChatPage() {
         if (cancelled) {
           return;
         }
-        const message = error instanceof Error ? error.message : 'Failed to load chat history.';
-        setLoadError(isBlank(message) ? 'Failed to load chat history.' : message);
+        const message = error instanceof Error ? error.message : messagesCopy.loadHistoryFailed;
+        setLoadError(isBlank(message) ? messagesCopy.loadHistoryFailed : message);
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -60,17 +67,20 @@ export function ChatPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [messagesCopy.loadHistoryFailed]);
 
   async function persistUserMessage(content: string) {
     if (!conversationId) {
       throw new Error('Chat conversation is not ready.');
     }
-    const saved = await sendBirdCoderMobileChatMessage(conversationId, content);
-    setMessages((current) => [
-      ...current,
-      createChatMessage(saved.role, saved.content, saved.id),
-    ]);
+    await sendBirdCoderMobileChatMessage(conversationId, content);
+    const history = await listBirdCoderMobileChatMessages(conversationId);
+    setMessages(
+      history.map((message) => ({
+        ...createChatMessage(message.role, message.content, message.id),
+        createdAt: message.createdAt,
+      })),
+    );
   }
 
   async function handleAttachmentSelected(fileList: FileList | null) {
@@ -106,14 +116,14 @@ export function ChatPage() {
   return (
     <div className="flex h-full flex-col gap-4 px-4 py-4">
       <div>
-        <h2 className="text-base font-semibold">Chat</h2>
+        <h2 className="text-base font-semibold">{messagesCopy.title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Mobile chat persists through the BirdCoder app SDK chat conversation API and Drive uploader.
+          {messagesCopy.description}
         </p>
       </div>
       <div className="flex min-h-48 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-card p-3">
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading chat history…</p>
+          <p className="text-sm text-muted-foreground">{messagesCopy.loadingHistory}</p>
         ) : null}
         {messages.map((message) => (
           <article key={message.id} className="rounded-xl bg-muted px-3 py-2 text-sm">
@@ -146,8 +156,8 @@ export function ChatPage() {
               setInput('');
             })
             .catch((error: unknown) => {
-              const message = error instanceof Error ? error.message : 'Failed to send message.';
-              setLoadError(isBlank(message) ? 'Failed to send message.' : message);
+              const message = error instanceof Error ? error.message : messagesCopy.sendFailed;
+              setLoadError(isBlank(message) ? messagesCopy.sendFailed : message);
             })
             .finally(() => {
               setIsSending(false);
@@ -168,12 +178,12 @@ export function ChatPage() {
           onClick={() => fileInputRef.current?.click()}
           className="rounded-xl border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
         >
-          {isUploading ? 'Uploading…' : 'Attach'}
+          {isUploading ? messagesCopy.uploading : messagesCopy.attach}
         </button>
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Message BirdCoder"
+          placeholder={messagesCopy.inputPlaceholder}
           disabled={isLoading || conversationId == null}
           className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none disabled:opacity-50"
         />
@@ -182,7 +192,7 @@ export function ChatPage() {
           disabled={!canSend}
           className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
-          {isSending ? 'Sending…' : 'Send'}
+          {isSending ? messagesCopy.sending : messagesCopy.send}
         </button>
       </form>
     </div>

@@ -496,6 +496,28 @@ function supportsSqlPlanExecution(
   );
 }
 
+/**
+ * Detects errors that indicate a backing table does not yet exist (e.g. during
+ * schema migration). Only these errors justify permanently activating the
+ * volatile in-memory fallback; transient errors (connection loss, permission
+ * denied, etc.) should surface to the caller instead of silently degrading.
+ */
+function isTableMissingError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : String(error ?? '');
+  const normalizedMessage = message.toLowerCase();
+  return (
+    normalizedMessage.includes('no such table') ||
+    normalizedMessage.includes('relation does not exist') ||
+    normalizedMessage.includes('table not found') ||
+    normalizedMessage.includes('unknown table')
+  );
+}
+
 export function createBirdCoderTableRecordRepository<TRecord, TId extends string = string>({
   binding,
   definition,
@@ -567,6 +589,13 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
         const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildListPlan());
         return normalizeStoredTableRecords(result.rows ?? [], normalize, sort);
       } catch (error) {
+        console.error(
+          `BirdCoder table repository readRecords failed for ${binding.entityName}`,
+          error,
+        );
+        if (!isTableMissingError(error)) {
+          throw error;
+        }
         activateVolatileTableFallback();
         return normalizeStoredTableRecords(resolveVolatileTableRecords(), normalize, sort);
       }
@@ -595,6 +624,13 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
         );
         return normalizedRecords;
       } catch (error) {
+        console.error(
+          `BirdCoder table repository writeRecords failed for ${binding.entityName}`,
+          error,
+        );
+        if (!isTableMissingError(error)) {
+          throw error;
+        }
         activateVolatileTableFallback();
         volatileTableRecords = normalizedRecords;
         return normalizedRecords;
@@ -641,6 +677,13 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
           const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildCountPlan());
           return Number(result.rows?.[0]?.total ?? 0);
         } catch (error) {
+          console.error(
+            `BirdCoder table repository count failed for ${binding.entityName}`,
+            error,
+          );
+          if (!isTableMissingError(error)) {
+            throw error;
+          }
           activateVolatileTableFallback();
           return resolveVolatileTableRecords().length;
         }
@@ -656,6 +699,13 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
           const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildFindByIdPlan(id));
           return normalizeStoredTableRecords(result.rows ?? [], normalize, sort)[0] ?? null;
         } catch (error) {
+          console.error(
+            `BirdCoder table repository findById failed for ${binding.entityName}`,
+            error,
+          );
+          if (!isTableMissingError(error)) {
+            throw error;
+          }
           activateVolatileTableFallback();
           return (
             normalizeStoredTableRecords(resolveVolatileTableRecords(), normalize, sort).find(

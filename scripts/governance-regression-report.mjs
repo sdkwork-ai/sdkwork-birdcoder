@@ -483,7 +483,7 @@ export const GOVERNANCE_REGRESSION_CHECKS = [
     id: 'coding-server-api-spec-path',
     label: 'Coding server API_SPEC path contract',
     scriptPath: 'scripts/coding-server-api-spec-path-contract.test.ts',
-    command: 'node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts',
+    command: 'node scripts/run-local-tsx.mjs scripts/coding-server-api-spec-path-contract.test.ts',
   },
   {
     id: 'quality-loop-scoreboard',

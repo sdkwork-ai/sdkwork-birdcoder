@@ -80,7 +80,14 @@ impl BirdServerConfig {
 }
 
 pub fn sqlite_database_url(path: &Path) -> String {
-    let normalized = path.to_string_lossy().replace('\\', "/");
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(path)
+    };
+    let normalized = absolute.to_string_lossy().replace('\\', "/");
     format!("sqlite:///{normalized}?mode=rwc")
 }
 

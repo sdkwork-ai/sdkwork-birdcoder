@@ -7,6 +7,7 @@ use sdkwork_routes_chat_app_api::handlers::ChatAppState;
 use sdkwork_routes_deployment_backend_api::DeploymentBackendAppState;
 use sdkwork_routes_document_app_api::DocumentAppState;
 use sdkwork_routes_engine_catalog_app_api::EngineCatalogAppState;
+use sdkwork_routes_commerce_app_api::CommerceAppState as CommerceTransactionsAppState;
 use sdkwork_routes_membership_app_api::MembershipAppState;
 use sdkwork_routes_skill_packages_app_api::SkillPackagesAppState;
 use sdkwork_routes_system_app_api::SystemAppState;
@@ -97,6 +98,7 @@ pub async fn build_router(
     let intelligence_router = sdkwork_routes_coding_sessions_app_api::build_coding_sessions_app_api_router()
         .with_state(CodingSessionsAppState {
             service: state.services.coding_session.clone(),
+            commerce_pool: Some(state.repositories.any_pool.clone()),
         });
 
     let workspace_router = sdkwork_routes_workspace_app_api::build_workspace_app_router()
@@ -127,6 +129,11 @@ pub async fn build_router(
     let membership_router = sdkwork_routes_membership_app_api::build_membership_app_router()
         .with_state(MembershipAppState::new(state.repositories.any_pool.clone()));
 
+    let commerce_transactions_router =
+        sdkwork_routes_commerce_app_api::build_commerce_app_router().with_state(
+            CommerceTransactionsAppState::new(state.repositories.any_pool.clone()),
+        );
+
     let deployment_backend_router = sdkwork_routes_deployment_backend_api::build_deployment_backend_router()
         .with_state(DeploymentBackendAppState {
             service: state.services.deployment.clone(),
@@ -148,6 +155,7 @@ pub async fn build_router(
         .merge(chat_router)
         .merge(skill_packages_router)
         .merge(membership_router)
+        .merge(commerce_transactions_router)
         .merge(deployment_backend_router)
         .merge(commerce_router);
 

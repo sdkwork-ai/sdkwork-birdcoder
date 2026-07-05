@@ -36,12 +36,12 @@ assert.ok(
 );
 assert.equal(
   liveRegistry.summary.contractOperationCount,
-  153,
-  'OpenAPI contract must expose 153 operations (product/IAM/commerce/chat).',
+  161,
+  'OpenAPI contract must expose 161 operations (product/IAM/commerce gateway/commerce transactions/chat).',
 );
 assert.equal(
   liveRegistry.summary.implementedOperationCount,
-  153,
+  161,
   'Product, federated IAM, and commerce gateway routes must implement all OpenAPI operations.',
 );
 assert.equal(

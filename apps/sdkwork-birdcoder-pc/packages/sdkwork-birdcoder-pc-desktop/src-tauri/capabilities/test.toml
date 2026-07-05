@@ -1,0 +1,85 @@
+# Tauri 2 capability for the BirdCoder desktop TEST window.
+#
+# Per sdkwork-specs/SECURITY_SPEC.md: capability sets MUST be differentiated
+# by environment so that test/dev builds do not carry the same high-risk
+# mutating permissions as production. The production capability in
+# `default.toml` targets the "main" window and grants filesystem write,
+# delete, and local shell execution. This capability targets the "main-test"
+# window (used by tauri.test.conf.json) and is restricted to read-only
+# filesystem access plus non-destructive host bridges.
+#
+# Excluded high-risk permissions (present in production, absent here):
+# - allow-fs-write-file / allow-fs-create-file / allow-fs-create-directory
+# - allow-fs-delete-entry / allow-fs-rename-entry
+# - allow-fs-watch-start / allow-fs-watch-stop (kept — non-destructive)
+# - allow-local-sql-execute-plan
+# - allow-user-home-config-write
+# - allow-desktop-local-shell-exec
+# - allow-desktop-local-shell-session-create
+# - allow-desktop-local-process-session-create
+# - allow-desktop-session-input / allow-desktop-session-input-bytes
+# - allow-desktop-session-resize / allow-desktop-session-terminate
+identifier = "test"
+description = "Restricted desktop capability for the BirdCoder TEST window. Excludes high-risk mutating commands (filesystem write/delete, local SQL, local shell exec) so that test/dev builds run with least privilege."
+windows = ["main-test"]
+permissions = [
+  # Core framework permissions
+  "core:default",
+  "default",
+  "shell:allow-open",
+
+  # Window control permissions (same as production — non-destructive)
+  "core:window:allow-hide",
+  "core:window:allow-start-dragging",
+  "core:window:allow-internal-toggle-maximize",
+  "core:window:allow-is-fullscreen",
+  "core:window:allow-is-maximized",
+  "core:window:allow-is-minimized",
+  "core:window:allow-is-visible",
+  "core:window:allow-maximize",
+  "core:window:allow-minimize",
+  "core:window:allow-show",
+  "core:window:allow-set-focus",
+  "core:window:allow-set-fullscreen",
+  "core:window:allow-toggle-maximize",
+  "core:window:allow-unmaximize",
+  "core:window:allow-unminimize",
+  "core:window:allow-close",
+
+  # Host bridge commands (read-only)
+  "allow-host-mode",
+  "allow-desktop-runtime-config",
+
+  # Local store commands (read + write — needed for test fixtures)
+  "allow-local-store-get",
+  "allow-local-store-set",
+  "allow-local-store-delete",
+  "allow-local-store-list",
+
+  # User home config (read-only — write excluded for test mode)
+  "allow-user-home-config-read",
+
+  # Filesystem bridge commands (read-only — write/delete excluded)
+  "allow-fs-list-directory",
+  "allow-fs-snapshot-folder",
+  "allow-fs-read-file",
+  "allow-fs-get-file-revision",
+  "allow-fs-get-file-revisions",
+  "allow-fs-get-directory-revisions",
+  "allow-fs-watch-start",
+  "allow-fs-watch-stop",
+
+  # Desktop shell host bridge commands (non-destructive subset)
+  "allow-terminal-cli-profile-detect",
+  "allow-desktop-pick-working-directory",
+  "allow-desktop-window-controls-bridge-capabilities",
+  "allow-desktop-configure-window-controls-bridge",
+  "allow-desktop-perform-window-control-action",
+  "allow-desktop-session-index",
+  "allow-desktop-session-replay-slice",
+  "allow-desktop-session-attach",
+  "allow-desktop-session-detach",
+  "allow-desktop-session-reattach",
+  "allow-desktop-terminal-session-inventory-list",
+  "allow-desktop-session-attachment-acknowledge",
+]

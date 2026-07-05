@@ -51,6 +51,10 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
                     LIMIT 1
                 )
             ORDER BY t.slug
+            -- Templates are a bounded catalog. LIMIT 200 matches the max page_size
+            -- per spec and prevents unbounded result sets from causing OOM when the
+            -- catalog grows large.
+            LIMIT 200
             "#,
         )
         .fetch_all(&self.pool)

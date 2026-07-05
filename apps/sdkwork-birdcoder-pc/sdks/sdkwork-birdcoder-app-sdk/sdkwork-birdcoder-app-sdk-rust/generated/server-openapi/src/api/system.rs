@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::api::paths::app_path;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderApiRouteCatalogEntryListEnvelope, BirdCoderCodingServerDescriptorEnvelope, BirdCoderCoreHealthSummaryEnvelope, BirdCoderCoreRuntimeSummaryEnvelope, BirdCoderIamRuntimeSettingsEnvelope, BirdCoderIamVerificationPolicyEnvelope, BirdCoderOperationDescriptorEnvelope};
+use crate::models::{BirdCoderApiRouteCatalogEntryListEnvelope, BirdCoderChatConversationSummaryEnvelope, BirdCoderChatConversationSummaryListEnvelope, BirdCoderChatMessageSummaryEnvelope, BirdCoderChatMessageSummaryListEnvelope, BirdCoderCodingServerDescriptorEnvelope, BirdCoderCoreHealthSummaryEnvelope, BirdCoderCoreRuntimeSummaryEnvelope, BirdCoderCreateChatConversationRequest, BirdCoderCreateChatMessageRequest, BirdCoderDeleteChatConversationEnvelope, BirdCoderIamRuntimeSettingsEnvelope, BirdCoderIamVerificationPolicyEnvelope, BirdCoderOperationDescriptorEnvelope};
 
 #[derive(Clone)]
 pub struct SystemApi {
@@ -54,6 +54,42 @@ impl SystemApi {
     pub async fn iam_verification_policy_retrieve(&self) -> Result<BirdCoderIamVerificationPolicyEnvelope, SdkworkError> {
         let path = app_path(&"/system/iam/verification_policy".to_string());
         self.client.get(&path, None, None).await
+    }
+
+    /// List chat conversations
+    pub async fn chat_conversations_list(&self) -> Result<BirdCoderChatConversationSummaryListEnvelope, SdkworkError> {
+        let path = app_path(&"/chat/conversations".to_string());
+        self.client.get(&path, None, None).await
+    }
+
+    /// Create chat conversation
+    pub async fn chat_conversations_create(&self, body: &BirdCoderCreateChatConversationRequest) -> Result<BirdCoderChatConversationSummaryEnvelope, SdkworkError> {
+        let path = app_path(&"/chat/conversations".to_string());
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+    }
+
+    /// Get chat conversation
+    pub async fn chat_conversations_retrieve(&self, conversation_id: &str) -> Result<BirdCoderChatConversationSummaryEnvelope, SdkworkError> {
+        let path = app_path(&format!("/chat/conversations/{}", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
+        self.client.get(&path, None, None).await
+    }
+
+    /// Delete chat conversation
+    pub async fn chat_conversations_delete(&self, conversation_id: &str) -> Result<BirdCoderDeleteChatConversationEnvelope, SdkworkError> {
+        let path = app_path(&format!("/chat/conversations/{}", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
+        self.client.delete(&path, None, None).await
+    }
+
+    /// List chat messages
+    pub async fn chat_conversations_messages_list(&self, conversation_id: &str) -> Result<BirdCoderChatMessageSummaryListEnvelope, SdkworkError> {
+        let path = app_path(&format!("/chat/conversations/{}/messages", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
+        self.client.get(&path, None, None).await
+    }
+
+    /// Create chat message
+    pub async fn chat_conversations_messages_create(&self, conversation_id: &str, body: &BirdCoderCreateChatMessageRequest) -> Result<BirdCoderChatMessageSummaryEnvelope, SdkworkError> {
+        let path = app_path(&format!("/chat/conversations/{}/messages", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
 }

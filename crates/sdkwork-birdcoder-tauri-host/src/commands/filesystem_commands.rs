@@ -477,7 +477,7 @@ pub async fn fs_snapshot_folder(
     tauri::async_runtime::spawn_blocking(move || {
         let root_directory = resolve_root_directory_path(&root_path)?;
         let root_virtual_path = format!("/{}", resolve_root_directory_name(&root_directory));
-        let tree = build_directory_snapshot(&root_directory, &root_virtual_path, 0)?;;
+        let tree = build_directory_snapshot(&root_directory, &root_virtual_path, 0)?;
         Ok(FileSystemSnapshotResponse {
             root_virtual_path,
             tree,

@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "label": "main",
+        "label": "main-test",
         "title": "SDKWork BirdCoder Test",
         "decorations": false,
         "center": true,

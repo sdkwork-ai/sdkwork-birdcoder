@@ -38,9 +38,13 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         workspace_id: &str,
-    ) -> Result<Vec<ProjectPayload>, ProjectError> {
+        root_path: Option<&str>,
+        user_id: Option<&str>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<ProjectPayload>, usize), ProjectError> {
         self.repository
-            .list_projects_by_workspace(ctx, workspace_id)
+            .list_projects_by_workspace(ctx, workspace_id, root_path, user_id, offset, limit)
             .await
     }
 
@@ -144,14 +148,16 @@ impl ProjectService {
         &self,
         ctx: &ProjectContext,
         project_id: &str,
-    ) -> Result<Vec<ProjectCollaboratorPayload>, ProjectError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<ProjectCollaboratorPayload>, usize), ProjectError> {
         if is_blank(Some(project_id)) {
             return Err(ProjectError::InvalidInput(
                 "projectId is required.".to_owned(),
             ));
         }
         self.repository
-            .list_project_collaborators(ctx, project_id)
+            .list_project_collaborators(ctx, project_id, offset, limit)
             .await
     }
 

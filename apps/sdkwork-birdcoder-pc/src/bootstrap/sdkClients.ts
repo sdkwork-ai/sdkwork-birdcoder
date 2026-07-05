@@ -12,8 +12,3 @@ export function createBirdCoderAppSdkClients(): BirdCoderAppSdkClients {
     appSdk: getBirdCoderGeneratedAppSdkClient(),
   };
 }
-
-/** @deprecated Use createBirdCoderAppSdkClients for product runtime bootstrap. */
-export function createSdkClients(): BirdCoderAppSdkClients {
-  return createBirdCoderAppSdkClients();
-}

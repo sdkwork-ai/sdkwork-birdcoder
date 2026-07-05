@@ -200,6 +200,42 @@ pub mod collaboration {
 }
 
 pub mod commerce {
+    pub mod invoices {
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "commerce",
+            key: "commerce.invoices.list",
+            method: "GET",
+            operation_id: "commerce.invoices.list",
+            path: "/app/v3/api/commerce/invoices",
+            path_param_names: &[],
+            permission: Some("commerce.invoices.read"),
+            public: false,
+            resource: "commerce.invoices",
+            summary: "List SDKWork commerce invoices",
+            tag: "commerce",
+            tenant_scope: "tenant",
+        };
+
+        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "commerce",
+            key: "commerce.invoices.retrieve",
+            method: "GET",
+            operation_id: "commerce.invoices.retrieve",
+            path: "/app/v3/api/commerce/invoices/{invoiceId}",
+            path_param_names: &["invoiceId"],
+            permission: Some("commerce.invoices.read"),
+            public: false,
+            resource: "commerce.invoices",
+            summary: "Get SDKWork commerce invoice",
+            tag: "commerce",
+            tenant_scope: "tenant",
+        };
+    }
+
     pub mod memberships {
         pub mod current {
             pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
@@ -238,6 +274,112 @@ pub mod commerce {
                 tenant_scope: "tenant",
             };
         }
+    }
+
+    pub mod orders {
+        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "commerce",
+            key: "commerce.orders.create",
+            method: "POST",
+            operation_id: "commerce.orders.create",
+            path: "/app/v3/api/commerce/orders",
+            path_param_names: &[],
+            permission: Some("commerce.orders.create"),
+            public: false,
+            resource: "commerce.orders",
+            summary: "Create SDKWork commerce order",
+            tag: "commerce",
+            tenant_scope: "tenant",
+        };
+
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "commerce",
+            key: "commerce.orders.list",
+            method: "GET",
+            operation_id: "commerce.orders.list",
+            path: "/app/v3/api/commerce/orders",
+            path_param_names: &[],
+            permission: Some("commerce.orders.read"),
+            public: false,
+            resource: "commerce.orders",
+            summary: "List SDKWork commerce orders",
+            tag: "commerce",
+            tenant_scope: "tenant",
+        };
+
+        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "commerce",
+            key: "commerce.orders.retrieve",
+            method: "GET",
+            operation_id: "commerce.orders.retrieve",
+            path: "/app/v3/api/commerce/orders/{orderId}",
+            path_param_names: &["orderId"],
+            permission: Some("commerce.orders.read"),
+            public: false,
+            resource: "commerce.orders",
+            summary: "Get SDKWork commerce order",
+            tag: "commerce",
+            tenant_scope: "tenant",
+        };
+    }
+
+    pub mod payments {
+        pub const CREATE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "commerce",
+            key: "commerce.payments.create",
+            method: "POST",
+            operation_id: "commerce.payments.create",
+            path: "/app/v3/api/commerce/payments",
+            path_param_names: &[],
+            permission: Some("commerce.payments.create"),
+            public: false,
+            resource: "commerce.payments",
+            summary: "Create SDKWork commerce payment",
+            tag: "commerce",
+            tenant_scope: "tenant",
+        };
+
+        pub const LIST: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "commerce",
+            key: "commerce.payments.list",
+            method: "GET",
+            operation_id: "commerce.payments.list",
+            path: "/app/v3/api/commerce/payments",
+            path_param_names: &[],
+            permission: Some("commerce.payments.read"),
+            public: false,
+            resource: "commerce.payments",
+            summary: "List SDKWork commerce payments",
+            tag: "commerce",
+            tenant_scope: "tenant",
+        };
+
+        pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+            data_scope: "organization",
+            deployment: "all",
+            domain: "commerce",
+            key: "commerce.payments.retrieve",
+            method: "GET",
+            operation_id: "commerce.payments.retrieve",
+            path: "/app/v3/api/commerce/payments/{paymentId}",
+            path_param_names: &["paymentId"],
+            permission: Some("commerce.payments.read"),
+            public: false,
+            resource: "commerce.payments",
+            summary: "Get SDKWork commerce payment",
+            tag: "commerce",
+            tenant_scope: "tenant",
+        };
     }
 }
 
@@ -1717,8 +1859,16 @@ pub const OPERATIONS: &[SdkOperation] = &[
     auth::sessions::current::UPDATE,
     auth::sessions::REFRESH,
     collaboration::workspace_teams::LIST,
+    commerce::invoices::LIST,
+    commerce::invoices::RETRIEVE,
     commerce::memberships::current::RETRIEVE,
     commerce::memberships::package_groups::LIST,
+    commerce::orders::CREATE,
+    commerce::orders::LIST,
+    commerce::orders::RETRIEVE,
+    commerce::payments::CREATE,
+    commerce::payments::LIST,
+    commerce::payments::RETRIEVE,
     content::documents::LIST,
     iam::organization_memberships::LIST,
     iam::organizations::LIST,

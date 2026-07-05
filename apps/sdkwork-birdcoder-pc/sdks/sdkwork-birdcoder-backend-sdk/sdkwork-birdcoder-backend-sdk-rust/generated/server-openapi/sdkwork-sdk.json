@@ -5,6 +5,8 @@
   "language": "rust",
   "sdkType": "backend",
   "packageName": "sdkwork-birdcoder-backend-sdk",
+  "transportPackageName": "sdkwork-birdcoder-backend-sdk",
+  "consumerPackageName": "@sdkwork/birdcoder-backend-sdk",
   "generator": "@sdkwork/sdk-generator",
   "capabilities": {
     "supportsGeneratedTests": true,

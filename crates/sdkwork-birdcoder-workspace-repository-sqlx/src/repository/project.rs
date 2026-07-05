@@ -72,33 +72,99 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         &self,
         ctx: &ProjectContext,
         workspace_id: &str,
-    ) -> Result<Vec<ProjectPayload>, ProjectError> {
+        root_path: Option<&str>,
+        user_id: Option<&str>,
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<ProjectPayload>, usize), ProjectError> {
         let wid: i64 = workspace_id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
         })?;
         let tenant_id = project_scoped_tenant_id(ctx)?;
-        let sql = format!(
+        let uid = user_id
+            .map(|value| {
+                value.parse::<i64>().map_err(|_| {
+                    ProjectError::InvalidInput(format!("invalid user_id: {value}"))
+                })
+            })
+            .transpose()?;
+
+        // PAGINATION_SPEC.md §2/§5: push `LIMIT`/`OFFSET` and filter
+        // predicates down to SQL — never collect-then-slice in process
+        // memory. Default page_size=20, max=200 is enforced at the route
+        // layer via `clamp_list_page_size`. `root_path` maps to the
+        // `site_path` column (see `update_project`).
+        let mut sql = format!(
             "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
             col::TABLE,
             col::WORKSPACE_ID,
             col::IS_DELETED,
             col::TENANT_ID,
         );
+        if root_path.is_some() {
+            sql.push_str(&format!(" AND {} = ?", col::SITE_PATH));
+        }
+        if uid.is_some() {
+            sql.push_str(&format!(" AND {} = ?", col::USER_ID));
+        }
+        // Append LIMIT/OFFSET last so bind order stays: workspace_id,
+        // tenant_id, [site_path], [user_id], limit, offset.
+        sql.push_str(" ORDER BY id DESC LIMIT ? OFFSET ?");
 
-        let rows = sqlx::query(&sql)
-            .bind(wid)
-            .bind(tenant_id)
+        let mut q = sqlx::query(&sql).bind(wid).bind(tenant_id);
+        if let Some(rp) = root_path {
+            q = q.bind(rp);
+        }
+        if let Some(parsed_uid) = uid {
+            q = q.bind(parsed_uid);
+        }
+        q = q.bind(limit as i64).bind(offset as i64);
+
+        let rows = q
             .fetch_all(&self.pool)
             .await
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
-        rows.iter()
+        let items: Vec<ProjectPayload> = rows
+            .iter()
             .map(|row| {
                 ProjectRow::from_row(row)
                     .map(|r| row_mapper::project_row_to_payload(&r))
                     .map_err(|e| ProjectError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        // Total count via a parallel COUNT(*) using the same WHERE
+        // predicates (minus the LIMIT/OFFSET). This keeps
+        // `pageInfo.totalItems` accurate without materializing the full
+        // result set.
+        let mut count_sql = format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
+            col::TABLE,
+            col::WORKSPACE_ID,
+            col::IS_DELETED,
+            col::TENANT_ID,
+        );
+        if root_path.is_some() {
+            count_sql.push_str(&format!(" AND {} = ?", col::SITE_PATH));
+        }
+        if uid.is_some() {
+            count_sql.push_str(&format!(" AND {} = ?", col::USER_ID));
+        }
+        let mut count_q = sqlx::query_scalar::<_, i64>(&count_sql)
+            .bind(wid)
+            .bind(tenant_id);
+        if let Some(rp) = root_path {
+            count_q = count_q.bind(rp);
+        }
+        if let Some(parsed_uid) = uid {
+            count_q = count_q.bind(parsed_uid);
+        }
+        let total: i64 = count_q
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn create_project(
@@ -360,7 +426,9 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         &self,
         ctx: &ProjectContext,
         project_id: &str,
-    ) -> Result<Vec<ProjectCollaboratorPayload>, ProjectError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<ProjectCollaboratorPayload>, usize), ProjectError> {
         if self.find_project_by_id(ctx, project_id).await?.is_none() {
             return Err(ProjectError::NotFound(format!(
                 "project {project_id} not found"
@@ -369,24 +437,41 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let pid: i64 = project_id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid project_id: {project_id}"))
         })?;
+        // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+            "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} DESC LIMIT ? OFFSET ?",
             collab_col::TABLE,
             collab_col::PROJECT_ID,
             collab_col::IS_DELETED,
+            collab_col::ID,
         ))
         .bind(pid)
+        .bind(limit as i64)
+        .bind(offset as i64)
         .fetch_all(&self.pool)
         .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
-        rows.iter()
+        let items: Vec<ProjectCollaboratorPayload> = rows
+            .iter()
             .map(|row| {
                 ProjectCollaboratorRow::from_row(row)
                     .map(|r| row_mapper::project_collaborator_row_to_payload(&r))
                     .map_err(|e| ProjectError::Repository(e.to_string()))
             })
-            .collect()
+            .collect::<Result<_, _>>()?;
+
+        let total: i64 = sqlx::query_scalar(&format!(
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0",
+            collab_col::TABLE,
+            collab_col::PROJECT_ID,
+            collab_col::IS_DELETED,
+        ))
+        .bind(pid)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        Ok((items, total.max(0) as usize))
     }
 
     async fn upsert_project_collaborator(

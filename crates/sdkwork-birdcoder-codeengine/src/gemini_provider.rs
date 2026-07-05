@@ -1,8 +1,8 @@
 use crate::{
-    get_sdk_bridge_session_detail, list_sdk_bridge_session_summaries,
-    resolved_native_session_provider_registration, session_id_targets_engine,
+    get_sdk_bridge_session_detail, known_standard_provider_registration,
+    list_sdk_bridge_session_summaries,
     CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord, NativeSessionProviderPlugin,
-    NativeSessionProviderRegistration,
+    NativeSessionProviderRegistration, session_id_targets_engine,
 };
 
 pub struct GeminiCodeEngineProvider;
@@ -10,9 +10,7 @@ const GEMINI_ENGINE_ID: &str = "gemini";
 
 impl NativeSessionProviderPlugin for GeminiCodeEngineProvider {
     fn registration(&self) -> &'static NativeSessionProviderRegistration {
-        resolved_native_session_provider_registration(GEMINI_ENGINE_ID).unwrap_or_else(|error| {
-            panic!("{error}")
-        })
+        known_standard_provider_registration(GEMINI_ENGINE_ID)
     }
 
     fn list_sessions(&self) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {

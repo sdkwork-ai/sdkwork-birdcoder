@@ -12,7 +12,7 @@ use crate::{
     map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
     map_codeengine_tool_kind, map_codeengine_tool_runtime_status,
     resolve_codeengine_command_interaction_state, resolve_codeengine_command_text,
-    resolved_native_session_provider_registration,
+    known_standard_provider_registration,
     session_id_targets_engine, NativeSessionProviderPlugin,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionSummaryRecord,
@@ -24,9 +24,7 @@ const OPENCODE_ENGINE_ID: &str = "opencode";
 
 impl NativeSessionProviderPlugin for OpencodeCodeEngineProvider {
     fn registration(&self) -> &'static NativeSessionProviderRegistration {
-        resolved_native_session_provider_registration(OPENCODE_ENGINE_ID).unwrap_or_else(|error| {
-            panic!("{error}")
-        })
+        known_standard_provider_registration(OPENCODE_ENGINE_ID)
     }
 
     fn list_sessions(&self) -> Result<Vec<CodeEngineSessionSummaryRecord>, String> {

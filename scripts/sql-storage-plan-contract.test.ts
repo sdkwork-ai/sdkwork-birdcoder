@@ -46,9 +46,9 @@ assert.equal(sqliteListPlan.intent, 'read');
 assert.equal(sqliteListPlan.statements.length, 1);
 assert.equal(
   sqliteListPlan.statements[0].sql,
-  'SELECT * FROM ai_coding_session_runtime WHERE is_deleted = ?1 ORDER BY updated_at DESC, id ASC;',
+  'SELECT * FROM ai_coding_session_runtime WHERE is_deleted = ?1 ORDER BY updated_at DESC, id ASC LIMIT ?2;',
 );
-assert.deepEqual(sqliteListPlan.statements[0].params, [0]);
+assert.deepEqual(sqliteListPlan.statements[0].params, [0, 200]);
 
 const sqliteCountPlan = sqlitePlanner.buildCountPlan();
 assert.equal(
@@ -221,9 +221,9 @@ const projectContentSqlitePlanner = sqlPlansModule.createBirdCoderTableSqlPlanne
 });
 assert.equal(
   projectContentSqlitePlanner.buildListPlan().statements[0].sql,
-  'SELECT * FROM studio_project_content ORDER BY updated_at DESC, id ASC;',
+  'SELECT * FROM studio_project_content ORDER BY updated_at DESC, id ASC LIMIT ?1;',
 );
-assert.deepEqual(projectContentSqlitePlanner.buildListPlan().statements[0].params, []);
+assert.deepEqual(projectContentSqlitePlanner.buildListPlan().statements[0].params, [200]);
 assert.equal(
   projectContentSqlitePlanner.buildCountPlan().statements[0].sql,
   'SELECT COUNT(*) AS total FROM studio_project_content;',
@@ -377,9 +377,9 @@ const postgresPlanner = sqlPlansModule.createBirdCoderTableSqlPlanner({
 const postgresListPlan = postgresPlanner.buildListPlan();
 assert.equal(
   postgresListPlan.statements[0].sql,
-  'SELECT * FROM ai_coding_session_runtime WHERE is_deleted = $1 ORDER BY updated_at DESC, id ASC;',
+  'SELECT * FROM ai_coding_session_runtime WHERE is_deleted = $1 ORDER BY updated_at DESC, id ASC LIMIT $2;',
 );
-assert.deepEqual(postgresListPlan.statements[0].params, [false]);
+assert.deepEqual(postgresListPlan.statements[0].params, [false, 200]);
 
 const postgresUpsertPlan = postgresPlanner.buildUpsertPlan([
   {

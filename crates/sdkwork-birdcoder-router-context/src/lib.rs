@@ -32,7 +32,7 @@ where
             .get::<IamAppContext>()
             .cloned()
             .map(RequiredIamContext)
-            .ok_or(traced_legacy_problem("unauthorized", "session required", None))
+            .ok_or(traced_legacy_problem("4010", "session required", None))
     }
 }
 

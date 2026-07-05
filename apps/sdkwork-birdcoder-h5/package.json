@@ -51,5 +51,12 @@
     "dev:cloud": "vite --mode production",
     "cap:ios:dev": "cap sync && cap open ios",
     "cap:android:dev": "cap sync && cap open android"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   }
 }

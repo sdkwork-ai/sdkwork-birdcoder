@@ -38,6 +38,8 @@ assert.match(h5CoreSdk, /ensureBirdCoderMobileChatConversation/u, 'H5 core SDK m
 assert.match(h5CoreSdk, /sendBirdCoderMobileChatMessage/u, 'H5 core SDK must export mobile chat message helpers.');
 assert.match(h5ChatPage, /ensureBirdCoderMobileChatConversation/u, 'H5 chat page must load persisted conversations through app SDK.');
 assert.match(h5ChatPage, /sendBirdCoderMobileChatMessage/u, 'H5 chat page must persist outbound messages through app SDK.');
+assert.match(h5ChatPage, /resolveChatPageMessages/u, 'H5 chat page must resolve localized copy through message catalog.');
+assert.match(h5ChatPage, /messagesCopy\.inputPlaceholder/u, 'H5 chat page must bind input placeholder to localized messages.');
 assert.doesNotMatch(
   h5ChatPage,
   /Future\.delayed|Mock reply|mock-only/u,

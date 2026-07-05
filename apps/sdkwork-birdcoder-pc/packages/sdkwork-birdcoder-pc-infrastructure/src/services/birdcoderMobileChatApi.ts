@@ -1,4 +1,4 @@
-import type { BirdCoderChatMessageRecord } from '@sdkwork/birdcoder-chat-contracts';
+import type { BirdCoderChatMessageRecord } from '@sdkwork/birdcoder-pc-types';
 
 import { getBirdCoderGeneratedAppSdkClient } from './sdkClients.ts';
 

@@ -1,17 +1,19 @@
 use serde::Deserialize;
 use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
-use sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE;
+use sdkwork_birdcoder_project_service::pagination::clamp_list_page_size;
 
-pub const MAX_LIST_PAGE_SIZE: usize = 100;
+// Per PAGINATION_SPEC.md §3: route layer normalizes page_size into [1, 200]
+// and pushes LIMIT/OFFSET to SQL at the repository layer (§2/§5). The local
+// constants previously declared here (MAX_LIST_PAGE_SIZE = 100) silently
+// diverged from the canonical `clamp_list_page_size` cap of 200; route
+// handlers now delegate to the shared helper to keep a single source of
+// truth.
 
-fn clamp_list_limit(limit: Option<usize>) -> usize {
-    limit
-        .unwrap_or(DEFAULT_LIST_PAGE_SIZE)
-        .clamp(1, MAX_LIST_PAGE_SIZE)
-}
-
-fn clamp_list_offset(offset: Option<usize>) -> Option<usize> {
-    offset.map(|value| value.min(10_000))
+pub(crate) fn normalize_list_pagination(
+    offset: Option<usize>,
+    limit: Option<usize>,
+) -> (usize, usize) {
+    clamp_list_page_size(offset, limit)
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -24,14 +26,25 @@ pub struct ListSessionsQuery {
     pub offset: Option<usize>,
 }
 
+impl ListSessionsQuery {
+    /// Returns `(offset, limit)` after normalization through
+    /// [`clamp_list_page_size`]. Use this for both the SQL push-down and the
+    /// envelope's `pageInfo` so the values reported to clients match the
+    /// values actually used in the query.
+    pub fn normalized_pagination(&self) -> (usize, usize) {
+        normalize_list_pagination(self.offset, self.limit)
+    }
+}
+
 impl From<ListSessionsQuery> for CodingSessionListQuery {
     fn from(q: ListSessionsQuery) -> Self {
+        let (offset, limit) = q.normalized_pagination();
         Self {
             workspace_id: q.workspace_id,
             project_id: q.project_id,
             engine_id: q.engine_id,
-            limit: Some(clamp_list_limit(q.limit)),
-            offset: clamp_list_offset(q.offset),
+            limit: Some(limit),
+            offset: Some(offset),
         }
     }
 }

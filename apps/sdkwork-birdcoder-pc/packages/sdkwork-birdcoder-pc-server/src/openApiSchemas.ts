@@ -1392,6 +1392,120 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         required: ['id', 'name', 'sortWeight', 'packages'],
       },
     ),
+    BirdCoderCreateCommerceOrderRequest: createOpenApiObjectSchema(
+      {
+        packageId: createOpenApiStringSchema(),
+        amount: createOpenApiStringSchema(),
+        currency: createOpenApiStringSchema(),
+        workspaceId: createOpenApiStringSchema(),
+        metadata: createOpenApiStringSchema(),
+      },
+      {
+        required: ['packageId', 'amount'],
+      },
+    ),
+    BirdCoderCreateCommercePaymentRequest: createOpenApiObjectSchema(
+      {
+        orderId: createOpenApiStringSchema(),
+        channel: createOpenApiStringSchema(),
+        amount: createOpenApiStringSchema(),
+        channelTransactionId: createOpenApiStringSchema(),
+        metadata: createOpenApiStringSchema(),
+      },
+      {
+        required: ['orderId', 'channel'],
+      },
+    ),
+    BirdCoderCommerceOrderSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        workspaceId: createOpenApiNullableStringSchema(),
+        orderNo: createOpenApiStringSchema(),
+        userId: createOpenApiStringSchema(),
+        packageId: createOpenApiStringSchema(),
+        amount: createOpenApiStringSchema(),
+        currency: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        paidAt: createOpenApiNullableStringSchema(),
+        refundAt: createOpenApiNullableStringSchema(),
+        metadata: createOpenApiStringSchema(),
+        createdAt: createOpenApiStringSchema(),
+        updatedAt: createOpenApiStringSchema(),
+      },
+      {
+        required: [
+          'id',
+          'orderNo',
+          'userId',
+          'packageId',
+          'amount',
+          'currency',
+          'status',
+          'metadata',
+          'createdAt',
+          'updatedAt',
+        ],
+      },
+    ),
+    BirdCoderCommerceInvoiceSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        invoiceNo: createOpenApiStringSchema(),
+        orderId: createOpenApiStringSchema(),
+        userId: createOpenApiStringSchema(),
+        amount: createOpenApiStringSchema(),
+        tax: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        issuedAt: createOpenApiNullableStringSchema(),
+        pdfUrl: createOpenApiNullableStringSchema(),
+        createdAt: createOpenApiStringSchema(),
+        updatedAt: createOpenApiStringSchema(),
+      },
+      {
+        required: [
+          'id',
+          'invoiceNo',
+          'orderId',
+          'userId',
+          'amount',
+          'tax',
+          'status',
+          'createdAt',
+          'updatedAt',
+        ],
+      },
+    ),
+    BirdCoderCommercePaymentSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        paymentNo: createOpenApiStringSchema(),
+        orderId: createOpenApiStringSchema(),
+        userId: createOpenApiStringSchema(),
+        channel: createOpenApiStringSchema(),
+        channelTransactionId: createOpenApiNullableStringSchema(),
+        amount: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        paidAt: createOpenApiNullableStringSchema(),
+        refundAt: createOpenApiNullableStringSchema(),
+        metadata: createOpenApiStringSchema(),
+        createdAt: createOpenApiStringSchema(),
+        updatedAt: createOpenApiStringSchema(),
+      },
+      {
+        required: [
+          'id',
+          'paymentNo',
+          'orderId',
+          'userId',
+          'channel',
+          'amount',
+          'status',
+          'metadata',
+          'createdAt',
+          'updatedAt',
+        ],
+      },
+    ),
     BirdCoderWorkspaceSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),
@@ -2531,6 +2645,24 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     ),
     BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope: createOpenApiListEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderCommerceMembershipPackageGroupSummary'),
+    ),
+    BirdCoderCommerceOrderSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceOrderSummary'),
+    ),
+    BirdCoderCommerceOrderSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceOrderSummary'),
+    ),
+    BirdCoderCommerceInvoiceSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceInvoiceSummary'),
+    ),
+    BirdCoderCommerceInvoiceSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceInvoiceSummary'),
+    ),
+    BirdCoderCommercePaymentSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommercePaymentSummary'),
+    ),
+    BirdCoderCommercePaymentSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommercePaymentSummary'),
     ),
     BirdCoderWorkspaceSummaryEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderWorkspaceSummary'),

@@ -18,6 +18,26 @@ export interface StoredAppSessionToken {
   storedAt: number;
 }
 
+/**
+ * Shape persisted to disk. Sensitive long-lived credentials (refreshToken)
+ * are stripped before persistence so that plaintext storage backends
+ * (Capacitor `@capacitor/preferences` on iOS NSUserDefaults / Android
+ * SharedPreferences) cannot leak long-lived refresh tokens at rest.
+ *
+ * The in-memory `memoryToken` retains the full token including
+ * `refreshToken`; only the persisted representation omits it. On restart,
+ * `loadStoredAppSessionToken()` returns a token without `refreshToken`,
+ * causing the app-session refresh loop to skip scheduling until the user
+ * re-authenticates and a fresh `refreshToken` is obtained in memory.
+ */
+export interface PersistedAppSessionToken {
+  accessToken: string;
+  authToken: string;
+  expiresAt?: number;
+  sessionId?: string;
+  storedAt: number;
+}
+
 let memoryToken: StoredAppSessionToken | null = null;
 let storageLoaded = false;
 
@@ -108,6 +128,14 @@ export function getStoredAppSessionId(now = currentUnixSeconds()): string | unde
 }
 
 export function loadStoredAppSessionToken(): StoredAppSessionToken | null {
+  // Capture the in-memory refreshToken BEFORE any control-flow narrowing
+  // of `memoryToken`. TypeScript narrows `memoryToken` to `null` after the
+  // early return below (if it were truthy we would have returned), which
+  // would otherwise make any subsequent `memoryToken?.refreshToken` access
+  // a compile error. Reading the value first into a `const` local at the
+  // top of the function preserves the in-memory refreshToken across storage
+  // reloads within the same process.
+  const preservedRefreshToken = memoryToken?.refreshToken;
   if (memoryToken || storageLoaded) {
     return memoryToken;
   }
@@ -124,8 +152,19 @@ export function loadStoredAppSessionToken(): StoredAppSessionToken | null {
       clearStoredAppSessionToken();
       return null;
     }
-    memoryToken = parsed;
-    return parsed;
+    // Persisted shape never contains refreshToken (stripped on write).
+    // If we already have a refreshToken in memory (e.g. still in the same
+    // process lifetime), preserve it so refresh loops keep working.
+    const merged: StoredAppSessionToken = {
+      accessToken: parsed.accessToken,
+      authToken: parsed.authToken,
+      storedAt: parsed.storedAt,
+      ...(typeof parsed.expiresAt === 'number' ? { expiresAt: parsed.expiresAt } : {}),
+      ...(typeof parsed.sessionId === 'string' ? { sessionId: parsed.sessionId } : {}),
+      ...(preservedRefreshToken ? { refreshToken: preservedRefreshToken } : {}),
+    };
+    memoryToken = merged;
+    return merged;
   } catch {
     clearStoredAppSessionToken();
     return null;
@@ -234,7 +273,31 @@ function readSessionStorage(): string | null {
 }
 
 function writeSessionStorage(token: StoredAppSessionToken): void {
-  getAppSessionPersistencePort().write(JSON.stringify(token));
+  const persisted = serializeForPersistence(token);
+  getAppSessionPersistencePort().write(JSON.stringify(persisted));
+}
+
+/**
+ * Strip sensitive long-lived credentials (refreshToken) before persistence.
+ *
+ * accessToken/authToken are short-lived and required for session continuity
+ * across restarts; refreshToken is long-lived and must never be written to
+ * disk because Capacitor `@capacitor/preferences` and similar plaintext
+ * backends cannot protect it at rest.
+ */
+function serializeForPersistence(token: StoredAppSessionToken): PersistedAppSessionToken {
+  const persisted: PersistedAppSessionToken = {
+    accessToken: token.accessToken,
+    authToken: token.authToken,
+    storedAt: token.storedAt,
+  };
+  if (typeof token.expiresAt === 'number' && Number.isFinite(token.expiresAt)) {
+    persisted.expiresAt = token.expiresAt;
+  }
+  if (typeof token.sessionId === 'string' && token.sessionId.trim().length > 0) {
+    persisted.sessionId = token.sessionId;
+  }
+  return persisted;
 }
 
 function removeSessionStorage(): void {

@@ -52,5 +52,12 @@
   "dependencies": {
     "@tailwindcss/vite": "catalog:",
     "tailwindcss": "catalog:"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
   }
 }

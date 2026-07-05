@@ -17,26 +17,39 @@ const serverIndexSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url),
   'utf8',
 );
+const serverConstantsSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/serverConstants.ts', import.meta.url),
+  'utf8',
+);
+const runtimeBindingsSource = fs.readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/runtimeBindings.ts', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   serverIndexSource,
+  /export \* from '\.\/serverConstants\.ts'/u,
+  'coding-server index must re-export canonical server constants.',
+);
+assert.match(
+  serverConstantsSource,
   /export const BIRD_SERVER_DEFAULT_HOST = BIRDCODER_DEFAULT_LOCAL_API_HOST;/u,
-  'coding-server entry must expose the canonical default server host constant.',
+  'coding-server constants must expose the canonical default server host constant.',
 );
 assert.match(
-  serverIndexSource,
+  serverConstantsSource,
   /export const BIRD_SERVER_DEFAULT_PORT = BIRDCODER_DEFAULT_LOCAL_API_PORT;/u,
-  'coding-server entry must expose the canonical default server port constant.',
+  'coding-server constants must expose the canonical default server port constant.',
 );
 assert.match(
-  serverIndexSource,
+  serverConstantsSource,
   /export const BIRD_SERVER_DEFAULT_CONFIG_FILE_NAME = 'bird-server\.config\.json';/u,
-  'coding-server entry must expose the canonical default server config filename.',
+  'coding-server constants must expose the canonical default server config filename.',
 );
 assert.match(
-  serverIndexSource,
+  runtimeBindingsSource,
   /export function resolveServerRuntime\(/u,
-  'coding-server entry must expose the canonical server runtime descriptor resolver.',
+  'coding-server runtime bindings must expose the canonical server runtime descriptor resolver.',
 );
 
 function resolveServerRuntime(

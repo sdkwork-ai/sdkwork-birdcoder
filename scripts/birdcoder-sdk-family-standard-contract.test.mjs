@@ -808,7 +808,12 @@ function assertFamilyRootOpenApiInputs(expected) {
   );
 }
 
+function resolveTypescriptTransportPackageName(sdkFamily) {
+  return `${sdkFamily}-generated-typescript`;
+}
+
 function assertGeneratedServerOpenApiOutput(expected) {
+  const typescriptTransportPackageName = resolveTypescriptTransportPackageName(expected.sdkFamily);
   for (const language of ['typescript', 'rust']) {
     const generatedRoot = `${expected.rootDir}/${expected.sdkFamily}-${language}/generated/server-openapi`;
     const sdkworkSdk = readJson(`${generatedRoot}/sdkwork-sdk.json`);
@@ -819,7 +824,7 @@ function assertGeneratedServerOpenApiOutput(expected) {
     assert.equal(sdkworkSdk.sdkType, expected.surface);
     assert.equal(
       sdkworkSdk.packageName,
-      language === 'typescript' ? expected.packageName : expected.sdkFamily,
+      language === 'typescript' ? typescriptTransportPackageName : expected.sdkFamily,
     );
     assert.deepEqual(sdkworkSdk.ownership?.scaffoldRoots, ['custom/']);
     assert.deepEqual(sdkworkSdk.ownership?.stateRoots, ['.sdkwork/']);
@@ -840,7 +845,7 @@ function assertGeneratedServerOpenApiOutput(expected) {
 
     if (language === 'typescript') {
       const packageJson = readJson(`${generatedRoot}/package.json`);
-      assert.equal(packageJson.name, expected.packageName);
+      assert.equal(packageJson.name, typescriptTransportPackageName);
       assert.equal(packageJson.version, '0.1.0');
       assert.equal(
         packageJson.sdkwork,

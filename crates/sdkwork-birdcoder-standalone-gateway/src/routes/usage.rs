@@ -19,90 +19,26 @@ use serde::{Deserialize, Serialize};
 use sqlx::Row;
 #[cfg(test)]
 use time::format_description::well_known::Rfc3339;
+#[cfg(test)]
 use time::OffsetDateTime;
 
 use sdkwork_birdcoder_errors::{build_data_envelope, build_list_envelope, ApiDataEnvelope, ApiListEnvelope};
+
+use sdkwork_birdcoder_commerce_quota::{
+    self, current_month_bounds, months_ago_start, quota_limit_for_metric,
+    tenant_metric_total, QuotaError, METRIC_TOKEN_INPUT, QUOTA_WARNING_THRESHOLD,
+};
+#[cfg(test)]
+use sdkwork_birdcoder_commerce_quota::{
+    period_bounds_for, DEFAULT_FS_OPERATIONS_QUOTA_PER_MONTH,
+    DEFAULT_TOKEN_QUOTA_PER_MONTH, METRIC_API_REQUESTS, METRIC_FS_OPERATIONS,
+    METRIC_TOKEN_OUTPUT,
+};
 
 use crate::routes::api_keys::now_rfc3339;
 use crate::routes::{problem_with, CommerceAppState, CommercePrincipal, CommerceRequestContext, ProblemJsonBody};
 
 const TABLE: &str = "commerce_usage_metering";
-
-/// Metric type: input tokens consumed by a turn.
-pub const METRIC_TOKEN_INPUT: &str = "token_input";
-/// Metric type: output tokens produced by a turn.
-pub const METRIC_TOKEN_OUTPUT: &str = "token_output";
-/// Metric type: file system operations (read/write/delete) performed.
-pub const METRIC_FS_OPERATIONS: &str = "fs_operations";
-/// Metric type: API requests received.
-pub const METRIC_API_REQUESTS: &str = "api_requests";
-
-/// Default monthly token quota per tenant (env-configurable via
-/// `BIRDCODER_QUOTA_TOKENS_PER_MONTH`).
-pub const DEFAULT_TOKEN_QUOTA_PER_MONTH: i64 = 1_000_000;
-/// Default monthly file system operation quota per tenant (env-configurable
-/// via `BIRDCODER_QUOTA_FS_OPERATIONS_PER_MONTH`).
-pub const DEFAULT_FS_OPERATIONS_QUOTA_PER_MONTH: i64 = 100_000;
-/// Fraction of the quota at which a warning notification is emitted.
-pub const QUOTA_WARNING_THRESHOLD: f64 = 0.8;
-
-// ---------------------------------------------------------------------------
-// Period helpers
-// ---------------------------------------------------------------------------
-
-/// Returns `(start_inclusive_rfc3339, end_exclusive_rfc3339)` for the current
-/// calendar month in UTC. Used to bound `period_start` in aggregation queries.
-pub fn current_month_bounds() -> (String, String) {
-    period_bounds_for(OffsetDateTime::now_utc())
-}
-
-/// Returns `(start_inclusive_rfc3339, end_exclusive_rfc3339)` for the month
-/// containing `reference`. The start is midnight on the first day of the month;
-/// the end is midnight on the first day of the next month (exclusive).
-fn period_bounds_for(reference: OffsetDateTime) -> (String, String) {
-    let year = reference.year();
-    let month_num = u8::from(reference.month());
-    let start = format!("{year:04}-{month_num:02}-01T00:00:00Z");
-    let (next_year, next_month) = if month_num == 12 {
-        (year + 1, 1u8)
-    } else {
-        (year, month_num + 1)
-    };
-    let end_exclusive = format!("{next_year:04}-{next_month:02}-01T00:00:00Z");
-    (start, end_exclusive)
-}
-
-/// Returns the RFC3339 timestamp for the first day of the month `months_ago`
-/// months before the current month. Used to bound history queries.
-fn months_ago_start(months_ago: u32) -> String {
-    let now = OffsetDateTime::now_utc();
-    let total_months = (now.year() as i64) * 12 + (u8::from(now.month()) as i64) - 1 - months_ago as i64;
-    let year = (total_months.div_euclid(12)) as i32;
-    let month = (total_months.rem_euclid(12) + 1) as u8;
-    format!("{year:04}-{month:02}-01T00:00:00Z")
-}
-
-// ---------------------------------------------------------------------------
-// Quota configuration
-// ---------------------------------------------------------------------------
-
-/// Returns the monthly quota limit for a metric type. Reads from environment
-/// variables when set, falling back to the compiled defaults.
-pub fn quota_limit_for_metric(metric_type: &str) -> i64 {
-    match metric_type {
-        METRIC_TOKEN_INPUT | METRIC_TOKEN_OUTPUT => std::env::var("BIRDCODER_QUOTA_TOKENS_PER_MONTH")
-            .ok()
-            .and_then(|value| value.trim().parse().ok())
-            .filter(|value: &i64| *value > 0)
-            .unwrap_or(DEFAULT_TOKEN_QUOTA_PER_MONTH),
-        METRIC_FS_OPERATIONS => std::env::var("BIRDCODER_QUOTA_FS_OPERATIONS_PER_MONTH")
-            .ok()
-            .and_then(|value| value.trim().parse().ok())
-            .filter(|value: &i64| *value > 0)
-            .unwrap_or(DEFAULT_FS_OPERATIONS_QUOTA_PER_MONTH),
-        _ => 0,
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Row model
@@ -141,9 +77,11 @@ impl UsageRow {
     }
 }
 
-/// Decodes the `metric_value` NUMERIC column. SQLite stores integer-valued
-/// NUMERIC as INTEGER (decoded as `i64`); fall back to `f64` then cast when the
-/// Any driver surfaces a floating point representation.
+/// Decodes the `metric_value` BIGINT (postgres) / INTEGER (sqlite) column.
+/// SQLite's `sqlx::any` driver may still surface INTEGER as `i64`; the `f64`
+/// fallback covers the rare case where a non-conforming driver surfaces a
+/// floating-point representation, and converts without precision loss when the
+/// value fits in `f64`'s 53-bit mantissa.
 fn decode_metric_value(row: &sqlx::any::AnyRow) -> Result<i64, sqlx::Error> {
     row.try_get::<i64, _>("metric_value")
         .or_else(|_| row.try_get::<f64, _>("metric_value").map(|value| value as i64))
@@ -153,34 +91,6 @@ fn decode_metric_value(row: &sqlx::any::AnyRow) -> Result<i64, sqlx::Error> {
 // Database operations
 // ---------------------------------------------------------------------------
 
-/// Returns the total usage for a metric type for a tenant within the given
-/// period bounds. Aggregates across all users in the tenant (tenant-level quota).
-pub async fn tenant_metric_total(
-    pool: &sqlx::AnyPool,
-    tenant_id: i64,
-    metric_type: &str,
-    period_start: &str,
-    period_end_exclusive: &str,
-) -> Result<i64, sqlx::Error> {
-    let sql = format!(
-        "SELECT COALESCE(SUM(CAST(metric_value AS INTEGER)), 0) AS total FROM {TABLE} \
-         WHERE tenant_id = ?1 AND metric_type = ?2 AND deleted_at IS NULL \
-         AND period_start >= ?3 AND period_start < ?4"
-    );
-    let row = sqlx::query(&sql)
-        .bind(tenant_id)
-        .bind(metric_type)
-        .bind(period_start)
-        .bind(period_end_exclusive)
-        .fetch_one(pool)
-        .await?;
-    let total: i64 = row
-        .try_get::<i64, _>("total")
-        .or_else(|_| row.try_get::<f64, _>("total").map(|value| value as i64))?;
-    Ok(total)
-}
-
-/// Returns per-metric totals for a user within the given period bounds.
 async fn user_metric_totals(
     pool: &sqlx::AnyPool,
     tenant_id: i64,
@@ -188,8 +98,11 @@ async fn user_metric_totals(
     period_start: &str,
     period_end_exclusive: &str,
 ) -> Result<Vec<MetricTotal>, sqlx::Error> {
+    // metric_value is declared BIGINT (postgres) / INTEGER (sqlite); SUM over
+    // an integer column yields an integer natively, so the previous
+    // CAST(... AS INTEGER) workaround is no longer required.
     let sql = format!(
-        "SELECT metric_type, COALESCE(SUM(CAST(metric_value AS INTEGER)), 0) AS total FROM {TABLE} \
+        "SELECT metric_type, COALESCE(SUM(metric_value), 0) AS total FROM {TABLE} \
          WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL \
          AND period_start >= ?3 AND period_start < ?4 \
          GROUP BY metric_type ORDER BY total DESC"
@@ -215,7 +128,7 @@ async fn user_history(
     let cutoff = months_ago_start(months.saturating_sub(1));
     let sql = format!(
         "SELECT substr(period_start, 1, 7) AS period, metric_type, \
-         COALESCE(SUM(CAST(metric_value AS INTEGER)), 0) AS total FROM {TABLE} \
+         COALESCE(SUM(metric_value), 0) AS total FROM {TABLE} \
          WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL \
          AND period_start >= ?3 \
          GROUP BY substr(period_start, 1, 7), metric_type \
@@ -328,33 +241,39 @@ pub async fn check_quota(
     metric_type: &str,
     trace_id: Option<&str>,
 ) -> Result<(), ProblemJsonBody> {
-    let limit = quota_limit_for_metric(metric_type);
-    if limit <= 0 {
-        return Ok(());
-    }
-    let (period_start, period_end) = current_month_bounds();
-    let used = tenant_metric_total(pool, tenant_id, metric_type, &period_start, &period_end)
+    sdkwork_birdcoder_commerce_quota::check_tenant_quota(pool, tenant_id, metric_type)
         .await
-        .map_err(|error| {
-            tracing::warn!(%error, "failed to check usage quota");
-            problem_with(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "internal",
-                "failed to check usage quota",
-                true,
-                trace_id,
-            )
-        })?;
-    if used >= limit {
-        return Err(problem_with(
+        .map_err(|error| map_quota_error(error, metric_type, trace_id))
+}
+
+fn map_quota_error(
+    error: QuotaError,
+    metric_type: &str,
+    trace_id: Option<&str>,
+) -> ProblemJsonBody {
+    match error {
+        QuotaError::Exceeded { .. } => problem_with(
             StatusCode::PAYMENT_REQUIRED,
             "quota_exceeded",
             format!("usage quota for {metric_type} has been exhausted"),
             false,
             trace_id,
-        ));
+        ),
+        QuotaError::Internal => problem_with(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "internal",
+            "failed to check usage quota",
+            true,
+            trace_id,
+        ),
+        QuotaError::InvalidTenantId => problem_with(
+            StatusCode::BAD_REQUEST,
+            "invalid_input",
+            "tenant_id must be numeric for commerce quota checks",
+            false,
+            trace_id,
+        ),
     }
-    Ok(())
 }
 
 // ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@
     "language": "rust",
     "sdkType": "app",
     "protocol": "http",
-    "packageName": "sdkwork-birdcoder-app-sdk"
+    "packageName": "@sdkwork/birdcoder-app-sdk"
   },
   "generatedFiles": [
     {
@@ -40,7 +40,7 @@
     },
     {
       "path": "sdkwork-sdk.json",
-      "sha256": "d5dbd2558af109cff3b1712f2cde1c8a1654624589528be5bc9f990715643552"
+      "sha256": "76a4b54cbb480eeb84e809910f81ca3076e4cd1e8d06ae07e7c970b968c96425"
     },
     {
       "path": "src/api/auth.rs",
@@ -56,7 +56,7 @@
     },
     {
       "path": "src/api/commerce.rs",
-      "sha256": "01a2d93131c541fee20148c0101d8294c2ca11b670e79fadb1cdbbb20265cd05"
+      "sha256": "25990069659b9fc9146bb62e162eeef92a227351ec2eb680965778d583dc8605"
     },
     {
       "path": "src/api/content.rs",
@@ -96,7 +96,7 @@
     },
     {
       "path": "src/api/system.rs",
-      "sha256": "99e159f20abbe7bda6c3c0269c2b548b2b71a1e84df227089d8c4ce9ff8fc0c5"
+      "sha256": "93c555c6147f5deab0b1c585ddf8b0227fc0a8965b1e417c36d051b37950642f"
     },
     {
       "path": "src/api/templates.rs",
@@ -161,6 +161,30 @@
     {
       "path": "src/models/bird_coder_boolean_success_result.rs",
       "sha256": "3d6ea7bd556eb53242166f0d6a1f6db950621dbabd47e6c85e4a82899aa643b0"
+    },
+    {
+      "path": "src/models/bird_coder_chat_conversation_summary_envelope.rs",
+      "sha256": "5c9df687d9003320ad07ad40b7919168af28aff7703ff807bb236aa73b51648a"
+    },
+    {
+      "path": "src/models/bird_coder_chat_conversation_summary_list_envelope.rs",
+      "sha256": "78e28e4b370e776a38a66797f16c4145b5c943e410196c71cc855611c73f702e"
+    },
+    {
+      "path": "src/models/bird_coder_chat_conversation_summary.rs",
+      "sha256": "761aa04bc626062921761705f82f4139a06f94382a8fb3cc6659ed57ef4e9335"
+    },
+    {
+      "path": "src/models/bird_coder_chat_message_summary_envelope.rs",
+      "sha256": "5c3038e67ab9b42e6f5ec6db91ff9cdf849026b6de078c5e3efb9181c7ca4cc7"
+    },
+    {
+      "path": "src/models/bird_coder_chat_message_summary_list_envelope.rs",
+      "sha256": "9cf518382a6884ba46046b78aceeb2243a9ffc4434d5930f6052924aab5bec9f"
+    },
+    {
+      "path": "src/models/bird_coder_chat_message_summary.rs",
+      "sha256": "8d057a2e95af67e3df0d2ac5b84f88aebe22dbf91e93074623a110780daa96fc"
     },
     {
       "path": "src/models/bird_coder_code_engine_model_config_custom_model.rs",
@@ -251,6 +275,18 @@
       "sha256": "d5ced00660c14f12316a0d7fdf3c6302b647244446e4c8cd8d61125bbed7b3a2"
     },
     {
+      "path": "src/models/bird_coder_commerce_invoice_summary_envelope.rs",
+      "sha256": "261b2147ab6ac782f3be4a435d4f6a379b9977215fba7953240f2c21e7b00a2a"
+    },
+    {
+      "path": "src/models/bird_coder_commerce_invoice_summary_list_envelope.rs",
+      "sha256": "d3a40567344c4503a8587ca1859cb0a3da2e511098851c8369b6ecccae3d8210"
+    },
+    {
+      "path": "src/models/bird_coder_commerce_invoice_summary.rs",
+      "sha256": "6c26fc93e27a747c58af552e4f92995cf15ec40fb6a10427e58509349ac973de"
+    },
+    {
       "path": "src/models/bird_coder_commerce_membership_benefit_summary.rs",
       "sha256": "cfafee50f274636710517fadafde486a3ab59a0ec231da9b798ce9b379f996f7"
     },
@@ -275,6 +311,30 @@
       "sha256": "f624038a0e67d281290fe12eb82ae5073c0a22662883ccb556f26cfa1715288e"
     },
     {
+      "path": "src/models/bird_coder_commerce_order_summary_envelope.rs",
+      "sha256": "3214ef319e43bfbd56ec542e571eaafde4da418f2ea50ad625e68bd161bf33d9"
+    },
+    {
+      "path": "src/models/bird_coder_commerce_order_summary_list_envelope.rs",
+      "sha256": "ec62330d34fc84830989c162ab970578af8b66de0203abcb73abdf2b15988b9c"
+    },
+    {
+      "path": "src/models/bird_coder_commerce_order_summary.rs",
+      "sha256": "0bba903bacc58266a1c5cb0f90149a5c514cdd8f6b7373a38d5463c073a4f944"
+    },
+    {
+      "path": "src/models/bird_coder_commerce_payment_summary_envelope.rs",
+      "sha256": "e34176a2830124ef05c7efc31de25978f8d7c964358350208f268f497b959d5c"
+    },
+    {
+      "path": "src/models/bird_coder_commerce_payment_summary_list_envelope.rs",
+      "sha256": "d1fa30779e5874831d2fb28efe00ce07fb5be612cdc0df4635aa653f538a1b44"
+    },
+    {
+      "path": "src/models/bird_coder_commerce_payment_summary.rs",
+      "sha256": "aacc07fdc604b11606dac4a32870c98462dbe23850ac23ecdaeaef738a8733fd"
+    },
+    {
       "path": "src/models/bird_coder_commit_project_git_changes_request.rs",
       "sha256": "a6d69f5de1fc0adc53b393258dddfdef973afeb4abd0eb3bd61a699b49173c2d"
     },
@@ -295,12 +355,28 @@
       "sha256": "6168ec492981c3eff70ed29b86b8923a64538e49b9289d10789d99032f65e303"
     },
     {
+      "path": "src/models/bird_coder_create_chat_conversation_request.rs",
+      "sha256": "dc41c55eaebcd4f944d569546799aa70d658801524ff218125930e7a17143454"
+    },
+    {
+      "path": "src/models/bird_coder_create_chat_message_request.rs",
+      "sha256": "81cc84aaec8d16d2d1f6298e63af02049e34801f70a3598202a6059944c85389"
+    },
+    {
       "path": "src/models/bird_coder_create_coding_session_request.rs",
       "sha256": "97a7d03f257eb42382a8a82365744326be4155fc4288ccda76db2f3112818457"
     },
     {
       "path": "src/models/bird_coder_create_coding_session_turn_request.rs",
       "sha256": "243759ca7227115a2859be23235acfc638a2bf53ac41cca4e29da19ee7292cd5"
+    },
+    {
+      "path": "src/models/bird_coder_create_commerce_order_request.rs",
+      "sha256": "7735c52b78a9ff09f6cf1c64816d7447119e1f3186743afee593327f6d0b6058"
+    },
+    {
+      "path": "src/models/bird_coder_create_commerce_payment_request.rs",
+      "sha256": "cb70f9e06c539cb317d03f57a26f0e09516704f0a4764659083163c34d966f4d"
     },
     {
       "path": "src/models/bird_coder_create_project_git_branch_request.rs",
@@ -317,6 +393,14 @@
     {
       "path": "src/models/bird_coder_create_workspace_request.rs",
       "sha256": "d5e41943c94d130476f26934eda3cdd5aed43797b894f899959a1c00f99f65de"
+    },
+    {
+      "path": "src/models/bird_coder_delete_chat_conversation_envelope.rs",
+      "sha256": "bb04781605bfc6fa4047e724424ae1255c488a29bb2583d703c9e3322c8be934"
+    },
+    {
+      "path": "src/models/bird_coder_delete_chat_conversation_result.rs",
+      "sha256": "a786a7899e1de4a9918604779fbc2a42eafed0f390bf33b91e381d8be6dc6cf4"
     },
     {
       "path": "src/models/bird_coder_delete_coding_session_message_result_envelope.rs",
@@ -752,7 +836,7 @@
     },
     {
       "path": "src/models/mod.rs",
-      "sha256": "88d50d27b4d061d34f797466c2bf88034dd4339d9608e96ac138b10ed61a3a2a"
+      "sha256": "3ae92fd40ea91a07ac18707188e33825673fb9ea5727f9cb9a3647d26c4f74a2"
     },
     {
       "path": "src/models/page_info.rs",

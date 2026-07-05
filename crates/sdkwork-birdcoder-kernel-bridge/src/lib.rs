@@ -7,6 +7,7 @@
 
 mod agent_projection;
 mod boundaries;
+mod chat_assistant;
 mod engine_registry;
 mod host;
 mod turn_executor;
@@ -31,4 +32,5 @@ pub use sdkwork_agents_runtime_facade::{
     CodeEngineTurnInput, CodeEngineTurnOutput, EngineLiveInteraction, LiveInteractionRegistry,
     UserQuestionAnswer,
 };
+pub use chat_assistant::generate_mobile_chat_assistant_reply;
 pub use turn_executor::execute_kernel_turn;

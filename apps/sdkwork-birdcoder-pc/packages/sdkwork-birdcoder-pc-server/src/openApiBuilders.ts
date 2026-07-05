@@ -304,12 +304,10 @@ export function createOpenApiListResponseSchema(
   };
 }
 
-/** @deprecated Use createOpenApiResourceResponseSchema for SdkWork v3 envelopes. */
 export function createOpenApiEnvelopeSchema(dataSchema: BirdCoderOpenApiSchema): BirdCoderOpenApiSchema {
   return createOpenApiResourceResponseSchema(dataSchema);
 }
 
-/** @deprecated Use createOpenApiListResponseSchema for SdkWork v3 envelopes. */
 export function createOpenApiListEnvelopeSchema(itemSchema: BirdCoderOpenApiSchema): BirdCoderOpenApiSchema {
   return createOpenApiListResponseSchema(itemSchema);
 }

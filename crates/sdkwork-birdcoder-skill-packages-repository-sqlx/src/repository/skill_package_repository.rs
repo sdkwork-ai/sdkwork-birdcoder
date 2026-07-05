@@ -6,7 +6,7 @@ use crate::error::RepositoryError;
 
 pub async fn list_skill_packages(pool: &AnyPool) -> Result<Vec<SkillPackageRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE is_deleted = 0 ORDER BY slug",
+        "SELECT {} FROM {} WHERE is_deleted = 0 ORDER BY slug LIMIT 200",
         ALL_PACKAGE_COLUMNS,
         columns::skill_package::TABLE,
     );
@@ -73,7 +73,7 @@ pub async fn list_all_skill_capabilities(
     pool: &AnyPool,
 ) -> Result<Vec<SkillCapabilityRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE is_deleted = 0",
+        "SELECT {} FROM {} WHERE is_deleted = 0 LIMIT 500",
         ALL_CAPABILITY_COLUMNS,
         columns::skill_capability::TABLE,
     );
@@ -88,7 +88,7 @@ pub async fn list_skill_installations(
     pool: &AnyPool,
 ) -> Result<Vec<SkillInstallationRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE is_deleted = 0",
+        "SELECT {} FROM {} WHERE is_deleted = 0 LIMIT 200",
         ALL_INSTALLATION_COLUMNS,
         columns::skill_installation::TABLE,
     );

@@ -82,7 +82,6 @@ export type BirdCoderApiEnvelope<T> = BirdCoderSdkWorkApiResponse<BirdCoderSdkWo
 
 export type BirdCoderApiListEnvelope<T> = BirdCoderSdkWorkApiResponse<BirdCoderSdkWorkPageData<T>>;
 
-/** @deprecated Use BirdCoderSdkWorkApiResponse page/resource shapes instead of legacy meta/timestamp roots. */
 export interface BirdCoderApiMeta {
   page?: number;
   pageSize?: number;

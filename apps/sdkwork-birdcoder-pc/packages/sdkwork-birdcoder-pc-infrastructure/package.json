@@ -96,7 +96,6 @@
     "@sdkwork/iam-app-sdk": "workspace:*",
     "@sdkwork/iam-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-app-sdk": "workspace:*",
-    "@sdkwork/birdcoder-chat-contracts": "workspace:*",
     "@sdkwork/birdcoder-backend-sdk": "workspace:*",
     "@sdkwork/birdcoder-pc-admin-core": "workspace:*",
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",

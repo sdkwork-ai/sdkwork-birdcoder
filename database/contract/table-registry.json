@@ -105,6 +105,18 @@
       "lifecycle_status": "active"
     },
     {
+      "table_name": "chat_conversation",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "chat_message",
+      "owner": "birdcoder-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
       "table_name": "studio_app_template",
       "owner": "birdcoder-platform",
       "compliance_level": "L2",

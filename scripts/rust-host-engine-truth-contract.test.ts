@@ -52,7 +52,7 @@ assert.deepEqual(
 
 assert.match(
   rustSource,
-  /include_str!\("\.\.\/generated\/engine-catalog\.json"\)/,
+  /include_str!\([\s\n]*"\.\.\/generated\/engine-catalog\.json"[\s\n]*\)/,
   'Rust codeengine must load engine/model catalog truth from the generated shared engine-catalog artifact.',
 );
 

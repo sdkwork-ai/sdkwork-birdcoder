@@ -1,6 +1,7 @@
 import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-pc-types';
 import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
+import type { BirdCoderServiceListPagination } from '../interfaces/IProjectService.ts';
 import type { IWorkspaceService } from '../interfaces/IWorkspaceService.ts';
 import {
   isBirdCoderTransientApiError,
@@ -173,18 +174,23 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
     this.readCacheByUserScope.clear();
   }
 
-  async getWorkspaces(): Promise<IWorkspace[]> {
+  async getWorkspaces(
+    pagination?: BirdCoderServiceListPagination,
+  ): Promise<IWorkspace[]> {
     const currentUserScope = await this.resolveCurrentUserScope();
     const userId = currentUserScope.userId === 'anonymous' ? undefined : currentUserScope.userId;
     const canReadUserScopedLocalMirror = currentUserScope.cacheable && Boolean(userId);
+    const cacheScopeKey = `${currentUserScope.userId}:${pagination?.limit ?? ''}:${pagination?.offset ?? ''}`;
     return this.readThroughCache(
-      currentUserScope.userId,
+      cacheScopeKey,
       currentUserScope.cacheable ? WORKSPACE_LIST_CACHE_TTL_MS : INFLIGHT_ONLY_TTL_MS,
       async () => {
         try {
           const workspaces = await retryBirdCoderTransientApiTask(() =>
             this.appClient.listWorkspaces({
               userId,
+              limit: pagination?.limit,
+              offset: pagination?.offset,
             }),
           );
           const resolvedWorkspaces = this.workspaceMirror

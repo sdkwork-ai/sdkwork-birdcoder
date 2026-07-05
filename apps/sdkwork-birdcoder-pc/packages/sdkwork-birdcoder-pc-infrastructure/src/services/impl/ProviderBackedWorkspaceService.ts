@@ -1,4 +1,5 @@
 import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderServiceListPagination } from '../interfaces/IProjectService.ts';
 import type { IWorkspaceService } from '../interfaces/IWorkspaceService.ts';
 import type { BirdCoderTableRecordRepository } from '../../storage/dataKernel.ts';
 import type { BirdCoderWorkspaceRecord } from '../../storage/appConsoleRepository.ts';
@@ -67,7 +68,7 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
     this.repository = repository;
   }
 
-  async getWorkspaces(): Promise<IWorkspace[]> {
+  async getWorkspaces(_pagination?: BirdCoderServiceListPagination): Promise<IWorkspace[]> {
     const records = await this.ensureBootstrapWorkspace();
     return records.map(mapWorkspaceRecordToWorkspace);
   }

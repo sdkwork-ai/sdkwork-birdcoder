@@ -7,9 +7,30 @@ import type {
 import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
-
+type CommerceInvoicesListQuery = Types.CommerceInvoicesListQuery;
+type CommerceInvoicesRetrievePathParams = Types.CommerceInvoicesRetrievePathParams;
+type CommerceOrdersListQuery = Types.CommerceOrdersListQuery;
+type CommerceOrdersRetrievePathParams = Types.CommerceOrdersRetrievePathParams;
+type CommercePaymentsListQuery = Types.CommercePaymentsListQuery;
+type CommercePaymentsRetrievePathParams = Types.CommercePaymentsRetrievePathParams;
 
 export interface CommerceApi {
+  commerce: {
+    invoices: {
+      list(query?: CommerceInvoicesListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommerceInvoiceSummaryListEnvelope>;
+      retrieve(pathParams: CommerceInvoicesRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommerceInvoiceSummaryEnvelope>;
+    };
+    orders: {
+      create(body: Types.BirdCoderCreateCommerceOrderRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommerceOrderSummaryEnvelope>;
+      list(query?: CommerceOrdersListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommerceOrderSummaryListEnvelope>;
+      retrieve(pathParams: CommerceOrdersRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommerceOrderSummaryEnvelope>;
+    };
+    payments: {
+      create(body: Types.BirdCoderCreateCommercePaymentRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommercePaymentSummaryEnvelope>;
+      list(query?: CommercePaymentsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommercePaymentSummaryListEnvelope>;
+      retrieve(pathParams: CommercePaymentsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommercePaymentSummaryEnvelope>;
+    };
+  };
   memberships: {
     current: {
       retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommerceMembershipCurrentEnvelope>;
@@ -22,6 +43,38 @@ export interface CommerceApi {
 
 export function createCommerceApi(requestOperation: BirdcoderSdkRequestOperation): CommerceApi {
   return {
+    commerce: {
+      invoices: {
+        list(query: CommerceInvoicesListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderCommerceInvoiceSummaryListEnvelope>("commerce.invoices.list", { query }, options);
+        },
+        retrieve(pathParams: CommerceInvoicesRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderCommerceInvoiceSummaryEnvelope>("commerce.invoices.retrieve", { pathParams }, options);
+        }
+      },
+      orders: {
+        create(body: Types.BirdCoderCreateCommerceOrderRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderCommerceOrderSummaryEnvelope>("commerce.orders.create", { body }, options);
+        },
+        list(query: CommerceOrdersListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderCommerceOrderSummaryListEnvelope>("commerce.orders.list", { query }, options);
+        },
+        retrieve(pathParams: CommerceOrdersRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderCommerceOrderSummaryEnvelope>("commerce.orders.retrieve", { pathParams }, options);
+        }
+      },
+      payments: {
+        create(body: Types.BirdCoderCreateCommercePaymentRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderCommercePaymentSummaryEnvelope>("commerce.payments.create", { body }, options);
+        },
+        list(query: CommercePaymentsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderCommercePaymentSummaryListEnvelope>("commerce.payments.list", { query }, options);
+        },
+        retrieve(pathParams: CommercePaymentsRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderCommercePaymentSummaryEnvelope>("commerce.payments.retrieve", { pathParams }, options);
+        }
+      }
+    },
     memberships: {
       current: {
         retrieve(options: BirdcoderSdkRequestOptions = {}) {

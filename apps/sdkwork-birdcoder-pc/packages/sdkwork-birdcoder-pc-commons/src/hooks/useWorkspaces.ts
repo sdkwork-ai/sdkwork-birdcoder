@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   stringifyBirdCoderApiJson,
   type IWorkspace,
 } from '@sdkwork/birdcoder-pc-types';
 import { useAuth } from '../context/AuthContext.ts';
 import { useIDEServices } from '../context/IDEContext.ts';
+import type { BirdCoderServiceListPagination } from '../services/interfaces/IProjectService.ts';
 
 const WORKSPACES_FETCH_TIMEOUT_MS = 30_000;
 
@@ -176,10 +177,11 @@ function createWorkspaceFetchTimeoutPromise(timeoutMs: number): WorkspaceFetchTi
 function runWorkspaceFetchWithTimeout(
   workspaceService: ReturnType<typeof useIDEServices>['workspaceService'],
   timeoutMs: number = WORKSPACES_FETCH_TIMEOUT_MS,
+  pagination?: BirdCoderServiceListPagination,
 ): Promise<IWorkspace[]> {
   const timeoutBoundary = createWorkspaceFetchTimeoutPromise(timeoutMs);
   return Promise.race([
-    workspaceService.getWorkspaces(),
+    workspaceService.getWorkspaces(pagination),
     timeoutBoundary.promise,
   ]).finally(() => {
     timeoutBoundary.clear();
@@ -229,6 +231,7 @@ function updateWorkspacesStoreSnapshot(
 async function fetchWorkspaces(
   store: WorkspacesStore,
   workspaceService: ReturnType<typeof useIDEServices>['workspaceService'],
+  pagination?: BirdCoderServiceListPagination,
 ): Promise<IWorkspace[]> {
   if (store.inflight) {
     return store.inflight;
@@ -239,7 +242,7 @@ async function fetchWorkspaces(
     isLoading: true,
   }));
 
-  const request = runWorkspaceFetchWithTimeout(workspaceService)
+  const request = runWorkspaceFetchWithTimeout(workspaceService, WORKSPACES_FETCH_TIMEOUT_MS, pagination)
     .then((workspaces) => {
       const nextWorkspaces = mergeWorkspacesForStore(store.snapshot.workspaces, workspaces);
       updateWorkspacesStoreSnapshot(store, (previousSnapshot) => ({
@@ -304,6 +307,8 @@ function mutateWorkspacesStore(
 
 export interface UseWorkspacesOptions {
   isActive?: boolean;
+  limit?: number;
+  offset?: number;
 }
 
 export function useWorkspaces(options: UseWorkspacesOptions = {}) {
@@ -311,6 +316,13 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   const { user } = useAuth();
   const isActive = options.isActive ?? true;
   const normalizedUserScope = normalizeWorkspacesStoreUserScope(user?.id);
+  const pagination = useMemo<BirdCoderServiceListPagination | undefined>(
+    () =>
+      options?.limit !== undefined || options?.offset !== undefined
+        ? { limit: options?.limit, offset: options?.offset }
+        : undefined,
+    [options?.limit, options?.offset],
+  );
   const [storeSnapshot, setStoreSnapshot] = useState<WorkspacesStoreSnapshot>(
     () => getWorkspacesStore(normalizedUserScope).snapshot,
   );
@@ -330,7 +342,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
 
     store.listeners.add(handleStoreChange);
     if (!store.snapshot.hasFetched && !store.inflight) {
-      void fetchWorkspaces(store, workspaceService);
+      void fetchWorkspaces(store, workspaceService, pagination);
     }
 
     return () => {
@@ -339,11 +351,11 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
         workspacesStoresByScopeKey.delete(normalizedUserScope);
       }
     };
-  }, [isActive, normalizedUserScope, workspaceService]);
+  }, [isActive, normalizedUserScope, workspaceService, pagination]);
 
   const refreshWorkspaces = useCallback(async () => {
-    return fetchWorkspaces(getWorkspacesStore(normalizedUserScope), workspaceService);
-  }, [normalizedUserScope, workspaceService]);
+    return fetchWorkspaces(getWorkspacesStore(normalizedUserScope), workspaceService, pagination);
+  }, [normalizedUserScope, workspaceService, pagination]);
 
   const createWorkspace = useCallback(
     async (name: string, description?: string) => {

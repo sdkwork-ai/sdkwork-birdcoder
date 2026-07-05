@@ -43,7 +43,7 @@ pub async fn get_current_membership(
 
 pub async fn list_package_groups(pool: &AnyPool) -> Result<Vec<PackageGroupRow>, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE is_deleted = 0 ORDER BY sort_weight",
+        "SELECT {} FROM {} WHERE is_deleted = 0 ORDER BY sort_weight LIMIT 200",
         ALL_GROUP_COLUMNS,
         columns::package_group::TABLE,
     );

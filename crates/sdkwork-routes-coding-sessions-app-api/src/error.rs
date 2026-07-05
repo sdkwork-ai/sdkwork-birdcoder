@@ -2,12 +2,13 @@ use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
+use sdkwork_birdcoder_commerce_quota::QuotaError;
 use sdkwork_utils_rust::SdkWorkResultCode;
 
 use sdkwork_birdcoder_errors::{
     client_safe_data_access_problem, client_safe_event_publish_problem,
-    client_safe_internal_problem, client_safe_provider_problem, platform_problem,
-    resolve_trace_id,
+    client_safe_internal_problem, client_safe_provider_problem, legacy_problem,
+    platform_problem, resolve_trace_id,
 };
 
 pub use sdkwork_birdcoder_errors::ProblemDetailsPayload;
@@ -51,6 +52,25 @@ impl AppError {
         Self {
             status: StatusCode::BAD_GATEWAY,
             body: platform_problem(SdkWorkResultCode::BadGateway, message, None),
+        }
+    }
+
+    pub fn quota_exceeded(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::PAYMENT_REQUIRED,
+            body: legacy_problem("quota_exceeded", message, None),
+        }
+    }
+
+    pub fn from_quota_error(error: QuotaError) -> Self {
+        match error {
+            QuotaError::Exceeded { metric_type } => Self::quota_exceeded(format!(
+                "usage quota for {metric_type} has been exhausted"
+            )),
+            QuotaError::Internal => Self::internal("failed to check usage quota"),
+            QuotaError::InvalidTenantId => Self::bad_request(
+                "tenant_id must be numeric for commerce quota checks",
+            ),
         }
     }
 

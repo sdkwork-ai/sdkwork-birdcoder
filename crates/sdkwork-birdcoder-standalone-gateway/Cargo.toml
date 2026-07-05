@@ -35,6 +35,7 @@ sdkwork-routes-document-app-api = { workspace = true }
 sdkwork-routes-chat-app-api = { workspace = true }
 sdkwork-routes-skill-packages-app-api = { workspace = true }
 sdkwork-routes-membership-app-api = { workspace = true }
+sdkwork-routes-commerce-app-api = { workspace = true }
 sdkwork-routes-deployment-backend-api = { workspace = true }
 sdkwork_routes_iam_app_api = { workspace = true }
 sdkwork_routes_iam_backend_api = { workspace = true }
@@ -52,6 +53,7 @@ sdkwork-birdcoder-document-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-codeengine = { workspace = true }
 sdkwork-birdcoder-kernel-bridge = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-birdcoder-commerce-quota = { workspace = true }
 sdkwork-utils-rust.workspace = true
 sdkwork-birdcoder-router-context = { workspace = true }
 
@@ -67,6 +69,7 @@ sdkwork-birdcoder-skill-packages-service = { workspace = true }
 sdkwork-birdcoder-app-templates-service = { workspace = true }
 sdkwork-birdcoder-document-service = { workspace = true }
 sdkwork-birdcoder-membership-service = { workspace = true }
+sdkwork-birdcoder-commerce-service = { workspace = true }
 sdkwork-birdcoder-system-descriptor-service = { workspace = true }
 
 # Repository crates
@@ -75,6 +78,7 @@ sdkwork-birdcoder-workspace-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-skill-packages-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-model-config-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-membership-repository-sqlx = { workspace = true }
+sdkwork-birdcoder-commerce-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
 
 [dev-dependencies]

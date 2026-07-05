@@ -1,5 +1,5 @@
 > Owner: SDKWork maintainers  
-> Updated: 2026-06-30  
+> Updated: 2026-07-05  
 > Status: active current truth
 
 # TECH-2026-06-24 Commercial Readiness Alignment
@@ -37,7 +37,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 
 | Surface | Contract operations | Host routes (product + IAM federation + commerce gateway) | Deferred |
 | --- | ---: | ---: | ---: |
-| App + Backend + Commerce + Chat (OpenAPI snapshot) | 153 | 153 | 0 |
+| App + Backend + Commerce + Chat (OpenAPI snapshot) | 161 | 161 | 0 |
 
 **Rule:** BirdCoder product manifests, federated `sdkwork-iam` app/backend routers wired in standalone-gateway, and commerce gateway routes (`/api/v1/api-keys`, `/api/v1/notifications`, `/api/v1/usage`) fully cover the OpenAPI contract. The defer registry must report `deferredOperationCount: 0`.
 
@@ -85,9 +85,9 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 ## 7. Closed in Phase 5 (2026-06-24)
 
 1. Workspace teams app route (`GET /app/v3/api/teams`) and backend IAM teams routes (`GET /backend/v3/api/iam/teams`, `GET /backend/v3/api/iam/teams/{teamId}/members`) registered in product manifests and handler smoke tests.
-2. OpenAPI defer registry regenerated: **153 of 153 implemented**, **0 deferred** (commerce gateway and chat routes wired in standalone-gateway; see §2b and §15).
+2. OpenAPI defer registry regenerated: **161 of 161 implemented**, **0 deferred** (commerce gateway, commerce transactions, and chat routes wired in standalone-gateway; see §2b, §11f, and §15).
 3. `generate-birdcoder-http-route-manifests.mjs` synced with teams routes so manifest regeneration cannot drop coverage.
-4. Contract tests require full OpenAPI implementation (`implementedOperationCount === 153`) and zero deferred operations (`deferredOperationCount === 0`).
+4. Contract tests require full OpenAPI implementation (`implementedOperationCount === 161`) and zero deferred operations (`deferredOperationCount === 0`).
 
 ## 8. Closed in Phase 6 (2026-06-24)
 
@@ -107,6 +107,31 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 2. Wire AI assistant replies (intelligence/runtime lane; mobile chat persistence is done).
 3. Flutter Drive attachments when Dart `drive-app-sdk` consumer lands (contract-guarded defer).
 4. iOS Capacitor headless build smoke on `macos-latest` CI (optional until App Store lane opens).
+
+## 11f. Closed in Phase 16 (2026-07-04)
+
+1. Commerce order/invoice/payment business layer: `sdkwork-birdcoder-commerce-service`, `sdkwork-birdcoder-commerce-repository-sqlx`, and `sdkwork-routes-commerce-app-api` implement tenant+user scoped orders (`BCO-`), payments (`BCP-`), and invoices (`BCI-`) with paid-settlement creating issued invoices.
+2. Standalone-gateway wires commerce app router; OpenAPI grows to **161 operations** (8 new `/app/v3/api/commerce/*` routes) with **0 deferred**.
+3. `scripts/commerce-transactions-contract.test.mjs` guards crate wiring, route catalog paths, and commerce-quota IAM id parsing reuse.
+4. Defer registry builder includes `sdkwork-routes-commerce-app-api`; regenerate OpenAPI via `pnpm run generate:openapi:coding-server`.
+5. Commerce transaction OpenAPI response schemas (`BirdCoderCommerceOrder*`, `BirdCoderCommerceInvoice*`, `BirdCoderCommercePaymentSummary*`) materialized in `openApiSchemas.ts` / `openApiOperationDefinitions.ts`; `@sdkwork/birdcoder-app-sdk` `client.commerce.*` methods now return typed SdkWorkApiResponse envelopes instead of `void`.
+6. BirdCoder SDK transport manifests aligned to canonical `@sdkwork/birdcoder-{app,backend}-sdk` package names in `generated/server-openapi` (`birdcoder-sdk-family-standard-contract`).
+
+## 11e. Closed in Phase 15 (2026-07-04)
+
+1. Post-split pc-server contract tests target `serverConstants.ts`, `runtimeBindings.ts`, and `coreSessionExecution.ts` instead of the retired monolithic `index.ts` barrel.
+2. Latest registry release note `release-2026-05-06-01.md` backwrites `promotionReadiness` (`canary` / `ring-1` / `blocked`) for release-closure governance.
+3. OpenCode and rust-host engine truth contracts follow agents-facade delegation and multiline `include_str!` catalog loading.
+4. `@sdkwork/birdcoder-pc-infrastructure` no longer depends on `@sdkwork/birdcoder-chat-contracts`; chat message view types live in `@sdkwork/birdcoder-pc-types`.
+5. API_SPEC path contract runner unified on `scripts/run-local-tsx.mjs` across architecture, release-flow, and governance regression contracts.
+
+## 11d. Closed in Phase 13 (2026-07-04)
+
+1. Federated IAM / pc-server contract tests run through `scripts/run-local-tsx.mjs` so `@sdkwork/iam-contracts` ESM resolution no longer blocks `pnpm lint` / `check:data-kernel`.
+2. Shared commerce quota crate `sdkwork-birdcoder-commerce-quota` deduplicates metering logic; coding session `create_turn` enforces `METRIC_API_REQUESTS` before turn execution (402 `quota_exceeded` ProblemDetail).
+3. H5 chat screen routes UI copy through `chatPageMessages.ts` (en / zh-Hans / zh-Hant).
+4. Code engine standard providers resolve registration via `known_standard_provider_registration` (no `panic!` on missing catalog entries).
+5. `scripts/federated-pc-server-contract-runner-contract.test.mjs` guards pc-server runner wiring, turn quota enforcement, and provider panic-free registration.
 
 ## 11. Closed in Phase 10 (2026-06-24)
 
@@ -150,28 +175,28 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 - Do not describe `/openapi.json` as unimplemented.
 - Operator stub `docs/guides/operator/README.md` (3-line placeholder) is **retired** — use the expanded guide set.
 
-## 15. Chat backend integration (updated 2026-06-29)
+## 15. Chat backend integration (updated 2026-07-04)
 
-**Status:** Phase A–C closed for H5 and Flutter; assistant generation remains a separate intelligence lane.
+**Status:** Phase A–D closed for H5 and Flutter, including mobile assistant replies via code-engine turn lane.
 
 | Layer | Status | Evidence |
 | --- | --- | --- |
 | Rust chat service/repository/routes | Implemented | `sdkwork-birdcoder-chat-service`, `sdkwork-birdcoder-chat-repository-sqlx`, `sdkwork-routes-chat-app-api` |
+| Mobile assistant generation | Implemented | `sdkwork-birdcoder-kernel-bridge::generate_mobile_chat_assistant_reply`; chat `create_message` persists assistant reply after user messages |
 | Database migration | Implemented | `database/migrations/*/0008_chat.*.sql` |
 | Gateway wiring | Implemented | `standalone-gateway` routers + `route_manifest.rs` |
-| OpenAPI + defer registry | 153 / 0 deferred | `specs/coding-server-openapi-rust-defer-registry.json` |
+| OpenAPI + defer registry | 161 / 0 deferred | `specs/coding-server-openapi-rust-defer-registry.json` |
 | Generated app SDK | Implemented | `client.system.chat.conversations.*` (TS) / `system.chatConversations*` (Flutter) |
-| H5 chat UI | API-backed | `birdcoderMobileChatApi.ts`, `h5-chat/ChatPage.tsx` |
+| H5 chat UI | API-backed + i18n | `birdcoderMobileChatApi.ts`, `h5-chat/ChatPage.tsx`, `chatPageMessages.ts` |
 | Flutter chat UI | API-backed | `birdcoder_mobile_chat_api.dart`, `lib/pages/chat_page.dart` |
 
 ### Remaining closures
 
-1. Assistant replies: message persistence is live on all mobile surfaces; AI assistant generation remains a separate intelligence/runtime lane.
-2. Flutter Drive attachments: defer until a governed Dart `drive-app-sdk` consumer exists (PC/H5 Drive lane is closed).
+1. Flutter Drive attachments: defer until a governed Dart `drive-app-sdk` consumer exists (PC/H5 Drive lane is closed).
 
 ## 17. Closed in Phase 13 (2026-06-29)
 
-1. Commerce OpenAPI parity: `COMMERCE_API_CONTRACT` in `routeCatalog.ts` plus standalone-gateway handlers cover all 15 `/api/v1/*` operations; defer registry reports **153 implemented / 0 deferred** after chat lane closure.
+1. Commerce OpenAPI parity: `COMMERCE_API_CONTRACT` in `routeCatalog.ts` plus standalone-gateway handlers cover all 15 `/api/v1/*` operations; defer registry reports **161 implemented / 0 deferred** after commerce transactions lane closure (Phase 16).
 2. Quality gates: `check:api-response-envelope`, `check:app-composition`, and `check:quality:mobile` wired into fast/standard quality tiers.
 3. Native app composition (ADR-20260629): `component.spec.json#contracts.sdkDependencies` populated across PC/H5/Flutter; legacy `dependency.composition.json` forbidden by contract.
 4. H5 Drive upload: chat attachments route through `@sdkwork/birdcoder-pc-infrastructure` Drive client via `h5-core` SDK exports.
@@ -179,7 +204,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 
 ## 18. Closed in Phase 14 (2026-06-29)
 
-1. Mobile chat backend: service/repository/route crates, `0008_chat` migration, gateway wiring, and 6 `/app/v3/api/chat/*` OpenAPI operations (153 total / 0 deferred).
+1. Mobile chat backend: service/repository/route crates, `0008_chat` migration, gateway wiring, and 6 `/app/v3/api/chat/*` OpenAPI operations (161 total / 0 deferred after Phase 16 commerce transactions).
 2. H5 chat persistence through `@sdkwork/birdcoder-app-sdk` `system.chat` client (`birdcoderMobileChatApi.ts`).
 3. `scripts/chat-route-catalog-contract.test.mjs` guards route catalog, Rust manifest, and mobile chat SDK integration.
 
@@ -202,7 +227,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 ## 22. Closed in Phase 18 (2026-06-29)
 
 1. `scripts/surface-manifest-parity-contract.test.mjs` guards root + PC + H5 + Flutter manifest DRAFT/preLaunch/releaseEvidenceStatus parity.
-2. Operator runbooks updated for 153/0 OpenAPI, mobile chat API-backed status, and four-manifest governed release promotion.
+2. Operator runbooks updated for 161/0 OpenAPI, mobile chat API-backed status, and four-manifest governed release promotion.
 
 ## 23. Closed in Phase 19 (2026-06-29)
 
@@ -243,7 +268,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 7. Application-package scan roots unified via `scripts/lib/birdcoder-package-scan-roots.mjs`; governance, structure, i18n, clipboard, provider-SDK, source-parse, and architecture contracts no longer scan the retired root `packages/` directory.
 8. `pnpm-workspace.yaml` federation adds `../sdkwork-app-topology`; package-governance and structure checks assert app-root workspace globs (`apps/sdkwork-birdcoder-{pc,h5}/packages/...`) instead of legacy root `packages/sdkwork-birdcoder-*`.
 9. UI bundle segmentation contract scopes subpath-import enforcement to UI shell surfaces and allows governed `@sdkwork/birdcoder-*` and `@sdkwork/utils/*` subpaths backed by explicit package exports.
-10. OpenAPI route-count contract aligned to current gateway metadata: **104 app + 49 backend = 153 operations**.
+10. OpenAPI route-count contract aligned to current gateway metadata: **112 app + 49 backend = 161 operations**.
 
 ## 30. Closed in Phase 24 (2026-06-30)
 
@@ -303,7 +328,7 @@ node scripts/release/release-build-paths-contract.test.mjs
 node scripts/release/package-release-assets.test.mjs
 ```
 
-## 13. 2026-06-30 alignment loop (current)
+## 13. 2026-06-30 alignment loop
 
 ### Closed in this loop
 
@@ -327,13 +352,39 @@ node scripts/release/package-release-assets.test.mjs
 
 ### Remaining blocker (external federation dependency)
 
-- `pnpm run check:quality:fast` now advances far deeper and fails at external sibling federation import resolution:
-  - `Error [ERR_MODULE_NOT_FOUND]: .../sdkwork-iam-contracts/src/login-context.js`
-- This is a cross-repository source/runtime resolution mismatch in sibling repository `sdkwork-iam`, not a BirdCoder local domain logic defect.
-- Until sibling workspace source-mode import resolution is corrected, the full fast quality gate cannot reach complete green in this workspace.
+- Resolved in local workspace: `pnpm lint` / `check:quality:fast` no longer fail on missing `sdkwork-iam-contracts/src/login-context.js` when sibling `sdkwork-iam` checkout is synced.
+- If federation import resolution regresses in CI, re-sync sibling workspace paths via `node sdkwork-specs/tools/sync-workspace.mjs`.
 
-### Action policy
+### Closed in 2026-07-04 alignment loop
 
-1. Keep BirdCoder local gates green and continue debt elimination in-repo.
-2. Track the `sdkwork-iam` module-resolution defect as a federation blocker.
-3. Re-run `pnpm run check:quality:fast` immediately after sibling fix to confirm full closure.
+1. Commerce quota crate (`sdkwork-birdcoder-commerce-quota`) centralizes check + record; coding session `create_turn` checks quota before execution and records `METRIC_API_REQUESTS` after success.
+2. Mobile chat assistant replies via `generate_mobile_chat_assistant_reply` (kernel-bridge Codex turn lane); H5/Flutter reload conversation history after send.
+3. Package governance contract aligned with multi-surface `pnpm-workspace.yaml` (common/flutter/h5/pc app roots + architecture-qualified globs).
+4. H5 chat i18n message catalog (`chatPageMessages.ts`) guarded by `chat-route-catalog-contract`.
+5. Quality gate matrix aligned with `check:server` IAM bootstrap + `check:quality:mobile` standard tier.
+6. Architecture boundary restored: mobile chat types flow through `@sdkwork/birdcoder-pc-types` instead of direct `@sdkwork/birdcoder-chat-contracts` in infrastructure.
+7. Canon pointer docs restored: `docs/architecture.md`, `docs/release.md`.
+8. Commerce quota turn pipeline contract (`scripts/commerce-quota-turn-pipeline-contract.test.mjs`) wired into `check:arch`.
+
+## 14. 2026-07-05 alignment loop (current)
+
+### Closed in this loop
+
+1. **H5 credential security (P0-2):** `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/appSessionToken.ts` now captures `preservedRefreshToken` before any control-flow narrowing, eliminating the TypeScript `never`-narrowing regression that previously blocked `pnpm run typecheck`. `apps/sdkwork-birdcoder-h5/.../capacitorSecureStorageAdapter.ts` continues to withhold `refreshToken` from persistent storage.
+2. **Database contract alignment (P1-1):** `chat_conversation` and `chat_message` registered in `database/contract/table-registry.json`; `chat_` prefix registered in `prefix-registry.json` and `database/database.manifest.json`. `commerce_usage_metering.metric_value` redeclared as `BIGINT` (postgres) / `INTEGER` (sqlite) to match the i64 used by `commerce-quota` and `usage.rs`; removed the `CAST(metric_value AS INTEGER)` workaround from `tenant_metric_total`, `user_metric_totals`, and `user_history`. Added `idx_chat_message_tenant_conversation_created` index. Removed dead `iam_database_readiness` function from `health.rs`.
+3. **Pagination standardization (P1-2):** `crates/sdkwork-birdcoder-coding-sessions-repository-sqlx/src/repository/coding_session_repository.rs` now binds `LIMIT`/`OFFSET` as SQL parameters instead of `format!(" LIMIT {limit}")` string interpolation (PAGINATION_SPEC.md §2/§5). `crates/sdkwork-routes-coding-sessions-app-api/src/mapper/request.rs` removed the local `MAX_LIST_PAGE_SIZE = 100` constant and now delegates to the shared `clamp_list_page_size` helper; `list_sessions` handler now uses the clamped `(offset, page_size)` tuple when constructing the response envelope, eliminating the previous SQL/envelope value divergence.
+4. **Tauri capability differentiation (P1-3):** New `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/capabilities/test.toml` restricts the `main-test` window to a read-only filesystem subset (excludes `allow-fs-write-file`, `allow-fs-delete-entry`, `allow-local-sql-execute-plan`, `allow-desktop-local-shell-exec`). `tauri.test.conf.json` now labels the test window `main-test` so the production `default.toml` capability set is no longer applied to test runs. Removed redundant semicolon in `filesystem_commands.rs`.
+5. **Placeholder package honesty (P2-1):** The three scaffolding-only packages (`@sdkwork/birdcoder-pc-console-core`, `@sdkwork/birdcoder-pc-admin-shell`, `@sdkwork/birdcoder-pc-console-shell`) now declare `"preLaunch": true` and an explicit description in their `package.json` so consumers can distinguish stubs from real implementations. Verified `host-core` and `host-studio` are real implementations and were not flagged.
+
+### Manifest evidence alignment
+
+- Root `sdkwork.app.config.json` release highlights and `metadata.commercialReadiness` updated: `pcPrivateBeta` now records `pagination-remediation-complete-tauri-capability-differentiated-database-contract-aligned`; `mobileProductParity` records `secure-storage-remediation-complete`; `manifestHonesty` records `placeholder-packages-marked`; `releaseEvidenceStatus` extended with the same closures.
+- PC surface `sdkwork.app.config.json` release highlights updated from "pagination remediation in progress" to "pagination remediation complete".
+
+### Verification
+
+- `pnpm run typecheck` ✅
+- `pnpm db:validate` ✅
+- `pnpm db:generate:ddl` ✅
+- `cargo build --workspace` ✅
+- Final `check:arch` / `check:api-response-envelope` / `check:pagination` / `pnpm lint` to be re-run after this loop closes.

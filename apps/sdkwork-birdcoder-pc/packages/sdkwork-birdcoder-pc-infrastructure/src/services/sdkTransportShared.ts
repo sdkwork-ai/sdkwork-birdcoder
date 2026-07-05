@@ -38,6 +38,61 @@ type BirdCoderFetchLike = typeof fetch;
 
 const DEFAULT_BIRDCODER_HTTP_API_TIMEOUT_MS = 8_000;
 
+/**
+ * Maximum allowed size (in bytes) for a successful API response body before it
+ * is read into memory. Guards against OOM when a server returns an unexpectedly
+ * huge payload. Callers should use paginated API endpoints for large result sets.
+ */
+const MAX_RESPONSE_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
+
+/**
+ * Maximum allowed size (in bytes) for an error response body. Error bodies are
+ * expected to be small (ProblemDetail JSON); a larger body usually indicates a
+ * misconfigured gateway returning an HTML error page or a streaming dump.
+ */
+const MAX_ERROR_BODY_BYTES = 1 * 1024 * 1024; // 1 MB
+
+/**
+ * Checks the `Content-Length` response header against `maxBytes` and throws a
+ * descriptive error when the declared size exceeds the cap. This prevents
+ * loading oversized response bodies into memory.
+ */
+function assertContentLengthWithinLimit(response: Response, maxBytes: number, label: string): void {
+  const contentLengthHeader = response.headers.get('content-length');
+  if (contentLengthHeader === null || contentLengthHeader === '') {
+    return;
+  }
+  const declaredLength = Number(contentLengthHeader);
+  if (!Number.isFinite(declaredLength) || declaredLength < 0) {
+    return;
+  }
+  if (declaredLength > maxBytes) {
+    throw new Error(
+      `BirdCoder API ${label} body exceeds maximum size of ${maxBytes} bytes (declared Content-Length: ${declaredLength}). Use a paginated API endpoint instead.`,
+    );
+  }
+}
+
+/**
+ * Reads the response body as text after verifying the declared `Content-Length`
+ * is within `maxBytes`. When Content-Length is missing or misleading and the
+ * resulting body still exceeds `maxBytes`, a diagnostic warning is logged.
+ */
+async function readResponseBodyWithSizeGuard(
+  response: Response,
+  maxBytes: number,
+  label: string,
+): Promise<string> {
+  assertContentLengthWithinLimit(response, maxBytes, label);
+  const rawBody = await response.text();
+  if (rawBody.length > maxBytes) {
+    console.warn(
+      `BirdCoder API ${label} body exceeded maximum size of ${maxBytes} bytes (actual length: ${rawBody.length}); Content-Length may have been missing or misleading.`,
+    );
+  }
+  return rawBody;
+}
+
 export function createListEnvelope<TItem>(
   items: readonly TItem[],
 ): BirdCoderApiListEnvelope<TItem> {
@@ -364,7 +419,11 @@ async function buildBirdCoderApiError(
   let businessCode: string | undefined;
 
   try {
-    const rawBody = await response.text();
+    const rawBody = await readResponseBodyWithSizeGuard(
+      response,
+      MAX_ERROR_BODY_BYTES,
+      'error',
+    );
     const trimmedBody = rawBody.trim();
     if (!trimmedBody) {
       return new BirdCoderApiTransportError({
@@ -479,7 +538,11 @@ export function createBirdCoderHttpApiTransport({
         throw await buildBirdCoderApiError(response, request);
       }
 
-      const rawBody = await response.text();
+      const rawBody = await readResponseBodyWithSizeGuard(
+        response,
+        MAX_RESPONSE_BODY_BYTES,
+        'response',
+      );
       const trimmedBody = rawBody.trim();
       if (!trimmedBody) {
         return undefined as TResponse;

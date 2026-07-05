@@ -34,7 +34,7 @@ apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/.local/
 packages/sdkwork-birdcoder-pc-server/.local/
 /NUL
 NUL
-# SDKWork environment (real credentials â€?do not commit)
+# SDKWork environment (real credentials ï¿½?do not commit)
 .env
 .env.postgres
 .env.*.local

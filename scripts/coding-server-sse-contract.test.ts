@@ -9,16 +9,26 @@ const serverSource = readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts', import.meta.url),
   'utf8',
 );
-const sseFunctionStart = serverSource.indexOf(
+const coreSessionExecutionSource = readFileSync(
+  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/coreSessionExecution.ts', import.meta.url),
+  'utf8',
+);
+const sseFunctionStart = coreSessionExecutionSource.indexOf(
   'export async function* streamBirdCoderCoreSessionEventEnvelopes',
 );
-const sseFunctionEnd = serverSource.indexOf(
+const sseFunctionEnd = coreSessionExecutionSource.indexOf(
   'export function createBirdCoderApprovalDecisionEnvelope',
   sseFunctionStart,
 );
 const sseFunctionBody = sseFunctionStart >= 0 && sseFunctionEnd > sseFunctionStart
-  ? serverSource.slice(sseFunctionStart, sseFunctionEnd)
+  ? coreSessionExecutionSource.slice(sseFunctionStart, sseFunctionEnd)
   : '';
+
+assert.match(
+  serverSource,
+  /export \* from '\.\/coreSessionExecution\.ts'/u,
+  'coding-server index must re-export core session execution and SSE entrypoints.',
+);
 
 assert.doesNotMatch(
   sseFunctionBody,

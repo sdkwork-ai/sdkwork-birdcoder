@@ -43,6 +43,7 @@ import {
 } from '../stores/workspaceRealtime.ts';
 import type {
   BirdCoderProjectMirrorSnapshot,
+  BirdCoderServiceListPagination,
   CreateCodingSessionOptions,
   CreateProjectOptions,
   UpdateCodingSessionOptions,
@@ -536,6 +537,7 @@ function clearProjectsStorePendingRefresh(store: ProjectsStore): void {
 async function readProjectInventoryForWorkspace(
   workspaceId: string,
   projectService: ReturnType<typeof useIDEServices>['projectService'],
+  pagination?: BirdCoderServiceListPagination,
 ): Promise<BirdCoderProject[]> {
   const projectMirrorReader = projectService.getProjectMirrorSnapshots?.bind(projectService);
   if (projectMirrorReader) {
@@ -545,17 +547,18 @@ async function readProjectInventoryForWorkspace(
     }
   }
 
-  return projectService.getProjects(workspaceId);
+  return projectService.getProjects(workspaceId, pagination);
 }
 
 function readProjectInventoryForWorkspaceWithTimeout(
   workspaceId: string,
   projectService: ReturnType<typeof useIDEServices>['projectService'],
   timeoutMs: number = PROJECTS_FETCH_TIMEOUT_MS,
+  pagination?: BirdCoderServiceListPagination,
 ): Promise<BirdCoderProject[]> {
   const timeoutBoundary = createProjectsFetchTimeoutPromise(timeoutMs);
   return Promise.race([
-    readProjectInventoryForWorkspace(workspaceId, projectService),
+    readProjectInventoryForWorkspace(workspaceId, projectService, pagination),
     timeoutBoundary.promise,
   ]).finally(() => {
     timeoutBoundary.clear();
@@ -566,6 +569,7 @@ async function fetchProjectsForWorkspace(
   store: ProjectsStore,
   workspaceId: string,
   projectService: ReturnType<typeof useIDEServices>['projectService'],
+  pagination?: BirdCoderServiceListPagination,
 ): Promise<BirdCoderProject[]> {
   if (store.inflight) {
     return store.inflight;
@@ -577,7 +581,7 @@ async function fetchProjectsForWorkspace(
     isLoading: true,
   }));
 
-  const request = readProjectInventoryForWorkspaceWithTimeout(workspaceId, projectService)
+  const request = readProjectInventoryForWorkspaceWithTimeout(workspaceId, projectService, PROJECTS_FETCH_TIMEOUT_MS, pagination)
     .then((projects) => {
       updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
         error: null,
@@ -798,6 +802,8 @@ export interface UseProjectsOptions {
   enableRealtime?: boolean;
   fetchOnMount?: boolean;
   isActive?: boolean;
+  limit?: number;
+  offset?: number;
 }
 
 export function useProjects(workspaceId?: string, options?: UseProjectsOptions) {
@@ -808,6 +814,13 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const shouldEnableRealtime = options?.enableRealtime ?? true;
   const shouldFetchOnMount = options?.fetchOnMount ?? true;
   const isActive = options?.isActive ?? true;
+  const pagination = useMemo<BirdCoderServiceListPagination | undefined>(
+    () =>
+      options?.limit !== undefined || options?.offset !== undefined
+        ? { limit: options?.limit, offset: options?.offset }
+        : undefined,
+    [options?.limit, options?.offset],
+  );
   const storeScopeKey = normalizedWorkspaceId
     ? buildProjectsStoreScopeKey(normalizedUserScope, normalizedWorkspaceId)
     : '';
@@ -851,7 +864,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         (!!store.snapshot.error && store.snapshot.projects.length === 0 && !hadActiveListeners)) &&
       !store.inflight
     ) {
-      void fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService).catch(() => {
+      void fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService, pagination).catch(() => {
         // Error state is already propagated through the shared store snapshot.
       });
     }
@@ -867,6 +880,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     shouldFetchOnMount,
     isActive,
     storeScopeKey,
+    pagination,
   ]);
 
   const refreshProjects = useCallback(async () => {
@@ -880,8 +894,8 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     await projectService.invalidateProjectReadCache?.({
       workspaceId: normalizedWorkspaceId,
     });
-    return fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService);
-  }, [normalizedWorkspaceId, projectService, storeScopeKey]);
+    return fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService, pagination);
+  }, [normalizedWorkspaceId, projectService, storeScopeKey, pagination]);
 
   const projectSearchInventory = useMemo(() => buildProjectSearchInventory(storeSnapshot.projects), [storeSnapshot.projects]);
   const normalizedSearchQuery = useMemo(

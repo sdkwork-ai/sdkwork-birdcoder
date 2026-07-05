@@ -20,6 +20,63 @@ pub fn resolved_native_session_provider_registration(
     })
 }
 
+/// Returns the catalog registration for a built-in provider implementation.
+///
+/// When the embedded catalog is temporarily unavailable, this returns a
+/// deterministic degraded registration instead of panicking so host startup
+/// and contract tests remain structured.
+pub fn known_standard_provider_registration(
+    engine_id: &'static str,
+) -> &'static NativeSessionProviderRegistration {
+    if let Some(registration) = lookup_standard_native_session_provider_registration(engine_id) {
+        return registration;
+    }
+
+    tracing::error!(
+        engine_id,
+        "native session provider catalog entry missing; using degraded registration"
+    );
+    degraded_provider_registration(engine_id)
+}
+
+fn degraded_provider_registration(
+    engine_id: &'static str,
+) -> &'static NativeSessionProviderRegistration {
+    use std::sync::OnceLock;
+
+    static CODEX: OnceLock<NativeSessionProviderRegistration> = OnceLock::new();
+    static CLAUDE_CODE: OnceLock<NativeSessionProviderRegistration> = OnceLock::new();
+    static GEMINI: OnceLock<NativeSessionProviderRegistration> = OnceLock::new();
+    static OPENCODE: OnceLock<NativeSessionProviderRegistration> = OnceLock::new();
+
+    match engine_id {
+        "codex" => CODEX.get_or_init(|| build_degraded_provider_registration("codex")),
+        "claude-code" => CLAUDE_CODE.get_or_init(|| build_degraded_provider_registration("claude-code")),
+        "gemini" => GEMINI.get_or_init(|| build_degraded_provider_registration("gemini")),
+        "opencode" => OPENCODE.get_or_init(|| build_degraded_provider_registration("opencode")),
+        _ => {
+            tracing::error!(
+                engine_id,
+                "unexpected standard provider id; using generic degraded registration"
+            );
+            static UNKNOWN: OnceLock<NativeSessionProviderRegistration> = OnceLock::new();
+            UNKNOWN.get_or_init(|| build_degraded_provider_registration(engine_id))
+        }
+    }
+}
+
+fn build_degraded_provider_registration(engine_id: &str) -> NativeSessionProviderRegistration {
+    use crate::NativeSessionDiscoveryMode;
+
+    NativeSessionProviderRegistration {
+        engine_id: engine_id.to_owned(),
+        display_name: engine_id.to_owned(),
+        native_session_id_prefix: format!("{engine_id}-native:"),
+        transport_kinds: Vec::new(),
+        discovery_mode: NativeSessionDiscoveryMode::ExplicitOnly,
+    }
+}
+
 pub fn format_missing_native_session_provider_error(engine_id: &str) -> String {
     format!(
         "Native session provider for engine \"{engine_id}\" is not registered in the standard code engine provider registry."

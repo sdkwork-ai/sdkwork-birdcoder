@@ -13,6 +13,13 @@ import { createBirdCoderStorageDialect } from './providers.ts';
 
 export type BirdCoderSqlPlanIntent = 'read' | 'write';
 
+/**
+ * Default row cap applied to list plans when no explicit limit is provided.
+ * Matches the max page_size per spec; prevents unbounded SELECT queries from
+ * causing OOM when a table grows large.
+ */
+const DEFAULT_LIST_PLAN_LIMIT = 200;
+
 export interface BirdCoderSqlPlanStatement {
   params: readonly unknown[];
   sql: string;
@@ -138,7 +145,7 @@ export interface BirdCoderTableSqlPlanner {
   buildCountPlan(): BirdCoderSqlPlan;
   buildDeletePlan(id: string): BirdCoderSqlPlan;
   buildFindByIdPlan(id: string): BirdCoderSqlPlan;
-  buildListPlan(): BirdCoderSqlPlan;
+  buildListPlan(limit?: number): BirdCoderSqlPlan;
   buildUpsertPlan(rows: readonly BirdCoderSqlRow[]): BirdCoderSqlPlan;
 }
 
@@ -432,20 +439,24 @@ export function createBirdCoderTableSqlPlanner({
   ];
 
   return {
-    buildListPlan() {
+    buildListPlan(limit?: number) {
       const dialect = createBirdCoderStorageDialect(providerId);
+      const rowLimit =
+        typeof limit === 'number' && Number.isFinite(limit) && limit > 0
+          ? Math.floor(limit)
+          : DEFAULT_LIST_PLAN_LIMIT;
       return buildPlan(
         providerId,
         'read',
         [
           hasSoftDeleteColumn
             ? {
-                params: [defaultSoftDeleteValue(providerId)],
-                sql: `SELECT * FROM ${tableName} WHERE is_deleted = ${dialect.buildPlaceholder(1)} ORDER BY updated_at DESC, id ASC;`,
+                params: [defaultSoftDeleteValue(providerId), rowLimit],
+                sql: `SELECT * FROM ${tableName} WHERE is_deleted = ${dialect.buildPlaceholder(1)} ORDER BY updated_at DESC, id ASC LIMIT ${dialect.buildPlaceholder(2)};`,
               }
             : {
-                params: [],
-                sql: `SELECT * FROM ${tableName} ORDER BY updated_at DESC, id ASC;`,
+                params: [rowLimit],
+                sql: `SELECT * FROM ${tableName} ORDER BY updated_at DESC, id ASC LIMIT ${dialect.buildPlaceholder(1)};`,
               },
         ],
         {

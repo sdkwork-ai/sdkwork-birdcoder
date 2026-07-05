@@ -1,8 +1,69 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderApiRouteCatalogEntry, BirdCoderCodingServerDescriptor, BirdCoderCoreHealthSummary, BirdCoderCoreRuntimeSummary, BirdCoderIamRuntimeSettingsSummary, BirdCoderIamVerificationPolicySummary, BirdCoderOperationDescriptor, PageInfo } from '../types';
+import type { BirdCoderApiRouteCatalogEntry, BirdCoderChatConversationSummary, BirdCoderChatMessageSummary, BirdCoderCodingServerDescriptor, BirdCoderCoreHealthSummary, BirdCoderCoreRuntimeSummary, BirdCoderCreateChatConversationRequest, BirdCoderCreateChatMessageRequest, BirdCoderDeleteChatConversationResult, BirdCoderIamRuntimeSettingsSummary, BirdCoderIamVerificationPolicySummary, BirdCoderOperationDescriptor, PageInfo } from '../types';
 
+
+export class SystemChatConversationsMessagesApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** List chat messages */
+  async list(conversationId: string): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`));
+  }
+
+/** Create chat message */
+  async create(conversationId: string, body: BirdCoderCreateChatMessageRequest): Promise<BirdCoderChatMessageSummary> {
+    return this.client.post<BirdCoderChatMessageSummary>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), body, undefined, undefined, 'application/json');
+  }
+}
+
+export class SystemChatConversationsApi {
+  private client: HttpClient;
+  public readonly messages: SystemChatConversationsMessagesApi;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+    this.messages = new SystemChatConversationsMessagesApi(client);
+  }
+
+
+/** List chat conversations */
+  async list(): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(appApiPath(`/chat/conversations`));
+  }
+
+/** Create chat conversation */
+  async create(body: BirdCoderCreateChatConversationRequest): Promise<BirdCoderChatConversationSummary> {
+    return this.client.post<BirdCoderChatConversationSummary>(appApiPath(`/chat/conversations`), body, undefined, undefined, 'application/json');
+  }
+
+/** Get chat conversation */
+  async retrieve(conversationId: string): Promise<BirdCoderChatConversationSummary> {
+    return this.client.get<BirdCoderChatConversationSummary>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}`));
+  }
+
+/** Delete chat conversation */
+  async delete(conversationId: string): Promise<BirdCoderDeleteChatConversationResult> {
+    return this.client.delete<BirdCoderDeleteChatConversationResult>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}`));
+  }
+}
+
+export class SystemChatApi {
+  private client: HttpClient;
+  public readonly conversations: SystemChatConversationsApi;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+    this.conversations = new SystemChatConversationsApi(client);
+  }
+
+}
 
 export class SystemIamVerificationPolicyApi {
   private client: HttpClient;
@@ -123,6 +184,7 @@ export class SystemApi {
   public readonly routes: SystemRoutesApi;
   public readonly runtime: SystemRuntimeApi;
   public readonly iam: SystemIamApi;
+  public readonly chat: SystemChatApi;
 
   constructor(client: HttpClient) {
     this.client = client;
@@ -132,6 +194,7 @@ export class SystemApi {
     this.routes = new SystemRoutesApi(client);
     this.runtime = new SystemRuntimeApi(client);
     this.iam = new SystemIamApi(client);
+    this.chat = new SystemChatApi(client);
   }
 
 }

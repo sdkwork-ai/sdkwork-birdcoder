@@ -30,7 +30,9 @@ impl TeamService {
         ctx: &WorkspaceContext,
         workspace_id: Option<&str>,
         user_id: Option<&str>,
-    ) -> Result<Vec<TeamPayload>, WorkspaceError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<TeamPayload>, usize), WorkspaceError> {
         if let Some(workspace_id) = workspace_id {
             if is_blank(Some(workspace_id)) {
                 return Err(WorkspaceError::InvalidInput(
@@ -43,7 +45,7 @@ impl TeamService {
         }
 
         self.team_repository
-            .list_teams(ctx, workspace_id, user_id)
+            .list_teams(ctx, workspace_id, user_id, offset, limit)
             .await
     }
 
@@ -51,11 +53,15 @@ impl TeamService {
         &self,
         ctx: &WorkspaceContext,
         team_id: &str,
-    ) -> Result<Vec<TeamMemberPayload>, WorkspaceError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<TeamMemberPayload>, usize), WorkspaceError> {
         if is_blank(Some(team_id)) {
             return Err(WorkspaceError::InvalidInput("teamId is required.".to_owned()));
         }
 
-        self.team_repository.list_team_members(ctx, team_id).await
+        self.team_repository
+            .list_team_members(ctx, team_id, offset, limit)
+            .await
     }
 }

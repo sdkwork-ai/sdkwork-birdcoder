@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "sdkFamily": "sdkwork-birdcoder-backend-sdk",
+  "sdkName": "sdkwork-birdcoder-backend-sdk",
+  "packageName": "@sdkwork/birdcoder-backend-sdk",
+  "transportPackageName": "sdkwork-birdcoder-backend-sdk-generated-typescript",
+  "typescript": {
+    "composedRoot": "sdkwork-birdcoder-backend-sdk-typescript",
+    "composedEntry": "sdkwork-birdcoder-backend-sdk-typescript/src/index.ts",
+    "transportRoot": "sdkwork-birdcoder-backend-sdk-typescript/generated/server-openapi",
+    "transportEntry": "sdkwork-birdcoder-backend-sdk-typescript/generated/server-openapi/src/index.ts"
+  },
+  "workspace": "sdkwork-birdcoder-backend-sdk",
+  "title": "SDKWork BirdCoder Backend API SDK",
+  "apiVersion": "0.1.0",
+  "openapiVersion": "3.1.0",
+  "authoritySpec": "openapi/sdkwork-birdcoder-backend-api.openapi.json",
+  "generationInputSpec": "openapi/sdkwork-birdcoder-backend-api.sdkgen.json",
+  "derivedSpecs": {
+    "default": "openapi/sdkwork-birdcoder-backend-api.sdkgen.json"
+  },
+  "sdkOwner": "sdkwork-birdcoder",
+  "apiAuthority": "sdkwork-birdcoder-backend-api",
+  "discoverySurface": {
+    "sdkTarget": "backend",
+    "apiPrefix": "/backend/v3/api",
+    "schemaUrl": "/backend/v3/openapi.json",
+    "generatedProtocols": [
+      "http-openapi"
+    ],
+    "manualTransports": []
+  },
+  "sdkDependencies": [
+    {
+      "workspace": "sdkwork-iam-backend-sdk",
+      "role": "appbase-backend-capability",
+      "required": true,
+      "dependencyMode": "consumer-sdk",
+      "apiPrefix": "/backend/v3/api",
+      "apiAuthority": "sdkwork-iam-backend-api",
+      "generatedTransportImportPolicy": "forbidden",
+      "packageByLanguage": {
+        "typescript": "@sdkwork/iam-backend-sdk",
+        "rust": "sdkwork-iam-backend-sdk"
+      }
+    }
+  ],
+  "metadata": {
+    "managedBy": "sdkwork-birdcoder-sdkwork-sdk-migration",
+    "standardVersion": "2026-06-06"
+  },
+  "languages": [
+    {
+      "language": "typescript",
+      "workspace": "sdkwork-birdcoder-backend-sdk-typescript",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "packagePath": "sdkwork-birdcoder-backend-sdk-typescript/generated/server-openapi",
+      "manifestPath": "sdkwork-birdcoder-backend-sdk-typescript/generated/server-openapi/package.json",
+      "version": "0.1.0",
+      "description": "Generator-owned TypeScript transport SDK for the SDKWork BirdCoder Backend API.",
+      "generatedPath": "sdkwork-birdcoder-backend-sdk-typescript/generated/server-openapi",
+      "consumerPackageName": "@sdkwork/birdcoder-backend-sdk",
+      "transportPackageName": "sdkwork-birdcoder-backend-sdk-generated-typescript"
+    },
+    {
+      "language": "rust",
+      "workspace": "sdkwork-birdcoder-backend-sdk-rust",
+      "generationState": "materialized",
+      "releaseState": "not_published",
+      "packagePath": "sdkwork-birdcoder-backend-sdk-rust/generated/server-openapi",
+      "manifestPath": "sdkwork-birdcoder-backend-sdk-rust/generated/server-openapi/Cargo.toml",
+      "name": "sdkwork-birdcoder-backend-sdk",
+      "version": "0.1.0",
+      "description": "Generator-owned Rust transport SDK for the SDKWork BirdCoder Backend API.",
+      "generatedPath": "sdkwork-birdcoder-backend-sdk-rust/generated/server-openapi"
+    }
+  ]
+}

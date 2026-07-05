@@ -22,6 +22,27 @@ const CANONICAL_GENERATOR_ENTRYPOINT = path.resolve(
 );
 const SUPPORTED_LANGUAGES = new Set(['typescript', 'rust']);
 
+function resolveTransportPackageName(sdkFamilyStem) {
+  return `${sdkFamilyStem}-generated-typescript`;
+}
+
+function resolveConsumerPackageName(sdkFamilyStem) {
+  const token = sdkFamilyStem.startsWith('sdkwork-')
+    ? sdkFamilyStem.slice('sdkwork-'.length)
+    : sdkFamilyStem;
+  return `@sdkwork/${token}`;
+}
+
+function resolveSurfacePackageNames(surface) {
+  const sdkFamilyStem = String(surface.sdkFamily ?? '').trim();
+  return {
+    consumerPackageName: String(surface.consumerPackageName ?? surface.packageName ?? '').trim()
+      || resolveConsumerPackageName(sdkFamilyStem),
+    transportPackageName: String(surface.transportPackageName ?? '').trim()
+      || resolveTransportPackageName(sdkFamilyStem),
+  };
+}
+
 function normalizeRelativePath(value) {
   return String(value ?? '').replace(/\\/gu, '/');
 }
@@ -146,13 +167,16 @@ function createGenerationPlans(rootDir, options) {
       return [...requestedLanguages].map((language) => {
         const languageEntry = languages.get(language);
         assert.ok(languageEntry, `${surface.sdkFamily} must declare ${language} in .sdkwork-assembly.json.`);
+        const names = resolveSurfacePackageNames(surface);
         return {
           apiPrefix: surface.apiPrefix,
           fixedSdkVersion: String(languageEntry.version ?? familyAssembly.apiVersion ?? surface.version ?? '0.1.0'),
           input: path.join(rootDir, ...familyRoot.split('/'), familyAssembly.generationInputSpec),
           language,
           output: path.join(rootDir, ...resolveLanguageOutput(familyRoot, surface.sdkFamily, language).split('/')),
-          packageName: languageEntry.name,
+          packageName: names.consumerPackageName,
+          consumerPackageName: names.consumerPackageName,
+          transportPackageName: names.transportPackageName,
           sdkName: surface.sdkFamily,
           surface: surface.surface,
         };
@@ -179,7 +203,7 @@ function renderCommand(sdkgenEntrypoint, plan, options) {
     '--sdk-name',
     plan.sdkName,
     '--package-name',
-    plan.packageName,
+    plan.consumerPackageName ?? plan.packageName,
     '--fixed-sdk-version',
     plan.fixedSdkVersion,
     '--standard-profile',

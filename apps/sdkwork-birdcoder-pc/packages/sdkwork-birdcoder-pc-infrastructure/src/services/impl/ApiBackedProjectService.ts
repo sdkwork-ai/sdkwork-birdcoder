@@ -35,6 +35,7 @@ import { CurrentUserScopeResolver } from '../currentUserScope.ts';
 import type {
   BirdCoderCodingSessionMirrorSnapshot,
   BirdCoderProjectMirrorSnapshot,
+  BirdCoderServiceListPagination,
   CreateCodingSessionOptions,
   CreateCodingSessionMessageInput,
   CreateProjectOptions,
@@ -1631,10 +1632,13 @@ export class ApiBackedProjectService implements IProjectService {
   private buildProjectsListCacheKey(
     workspaceId?: string,
     userId?: string,
+    pagination?: BirdCoderServiceListPagination,
   ): string {
     return this.buildCacheKey('getProjects', {
       userId: userId ?? null,
       workspaceId: workspaceId?.trim() || null,
+      limit: pagination?.limit ?? null,
+      offset: pagination?.offset ?? null,
     });
   }
 
@@ -2164,11 +2168,14 @@ export class ApiBackedProjectService implements IProjectService {
   private async listAuthoritativeProjectSummaries(
     workspaceId?: string,
     userId?: string,
+    pagination?: BirdCoderServiceListPagination,
   ): Promise<BirdCoderProjectSummary[]> {
     return retryBirdCoderTransientApiTask(() =>
       this.appClient.listProjects({
         userId: userId ?? undefined,
         workspaceId,
+        limit: pagination?.limit,
+        offset: pagination?.offset,
       }),
     );
   }
@@ -2293,13 +2300,18 @@ export class ApiBackedProjectService implements IProjectService {
     );
   }
 
-  async getProjects(workspaceId?: string): Promise<BirdCoderProject[]> {
+  async getProjects(
+    workspaceId?: string,
+    pagination?: BirdCoderServiceListPagination,
+  ): Promise<BirdCoderProject[]> {
     const normalizedWorkspaceId = workspaceId?.trim() || undefined;
     const currentUserId = await this.resolveCurrentUserId();
     return this.readThroughCache(
       this.buildCacheKey('getProjects', {
         userId: currentUserId ?? null,
         workspaceId: normalizedWorkspaceId ?? null,
+        limit: pagination?.limit ?? null,
+        offset: pagination?.offset ?? null,
       }),
       PROJECT_LIST_CACHE_TTL_MS,
       async () => {
@@ -2316,6 +2328,7 @@ export class ApiBackedProjectService implements IProjectService {
           projectSummaries = await this.listAuthoritativeProjectSummaries(
             normalizedWorkspaceId,
             currentUserId,
+            pagination,
           );
         } catch (error) {
           if (userScopedLocalProjects.length > 0 && isBirdCoderTransientApiError(error)) {
@@ -2378,6 +2391,7 @@ export class ApiBackedProjectService implements IProjectService {
           projectSummaries = await this.listAuthoritativeProjectSummaries(
             normalizedWorkspaceId,
             currentUserId,
+            pagination,
           );
           visibleProjectSummaries = projectSummaries.filter(
             (projectSummary) =>

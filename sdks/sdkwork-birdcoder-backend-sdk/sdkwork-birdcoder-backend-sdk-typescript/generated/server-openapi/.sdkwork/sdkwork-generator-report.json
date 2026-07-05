@@ -10,172 +10,37 @@
   },
   "status": "ok",
   "mode": "apply",
-  "hasChanges": true,
-  "hasDestructiveChanges": true,
-  "changeFingerprint": "c29580d23cfd4f1ecd99f04f2dca474931698937aa137536d98fb362822afea9",
+  "hasChanges": false,
+  "hasDestructiveChanges": false,
+  "changeFingerprint": "56c1c08a4a11d625ad7022489f6e6c04250175d895193ab2d67c557b673d0e3b",
   "changeImpact": {
     "schemaVersion": 1,
-    "areas": [
-      "api-surface",
-      "models",
-      "runtime"
-    ],
-    "details": [
-      {
-        "area": "api-surface",
-        "paths": [
-          "src/api/iam.ts",
-          "src/api/platform.ts",
-          "src/http/client.ts"
-        ]
-      },
-      {
-        "area": "models",
-        "paths": [
-          "src/types/bird-coder-api-list-meta.ts",
-          "src/types/bird-coder-api-meta.ts",
-          "src/types/bird-coder-api-problem-details.ts",
-          "src/types/bird-coder-boolean-success-envelope.ts",
-          "src/types/bird-coder-deleted-resource-envelope.ts",
-          "src/types/bird-coder-deployment-record-summary-list-envelope.ts",
-          "src/types/bird-coder-deployment-target-summary-list-envelope.ts",
-          "src/types/bird-coder-iam-api-key-summary-list-envelope.ts",
-          "src/types/bird-coder-iam-audit-event-summary-list-envelope.ts",
-          "src/types/bird-coder-iam-organization-member-summary-envelope.ts",
-          "src/types/bird-coder-iam-organization-summary-envelope.ts",
-          "src/types/bird-coder-iam-permission-summary-envelope.ts",
-          "src/types/bird-coder-iam-permission-summary-list-envelope.ts",
-          "src/types/bird-coder-iam-policy-summary-envelope.ts",
-          "src/types/bird-coder-iam-policy-summary-list-envelope.ts",
-          "src/types/bird-coder-iam-role-permission-summary-envelope.ts",
-          "src/types/bird-coder-iam-role-permission-summary-list-envelope.ts",
-          "src/types/bird-coder-iam-role-summary-envelope.ts",
-          "src/types/bird-coder-iam-role-summary-list-envelope.ts",
-          "src/types/bird-coder-iam-security-event-summary-list-envelope.ts",
-          "src/types/bird-coder-iam-tenant-member-summary-envelope.ts",
-          "src/types/bird-coder-iam-tenant-member-summary-list-envelope.ts",
-          "src/types/bird-coder-iam-tenant-summary-envelope.ts",
-          "src/types/bird-coder-iam-tenant-summary-list-envelope.ts",
-          "src/types/bird-coder-iam-user-role-summary-envelope.ts",
-          "src/types/bird-coder-iam-user-summary-envelope.ts",
-          "src/types/bird-coder-iam-user-summary-list-envelope.ts",
-          "src/types/bird-coder-problem-envelope.ts",
-          "src/types/bird-coder-release-summary-list-envelope.ts",
-          "src/types/bird-coder-team-member-summary-list-envelope.ts",
-          "src/types/bird-coder-team-summary-list-envelope.ts",
-          "src/types/index.ts",
-          "src/types/page-info.ts",
-          "src/types/problem-detail.ts",
-          "src/types/sdk-work-api-response.ts"
-        ]
-      },
-      {
-        "area": "runtime",
-        "paths": [
-          "src/http/client.ts"
-        ]
-      }
-    ],
-    "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models, runtime. Verification is required."
+    "areas": [],
+    "details": [],
+    "requiresVerification": false,
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "high",
-    "nextAction": "verify",
+    "riskLevel": "low",
+    "nextAction": "skip",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "Changes have been applied. Run the required verification plan now.",
+    "summary": "No actionable changes were detected. No apply or verification step is required.",
     "reasons": [
-      "deleted-generated-files",
-      "manual-review-required",
-      "verification-required"
+      "no-actionable-changes"
     ]
   },
   "executionHandoff": {
     "schemaVersion": 1,
-    "summary": "Run the required verification commands now.",
-    "steps": [
-      {
-        "id": "verify-check",
-        "title": "Unified package check",
-        "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-typescript\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "typescript",
-          "--project-dir",
-          ".",
-          "--action",
-          "check"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action check"
-      },
-      {
-        "id": "verify-build",
-        "title": "Unified package build",
-        "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-typescript\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "typescript",
-          "--project-dir",
-          ".",
-          "--action",
-          "build"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action build"
-      }
-    ]
+    "summary": "No further commands are required.",
+    "steps": []
   },
   "verificationPlan": {
-    "shouldRun": true,
-    "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models, runtime. Verification is required. Run the required verification commands now against the generated SDK output.",
-    "steps": [
-      {
-        "id": "check",
-        "title": "Unified package check",
-        "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-typescript\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "typescript",
-          "--project-dir",
-          ".",
-          "--action",
-          "check"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action check"
-      },
-      {
-        "id": "build",
-        "title": "Unified package build",
-        "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-typescript\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "typescript",
-          "--project-dir",
-          ".",
-          "--action",
-          "build"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action build"
-      }
-    ]
+    "shouldRun": false,
+    "runPhase": "skip",
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
+    "steps": []
   },
   "sdk": {
     "name": "sdkwork-birdcoder-backend-sdk",
@@ -200,51 +65,15 @@
   "syncSummary": {
     "dryRun": false,
     "controlPlaneEnabled": true,
-    "writtenFiles": 34,
+    "writtenFiles": 0,
     "skippedScaffoldFiles": 2,
-    "skippedUnchangedGeneratedFiles": 57,
-    "deletedGeneratedFiles": 4,
+    "skippedUnchangedGeneratedFiles": 91,
+    "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "c29580d23cfd4f1ecd99f04f2dca474931698937aa137536d98fb362822afea9",
+    "changeFingerprint": "56c1c08a4a11d625ad7022489f6e6c04250175d895193ab2d67c557b673d0e3b",
     "changes": {
-      "createdGeneratedFiles": [
-        "src/types/page-info.ts",
-        "src/types/problem-detail.ts",
-        "src/types/sdk-work-api-response.ts"
-      ],
-      "updatedGeneratedFiles": [
-        "src/api/iam.ts",
-        "src/api/platform.ts",
-        "src/http/client.ts",
-        "src/types/bird-coder-boolean-success-envelope.ts",
-        "src/types/bird-coder-deleted-resource-envelope.ts",
-        "src/types/bird-coder-deployment-record-summary-list-envelope.ts",
-        "src/types/bird-coder-deployment-target-summary-list-envelope.ts",
-        "src/types/bird-coder-iam-api-key-summary-list-envelope.ts",
-        "src/types/bird-coder-iam-audit-event-summary-list-envelope.ts",
-        "src/types/bird-coder-iam-organization-member-summary-envelope.ts",
-        "src/types/bird-coder-iam-organization-summary-envelope.ts",
-        "src/types/bird-coder-iam-permission-summary-envelope.ts",
-        "src/types/bird-coder-iam-permission-summary-list-envelope.ts",
-        "src/types/bird-coder-iam-policy-summary-envelope.ts",
-        "src/types/bird-coder-iam-policy-summary-list-envelope.ts",
-        "src/types/bird-coder-iam-role-permission-summary-envelope.ts",
-        "src/types/bird-coder-iam-role-permission-summary-list-envelope.ts",
-        "src/types/bird-coder-iam-role-summary-envelope.ts",
-        "src/types/bird-coder-iam-role-summary-list-envelope.ts",
-        "src/types/bird-coder-iam-security-event-summary-list-envelope.ts",
-        "src/types/bird-coder-iam-tenant-member-summary-envelope.ts",
-        "src/types/bird-coder-iam-tenant-member-summary-list-envelope.ts",
-        "src/types/bird-coder-iam-tenant-summary-envelope.ts",
-        "src/types/bird-coder-iam-tenant-summary-list-envelope.ts",
-        "src/types/bird-coder-iam-user-role-summary-envelope.ts",
-        "src/types/bird-coder-iam-user-summary-envelope.ts",
-        "src/types/bird-coder-iam-user-summary-list-envelope.ts",
-        "src/types/bird-coder-release-summary-list-envelope.ts",
-        "src/types/bird-coder-team-member-summary-list-envelope.ts",
-        "src/types/bird-coder-team-summary-list-envelope.ts",
-        "src/types/index.ts"
-      ],
+      "createdGeneratedFiles": [],
+      "updatedGeneratedFiles": [],
       "unchangedGeneratedFiles": [
         "bin/publish-core.mjs",
         "bin/publish.ps1",
@@ -257,12 +86,16 @@
         "README.md",
         "sdkwork-sdk.json",
         "src/api/base.ts",
+        "src/api/iam.ts",
         "src/api/index.ts",
         "src/api/paths.ts",
+        "src/api/platform.ts",
         "src/auth/index.ts",
+        "src/http/client.ts",
         "src/http/index.ts",
         "src/index.ts",
         "src/sdk.ts",
+        "src/types/bird-coder-boolean-success-envelope.ts",
         "src/types/bird-coder-boolean-success-result.ts",
         "src/types/bird-coder-create-iam-organization-member-request.ts",
         "src/types/bird-coder-create-iam-organization-request.ts",
@@ -274,24 +107,50 @@
         "src/types/bird-coder-create-iam-tenant-request.ts",
         "src/types/bird-coder-create-iam-user-request.ts",
         "src/types/bird-coder-create-iam-user-role-request.ts",
+        "src/types/bird-coder-deleted-resource-envelope.ts",
         "src/types/bird-coder-deleted-resource-result.ts",
+        "src/types/bird-coder-deployment-record-summary-list-envelope.ts",
         "src/types/bird-coder-deployment-record-summary.ts",
+        "src/types/bird-coder-deployment-target-summary-list-envelope.ts",
         "src/types/bird-coder-deployment-target-summary.ts",
+        "src/types/bird-coder-iam-api-key-summary-list-envelope.ts",
         "src/types/bird-coder-iam-api-key-summary.ts",
+        "src/types/bird-coder-iam-audit-event-summary-list-envelope.ts",
         "src/types/bird-coder-iam-audit-event-summary.ts",
+        "src/types/bird-coder-iam-organization-member-summary-envelope.ts",
         "src/types/bird-coder-iam-organization-member-summary.ts",
+        "src/types/bird-coder-iam-organization-summary-envelope.ts",
         "src/types/bird-coder-iam-organization-summary.ts",
+        "src/types/bird-coder-iam-permission-summary-envelope.ts",
+        "src/types/bird-coder-iam-permission-summary-list-envelope.ts",
         "src/types/bird-coder-iam-permission-summary.ts",
+        "src/types/bird-coder-iam-policy-summary-envelope.ts",
+        "src/types/bird-coder-iam-policy-summary-list-envelope.ts",
         "src/types/bird-coder-iam-policy-summary.ts",
+        "src/types/bird-coder-iam-role-permission-summary-envelope.ts",
+        "src/types/bird-coder-iam-role-permission-summary-list-envelope.ts",
         "src/types/bird-coder-iam-role-permission-summary.ts",
+        "src/types/bird-coder-iam-role-summary-envelope.ts",
+        "src/types/bird-coder-iam-role-summary-list-envelope.ts",
         "src/types/bird-coder-iam-role-summary.ts",
+        "src/types/bird-coder-iam-security-event-summary-list-envelope.ts",
         "src/types/bird-coder-iam-security-event-summary.ts",
+        "src/types/bird-coder-iam-tenant-member-summary-envelope.ts",
+        "src/types/bird-coder-iam-tenant-member-summary-list-envelope.ts",
         "src/types/bird-coder-iam-tenant-member-summary.ts",
+        "src/types/bird-coder-iam-tenant-summary-envelope.ts",
+        "src/types/bird-coder-iam-tenant-summary-list-envelope.ts",
         "src/types/bird-coder-iam-tenant-summary.ts",
+        "src/types/bird-coder-iam-user-role-summary-envelope.ts",
         "src/types/bird-coder-iam-user-role-summary.ts",
+        "src/types/bird-coder-iam-user-summary-envelope.ts",
+        "src/types/bird-coder-iam-user-summary-list-envelope.ts",
         "src/types/bird-coder-iam-user-summary.ts",
+        "src/types/bird-coder-release-summary-list-envelope.ts",
         "src/types/bird-coder-release-summary.ts",
+        "src/types/bird-coder-team-member-summary-list-envelope.ts",
         "src/types/bird-coder-team-member-summary.ts",
+        "src/types/bird-coder-team-summary-list-envelope.ts",
         "src/types/bird-coder-team-summary.ts",
         "src/types/bird-coder-update-iam-organization-member-request.ts",
         "src/types/bird-coder-update-iam-organization-request.ts",
@@ -302,14 +161,13 @@
         "src/types/bird-coder-update-iam-tenant-request.ts",
         "src/types/bird-coder-update-iam-user-request.ts",
         "src/types/common.ts",
+        "src/types/index.ts",
+        "src/types/page-info.ts",
+        "src/types/problem-detail.ts",
+        "src/types/sdk-work-api-response.ts",
         "tsconfig.json"
       ],
-      "deletedGeneratedFiles": [
-        "src/types/bird-coder-api-list-meta.ts",
-        "src/types/bird-coder-api-meta.ts",
-        "src/types/bird-coder-api-problem-details.ts",
-        "src/types/bird-coder-problem-envelope.ts"
-      ],
+      "deletedGeneratedFiles": [],
       "scaffoldedFiles": [],
       "preservedScaffoldFiles": [
         "custom/build-runtime.mjs",
@@ -319,124 +177,26 @@
     },
     "impact": {
       "schemaVersion": 1,
-      "areas": [
-        "api-surface",
-        "models",
-        "runtime"
-      ],
-      "details": [
-        {
-          "area": "api-surface",
-          "paths": [
-            "src/api/iam.ts",
-            "src/api/platform.ts",
-            "src/http/client.ts"
-          ]
-        },
-        {
-          "area": "models",
-          "paths": [
-            "src/types/bird-coder-api-list-meta.ts",
-            "src/types/bird-coder-api-meta.ts",
-            "src/types/bird-coder-api-problem-details.ts",
-            "src/types/bird-coder-boolean-success-envelope.ts",
-            "src/types/bird-coder-deleted-resource-envelope.ts",
-            "src/types/bird-coder-deployment-record-summary-list-envelope.ts",
-            "src/types/bird-coder-deployment-target-summary-list-envelope.ts",
-            "src/types/bird-coder-iam-api-key-summary-list-envelope.ts",
-            "src/types/bird-coder-iam-audit-event-summary-list-envelope.ts",
-            "src/types/bird-coder-iam-organization-member-summary-envelope.ts",
-            "src/types/bird-coder-iam-organization-summary-envelope.ts",
-            "src/types/bird-coder-iam-permission-summary-envelope.ts",
-            "src/types/bird-coder-iam-permission-summary-list-envelope.ts",
-            "src/types/bird-coder-iam-policy-summary-envelope.ts",
-            "src/types/bird-coder-iam-policy-summary-list-envelope.ts",
-            "src/types/bird-coder-iam-role-permission-summary-envelope.ts",
-            "src/types/bird-coder-iam-role-permission-summary-list-envelope.ts",
-            "src/types/bird-coder-iam-role-summary-envelope.ts",
-            "src/types/bird-coder-iam-role-summary-list-envelope.ts",
-            "src/types/bird-coder-iam-security-event-summary-list-envelope.ts",
-            "src/types/bird-coder-iam-tenant-member-summary-envelope.ts",
-            "src/types/bird-coder-iam-tenant-member-summary-list-envelope.ts",
-            "src/types/bird-coder-iam-tenant-summary-envelope.ts",
-            "src/types/bird-coder-iam-tenant-summary-list-envelope.ts",
-            "src/types/bird-coder-iam-user-role-summary-envelope.ts",
-            "src/types/bird-coder-iam-user-summary-envelope.ts",
-            "src/types/bird-coder-iam-user-summary-list-envelope.ts",
-            "src/types/bird-coder-problem-envelope.ts",
-            "src/types/bird-coder-release-summary-list-envelope.ts",
-            "src/types/bird-coder-team-member-summary-list-envelope.ts",
-            "src/types/bird-coder-team-summary-list-envelope.ts",
-            "src/types/index.ts",
-            "src/types/page-info.ts",
-            "src/types/problem-detail.ts",
-            "src/types/sdk-work-api-response.ts"
-          ]
-        },
-        {
-          "area": "runtime",
-          "paths": [
-            "src/http/client.ts"
-          ]
-        }
-      ],
-      "requiresVerification": true,
-      "summary": "Detected impact areas: api-surface, models, runtime. Verification is required."
+      "areas": [],
+      "details": [],
+      "requiresVerification": false,
+      "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
     },
     "verificationPlan": {
-      "shouldRun": true,
-      "runPhase": "now",
-      "summary": "Detected impact areas: api-surface, models, runtime. Verification is required. Run the required verification commands now against the generated SDK output.",
-      "steps": [
-        {
-          "id": "check",
-          "title": "Unified package check",
-          "required": true,
-          "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, runtime.",
-          "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-typescript\\generated\\server-openapi",
-          "command": "node",
-          "args": [
-            "./bin/publish-core.mjs",
-            "--language",
-            "typescript",
-            "--project-dir",
-            ".",
-            "--action",
-            "check"
-          ],
-          "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action check"
-        },
-        {
-          "id": "build",
-          "title": "Unified package build",
-          "required": true,
-          "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, runtime.",
-          "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-typescript\\generated\\server-openapi",
-          "command": "node",
-          "args": [
-            "./bin/publish-core.mjs",
-            "--language",
-            "typescript",
-            "--project-dir",
-            ".",
-            "--action",
-            "build"
-          ],
-          "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action build"
-        }
-      ]
+      "shouldRun": false,
+      "runPhase": "skip",
+      "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
+      "steps": []
     },
     "executionDecision": {
       "schemaVersion": 1,
-      "riskLevel": "high",
-      "nextAction": "verify",
+      "riskLevel": "low",
+      "nextAction": "skip",
       "requiresManualReview": false,
       "applyRequiresExpectedFingerprint": false,
-      "summary": "Changes have been applied. Run the required verification plan now.",
+      "summary": "No actionable changes were detected. No apply or verification step is required.",
       "reasons": [
-        "deleted-generated-files",
-        "manual-review-required",
-        "verification-required"
+        "no-actionable-changes"
       ]
     },
     "backedUpFiles": [],

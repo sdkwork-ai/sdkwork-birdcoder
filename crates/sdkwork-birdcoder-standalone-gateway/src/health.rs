@@ -122,15 +122,6 @@ async fn check_iam_database_connectivity() -> bool {
     }
 }
 
-/// IAM database readiness read from the singleton pool. No new connections are
-/// created and no database queries are issued.
-fn iam_database_readiness() -> bool {
-    match IAM_DATABASE_POOL.get() {
-        None | Some(None) => true,
-        Some(Some(pool)) => pool_is_open(pool),
-    }
-}
-
 fn pool_is_open(pool: &DatabasePool) -> bool {
     match pool {
         DatabasePool::Sqlite(inner, _) => !inner.is_closed(),

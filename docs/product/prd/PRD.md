@@ -68,4 +68,3 @@ parity on mobile, admin/console product shells beyond configuration stubs.
 ## 9. Open Questions
 
 - iOS Capacitor headless assemble smoke timing on macOS CI runners
-- Further splitting the `openApiBuilder.ts` module (4672 lines, largest remaining pc-server module after the 2026-06-27 extraction of `index.ts` into 10 owned modules)

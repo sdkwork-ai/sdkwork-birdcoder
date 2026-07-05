@@ -50,6 +50,8 @@ const excludedRelativePathPatterns = [
   /(^|\/)generated(\/|$)/u,
   /(^|\/)(?:package-lock|pnpm-lock)\.(?:json|ya?ml)$/u,
   /^scripts\/technical-debt-contract\.test\.mjs$/u,
+  /^apps\/sdkwork-birdcoder-pc\/public\/data\/sdkwork-models(\/|$)/u,
+  /^apps\/sdkwork-birdcoder-pc\/sdks(\/|$)/u,
 ];
 
 const debtTokenPattern = /depreacted|@deprecated|\bdeprecated\b/iu;
@@ -72,6 +74,12 @@ const allowedDebtTokenLines = [
   },
   {
     relativePath: 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/index.ts',
+    pattern: /BIRDCODER_MODEL_STATUSES = \['active', 'preview', 'deprecated', 'disabled'\]/u,
+    reason: 'model catalog exposes deprecated as a business lifecycle status',
+  },
+  {
+    relativePath:
+      'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server/src/serverConstants.ts',
     pattern: /BIRDCODER_MODEL_STATUSES = \['active', 'preview', 'deprecated', 'disabled'\]/u,
     reason: 'model catalog exposes deprecated as a business lifecycle status',
   },

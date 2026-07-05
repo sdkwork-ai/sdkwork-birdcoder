@@ -368,6 +368,8 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:database-framework-standard',
   'node scripts/run-workspace-package-script.mjs . check:utils-standard',
   'node scripts/run-workspace-package-script.mjs . check:drive-standard',
+  'node scripts/run-workspace-package-script.mjs . check:api-response-envelope',
+  'node scripts/run-workspace-package-script.mjs . check:app-composition',
   'node scripts/run-workspace-package-script.mjs . check:dependency-management',
   'node scripts/run-workspace-package-script.mjs . check:sdkwork-shared-package-boundary',
   'node scripts/run-workspace-package-script.mjs . check:iam-standard',
@@ -411,6 +413,7 @@ assert.deepEqual(qualityFastRunnerModule.QUALITY_FAST_CHECK_COMMANDS, [
   'node scripts/run-workspace-package-script.mjs . check:ci-flow',
 ]);
 assert.deepEqual(qualityStandardRunnerModule.QUALITY_STANDARD_CHECK_COMMANDS, [
+  'node scripts/run-workspace-package-script.mjs . check:quality:mobile',
   'node scripts/run-workspace-package-script.mjs . check:desktop',
   'node scripts/run-workspace-package-script.mjs . check:server',
   'node scripts/run-workspace-package-script.mjs . check:web-vite-build',

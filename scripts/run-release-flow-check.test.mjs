@@ -42,7 +42,7 @@ assert.equal(
   'release-flow runner must execute the release docs API/SDK standard contract before downstream lanes',
 );
 assert.equal(
-  RELEASE_FLOW_CHECK_COMMANDS.includes('node --experimental-strip-types scripts/coding-server-api-spec-path-contract.test.ts'),
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/run-local-tsx.mjs scripts/coding-server-api-spec-path-contract.test.ts'),
   true,
   'release-flow runner must execute the coding-server API_SPEC path contract before downstream lanes',
 );
