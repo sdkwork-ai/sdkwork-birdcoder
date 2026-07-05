@@ -11,8 +11,14 @@ import {
   type BirdCoderUpdateProjectRequest as GeneratedBirdCoderUpdateProjectRequest,
   type BirdCoderUpdateWorkspaceRequest as GeneratedBirdCoderUpdateWorkspaceRequest,
   type CollaborationWorkspaceTeamsListQuery,
+  type ContentDocumentsListQuery,
   type IntelligenceCodingSessionsListQuery,
   type PlatformProjectsListQuery,
+  type PlatformDeploymentsListQuery,
+  type PlatformProjectsCollaboratorsListQuery,
+  type PlatformProjectsDeploymentTargetsListQuery,
+  type IamWorkspacesMembersListQuery,
+  type TemplatesAppTemplatesListQuery,
   type PlatformWorkspacesListQuery,
   type RuntimeNativeSessionsListQuery,
   type RuntimeNativeSessionsRetrieveQuery,
@@ -175,7 +181,7 @@ export interface BirdCoderAppSdkApiClient {
     packageId: string,
     request: BirdCoderInstallSkillPackageRequest,
   ): Promise<BirdCoderSkillInstallationSummary>;
-  listAppTemplates(): Promise<BirdCoderAppTemplateSummary[]>;
+  listAppTemplates(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderAppTemplateSummary[]>;
   listCodingSessionArtifacts(codingSessionId: string): Promise<BirdCoderCodingSessionArtifact[]>;
   listCodingSessionCheckpoints(
     codingSessionId: string,
@@ -184,8 +190,11 @@ export interface BirdCoderAppSdkApiClient {
   listCodingSessions(
     request?: BirdCoderListCodingSessionsRequest,
   ): Promise<BirdCoderCodingSessionSummary[]>;
-  listDeployments(): Promise<BirdCoderDeploymentRecordSummary[]>;
-  listDeploymentTargets(projectId: string): Promise<BirdCoderDeploymentTargetSummary[]>;
+  listDeployments(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderDeploymentRecordSummary[]>;
+  listDeploymentTargets(
+    projectId: string,
+    options?: BirdCoderWorkspaceScopedListRequest,
+  ): Promise<BirdCoderDeploymentTargetSummary[]>;
   listDocuments(options?: { projectId?: string; limit?: number; offset?: number }): Promise<BirdCoderProjectDocumentSummary[]>;
   listEngines(): Promise<BirdCoderEngineDescriptor[]>;
   listModels(): Promise<BirdCoderModelCatalogEntry[]>;
@@ -193,12 +202,18 @@ export interface BirdCoderAppSdkApiClient {
   listNativeSessions(
     request?: BirdCoderListNativeSessionsRequest,
   ): Promise<BirdCoderNativeSessionSummary[]>;
-  listProjectCollaborators(projectId: string): Promise<BirdCoderProjectCollaboratorSummary[]>;
+  listProjectCollaborators(
+    projectId: string,
+    options?: BirdCoderWorkspaceScopedListRequest,
+  ): Promise<BirdCoderProjectCollaboratorSummary[]>;
   listProjects(options?: BirdCoderProjectListRequest): Promise<BirdCoderProjectSummary[]>;
   listRoutes(): Promise<BirdCoderApiRouteCatalogEntry[]>;
   listSkillPackages(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderSkillPackageSummary[]>;
   listTeams(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderTeamSummary[]>;
-  listWorkspaceMembers(workspaceId: string): Promise<BirdCoderWorkspaceMemberSummary[]>;
+  listWorkspaceMembers(
+    workspaceId: string,
+    options?: BirdCoderWorkspaceScopedListRequest,
+  ): Promise<BirdCoderWorkspaceMemberSummary[]>;
   listWorkspaces(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderWorkspaceSummary[]>;
   publishProject(
     projectId: string,
@@ -380,6 +395,27 @@ const DEFAULT_SDK_LIST_LIMIT = 20;
 
 function withDefaultListLimit<T extends { limit?: number }>(query: T): T {
   return typeof query.limit === 'number' ? query : { ...query, limit: DEFAULT_SDK_LIST_LIMIT };
+}
+
+function toGeneratedOffsetLimitQuery(
+  options: BirdCoderWorkspaceScopedListRequest = {},
+): { limit?: number; offset?: number } {
+  const scoped = withDefaultListLimit(options);
+  return {
+    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
+    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+  };
+}
+
+function toGeneratedDocumentsQuery(
+  options: { projectId?: string; limit?: number; offset?: number } = {},
+): ContentDocumentsListQuery {
+  const scoped = withDefaultListLimit(options);
+  return {
+    ...(options.projectId ? { projectId: options.projectId } : {}),
+    limit: scoped.limit,
+    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+  };
 }
 
 function toGeneratedCodeEngineKey(value: string | undefined): GeneratedCodeEngineKey | undefined {
@@ -998,20 +1034,22 @@ export function createBirdCoderAppSdkApiClient({
       return readData(await client.platform.projects.git.worktreePrune.create({ projectId }));
     },
     async listDocuments(options = {}) {
-      const scoped = withDefaultListLimit(options);
+      return readItems(await client.content.documents.list(toGeneratedDocumentsQuery(options)));
+    },
+    async listDeployments(options = {}) {
       return readItems(
-        await client.content.documents.list({
-          ...(options.projectId ? { projectId: options.projectId } : {}),
-          limit: scoped.limit,
-          ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
-        }),
+        await client.platform.deployments.list(
+          toGeneratedOffsetLimitQuery(options) as PlatformDeploymentsListQuery,
+        ),
       );
     },
-    async listDeployments() {
-      return readItems(await client.platform.deployments.list());
-    },
-    async listDeploymentTargets(projectId) {
-      return readItems(await client.platform.projects.deploymentTargets.list({ projectId }));
+    async listDeploymentTargets(projectId, options = {}) {
+      return readItems(
+        await client.platform.projects.deploymentTargets.list(
+          { projectId },
+          toGeneratedOffsetLimitQuery(options) as PlatformProjectsDeploymentTargetsListQuery,
+        ),
+      );
     },
     async publishProject(projectId, request) {
       return readData(await client.platform.projects.publish.create({ projectId }, request));
@@ -1019,14 +1057,24 @@ export function createBirdCoderAppSdkApiClient({
     async listTeams(options = {}) {
       return readItems(await client.collaboration.workspaceTeams.list(toGeneratedWorkspaceTeamQuery(options)));
     },
-    async listWorkspaceMembers(workspaceId) {
-      return readItems(await client.iam.workspaces.members.list({ workspaceId }));
+    async listWorkspaceMembers(workspaceId, options = {}) {
+      return readItems(
+        await client.iam.workspaces.members.list(
+          { workspaceId },
+          toGeneratedOffsetLimitQuery(options) as IamWorkspacesMembersListQuery,
+        ),
+      );
     },
     async upsertWorkspaceMember(workspaceId, request) {
       return readData(await client.iam.workspaces.members.upsert({ workspaceId }, request));
     },
-    async listProjectCollaborators(projectId) {
-      return readItems(await client.platform.projects.collaborators.list({ projectId }));
+    async listProjectCollaborators(projectId, options = {}) {
+      return readItems(
+        await client.platform.projects.collaborators.list(
+          { projectId },
+          toGeneratedOffsetLimitQuery(options) as PlatformProjectsCollaboratorsListQuery,
+        ),
+      );
     },
     async upsertProjectCollaborator(projectId, request) {
       return readData(await client.platform.projects.collaborators.upsert({ projectId }, request));
@@ -1037,8 +1085,12 @@ export function createBirdCoderAppSdkApiClient({
     async installSkillPackage(packageId, request) {
       return readData(await client.skills.skillPackages.installations.create({ packageId }, request));
     },
-    async listAppTemplates() {
-      return readItems(await client.templates.appTemplates.list());
+    async listAppTemplates(options = {}) {
+      return readItems(
+        await client.templates.appTemplates.list(
+          toGeneratedOffsetLimitQuery(options) as TemplatesAppTemplatesListQuery,
+        ),
+      );
     },
   };
 }

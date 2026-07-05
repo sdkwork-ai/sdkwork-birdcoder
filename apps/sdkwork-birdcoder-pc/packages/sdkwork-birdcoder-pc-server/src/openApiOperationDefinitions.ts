@@ -1132,6 +1132,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'documents.list': {
+      parameters: [projectIdParameter, limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Project documents returned successfully.',

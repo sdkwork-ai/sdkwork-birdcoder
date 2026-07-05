@@ -681,6 +681,11 @@ export interface PlatformProjectsDeploymentTargetsListPathParams {
   projectId: string;
 }
 
+export interface PlatformProjectsDeploymentTargetsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
+}
+
 export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
   {
     "key": "iam.apiKeys.list",

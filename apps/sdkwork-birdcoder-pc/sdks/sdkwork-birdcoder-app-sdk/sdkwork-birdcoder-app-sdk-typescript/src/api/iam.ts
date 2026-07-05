@@ -8,6 +8,7 @@ import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 type IamWorkspacesMembersListPathParams = Types.IamWorkspacesMembersListPathParams;
+type IamWorkspacesMembersListQuery = Types.IamWorkspacesMembersListQuery;
 type IamWorkspacesMembersUpsertPathParams = Types.IamWorkspacesMembersUpsertPathParams;
 
 export interface IamApi {
@@ -31,7 +32,7 @@ export interface IamApi {
   };
   workspaces: {
     members: {
-      list(pathParams: IamWorkspacesMembersListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderWorkspaceMemberSummaryListEnvelope>;
+      list(pathParams: IamWorkspacesMembersListPathParams, query?: IamWorkspacesMembersListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderWorkspaceMemberSummaryListEnvelope>;
       upsert(pathParams: IamWorkspacesMembersUpsertPathParams, body: Types.BirdCoderUpsertWorkspaceMemberRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderWorkspaceMemberSummaryEnvelope>;
     };
   };
@@ -71,8 +72,8 @@ export function createIamApi(requestOperation: BirdcoderSdkRequestOperation): Ia
     },
     workspaces: {
       members: {
-        list(pathParams: IamWorkspacesMembersListPathParams, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderWorkspaceMemberSummaryListEnvelope>("iam.workspaces.members.list", { pathParams }, options);
+        list(pathParams: IamWorkspacesMembersListPathParams, query: IamWorkspacesMembersListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderWorkspaceMemberSummaryListEnvelope>("iam.workspaces.members.list", { pathParams, query }, options);
         },
         upsert(pathParams: IamWorkspacesMembersUpsertPathParams, body: Types.BirdCoderUpsertWorkspaceMemberRequest, options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<Types.BirdCoderWorkspaceMemberSummaryEnvelope>("iam.workspaces.members.upsert", { pathParams, body }, options);

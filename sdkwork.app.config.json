@@ -315,11 +315,11 @@
     "standardOwner": "sdkwork-platform",
     "initializedAt": "2026-05-07T00:00:00Z",
     "preLaunch": true,
-    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-ci-governance-wired-prelaunch-artifacts-pending-manifest-honesty-corrected-pagination-remediation-complete-secure-storage-remediation-complete-database-contract-aligned-tauri-capability-differentiated",
-    "commercialReadiness": {
-      "pcPrivateBeta": "openapi-161-operations-iam-federation-teams-chat-commerce-aligned-prelaunch-pagination-remediation-complete-tauri-capability-differentiated-database-contract-aligned",
-      "enterpriseK8s": "postgresql-ha-backup-template-ci-smoke-iam-db-health-ping-aligned-prelaunch",
-      "saasPublicCloud": "governance-regression-release-rehearsal-openapi-complete-prelaunch-artifacts-pending-payment-gateway-pending",
+      "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-ci-governance-wired-prelaunch-artifacts-pending-dual-engine-sqlx-pagination-hardening-complete-tauri-graceful-shutdown-complete",
+      "commercialReadiness": {
+        "pcPrivateBeta": "openapi-161-operations-iam-federation-teams-chat-commerce-aligned-dual-engine-anypool-pagination-sdk-clients-hardened",
+        "enterpriseK8s": "postgresql-ha-backup-template-liveness-readiness-split-redis-rate-limit-ready-prelaunch",
+        "saasPublicCloud": "governance-regression-release-rehearsal-openapi-complete-prelaunch-artifacts-pending-payment-gateway-pending",
       "mobileProductParity": "h5-flutter-chat-api-ci-smoke-capacitor-sync-android-assemble-aligned-prelaunch-secure-storage-remediation-complete",
       "manifestHonesty": "root-1-shared-package-pc-h5-flutter-draft-prelaunch-contract-gated-honest-numbers-placeholder-packages-marked",
       "releaseGovernanceCI": "sbom-cosign-trivy-macos-signing-checksum-workflow-wired-pending-release-validation"

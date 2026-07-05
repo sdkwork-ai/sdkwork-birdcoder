@@ -62,7 +62,8 @@ import {
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import { resolveRequiredCodingSessionSelection } from './codingSessionSelection.ts';
 import { createBirdCoderLocalServerRequestId } from './localServerRequestId.ts';
-import { randomString, paginateItems } from '@sdkwork/utils';
+import { randomString } from '@sdkwork/utils/id';
+import { paginateItems } from '@sdkwork/utils/pagination';
 
 export interface CreateBirdCoderInProcessAppRuntimeTransportOptions {
   hostMode?: BirdCoderHostMode;

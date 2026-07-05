@@ -1703,8 +1703,19 @@ export interface CommercePaymentsRetrievePathParams {
   paymentId: string;
 }
 
+export interface ContentDocumentsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  projectId?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface IamWorkspacesMembersListPathParams {
   workspaceId: string;
+}
+
+export interface IamWorkspacesMembersListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
 }
 
 export interface IamWorkspacesMembersUpsertPathParams {
@@ -1787,8 +1798,18 @@ export interface OauthDeviceAuthorizationsSessionExchangesCreatePathParams {
   deviceAuthorizationId: string;
 }
 
+export interface PlatformDeploymentsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
+}
+
 export interface PlatformProjectsCollaboratorsListPathParams {
   projectId: string;
+}
+
+export interface PlatformProjectsCollaboratorsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
 }
 
 export interface PlatformProjectsCollaboratorsUpsertPathParams {
@@ -1801,6 +1822,11 @@ export interface PlatformProjectsDeletePathParams {
 
 export interface PlatformProjectsDeploymentTargetsListPathParams {
   projectId: string;
+}
+
+export interface PlatformProjectsDeploymentTargetsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
 }
 
 export interface PlatformProjectsGitBranchesCreatePathParams {
@@ -1930,6 +1956,11 @@ export interface SystemChatConversationsRetrievePathParams {
 
 export interface SystemOperationsRetrievePathParams {
   operationId: string;
+}
+
+export interface TemplatesAppTemplatesListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
 }
 
 export const BIRDCODER_APP_SDK_OPERATIONS = [

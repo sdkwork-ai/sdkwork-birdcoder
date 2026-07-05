@@ -7,19 +7,19 @@ import type {
 import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
-
+type TemplatesAppTemplatesListQuery = Types.TemplatesAppTemplatesListQuery;
 
 export interface TemplatesApi {
   appTemplates: {
-    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderAppTemplateSummaryListEnvelope>;
+    list(query?: TemplatesAppTemplatesListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderAppTemplateSummaryListEnvelope>;
   };
 }
 
 export function createTemplatesApi(requestOperation: BirdcoderSdkRequestOperation): TemplatesApi {
   return {
     appTemplates: {
-      list(options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderAppTemplateSummaryListEnvelope>("templates.appTemplates.list", {}, options);
+      list(query: TemplatesAppTemplatesListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderAppTemplateSummaryListEnvelope>("templates.appTemplates.list", { query }, options);
       }
     }
   };

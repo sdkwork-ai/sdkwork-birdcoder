@@ -333,8 +333,13 @@ assert.equal(
 );
 assert.equal(
   tauriTestConfig.app.windows[0].label,
-  'main',
-  'Desktop Tauri test config must assign the test main window the same explicit "main" label used in development mode.',
+  'main-test',
+  'Desktop Tauri test config must use a distinct "main-test" window label so test capabilities stay least-privilege.',
+);
+assert.match(
+  fs.readFileSync(path.join(path.dirname(desktopCapabilityPath), 'test.toml'), 'utf8'),
+  /windows = \["main-test"\]/,
+  'Desktop Tauri test capability must target the main-test window label.',
 );
 assert.equal(
   tauriConfig.plugins?.shell?.open,

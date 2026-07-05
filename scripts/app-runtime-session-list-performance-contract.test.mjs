@@ -85,6 +85,12 @@ assert.match(
   'App runtime session listing must append matching sessions directly to the collected page source.',
 );
 
+assert.match(
+  collectCodingSessionsSource,
+  /MAX_COLLECTED_CODING_SESSIONS/,
+  'App runtime session listing must cap collected sessions to prevent unbounded memory growth.',
+);
+
 assert.doesNotMatch(
   collectCodingSessionsSource,
   /\.flatMap\(/,

@@ -32,14 +32,12 @@ pub fn normalize_any_placeholders(template: &str) -> String {
     let mut out = String::with_capacity(template.len());
     let mut chars = template.chars().peekable();
     while let Some(ch) = chars.next() {
-        if ch == '?' {
-            if let Some(&next) = chars.peek() {
-                if next.is_ascii_digit() {
-                    while chars.next().is_some_and(|c| c.is_ascii_digit()) {}
-                    out.push('?');
-                    continue;
-                }
+        if ch == '?' && chars.peek().is_some_and(|next| next.is_ascii_digit()) {
+            while chars.peek().is_some_and(|next| next.is_ascii_digit()) {
+                chars.next();
             }
+            out.push('?');
+            continue;
         }
         out.push(ch);
     }

@@ -8,6 +8,7 @@ import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 type PlatformProjectsDeploymentTargetsListPathParams = Types.PlatformProjectsDeploymentTargetsListPathParams;
+type PlatformProjectsDeploymentTargetsListQuery = Types.PlatformProjectsDeploymentTargetsListQuery;
 
 export interface PlatformApi {
   deploymentGovernance: {
@@ -15,7 +16,7 @@ export interface PlatformApi {
   };
   projects: {
     deploymentTargets: {
-      list(pathParams: PlatformProjectsDeploymentTargetsListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeploymentTargetSummaryListEnvelope>;
+      list(pathParams: PlatformProjectsDeploymentTargetsListPathParams, query?: PlatformProjectsDeploymentTargetsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeploymentTargetSummaryListEnvelope>;
     };
   };
   releases: {
@@ -32,8 +33,8 @@ export function createPlatformApi(requestOperation: BirdcoderSdkRequestOperation
     },
     projects: {
       deploymentTargets: {
-        list(pathParams: PlatformProjectsDeploymentTargetsListPathParams, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderDeploymentTargetSummaryListEnvelope>("platform.projects.deploymentTargets.list", { pathParams }, options);
+        list(pathParams: PlatformProjectsDeploymentTargetsListPathParams, query: PlatformProjectsDeploymentTargetsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderDeploymentTargetSummaryListEnvelope>("platform.projects.deploymentTargets.list", { pathParams, query }, options);
         }
       }
     },

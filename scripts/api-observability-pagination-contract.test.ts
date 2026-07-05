@@ -126,9 +126,24 @@ assert.match(
   'OpenAPI workspaces.list must document limit and offset query parameters.',
 );
 assert.match(
+  sdkClientsSource,
+  /toGeneratedOffsetLimitQuery\(options\)/,
+  'Deployment and collaborator SDK list queries must apply the default limit helper.',
+);
+assert.match(
+  openApiSource,
+  /'deployments\.list':[\s\S]*limitParameter[\s\S]*offsetParameter/,
+  'OpenAPI deployments.list must document limit and offset query parameters.',
+);
+assert.match(
   openApiSource,
   /'projects\.list':[\s\S]*limitParameter[\s\S]*offsetParameter/,
   'OpenAPI projects.list must document limit and offset query parameters.',
+);
+assert.match(
+  openApiSource,
+  /'documents\.list':[\s\S]*projectIdParameter[\s\S]*limitParameter[\s\S]*offsetParameter/,
+  'OpenAPI documents.list must document projectId, limit, and offset query parameters.',
 );
 
 const nativeSessionHandlersSource = readFileSync(

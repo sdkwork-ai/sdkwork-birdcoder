@@ -7,19 +7,19 @@ import type {
 import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
-
+type ContentDocumentsListQuery = Types.ContentDocumentsListQuery;
 
 export interface ContentApi {
   documents: {
-    list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectDocumentSummaryListEnvelope>;
+    list(query?: ContentDocumentsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectDocumentSummaryListEnvelope>;
   };
 }
 
 export function createContentApi(requestOperation: BirdcoderSdkRequestOperation): ContentApi {
   return {
     documents: {
-      list(options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderProjectDocumentSummaryListEnvelope>("content.documents.list", {}, options);
+      list(query: ContentDocumentsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderProjectDocumentSummaryListEnvelope>("content.documents.list", { query }, options);
       }
     }
   };
