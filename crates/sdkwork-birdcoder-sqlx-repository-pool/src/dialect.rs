@@ -6,11 +6,21 @@
 /// Portable soft-delete filter for `WHERE` clauses.
 pub const IS_NOT_DELETED: &str = "is_deleted IS NOT TRUE";
 
+/// Portable soft-delete filter with a table alias or qualifier (`s.is_deleted IS NOT TRUE`).
+pub fn qualified_is_not_deleted(qualifier: &str) -> String {
+    format!("{qualifier}.is_deleted IS NOT TRUE")
+}
+
 /// Portable soft-delete assignment for `UPDATE` clauses (SQLite + PostgreSQL).
 pub const SET_SOFT_DELETED: &str = "is_deleted = TRUE";
 
 /// Portable active-row literal for `INSERT` bind parameters (`0` on SQLite, `false` on PG).
 pub const INSERT_NOT_DELETED: i64 = 0;
+
+/// Normalize SQL templates for `sqlx::AnyPool` execution.
+pub fn prepare_sql(template: &str) -> String {
+    normalize_any_placeholders(template)
+}
 
 /// Rewrite SQLite-style `?1`, `?2` placeholders to sequential `?` for `Any` queries.
 pub fn normalize_any_placeholders(template: &str) -> String {

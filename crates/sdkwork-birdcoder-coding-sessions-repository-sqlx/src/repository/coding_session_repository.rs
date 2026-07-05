@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 
-use sqlx::{AnyPool, Row};
+use sqlx::{AnyPool, Executor, Row};
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
     CreateCodingSessionInput, CreateCodingSessionTurnInput, EditCodingSessionMessageInput,
     ForkCodingSessionInput, SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
     UpdateCodingSessionInput,
 };
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{IS_NOT_DELETED, SET_SOFT_DELETED};
 use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
@@ -24,6 +24,7 @@ use crate::db::columns;
 use crate::db::rows::*;
 use crate::error::{map_sqlx_error, RepositoryError};
 use crate::mapper::row_mapper;
+use crate::repository::session_history_copy;
 use crate::repository::sqlx_helpers::{
     append_session_tenant_scope_sql, ensure_session_in_tenant_scope, ensure_workspace_in_tenant_scope,
 };
@@ -171,6 +172,26 @@ impl SqliteCodingSessionRepository {
 
         Ok(())
     }
+
+    async fn copy_session_history_on<'c, E>(
+        &self,
+        executor: E,
+        ctx: &CodingSessionContext,
+        source_session_id: &str,
+        target_session_id: &str,
+    ) -> Result<usize, CodingSessionError>
+    where
+        E: Executor<'c, Database = sqlx::Any>,
+    {
+        session_history_copy::copy_session_history_on(
+            &self.pool,
+            executor,
+            ctx,
+            source_session_id,
+            target_session_id,
+        )
+        .await
+    }
 }
 
 #[async_trait::async_trait]
@@ -180,7 +201,10 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         ctx: &CodingSessionContext,
         query: &CodingSessionListQuery,
     ) -> Result<CodingSessionListPage, CodingSessionError> {
-        let mut filter_sql = String::from(" WHERE s.is_deleted = 0");
+        let mut filter_sql = format!(
+            " WHERE {}",
+            sdkwork_birdcoder_sqlx_repository_pool::dialect::qualified_is_not_deleted("s")
+        );
         let tenant_id = append_session_tenant_scope_sql(ctx, "s", &mut filter_sql)?;
         Self::append_session_list_filters(&mut filter_sql, query);
 
@@ -201,7 +225,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let mut select_sql = String::from(
             "SELECT s.*, r.status AS runtime_status FROM ai_coding_session s \
              LEFT JOIN (SELECT coding_session_id, status FROM ai_coding_session_runtime \
-             WHERE is_deleted = 0 ORDER BY created_at DESC LIMIT 1) r \
+             WHERE {IS_NOT_DELETED} ORDER BY created_at DESC LIMIT 1) r \
              ON r.coding_session_id = s.id",
         );
         select_sql.push_str(&filter_sql);
@@ -258,10 +282,9 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         session_id: &str,
     ) -> Result<CodingSessionPayload, CodingSessionError> {
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+            "SELECT * FROM {} WHERE {} = ? AND {IS_NOT_DELETED}",
             columns::session::TABLE,
             columns::session::ID,
-            columns::session::IS_DELETED,
         );
         let tenant_id = append_session_tenant_scope_sql(ctx, columns::session::TABLE, &mut sql)?;
 
@@ -496,10 +519,9 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
         let row = map_sqlx_error(
             sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+                "SELECT * FROM {} WHERE {} = ? AND {IS_NOT_DELETED}",
                 columns::session::TABLE,
                 columns::session::ID,
-                columns::session::IS_DELETED,
             ))
             .bind(session_id)
             .fetch_optional(&self.pool)
@@ -516,44 +538,47 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .unwrap_or_else(|| format!("{} (fork)", original.title));
         let sort_timestamp = OffsetDateTime::now_utc().unix_timestamp();
 
-        sqlx::query(&format!(
-            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            columns::session::TABLE,
-            columns::session::ID,
-            columns::session::UUID,
-            columns::session::CREATED_AT,
-            columns::session::UPDATED_AT,
-            columns::session::VERSION,
-            columns::session::IS_DELETED,
-            columns::session::WORKSPACE_ID,
-            columns::session::PROJECT_ID,
-            columns::session::TITLE,
-            columns::session::STATUS,
-            columns::session::ENTRY_SURFACE,
-            columns::session::HOST_MODE,
-            columns::session::ENGINE_ID,
-            columns::session::MODEL_ID,
-            columns::session::SORT_TIMESTAMP,
-        ))
-        .bind(&new_id)
-        .bind(None::<String>)
-        .bind(&now)
-        .bind(&now)
-        .bind(0i64)
-        .bind(0i64)
-        .bind(&original.workspace_id)
-        .bind(&original.project_id)
-        .bind(&title)
-        .bind("active")
-        .bind(&original.entry_surface)
-        .bind(&original.host_mode)
-        .bind(&original.engine_id)
-        .bind(&original.model_id)
-        .bind(sort_timestamp)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+        let mut tx = map_sqlx_error(self.pool.begin().await)?;
+
+        map_sqlx_error(
+            sqlx::query(&format!(
+                "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                columns::session::TABLE,
+                columns::session::ID,
+                columns::session::UUID,
+                columns::session::CREATED_AT,
+                columns::session::UPDATED_AT,
+                columns::session::VERSION,
+                columns::session::IS_DELETED,
+                columns::session::WORKSPACE_ID,
+                columns::session::PROJECT_ID,
+                columns::session::TITLE,
+                columns::session::STATUS,
+                columns::session::ENTRY_SURFACE,
+                columns::session::HOST_MODE,
+                columns::session::ENGINE_ID,
+                columns::session::MODEL_ID,
+                columns::session::SORT_TIMESTAMP,
+            ))
+            .bind(&new_id)
+            .bind(None::<String>)
+            .bind(&now)
+            .bind(&now)
+            .bind(0i64)
+            .bind(0i64)
+            .bind(&original.workspace_id)
+            .bind(&original.project_id)
+            .bind(&title)
+            .bind("active")
+            .bind(&original.entry_surface)
+            .bind(&original.host_mode)
+            .bind(&original.engine_id)
+            .bind(&original.model_id)
+            .bind(sort_timestamp)
+            .execute(&mut *tx)
+            .await,
+        )?;
 
         let payload = CodingSessionPayload {
             id: new_id.clone(),
@@ -574,12 +599,13 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         };
 
         if let Err(error) = self
-            .copy_session_history(ctx, session_id, &new_id)
+            .copy_session_history_on(&mut tx, ctx, session_id, &new_id)
             .await
         {
-            let _ = self.delete_session(ctx, &new_id).await;
+            let _ = tx.rollback().await;
             return Err(error);
         }
+        map_sqlx_error(tx.commit().await)?;
 
         Ok(payload)
     }
@@ -590,276 +616,8 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         source_session_id: &str,
         target_session_id: &str,
     ) -> Result<usize, CodingSessionError> {
-        ensure_session_in_tenant_scope(&self.pool, ctx, source_session_id).await?;
-        ensure_session_in_tenant_scope(&self.pool, ctx, target_session_id).await?;
-
-        let now = Self::now_iso();
-        let mut total_copied: usize = 0;
-
-        // Copy messages
-        let source_messages = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
-                columns::message::TABLE,
-                columns::message::CODING_SESSION_ID,
-                columns::message::IS_DELETED,
-                columns::message::CREATED_AT,
-            ))
-            .bind(source_session_id)
-            .fetch_all(&self.pool)
-            .await,
-        )?;
-
-        for row in &source_messages {
-            let new_id = Uuid::new_v4().to_string();
-            let original_id: String = row
-                .try_get(columns::message::ID)
-                .unwrap_or_default();
-            let turn_id: Option<String> = row.try_get(columns::message::TURN_ID).ok().flatten();
-            let role: String = row.try_get(columns::message::ROLE).unwrap_or_default();
-            let content: String = row.try_get(columns::message::CONTENT).unwrap_or_default();
-            let metadata_json: String =
-                row.try_get(columns::message::METADATA_JSON).unwrap_or_default();
-            let timestamp_ms: Option<i64> =
-                row.try_get(columns::message::TIMESTAMP_MS).ok().flatten();
-            let name: Option<String> = row.try_get(columns::message::NAME).ok().flatten();
-            let tool_calls_json: Option<String> =
-                row.try_get(columns::message::TOOL_CALLS_JSON).ok().flatten();
-            let tool_call_id: Option<String> =
-                row.try_get(columns::message::TOOL_CALL_ID).ok().flatten();
-            let file_changes_json: Option<String> =
-                row.try_get(columns::message::FILE_CHANGES_JSON).ok().flatten();
-            let commands_json: Option<String> =
-                row.try_get(columns::message::COMMANDS_JSON).ok().flatten();
-            let task_progress_json: Option<String> =
-                row.try_get(columns::message::TASK_PROGRESS_JSON).ok().flatten();
-
-            map_sqlx_error(
-                sqlx::query(&format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                     VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    columns::message::TABLE,
-                    columns::message::ID,
-                    columns::message::UUID,
-                    columns::message::CREATED_AT,
-                    columns::message::UPDATED_AT,
-                    columns::message::VERSION,
-                    columns::message::IS_DELETED,
-                    columns::message::CODING_SESSION_ID,
-                    columns::message::TURN_ID,
-                    columns::message::ROLE,
-                    columns::message::CONTENT,
-                    columns::message::METADATA_JSON,
-                    columns::message::TIMESTAMP_MS,
-                    columns::message::NAME,
-                    columns::message::TOOL_CALLS_JSON,
-                    columns::message::TOOL_CALL_ID,
-                    columns::message::FILE_CHANGES_JSON,
-                    columns::message::COMMANDS_JSON,
-                    columns::message::TASK_PROGRESS_JSON,
-                ))
-                .bind(&new_id)
-                .bind(&now)
-                .bind(&now)
-                .bind(target_session_id)
-                .bind(&turn_id)
-                .bind(&role)
-                .bind(&content)
-                .bind(&metadata_json)
-                .bind(timestamp_ms)
-                .bind(&name)
-                .bind(&tool_calls_json)
-                .bind(&tool_call_id)
-                .bind(&file_changes_json)
-                .bind(&commands_json)
-                .bind(&task_progress_json)
-                .execute(&self.pool)
-                .await,
-            )?;
-            total_copied += 1;
-            let _ = original_id;
-        }
-
-        // Copy turns
-        let source_turns = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
-                columns::turn::TABLE,
-                columns::turn::CODING_SESSION_ID,
-                columns::turn::IS_DELETED,
-                columns::turn::CREATED_AT,
-            ))
-            .bind(source_session_id)
-            .fetch_all(&self.pool)
-            .await,
-        )?;
-
-        for row in &source_turns {
-            let new_id = Uuid::new_v4().to_string();
-            let runtime_id: Option<String> =
-                row.try_get(columns::turn::RUNTIME_ID).ok().flatten();
-            let request_kind: String =
-                row.try_get(columns::turn::REQUEST_KIND).unwrap_or_default();
-            let status: String = row.try_get(columns::turn::STATUS).unwrap_or_default();
-            let input_summary: String =
-                row.try_get(columns::turn::INPUT_SUMMARY).unwrap_or_default();
-            let started_at: Option<String> =
-                row.try_get(columns::turn::STARTED_AT).ok().flatten();
-            let completed_at: Option<String> =
-                row.try_get(columns::turn::COMPLETED_AT).ok().flatten();
-
-            map_sqlx_error(
-                sqlx::query(&format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                     VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?)",
-                    columns::turn::TABLE,
-                    columns::turn::ID,
-                    columns::turn::UUID,
-                    columns::turn::CREATED_AT,
-                    columns::turn::UPDATED_AT,
-                    columns::turn::VERSION,
-                    columns::turn::IS_DELETED,
-                    columns::turn::CODING_SESSION_ID,
-                    columns::turn::RUNTIME_ID,
-                    columns::turn::REQUEST_KIND,
-                    columns::turn::STATUS,
-                    columns::turn::INPUT_SUMMARY,
-                    columns::turn::STARTED_AT,
-                    columns::turn::COMPLETED_AT,
-                ))
-                .bind(&new_id)
-                .bind(&now)
-                .bind(&now)
-                .bind(target_session_id)
-                .bind(&runtime_id)
-                .bind(&request_kind)
-                .bind(&status)
-                .bind(&input_summary)
-                .bind(&started_at)
-                .bind(&completed_at)
-                .execute(&self.pool)
-                .await,
-            )?;
-            total_copied += 1;
-        }
-
-        // Copy events
-        let source_events = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
-                columns::event::TABLE,
-                columns::event::CODING_SESSION_ID,
-                columns::event::IS_DELETED,
-                columns::event::SEQUENCE_NO,
-            ))
-            .bind(source_session_id)
-            .fetch_all(&self.pool)
-            .await,
-        )?;
-
-        for row in &source_events {
-            let new_id = Uuid::new_v4().to_string();
-            let turn_id: Option<String> = row.try_get(columns::event::TURN_ID).ok().flatten();
-            let runtime_id: Option<String> =
-                row.try_get(columns::event::RUNTIME_ID).ok().flatten();
-            let event_kind: String = row.try_get(columns::event::EVENT_KIND).unwrap_or_default();
-            let sequence_no: i32 = row.try_get(columns::event::SEQUENCE_NO).unwrap_or(0);
-            let payload_json: String =
-                row.try_get(columns::event::PAYLOAD_JSON).unwrap_or_default();
-
-            map_sqlx_error(
-                sqlx::query(&format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                     VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)",
-                    columns::event::TABLE,
-                    columns::event::ID,
-                    columns::event::UUID,
-                    columns::event::CREATED_AT,
-                    columns::event::UPDATED_AT,
-                    columns::event::VERSION,
-                    columns::event::IS_DELETED,
-                    columns::event::CODING_SESSION_ID,
-                    columns::event::TURN_ID,
-                    columns::event::RUNTIME_ID,
-                    columns::event::EVENT_KIND,
-                    columns::event::SEQUENCE_NO,
-                    columns::event::PAYLOAD_JSON,
-                ))
-                .bind(&new_id)
-                .bind(&now)
-                .bind(&now)
-                .bind(target_session_id)
-                .bind(&turn_id)
-                .bind(&runtime_id)
-                .bind(&event_kind)
-                .bind(sequence_no)
-                .bind(&payload_json)
-                .execute(&self.pool)
-                .await,
-            )?;
-            total_copied += 1;
-        }
-
-        // Copy artifacts
-        let source_artifacts = map_sqlx_error(
-            sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} ASC",
-                columns::artifact::TABLE,
-                columns::artifact::CODING_SESSION_ID,
-                columns::artifact::IS_DELETED,
-                columns::artifact::CREATED_AT,
-            ))
-            .bind(source_session_id)
-            .fetch_all(&self.pool)
-            .await,
-        )?;
-
-        for row in &source_artifacts {
-            let new_id = Uuid::new_v4().to_string();
-            let turn_id: Option<String> =
-                row.try_get(columns::artifact::TURN_ID).ok().flatten();
-            let artifact_kind: String =
-                row.try_get(columns::artifact::ARTIFACT_KIND).unwrap_or_default();
-            let title: String = row.try_get(columns::artifact::TITLE).unwrap_or_default();
-            let blob_ref: Option<String> =
-                row.try_get(columns::artifact::BLOB_REF).ok().flatten();
-            let metadata_json: String =
-                row.try_get(columns::artifact::METADATA_JSON).unwrap_or_default();
-
-            map_sqlx_error(
-                sqlx::query(&format!(
-                    "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-                     VALUES (?, NULL, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?)",
-                    columns::artifact::TABLE,
-                    columns::artifact::ID,
-                    columns::artifact::UUID,
-                    columns::artifact::CREATED_AT,
-                    columns::artifact::UPDATED_AT,
-                    columns::artifact::VERSION,
-                    columns::artifact::IS_DELETED,
-                    columns::artifact::CODING_SESSION_ID,
-                    columns::artifact::TURN_ID,
-                    columns::artifact::ARTIFACT_KIND,
-                    columns::artifact::TITLE,
-                    columns::artifact::BLOB_REF,
-                    columns::artifact::METADATA_JSON,
-                ))
-                .bind(&new_id)
-                .bind(&now)
-                .bind(&now)
-                .bind(target_session_id)
-                .bind(&turn_id)
-                .bind(&artifact_kind)
-                .bind(&title)
-                .bind(&blob_ref)
-                .bind(&metadata_json)
-                .execute(&self.pool)
-                .await,
-            )?;
-            total_copied += 1;
-        }
-
-        Ok(total_copied)
+        self.copy_session_history_on(&self.pool, ctx, source_session_id, target_session_id)
+            .await
     }
 
     async fn list_turns(
@@ -932,48 +690,54 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
 
         ensure_session_in_tenant_scope(&self.pool, ctx, session_id).await?;
 
-        sqlx::query(&format!(
-            "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            columns::turn::TABLE,
-            columns::turn::ID,
-            columns::turn::CREATED_AT,
-            columns::turn::UPDATED_AT,
-            columns::turn::VERSION,
-            columns::turn::IS_DELETED,
-            columns::turn::CODING_SESSION_ID,
-            columns::turn::RUNTIME_ID,
-            columns::turn::REQUEST_KIND,
-            columns::turn::STATUS,
-            columns::turn::INPUT_SUMMARY,
-        ))
-        .bind(&turn_id)
-        .bind(&now)
-        .bind(&now)
-        .bind(0i64)
-        .bind(0i64)
-        .bind(session_id)
-        .bind(&runtime_id)
-        .bind(&request_kind)
-        .bind("pending")
-        .bind(&input_summary)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+        let mut tx = map_sqlx_error(self.pool.begin().await)?;
 
-        sqlx::query(&format!(
-            "UPDATE {} SET {} = ?, {} = ? WHERE {} = ?",
-            columns::session::TABLE,
-            columns::session::LAST_TURN_AT,
-            columns::session::UPDATED_AT,
-            columns::session::ID,
-        ))
-        .bind(&now)
-        .bind(&now)
-        .bind(session_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| RepositoryError::Insert(e.to_string()))?;
+        map_sqlx_error(
+            sqlx::query(&format!(
+                "INSERT INTO {} ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}) \
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                columns::turn::TABLE,
+                columns::turn::ID,
+                columns::turn::CREATED_AT,
+                columns::turn::UPDATED_AT,
+                columns::turn::VERSION,
+                columns::turn::IS_DELETED,
+                columns::turn::CODING_SESSION_ID,
+                columns::turn::RUNTIME_ID,
+                columns::turn::REQUEST_KIND,
+                columns::turn::STATUS,
+                columns::turn::INPUT_SUMMARY,
+            ))
+            .bind(&turn_id)
+            .bind(&now)
+            .bind(&now)
+            .bind(0i64)
+            .bind(0i64)
+            .bind(session_id)
+            .bind(&runtime_id)
+            .bind(&request_kind)
+            .bind("pending")
+            .bind(&input_summary)
+            .execute(&mut *tx)
+            .await,
+        )?;
+
+        map_sqlx_error(
+            sqlx::query(&format!(
+                "UPDATE {} SET {} = ?, {} = ? WHERE {} = ?",
+                columns::session::TABLE,
+                columns::session::LAST_TURN_AT,
+                columns::session::UPDATED_AT,
+                columns::session::ID,
+            ))
+            .bind(&now)
+            .bind(&now)
+            .bind(session_id)
+            .execute(&mut *tx)
+            .await,
+        )?;
+
+        map_sqlx_error(tx.commit().await)?;
 
         Ok(CodingSessionTurnPayload {
             id: turn_id,

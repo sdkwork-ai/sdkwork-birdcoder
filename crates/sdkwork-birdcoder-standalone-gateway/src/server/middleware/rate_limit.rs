@@ -9,12 +9,8 @@
 //!
 //! Store backend is abstracted through the [`RateLimitStore`] trait. The default
 //! implementation is [`InMemoryRateLimitStore`] (process-local fixed-window
-//! counter). The configuration exposes a `redis_url` field so a future
-//! `RedisRateLimitStore` implementation can be wired without changing the
-//! middleware surface. When `redis_url` is set but no distributed store is
-//! registered, the middleware emits a `tracing::warn` on startup so operators
-//! know multi-replica deployments will not share rate-limit counters; the
-//! in-memory store is then used as the documented fallback.
+//! counter). When `BIRDCODER_RATE_LIMIT_REDIS_URL` is set, [`RedisRateLimitStore`]
+//! is used automatically so multi-replica HA deployments share counters.
 //!
 //! Excluded paths: `/health` and `/metrics` are never rate limited.
 
@@ -59,11 +55,9 @@ pub struct RateLimitConfig {
     pub global_per_ip_per_min: u32,
     pub per_tenant_per_min: u32,
     pub per_api_key_per_min: u32,
-    /// When set, a distributed store (e.g. Redis) SHOULD be used. The current
-    /// implementation only ships [`InMemoryRateLimitStore`]; when `redis_url`
-    /// is set the middleware emits a startup warning and falls back to the
-    /// in-memory store. Wire a custom [`RateLimitStore`] implementation via
-    /// [`RateLimitState::with_store`] to honor this field.
+    /// When set, [`RedisRateLimitStore`] is selected automatically in
+    /// [`RateLimitState::new`]. Wire a custom [`RateLimitStore`] via
+    /// [`RateLimitState::with_store`] to override.
     pub redis_url: Option<String>,
 }
 
@@ -175,6 +169,29 @@ impl<'a> RateLimitDimension<'a> {
             RateLimitDimension::ApiKey(v) => v,
         }
     }
+
+    fn bucket_label(self) -> &'static str {
+        match self {
+            RateLimitDimension::Ip(_) => "ip",
+            RateLimitDimension::Tenant(_) => "tenant",
+            RateLimitDimension::ApiKey(_) => "api_key",
+        }
+    }
+}
+
+fn current_rate_limit_window_id() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs() / RATE_LIMIT_WINDOW_SECS)
+        .unwrap_or(0)
+}
+
+fn rate_limit_reset_in_secs() -> u64 {
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+    RATE_LIMIT_WINDOW_SECS - (now_secs % RATE_LIMIT_WINDOW_SECS)
 }
 
 /// Outcome of a single dimension check: `(allowed, limit, remaining, reset_in_secs)`.

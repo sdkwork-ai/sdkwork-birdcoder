@@ -80,6 +80,7 @@ sdkwork-birdcoder-model-config-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-membership-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-commerce-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
+redis = { workspace = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
