@@ -5,8 +5,8 @@ const bundle = readCanonicalAppTemplatesBundle();
 
 assert.match(
   bundle,
-  /app_template_service\.list_templates\(\)\.await/u,
-  'list_app_templates must delegate to AppTemplateService instead of returning 501.',
+  /let \(offset, page_size\) = query\.normalized_pagination\(\);[\s\S]*app_template_service\s*\.\s*list_templates\(offset, page_size\)\s*\.await/u,
+  'list_app_templates must delegate a normalized paginated query to AppTemplateService instead of returning 501.',
 );
 assert.doesNotMatch(
   bundle,
