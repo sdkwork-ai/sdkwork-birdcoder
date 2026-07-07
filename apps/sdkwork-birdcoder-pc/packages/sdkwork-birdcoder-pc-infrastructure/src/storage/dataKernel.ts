@@ -533,7 +533,10 @@ function isStartupSqlBridgeUnavailableError(error: unknown): boolean {
         : String(error ?? '');
   const normalizedMessage = message.toLowerCase();
   return (
-    normalizedMessage.includes('sql bridge is not ready') &&
+    (
+      normalizedMessage.includes('sql bridge is not ready') ||
+      normalizedMessage.includes('sql bridge is temporarily unavailable')
+    ) &&
     normalizedMessage.includes('startup')
   );
 }
