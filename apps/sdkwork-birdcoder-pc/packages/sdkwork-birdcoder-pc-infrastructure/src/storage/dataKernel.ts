@@ -504,10 +504,9 @@ function supportsSqlPlanExecution(
 }
 
 /**
- * Detects errors that indicate a backing table does not yet exist (e.g. during
- * schema migration). Only these errors justify permanently activating the
- * volatile in-memory fallback; transient errors (connection loss, permission
- * denied, etc.) should surface to the caller instead of silently degrading.
+ * Detects SQL errors that justify permanently activating the volatile in-memory
+ * fallback. Transient errors (connection loss, permission denied, etc.) should
+ * surface to the caller instead of silently degrading.
  */
 function isTableMissingError(error: unknown): boolean {
   const message =
@@ -523,6 +522,24 @@ function isTableMissingError(error: unknown): boolean {
     normalizedMessage.includes('table not found') ||
     normalizedMessage.includes('unknown table')
   );
+}
+
+function isStartupSqlBridgeUnavailableError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : String(error ?? '');
+  const normalizedMessage = message.toLowerCase();
+  return (
+    normalizedMessage.includes('sql bridge is not ready') &&
+    normalizedMessage.includes('startup')
+  );
+}
+
+function isVolatileTableFallbackError(error: unknown): boolean {
+  return isTableMissingError(error) || isStartupSqlBridgeUnavailableError(error);
 }
 
 export function createBirdCoderTableRecordRepository<TRecord, TId extends string = string>({
@@ -596,11 +613,11 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
         const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildListPlan());
         return normalizeStoredTableRecords(result.rows ?? [], normalize, sort);
       } catch (error) {
-        console.error(
-          `BirdCoder table repository readRecords failed for ${binding.entityName}`,
-          error,
-        );
-        if (!isTableMissingError(error)) {
+        if (!isVolatileTableFallbackError(error)) {
+          console.error(
+            `BirdCoder table repository readRecords failed for ${binding.entityName}`,
+            error,
+          );
           throw error;
         }
         activateVolatileTableFallback();
@@ -631,11 +648,11 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
         );
         return normalizedRecords;
       } catch (error) {
-        console.error(
-          `BirdCoder table repository writeRecords failed for ${binding.entityName}`,
-          error,
-        );
-        if (!isTableMissingError(error)) {
+        if (!isVolatileTableFallbackError(error)) {
+          console.error(
+            `BirdCoder table repository writeRecords failed for ${binding.entityName}`,
+            error,
+          );
           throw error;
         }
         activateVolatileTableFallback();
@@ -677,11 +694,11 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
         const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildCountPlan());
         return Number(result.rows?.[0]?.total ?? 0);
       } catch (error) {
-        console.error(
-          `BirdCoder table repository count failed for ${binding.entityName}`,
-          error,
-        );
-        if (!isTableMissingError(error)) {
+        if (!isVolatileTableFallbackError(error)) {
+          console.error(
+            `BirdCoder table repository count failed for ${binding.entityName}`,
+            error,
+          );
           throw error;
         }
         activateVolatileTableFallback();
@@ -725,11 +742,11 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
             total,
           };
         } catch (error) {
-          console.error(
-            `BirdCoder table repository listPage failed for ${binding.entityName}`,
-            error,
-          );
-          if (!isTableMissingError(error)) {
+          if (!isVolatileTableFallbackError(error)) {
+            console.error(
+              `BirdCoder table repository listPage failed for ${binding.entityName}`,
+              error,
+            );
             throw error;
           }
           activateVolatileTableFallback();
@@ -754,11 +771,11 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
           const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildFindByIdPlan(id));
           return normalizeStoredTableRecords(result.rows ?? [], normalize, sort)[0] ?? null;
         } catch (error) {
-          console.error(
-            `BirdCoder table repository findById failed for ${binding.entityName}`,
-            error,
-          );
-          if (!isTableMissingError(error)) {
+          if (!isVolatileTableFallbackError(error)) {
+            console.error(
+              `BirdCoder table repository findById failed for ${binding.entityName}`,
+              error,
+            );
             throw error;
           }
           activateVolatileTableFallback();
@@ -780,6 +797,9 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
           await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildDeletePlan(id));
           return;
         } catch (error) {
+          if (!isVolatileTableFallbackError(error)) {
+            throw error;
+          }
           activateVolatileTableFallback();
           volatileTableRecords = resolveVolatileTableRecords().filter(
             (record) => identify(record) !== id,
@@ -812,6 +832,9 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
           );
           return normalizedRecords;
         } catch (error) {
+          if (!isVolatileTableFallbackError(error)) {
+            throw error;
+          }
           activateVolatileTableFallback();
         }
       }
@@ -855,6 +878,9 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
           await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildClearPlan());
           return;
         } catch (error) {
+          if (!isVolatileTableFallbackError(error)) {
+            throw error;
+          }
           activateVolatileTableFallback();
           volatileTableRecords = [];
           return;
