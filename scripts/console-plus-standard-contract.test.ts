@@ -8,6 +8,7 @@ import {
   BIRDCODER_PROJECT_STORAGE_BINDING,
   getBirdCoderEntityDefinition,
 } from '@sdkwork/birdcoder-pc-types';
+import { clampListPageSize } from '@sdkwork/utils/pagination';
 import { createBirdCoderConsoleQueries } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/consoleQueries.ts';
 import type {
   BirdCoderConsoleRepositories,
@@ -60,6 +61,14 @@ function createInMemoryRepository<TRecord extends RecordWithId>(
     async list() {
       return [...records.values()].map((record) => structuredClone(record));
     },
+    async listPage(offset: number, limit: number) {
+      const { offset: normalizedOffset, pageSize } = clampListPageSize(offset, limit);
+      const items = [...records.values()].map((record) => structuredClone(record));
+      return {
+        items: items.slice(normalizedOffset, normalizedOffset + pageSize),
+        total: items.length,
+      };
+    },
     async save(record: TRecord) {
       records.set(record.id, structuredClone(record));
       return structuredClone(record);
@@ -74,6 +83,35 @@ function createInMemoryRepository<TRecord extends RecordWithId>(
   };
 }
 
+function createInMemoryProjectRepository(): BirdCoderConsoleRepositories['projects'] {
+  const repository = createInMemoryRepository<BirdCoderRepresentativeProjectRecord>('project');
+  return {
+    ...repository,
+    async listProjectRecordsPage(pagination) {
+      return repository.listPage(pagination?.offset ?? 0, pagination?.limit ?? 20);
+    },
+    async listProjectsByWorkspaceIds(workspaceIds, pagination) {
+      const workspaceIdSet = new Set(
+        workspaceIds.map((workspaceId) => workspaceId.trim()).filter(Boolean),
+      );
+      if (workspaceIdSet.size === 0) {
+        return { items: [], total: 0 };
+      }
+      const { offset, pageSize } = clampListPageSize(
+        pagination?.offset,
+        pagination?.limit,
+      );
+      const items = (await repository.list()).filter((project) =>
+        workspaceIdSet.has(project.workspaceId),
+      );
+      return {
+        items: items.slice(offset, offset + pageSize),
+        total: items.length,
+      };
+    },
+  };
+}
+
 function createRepositories(): BirdCoderConsoleRepositories {
   return {
     audits: createInMemoryRepository<BirdCoderRepresentativeAuditRecord>('audit_event'),
@@ -83,7 +121,7 @@ function createRepositories(): BirdCoderConsoleRepositories {
     members: createInMemoryRepository<BirdCoderRepresentativeTeamMemberRecord>('team_member'),
     policies: createInMemoryRepository<BirdCoderRepresentativePolicyRecord>('governance_policy'),
     projectContents: createInMemoryRepository<BirdCoderProjectContentRecord>('project_content'),
-    projects: createInMemoryRepository<BirdCoderRepresentativeProjectRecord>('project'),
+    projects: createInMemoryProjectRepository(),
     releases: createInMemoryRepository<BirdCoderRepresentativeReleaseRecord>('release_record'),
     teams: createInMemoryRepository<BirdCoderRepresentativeTeamRecord>('team'),
     workspaces: createInMemoryRepository<BirdCoderWorkspaceRecord>('workspace'),
