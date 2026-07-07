@@ -79,7 +79,7 @@ const iamAuditCamelFields = [
   'action',
   'resourceType',
   'resourceId',
-  'requestId',
+  'traceId',
   'appId',
   'environment',
   'shardingKey',
