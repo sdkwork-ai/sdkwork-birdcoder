@@ -99,6 +99,13 @@ export interface BirdCoderTableRecordRepository<TRecord, TId extends string = st
   definition: BirdCoderEntityDefinition;
   findById(id: TId): Promise<TRecord | null>;
   list(): Promise<TRecord[]>;
+  listPage(
+    offset: number,
+    limit: number,
+  ): Promise<{
+    items: TRecord[];
+    total: number;
+  }>;
   providerId: BirdCoderDatabaseProviderId;
   save(value: TRecord): Promise<TRecord>;
   saveMany(values: readonly TRecord[]): Promise<TRecord[]>;
@@ -663,6 +670,29 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
     return normalizedRecords;
   }
 
+  async function readCount(): Promise<number> {
+    const sqlExecutorPath = resolveSqlExecutorPath();
+    if (sqlExecutorPath) {
+      try {
+        const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildCountPlan());
+        return Number(result.rows?.[0]?.total ?? 0);
+      } catch (error) {
+        console.error(
+          `BirdCoder table repository count failed for ${binding.entityName}`,
+          error,
+        );
+        if (!isTableMissingError(error)) {
+          throw error;
+        }
+        activateVolatileTableFallback();
+        return resolveVolatileTableRecords().length;
+      }
+    }
+
+    const records = await readRecords();
+    return records.length;
+  }
+
   return {
     binding,
     definition,
@@ -670,27 +700,52 @@ export function createBirdCoderTableRecordRepository<TRecord, TId extends string
     async list() {
       return readRecords();
     },
-    async count() {
+    async listPage(offset, limit) {
+      if (shouldUseVolatileTableFallback) {
+        const records = resolveVolatileTableRecords();
+        const normalizedOffset = Math.max(0, Math.floor(offset));
+        const normalizedLimit = Math.max(1, Math.floor(limit));
+        return {
+          items: records.slice(normalizedOffset, normalizedOffset + normalizedLimit),
+          total: records.length,
+        };
+      }
+
       const sqlExecutorPath = resolveSqlExecutorPath();
       if (sqlExecutorPath) {
         try {
-          const result = await sqlExecutorPath.storage.executeSqlPlan(sqlPlanner.buildCountPlan());
-          return Number(result.rows?.[0]?.total ?? 0);
+          const [listResult, total] = await Promise.all([
+            sqlExecutorPath.storage.executeSqlPlan(
+              sqlPlanner.buildListPagePlan(offset, limit),
+            ),
+            readCount(),
+          ]);
+          return {
+            items: normalizeStoredTableRecords(listResult.rows ?? [], normalize, sort),
+            total,
+          };
         } catch (error) {
           console.error(
-            `BirdCoder table repository count failed for ${binding.entityName}`,
+            `BirdCoder table repository listPage failed for ${binding.entityName}`,
             error,
           );
           if (!isTableMissingError(error)) {
             throw error;
           }
           activateVolatileTableFallback();
-          return resolveVolatileTableRecords().length;
         }
       }
 
       const records = await readRecords();
-      return records.length;
+      const normalizedOffset = Math.max(0, Math.floor(offset));
+      const normalizedLimit = Math.max(1, Math.floor(limit));
+      return {
+        items: records.slice(normalizedOffset, normalizedOffset + normalizedLimit),
+        total: records.length,
+      };
+    },
+    async count() {
+      return readCount();
     },
     async findById(id) {
       const sqlExecutorPath = resolveSqlExecutorPath();

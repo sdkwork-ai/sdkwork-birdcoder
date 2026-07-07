@@ -3,7 +3,7 @@ import { defineLocaleModule } from '../../resource.ts';
 export default defineLocaleModule('app/workspace', {
   app: {
     revealedInExplorer: '已在资源管理器中打开: {{path}}',
-    revealedInExplorerMock: '已在资源管理器中打开: {{path}} (模拟)',
+    revealInExplorerDesktopOnly: '“在资源管理器中显示”仅在桌面应用中可用。',
     cannotDeleteLastWorkspace: '无法删除最后一个工作区。',
     failedToRenameWorkspace: '重命名工作区失败',
     failedToRenameProject: '重命名项目失败',

@@ -150,6 +150,8 @@ fn build_opencode_session_summary_record(
         native_cwd,
         sort_timestamp: parse_timestamp_millis(&updated_at).unwrap_or_default(),
         transcript_updated_at: Some(updated_at),
+        workspace_id: None,
+        project_id: None,
     })
 }
 

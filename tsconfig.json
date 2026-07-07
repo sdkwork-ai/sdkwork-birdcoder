@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": [
@@ -57,6 +57,9 @@
       ],
       "@sdkwork/messaging-app-sdk": [
         "../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/agents-app-sdk": [
+        "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/src/index.ts"
       ],
       "@sdkwork/sdk-common": [
         "../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts"

@@ -1,4 +1,5 @@
 import { isBlank } from '@sdkwork/utils/string';
+import { MAX_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import type {
   BirdCoderCreateProjectRequest,
   BirdCoderCreateWorkspaceRequest,
@@ -129,6 +130,48 @@ function createTimestamp(): string {
 
 function createUuid(): string {
   return createBirdCoderLocalBusinessUuid();
+}
+
+async function loadRepresentativeProjectsPage(
+  repositories: BirdCoderConsoleRepositories,
+  workspaceId?: string,
+): Promise<BirdCoderRepresentativeProjectRecord[]> {
+  const normalizedWorkspaceId = workspaceId?.trim();
+  const collected: BirdCoderRepresentativeProjectRecord[] = [];
+
+  if (normalizedWorkspaceId && repositories.projects.listProjectsByWorkspaceIds) {
+    let offset = 0;
+    while (true) {
+      const page = await repositories.projects.listProjectsByWorkspaceIds(
+        [normalizedWorkspaceId],
+        { offset, limit: MAX_LIST_PAGE_SIZE },
+      );
+      collected.push(...page.items);
+      if (page.items.length < MAX_LIST_PAGE_SIZE || collected.length >= page.total) {
+        return collected;
+      }
+      offset += MAX_LIST_PAGE_SIZE;
+    }
+  }
+
+  if (repositories.projects.listProjectRecordsPage) {
+    let offset = 0;
+    while (true) {
+      const page = await repositories.projects.listProjectRecordsPage({
+        offset,
+        limit: MAX_LIST_PAGE_SIZE,
+      });
+      collected.push(...page.items);
+      if (page.items.length < MAX_LIST_PAGE_SIZE || collected.length >= page.total) {
+        return collected;
+      }
+      offset += MAX_LIST_PAGE_SIZE;
+    }
+  }
+
+  throw new Error(
+    'Representative project listing requires SQL-backed listProjectsByWorkspaceIds or listProjectRecordsPage.',
+  );
 }
 
 function normalizeOptionalText(value: string | null | undefined): string | undefined {
@@ -620,7 +663,12 @@ export function createBirdCoderConsoleQueries({
     async listProjects(options = {}): Promise<BirdCoderRepresentativeProjectRecord[]> {
       await ensureBirdCoderBootstrapConsoleCatalog({ repositories });
       const projects = filterByWorkspaceId(
-        (await hydrateProjectRootPaths(repositories, await repositories.projects.list())).filter((project) => {
+        (
+          await hydrateProjectRootPaths(
+            repositories,
+            await loadRepresentativeProjectsPage(repositories, options.workspaceId),
+          )
+        ).filter((project) => {
           const rootPath = project.rootPath?.trim();
           return Boolean(rootPath && isAbsoluteProjectPath(rootPath));
         }),

@@ -15,6 +15,7 @@ use crate::mapper::row_mapper;
 use sdkwork_birdcoder_deployment_service::domain::results::{
     AuditPayload, DeploymentPayload, DeploymentTargetPayload, PolicyPayload, ReleasePayload,
 };
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
 
 #[derive(Clone)]
 pub struct SqliteDeploymentRepository {
@@ -49,10 +50,10 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         id: &str,
     ) -> Result<Option<DeploymentPayload>, DeploymentError> {
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+            "SELECT * FROM {} WHERE {} = ? AND {}",
             deployment_record::TABLE,
             deployment_record::ID,
-            deployment_record::IS_DELETED,
+            IS_NOT_DELETED,
         );
         let tenant_id = append_required_tenant_filter(ctx, deployment_record::TENANT_ID, &mut sql)?;
 
@@ -85,10 +86,10 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         })?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             deployment_record::TABLE,
             deployment_record::PROJECT_ID,
-            deployment_record::IS_DELETED,
+            IS_NOT_DELETED,
             deployment_record::TENANT_ID,
         ))
         .bind(project_id)
@@ -109,10 +110,10 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} AND {} = ?",
             deployment_record::TABLE,
             deployment_record::PROJECT_ID,
-            deployment_record::IS_DELETED,
+            IS_NOT_DELETED,
             deployment_record::TENANT_ID,
         ))
         .bind(project_id)
@@ -129,10 +130,10 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         id: &str,
     ) -> Result<Option<DeploymentTargetPayload>, DeploymentError> {
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+            "SELECT * FROM {} WHERE {} = ? AND {}",
             deployment_target::TABLE,
             deployment_target::ID,
-            deployment_target::IS_DELETED,
+            IS_NOT_DELETED,
         );
         let tenant_id = append_required_tenant_filter(ctx, deployment_target::TENANT_ID, &mut sql)?;
 
@@ -165,10 +166,10 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         })?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             deployment_target::TABLE,
             deployment_target::PROJECT_ID,
-            deployment_target::IS_DELETED,
+            IS_NOT_DELETED,
             deployment_target::TENANT_ID,
         ))
         .bind(project_id)
@@ -189,10 +190,10 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} AND {} = ?",
             deployment_target::TABLE,
             deployment_target::PROJECT_ID,
-            deployment_target::IS_DELETED,
+            IS_NOT_DELETED,
             deployment_target::TENANT_ID,
         ))
         .bind(project_id)
@@ -209,10 +210,10 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         id: &str,
     ) -> Result<Option<ReleasePayload>, DeploymentError> {
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0",
+            "SELECT * FROM {} WHERE {} = ? AND {}",
             release_record::TABLE,
             release_record::ID,
-            release_record::IS_DELETED,
+            IS_NOT_DELETED,
         );
         let tenant_id = append_required_tenant_filter(ctx, release_record::TENANT_ID, &mut sql)?;
 
@@ -246,14 +247,12 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL. Bind order:
         // project_id, tenant_id, limit, offset.
         let rows = sqlx::query(&format!(
-            "SELECT r.* FROM {} r INNER JOIN {} d ON r.{} = d.{} WHERE d.{} = ? AND r.{} = 0 AND d.{} = 0 AND d.{} = ? ORDER BY r.{} DESC LIMIT ? OFFSET ?",
+            "SELECT r.* FROM {} r INNER JOIN {} d ON r.{} = d.{} WHERE d.{} = ? AND r.is_deleted IS NOT TRUE AND d.is_deleted IS NOT TRUE AND d.{} = ? ORDER BY r.{} DESC LIMIT ? OFFSET ?",
             release_record::TABLE,
             deployment_record::TABLE,
             release_record::ID,
             deployment_record::RELEASE_RECORD_ID,
             deployment_record::PROJECT_ID,
-            release_record::IS_DELETED,
-            deployment_record::IS_DELETED,
             deployment_record::TENANT_ID,
             release_record::ID,
         ))
@@ -275,14 +274,12 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} r INNER JOIN {} d ON r.{} = d.{} WHERE d.{} = ? AND r.{} = 0 AND d.{} = 0 AND d.{} = ?",
+            "SELECT COUNT(*) FROM {} r INNER JOIN {} d ON r.{} = d.{} WHERE d.{} = ? AND r.is_deleted IS NOT TRUE AND d.is_deleted IS NOT TRUE AND d.{} = ?",
             release_record::TABLE,
             deployment_record::TABLE,
             release_record::ID,
             deployment_record::RELEASE_RECORD_ID,
             deployment_record::PROJECT_ID,
-            release_record::IS_DELETED,
-            deployment_record::IS_DELETED,
             deployment_record::TENANT_ID,
         ))
         .bind(project_id)
@@ -306,11 +303,11 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         })?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             audit_event::TABLE,
             audit_event::SCOPE_TYPE,
             audit_event::SCOPE_ID,
-            audit_event::IS_DELETED,
+            IS_NOT_DELETED,
             audit_event::TENANT_ID,
         ))
         .bind(scope_type)
@@ -332,11 +329,11 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = ? AND {} = 0 AND {} = ?",
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = ? AND {} AND {} = ?",
             audit_event::TABLE,
             audit_event::SCOPE_TYPE,
             audit_event::SCOPE_ID,
-            audit_event::IS_DELETED,
+            IS_NOT_DELETED,
             audit_event::TENANT_ID,
         ))
         .bind(scope_type)
@@ -361,11 +358,11 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         })?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             governance_policy::TABLE,
             governance_policy::SCOPE_TYPE,
             governance_policy::SCOPE_ID,
-            governance_policy::IS_DELETED,
+            IS_NOT_DELETED,
             governance_policy::TENANT_ID,
         ))
         .bind(scope_type)
@@ -387,11 +384,11 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = ? AND {} = 0 AND {} = ?",
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = ? AND {} AND {} = ?",
             governance_policy::TABLE,
             governance_policy::SCOPE_TYPE,
             governance_policy::SCOPE_ID,
-            governance_policy::IS_DELETED,
+            IS_NOT_DELETED,
             governance_policy::TENANT_ID,
         ))
         .bind(scope_type)
@@ -414,9 +411,9 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         })?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM {} WHERE {} AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             deployment_record::TABLE,
-            deployment_record::IS_DELETED,
+            IS_NOT_DELETED,
             deployment_record::TENANT_ID,
         ))
         .bind(tenant_id)
@@ -436,9 +433,9 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = 0 AND {} = ?",
+            "SELECT COUNT(*) FROM {} WHERE {} AND {} = ?",
             deployment_record::TABLE,
-            deployment_record::IS_DELETED,
+            IS_NOT_DELETED,
             deployment_record::TENANT_ID,
         ))
         .bind(tenant_id)
@@ -459,9 +456,9 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         })?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM {} WHERE {} AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             deployment_target::TABLE,
-            deployment_target::IS_DELETED,
+            IS_NOT_DELETED,
             deployment_target::TENANT_ID,
         ))
         .bind(tenant_id)
@@ -481,9 +478,9 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = 0 AND {} = ?",
+            "SELECT COUNT(*) FROM {} WHERE {} AND {} = ?",
             deployment_target::TABLE,
-            deployment_target::IS_DELETED,
+            IS_NOT_DELETED,
             deployment_target::TENANT_ID,
         ))
         .bind(tenant_id)
@@ -504,9 +501,9 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
         })?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = 0 AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM {} WHERE {} AND {} = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             release_record::TABLE,
-            release_record::IS_DELETED,
+            IS_NOT_DELETED,
             release_record::TENANT_ID,
         ))
         .bind(tenant_id)
@@ -526,9 +523,9 @@ impl sdkwork_birdcoder_deployment_service::ports::repository::DeploymentReposito
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = 0 AND {} = ?",
+            "SELECT COUNT(*) FROM {} WHERE {} AND {} = ?",
             release_record::TABLE,
-            release_record::IS_DELETED,
+            IS_NOT_DELETED,
             release_record::TENANT_ID,
         ))
         .bind(tenant_id)

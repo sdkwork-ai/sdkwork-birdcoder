@@ -7,7 +7,9 @@ use sdkwork_birdcoder_chat_service::domain::models::{
 };
 use sdkwork_birdcoder_chat_service::service::chat_service::ChatRepository;
 use sdkwork_birdcoder_errors::require_scoped_tenant_id;
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{IS_NOT_DELETED, SET_SOFT_DELETED};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{
+    any_sql, INSERT_NOT_DELETED, IS_NOT_DELETED, SET_SOFT_DELETED,
+};
 
 #[derive(Clone)]
 pub struct SqliteChatRepository {
@@ -59,30 +61,32 @@ impl ChatRepository for SqliteChatRepository {
         query: &ChatListQuery,
     ) -> Result<(Vec<ChatConversationPayload>, i64), String> {
         let tenant_id = Self::require_tenant_id(&ctx.tenant_id)?;
-        let count_row = sqlx::query(
+        let count_sql = any_sql(&format!(
             "SELECT COUNT(*) AS total FROM chat_conversation \
-             WHERE tenant_id = ?1 AND owner_user_id = ?2 AND {IS_NOT_DELETED}",
-        )
-        .bind(tenant_id)
-        .bind(&ctx.user_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+             WHERE tenant_id = ?1 AND owner_user_id = ?2 AND {IS_NOT_DELETED}"
+        ));
+        let count_row = sqlx::query(&count_sql)
+            .bind(tenant_id)
+            .bind(&ctx.user_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
         let total: i64 = count_row.try_get("total").map_err(|e| e.to_string())?;
 
-        let rows = sqlx::query(
+        let list_sql = any_sql(&format!(
             "SELECT id, title, owner_user_id, created_at, updated_at \
              FROM chat_conversation \
              WHERE tenant_id = ?1 AND owner_user_id = ?2 AND {IS_NOT_DELETED} \
-             ORDER BY updated_at DESC LIMIT ?3 OFFSET ?4",
-        )
-        .bind(tenant_id)
-        .bind(&ctx.user_id)
-        .bind(query.limit)
-        .bind(query.offset)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+             ORDER BY updated_at DESC LIMIT ?3 OFFSET ?4"
+        ));
+        let rows = sqlx::query(&list_sql)
+            .bind(tenant_id)
+            .bind(&ctx.user_id)
+            .bind(query.limit)
+            .bind(query.offset)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
         let items = rows
             .iter()
@@ -98,19 +102,21 @@ impl ChatRepository for SqliteChatRepository {
         conversation: &ChatConversationPayload,
     ) -> Result<ChatConversationPayload, String> {
         let tenant_id = Self::require_tenant_id(&ctx.tenant_id)?;
-        sqlx::query(
+        let insert_sql = any_sql(
             "INSERT INTO chat_conversation (id, tenant_id, owner_user_id, title, created_at, updated_at, is_deleted) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0)",
-        )
-        .bind(&conversation.id)
-        .bind(tenant_id)
-        .bind(&conversation.owner_user_id)
-        .bind(&conversation.title)
-        .bind(&conversation.created_at)
-        .bind(&conversation.updated_at)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        );
+        sqlx::query(&insert_sql)
+            .bind(&conversation.id)
+            .bind(tenant_id)
+            .bind(&conversation.owner_user_id)
+            .bind(&conversation.title)
+            .bind(&conversation.created_at)
+            .bind(&conversation.updated_at)
+            .bind(INSERT_NOT_DELETED)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
         Ok(conversation.clone())
     }
 
@@ -120,16 +126,17 @@ impl ChatRepository for SqliteChatRepository {
         conversation_id: &str,
     ) -> Result<Option<ChatConversationPayload>, String> {
         let tenant_id = Self::require_tenant_id(&ctx.tenant_id)?;
-        let row = sqlx::query(
+        let sql = any_sql(&format!(
             "SELECT id, title, owner_user_id, created_at, updated_at \
              FROM chat_conversation \
-             WHERE id = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED}",
-        )
-        .bind(conversation_id)
-        .bind(tenant_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+             WHERE id = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED}"
+        ));
+        let row = sqlx::query(&sql)
+            .bind(conversation_id)
+            .bind(tenant_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
         row.as_ref()
             .map(Self::map_conversation_row)
@@ -144,17 +151,18 @@ impl ChatRepository for SqliteChatRepository {
     ) -> Result<(), String> {
         let tenant_id = Self::require_tenant_id(&ctx.tenant_id)?;
         let now = Self::now_iso();
-        let result = sqlx::query(
+        let sql = any_sql(&format!(
             "UPDATE chat_conversation SET {SET_SOFT_DELETED}, updated_at = ?1 \
-             WHERE id = ?2 AND tenant_id = ?3 AND owner_user_id = ?4 AND {IS_NOT_DELETED}",
-        )
-        .bind(now)
-        .bind(conversation_id)
-        .bind(tenant_id)
-        .bind(&ctx.user_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+             WHERE id = ?2 AND tenant_id = ?3 AND owner_user_id = ?4 AND {IS_NOT_DELETED}"
+        ));
+        let result = sqlx::query(&sql)
+            .bind(now)
+            .bind(conversation_id)
+            .bind(tenant_id)
+            .bind(&ctx.user_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
         if result.rows_affected() == 0 {
             return Err(format!("conversation {conversation_id} not found"));
         }
@@ -168,30 +176,32 @@ impl ChatRepository for SqliteChatRepository {
         query: &ChatListQuery,
     ) -> Result<(Vec<ChatMessagePayload>, i64), String> {
         let tenant_id = Self::require_tenant_id(&ctx.tenant_id)?;
-        let count_row = sqlx::query(
+        let count_sql = any_sql(&format!(
             "SELECT COUNT(*) AS total FROM chat_message \
-             WHERE conversation_id = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED}",
-        )
-        .bind(conversation_id)
-        .bind(tenant_id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+             WHERE conversation_id = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED}"
+        ));
+        let count_row = sqlx::query(&count_sql)
+            .bind(conversation_id)
+            .bind(tenant_id)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
         let total: i64 = count_row.try_get("total").map_err(|e| e.to_string())?;
 
-        let rows = sqlx::query(
+        let list_sql = any_sql(&format!(
             "SELECT id, conversation_id, role, content, created_at \
              FROM chat_message \
              WHERE conversation_id = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED} \
-             ORDER BY created_at ASC LIMIT ?3 OFFSET ?4",
-        )
-        .bind(conversation_id)
-        .bind(tenant_id)
-        .bind(query.limit)
-        .bind(query.offset)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+             ORDER BY created_at ASC LIMIT ?3 OFFSET ?4"
+        ));
+        let rows = sqlx::query(&list_sql)
+            .bind(conversation_id)
+            .bind(tenant_id)
+            .bind(query.limit)
+            .bind(query.offset)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
         let items = rows
             .iter()
@@ -208,31 +218,34 @@ impl ChatRepository for SqliteChatRepository {
         message: &ChatMessagePayload,
     ) -> Result<ChatMessagePayload, String> {
         let tenant_id = Self::require_tenant_id(&ctx.tenant_id)?;
-        sqlx::query(
+        let insert_sql = any_sql(
             "INSERT INTO chat_message (id, tenant_id, conversation_id, role, content, created_at, is_deleted) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0)",
-        )
-        .bind(&message.id)
-        .bind(tenant_id)
-        .bind(conversation_id)
-        .bind(&message.role)
-        .bind(&message.content)
-        .bind(&message.created_at)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        );
+        sqlx::query(&insert_sql)
+            .bind(&message.id)
+            .bind(tenant_id)
+            .bind(conversation_id)
+            .bind(&message.role)
+            .bind(&message.content)
+            .bind(&message.created_at)
+            .bind(INSERT_NOT_DELETED)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
         let now = Self::now_iso();
-        sqlx::query(
+        let update_sql = any_sql(&format!(
             "UPDATE chat_conversation SET updated_at = ?1 \
-             WHERE id = ?2 AND tenant_id = ?3 AND {IS_NOT_DELETED}",
-        )
-        .bind(now)
-        .bind(conversation_id)
-        .bind(tenant_id)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| e.to_string())?;
+             WHERE id = ?2 AND tenant_id = ?3 AND {IS_NOT_DELETED}"
+        ));
+        sqlx::query(&update_sql)
+            .bind(now)
+            .bind(conversation_id)
+            .bind(tenant_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
         Ok(message.clone())
     }

@@ -45,12 +45,20 @@ export type BirdCoderSqlPlanMeta =
       excludeDeleted: boolean;
       kind: 'table-list';
       orderBy: readonly BirdCoderSqlPlanOrderBy[];
+      pagination?: {
+        limit: number;
+        offset: number;
+      };
       tableName: string;
     }
   | {
       excludeDeleted: boolean;
       kind: 'coding-session-list-by-project-ids';
       orderBy: readonly BirdCoderSqlPlanOrderBy[];
+      pagination?: {
+        limit: number;
+        offset: number;
+      };
       projectIds: readonly string[];
       tableName: string;
     }
@@ -65,6 +73,16 @@ export type BirdCoderSqlPlanMeta =
       excludeDeleted: boolean;
       kind: 'project-list-by-workspace-ids';
       orderBy: readonly BirdCoderSqlPlanOrderBy[];
+      pagination?: {
+        limit: number;
+        offset: number;
+      };
+      tableName: string;
+      workspaceIds: readonly string[];
+    }
+  | {
+      excludeDeleted: boolean;
+      kind: 'project-count-by-workspace-ids';
       tableName: string;
       workspaceIds: readonly string[];
     }
@@ -73,6 +91,35 @@ export type BirdCoderSqlPlanMeta =
       excludeDeleted: boolean;
       kind: 'coding-session-messages-by-session-ids';
       orderBy: readonly BirdCoderSqlPlanOrderBy[];
+      pagination?: {
+        limit: number;
+        offset: number;
+      };
+      tableName: string;
+    }
+  | {
+      excludeDeleted: boolean;
+      filters: {
+        engineId?: string;
+        projectId?: string;
+        workspaceId?: string;
+      };
+      kind: 'coding-session-count-filtered';
+      tableName: string;
+    }
+  | {
+      excludeDeleted: boolean;
+      filters: {
+        engineId?: string;
+        projectId?: string;
+        workspaceId?: string;
+      };
+      kind: 'coding-session-list-filtered';
+      orderBy?: readonly BirdCoderSqlPlanOrderBy[];
+      pagination?: {
+        limit: number;
+        offset: number;
+      };
       tableName: string;
     }
   | {
@@ -146,6 +193,7 @@ export interface BirdCoderTableSqlPlanner {
   buildDeletePlan(id: string): BirdCoderSqlPlan;
   buildFindByIdPlan(id: string): BirdCoderSqlPlan;
   buildListPlan(limit?: number): BirdCoderSqlPlan;
+  buildListPagePlan(offset: number, limit: number): BirdCoderSqlPlan;
   buildUpsertPlan(rows: readonly BirdCoderSqlRow[]): BirdCoderSqlPlan;
 }
 
@@ -463,6 +511,41 @@ export function createBirdCoderTableSqlPlanner({
           excludeDeleted: hasSoftDeleteColumn,
           kind: 'table-list',
           orderBy: defaultOrdering,
+          tableName,
+        },
+      );
+    },
+    buildListPagePlan(offset: number, limit: number) {
+      const dialect = createBirdCoderStorageDialect(providerId);
+      const rowLimit =
+        Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : DEFAULT_LIST_PLAN_LIMIT;
+      const rowOffset = Number.isFinite(offset) && offset > 0 ? Math.floor(offset) : 0;
+      return buildPlan(
+        providerId,
+        'read',
+        [
+          hasSoftDeleteColumn
+            ? {
+                params: [defaultSoftDeleteValue(providerId), rowLimit, rowOffset],
+                sql:
+                  `SELECT * FROM ${tableName} WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
+                  `ORDER BY updated_at DESC, id ASC LIMIT ${dialect.buildPlaceholder(2)} OFFSET ${dialect.buildPlaceholder(3)};`,
+              }
+            : {
+                params: [rowLimit, rowOffset],
+                sql:
+                  `SELECT * FROM ${tableName} ORDER BY updated_at DESC, id ASC ` +
+                  `LIMIT ${dialect.buildPlaceholder(1)} OFFSET ${dialect.buildPlaceholder(2)};`,
+              },
+        ],
+        {
+          excludeDeleted: hasSoftDeleteColumn,
+          kind: 'table-list',
+          orderBy: defaultOrdering,
+          pagination: {
+            limit: rowLimit,
+            offset: rowOffset,
+          },
           tableName,
         },
       );

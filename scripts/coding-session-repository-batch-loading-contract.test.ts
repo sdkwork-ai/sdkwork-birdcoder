@@ -180,7 +180,7 @@ const codingSessionRepositorySource = fs.readFileSync(
   'utf8',
 );
 const listMessagesMethodStart = codingSessionRepositorySource.indexOf(
-  'async listMessagesByCodingSessionIds(codingSessionIds) {',
+  'async listMessagesByCodingSessionIds(codingSessionIds, pagination) {',
 );
 assert.notEqual(
   listMessagesMethodStart,
@@ -188,12 +188,17 @@ assert.notEqual(
   'coding session repositories must define listMessagesByCodingSessionIds.',
 );
 const listMessagesMethodEnd = codingSessionRepositorySource.indexOf(
-  '\n    async listSessionsByProjectIds',
+  '\n    async listSessionsFiltered',
   listMessagesMethodStart + 1,
 );
 const listMessagesMethodSource = codingSessionRepositorySource.slice(
   listMessagesMethodStart,
   listMessagesMethodEnd,
+);
+assert.match(
+  codingSessionRepositorySource,
+  /buildCodingSessionMessagesBySessionIdsPlan[\s\S]*LIMIT \$\{limitPlaceholder\} OFFSET \$\{offsetPlaceholder\}/,
+  'SQL-backed transcript reads must push LIMIT/OFFSET to the database instead of materializing unbounded message arrays.',
 );
 assert.match(
   listMessagesMethodSource,

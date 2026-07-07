@@ -57,10 +57,12 @@ assert.match(manifest, /commerce\.invoices\.retrieve/u);
 assert.match(manifest, /commerce\.payments\.list/u);
 assert.match(manifest, /commerce\.payments\.create/u);
 assert.match(manifest, /commerce\.payments\.retrieve/u);
+assert.match(manifest, /commerce\.payments\.confirm/u);
 
 assert.match(paths, /\{orderId\}/u, 'commerce paths must use OpenAPI path templates.');
 assert.match(paths, /\{invoiceId\}/u);
 assert.match(paths, /\{paymentId\}/u);
+assert.match(paths, /\/confirm/u, 'commerce payment confirm path must exist.');
 
 assert.match(
   commerceService,

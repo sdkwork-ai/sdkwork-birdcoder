@@ -37,7 +37,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 
 | Surface | Contract operations | Host routes (product + IAM federation + commerce gateway) | Deferred |
 | --- | ---: | ---: | ---: |
-| App + Backend + Commerce + Chat (OpenAPI snapshot) | 161 | 161 | 0 |
+| App + Backend + Commerce + Chat (OpenAPI snapshot) | 162 | 162 | 0 |
 
 **Rule:** BirdCoder product manifests, federated `sdkwork-iam` app/backend routers wired in standalone-gateway, and commerce gateway routes (`/api/v1/api-keys`, `/api/v1/notifications`, `/api/v1/usage`) fully cover the OpenAPI contract. The defer registry must report `deferredOperationCount: 0`.
 
@@ -85,9 +85,9 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 ## 7. Closed in Phase 5 (2026-06-24)
 
 1. Workspace teams app route (`GET /app/v3/api/teams`) and backend IAM teams routes (`GET /backend/v3/api/iam/teams`, `GET /backend/v3/api/iam/teams/{teamId}/members`) registered in product manifests and handler smoke tests.
-2. OpenAPI defer registry regenerated: **161 of 161 implemented**, **0 deferred** (commerce gateway, commerce transactions, and chat routes wired in standalone-gateway; see §2b, §11f, and §15).
+2. OpenAPI defer registry regenerated: **162 of 162 implemented**, **0 deferred** (commerce gateway, commerce transactions, chat routes, and the current route catalog wired in standalone-gateway; see §2b, §11f, and §15).
 3. `generate-birdcoder-http-route-manifests.mjs` synced with teams routes so manifest regeneration cannot drop coverage.
-4. Contract tests require full OpenAPI implementation (`implementedOperationCount === 161`) and zero deferred operations (`deferredOperationCount === 0`).
+4. Contract tests require full OpenAPI implementation (`implementedOperationCount === 162`) and zero deferred operations (`deferredOperationCount === 0`).
 
 ## 8. Closed in Phase 6 (2026-06-24)
 
@@ -111,7 +111,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 ## 11f. Closed in Phase 16 (2026-07-04)
 
 1. Commerce order/invoice/payment business layer: `sdkwork-birdcoder-commerce-service`, `sdkwork-birdcoder-commerce-repository-sqlx`, and `sdkwork-routes-commerce-app-api` implement tenant+user scoped orders (`BCO-`), payments (`BCP-`), and invoices (`BCI-`) with paid-settlement creating issued invoices.
-2. Standalone-gateway wires commerce app router; OpenAPI grows to **161 operations** (8 new `/app/v3/api/commerce/*` routes) with **0 deferred**.
+2. Standalone-gateway wires commerce app router; OpenAPI **162 operations** (8 new `/app/v3/api/commerce/*` routes) with **0 deferred**.
 3. `scripts/commerce-transactions-contract.test.mjs` guards crate wiring, route catalog paths, and commerce-quota IAM id parsing reuse.
 4. Defer registry builder includes `sdkwork-routes-commerce-app-api`; regenerate OpenAPI via `pnpm run generate:openapi:coding-server`.
 5. Commerce transaction OpenAPI response schemas (`BirdCoderCommerceOrder*`, `BirdCoderCommerceInvoice*`, `BirdCoderCommercePaymentSummary*`) materialized in `openApiSchemas.ts` / `openApiOperationDefinitions.ts`; `@sdkwork/birdcoder-app-sdk` `client.commerce.*` methods now return typed SdkWorkApiResponse envelopes instead of `void`.
@@ -185,7 +185,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 | Mobile assistant generation | Implemented | `sdkwork-birdcoder-kernel-bridge::generate_mobile_chat_assistant_reply`; chat `create_message` persists assistant reply after user messages |
 | Database migration | Implemented | `database/migrations/*/0008_chat.*.sql` |
 | Gateway wiring | Implemented | `standalone-gateway` routers + `route_manifest.rs` |
-| OpenAPI + defer registry | 161 / 0 deferred | `specs/coding-server-openapi-rust-defer-registry.json` |
+| OpenAPI + defer registry | 162 / 0 deferred | `specs/coding-server-openapi-rust-defer-registry.json` |
 | Generated app SDK | Implemented | `client.system.chat.conversations.*` (TS) / `system.chatConversations*` (Flutter) |
 | H5 chat UI | API-backed + i18n | `birdcoderMobileChatApi.ts`, `h5-chat/ChatPage.tsx`, `chatPageMessages.ts` |
 | Flutter chat UI | API-backed | `birdcoder_mobile_chat_api.dart`, `lib/pages/chat_page.dart` |
@@ -196,7 +196,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 
 ## 17. Closed in Phase 13 (2026-06-29)
 
-1. Commerce OpenAPI parity: `COMMERCE_API_CONTRACT` in `routeCatalog.ts` plus standalone-gateway handlers cover all 15 `/api/v1/*` operations; defer registry reports **161 implemented / 0 deferred** after commerce transactions lane closure (Phase 16).
+1. Commerce OpenAPI parity: `COMMERCE_API_CONTRACT` in `routeCatalog.ts` plus standalone-gateway handlers cover all 15 `/api/v1/*` operations; defer registry reports **162 implemented / 0 deferred** on the current route catalog.
 2. Quality gates: `check:api-response-envelope`, `check:app-composition`, and `check:quality:mobile` wired into fast/standard quality tiers.
 3. Native app composition (ADR-20260629): `component.spec.json#contracts.sdkDependencies` populated across PC/H5/Flutter; legacy `dependency.composition.json` forbidden by contract.
 4. H5 Drive upload: chat attachments route through `@sdkwork/birdcoder-pc-infrastructure` Drive client via `h5-core` SDK exports.
@@ -204,7 +204,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 
 ## 18. Closed in Phase 14 (2026-06-29)
 
-1. Mobile chat backend: service/repository/route crates, `0008_chat` migration, gateway wiring, and 6 `/app/v3/api/chat/*` OpenAPI operations (161 total / 0 deferred after Phase 16 commerce transactions).
+1. Mobile chat backend: service/repository/route crates, `0008_chat` migration, gateway wiring, and 6 `/app/v3/api/chat/*` OpenAPI operations (162 total / 0 deferred in the current defer registry).
 2. H5 chat persistence through `@sdkwork/birdcoder-app-sdk` `system.chat` client (`birdcoderMobileChatApi.ts`).
 3. `scripts/chat-route-catalog-contract.test.mjs` guards route catalog, Rust manifest, and mobile chat SDK integration.
 
@@ -227,7 +227,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 ## 22. Closed in Phase 18 (2026-06-29)
 
 1. `scripts/surface-manifest-parity-contract.test.mjs` guards root + PC + H5 + Flutter manifest DRAFT/preLaunch/releaseEvidenceStatus parity.
-2. Operator runbooks updated for 161/0 OpenAPI, mobile chat API-backed status, and four-manifest governed release promotion.
+2. Operator runbooks updated for 162/0 OpenAPI, mobile chat API-backed status, and four-manifest governed release promotion.
 
 ## 23. Closed in Phase 19 (2026-06-29)
 
@@ -268,7 +268,7 @@ Authoritative machine-readable defer registry: `specs/coding-server-openapi-rust
 7. Application-package scan roots unified via `scripts/lib/birdcoder-package-scan-roots.mjs`; governance, structure, i18n, clipboard, provider-SDK, source-parse, and architecture contracts no longer scan the retired root `packages/` directory.
 8. `pnpm-workspace.yaml` federation adds `../sdkwork-app-topology`; package-governance and structure checks assert app-root workspace globs (`apps/sdkwork-birdcoder-{pc,h5}/packages/...`) instead of legacy root `packages/sdkwork-birdcoder-*`.
 9. UI bundle segmentation contract scopes subpath-import enforcement to UI shell surfaces and allows governed `@sdkwork/birdcoder-*` and `@sdkwork/utils/*` subpaths backed by explicit package exports.
-10. OpenAPI route-count contract aligned to current gateway metadata: **112 app + 49 backend = 161 operations**.
+10. OpenAPI route-count contract aligned to current gateway metadata: **162 operations** from `specs/coding-server-openapi-rust-defer-registry.json`, with **0 deferred**.
 
 ## 30. Closed in Phase 24 (2026-06-30)
 
@@ -388,3 +388,82 @@ node scripts/release/package-release-assets.test.mjs
 - `pnpm db:generate:ddl` ✅
 - `cargo build --workspace` ✅
 - Final `check:arch` / `check:api-response-envelope` / `check:pagination` / `pnpm lint` to be re-run after this loop closes.
+
+## 15. 2026-07-06 alignment loop (catalog + chat OpenAPI pagination)
+
+### Closed in this loop
+
+1. **Chat OpenAPI/SDK pagination wire:** `chat.conversations.list` and `chat.conversations.messages.list` now declare `limit`/`offset` in `openApiOperationDefinitions.ts`; OpenAPI + `@sdkwork/birdcoder-app-sdk` regenerated; `listBirdCoderMobileChatMessages` uses the typed SDK query surface (`system.ts` `SystemChatConversationsMessagesListQuery`).
+2. **Skill package catalog SQL pagination:** `list_skill_packages` + `count_skill_packages` push `LIMIT`/`OFFSET` to SQL; route handler uses `clamp_list_page_size` + `build_offset_list_envelope`; OpenAPI `skillPackages.list` gains `limit`/`offset`.
+3. **App template catalog SQL pagination:** `SqliteAppTemplateRepository::list_templates` accepts offset/limit with COUNT query; handler uses `AppTemplateListQuery` + `build_offset_list_envelope`.
+4. **In-process app SDK transport:** `createBirdCoderInProcessAppSdkTransport` `Pick<IProjectService>` now includes `listCodingSessions` required by `appRuntimeTransport` coding-session list routes.
+
+### Verification (this loop)
+
+- `pnpm run check:arch` ✅
+- `node ../sdkwork-specs/tools/check-pagination.mjs --workspace .` ✅
+- `node ../sdkwork-specs/tools/check-api-response-envelope.mjs --workspace .` ✅
+- `node scripts/api-observability-pagination-contract.test.ts` ✅
+- `node scripts/coding-session-repository-batch-loading-contract.test.ts` ✅
+- `pnpm run generate:openapi:coding-server` + `pnpm run generate:sdk:birdcoder` ✅
+- `pnpm run lint` — blocked when sibling `@sdkwork/agents-app-sdk` workspace link is not materialized (`pnpm install` workspace resolution); unrelated to BirdCoder pagination changes.
+
+### Closed in 2026-07-06 alignment loop (continued)
+
+1. **Project catalog SQL pagination:** `listProjectsByWorkspaceIds` and `BirdCoderTableRecordRepository.listPage` push `LIMIT/OFFSET` + `COUNT(*)` to SQL; `ProviderBackedProjectService.getProjects` hydrates only the requested page (no post-hydration `.slice()`).
+2. **Table list page planner:** `buildListPagePlan` + `table-list` / `project-list-by-workspace-ids` / `project-count-by-workspace-ids` meta kinds align in-memory SQL executor with production SQL pagination semantics.
+
+### Verification (continued)
+
+- `node scripts/provider-backed-project-content-hydration-performance-contract.test.ts` ✅
+- `node scripts/sql-storage-plan-contract.test.ts` ✅
+
+## 16. 2026-07-06 evening loop (session resolve + inventory default pagination)
+
+### Closed
+
+1. **`getCodingSessionById`:** uses `findCodingSessionInPagedInventory` + `listCodingSessions` instead of unbounded `getProjects` session scans (`appRuntimeTransport.ts`).
+2. **`useProjects`:** default workspace inventory fetch uses `DEFAULT_LIST_PAGE_SIZE` (20) from `@sdkwork/utils/pagination`.
+3. **TypeScript gate:** root `tsconfig.json` `ignoreDeprecations: "6.0"`.
+4. **Federation:** filtered `pnpm install --filter "@sdkwork/birdcoder-pc-core..." --filter "@sdkwork/agents-app-sdk"` restores agents SDK for local quality gates.
+
+### Verification
+
+- `pnpm run typecheck` ✅
+- `node scripts/projects-inventory-lazy-transcript-contract.test.mjs` ✅
+- `node scripts/api-observability-pagination-contract.test.ts` ✅
+
+## 17. 2026-07-06 production-hardening loop (PostgreSQL portability + commerce honesty)
+
+### Closed
+
+1. **PostgreSQL insert portability:** workspace/project/team/commerce repositories use `RETURNING id` instead of `last_insert_rowid()` / `last_insert_id()`.
+2. **Session history copy:** turn/event/artifact reads execute inside the open transaction (`session_history_copy.rs`).
+3. **Commerce payments:** `create_payment` creates `pending` records unless `channelTransactionId` is supplied (gateway-confirmed settle path only).
+4. **Commerce gateway pagination:** `/api/v1/api-keys` and `/api/v1/notifications` accept `page`/`pageSize`, SQL `LIMIT`/`OFFSET`, and correct `pageInfo.totalItems` via `COUNT(*)`.
+5. **Mobile chat failures:** assistant generation/persist errors return HTTP 502 `ProblemDetail` instead of silent success.
+6. **PC shell honesty:** documentation menu links to the BirdCoder product page; web “Reveal in Explorer” shows a desktop-only warning (no mock success toast).
+7. **Local session mirror:** `listSessionsByProjectIds` pages through SQL (`MAX_LIST_PAGE_SIZE`) instead of unbounded `SELECT`.
+8. **Connection budget:** repository `AnyPool` uses half of the configured `max_connections` to stay within operator limits alongside the typed lifecycle pool.
+9. **Console project inventory:** `consoleQueries.listProjects()` and `listProjectsByWorkspaceIds` without explicit pagination page through SQL using `MAX_LIST_PAGE_SIZE` instead of full-table loads.
+10. **Commerce payment confirm:** `POST /app/v3/api/commerce/payments/{paymentId}/confirm` finalizes pending payments after gateway `channelTransactionId` callback (OpenAPI **162** operations / **0** deferred).
+
+### Remaining before public SaaS launch
+
+1. Governed release artifacts (checksum/SBOM/signing) and enabling install packages.
+2. Real payment gateway provider integration (Stripe / domestic providers) with signed webhooks feeding `channelTransactionId` into the confirm endpoint.
+3. Membership catalog lists remain bounded static catalogs (`LIMIT 200`) — acceptable L1 catalog exception.
+
+## 18. 2026-07-07 alignment loop (PostgreSQL dialect + API honesty)
+
+### Closed
+
+1. **PostgreSQL soft-delete predicates:** workspace/project/team/deployment repositories use `IS_NOT_DELETED` (`is_deleted IS NOT TRUE`) instead of `is_deleted = 0`; contract enforced in `postgres-returning-id-portability-contract.test.mjs`.
+2. **Cross-engine boolean row reads:** `dialect::row_get_bool_as_i64` decodes PostgreSQL `BOOLEAN` and SQLite `INTEGER` flags in workspace row mappers.
+3. **Native session scoped listing:** `CodeEngineSessionSummaryRecord` carries optional `workspaceId`/`projectId`; SDK-bridge sessions persist scope metadata; scoped list/get match on ownership instead of fail-closed empty results.
+4. **In-process runtime honesty:** approval/question/turn/operation endpoints throw explicit shim errors instead of synthetic success payloads.
+5. **Pagination envelopes:** `build_list_envelope` requires offset/pageSize; bounded catalogs use `build_unbounded_list_envelope` with accurate `pageInfo`.
+6. **Membership errors:** DB failures propagate; `NotFound` still maps to `None` for current-membership lookup.
+7. **Session fork scope checks:** tenant scope validation runs inside the open transaction.
+8. **OpenAPI defer registry:** regenerated to live manifest diff (`162/0`, host routes `293`).
+9. **`cargo test` workspace:** `sdkwork-birdcoder-tauri-host` aligned to `rusqlite 0.31` to match `sdkwork-agent-database`.

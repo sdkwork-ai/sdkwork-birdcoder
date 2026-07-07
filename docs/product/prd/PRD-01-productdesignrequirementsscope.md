@@ -1,95 +1,112 @@
-# PRD-01 产品设计与需求范围
+# PRD-01 Product Design And Requirement Scope
 
 Status: active
 Owner: SDKWork maintainers
 Application: sdkwork-birdcoder
-Updated: 2026-06-26
+Updated: 2026-07-08
 Parent: [PRD.md](PRD.md)
+Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md
 
-本分片定义 SDKWork BirdCoder 的产品定位、目标用户、功能范围、设计要求与非功能要求，作为产品设计与商业化能力的范围基线。
+This shard defines BirdCoder's product positioning, target users, functional scope, design requirements, and non-functional requirements for the first governed release baseline.
 
-## 1. 产品定位
+## 1. Product Positioning
 
-SDKWork BirdCoder 是面向专业开发者的 AI 编码协作平台，以 SDKWork 合约治理（OpenAPI / generated SDK / IAM / 发布证据）为底座，提供跨 PC、H5、Flutter 三端一致的 AI 编码会话与工作台体验。当前 `sdkwork.app.config.json` 处于 `DRAFT` / `preLaunch`，本分片描述的是首个 governed release 应达到的范围基线。
+SDKWork BirdCoder is a professional AI coding collaboration platform. It combines SDKWork contract governance, generated SDKs, IAM, tenant isolation, release evidence, and a multi-agent coding workbench across PC, H5, and Flutter roots.
 
-## 2. 目标用户
+The root `sdkwork.app.config.json` remains `DRAFT` / `preLaunch`. This PRD describes the governed release target, not a public launch claim.
 
-- 主要：专业开发者（VS Code / Cursor 用户），需在本地或托管 SDKWork tenant 下进行 AI 编码协作
-- 次要：企业开发团队，需共享工作区、项目与部署治理；教育机构，需受控的编码教学环境
+## 2. Target Users
 
-## 3. 产品功能范围
+- Professional developers who use VS Code, Cursor, Codex, Claude Code, OpenCode, or similar coding agents and need local or managed-tenant coding sessions.
+- Enterprise development teams that need shared workspaces, project governance, deployment control, auditability, and tenant isolation.
+- Education and enablement teams that need controlled AI coding environments.
+- SDKWork platform operators that need repeatable release, compliance, and commercial readiness evidence.
 
-### 3.1 核心
+## 3. Product Scope
 
-- AI 编码会话：multi-turn 对话、文件系统操作、终端集成、git overview
-- 工作台：skills、templates、studio、projection 等产品模块（见 `apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*`）
+### 3.1 Core Workbench
 
-### 3.2 引擎
+- AI coding sessions with multi-turn conversation, tool calls, terminal integration, file/workspace context, git overview, and projection timeline.
+- Workbench modules for code, studio, skills, templates, settings, and project/workspace management.
+- Server-side Rust route/service/repository implementation with SQLite default and PostgreSQL HA overlay.
 
-四引擎集成（`external/` 已纳管对应 CLI 工程，PC 端 `sdkwork-birdcoder-pc-codeengine` 包提供引擎抽象）：
+### 3.2 Engine And Agent Platform
 
-- codex
-- claude-code
-- gemini
-- opencode
+P0 code-agent engines:
 
-### 3.3 三端
+- Codex.
+- Claude Code.
+- Gemini CLI.
+- OpenCode.
 
-- PC（React + Tauri，`apps/sdkwork-birdcoder-pc/`）— 浏览器 Web 与桌面 Tauri 双交付（当前主要实现面）
-- H5（Capacitor，`apps/sdkwork-birdcoder-h5/`）— 移动 Web / Capacitor 原生壳（当前为骨架）
-- Flutter Mobile — 三端之一，规划中以草稿状态登记，待建立独立应用根目录
+Execution path:
 
-三端需按 `APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md` 对齐包角色、route id、i18n key、SDK surface、host adapter 契约。
+```text
+BirdCoder workbench
+  -> sdkwork-birdcoder-kernel-bridge
+  -> sdkwork-agents-runtime-facade
+  -> sdkwork-kernel provider binding
+  -> provider SDK/CLI/process runtime
+```
+
+Three-layer model:
+
+| Layer | Repository | BirdCoder Relationship |
+| --- | --- | --- |
+| Kernel | `sdkwork-kernel` | SPI/provider owner; BirdCoder does not depend on it directly |
+| Agents | `sdkwork-agents` | Sole agent business entry: runtime facade and `@sdkwork/agents-app-sdk` |
+| Product | `sdkwork-birdcoder` | Coding-session projection, workbench UX, code-engine catalog, release posture |
+
+Autonomous providers and framework-level agents:
+
+- OpenClaw has an experimental SDK/gateway binding in kernel and stays outside BirdCoder P0 until conformance and product support are complete.
+- Hermes has a process/IPC binding shape and stays outside BirdCoder P0 until conformance and product support are complete.
+- Rig is a Rust-native framework/provider baseline for infrastructure experiments, not a default BirdCoder P0 product engine.
+
+### 3.3 Client Roots
+
+- PC: `apps/sdkwork-birdcoder-pc/`, React + Tauri, primary implementation surface.
+- H5: `apps/sdkwork-birdcoder-h5/`, mobile web and Capacitor shell, route-parity companion.
+- Flutter Mobile: `apps/sdkwork-birdcoder-flutter-mobile/`, mobile companion root, release lane pending further CI hardening.
+
+All client roots must follow `APP_CLIENT_ARCHITECTURE_ALIGNMENT_SPEC.md` for package roles, route identity, i18n keys, SDK surfaces, and host-adapter boundaries.
 
 ### 3.4 IAM
 
-- 双 token JWT（access / refresh）
-- tenant / organization / user 三元主体隔离
-- 登录、注册、组织选择、AuthGate、logout 由 `sdkwork-appbase` IAM runtime 统一治理
+- Dual-token JWT model with tenant, organization, user, and session context.
+- Appbase IAM runtime owns login, registration, organization selection, AuthGate, logout, current-user, and session lifecycle.
+- Product modules do not parse tokens, assemble auth headers, or define local auth routes.
 
-### 3.5 商业化
+### 3.5 Commercial Capabilities
 
-商业化域（`database.manifest.json` 已声明 `commerce_` 表前缀，业务模块待落地）：
+- Membership plans: free, pro, enterprise.
+- Orders, invoices, payments, usage metering, API key management, and notifications.
+- Release-governed install packages with checksum, signature, SBOM, and provenance evidence.
 
-- order（订单）
-- invoice（发票）
-- payment（支付）
-- usage metering（用量计量）
-- API key（API 密钥管理与轮换）
-- notification（通知）
+## 4. Product Design Requirements
 
-## 4. 产品设计要求
+- The PC workbench must feel like a professional developer tool, with dense but readable navigation, fast engine switching, and predictable session management.
+- Engine and agent configuration must be surfaced through services backed by generated SDKs, not by UI-local HTTP calls.
+- Settings must separate code engines, model selection, MCP/skills/prompts, memory/knowledge composition, security policy, and release/deployment configuration.
+- Mobile companions must preserve workflow identity and SDK boundaries even when UI parity is intentionally narrower.
 
-- 视觉 / UI 对齐 Chrome / Edge / Arc 浏览器专业标准
-- 设置页允许切换不同引擎（WebView / Servo / CEF）
-- 三端功能对齐，避免单端独占业务逻辑
-- 用户界面遵循 `FRONTEND_SPEC.md`、`UI_ARCHITECTURE_SPEC.md` 与各端 UI 架构规范
+## 5. Non-Functional Requirements
 
-## 5. 非功能要求
+- Performance: key interactive paths target p95 under 100 ms where local data is available; list/search APIs must use bounded server-side pagination.
+- Security: sandbox, RBAC, IAM dual-token validation, audit events, and Tauri host capability allowlists follow root security specs.
+- Reliability: release target SLO is 99.9% for managed cloud API surfaces after public launch.
+- Observability: logs, metrics, traces, health checks, release evidence, and operator runbooks follow `OBSERVABILITY_SPEC.md` and `HEALTH_CHECK_SPEC.md`.
+- SDK governance: all app API consumption uses composed generated SDK packages.
 
-- 性能：关键交互 p95 < 100ms（遵循 `PERFORMANCE_SPEC.md`）
-- 安全：sandbox + RBAC + 审计（遵循 `SECURITY_SPEC.md`，含 Tauri host capability 白名单）
-- 高可用：SLO 99.9%
-- 可观测性：OpenTelemetry 全栈（日志 / 指标 / 链路，遵循 `OBSERVABILITY_SPEC.md`）
+## 6. Release Plan
 
-## 6. 商业化能力
+1. PC private beta with standalone and cloud server profiles.
+2. Enterprise K8s with PostgreSQL HA overlay and backup drills.
+3. Agent platform hardening: full `@sdkwork/agents-app-sdk` service/UI adoption, task-run projection, memory runtime mount, replayable message/run event stream.
+4. Governed public release with real artifacts and unified manifest truth.
+5. Mobile store lanes after Flutter/iOS CI and catalog assets are complete.
 
-- 会员套餐：free / pro / enterprise
-- API key 管理 + 轮换
-- Usage metering + 实时聚合
-- Rate limiting / quota
+## 7. Open Questions
 
-商业化能力为首个 governed release 的范围目标；当前实现状态见 [PRD-01-baseline-audit.md](PRD-01-baseline-audit.md)。
-
-## 7. 发布计划
-
-与 `sdkwork.app.config.json` 的 `commercialReadiness` 与 PRD 发布阶段对齐：
-
-1. PC private beta — standalone / cloud server profiles
-2. Enterprise K8s — PostgreSQL HA overlay 与备份演练
-3. Governed public release — 真实 artifacts + unified manifest truth
-4. Mobile store lanes — Flutter / iOS release CI 与 catalog assets 完成后
-
-## 8. Open Questions
-
-- `@sdkwork/birdcoder-pc-server` 模块边界拆分时间表（当前为大型聚合包，与 PRD.md §9 一致）
+- Final schedule for splitting large server/UI packages into smaller capability packages after agent SDK adoption.
+- Final UX for autonomous OpenClaw/Hermes optional exposure after kernel conformance passes.

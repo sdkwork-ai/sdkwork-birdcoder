@@ -1,4 +1,5 @@
 use sqlx::Row;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::row_get_bool_as_i64;
 
 #[derive(Clone, Debug)]
 pub struct MembershipRow {
@@ -34,7 +35,7 @@ impl MembershipRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             owner_user_id: row.try_get("owner_user_id")?,
             plan_id: row.try_get("plan_id")?,
             plan_name: row.try_get("plan_name")?,
@@ -82,14 +83,14 @@ impl MembershipBenefitRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             membership_id: row.try_get("membership_id")?,
             name: row.try_get("name")?,
             benefit_key: row.try_get("benefit_key")?,
             benefit_type: row.try_get("benefit_type")?,
             description: row.try_get("description")?,
             icon: row.try_get("icon")?,
-            claimed: row.try_get("claimed")?,
+            claimed: row_get_bool_as_i64(row, "claimed")?,
             usage_limit: row.try_get("usage_limit")?,
             used_count: row.try_get("used_count")?,
         })
@@ -121,7 +122,7 @@ impl PackageGroupRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             name: row.try_get("name")?,
             description: row.try_get("description")?,
             sort_weight: row.try_get("sort_weight")?,
@@ -161,7 +162,7 @@ impl MembershipPackageRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             group_id: row.try_get("group_id")?,
             name: row.try_get("name")?,
             description: row.try_get("description")?,
@@ -171,7 +172,7 @@ impl MembershipPackageRow {
             duration_days: row.try_get("duration_days")?,
             plan_name: row.try_get("plan_name")?,
             sort_weight: row.try_get("sort_weight")?,
-            recommended: row.try_get("recommended")?,
+            recommended: row_get_bool_as_i64(row, "recommended")?,
         })
     }
 }

@@ -24,7 +24,7 @@ use sdkwork_birdcoder_native_sessions_service::error::NativeSessionError;
 
 use sdkwork_utils_rust::is_blank;
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    build_data_envelope, build_list_envelope, build_unbounded_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
     ApiListEnvelope,
 };
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
@@ -111,13 +111,18 @@ impl NativeSessionRepository for RealNativeSessionRepository {
         query: &NativeSessionQuery,
     ) -> Result<Vec<NativeSessionSummaryPayload>, String> {
         let engine_id = query.engine_id.as_deref().filter(|value| !is_blank(Some(*value)));
-        let mut sessions = list_codeengine_native_session_summaries(engine_id)?
-            .into_iter()
-            .filter(|record| matches_native_session_query(record, query))
-            .map(map_native_session_summary)
-            .collect::<Vec<_>>();
-        if let Some(limit) = query.limit {
-            sessions.truncate(limit as usize);
+        let limit = query.limit.map(|value| value as usize);
+        let mut sessions = Vec::new();
+        for record in list_codeengine_native_session_summaries(engine_id)? {
+            if !matches_native_session_query(&record, query) {
+                continue;
+            }
+            sessions.push(map_native_session_summary(record));
+            if let Some(max) = limit {
+                if sessions.len() >= max {
+                    break;
+                }
+            }
         }
         Ok(sessions)
     }
@@ -175,6 +180,29 @@ fn native_session_lookup_is_scoped(lookup: &NativeSessionLookup) -> bool {
     workspace_id.is_some() && project_id.is_some()
 }
 
+fn matches_native_session_scope(
+    record: &CodeEngineSessionSummaryRecord,
+    workspace_id: Option<&str>,
+    project_id: Option<&str>,
+) -> bool {
+    let Some(expected_workspace_id) = workspace_id.filter(|value| !is_blank(Some(*value))) else {
+        return false;
+    };
+    let Some(expected_project_id) = project_id.filter(|value| !is_blank(Some(*value))) else {
+        return false;
+    };
+    match (
+        record.workspace_id.as_deref().filter(|value| !is_blank(Some(*value))),
+        record.project_id.as_deref().filter(|value| !is_blank(Some(*value))),
+    ) {
+        (Some(record_workspace_id), Some(record_project_id)) => {
+            record_workspace_id == expected_workspace_id
+                && record_project_id == expected_project_id
+        }
+        _ => false,
+    }
+}
+
 fn matches_native_session_query(
     record: &CodeEngineSessionSummaryRecord,
     query: &NativeSessionQuery,
@@ -189,9 +217,11 @@ fn matches_native_session_query(
         }
     }
 
-    // Native CLI session files do not yet carry workspace/project ownership metadata.
-    // Fail closed until codeengine session records are enriched with scoped ownership.
-    false
+    matches_native_session_scope(
+        record,
+        query.workspace_id.as_deref(),
+        query.project_id.as_deref(),
+    )
 }
 
 fn matches_native_session_lookup(
@@ -208,7 +238,11 @@ fn matches_native_session_lookup(
         }
     }
 
-    false
+    matches_native_session_scope(
+        record,
+        lookup.workspace_id.as_deref(),
+        lookup.project_id.as_deref(),
+    )
 }
 
 fn map_native_session_summary(record: CodeEngineSessionSummaryRecord) -> NativeSessionSummaryPayload {
@@ -219,8 +253,8 @@ fn map_native_session_summary(record: CodeEngineSessionSummaryRecord) -> NativeS
         host_mode: record.host_mode,
         engine_id: record.engine_id,
         model_id: record.model_id,
-        workspace_id: String::new(),
-        project_id: String::new(),
+        workspace_id: record.workspace_id.clone().unwrap_or_default(),
+        project_id: record.project_id.clone().unwrap_or_default(),
         created_at: record.created_at,
         updated_at: record.updated_at,
         last_turn_at: record.last_turn_at,
@@ -275,10 +309,7 @@ pub async fn list_engines(
 {
     let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.list_engines() {
-        Ok(engines) => {
-            let total = engines.len();
-            Ok(Json(build_list_envelope(engines, total, request_id(&web))))
-        }
+        Ok(engines) => Ok(Json(build_unbounded_list_envelope(engines, request_id(&web)))),
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
@@ -317,10 +348,7 @@ pub async fn list_native_session_providers(
         .engine_catalog_service
         .list_native_session_providers()
     {
-        Ok(providers) => {
-            let total = providers.len();
-            Ok(Json(build_list_envelope(providers, total, request_id(&web))))
-        }
+        Ok(providers) => Ok(Json(build_unbounded_list_envelope(providers, request_id(&web)))),
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
@@ -359,7 +387,17 @@ pub async fn list_native_sessions(
     match state.native_session_service.list_sessions(&query) {
         Ok(sessions) => {
             let total = sessions.len();
-            Ok(Json(build_list_envelope(sessions, total, request_id(&web))))
+            let page_size = query
+                .limit
+                .unwrap_or(sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE)
+                .clamp(1, sdkwork_birdcoder_project_service::pagination::MAX_LIST_PAGE_SIZE);
+            Ok(Json(build_list_envelope(
+                sessions,
+                0,
+                page_size,
+                total,
+                request_id(&web),
+            )))
         }
         Err(e) => Err(error::map_native_session_error(e, trace_id)),
     }
@@ -409,10 +447,7 @@ pub async fn list_models(
 {
     let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.list_models() {
-        Ok(models) => {
-            let total = models.len();
-            Ok(Json(build_list_envelope(models, total, request_id(&web))))
-        }
+        Ok(models) => Ok(Json(build_unbounded_list_envelope(models, request_id(&web)))),
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }

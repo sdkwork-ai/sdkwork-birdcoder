@@ -1,6 +1,10 @@
 import type { BirdCoderDatabaseProviderId } from '@sdkwork/birdcoder-pc-types';
 import type { BirdCoderSqlPlan, BirdCoderSqlPlanOrderBy, BirdCoderSqlRow } from './sqlPlans.ts';
 
+function limitRows<T>(rows: readonly T[], begin: number, count: number): T[] {
+  return rows.slice(begin, begin + count);
+}
+
 export interface BirdCoderSqlExecutionResult {
   affectedRowCount?: number;
   rows?: readonly BirdCoderSqlRow[];
@@ -165,8 +169,11 @@ class InMemorySqlExecutorImpl implements BirdCoderInMemorySqlExecutor, BirdCoder
         const rows = Array.from(table.values()).filter((row) =>
           meta.excludeDeleted ? !isRowSoftDeleted(row) : true,
         );
+        const sorted = sortRows(rows, meta.orderBy);
+        const begin = meta.pagination?.offset ?? 0;
+        const count = meta.pagination?.limit ?? sorted.length;
         return {
-          rows: sortRows(rows, meta.orderBy),
+          rows: limitRows(sorted, begin, count),
         };
       }
       case 'coding-session-list-by-project-ids': {
@@ -176,8 +183,56 @@ class InMemorySqlExecutorImpl implements BirdCoderInMemorySqlExecutor, BirdCoder
           projectIdSet.has(String(row.project_id)) &&
           (meta.excludeDeleted ? !isRowSoftDeleted(row) : true),
         );
+        const sorted = sortRows(rows, meta.orderBy);
+        const begin = meta.pagination?.offset ?? 0;
+        const count = meta.pagination?.limit ?? sorted.length;
         return {
-          rows: sortRows(rows, meta.orderBy),
+          rows: limitRows(sorted, begin, count),
+        };
+      }
+      case 'coding-session-count-filtered': {
+        const table = this.ensureTable(meta.tableName);
+        const rows = Array.from(table.values()).filter((row) => {
+          if (meta.excludeDeleted && isRowSoftDeleted(row)) {
+            return false;
+          }
+          if (meta.filters.workspaceId && String(row.workspace_id) !== meta.filters.workspaceId) {
+            return false;
+          }
+          if (meta.filters.projectId && String(row.project_id) !== meta.filters.projectId) {
+            return false;
+          }
+          if (meta.filters.engineId && String(row.engine_id) !== meta.filters.engineId) {
+            return false;
+          }
+          return true;
+        });
+        return {
+          rows: [{ total: rows.length }],
+        };
+      }
+      case 'coding-session-list-filtered': {
+        const table = this.ensureTable(meta.tableName);
+        const rows = Array.from(table.values()).filter((row) => {
+          if (meta.excludeDeleted && isRowSoftDeleted(row)) {
+            return false;
+          }
+          if (meta.filters.workspaceId && String(row.workspace_id) !== meta.filters.workspaceId) {
+            return false;
+          }
+          if (meta.filters.projectId && String(row.project_id) !== meta.filters.projectId) {
+            return false;
+          }
+          if (meta.filters.engineId && String(row.engine_id) !== meta.filters.engineId) {
+            return false;
+          }
+          return true;
+        });
+        const sorted = sortRows(rows, meta.orderBy ?? []);
+        const begin = meta.pagination?.offset ?? 0;
+        const count = meta.pagination?.limit ?? sorted.length;
+        return {
+          rows: limitRows(sorted, begin, count),
         };
       }
       case 'project-content-list-by-project-ids': {
@@ -198,8 +253,22 @@ class InMemorySqlExecutorImpl implements BirdCoderInMemorySqlExecutor, BirdCoder
           workspaceIdSet.has(String(row.workspace_id)) &&
           (meta.excludeDeleted ? !isRowSoftDeleted(row) : true),
         );
+        const sorted = sortRows(rows, meta.orderBy);
+        const begin = meta.pagination?.offset ?? 0;
+        const count = meta.pagination?.limit ?? sorted.length;
         return {
-          rows: sortRows(rows, meta.orderBy),
+          rows: limitRows(sorted, begin, count),
+        };
+      }
+      case 'project-count-by-workspace-ids': {
+        const table = this.ensureTable(meta.tableName);
+        const workspaceIdSet = new Set(meta.workspaceIds);
+        const total = Array.from(table.values()).filter((row) =>
+          workspaceIdSet.has(String(row.workspace_id)) &&
+          (meta.excludeDeleted ? !isRowSoftDeleted(row) : true),
+        ).length;
+        return {
+          rows: [{ total }],
         };
       }
       case 'coding-session-messages-by-session-ids': {
@@ -209,8 +278,11 @@ class InMemorySqlExecutorImpl implements BirdCoderInMemorySqlExecutor, BirdCoder
           codingSessionIdSet.has(String(row.coding_session_id)) &&
           (meta.excludeDeleted ? !isRowSoftDeleted(row) : true),
         );
+        const sorted = sortRows(rows, meta.orderBy);
+        const begin = meta.pagination?.offset ?? 0;
+        const count = meta.pagination?.limit ?? sorted.length;
         return {
-          rows: sortRows(rows, meta.orderBy),
+          rows: limitRows(sorted, begin, count),
         };
       }
       case 'coding-session-message-metadata-by-session-ids': {

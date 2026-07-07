@@ -55,14 +55,36 @@ pub async fn ensure_session_in_tenant_scope(
     ctx: &CodingSessionContext,
     session_id: &str,
 ) -> Result<(), RepositoryError> {
+    ensure_session_in_tenant_scope_on_executor(pool, ctx, session_id).await
+}
+
+pub async fn ensure_session_in_tenant_scope_in_transaction(
+    tx: &mut sqlx::Transaction<'_, sqlx::Any>,
+    ctx: &CodingSessionContext,
+    session_id: &str,
+) -> Result<(), RepositoryError> {
+    ensure_session_in_tenant_scope_on_executor(&mut **tx, ctx, session_id).await
+}
+
+async fn ensure_session_in_tenant_scope_on_executor<'e, E>(
+    executor: E,
+    ctx: &CodingSessionContext,
+    session_id: &str,
+) -> Result<(), RepositoryError>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Any>,
+{
     let mut sql = format!(
         "SELECT 1 FROM {} s WHERE s.{} = ? AND s.{IS_NOT_DELETED}",
         columns::session::TABLE,
         columns::session::ID,
     );
     let tenant_id = append_session_tenant_scope_sql(ctx, "s", &mut sql)?;
-    let query = sqlx::query(&sql).bind(session_id).bind(tenant_id);
-    let row = query.fetch_optional(pool).await?;
+    let row = sqlx::query(&sql)
+        .bind(session_id)
+        .bind(tenant_id)
+        .fetch_optional(executor)
+        .await?;
     if row.is_none() {
         return Err(RepositoryError::NotFound(format!(
             "session {session_id} not found"

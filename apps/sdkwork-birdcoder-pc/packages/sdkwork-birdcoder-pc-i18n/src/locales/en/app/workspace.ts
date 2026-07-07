@@ -3,7 +3,7 @@ import { defineLocaleModule } from '../../resource.ts';
 export default defineLocaleModule('app/workspace', {
   "app": {
     "revealedInExplorer": "Revealed in Explorer: {{path}}",
-    "revealedInExplorerMock": "Revealed in Explorer: {{path}} (Mock)",
+    "revealInExplorerDesktopOnly": "Reveal in Explorer is available in the desktop app only.",
     "cannotDeleteLastWorkspace": "Cannot delete the last workspace.",
     "failedToRenameWorkspace": "Failed to rename workspace",
     "failedToRenameProject": "Failed to rename project",

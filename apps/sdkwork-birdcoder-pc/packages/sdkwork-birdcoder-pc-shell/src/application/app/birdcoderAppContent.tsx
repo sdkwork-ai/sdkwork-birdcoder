@@ -857,11 +857,11 @@ export function AppContent() {
       try {
         if (await openTauriShellPath(path || '')) {
           addToast(t('app.revealedInExplorer', { path: path || 'project' }), 'info');
-        } else {
-          addToast(t('app.revealedInExplorerMock', { path: path || 'project' }), 'info');
+          return;
         }
-      } catch (e) {
-        addToast(t('app.revealedInExplorerMock', { path: path || 'project' }), 'info');
+        addToast(t('app.revealInExplorerDesktopOnly'), 'info');
+      } catch {
+        addToast(t('app.revealInExplorerDesktopOnly'), 'info');
       }
     };
     const handleOpenSettings = () => {
@@ -2088,7 +2088,12 @@ export function AppContent() {
     () => [
       {
         label: t('app.menu.documentation'),
-        onClick: () => window.open('https://github.com', '_blank', 'noopener,noreferrer'),
+        onClick: () =>
+          window.open(
+            'https://sdkwork.com/apps/sdkwork-birdcoder',
+            '_blank',
+            'noopener,noreferrer',
+          ),
       },
       { label: t('app.menu.whatsNew'), onClick: () => setShowWhatsNewModal(true) },
       { label: t('app.menu.skills'), onClick: () => setActiveTab('skills') },

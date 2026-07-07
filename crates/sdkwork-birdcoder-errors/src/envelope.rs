@@ -49,11 +49,22 @@ pub fn build_data_envelope<T: Serialize>(data: T, trace_id: &str) -> ApiDataEnve
 
 pub fn build_list_envelope<T: Serialize>(
     items: Vec<T>,
+    offset: usize,
+    page_size: usize,
     total: usize,
     trace_id: &str,
 ) -> ApiListEnvelope<T> {
-    let page_size = items.len().max(1);
-    build_offset_list_envelope(items, 0, page_size, total, trace_id)
+    build_offset_list_envelope(items, offset, page_size, total, trace_id)
+}
+
+/// Lists with bounded cardinality (PAGINATION_SPEC.md §11) that return the full
+/// set in one response still emit accurate `pageInfo` metadata.
+pub fn build_unbounded_list_envelope<T: Serialize>(
+    items: Vec<T>,
+    trace_id: &str,
+) -> ApiListEnvelope<T> {
+    let total = items.len();
+    build_offset_list_envelope(items, 0, total.max(1), total, trace_id)
 }
 
 pub fn build_offset_list_envelope<T: Serialize>(

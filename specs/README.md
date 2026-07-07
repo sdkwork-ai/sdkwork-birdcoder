@@ -25,7 +25,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Contract Artifacts
 
-- [coding-server-openapi-rust-defer-registry.json](./coding-server-openapi-rust-defer-registry.json) — machine-readable defer registry comparing the coding-server OpenAPI snapshot against BirdCoder product + federated `sdkwork-iam` host manifests + commerce gateway routes. Regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`. All 161 OpenAPI operations must be implemented with **zero deferred routes**.
+- [coding-server-openapi-rust-defer-registry.json](./coding-server-openapi-rust-defer-registry.json) — machine-readable defer registry comparing the coding-server OpenAPI snapshot against BirdCoder product + federated `sdkwork-iam` host manifests + commerce gateway routes. Regenerate with `node scripts/build-coding-server-openapi-rust-defer-registry.mjs`. All 162 OpenAPI operations must be implemented with **zero deferred routes**.
 
 ## Canonical Specs
 
@@ -71,7 +71,8 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 
 ## Local Extension Specs
 
-- [kernel-birdcoder-alignment.spec.json](./kernel-birdcoder-alignment.spec.json) — Kernel ↔ BirdCoder alignment tasks, evidence, and verification matrix. See `docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md`–`TECH-32-kernel-birdcoder.md` and `pnpm run check:kernel-birdcoder-alignment`.
+- [kernel-birdcoder-alignment.spec.json](./kernel-birdcoder-alignment.spec.json) — Kernel ↔ BirdCoder alignment tasks, evidence, and verification matrix. See `docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md`–`TECH-32-kernel-birdcoder.md`, `TECH-36-three-layer-agent-platform-standard.md`, and `pnpm run check:kernel-birdcoder-alignment`.
+- [agents-birdcoder-alignment.spec.json](./agents-birdcoder-alignment.spec.json) — Agents ↔ BirdCoder alignment tasks, evidence, and verification matrix. See `docs/architecture/tech/TECH-33-agents-birdcoder-boundariesstandard.md`–`TECH-35-agents-birdcoder-alignment.md`, `TECH-36-three-layer-agent-platform-standard.md`, and `pnpm run check:agents-birdcoder-alignment`.
 
 ## Verification
 

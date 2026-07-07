@@ -1,7 +1,7 @@
 use sqlx::AnyPool;
 
 use sdkwork_birdcoder_project_service::pagination::MAX_LIST_PAGE_SIZE;
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{any_sql, IS_NOT_DELETED};
 
 use crate::db::columns;
 use crate::db::rows::{MembershipPackageRow, MembershipRow, PackageGroupRow};
@@ -24,13 +24,13 @@ pub async fn get_current_membership(
     sql.push_str(" ORDER BY created_at DESC LIMIT 1");
 
     let row = if let Some(tenant_id) = scoped_tenant_id {
-        sqlx::query(&sql)
+        sqlx::query(&any_sql(&sql))
             .bind(owner_user_id)
             .bind(tenant_id)
             .fetch_optional(pool)
             .await?
     } else {
-        sqlx::query(&sql)
+        sqlx::query(&any_sql(&sql))
             .bind(owner_user_id)
             .fetch_optional(pool)
             .await?

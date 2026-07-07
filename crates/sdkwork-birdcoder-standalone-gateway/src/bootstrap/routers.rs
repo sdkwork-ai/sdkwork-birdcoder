@@ -144,11 +144,15 @@ pub async fn build_router(
         .await
         .map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
 
+    let agents_router = crate::bootstrap::agents::wire_agents_app_router()
+        .map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
+
     let commerce_router = build_commerce_router(&state, config);
 
     let protected = Router::new()
         .merge(system_router)
         .merge(engine_catalog_router)
+        .merge(agents_router)
         .merge(intelligence_router)
         .merge(workspace_router)
         .merge(document_router)

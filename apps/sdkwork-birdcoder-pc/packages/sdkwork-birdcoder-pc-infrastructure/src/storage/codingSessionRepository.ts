@@ -17,6 +17,7 @@ import {
   stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-pc-types';
 import { normalizeBirdCoderCodeEngineNativeSessionId } from '@sdkwork/birdcoder-pc-codeengine';
+import { clampListPageSize, MAX_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import {
   createBirdCoderTableRecordRepository,
   type BirdCoderStorageAccess,
@@ -149,16 +150,37 @@ export interface BirdCoderPersistedCodingSessionMessageMetadata {
   nativeTranscriptUpdatedAt: string | null;
 }
 
+export interface BirdCoderCodingSessionListFilters {
+  engineId?: string;
+  projectId?: string;
+  workspaceId?: string;
+}
+
+export interface BirdCoderCodingSessionListPage {
+  items: BirdCoderPersistedCodingSessionRecord[];
+  total: number;
+}
+
+export interface BirdCoderCodingSessionListPagination {
+  limit?: number;
+  offset?: number;
+}
+
 export interface BirdCoderCodingSessionRepositories {
   deleteMessagesByCodingSessionIds(codingSessionIds: readonly string[]): Promise<void>;
   deleteMessagesByProjectIds(projectIds: readonly string[]): Promise<void>;
   deleteSessionsByProjectIds(projectIds: readonly string[]): Promise<void>;
   listMessagesByCodingSessionIds(
     codingSessionIds: readonly string[],
+    pagination?: BirdCoderCodingSessionListPagination,
   ): Promise<BirdCoderPersistedCodingSessionMessageRecord[]>;
   listSessionsByProjectIds(
     projectIds: readonly string[],
   ): Promise<BirdCoderPersistedCodingSessionRecord[]>;
+  listSessionsFiltered(
+    filters: BirdCoderCodingSessionListFilters,
+    pagination: BirdCoderCodingSessionListPagination,
+  ): Promise<BirdCoderCodingSessionListPage>;
   messages: BirdCoderTableRecordRepository<BirdCoderPersistedCodingSessionMessageRecord>;
   promptEntries: BirdCoderCodingSessionPromptHistoryRepository;
   readMessageMetadataByCodingSessionIds(
@@ -577,8 +599,25 @@ function normalizeMessageMetadataRows(
 function buildCodingSessionListByProjectIdsPlan(
   providerId: BirdCoderDatabaseProviderId,
   projectIds: readonly string[],
+  pagination?: BirdCoderCodingSessionListPagination,
 ): BirdCoderSqlPlan {
   const dialect = createBirdCoderStorageDialect(providerId);
+  const limitOffset = pagination
+    ? clampListPageSize(pagination.offset, pagination.limit)
+    : null;
+  const limitPlaceholderIndex = projectIds.length + 2;
+  const offsetPlaceholderIndex = projectIds.length + 3;
+  const paginationSql = limitOffset
+    ? ` LIMIT ${dialect.buildPlaceholder(limitPlaceholderIndex)} OFFSET ${dialect.buildPlaceholder(offsetPlaceholderIndex)}`
+    : '';
+  const params = limitOffset
+    ? [
+        defaultSoftDeleteValue(providerId),
+        ...projectIds,
+        limitOffset.pageSize,
+        limitOffset.offset,
+      ]
+    : [defaultSoftDeleteValue(providerId), ...projectIds];
   return {
     intent: 'read',
     meta: {
@@ -590,16 +629,24 @@ function buildCodingSessionListByProjectIdsPlan(
       ],
       projectIds,
       tableName: 'ai_coding_session',
+      ...(limitOffset
+        ? {
+            pagination: {
+              offset: limitOffset.offset,
+              limit: limitOffset.pageSize,
+            },
+          }
+        : {}),
     },
     providerId,
     statements: [
       {
-        params: [defaultSoftDeleteValue(providerId), ...projectIds],
+        params,
         sql:
           `SELECT * FROM ai_coding_session ` +
           `WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
           `AND project_id IN (${buildPlaceholderList(providerId, 2, projectIds.length)}) ` +
-          `ORDER BY updated_at DESC, id ASC;`,
+          `ORDER BY updated_at DESC, id ASC${paginationSql};`,
       },
     ],
     transactional: false,
@@ -609,8 +656,18 @@ function buildCodingSessionListByProjectIdsPlan(
 function buildCodingSessionMessagesBySessionIdsPlan(
   providerId: BirdCoderDatabaseProviderId,
   codingSessionIds: readonly string[],
+  pagination?: BirdCoderCodingSessionListPagination,
 ): BirdCoderSqlPlan {
   const dialect = createBirdCoderStorageDialect(providerId);
+  const { offset, pageSize } = pagination
+    ? clampListPageSize(pagination.offset, pagination.limit)
+    : codingSessionIds.length === 1
+      ? { offset: 0, pageSize: MAX_LIST_PAGE_SIZE }
+      : { offset: 0, pageSize: MAX_LIST_PAGE_SIZE };
+  const softDeletePlaceholder = dialect.buildPlaceholder(1);
+  const sessionIdPlaceholders = buildPlaceholderList(providerId, 2, codingSessionIds.length);
+  const limitPlaceholder = dialect.buildPlaceholder(codingSessionIds.length + 2);
+  const offsetPlaceholder = dialect.buildPlaceholder(codingSessionIds.length + 3);
   return {
     intent: 'read',
     meta: {
@@ -621,17 +678,108 @@ function buildCodingSessionMessagesBySessionIdsPlan(
         { column: 'created_at', direction: 'asc' },
         { column: 'id', direction: 'asc' },
       ],
+      pagination: { limit: pageSize, offset },
       tableName: 'ai_coding_session_message',
     },
     providerId,
     statements: [
       {
-        params: [defaultSoftDeleteValue(providerId), ...codingSessionIds],
+        params: [defaultSoftDeleteValue(providerId), ...codingSessionIds, pageSize, offset],
         sql:
           `SELECT * FROM ai_coding_session_message ` +
-          `WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
-          `AND coding_session_id IN (${buildPlaceholderList(providerId, 2, codingSessionIds.length)}) ` +
-          `ORDER BY created_at ASC, id ASC;`,
+          `WHERE is_deleted = ${softDeletePlaceholder} ` +
+          `AND coding_session_id IN (${sessionIdPlaceholders}) ` +
+          `ORDER BY created_at ASC, id ASC ` +
+          `LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder};`,
+      },
+    ],
+    transactional: false,
+  };
+}
+
+function buildCodingSessionCountFilteredPlan(
+  providerId: BirdCoderDatabaseProviderId,
+  filters: BirdCoderCodingSessionListFilters,
+): BirdCoderSqlPlan {
+  const dialect = createBirdCoderStorageDialect(providerId);
+  const params: unknown[] = [defaultSoftDeleteValue(providerId)];
+  let filterSql = ` WHERE is_deleted = ${dialect.buildPlaceholder(1)}`;
+  if (filters.workspaceId?.trim()) {
+    params.push(filters.workspaceId.trim());
+    filterSql += ` AND workspace_id = ${dialect.buildPlaceholder(params.length)}`;
+  }
+  if (filters.projectId?.trim()) {
+    params.push(filters.projectId.trim());
+    filterSql += ` AND project_id = ${dialect.buildPlaceholder(params.length)}`;
+  }
+  if (filters.engineId?.trim()) {
+    params.push(filters.engineId.trim());
+    filterSql += ` AND engine_id = ${dialect.buildPlaceholder(params.length)}`;
+  }
+  return {
+    intent: 'read',
+    meta: {
+      excludeDeleted: true,
+      filters,
+      kind: 'coding-session-count-filtered',
+      tableName: 'ai_coding_session',
+    },
+    providerId,
+    statements: [
+      {
+        params: [...params],
+        sql: `SELECT COUNT(*) AS total FROM ai_coding_session${filterSql};`,
+      },
+    ],
+    transactional: false,
+  };
+}
+
+function buildCodingSessionListFilteredPlan(
+  providerId: BirdCoderDatabaseProviderId,
+  filters: BirdCoderCodingSessionListFilters,
+  pagination: BirdCoderCodingSessionListPagination,
+): BirdCoderSqlPlan {
+  const dialect = createBirdCoderStorageDialect(providerId);
+  const { offset, pageSize } = clampListPageSize(pagination.offset, pagination.limit);
+  const params: unknown[] = [defaultSoftDeleteValue(providerId)];
+  let filterSql = ` WHERE is_deleted = ${dialect.buildPlaceholder(1)}`;
+  if (filters.workspaceId?.trim()) {
+    params.push(filters.workspaceId.trim());
+    filterSql += ` AND workspace_id = ${dialect.buildPlaceholder(params.length)}`;
+  }
+  if (filters.projectId?.trim()) {
+    params.push(filters.projectId.trim());
+    filterSql += ` AND project_id = ${dialect.buildPlaceholder(params.length)}`;
+  }
+  if (filters.engineId?.trim()) {
+    params.push(filters.engineId.trim());
+    filterSql += ` AND engine_id = ${dialect.buildPlaceholder(params.length)}`;
+  }
+  const limitPlaceholder = dialect.buildPlaceholder(params.length + 1);
+  const offsetPlaceholder = dialect.buildPlaceholder(params.length + 2);
+  return {
+    intent: 'read',
+    meta: {
+      excludeDeleted: true,
+      filters,
+      kind: 'coding-session-list-filtered',
+      orderBy: [
+        { column: 'sort_timestamp', direction: 'desc' },
+        { column: 'updated_at', direction: 'desc' },
+        { column: 'id', direction: 'asc' },
+      ],
+      pagination: { limit: pageSize, offset },
+      tableName: 'ai_coding_session',
+    },
+    providerId,
+    statements: [
+      {
+        params: [...params, pageSize, offset],
+        sql:
+          `SELECT * FROM ai_coding_session${filterSql} ` +
+          `ORDER BY sort_timestamp DESC, updated_at DESC, id ASC ` +
+          `LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder};`,
       },
     ],
     transactional: false,
@@ -933,7 +1081,7 @@ export function createBirdCoderCodingSessionRepositories({
         }
       }
     },
-    async listMessagesByCodingSessionIds(codingSessionIds) {
+    async listMessagesByCodingSessionIds(codingSessionIds, pagination) {
       const normalizedCodingSessionIds = normalizeBatchIds(codingSessionIds);
       if (normalizedCodingSessionIds.length === 0) {
         return [];
@@ -942,19 +1090,68 @@ export function createBirdCoderCodingSessionRepositories({
       if (supportsSqlPlanExecution(storage)) {
         try {
           const result = await storage.executeSqlPlan(
-            buildCodingSessionMessagesBySessionIdsPlan(providerId, normalizedCodingSessionIds),
+            buildCodingSessionMessagesBySessionIdsPlan(
+              providerId,
+              normalizedCodingSessionIds,
+              pagination,
+            ),
           );
           return normalizeCodingSessionMessageRows(result.rows ?? [], {
             preserveOrder: true,
           });
-        } catch {
+        } catch (error) {
+          if (pagination) {
+            throw new Error(
+              'Paginated coding-session message listing requires SQL plan execution.',
+              { cause: error },
+            );
+          }
         }
+      }
+
+      if (pagination) {
+        throw new Error('Paginated coding-session message listing requires SQL plan execution.');
       }
 
       const codingSessionIdSet = new Set(normalizedCodingSessionIds);
       return (await messages.list()).filter((message) =>
         codingSessionIdSet.has(message.codingSessionId),
       );
+    },
+    async listSessionsFiltered(filters, pagination) {
+      const { offset, pageSize } = clampListPageSize(pagination.offset, pagination.limit);
+      if (supportsSqlPlanExecution(storage)) {
+        try {
+          const countResult = await storage.executeSqlPlan(
+            buildCodingSessionCountFilteredPlan(providerId, filters),
+          );
+          const listResult = await storage.executeSqlPlan(
+            buildCodingSessionListFilteredPlan(providerId, filters, {
+              offset,
+              limit: pageSize,
+            }),
+          );
+          const countRow = countResult.rows?.[0] as Record<string, unknown> | undefined;
+          const totalValue = countRow?.total ?? countRow?.['COUNT(*)'];
+          const total =
+            typeof totalValue === 'number'
+              ? totalValue
+              : typeof totalValue === 'string'
+                ? Number.parseInt(totalValue, 10)
+                : 0;
+          return {
+            items: normalizeCodingSessionRows(listResult.rows ?? []),
+            total: Number.isFinite(total) ? total : 0,
+          };
+        } catch (error) {
+          throw new Error(
+            'Filtered coding-session listing requires SQL plan execution.',
+            { cause: error },
+          );
+        }
+      }
+
+      throw new Error('Filtered coding-session listing requires SQL plan execution.');
     },
     async listSessionsByProjectIds(projectIds) {
       const normalizedProjectIds = normalizeBatchIds(projectIds);
@@ -964,10 +1161,27 @@ export function createBirdCoderCodingSessionRepositories({
 
       if (supportsSqlPlanExecution(storage)) {
         try {
-          const result = await storage.executeSqlPlan(
-            buildCodingSessionListByProjectIdsPlan(providerId, normalizedProjectIds),
-          );
-          return normalizeCodingSessionRows(result.rows ?? []);
+          const collected: BirdCoderPersistedCodingSessionRecord[] = [];
+          let offset = 0;
+          while (true) {
+            const { offset: pageOffset, pageSize } = clampListPageSize(
+              offset,
+              MAX_LIST_PAGE_SIZE,
+            );
+            const result = await storage.executeSqlPlan(
+              buildCodingSessionListByProjectIdsPlan(
+                providerId,
+                normalizedProjectIds,
+                { offset: pageOffset, limit: pageSize },
+              ),
+            );
+            const page = normalizeCodingSessionRows(result.rows ?? []);
+            collected.push(...page);
+            if (page.length < pageSize) {
+              return collected;
+            }
+            offset = pageOffset + pageSize;
+          }
         } catch {
         }
       }

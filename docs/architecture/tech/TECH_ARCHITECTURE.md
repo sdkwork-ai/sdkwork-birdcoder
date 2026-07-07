@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-06-24
+Updated: 2026-07-06
 Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## Document Map
@@ -94,6 +94,10 @@ Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md
 - [TECH-30-kernel-birdcoder-boundariesstandard.md](TECH-30-kernel-birdcoder-boundariesstandard.md)
 - [TECH-31-kernel-birdcoder-integrationimplementation.md](TECH-31-kernel-birdcoder-integrationimplementation.md)
 - [TECH-32-kernel-birdcoder.md](TECH-32-kernel-birdcoder.md)
+- [TECH-33-agents-birdcoder-boundariesstandard.md](TECH-33-agents-birdcoder-boundariesstandard.md)
+- [TECH-34-agents-birdcoder-integrationimplementation.md](TECH-34-agents-birdcoder-integrationimplementation.md)
+- [TECH-35-agents-birdcoder-alignment.md](TECH-35-agents-birdcoder-alignment.md)
+- [TECH-36-three-layer-agent-platform-standard.md](TECH-36-three-layer-agent-platform-standard.md)
 - [TECH-90-architecture-step.md](TECH-90-architecture-step.md)
 - [TECH-91-step-audit.md](TECH-91-step-audit.md)
 - [TECH-92-step.md](TECH-92-step.md)
@@ -475,7 +479,9 @@ Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md
 
 ## 1. Architecture Overview
 
-BirdCoder is a multi-surface SDKWork application: PC web/desktop (`apps/sdkwork-birdcoder-pc`), H5/Capacitor (`apps/sdkwork-birdcoder-h5`), Flutter mobile (`apps/sdkwork-birdcoder-flutter-mobile`), and a Rust standalone gateway (`crates/sdkwork-birdcoder-standalone-gateway`). Client surfaces consume generated `@sdkwork/birdcoder-app-sdk` families; the server exposes 161 OpenAPI operations with federated `sdkwork-iam`, commerce gateway, commerce transactions, and mobile chat routes.
+BirdCoder is a multi-surface SDKWork application: PC web/desktop (`apps/sdkwork-birdcoder-pc`), H5/Capacitor (`apps/sdkwork-birdcoder-h5`), Flutter mobile (`apps/sdkwork-birdcoder-flutter-mobile`), and a Rust standalone gateway (`crates/sdkwork-birdcoder-standalone-gateway`). Client surfaces consume generated `@sdkwork/birdcoder-app-sdk` families; the server exposes 162 OpenAPI operations with federated `sdkwork-iam`, commerce gateway, commerce transactions, and mobile chat routes.
+
+Agent capability follows the three-layer boundary: `sdkwork-kernel` owns provider SPI and bindings, `sdkwork-agents` owns business persistence/API/session/task/configuration/memory composition, and BirdCoder consumes only through `sdkwork-agents-runtime-facade` plus `@sdkwork/agents-app-sdk`. BirdCoder must not import `sdkwork-agent-kernel` or provider crates/packages directly.
 
 Current commercial truth: [TECH-2026-06-24-commercial-readiness-alignment.md](TECH-2026-06-24-commercial-readiness-alignment.md).
 
@@ -505,7 +511,7 @@ See [APP_PC_ARCHITECTURE_SPEC.md](../../../../sdkwork-specs/APP_PC_ARCHITECTURE_
 
 - OpenAPI authority: `apps/sdkwork-birdcoder-pc/sdks/` and deployed snapshot `deployments/server-windows/x64/openapi/coding-server-v1.json`
 - Database lifecycle: root `database/` consumed via `SDKWORK_BIRDCODER_APP_ROOT`
-- Defer registry: `specs/coding-server-openapi-rust-defer-registry.json` (161 of 161 contract operations implemented, 0 deferred; see `TECH-2026-06-24-commercial-readiness-alignment.md` §2b, §11f, and §15)
+- Defer registry: `specs/coding-server-openapi-rust-defer-registry.json` (162 of 162 contract operations implemented, 0 deferred; see `TECH-2026-06-24-commercial-readiness-alignment.md` §2b, §11f, and §15)
 
 ## 6. Security, Privacy, And Observability
 

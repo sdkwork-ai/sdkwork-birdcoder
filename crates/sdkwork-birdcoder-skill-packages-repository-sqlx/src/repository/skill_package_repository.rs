@@ -1,6 +1,6 @@
 use sqlx::{AnyPool, Row};
 
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{IS_NOT_DELETED, qualified_is_not_deleted};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{any_sql, IS_NOT_DELETED, qualified_is_not_deleted};
 
 use crate::db::columns;
 use crate::db::rows::{SkillCapabilityRow, SkillInstallationRow, SkillPackageRow, SkillVersionRow};
@@ -9,13 +9,30 @@ use crate::error::RepositoryError;
 const CATALOG_PAGE_LIMIT: i64 = 200;
 const CAPABILITY_CATALOG_LIMIT: i64 = 500;
 
-pub async fn list_skill_packages(pool: &AnyPool) -> Result<Vec<SkillPackageRow>, RepositoryError> {
+pub async fn count_skill_packages(pool: &AnyPool) -> Result<i64, RepositoryError> {
     let sql = format!(
-        "SELECT {} FROM {} WHERE {IS_NOT_DELETED} ORDER BY slug LIMIT {CATALOG_PAGE_LIMIT}",
+        "SELECT COUNT(*) AS total FROM {} WHERE {IS_NOT_DELETED}",
+        columns::skill_package::TABLE,
+    );
+    let row = sqlx::query(&any_sql(&sql)).fetch_one(pool).await?;
+    row.try_get::<i64, _>("total").map_err(Into::into)
+}
+
+pub async fn list_skill_packages(
+    pool: &AnyPool,
+    offset: i64,
+    limit: i64,
+) -> Result<Vec<SkillPackageRow>, RepositoryError> {
+    let sql = format!(
+        "SELECT {} FROM {} WHERE {IS_NOT_DELETED} ORDER BY slug LIMIT ?1 OFFSET ?2",
         ALL_PACKAGE_COLUMNS,
         columns::skill_package::TABLE,
     );
-    let rows = sqlx::query(&sql).fetch_all(pool).await?;
+    let rows = sqlx::query(&any_sql(&sql))
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await?;
     rows.iter()
         .map(SkillPackageRow::from_row)
         .collect::<Result<Vec<_>, _>>()
@@ -31,7 +48,7 @@ pub async fn get_skill_package_by_id(
         ALL_PACKAGE_COLUMNS,
         columns::skill_package::TABLE,
     );
-    let row = sqlx::query(&sql)
+    let row = sqlx::query(&any_sql(&sql))
         .bind(id)
         .fetch_optional(pool)
         .await?;
@@ -52,7 +69,7 @@ pub async fn list_skill_versions_by_package(
         ALL_VERSION_COLUMNS,
         columns::skill_version::TABLE,
     );
-    let rows = sqlx::query(&sql).bind(package_id).fetch_all(pool).await?;
+    let rows = sqlx::query(&any_sql(&sql)).bind(package_id).fetch_all(pool).await?;
     rows.iter()
         .map(SkillVersionRow::from_row)
         .collect::<Result<Vec<_>, _>>()
@@ -69,7 +86,7 @@ pub async fn list_skill_capabilities_by_version(
         ALL_CAPABILITY_COLUMNS,
         columns::skill_capability::TABLE,
     );
-    let rows = sqlx::query(&sql).bind(version_id).fetch_all(pool).await?;
+    let rows = sqlx::query(&any_sql(&sql)).bind(version_id).fetch_all(pool).await?;
     rows.iter()
         .map(SkillCapabilityRow::from_row)
         .collect::<Result<Vec<_>, _>>()
@@ -84,7 +101,7 @@ pub async fn list_all_skill_capabilities(
         ALL_CAPABILITY_COLUMNS,
         columns::skill_capability::TABLE,
     );
-    let rows = sqlx::query(&sql).fetch_all(pool).await?;
+    let rows = sqlx::query(&any_sql(&sql)).fetch_all(pool).await?;
     rows.iter()
         .map(SkillCapabilityRow::from_row)
         .collect::<Result<Vec<_>, _>>()
@@ -99,7 +116,7 @@ pub async fn list_skill_installations(
         ALL_INSTALLATION_COLUMNS,
         columns::skill_installation::TABLE,
     );
-    let rows = sqlx::query(&sql).fetch_all(pool).await?;
+    let rows = sqlx::query(&any_sql(&sql)).fetch_all(pool).await?;
     rows.iter()
         .map(SkillInstallationRow::from_row)
         .collect::<Result<Vec<_>, _>>()
@@ -114,7 +131,7 @@ pub async fn insert_skill_installation(
         "INSERT INTO {} (id, uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, scope_type, scope_id, skill_version_id, status, installed_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         columns::skill_installation::TABLE,
     );
-    sqlx::query(&sql)
+    sqlx::query(&any_sql(&sql))
         .bind(&row.id)
         .bind(&row.uuid)
         .bind(row.tenant_id)
@@ -168,7 +185,7 @@ pub async fn find_skill_installation_for_scope(
         columns::skill_installation::TABLE,
         columns::skill_version::TABLE,
     );
-    let row = sqlx::query(&sql)
+    let row = sqlx::query(&any_sql(&sql))
         .bind(scope_type)
         .bind(scope_id)
         .bind(package_id)
@@ -199,7 +216,7 @@ pub async fn scope_exists(
     let sql = format!(
         "SELECT 1 FROM {table} WHERE id = ?1 AND tenant_id = ?2 AND {IS_NOT_DELETED} LIMIT 1"
     );
-    let row = sqlx::query(&sql)
+    let row = sqlx::query(&any_sql(&sql))
         .bind(scope_id)
         .bind(tenant_id)
         .fetch_optional(pool)

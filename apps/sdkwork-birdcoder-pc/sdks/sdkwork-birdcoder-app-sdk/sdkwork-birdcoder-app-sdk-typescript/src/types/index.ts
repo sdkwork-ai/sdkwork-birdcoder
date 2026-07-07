@@ -1936,10 +1936,17 @@ export interface SkillsSkillPackagesInstallationsCreatePathParams {
 export interface SkillsSkillPackagesListQuery extends Record<string, BirdcoderSdkQueryValue> {
   userId?: string;
   workspaceId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface SystemChatConversationsDeletePathParams {
   conversationId: string;
+}
+
+export interface SystemChatConversationsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
 }
 
 export interface SystemChatConversationsMessagesCreatePathParams {
@@ -1948,6 +1955,11 @@ export interface SystemChatConversationsMessagesCreatePathParams {
 
 export interface SystemChatConversationsMessagesListPathParams {
   conversationId: string;
+}
+
+export interface SystemChatConversationsMessagesListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  limit?: number;
+  offset?: number;
 }
 
 export interface SystemChatConversationsRetrievePathParams {

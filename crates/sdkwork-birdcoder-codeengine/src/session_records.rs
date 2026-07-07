@@ -75,6 +75,10 @@ pub struct CodeEngineSessionSummaryRecord {
     pub sort_timestamp: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transcript_updated_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

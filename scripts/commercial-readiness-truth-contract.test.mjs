@@ -72,8 +72,8 @@ assert.match(
 );
 assert.match(
   operatorReadme,
-  /161 operations|161 of 161/u,
-  'Operator README must record OpenAPI 161-operation completeness.',
+  /162 operations|162 of 162/u,
+  'Operator README must record OpenAPI 162-operation completeness.',
 );
 assert.match(
   operatorReadme,
@@ -123,12 +123,12 @@ assert.match(
 const deferRegistry = JSON.parse(readText('specs/coding-server-openapi-rust-defer-registry.json'));
 assert.equal(
   deferRegistry.summary.contractOperationCount,
-  161,
+  162,
   'Defer registry must track the full OpenAPI contract including chat and commerce lanes.',
 );
 assert.equal(
   deferRegistry.summary.implementedOperationCount,
-  161,
+  162,
   'Defer registry must record full product, federated IAM, commerce gateway, and chat coverage.',
 );
 assert.equal(
@@ -138,7 +138,7 @@ assert.equal(
 );
 assert.match(
   commercialTruthDoc,
-  /161 of 161 implemented|161 operations.*0 deferred|deferredOperationCount.*0/u,
+  /162 of 162 implemented|162 operations.*0 deferred|deferredOperationCount.*0/u,
   'Commercial truth doc must record full OpenAPI implementation with zero deferred operations.',
 );
 assert.doesNotMatch(

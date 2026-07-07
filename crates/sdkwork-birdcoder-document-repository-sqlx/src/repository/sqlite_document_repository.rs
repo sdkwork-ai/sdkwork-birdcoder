@@ -6,7 +6,7 @@ use sdkwork_birdcoder_document_service::service::document_service::{
 };
 use sdkwork_birdcoder_errors::require_scoped_tenant_id;
 use sdkwork_birdcoder_project_service::pagination::clamp_list_page_size;
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{any_sql, IS_NOT_DELETED};
 
 #[derive(Clone)]
 pub struct SqliteDocumentRepository {
@@ -65,7 +65,7 @@ impl DocumentRepository for SqliteDocumentRepository {
         let count_sql = format!(
             "SELECT COUNT(*) AS total FROM studio_project_document{filter_sql}"
         );
-        let total = sqlx::query_scalar::<_, i64>(&count_sql)
+        let total = sqlx::query_scalar::<_, i64>(&any_sql(&count_sql))
             .bind(project_id)
             .bind(tenant_id)
             .fetch_one(&self.pool)
@@ -77,7 +77,7 @@ impl DocumentRepository for SqliteDocumentRepository {
              FROM studio_project_document{filter_sql} ORDER BY created_at DESC LIMIT ?3 OFFSET ?4"
         );
 
-        let rows = sqlx::query(&list_sql)
+        let rows = sqlx::query(&any_sql(&list_sql))
             .bind(project_id)
             .bind(tenant_id)
             .bind(limit as i64)
@@ -109,7 +109,7 @@ impl DocumentRepository for SqliteDocumentRepository {
              FROM studio_project_document WHERE id = ?1 AND {IS_NOT_DELETED} AND tenant_id = ?2"
         );
 
-        let row = sqlx::query(&sql)
+        let row = sqlx::query(&any_sql(&sql))
             .bind(document_id)
             .bind(tenant_id)
             .fetch_optional(&self.pool)

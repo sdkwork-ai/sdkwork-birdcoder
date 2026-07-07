@@ -10,7 +10,7 @@ use sdkwork_birdcoder_skill_packages_service::domain::models::{
 };
 use sdkwork_birdcoder_skill_packages_service::service::skill_package_service::SkillPackageService;
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    build_data_envelope, build_offset_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
     ApiListEnvelope,
 };
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
@@ -23,7 +23,9 @@ use axum::extract::{Path, Query, State};
 use axum::Json;
 
 use crate::error;
-use crate::mapper::request::{InstallSkillPackageBody, SkillPackageListQuery, SkillPackagePathParams};
+use crate::mapper::request::{
+    AppTemplateListQuery, InstallSkillPackageBody, SkillPackageListQuery, SkillPackagePathParams,
+};
 
 fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
     trace_id_from_request_id(web.request_id.0.as_str())
@@ -125,15 +127,19 @@ pub async fn list_skill_packages(
     if let Some(workspace_id) = query.workspace_id.as_deref() {
         ensure_skill_scope_access(&state, &iam, "workspace", workspace_id, trace_id).await?;
     }
+    let (offset, page_size) = query.normalized_pagination();
     match state
         .service
-        .list_packages(query.workspace_id.as_deref())
+        .list_packages(query.workspace_id.as_deref(), offset, page_size)
         .await
     {
-        Ok(items) => {
-            let total = items.len();
-            Ok(Json(build_list_envelope(items, total, request_id(&web))))
-        }
+        Ok((items, total)) => Ok(Json(build_offset_list_envelope(
+            items,
+            offset,
+            page_size,
+            usize::try_from(total).unwrap_or(0),
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_skill_package_error(e, trace_id)),
     }
 }
@@ -177,17 +183,26 @@ pub async fn list_app_templates(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<SkillPackagesAppState>,
+    Query(query): Query<AppTemplateListQuery>,
 ) -> Result<
     Json<ApiListEnvelope<AppTemplatePayload>>,
     error::ProblemJsonBody,
 >
 {
     let trace_id = request_trace_id(&web);
-    match state.app_template_service.list_templates().await {
-        Ok(items) => {
-            let total = items.len();
-            Ok(Json(build_list_envelope(items, total, request_id(&web))))
-        }
+    let (offset, page_size) = query.normalized_pagination();
+    match state
+        .app_template_service
+        .list_templates(offset, page_size)
+        .await
+    {
+        Ok((items, total)) => Ok(Json(build_offset_list_envelope(
+            items,
+            offset,
+            page_size,
+            usize::try_from(total).unwrap_or(0),
+            request_id(&web),
+        ))),
         Err(error) => Err(error::map_app_template_error(error, trace_id)),
     }
 }

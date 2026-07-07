@@ -36,3 +36,9 @@
 - `cargo test -p sdkwork-agents-runtime-facade`
 
 机器可读任务：`specs/agents-birdcoder-alignment.spec.json`
+
+## 6. 延伸阅读
+
+- [TECH-36 三层智能体平台标准](./TECH-36-three-layer-agent-platform-standard.md)
+- [PRD-02 三层智能体平台架构](../../product/prd/PRD-02-three-layer-agent-platform.md)
+- [../sdkwork-agents/specs/AGENTS_KERNEL_BOUNDARY_SPEC.md](../../../sdkwork-agents/specs/AGENTS_KERNEL_BOUNDARY_SPEC.md)

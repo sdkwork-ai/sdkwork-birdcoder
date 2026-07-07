@@ -1,5 +1,6 @@
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { randomString } from '@sdkwork/utils/id';
+import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
@@ -814,11 +815,11 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const shouldEnableRealtime = options?.enableRealtime ?? true;
   const shouldFetchOnMount = options?.fetchOnMount ?? true;
   const isActive = options?.isActive ?? true;
-  const pagination = useMemo<BirdCoderServiceListPagination | undefined>(
-    () =>
-      options?.limit !== undefined || options?.offset !== undefined
-        ? { limit: options?.limit, offset: options?.offset }
-        : undefined,
+  const pagination = useMemo<BirdCoderServiceListPagination>(
+    () => ({
+      limit: options?.limit ?? DEFAULT_LIST_PAGE_SIZE,
+      offset: options?.offset ?? 0,
+    }),
     [options?.limit, options?.offset],
   );
   const storeScopeKey = normalizedWorkspaceId

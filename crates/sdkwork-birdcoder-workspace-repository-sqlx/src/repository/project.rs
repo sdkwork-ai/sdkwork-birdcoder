@@ -12,6 +12,7 @@ use sdkwork_birdcoder_project_service::domain::commands::{
 };
 use sdkwork_birdcoder_project_service::domain::results::{ProjectCollaboratorPayload, ProjectPayload};
 use sdkwork_birdcoder_project_service::error::ProjectError;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{inserted_row_id, IS_NOT_DELETED, SET_SOFT_DELETED};
 
 #[derive(Clone)]
 pub struct SqliteProjectRepository {
@@ -44,10 +45,10 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .map_err(|_| ProjectError::InvalidInput(format!("invalid id: {id}")))?;
         let tenant_id = project_scoped_tenant_id(ctx)?;
         let sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} AND {} = ?",
             col::TABLE,
             col::ID,
-            col::IS_DELETED,
+            IS_NOT_DELETED,
             col::TENANT_ID,
         );
 
@@ -95,10 +96,10 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         // layer via `clamp_list_page_size`. `root_path` maps to the
         // `site_path` column (see `update_project`).
         let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} AND {} = ?",
             col::TABLE,
             col::WORKSPACE_ID,
-            col::IS_DELETED,
+            IS_NOT_DELETED,
             col::TENANT_ID,
         );
         if root_path.is_some() {
@@ -139,10 +140,10 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         // `pageInfo.totalItems` accurate without materializing the full
         // result set.
         let mut count_sql = format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} AND {} = ?",
             col::TABLE,
             col::WORKSPACE_ID,
-            col::IS_DELETED,
+            IS_NOT_DELETED,
             col::TENANT_ID,
         );
         if root_path.is_some() {
@@ -216,8 +217,8 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let code = req.code.as_deref().unwrap_or("");
         let is_template = req.is_template.map(|b| if b { 1i64 } else { 0i64 }).unwrap_or(0);
 
-        let result = sqlx::query(&format!(
-            "INSERT INTO {t} (uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope, parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image, author, code, type, site_path, domain_prefix, description, status, workspace_id, workspace_uuid, is_deleted, is_template) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        let id_row = sqlx::query(&format!(
+            "INSERT INTO {t} (uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope, parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image, author, code, type, site_path, domain_prefix, description, status, workspace_id, workspace_uuid, is_deleted, is_template) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
             t = col::TABLE,
         ))
         .bind(&uuid)
@@ -245,11 +246,11 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         .bind(&req.workspace_uuid)
         .bind(0i64)
         .bind(is_template)
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
-        let id = result.last_insert_id();
+        let id = inserted_row_id(&id_row).map_err(|e| ProjectError::Repository(e.to_string()))?;
         let row = sqlx::query(&format!(
             "SELECT * FROM {} WHERE {} = ?",
             col::TABLE,
@@ -401,12 +402,13 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let tenant_id = project_scoped_tenant_id(ctx)?;
         let now = Self::now_iso();
         let sql = format!(
-            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ? AND {} = ?",
+            "UPDATE {} SET {}, {} = ? WHERE {} = ? AND {} = ? AND {}",
             col::TABLE,
-            col::IS_DELETED,
+            SET_SOFT_DELETED,
             col::UPDATED_AT,
             col::ID,
             col::TENANT_ID,
+            IS_NOT_DELETED,
         );
 
         let result = sqlx::query(&sql)
@@ -439,10 +441,10 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         })?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} ORDER BY {} DESC LIMIT ? OFFSET ?",
             collab_col::TABLE,
             collab_col::PROJECT_ID,
-            collab_col::IS_DELETED,
+            IS_NOT_DELETED,
             collab_col::ID,
         ))
         .bind(pid)
@@ -462,10 +464,10 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0",
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {}",
             collab_col::TABLE,
             collab_col::PROJECT_ID,
-            collab_col::IS_DELETED,
+            IS_NOT_DELETED,
         ))
         .bind(pid)
         .fetch_one(&self.pool)
@@ -501,12 +503,12 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         let status = req.status.as_deref().unwrap_or("active");
 
         let existing: Option<i64> = sqlx::query_scalar(&format!(
-            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = 0",
+            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {}",
             collab_col::ID,
             collab_col::TABLE,
             collab_col::PROJECT_ID,
             collab_col::USER_ID,
-            collab_col::IS_DELETED,
+            IS_NOT_DELETED,
         ))
         .bind(pid)
         .bind(uid)
@@ -559,8 +561,8 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
                 .as_deref()
                 .and_then(|s| s.parse::<i64>().ok());
 
-            let result = sqlx::query(&format!(
-                "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            let id_row = sqlx::query(&format!(
+                "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
                 t = collab_col::TABLE,
             ))
             .bind(&uuid)
@@ -578,11 +580,12 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .bind(created_by)
             .bind(granted_by)
             .bind(status)
-            .execute(&self.pool)
+            .fetch_one(&self.pool)
             .await
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
-            let new_id = result.last_insert_id();
+            let new_id =
+                inserted_row_id(&id_row).map_err(|e| ProjectError::Repository(e.to_string()))?;
             let row = sqlx::query(&format!(
                 "SELECT * FROM {} WHERE {} = ?",
                 collab_col::TABLE,
@@ -612,12 +615,13 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .map_err(|_| ProjectError::InvalidInput(format!("invalid user_id: {user_id}")))?;
         let now = Self::now_iso();
         sqlx::query(&format!(
-            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ? AND {} = ?",
+            "UPDATE {} SET {}, {} = ? WHERE {} = ? AND {} = ? AND {}",
             collab_col::TABLE,
-            collab_col::IS_DELETED,
+            SET_SOFT_DELETED,
             collab_col::UPDATED_AT,
             collab_col::PROJECT_ID,
             collab_col::USER_ID,
+            IS_NOT_DELETED,
         ))
         .bind(&now)
         .bind(pid)

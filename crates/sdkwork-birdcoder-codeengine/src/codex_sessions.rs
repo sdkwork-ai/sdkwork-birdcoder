@@ -1323,6 +1323,8 @@ fn build_codex_summary(
         native_cwd: context.native_cwd.clone(),
         sort_timestamp: parse_timestamp_millis(&updated_at).unwrap_or(file_modified_at),
         transcript_updated_at,
+        workspace_id: None,
+        project_id: None,
     })
 }
 

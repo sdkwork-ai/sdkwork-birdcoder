@@ -56,6 +56,8 @@
 
 - [TECH-31-集成实施方案](./TECH-31-kernel-birdcoder-integrationimplementation.md)
 - [TECH-32-对齐验收与核对清单](./TECH-32-kernel-birdcoder.md)
+- [TECH-33 Agents 边界标准](./TECH-33-agents-birdcoder-boundariesstandard.md)
+- [TECH-36 三层智能体平台标准](./TECH-36-three-layer-agent-platform-standard.md)
 - [反复执行Kernel对齐指令](../prompts/反复执行Kernel对齐指令.md)
 - 机器可读任务：`specs/kernel-birdcoder-alignment.spec.json`
 

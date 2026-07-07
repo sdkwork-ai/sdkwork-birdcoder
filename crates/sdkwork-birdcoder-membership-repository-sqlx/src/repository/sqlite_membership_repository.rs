@@ -48,7 +48,8 @@ impl MembershipRepository for SqliteMembershipRepository {
                 upgrade_growth_value: row.upgrade_growth_value,
                 benefits: vec![],
             })),
-            Err(_) => Ok(None),
+            Err(crate::error::RepositoryError::NotFound(_)) => Ok(None),
+            Err(error) => Err(error.to_string()),
         }
     }
 

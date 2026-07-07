@@ -1,4 +1,5 @@
 import type { BirdCoderChatMessageRecord } from '@sdkwork/birdcoder-pc-types';
+import { clampListPageSize } from '@sdkwork/utils/pagination';
 
 import { getBirdCoderGeneratedAppSdkClient } from './sdkClients.ts';
 
@@ -74,9 +75,14 @@ export async function ensureBirdCoderMobileChatConversation(): Promise<string> {
 
 export async function listBirdCoderMobileChatMessages(
   conversationId: string,
+  options: { offset?: number; limit?: number } = {},
 ): Promise<BirdCoderChatMessageRecord[]> {
+  const { offset, pageSize } = clampListPageSize(options.offset, options.limit);
   const client = getBirdCoderGeneratedAppSdkClient();
-  const listed = await client.system.chat.conversations.messages.list({ conversationId });
+  const listed = await client.system.chat.conversations.messages.list(
+    { conversationId },
+    { offset, limit: pageSize },
+  );
   return readItems<ChatMessageSummary>(listed).map(toChatMessageRecord);
 }
 

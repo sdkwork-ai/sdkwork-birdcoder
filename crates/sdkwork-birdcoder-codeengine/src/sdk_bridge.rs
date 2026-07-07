@@ -27,6 +27,10 @@ struct SdkBridgeStoredSession {
     updated_at: String,
     last_turn_at: Option<String>,
     native_cwd: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    workspace_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    project_id: Option<String>,
     messages: Vec<SdkBridgeStoredMessage>,
 }
 
@@ -219,6 +223,8 @@ fn build_sdk_bridge_session_summary_record(
         sort_timestamp: parse_timestamp_millis(stored_session.updated_at.as_str())
             .unwrap_or_default(),
         transcript_updated_at: Some(stored_session.updated_at.clone()),
+        workspace_id: stored_session.workspace_id.clone(),
+        project_id: stored_session.project_id.clone(),
     }
 }
 

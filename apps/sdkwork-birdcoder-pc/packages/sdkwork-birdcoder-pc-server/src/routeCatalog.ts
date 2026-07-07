@@ -553,6 +553,13 @@ export function getResolvedBirdCoderAppApiContract(): BirdCoderAppApiContract {
       '/app/v3/api/commerce/payments/:paymentId',
       'Get SDKWork commerce payment',
     ),
+    commercePaymentConfirm: createRoute(
+      'app',
+      'user',
+      'POST',
+      '/app/v3/api/commerce/payments/:paymentId/confirm',
+      'Confirm SDKWork commerce payment after gateway callback',
+    ),
     updateCurrentUserProfile: toBirdCoderApiRouteDefinition({
       authMode: 'user',
       method: 'PATCH',

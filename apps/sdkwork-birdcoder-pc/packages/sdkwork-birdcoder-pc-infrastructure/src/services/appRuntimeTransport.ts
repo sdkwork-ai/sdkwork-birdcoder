@@ -63,7 +63,15 @@ import type { IProjectService } from './interfaces/IProjectService.ts';
 import { resolveRequiredCodingSessionSelection } from './codingSessionSelection.ts';
 import { createBirdCoderLocalServerRequestId } from './localServerRequestId.ts';
 import { randomString } from '@sdkwork/utils/id';
-import { paginateItems } from '@sdkwork/utils/pagination';
+import { clampListPageSize, DEFAULT_LIST_PAGE_SIZE, paginateItems } from '@sdkwork/utils/pagination';
+import { createListEnvelope } from './sdkTransportShared.ts';
+
+const IN_PROCESS_RUNTIME_SHIM_ERROR =
+  'In-process BirdCoder app runtime does not execute live engine interactions. Start standalone-gateway host mode for approval, question, turn, and operation endpoints.';
+
+function throwInProcessRuntimeShimError(operationId: string): never {
+  throw new Error(`${IN_PROCESS_RUNTIME_SHIM_ERROR} (${operationId})`);
+}
 
 export interface CreateBirdCoderInProcessAppRuntimeTransportOptions {
   hostMode?: BirdCoderHostMode;
@@ -79,6 +87,7 @@ export interface CreateBirdCoderInProcessAppRuntimeTransportOptions {
     | 'getCodingSessionTranscript'
     | 'getProjectById'
     | 'getProjects'
+    | 'listCodingSessions'
     | 'renameCodingSession'
     | 'updateCodingSession'
   >;
@@ -160,39 +169,6 @@ function createEnvelope<TData>(data: TData): BirdCoderApiEnvelope<TData> {
   };
 }
 
-function createListEnvelope<TItem>(
-  items: readonly TItem[],
-  options: {
-    offset?: number;
-    pageSize?: number;
-    total?: number;
-  } = {},
-): BirdCoderApiListEnvelope<TItem> {
-  const total = options.total ?? items.length;
-  const pageSize =
-    typeof options.pageSize === 'number' && Number.isFinite(options.pageSize) && options.pageSize > 0
-      ? Math.floor(options.pageSize)
-      : items.length;
-  const offset =
-    typeof options.offset === 'number' && Number.isFinite(options.offset) && options.offset > 0
-      ? Math.floor(options.offset)
-      : 0;
-  const pageBase = pageSize > 0 ? pageSize : Math.max(items.length, 1);
-  return {
-    code: 0,
-    traceId: createBirdCoderLocalServerRequestId(),
-    data: {
-      items: [...items],
-      pageInfo: {
-        mode: 'offset',
-        page: Math.floor(offset / pageBase) + 1,
-        pageSize,
-        totalItems: String(total),
-      },
-    },
-  };
-}
-
 function normalizeText(value: string | null | undefined): string | undefined {
   const normalizedValue = value?.trim();
   return normalizedValue ? normalizedValue : undefined;
@@ -245,17 +221,6 @@ function normalizeOffset(value: BirdCoderApiQueryValue): number | undefined {
 
 function readTextQueryValue(value: BirdCoderApiQueryValue): string | undefined {
   return typeof value === 'string' ? normalizeText(value) : undefined;
-}
-
-function compareCodingSessions(
-  left: BirdCoderCodingSessionSummary,
-  right: BirdCoderCodingSessionSummary,
-): number {
-  return (
-    compareBirdCoderSessionSortTimestamp(right, left) ||
-    right.updatedAt.localeCompare(left.updatedAt) ||
-    left.id.localeCompare(right.id)
-  );
 }
 
 function compareCodingSessionMessages(
@@ -676,72 +641,34 @@ function createDescriptor(hostMode: BirdCoderHostMode): BirdCoderCodingServerDes
   };
 }
 
-const PROJECT_PAGE_SIZE = 200;
-const MAX_PROJECT_PAGES = 50;
-const MAX_COLLECTED_CODING_SESSIONS = 10_000;
 
-async function listProjectsForSessionIndex(
-  projectService: Pick<IProjectService, 'getProjects'>,
-  workspaceId?: string,
-): Promise<Awaited<ReturnType<IProjectService['getProjects']>>> {
-  const projects: Awaited<ReturnType<IProjectService['getProjects']>> = [];
-  for (let page = 0; page < MAX_PROJECT_PAGES; page += 1) {
-    const batch = await projectService.getProjects(workspaceId, {
-      limit: PROJECT_PAGE_SIZE,
-      offset: page * PROJECT_PAGE_SIZE,
+async function findCodingSessionInPagedInventory(
+  projectService: Pick<IProjectService, 'listCodingSessions'>,
+  filters: BirdCoderListCodingSessionsRequest,
+  codingSessionId: string,
+): Promise<BirdCoderCodingSession | null> {
+  let offset = filters.offset ?? 0;
+  const { pageSize } = clampListPageSize(offset, filters.limit ?? DEFAULT_LIST_PAGE_SIZE);
+
+  while (true) {
+    const page = await projectService.listCodingSessions({
+      ...filters,
+      offset,
+      limit: pageSize,
     });
-    if (batch.length === 0) {
-      break;
+    const match = page.items.find((session) => session.id === codingSessionId);
+    if (match) {
+      return match;
     }
-    projects.push(...batch);
-    if (batch.length < PROJECT_PAGE_SIZE) {
-      break;
+    if (page.items.length < pageSize || offset + page.items.length >= page.total) {
+      return null;
     }
+    offset += pageSize;
   }
-  return projects;
-}
-
-async function collectCodingSessionsFromProjects(
-  projectService: Pick<IProjectService, 'getProjectById' | 'getProjects'>,
-  codingSessionProjectIndex: Map<string, { projectId: string; workspaceId: string }>,
-  knownWorkspaceIds: Set<string>,
-  request: BirdCoderListCodingSessionsRequest | BirdCoderListNativeSessionsRequest = {},
-): Promise<BirdCoderCodingSession[]> {
-  const projects = await listProjectsForSessionIndex(
-    projectService,
-    request.workspaceId,
-  );
-  const sessions: BirdCoderCodingSession[] = [];
-
-  for (const project of projects) {
-    const normalizedWorkspaceId = project.workspaceId.trim();
-    if (normalizedWorkspaceId) {
-      knownWorkspaceIds.add(normalizedWorkspaceId);
-    }
-    const isRequestedProject = !request.projectId || project.id === request.projectId;
-    for (const codingSession of project.codingSessions) {
-      codingSessionProjectIndex.set(codingSession.id, {
-        projectId: project.id,
-        workspaceId: project.workspaceId,
-      });
-      if (isRequestedProject && (!request.engineId || codingSession.engineId === request.engineId)) {
-        sessions.push(codingSession);
-        if (sessions.length >= MAX_COLLECTED_CODING_SESSIONS) {
-          break;
-        }
-      }
-    }
-    if (sessions.length >= MAX_COLLECTED_CODING_SESSIONS) {
-      break;
-    }
-  }
-  sessions.sort(compareCodingSessions);
-
-  return sessions;
 }
 
 async function getCodingSessionById(
-  projectService: Pick<IProjectService, 'getProjectById' | 'getProjects'>,
+  projectService: Pick<IProjectService, 'getProjectById' | 'listCodingSessions'>,
   codingSessionProjectIndex: Map<string, { projectId: string; workspaceId: string }>,
   knownWorkspaceIds: Set<string>,
   codingSessionId: string,
@@ -763,51 +690,54 @@ async function getCodingSessionById(
       return cachedCodingSession;
     }
 
-    const workspaceProjects = await projectService.getProjects(cachedLocation.workspaceId);
-    for (const project of workspaceProjects) {
-      for (const codingSession of project.codingSessions) {
-        codingSessionProjectIndex.set(codingSession.id, {
-          projectId: project.id,
-          workspaceId: project.workspaceId,
-        });
-        if (codingSession.id === codingSessionId) {
-          return codingSession;
-        }
+    const workspaceMatch = await findCodingSessionInPagedInventory(
+      projectService,
+      { workspaceId: cachedLocation.workspaceId },
+      codingSessionId,
+    );
+    if (workspaceMatch) {
+      codingSessionProjectIndex.set(workspaceMatch.id, {
+        projectId: workspaceMatch.projectId,
+        workspaceId: workspaceMatch.workspaceId,
+      });
+      if (workspaceMatch.workspaceId.trim()) {
+        knownWorkspaceIds.add(workspaceMatch.workspaceId.trim());
       }
+      return workspaceMatch;
     }
 
     codingSessionProjectIndex.delete(codingSessionId);
   }
 
   for (const workspaceId of knownWorkspaceIds) {
-    const projects = await projectService.getProjects(workspaceId);
-    for (const project of projects) {
-      for (const codingSession of project.codingSessions) {
-        codingSessionProjectIndex.set(codingSession.id, {
-          projectId: project.id,
-          workspaceId: project.workspaceId,
-        });
-        if (codingSession.id === codingSessionId) {
-          return codingSession;
-        }
-      }
+    const workspaceMatch = await findCodingSessionInPagedInventory(
+      projectService,
+      { workspaceId },
+      codingSessionId,
+    );
+    if (workspaceMatch) {
+      codingSessionProjectIndex.set(workspaceMatch.id, {
+        projectId: workspaceMatch.projectId,
+        workspaceId: workspaceMatch.workspaceId,
+      });
+      return workspaceMatch;
     }
   }
 
-  const projects = await projectService.getProjects();
-  for (const project of projects) {
-    if (project.workspaceId.trim()) {
-      knownWorkspaceIds.add(project.workspaceId.trim());
+  const globalMatch = await findCodingSessionInPagedInventory(
+    projectService,
+    {},
+    codingSessionId,
+  );
+  if (globalMatch) {
+    codingSessionProjectIndex.set(globalMatch.id, {
+      projectId: globalMatch.projectId,
+      workspaceId: globalMatch.workspaceId,
+    });
+    if (globalMatch.workspaceId.trim()) {
+      knownWorkspaceIds.add(globalMatch.workspaceId.trim());
     }
-    for (const codingSession of project.codingSessions) {
-      codingSessionProjectIndex.set(codingSession.id, {
-        projectId: project.id,
-        workspaceId: project.workspaceId,
-      });
-      if (codingSession.id === codingSessionId) {
-        return codingSession;
-      }
-    }
+    return globalMatch;
   }
 
   throw new Error(`Coding session ${codingSessionId} not found.`);
@@ -816,7 +746,7 @@ async function getCodingSessionById(
 async function getCodingSessionTranscriptById(
   projectService: Pick<
     IProjectService,
-    'getCodingSessionTranscript' | 'getProjectById' | 'getProjects'
+    'getCodingSessionTranscript' | 'getProjectById' | 'listCodingSessions'
   >,
   codingSessionProjectIndex: Map<string, { projectId: string; workspaceId: string }>,
   knownWorkspaceIds: Set<string>,
@@ -854,7 +784,7 @@ async function getCodingSessionTranscriptById(
 }
 
 async function resolveProjectIdForCodingSession(
-  projectService: Pick<IProjectService, 'getProjectById' | 'getProjects'>,
+  projectService: Pick<IProjectService, 'getProjectById' | 'listCodingSessions'>,
   codingSessionProjectIndex: Map<string, { projectId: string; workspaceId: string }>,
   knownWorkspaceIds: Set<string>,
   codingSessionId: string,
@@ -960,24 +890,32 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           return createEnvelope(descriptor.capabilityMatrix) as TResponse;
         }
         case 'codingSessions.list': {
-          const limit = normalizeLimit(request.query?.limit);
-          const offset = normalizeOffset(request.query?.offset);
-          const codingSessions = await collectCodingSessionsFromProjects(
-            projectService,
-            codingSessionProjectIndex,
-            knownWorkspaceIds,
-            {
-              engineId: readTextQueryValue(request.query?.engineId),
-              projectId: readTextQueryValue(request.query?.projectId),
-              workspaceId: readTextQueryValue(request.query?.workspaceId),
-              limit,
-              offset,
-            },
+          const { offset, pageSize } = clampListPageSize(
+            normalizeOffset(request.query?.offset),
+            normalizeLimit(request.query?.limit),
           );
-          const page = paginateItems(codingSessions, { limit, offset });
+          const page = await projectService.listCodingSessions({
+            engineId: readTextQueryValue(request.query?.engineId) as
+              | BirdCoderListCodingSessionsRequest['engineId']
+              | undefined,
+            projectId: readTextQueryValue(request.query?.projectId),
+            workspaceId: readTextQueryValue(request.query?.workspaceId),
+            offset,
+            limit: pageSize,
+          });
+          for (const codingSession of page.items) {
+            codingSessionProjectIndex.set(codingSession.id, {
+              projectId: codingSession.projectId,
+              workspaceId: codingSession.workspaceId,
+            });
+            const normalizedWorkspaceId = codingSession.workspaceId.trim();
+            if (normalizedWorkspaceId) {
+              knownWorkspaceIds.add(normalizedWorkspaceId);
+            }
+          }
           return createListEnvelope(page.items.map(toCodingSessionSummary), {
-            offset: page.offset,
-            pageSize: page.pageSize,
+            offset,
+            pageSize,
             total: page.total,
           }) as TResponse;
         }
@@ -991,24 +929,32 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           return createEnvelope(toCodingSessionSummary(codingSession)) as TResponse;
         }
         case 'nativeSessions.list': {
-          const limit = normalizeLimit(request.query?.limit);
-          const offset = normalizeOffset(request.query?.offset);
-          const codingSessions = await collectCodingSessionsFromProjects(
-            projectService,
-            codingSessionProjectIndex,
-            knownWorkspaceIds,
-            {
-              engineId: readTextQueryValue(request.query?.engineId),
-              projectId: readTextQueryValue(request.query?.projectId),
-              workspaceId: readTextQueryValue(request.query?.workspaceId),
-              limit,
-              offset,
-            },
+          const { offset, pageSize } = clampListPageSize(
+            normalizeOffset(request.query?.offset),
+            normalizeLimit(request.query?.limit),
           );
-          const page = paginateItems(codingSessions, { limit, offset });
+          const page = await projectService.listCodingSessions({
+            engineId: readTextQueryValue(request.query?.engineId) as
+              | BirdCoderListCodingSessionsRequest['engineId']
+              | undefined,
+            projectId: readTextQueryValue(request.query?.projectId),
+            workspaceId: readTextQueryValue(request.query?.workspaceId),
+            offset,
+            limit: pageSize,
+          });
+          for (const codingSession of page.items) {
+            codingSessionProjectIndex.set(codingSession.id, {
+              projectId: codingSession.projectId,
+              workspaceId: codingSession.workspaceId,
+            });
+            const normalizedWorkspaceId = codingSession.workspaceId.trim();
+            if (normalizedWorkspaceId) {
+              knownWorkspaceIds.add(normalizedWorkspaceId);
+            }
+          }
           return createListEnvelope(page.items.map(toNativeSessionSummary), {
-            offset: page.offset,
-            pageSize: page.pageSize,
+            offset,
+            pageSize,
             total: page.total,
           }) as TResponse;
         }
@@ -1171,138 +1117,14 @@ export function createBirdCoderInProcessAppRuntimeTransport({
             id: codingSessionId,
           }) as TResponse;
         }
-        case 'codingSessions.turns.create': {
-          const codingSessionId = resolveCodingSessionPathParam(resolvedOperation.pathParams);
-          const body = readRequestBody<BirdCoderCreateCodingSessionTurnRequest>(request);
-          const scopedProjectId = normalizeText(body.ideContext?.projectId);
-          const scopedProject = scopedProjectId
-            ? await projectService.getProjectById(scopedProjectId)
-            : null;
-          const scopedCodingSession = scopedProject?.codingSessions.find(
-            (candidate) => candidate.id === codingSessionId,
-          ) ?? null;
-          if (scopedProjectId && !scopedProject) {
-            throw new Error(
-              `Project ${scopedProjectId} for coding session ${codingSessionId} not found.`,
-            );
-          }
-          if (scopedProject && !scopedCodingSession) {
-            throw new Error(
-              `Coding session ${codingSessionId} not found in project ${scopedProject.id}.`,
-            );
-          }
-          if (scopedProject && scopedCodingSession) {
-            codingSessionProjectIndex.set(codingSessionId, {
-              projectId: scopedProject.id,
-              workspaceId: scopedProject.workspaceId,
-            });
-            if (scopedProject.workspaceId.trim()) {
-              knownWorkspaceIds.add(scopedProject.workspaceId.trim());
-            }
-          }
-          const projectId =
-            scopedProject && scopedCodingSession
-              ? scopedProject.id
-              : await resolveProjectIdForCodingSession(
-                  projectService,
-                  codingSessionProjectIndex,
-                  knownWorkspaceIds,
-                  codingSessionId,
-                );
-          const codingSession =
-            scopedCodingSession ??
-            (await getCodingSessionById(
-              projectService,
-              codingSessionProjectIndex,
-              knownWorkspaceIds,
-              codingSessionId,
-            ));
-          assertWorkbenchServerImplementedEngineId(codingSession.engineId);
-          const requestedEngineId = normalizeText(body.engineId);
-          if (
-            requestedEngineId &&
-            requestedEngineId.toLowerCase() !== codingSession.engineId.toLowerCase()
-          ) {
-            throw new Error(
-              `Coding session ${codingSessionId} uses engine "${codingSession.engineId}" and cannot create a turn for engine "${requestedEngineId}".`,
-            );
-          }
-          const turnModelId = normalizeText(body.modelId) ?? codingSession.modelId;
-          const messageMetadata: Record<string, unknown> = {
-            [IN_PROCESS_CODING_SESSION_TURN_MODEL_SELECTION_METADATA_KEY]: {
-              engineId: codingSession.engineId,
-              modelId: turnModelId,
-            },
-          };
-          if (body.ideContext) {
-            messageMetadata.ideContext = body.ideContext;
-          }
-          const turnId = `coding-turn-${Date.now().toString(36)}-${randomString(6)}`;
-          const createdMessage = await projectService.addCodingSessionMessage(
-            projectId,
-            codingSessionId,
-            {
-              turnId,
-              role: MESSAGE_ROLE_BY_REQUEST_KIND[body.requestKind],
-              content: body.inputSummary,
-              metadata: messageMetadata,
-            },
-          );
-          return createEnvelope<BirdCoderCodingSessionTurn>({
-            id: turnId,
-            codingSessionId,
-            runtimeId: normalizeText(body.runtimeId) ?? resolveTurnRuntimeId(codingSessionId, turnId),
-            requestKind: body.requestKind,
-            status: 'completed',
-            inputSummary: body.inputSummary,
-            startedAt: createdMessage.createdAt,
-            completedAt: createdMessage.createdAt,
-          }) as TResponse;
-        }
+        case 'codingSessions.turns.create':
+          throwInProcessRuntimeShimError(resolvedOperation.operationId);
         case 'operations.retrieve':
-          return createEnvelope({
-            operationId: resolvedOperation.pathParams.operationId,
-            status: 'succeeded',
-            artifactRefs: [],
-          }) as TResponse;
-        case 'submitApprovalDecision': {
-          const codingSessionId = resolveCodingSessionPathParam(resolvedOperation.pathParams);
-          const checkpointId = resolvedOperation.pathParams.checkpointId;
-          const body = readRequestBody<BirdCoderSubmitApprovalDecisionRequest>(request);
-          const result: BirdCoderApprovalDecisionResult = {
-            approvalId: checkpointId,
-            checkpointId,
-            codingSessionId,
-            decision: body.decision,
-            decidedAt: new Date().toISOString(),
-            operationId: '',
-            operationStatus: 'succeeded',
-            reason: normalizeText(body.reason),
-            runtimeId: '',
-            runtimeStatus: 'completed',
-            turnId: '',
-          };
-          return createEnvelope(result) as TResponse;
-        }
-        case 'submitUserQuestionAnswer': {
-          const codingSessionId = resolveCodingSessionPathParam(resolvedOperation.pathParams);
-          const questionId = resolvedOperation.pathParams.questionId;
-          const body = readRequestBody<BirdCoderSubmitUserQuestionAnswerRequest>(request);
-          const rejected = body.rejected === true;
-          const result: BirdCoderUserQuestionAnswerResult = {
-            questionId,
-            codingSessionId,
-            ...(rejected ? {} : { answer: body.answer }),
-            answeredAt: new Date().toISOString(),
-            optionId: normalizeText(body.optionId),
-            optionLabel: normalizeText(body.optionLabel),
-            rejected,
-            runtimeId: '',
-            runtimeStatus: rejected ? 'failed' : 'completed',
-            turnId: '',
-          };
-          return createEnvelope(result) as TResponse;
-        }
+          throwInProcessRuntimeShimError(resolvedOperation.operationId);
+        case 'submitApprovalDecision':
+          throwInProcessRuntimeShimError(resolvedOperation.operationId);
+        case 'submitUserQuestionAnswer':
+          throwInProcessRuntimeShimError(resolvedOperation.operationId);
         default:
           throw new Error(
             `Unsupported in-process BirdCoder app runtime operation: ${resolvedOperation.operationId}`,

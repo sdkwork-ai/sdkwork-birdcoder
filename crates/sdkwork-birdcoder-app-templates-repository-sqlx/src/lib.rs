@@ -18,7 +18,26 @@ impl SqliteAppTemplateRepository {
 
 #[async_trait::async_trait]
 impl AppTemplateRepository for SqliteAppTemplateRepository {
-    async fn list_templates(&self) -> Result<Vec<AppTemplatePayload>, String> {
+    async fn list_templates(
+        &self,
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<AppTemplatePayload>, i64), String> {
+        let offset_i64 = i64::try_from(offset).unwrap_or(0);
+        let limit_i64 = i64::try_from(limit).unwrap_or(20);
+        let count_sql = format!(
+            r#"
+            SELECT COUNT(*) AS total
+            FROM studio_app_template t
+            WHERE t.{SOFT_DELETE}
+            "#,
+        );
+        let count_row = sqlx::query(&count_sql)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(|error| error.to_string())?;
+        let total: i64 = count_row.try_get("total").map_err(|error| error.to_string())?;
+
         let sql = format!(
             r#"
             SELECT
@@ -53,13 +72,15 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
                     LIMIT 1
                 )
             ORDER BY t.slug
-            LIMIT 200
+            LIMIT ?1 OFFSET ?2
             "#,
         );
         let rows = sqlx::query(&sql)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|error| error.to_string())?;
+            .bind(limit_i64)
+            .bind(offset_i64)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|error| error.to_string())?;
 
         let mut templates = Vec::with_capacity(rows.len());
         for row in rows {
@@ -68,7 +89,7 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
             templates.push(map_template_row(row, target_profiles)?);
         }
 
-        Ok(templates)
+        Ok((templates, total))
     }
 
     async fn find_template_by_id(&self, template_id: &str) -> Result<Option<AppTemplatePayload>, String> {

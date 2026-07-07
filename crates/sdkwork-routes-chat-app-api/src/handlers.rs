@@ -10,8 +10,8 @@ use sdkwork_birdcoder_chat_service::domain::models::{
 };
 use sdkwork_birdcoder_chat_service::service::chat_service::ChatService;
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_offset_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
-    ApiListEnvelope,
+    build_data_envelope, build_offset_list_envelope, client_safe_provider_problem,
+    trace_id_from_request_id, traced_problem_json, ApiDataEnvelope, ApiListEnvelope,
 };
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
 use sdkwork_iam_context_service::IamAppContext;
@@ -59,14 +59,13 @@ pub async fn list_conversations(
 ) -> Result<Json<ApiListEnvelope<ChatConversationPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = chat_context(&iam);
+    let (offset, page_size) = query.normalized_pagination();
     let list_query: ChatListQuery = query.into();
-    let offset = list_query.offset;
-    let limit = list_query.limit;
     match state.service.list_conversations(&ctx, list_query).await {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
-            usize::try_from(offset).unwrap_or(0),
-            usize::try_from(limit).unwrap_or(50),
+            offset,
+            page_size,
             usize::try_from(total).unwrap_or(0),
             request_id(&web),
         ))),
@@ -143,9 +142,8 @@ pub async fn list_messages(
 ) -> Result<Json<ApiListEnvelope<ChatMessagePayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = chat_context(&iam);
+    let (offset, page_size) = query.normalized_pagination();
     let list_query: ChatListQuery = query.into();
-    let offset = list_query.offset;
-    let limit = list_query.limit;
     match state
         .service
         .list_messages(&ctx, conversation_id.as_str(), list_query)
@@ -153,8 +151,8 @@ pub async fn list_messages(
     {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
-            usize::try_from(offset).unwrap_or(0),
-            usize::try_from(limit).unwrap_or(50),
+            offset,
+            page_size,
             usize::try_from(total).unwrap_or(0),
             request_id(&web),
         ))),
@@ -185,8 +183,9 @@ pub async fn create_message(
                     &ctx,
                     conversation_id.as_str(),
                     item.content.as_str(),
+                    request_trace_id(&web),
                 )
-                .await;
+                .await?;
             }
             Ok((
                 StatusCode::CREATED,
@@ -202,23 +201,25 @@ async fn persist_mobile_chat_assistant_reply(
     ctx: &ChatContext,
     conversation_id: &str,
     user_content: &str,
-) {
-    let assistant_content = match generate_mobile_chat_assistant_reply(user_content) {
-        Ok(content) => content,
-        Err(error) => {
+    trace_id: Option<&str>,
+) -> Result<(), error::ProblemJsonBody> {
+    let assistant_content =
+        generate_mobile_chat_assistant_reply(user_content).map_err(|error| {
             tracing::warn!(%error, "mobile chat assistant generation failed");
-            return;
-        }
-    };
+            traced_problem_json(
+                StatusCode::BAD_GATEWAY,
+                client_safe_provider_problem(),
+                trace_id,
+            )
+        })?;
     let assistant_command = CreateChatMessageCommand {
         role: "assistant".to_string(),
         content: assistant_content,
     };
-    if let Err(error) = state
+    state
         .service
         .create_message(ctx, conversation_id, assistant_command)
         .await
-    {
-        tracing::warn!(error = ?error, "failed to persist mobile chat assistant reply");
-    }
+        .map_err(|error| error::map_service_error(error, trace_id))?;
+    Ok(())
 }

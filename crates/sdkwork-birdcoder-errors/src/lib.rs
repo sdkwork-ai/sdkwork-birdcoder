@@ -15,8 +15,9 @@ pub use client_safe::{
     CLIENT_SAFE_EVENT_PUBLISH_MESSAGE, CLIENT_SAFE_INTERNAL_MESSAGE, CLIENT_SAFE_PROVIDER_MESSAGE,
 };
 pub use envelope::{
-    build_data_envelope, build_list_envelope, build_offset_list_envelope, ApiDataEnvelope,
-    ApiListEnvelope, ApiListMeta, ApiMeta, BIRDCODER_CODING_SERVER_API_VERSION,
+    build_data_envelope, build_list_envelope, build_offset_list_envelope,
+    build_unbounded_list_envelope, ApiDataEnvelope, ApiListEnvelope, ApiListMeta, ApiMeta,
+    BIRDCODER_CODING_SERVER_API_VERSION,
 };
 pub use sdkwork_utils_rust::SdkWorkProblemDetail as ProblemDetailsPayload;
 

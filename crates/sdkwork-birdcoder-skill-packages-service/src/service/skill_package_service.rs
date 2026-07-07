@@ -8,7 +8,9 @@ pub trait SkillPackageRepository: Send + Sync {
     async fn list_packages(
         &self,
         workspace_id: Option<&str>,
-    ) -> Result<Vec<SkillPackagePayload>, String>;
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<SkillPackagePayload>, i64), String>;
 
     async fn find_latest_version(
         &self,
@@ -51,9 +53,11 @@ impl<R: SkillPackageRepository> SkillPackageService<R> {
     pub async fn list_packages(
         &self,
         workspace_id: Option<&str>,
-    ) -> Result<Vec<SkillPackagePayload>, SkillPackageError> {
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<SkillPackagePayload>, i64), SkillPackageError> {
         self.repository
-            .list_packages(workspace_id)
+            .list_packages(workspace_id, offset, limit)
             .await
             .map_err(SkillPackageError::Repository)
     }

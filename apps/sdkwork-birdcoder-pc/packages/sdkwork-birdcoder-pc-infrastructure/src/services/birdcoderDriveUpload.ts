@@ -4,6 +4,7 @@ import type {
   MediaResource,
   SdkworkDriveAppClient,
 } from '@sdkwork/drive-app-sdk';
+import { getPath } from '@sdkwork/utils/object';
 import { isBlank } from '@sdkwork/utils/string';
 import { getBirdCoderDriveAppClient } from './iamRuntime.ts';
 
@@ -54,8 +55,16 @@ function mapProfileToMediaKind(profile: DriveUploaderProfile): MediaResource['ki
     case 'dataset':
       return 'document';
     default:
-      return 'file';
+      return 'other';
   }
+}
+
+function readDownloadUrl(payload: unknown): string | undefined {
+  const value = getPath(payload, 'downloadUrl') ?? getPath(payload, 'data.downloadUrl');
+  if (typeof value !== 'string' || isBlank(value)) {
+    return undefined;
+  }
+  return value.trim();
 }
 
 function resolveUploaderMethod(
@@ -101,7 +110,7 @@ async function resolveChatAttachmentPreviewUrl(
     const grant = await client.drive.downloadGrants.create(nodeId, {
       requestedTtlSeconds: CHAT_DOWNLOAD_GRANT_TTL_SECONDS,
     });
-    return grant.downloadUrl;
+    return readDownloadUrl(grant);
   } catch {
     return undefined;
   }

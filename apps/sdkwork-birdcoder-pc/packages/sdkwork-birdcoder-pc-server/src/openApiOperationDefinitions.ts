@@ -818,6 +818,22 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
+    'commerce.payments.confirm': {
+      parameters: [commercePaymentIdPathParameter],
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderConfirmCommercePaymentRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'SDKWork commerce payment confirmed successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommercePaymentSummaryEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('SDKWork commerce payment confirmation is invalid.'),
+          '404': createProblemResponse('SDKWork commerce payment was not found.'),
+          '409': createProblemResponse('SDKWork commerce payment cannot be confirmed.'),
+        },
+      }),
+    },
     'workspaces.list': {
       parameters: [userIdParameter, limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
@@ -1101,7 +1117,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'skillPackages.list': {
-      parameters: [userIdParameter, workspaceIdParameter],
+      parameters: [userIdParameter, workspaceIdParameter, limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Skill package catalog returned successfully.',
@@ -1140,6 +1156,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'chat.conversations.list': {
+      parameters: [limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Chat conversations returned successfully.',
@@ -1179,7 +1196,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'chat.conversations.messages.list': {
-      parameters: [conversationIdPathParameter],
+      parameters: [conversationIdPathParameter, limitParameter, offsetParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Chat messages returned successfully.',

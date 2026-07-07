@@ -1,4 +1,5 @@
 import { isBlank } from '@sdkwork/utils/string';
+import { clampListPageSize, MAX_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import {
   createBirdCoderTableRecordRepository,
   type BirdCoderStorageAccess,
@@ -145,11 +146,25 @@ export interface BirdCoderProjectContentRepository
   ): Promise<BirdCoderProjectContentRecord[]>;
 }
 
+export interface BirdCoderProjectListPagination {
+  offset?: number;
+  limit?: number;
+}
+
+export interface BirdCoderProjectListPage {
+  items: BirdCoderRepresentativeProjectRecord[];
+  total: number;
+}
+
 export interface BirdCoderProjectRepository
   extends BirdCoderTableRecordRepository<BirdCoderRepresentativeProjectRecord> {
+  listProjectRecordsPage?(
+    pagination?: BirdCoderProjectListPagination,
+  ): Promise<BirdCoderProjectListPage>;
   listProjectsByWorkspaceIds?(
     workspaceIds: readonly string[],
-  ): Promise<BirdCoderRepresentativeProjectRecord[]>;
+    pagination?: BirdCoderProjectListPagination,
+  ): Promise<BirdCoderProjectListPage>;
 }
 
 export interface BirdCoderRepresentativeProjectDocumentRecord {
@@ -1066,6 +1081,7 @@ function normalizeProjectRows(
 function buildProjectListByWorkspaceIdsPlan(
   providerId: BirdCoderDatabaseProviderId,
   workspaceIds: readonly string[],
+  pagination?: BirdCoderProjectListPagination,
 ): BirdCoderSqlPlan {
   const dialect = createBirdCoderStorageDialect(providerId);
   const definition = getBirdCoderEntityDefinition('project');
@@ -1074,12 +1090,70 @@ function buildProjectListByWorkspaceIdsPlan(
     { column: 'updated_at', direction: 'desc' },
     { column: 'id', direction: 'asc' },
   ] as const;
+  const normalizedPagination = pagination
+    ? clampListPageSize(pagination.offset, pagination.limit)
+    : null;
+  const limitSuffix = normalizedPagination
+    ? ` LIMIT ${dialect.buildPlaceholder(workspaceIds.length + (hasSoftDeleteColumn ? 2 : 1))}` +
+      ` OFFSET ${dialect.buildPlaceholder(workspaceIds.length + (hasSoftDeleteColumn ? 3 : 2))}`
+    : '';
+  const listParams = hasSoftDeleteColumn
+    ? normalizedPagination
+      ? [defaultSoftDeleteValue(providerId), ...workspaceIds, normalizedPagination.pageSize, normalizedPagination.offset]
+      : [defaultSoftDeleteValue(providerId), ...workspaceIds]
+    : normalizedPagination
+      ? [...workspaceIds, normalizedPagination.pageSize, normalizedPagination.offset]
+      : [...workspaceIds];
   return {
     intent: 'read',
     meta: {
       excludeDeleted: hasSoftDeleteColumn,
       kind: 'project-list-by-workspace-ids',
       orderBy,
+      pagination: normalizedPagination
+        ? {
+            limit: normalizedPagination.pageSize,
+            offset: normalizedPagination.offset,
+          }
+        : undefined,
+      tableName: definition.tableName,
+      workspaceIds,
+    },
+    providerId,
+    statements: [
+      hasSoftDeleteColumn
+        ? {
+            params: listParams,
+            sql:
+              `SELECT * FROM ${definition.tableName} ` +
+              `WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
+              `AND workspace_id IN (${buildPlaceholderList(providerId, 2, workspaceIds.length)}) ` +
+              `ORDER BY updated_at DESC, id ASC${limitSuffix};`,
+          }
+        : {
+            params: listParams,
+            sql:
+              `SELECT * FROM ${definition.tableName} ` +
+              `WHERE workspace_id IN (${buildPlaceholderList(providerId, 1, workspaceIds.length)}) ` +
+              `ORDER BY updated_at DESC, id ASC${limitSuffix};`,
+          },
+    ],
+    transactional: false,
+  };
+}
+
+function buildProjectCountByWorkspaceIdsPlan(
+  providerId: BirdCoderDatabaseProviderId,
+  workspaceIds: readonly string[],
+): BirdCoderSqlPlan {
+  const dialect = createBirdCoderStorageDialect(providerId);
+  const definition = getBirdCoderEntityDefinition('project');
+  const hasSoftDeleteColumn = definition.columns.some((column) => column.name === 'is_deleted');
+  return {
+    intent: 'read',
+    meta: {
+      excludeDeleted: hasSoftDeleteColumn,
+      kind: 'project-count-by-workspace-ids',
       tableName: definition.tableName,
       workspaceIds,
     },
@@ -1089,17 +1163,15 @@ function buildProjectListByWorkspaceIdsPlan(
         ? {
             params: [defaultSoftDeleteValue(providerId), ...workspaceIds],
             sql:
-              `SELECT * FROM ${definition.tableName} ` +
+              `SELECT COUNT(*) AS total FROM ${definition.tableName} ` +
               `WHERE is_deleted = ${dialect.buildPlaceholder(1)} ` +
-              `AND workspace_id IN (${buildPlaceholderList(providerId, 2, workspaceIds.length)}) ` +
-              `ORDER BY updated_at DESC, id ASC;`,
+              `AND workspace_id IN (${buildPlaceholderList(providerId, 2, workspaceIds.length)});`,
           }
         : {
             params: [...workspaceIds],
             sql:
-              `SELECT * FROM ${definition.tableName} ` +
-              `WHERE workspace_id IN (${buildPlaceholderList(providerId, 1, workspaceIds.length)}) ` +
-              `ORDER BY updated_at DESC, id ASC;`,
+              `SELECT COUNT(*) AS total FROM ${definition.tableName} ` +
+              `WHERE workspace_id IN (${buildPlaceholderList(providerId, 1, workspaceIds.length)});`,
           },
     ],
     transactional: false,
@@ -1168,24 +1240,81 @@ function createBirdCoderProjectRepository({
 
   return {
     ...repository,
-    async listProjectsByWorkspaceIds(workspaceIds) {
+    async listProjectsByWorkspaceIds(workspaceIds, pagination) {
       const normalizedWorkspaceIds = normalizeBatchIds(workspaceIds);
       if (normalizedWorkspaceIds.length === 0) {
-        return [];
+        return { items: [], total: 0 };
       }
 
       if (supportsSqlPlanExecution(storage)) {
         try {
-          const result = await storage.executeSqlPlan(
-            buildProjectListByWorkspaceIdsPlan(providerId, normalizedWorkspaceIds),
-          );
-          return normalizeProjectRows(result.rows ?? []);
+          if (pagination) {
+            const [listResult, countResult] = await Promise.all([
+              storage.executeSqlPlan(
+                buildProjectListByWorkspaceIdsPlan(
+                  providerId,
+                  normalizedWorkspaceIds,
+                  pagination,
+                ),
+              ),
+              storage.executeSqlPlan(
+                buildProjectCountByWorkspaceIdsPlan(providerId, normalizedWorkspaceIds),
+              ),
+            ]);
+            const countRow = countResult.rows?.[0] as Record<string, unknown> | undefined;
+            const totalValue = countRow?.total ?? countRow?.['COUNT(*)'];
+            const total =
+              typeof totalValue === 'number'
+                ? totalValue
+                : typeof totalValue === 'string'
+                  ? Number.parseInt(totalValue, 10)
+                  : 0;
+            return {
+              items: normalizeProjectRows(listResult.rows ?? []),
+              total: Number.isFinite(total) ? total : 0,
+            };
+          }
+
+          const collected: BirdCoderRepresentativeProjectRecord[] = [];
+          let offset = 0;
+          let total = 0;
+          while (true) {
+            const pagePagination = { offset, limit: MAX_LIST_PAGE_SIZE };
+            const [listResult, countResult] = await Promise.all([
+              storage.executeSqlPlan(
+                buildProjectListByWorkspaceIdsPlan(
+                  providerId,
+                  normalizedWorkspaceIds,
+                  pagePagination,
+                ),
+              ),
+              offset === 0
+                ? storage.executeSqlPlan(
+                    buildProjectCountByWorkspaceIdsPlan(providerId, normalizedWorkspaceIds),
+                  )
+                : Promise.resolve({ rows: [{ total }] }),
+            ]);
+            if (offset === 0) {
+              const countRow = countResult.rows?.[0] as Record<string, unknown> | undefined;
+              const totalValue = countRow?.total ?? countRow?.['COUNT(*)'];
+              total =
+                typeof totalValue === 'number'
+                  ? totalValue
+                  : typeof totalValue === 'string'
+                    ? Number.parseInt(totalValue, 10)
+                    : 0;
+            }
+            const items = normalizeProjectRows(listResult.rows ?? []);
+            collected.push(...items);
+            if (items.length < MAX_LIST_PAGE_SIZE || collected.length >= total) {
+              return {
+                items: collected,
+                total: Number.isFinite(total) ? total : collected.length,
+              };
+            }
+            offset += MAX_LIST_PAGE_SIZE;
+          }
         } catch (error) {
-          // Log the unexpected SQL plan execution failure so it is visible in
-          // diagnostics instead of being silently swallowed. The fallback below
-          // preserves backward compatibility for storages that report support
-          // but fail at runtime (e.g. migration in progress); it delegates to
-          // repository.list() which is itself bounded by buildListPlan's LIMIT.
           console.warn(
             'BirdCoder listProjectsByWorkspaceIds SQL plan failed; falling back to repository.list()',
             error,
@@ -1194,9 +1323,23 @@ function createBirdCoderProjectRepository({
       }
 
       const workspaceIdSet = new Set(normalizedWorkspaceIds);
-      return (await repository.list()).filter((project) =>
+      const filtered = (await repository.list()).filter((project) =>
         workspaceIdSet.has(project.workspaceId),
       );
+      if (!pagination) {
+        return {
+          items: filtered,
+          total: filtered.length,
+        };
+      }
+      throw new Error(
+        'Paginated workspace project listing requires SQL plan execution; volatile fallback is not supported.',
+      );
+    },
+    async listProjectRecordsPage(pagination) {
+      const { offset, pageSize } = clampListPageSize(pagination?.offset, pagination?.limit);
+      const page = await repository.listPage(offset, pageSize);
+      return page;
     },
   };
 }

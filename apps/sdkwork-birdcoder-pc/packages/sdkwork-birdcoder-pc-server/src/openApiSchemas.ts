@@ -1416,6 +1416,14 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         required: ['orderId', 'channel'],
       },
     ),
+    BirdCoderConfirmCommercePaymentRequest: createOpenApiObjectSchema(
+      {
+        channelTransactionId: createOpenApiStringSchema(),
+      },
+      {
+        required: ['channelTransactionId'],
+      },
+    ),
     BirdCoderCommerceOrderSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),

@@ -8,7 +8,7 @@ use sdkwork_birdcoder_membership_service::domain::models::{
 };
 use sdkwork_birdcoder_membership_service::service::membership_service::MembershipService;
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    build_data_envelope, build_unbounded_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
     ApiListEnvelope,
 };
 use sdkwork_utils_rust::is_blank;
@@ -90,7 +90,7 @@ pub async fn list_membership_package_groups(
     match state.service.list_package_groups().await {
         Ok(groups) => {
             let total = groups.len();
-            Ok(Json(build_list_envelope(groups, total, request_id(&web))))
+            Ok(Json(build_unbounded_list_envelope(groups, request_id(&web))))
         }
         Err(e) => Err(error::map_service_error(e, trace_id)),
     }

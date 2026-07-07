@@ -1,4 +1,5 @@
 use sqlx::Row;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::row_get_bool_as_i64;
 
 pub struct SessionRow {
     pub id: String,
@@ -32,7 +33,7 @@ impl SessionRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             workspace_id: row.try_get("workspace_id")?,
             project_id: row.try_get("project_id")?,
             title: row.try_get("title")?,
@@ -45,9 +46,9 @@ impl SessionRow {
             native_session_id: row.try_get("native_session_id")?,
             sort_timestamp: row.try_get("sort_timestamp")?,
             transcript_updated_at: row.try_get("transcript_updated_at")?,
-            pinned: row.try_get("pinned")?,
-            archived: row.try_get("archived")?,
-            unread: row.try_get("unread")?,
+            pinned: row_get_bool_as_i64(row, "pinned")?,
+            archived: row_get_bool_as_i64(row, "archived")?,
+            unread: row_get_bool_as_i64(row, "unread")?,
         })
     }
 }
@@ -81,7 +82,7 @@ impl MessageRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             coding_session_id: row.try_get("coding_session_id")?,
             turn_id: row.try_get("turn_id")?,
             role: row.try_get("role")?,
@@ -138,7 +139,7 @@ impl TurnRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             coding_session_id: row.try_get("coding_session_id")?,
             runtime_id: row.try_get("runtime_id")?,
             request_kind: row.try_get("request_kind")?,
@@ -171,7 +172,7 @@ impl EventRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             coding_session_id: row.try_get("coding_session_id")?,
             turn_id: row.try_get("turn_id")?,
             runtime_id: row.try_get("runtime_id")?,
@@ -203,7 +204,7 @@ impl ArtifactRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             coding_session_id: row.try_get("coding_session_id")?,
             turn_id: row.try_get("turn_id")?,
             artifact_kind: row.try_get("artifact_kind")?,
@@ -234,7 +235,7 @@ impl CheckpointRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             coding_session_id: row.try_get("coding_session_id")?,
             runtime_id: row.try_get("runtime_id")?,
             checkpoint_kind: row.try_get("checkpoint_kind")?,
@@ -265,7 +266,7 @@ impl OperationRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             coding_session_id: row.try_get("coding_session_id")?,
             turn_id: row.try_get("turn_id")?,
             status: row.try_get("status")?,

@@ -5023,6 +5023,26 @@
         "tags": [
           "system"
         ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of items to return.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based starting offset used for incremental loading.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Chat conversations returned successfully.",
@@ -5283,6 +5303,24 @@
             "description": "BirdCoder chat conversation identifier.",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of items to return.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based starting offset used for incremental loading.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
             }
           }
         ],
@@ -6323,6 +6361,24 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of items to return.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based starting offset used for incremental loading.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
           }
         ],
         "responses": {
@@ -7106,6 +7162,108 @@
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
         "x-sdkwork-permission": "commerce.payments.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "commerce.payments",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
+    "/app/v3/api/commerce/payments/{paymentId}/confirm": {
+      "post": {
+        "operationId": "commerce.payments.confirm",
+        "summary": "Confirm SDKWork commerce payment after gateway callback",
+        "description": "Confirm SDKWork commerce payment after gateway callback. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "commerce"
+        ],
+        "parameters": [
+          {
+            "name": "paymentId",
+            "in": "path",
+            "required": true,
+            "description": "SDKWork commerce payment identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderConfirmCommercePaymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SDKWork commerce payment confirmed successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommercePaymentSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "SDKWork commerce payment confirmation is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "SDKWork commerce payment was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "SDKWork commerce payment cannot be confirmed.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "commerce",
+        "x-sdkwork-permission": "commerce.payments.create",
         "x-sdkwork-public": false,
         "x-sdkwork-resource": "commerce.payments",
         "x-sdkwork-surface": "app",
@@ -9525,6 +9683,18 @@
         },
         "required": [
           "message"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderConfirmCommercePaymentRequest": {
+        "type": "object",
+        "properties": {
+          "channelTransactionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channelTransactionId"
         ],
         "additionalProperties": false
       },

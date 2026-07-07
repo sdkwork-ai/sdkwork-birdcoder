@@ -174,7 +174,7 @@
         "content": "SDKWork BirdCoder PC has not launched publicly. Artifact URLs and checksums are withheld until the first governed release build completes.",
         "highlights": [
           "Browser and Tauri desktop surfaces",
-          "OpenAPI contract complete: 161 operations, 0 deferred; pagination remediation complete",
+          "OpenAPI contract complete: 162 operations, 0 deferred; commerce payment confirm + pagination remediation complete",
           "Universal chat and Drive attachment upload wired on PC shell"
         ],
         "packageIds": [

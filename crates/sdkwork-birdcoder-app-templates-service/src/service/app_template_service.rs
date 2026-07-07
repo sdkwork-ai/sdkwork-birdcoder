@@ -3,7 +3,11 @@ use crate::error::AppTemplateError;
 
 #[async_trait::async_trait]
 pub trait AppTemplateRepository: Send + Sync {
-    async fn list_templates(&self) -> Result<Vec<AppTemplatePayload>, String>;
+    async fn list_templates(
+        &self,
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<AppTemplatePayload>, i64), String>;
     async fn find_template_by_id(&self, template_id: &str) -> Result<Option<AppTemplatePayload>, String>;
 }
 
@@ -17,9 +21,13 @@ impl<R: AppTemplateRepository> AppTemplateService<R> {
         Self { repository }
     }
 
-    pub async fn list_templates(&self) -> Result<Vec<AppTemplatePayload>, AppTemplateError> {
+    pub async fn list_templates(
+        &self,
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<AppTemplatePayload>, i64), AppTemplateError> {
         self.repository
-            .list_templates()
+            .list_templates(offset, limit)
             .await
             .map_err(AppTemplateError::Repository)
     }

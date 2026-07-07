@@ -91,3 +91,9 @@ pub struct CreatePaymentCommand {
     #[serde(default)]
     pub metadata: Option<String>,
 }
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmPaymentCommand {
+    pub channel_transaction_id: String,
+}

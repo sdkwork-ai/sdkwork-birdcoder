@@ -22,7 +22,7 @@ use time::format_description::well_known::Rfc3339;
 #[cfg(test)]
 use time::OffsetDateTime;
 
-use sdkwork_birdcoder_errors::{build_data_envelope, build_list_envelope, ApiDataEnvelope, ApiListEnvelope};
+use sdkwork_birdcoder_errors::{build_data_envelope, build_unbounded_list_envelope, ApiDataEnvelope, ApiListEnvelope};
 
 use sdkwork_birdcoder_commerce_quota::{
     self, current_month_bounds, months_ago_start, quota_limit_for_metric,
@@ -543,7 +543,7 @@ pub async fn history(
         })
         .collect();
     let total = items.len();
-    Ok(Json(build_list_envelope(items, total, &ctx.request_id)))
+    Ok(Json(build_unbounded_list_envelope(items, &ctx.request_id)))
 }
 
 pub async fn breakdown(

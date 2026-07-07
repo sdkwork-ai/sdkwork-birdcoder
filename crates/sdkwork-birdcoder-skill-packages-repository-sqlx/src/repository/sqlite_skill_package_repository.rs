@@ -49,11 +49,18 @@ impl SkillPackageRepository for SqliteSkillPackageRepository {
     async fn list_packages(
         &self,
         _workspace_id: Option<&str>,
-    ) -> Result<Vec<SkillPackagePayload>, String> {
-        let rows = skill_package_repository::list_skill_packages(&self.pool)
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<SkillPackagePayload>, i64), String> {
+        let offset_i64 = i64::try_from(offset).unwrap_or(0);
+        let limit_i64 = i64::try_from(limit).unwrap_or(20);
+        let total = skill_package_repository::count_skill_packages(&self.pool)
             .await
             .map_err(|e| e.to_string())?;
-        Ok(rows
+        let rows = skill_package_repository::list_skill_packages(&self.pool, offset_i64, limit_i64)
+            .await
+            .map_err(|e| e.to_string())?;
+        let items = rows
             .into_iter()
             .map(|row| SkillPackagePayload {
                 id: row.id,
@@ -75,7 +82,8 @@ impl SkillPackageRepository for SqliteSkillPackageRepository {
                 installed: false,
                 skills: vec![],
             })
-            .collect())
+            .collect();
+        Ok((items, total))
     }
 
     async fn find_latest_version(

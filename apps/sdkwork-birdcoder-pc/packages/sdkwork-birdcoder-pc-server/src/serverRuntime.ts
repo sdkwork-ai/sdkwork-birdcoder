@@ -556,6 +556,10 @@ export function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): stri
     ['GET /app/v3/api/commerce/payments', 'commerce.payments.list'],
     ['POST /app/v3/api/commerce/payments', 'commerce.payments.create'],
     ['GET /app/v3/api/commerce/payments/:paymentId', 'commerce.payments.retrieve'],
+    [
+      'POST /app/v3/api/commerce/payments/:paymentId/confirm',
+      'commerce.payments.confirm',
+    ],
     ['PATCH /app/v3/api/iam/users/current', 'users.current.update'],
     ['GET /app/v3/api/workspaces', 'workspaces.list'],
     ['POST /app/v3/api/workspaces', 'workspaces.create'],

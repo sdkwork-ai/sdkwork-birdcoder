@@ -180,6 +180,28 @@ assert.doesNotMatch(
   /findProjectByWorkspaceAndPath\([\s\S]*?hydrateProjectRecords\(await this\.repository\.list\(\)\)/,
   'ProviderBackedProjectService.findProjectByWorkspaceAndPath must not hydrate all projects before checking path conflicts.',
 );
+assert.match(
+  providerBackedProjectServiceSource,
+  /listProjectRecordsPage\(/,
+  'ProviderBackedProjectService must define listProjectRecordsPage for SQL-backed project pagination.',
+);
+assert.doesNotMatch(
+  providerBackedProjectServiceSource,
+  /getProjects\([\s\S]*?\.slice\(offset, offset \+ pageSize\)/,
+  'ProviderBackedProjectService.getProjects must not slice an in-memory project catalog after hydration.',
+);
+
+sqlExecutor.history.length = 0;
+const paginatedProjects = await service.getProjects('workspace-content-hydration', {
+  offset: 0,
+  limit: 1,
+});
+assert.equal(paginatedProjects.length, 1, 'paginated getProjects must return only the requested page size.');
+assert.match(
+  sqlExecutor.history[0]?.statements?.[0]?.sql ?? '',
+  /LIMIT [\s\S]* OFFSET/,
+  'paginated workspace project listing must push LIMIT/OFFSET to SQL.',
+);
 
 sqlExecutor.history.length = 0;
 await service.deleteProject('project-content-hydration-target-b');

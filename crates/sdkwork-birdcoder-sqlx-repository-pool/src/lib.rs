@@ -25,8 +25,14 @@ fn normalize_sqlite_any_url(url: &str) -> String {
 }
 
 /// Resolve a sqlx `AnyPool` for BirdCoder repository crates from the bootstrap pool.
+///
+/// Uses half of the configured `max_connections` budget so the typed lifecycle pool and
+/// repository `AnyPool` stay within the operator's total connection limit.
 pub async fn birdcoder_repository_any_pool(pool: &DatabasePool) -> Result<AnyPool, String> {
     let mut config = pool.config().clone();
+    if config.max_connections > 1 {
+        config.max_connections = (config.max_connections / 2).max(1);
+    }
     if config.engine == DatabaseEngine::Sqlite {
         config.sqlite.create_if_missing = true;
         config.url = normalize_sqlite_any_url(&config.url);

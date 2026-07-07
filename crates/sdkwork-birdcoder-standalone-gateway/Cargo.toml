@@ -37,6 +37,8 @@ sdkwork-routes-skill-packages-app-api = { workspace = true }
 sdkwork-routes-membership-app-api = { workspace = true }
 sdkwork-routes-commerce-app-api = { workspace = true }
 sdkwork-routes-deployment-backend-api = { workspace = true }
+sdkwork-routes-agents-app-api = { workspace = true }
+sdkwork-agents-kernel-bridge = { workspace = true }
 sdkwork_routes_iam_app_api = { workspace = true }
 sdkwork_routes_iam_backend_api = { workspace = true }
 sdkwork-web-axum.workspace = true

@@ -93,9 +93,26 @@ async function readResponseBodyWithSizeGuard(
   return rawBody;
 }
 
+import { clampListPageSize } from '@sdkwork/utils/pagination';
+
 export function createListEnvelope<TItem>(
   items: readonly TItem[],
+  options: {
+    offset?: number;
+    pageSize?: number;
+    total?: number;
+  } = {},
 ): BirdCoderApiListEnvelope<TItem> {
+  const total = options.total ?? items.length;
+  const { offset, pageSize } = clampListPageSize(
+    options.offset,
+    typeof options.pageSize === 'number' && Number.isFinite(options.pageSize) && options.pageSize > 0
+      ? options.pageSize
+      : items.length > 0
+        ? items.length
+        : undefined,
+  );
+  const pageBase = pageSize > 0 ? pageSize : Math.max(items.length, 1);
   return {
     code: 0,
     traceId: createBirdCoderLocalServerRequestId(),
@@ -103,9 +120,9 @@ export function createListEnvelope<TItem>(
       items: [...items],
       pageInfo: {
         mode: 'offset',
-        page: 1,
-        pageSize: items.length,
-        totalItems: String(items.length),
+        page: Math.floor(offset / pageBase) + 1,
+        pageSize,
+        totalItems: String(total),
       },
     },
   };

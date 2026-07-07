@@ -6,6 +6,7 @@ import type {
   BirdCoderCodingSessionTurnIdeContext,
   BirdCoderCodingSessionSummary,
   BirdCoderCreateCodingSessionTurnRequest,
+  BirdCoderListCodingSessionsRequest,
   BirdCoderProject,
   BirdCoderProjectSummary,
 } from '@sdkwork/birdcoder-pc-types';
@@ -33,6 +34,7 @@ import {
 import { resolveRequiredCodingSessionSelection } from '../codingSessionSelection.ts';
 import { CurrentUserScopeResolver } from '../currentUserScope.ts';
 import type {
+  BirdCoderCodingSessionListResult,
   BirdCoderCodingSessionMirrorSnapshot,
   BirdCoderProjectMirrorSnapshot,
   BirdCoderServiceListPagination,
@@ -2442,6 +2444,32 @@ export class ApiBackedProjectService implements IProjectService {
         );
       },
     );
+  }
+
+  async listCodingSessions(
+    request: BirdCoderListCodingSessionsRequest,
+  ): Promise<BirdCoderCodingSessionListResult> {
+    if (!this.codingRuntimeClient) {
+      return { items: [], total: 0 };
+    }
+
+    const summaries = await this.codingRuntimeClient.listCodingSessions(request);
+    const localProjects = await this.listLocalProjects(request.workspaceId);
+    const localSessionsById = new Map<string, LocalCodingSessionSnapshot>();
+    for (const project of localProjects) {
+      for (const session of project.codingSessions) {
+        localSessionsById.set(session.id, session);
+      }
+    }
+    const items = summaries.map((summary) =>
+      mergeCodingSessionSummary(summary, localSessionsById.get(summary.id), {
+        preserveLocalMessages: false,
+      }),
+    );
+    return {
+      items,
+      total: items.length,
+    };
   }
 
   async getProjectById(projectId: string): Promise<BirdCoderProject | null> {

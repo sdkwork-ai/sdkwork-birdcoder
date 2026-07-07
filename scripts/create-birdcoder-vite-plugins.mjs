@@ -406,6 +406,10 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       replacement: resolveDependencyPath('sdkwork-messaging', 'sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts'),
     },
     {
+      find: '@sdkwork/agents-app-sdk',
+      replacement: resolveDependencyPath('sdkwork-agents', 'sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript/src/index.ts'),
+    },
+    {
       find: /^@sdkwork\/birdcoder-([^/]+)\/(.+)$/u,
       replacement: path.resolve(appRootDir, '../sdkwork-birdcoder-$1/src/$2'),
     },

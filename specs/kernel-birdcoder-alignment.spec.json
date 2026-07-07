@@ -1,12 +1,14 @@
 {
   "schemaVersion": 1,
   "kind": "sdkwork.kernel-birdcoder-alignment",
-  "updatedAt": "2026-06-24",
-  "summary": "Machine-readable alignment tracker for sdkwork-kernel agent runtime vs BirdCoder product/tooling boundaries.",
+  "updatedAt": "2026-07-08",
+  "summary": "Machine-readable alignment tracker for sdkwork-kernel SPI/provider bindings, sdkwork-agents business boundary, and BirdCoder product/tooling consumption rules.",
   "authorityDocs": [
     "docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md",
     "docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md",
     "docs/architecture/tech/TECH-32-kernel-birdcoder.md",
+    "docs/architecture/tech/TECH-36-three-layer-agent-platform-standard.md",
+    "docs/product/prd/PRD-02-three-layer-agent-platform.md",
     "docs/prompts/反复执行Kernel对齐指令.md"
   ],
   "siblingDependencies": [
@@ -17,7 +19,10 @@
         "claude-code",
         "gemini-cli",
         "codex",
-        "opencode"
+        "opencode",
+        "openclaw",
+        "hermes",
+        "rig"
       ]
     }
   ],
@@ -41,6 +46,11 @@
       "id": "P4-kernel-production",
       "title": "sdkwork-kernel 生产化",
       "doc": "docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md#6-sdkwork-kernel-生产化路线"
+    },
+    {
+      "id": "P5-evolution",
+      "title": "扩展 provider 与 SPI 补齐",
+      "doc": "docs/architecture/tech/TECH-36-three-layer-agent-platform-standard.md"
     }
   ],
   "tasks": [
@@ -464,6 +474,55 @@
           "cargo test -p sdkwork-birdcoder-kernel-bridge"
         ]
       }
+    },
+    {
+      "id": "KBA-K-05",
+      "phase": "P5-evolution",
+      "owner": "kernel",
+      "title": "OpenClaw/Hermes/Rig autonomous provider conformance and product gate",
+      "status": "pending",
+      "gate": false,
+      "notes": "OpenClaw has an experimental official SDK/gateway binding; Hermes has a Python process/JSON-RPC IPC binding; Rig is a Rust-native standardizing provider with live execution still fail-closed/live_pending. BirdCoder product exposure remains disabled until conformance tests, feature flag, and operator runbook are complete.",
+      "evidence": {
+        "siblingPaths": [
+          "../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-openclaw",
+          "../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-hermes",
+          "../sdkwork-kernel/agent-providers/crates/sdkwork-agent-provider-rig",
+          "../sdkwork-kernel/bindings/agent-providers/openclaw/provider-binding.manifest.json",
+          "../sdkwork-kernel/bindings/agent-providers/hermes/provider-binding.manifest.json",
+          "../sdkwork-kernel/bindings/agent-providers/rig/provider-binding.manifest.json",
+          "../sdkwork-kernel/sdkwork-kernel-plugins/specs/mappings/openclaw.md",
+          "../sdkwork-kernel/sdkwork-kernel-plugins/specs/mappings/hermes-agent.md",
+          "../sdkwork-kernel/sdkwork-kernel-plugins/specs/mappings/rig.md"
+        ]
+      }
+    },
+    {
+      "id": "KBA-K-06",
+      "phase": "P5-evolution",
+      "owner": "kernel",
+      "title": "AGENT_TASK_SCHEDULING_SPI_SPEC 独立规范成文",
+      "status": "pending",
+      "gate": false,
+      "notes": "从 kernel-local-conventions task_scheduling 条目抽出正式 SPI spec + schema。"
+    },
+    {
+      "id": "KBA-K-07",
+      "phase": "P5-evolution",
+      "owner": "kernel",
+      "title": "Live interaction 迁入 kernel AgentInteractionProvider SPI",
+      "status": "pending",
+      "gate": false,
+      "notes": "agents runtime-facade live_interaction 模块瘦身；approval/user-question 语义归 kernel。"
+    },
+    {
+      "id": "KBA-BC-10",
+      "phase": "P5-evolution",
+      "owner": "birdcoder",
+      "title": "自主智能体可选 catalog（openclaw/hermes）feature flag",
+      "status": "pending",
+      "gate": false,
+      "notes": "依赖 KBA-K-05 conformance；默认关闭，与四代码引擎 P0 分离。"
     }
   ],
   "verificationMatrix": {

@@ -11,7 +11,7 @@
 #[cfg(test)]
 use std::sync::OnceLock;
 
-use axum::extract::{Path, Request, State};
+use axum::extract::{Path, Query, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
@@ -24,7 +24,8 @@ use sqlx::Row;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
-use sdkwork_birdcoder_errors::{build_data_envelope, build_list_envelope, ApiDataEnvelope, ApiListEnvelope};
+use sdkwork_birdcoder_errors::{build_data_envelope, build_offset_list_envelope, ApiDataEnvelope, ApiListEnvelope};
+use sdkwork_utils_rust::{OffsetListPageParams, SdkWorkResultCode, validated_offset_list_params};
 
 use crate::routes::{
     insert_rate_limit_subject, problem_response, problem_with, CommerceAppState, CommercePrincipal,
@@ -291,23 +292,38 @@ pub async fn find_api_key_by_id(
     row.as_ref().map(ApiKeyRow::from_row).transpose()
 }
 
-/// Lists all non-deleted API keys for a user within a tenant.
+/// Lists non-deleted API keys for a user within a tenant with SQL-backed offset pagination.
 pub async fn list_api_keys_for_user(
     pool: &sqlx::AnyPool,
     tenant_id: i64,
     user_id: i64,
-) -> Result<Vec<ApiKeyRow>, sqlx::Error> {
+    params: OffsetListPageParams,
+) -> Result<(Vec<ApiKeyRow>, i64), sqlx::Error> {
+    let count_sql = format!(
+        "SELECT COUNT(*) AS total FROM {TABLE} \
+         WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL"
+    );
+    let total: i64 = sqlx::query(&count_sql)
+        .bind(tenant_id)
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?
+        .try_get("total")?;
+
     let sql = format!(
         "SELECT {ALL_COLUMNS} FROM {TABLE} \
          WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL \
-         ORDER BY created_at DESC"
+         ORDER BY created_at DESC LIMIT ?3 OFFSET ?4"
     );
     let rows = sqlx::query(&sql)
         .bind(tenant_id)
         .bind(user_id)
+        .bind(params.page_size)
+        .bind(params.offset)
         .fetch_all(pool)
         .await?;
-    rows.iter().map(ApiKeyRow::from_row).collect()
+    let items = rows.iter().map(ApiKeyRow::from_row).collect::<Result<Vec<_>, _>>()?;
+    Ok((items, total))
 }
 
 /// Revokes an API key (sets status, revoked_at). Returns the updated row when the
@@ -479,6 +495,13 @@ pub struct CreateApiKeyRequest {
     pub workspace_id: Option<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListApiKeysQuery {
+    pub page: Option<i64>,
+    pub page_size: Option<i64>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiKeyRevokedResponse {
@@ -587,6 +610,7 @@ pub async fn list_api_keys(
     principal: CommercePrincipal,
     ctx: CommerceRequestContext,
     State(state): State<CommerceAppState>,
+    Query(query): Query<ListApiKeysQuery>,
 ) -> Result<Json<ApiListEnvelope<ApiKeyResponse>>, ProblemJsonBody> {
     if !principal.has_scope("read") {
         return Err(problem_with(
@@ -609,8 +633,29 @@ pub async fn list_api_keys(
             ));
         }
     };
-    let rows = match list_api_keys_for_user(&state.pool, tenant_id, user_id).await {
-        Ok(rows) => rows,
+    let params = match validated_offset_list_params(query.page, query.page_size) {
+        Ok(params) => params,
+        Err(SdkWorkResultCode::InvalidParameter) => {
+            return Err(problem_with(
+                StatusCode::BAD_REQUEST,
+                "invalid_input",
+                "page must be >= 1 and page_size must be between 1 and 200",
+                false,
+                ctx.trace_id_opt(),
+            ));
+        }
+        Err(_) => {
+            return Err(problem_with(
+                StatusCode::BAD_REQUEST,
+                "invalid_input",
+                "invalid pagination parameters",
+                false,
+                ctx.trace_id_opt(),
+            ));
+        }
+    };
+    let (rows, total) = match list_api_keys_for_user(&state.pool, tenant_id, user_id, params).await {
+        Ok(result) => result,
         Err(error) => {
             tracing::warn!(%error, "failed to list api keys");
             return Err(problem_with(
@@ -623,8 +668,16 @@ pub async fn list_api_keys(
         }
     };
     let items: Vec<ApiKeyResponse> = rows.iter().map(ApiKeyRow::to_response).collect();
-    let total = items.len();
-    Ok(Json(build_list_envelope(items, total, &ctx.request_id)))
+    let offset = usize::try_from(params.offset).unwrap_or(0);
+    let page_size = usize::try_from(params.page_size).unwrap_or(1);
+    let total_items = usize::try_from(total).unwrap_or(0);
+    Ok(Json(build_offset_list_envelope(
+        items,
+        offset,
+        page_size,
+        total_items,
+        &ctx.request_id,
+    )))
 }
 
 pub async fn revoke_api_key_handler(

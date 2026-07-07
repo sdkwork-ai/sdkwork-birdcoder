@@ -34,6 +34,7 @@ export interface CreateBirdCoderInProcessAppSdkTransportOptions {
     | 'getCodingSessionTranscript'
     | 'getProjectById'
     | 'getProjects'
+    | 'listCodingSessions'
     | 'renameCodingSession'
     | 'updateCodingSession'
   >;

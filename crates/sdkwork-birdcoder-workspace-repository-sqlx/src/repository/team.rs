@@ -9,6 +9,7 @@ use crate::repository::scope::{scoped_tenant_id, scoped_user_id};
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_birdcoder_workspace_service::domain::results::{TeamMemberPayload, TeamPayload};
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{inserted_row_id, IS_NOT_DELETED, SET_SOFT_DELETED};
 
 #[derive(Clone)]
 pub struct SqliteTeamRepository {
@@ -36,10 +37,10 @@ impl SqliteTeamRepository {
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
         let tenant_id = scoped_tenant_id(ctx)?;
         let sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} AND {} = ?",
             col::TABLE,
             col::ID,
-            col::IS_DELETED,
+            IS_NOT_DELETED,
             col::TENANT_ID,
         );
 
@@ -70,10 +71,10 @@ impl SqliteTeamRepository {
         })?;
         let tenant_id = scoped_tenant_id(ctx)?;
         let sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0 AND {} = ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} AND {} = ?",
             col::TABLE,
             col::WORKSPACE_ID,
-            col::IS_DELETED,
+            IS_NOT_DELETED,
             col::TENANT_ID,
         );
 
@@ -119,7 +120,7 @@ impl SqliteTeamRepository {
         sql.push_str(col::TABLE);
         sql.push_str(" t WHERE t.");
         sql.push_str(col::IS_DELETED);
-        sql.push_str(" = 0 AND t.");
+        sql.push_str(" IS NOT TRUE AND t.");
         sql.push_str(col::TENANT_ID);
         sql.push_str(" = ?");
 
@@ -127,7 +128,7 @@ impl SqliteTeamRepository {
         count_sql.push_str(col::TABLE);
         count_sql.push_str(" t WHERE t.");
         count_sql.push_str(col::IS_DELETED);
-        count_sql.push_str(" = 0 AND t.");
+        count_sql.push_str(" IS NOT TRUE AND t.");
         count_sql.push_str(col::TENANT_ID);
         count_sql.push_str(" = ?");
 
@@ -147,22 +148,20 @@ impl SqliteTeamRepository {
         if let Some(parsed_uid) = uid {
             let _ = parsed_uid;
             sql.push_str(&format!(
-                " AND (t.{} = ? OR EXISTS (SELECT 1 FROM {} m WHERE m.{} = t.{} AND m.{} = ? AND m.{} = 0))",
+                " AND (t.{} = ? OR EXISTS (SELECT 1 FROM {} m WHERE m.{} = t.{} AND m.{} = ? AND m.is_deleted IS NOT TRUE))",
                 col::OWNER_ID,
                 member_col::TABLE,
                 member_col::TEAM_ID,
                 col::ID,
                 member_col::USER_ID,
-                member_col::IS_DELETED,
             ));
             count_sql.push_str(&format!(
-                " AND (t.{} = ? OR EXISTS (SELECT 1 FROM {} m WHERE m.{} = t.{} AND m.{} = ? AND m.{} = 0))",
+                " AND (t.{} = ? OR EXISTS (SELECT 1 FROM {} m WHERE m.{} = t.{} AND m.{} = ? AND m.is_deleted IS NOT TRUE))",
                 col::OWNER_ID,
                 member_col::TABLE,
                 member_col::TEAM_ID,
                 col::ID,
                 member_col::USER_ID,
-                member_col::IS_DELETED,
             ));
         }
         // Append LIMIT/OFFSET last so bind order stays: tenant_id,
@@ -221,8 +220,8 @@ impl SqliteTeamRepository {
         })?;
         let owner_id = scoped_user_id(ctx)?;
 
-        let result = sqlx::query(&format!(
-            "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, workspace_id, name, description, owner_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        let id_row = sqlx::query(&format!(
+            "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, workspace_id, name, description, owner_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
             t = col::TABLE,
         ))
         .bind(&uuid)
@@ -237,11 +236,11 @@ impl SqliteTeamRepository {
         .bind(description)
         .bind(owner_id)
         .bind("active")
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
-        let id = result.last_insert_id();
+        let id = inserted_row_id(&id_row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         let row = sqlx::query(&format!(
             "SELECT * FROM {} WHERE {} = ?",
             col::TABLE,
@@ -264,11 +263,12 @@ impl SqliteTeamRepository {
         }
         let now = Self::now_iso();
         sqlx::query(&format!(
-            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ?",
+            "UPDATE {} SET {}, {} = ? WHERE {} = ? AND {}",
             col::TABLE,
-            col::IS_DELETED,
+            SET_SOFT_DELETED,
             col::UPDATED_AT,
             col::ID,
+            IS_NOT_DELETED,
         ))
         .bind(&now)
         .bind(id_num)
@@ -293,10 +293,10 @@ impl SqliteTeamRepository {
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid team_id: {team_id}")))?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} = 0 ORDER BY {} DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} ORDER BY {} DESC LIMIT ? OFFSET ?",
             member_col::TABLE,
             member_col::TEAM_ID,
-            member_col::IS_DELETED,
+            IS_NOT_DELETED,
             member_col::ID,
         ))
         .bind(tid)
@@ -316,10 +316,10 @@ impl SqliteTeamRepository {
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = 0",
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {}",
             member_col::TABLE,
             member_col::TEAM_ID,
-            member_col::IS_DELETED,
+            IS_NOT_DELETED,
         ))
         .bind(tid)
         .fetch_one(&self.pool)
@@ -349,8 +349,8 @@ impl SqliteTeamRepository {
         let tenant_id = scoped_tenant_id(ctx)?;
         let created_by = scoped_user_id(ctx)?;
 
-        let result = sqlx::query(&format!(
-            "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, team_id, user_id, role, created_by_user_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        let id_row = sqlx::query(&format!(
+            "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, team_id, user_id, role, created_by_user_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
             t = member_col::TABLE,
         ))
         .bind(&uuid)
@@ -365,11 +365,11 @@ impl SqliteTeamRepository {
         .bind(role)
         .bind(created_by)
         .bind("active")
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
-        let new_id = result.last_insert_id();
+        let new_id = inserted_row_id(&id_row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         let row = sqlx::query(&format!(
             "SELECT * FROM {} WHERE {} = ?",
             member_col::TABLE,
@@ -401,12 +401,13 @@ impl SqliteTeamRepository {
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid user_id: {user_id}")))?;
         let now = Self::now_iso();
         sqlx::query(&format!(
-            "UPDATE {} SET {} = 1, {} = ? WHERE {} = ? AND {} = ?",
+            "UPDATE {} SET {}, {} = ? WHERE {} = ? AND {} = ? AND {}",
             member_col::TABLE,
-            member_col::IS_DELETED,
+            SET_SOFT_DELETED,
             member_col::UPDATED_AT,
             member_col::TEAM_ID,
             member_col::USER_ID,
+            IS_NOT_DELETED,
         ))
         .bind(&now)
         .bind(tid)

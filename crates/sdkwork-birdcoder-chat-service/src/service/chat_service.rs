@@ -9,8 +9,8 @@ use crate::error::ChatError;
 use sdkwork_utils_rust::{is_blank, trim as trim_string};
 
 const DEFAULT_CONVERSATION_TITLE: &str = "New chat";
-const DEFAULT_LIST_LIMIT: i64 = 50;
-const MAX_LIST_LIMIT: i64 = 100;
+const DEFAULT_LIST_LIMIT: i64 = 20;
+const MAX_LIST_LIMIT: i64 = 200;
 
 const ALLOWED_MESSAGE_ROLES: [&str; 3] = ["user", "assistant", "system"];
 

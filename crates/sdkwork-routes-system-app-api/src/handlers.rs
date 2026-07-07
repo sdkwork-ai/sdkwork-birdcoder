@@ -11,7 +11,7 @@ use sdkwork_birdcoder_system_descriptor_service::service::system_service::{
     ManifestRouteCatalogProvider, OperationProvider, SystemService,
 };
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    build_data_envelope, build_unbounded_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
     ApiListEnvelope,
 };
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
@@ -98,7 +98,7 @@ pub async fn list_routes(
 ) -> Json<ApiListEnvelope<RouteCatalogEntryPayload>> {
     let routes = state.service.route_catalog();
     let total = routes.len();
-    Json(build_list_envelope(routes, total, request_id(&web)))
+    Json(build_unbounded_list_envelope(routes, request_id(&web)))
 }
 
 pub async fn get_runtime(

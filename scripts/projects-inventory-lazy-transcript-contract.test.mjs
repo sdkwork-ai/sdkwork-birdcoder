@@ -35,7 +35,7 @@ assert.match(
 
 assert.match(
   source,
-  /const projectMirrorReader = projectService\.getProjectMirrorSnapshots\?\.bind\(projectService\);[\s\S]*return projectSnapshots\.map\(materializeProjectInventoryFromMirrorSnapshot\);[\s\S]*return projectService\.getProjects\(workspaceId\);/,
+  /const projectMirrorReader = projectService\.getProjectMirrorSnapshots\?\.bind\(projectService\);[\s\S]*return projectSnapshots\.map\(materializeProjectInventoryFromMirrorSnapshot\);[\s\S]*return projectService\.getProjects\(workspaceId, pagination\);/,
   'useProjects startup inventory must prefer project mirror snapshots before falling back to full project reads.',
 );
 

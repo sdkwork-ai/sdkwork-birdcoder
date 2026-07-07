@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-04",
+  "updatedAt": "2026-07-06",
   "openApiSnapshotPath": "deployments/server-windows/x64/openapi/coding-server-v1.json",
   "summary": {
-    "contractOperationCount": 161,
-    "rustProductManifestRouteCount": 79,
-    "iamFederationManifestRouteCount": 196,
+    "contractOperationCount": 162,
+    "rustProductManifestRouteCount": 80,
+    "iamFederationManifestRouteCount": 198,
     "commerceGatewayRouteCount": 15,
-    "hostManifestRouteCount": 290,
-    "implementedOperationCount": 161,
+    "hostManifestRouteCount": 293,
+    "implementedOperationCount": 162,
     "deferredOperationCount": 0
   },
   "federation": {
@@ -767,6 +767,12 @@
       "method": "POST",
       "path": "/app/v3/api/commerce/payments",
       "operationId": "commerce.payments.create",
+      "surface": "app"
+    },
+    {
+      "method": "POST",
+      "path": "/app/v3/api/commerce/payments/{paymentId}/confirm",
+      "operationId": "commerce.payments.confirm",
       "surface": "app"
     },
     {

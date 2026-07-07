@@ -66,6 +66,8 @@ authors = ["sdkwork"]
 [workspace.dependencies]
 sdkwork-web-bootstrap = { path = "../sdkwork-web-framework/crates/sdkwork-web-bootstrap" }
 sdkwork-agents-runtime-facade = { path = "../sdkwork-agents/crates/sdkwork-agents-runtime-facade" }
+sdkwork-agents-kernel-bridge = { path = "../sdkwork-agents/crates/sdkwork-agents-kernel-bridge" }
+sdkwork-routes-agents-app-api = { path = "../sdkwork-agents/crates/sdkwork-routes-agents-app-api" }
 # Common third-party dependencies
 axum = "0.8"
 serde = { version = "1", features = ["derive"] }

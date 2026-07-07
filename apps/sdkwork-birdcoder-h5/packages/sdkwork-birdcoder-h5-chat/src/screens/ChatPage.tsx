@@ -8,6 +8,7 @@ import {
   sendBirdCoderMobileChatMessage,
   uploadBirdCoderChatAttachmentToDrive,
 } from '@sdkwork/birdcoder-h5-core/sdk';
+import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import { createChatMessage } from '../index.ts';
 import { resolveChatPageMessages } from '../messages/chatPageMessages.ts';
 import { useBirdCoderSettings } from '../state/settingsState.tsx';
@@ -40,7 +41,10 @@ export function ChatPage() {
       setLoadError(null);
       try {
         const id = await ensureBirdCoderMobileChatConversation();
-        const history = await listBirdCoderMobileChatMessages(id);
+        const history = await listBirdCoderMobileChatMessages(id, {
+          offset: 0,
+          limit: DEFAULT_LIST_PAGE_SIZE,
+        });
         if (cancelled) {
           return;
         }
@@ -74,7 +78,10 @@ export function ChatPage() {
       throw new Error('Chat conversation is not ready.');
     }
     await sendBirdCoderMobileChatMessage(conversationId, content);
-    const history = await listBirdCoderMobileChatMessages(conversationId);
+    const history = await listBirdCoderMobileChatMessages(conversationId, {
+      offset: 0,
+      limit: DEFAULT_LIST_PAGE_SIZE,
+    });
     setMessages(
       history.map((message) => ({
         ...createChatMessage(message.role, message.content, message.id),

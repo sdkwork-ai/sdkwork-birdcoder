@@ -1,4 +1,5 @@
 use sqlx::Row;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::row_get_bool_as_i64;
 
 #[derive(Clone, Debug)]
 pub struct SkillPackageRow {
@@ -26,7 +27,7 @@ impl SkillPackageRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             slug: row.try_get("slug")?,
             source_uri: row.try_get("source_uri")?,
             status: row.try_get("status")?,
@@ -61,7 +62,7 @@ impl SkillVersionRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             skill_package_id: row.try_get("skill_package_id")?,
             version_label: row.try_get("version_label")?,
             manifest_json: row.try_get("manifest_json")?,
@@ -96,7 +97,7 @@ impl SkillCapabilityRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             skill_version_id: row.try_get("skill_version_id")?,
             capability_key: row.try_get("capability_key")?,
             description_text: row.try_get("description_text")?,
@@ -132,7 +133,7 @@ impl SkillInstallationRow {
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
             version: row.try_get("version")?,
-            is_deleted: row.try_get("is_deleted")?,
+            is_deleted: row_get_bool_as_i64(row, "is_deleted")?,
             scope_type: row.try_get("scope_type")?,
             scope_id: row.try_get("scope_id")?,
             skill_version_id: row.try_get("skill_version_id")?,

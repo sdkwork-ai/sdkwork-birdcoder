@@ -1,8 +1,18 @@
 use serde::Deserialize;
 
 use sdkwork_birdcoder_commerce_service::domain::models::{
-    CommerceListQuery, CreateOrderCommand, CreatePaymentCommand,
+    CommerceListQuery, ConfirmPaymentCommand, CreateOrderCommand, CreatePaymentCommand,
 };
+use sdkwork_birdcoder_project_service::pagination::clamp_list_page_size;
+
+pub(crate) fn normalize_commerce_list_pagination(
+    offset: Option<i64>,
+    limit: Option<i64>,
+) -> (usize, usize) {
+    let offset_usize = offset.map(|value| value.max(0) as usize);
+    let limit_usize = limit.map(|value| value.max(0) as usize);
+    clamp_list_page_size(offset_usize, limit_usize)
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -11,11 +21,18 @@ pub struct CommerceListQueryParams {
     pub limit: Option<i64>,
 }
 
+impl CommerceListQueryParams {
+    pub fn normalized_pagination(&self) -> (usize, usize) {
+        normalize_commerce_list_pagination(self.offset, self.limit)
+    }
+}
+
 impl From<CommerceListQueryParams> for CommerceListQuery {
     fn from(value: CommerceListQueryParams) -> Self {
+        let (offset, limit) = value.normalized_pagination();
         Self {
-            offset: value.offset.unwrap_or(0),
-            limit: value.limit.unwrap_or(50),
+            offset: i64::try_from(offset).unwrap_or(0),
+            limit: i64::try_from(limit).unwrap_or(20),
         }
     }
 }
@@ -60,6 +77,20 @@ impl From<CreatePaymentBody> for CreatePaymentCommand {
             amount: value.amount,
             channel_transaction_id: value.channel_transaction_id,
             metadata: value.metadata,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmPaymentBody {
+    pub channel_transaction_id: String,
+}
+
+impl From<ConfirmPaymentBody> for ConfirmPaymentCommand {
+    fn from(value: ConfirmPaymentBody) -> Self {
+        Self {
+            channel_transaction_id: value.channel_transaction_id,
         }
     }
 }

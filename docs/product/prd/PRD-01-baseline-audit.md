@@ -8,7 +8,7 @@ Parent: [PRD.md](PRD.md)
 
 本分片记录 SDKWork BirdCoder 的商业化就绪度基线审计框架与开放差距摘要。
 
-> **Authoritative truth pointer:** 商业化就绪度的当前权威快照为 [`docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md`](../../architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md)。具体 Phase 闭环状态、OpenAPI 161/0 注册表、manifest 诚实性、以及各 surface 就绪度以 TECH 文档为准。
+> **Authoritative truth pointer:** 商业化就绪度的当前权威快照为 [`docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md`](../../architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md)。具体 Phase 闭环状态、OpenAPI 162/0 注册表、manifest 诚实性、以及各 surface 就绪度以 TECH 文档为准。
 
 ## 1. 审计背景
 
@@ -25,7 +25,7 @@ SDKWork BirdCoder 是面向专业开发者的 AI 编码协作平台，承载 PC 
 | 指标 | 当前状态 |
 | --- | --- |
 | 商业化就绪度评分 | **5.5 / 10**（工程治理强；发布证据与 commerce 业务层待补齐） |
-| OpenAPI Rust 对齐 | **161 / 161 已实现，0 deferred** |
+| OpenAPI Rust 对齐 | **162 / 162 已实现，0 deferred** |
 | P0 阻断项 | **已闭环** |
 | P1 严重项 | **修复中**（commerce 订单/发票/支付服务、真实 release 证据、iOS CI） |
 | Manifest 诚实性 | **DRAFT/preLaunch，安装包 disabled** |

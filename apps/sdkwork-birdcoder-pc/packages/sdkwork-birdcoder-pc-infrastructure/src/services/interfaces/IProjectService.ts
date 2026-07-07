@@ -2,6 +2,7 @@ import type {
   BirdCoderChatMessage,
   BirdCoderCodingSession,
   BirdCoderCodingSessionSummary,
+  BirdCoderListCodingSessionsRequest,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-pc-types';
 
@@ -55,11 +56,19 @@ export interface BirdCoderServiceListPagination {
   offset?: number;
 }
 
+export interface BirdCoderCodingSessionListResult {
+  items: BirdCoderCodingSession[];
+  total: number;
+}
+
 export interface IProjectService {
   getProjects(
     workspaceId?: string,
     pagination?: BirdCoderServiceListPagination,
   ): Promise<BirdCoderProject[]>;
+  listCodingSessions(
+    request: BirdCoderListCodingSessionsRequest,
+  ): Promise<BirdCoderCodingSessionListResult>;
   getProjectById(projectId: string): Promise<BirdCoderProject | null>;
   getProjectByPath(workspaceId: string, path: string): Promise<BirdCoderProject | null>;
   invalidateProjectReadCache?(scope?: {

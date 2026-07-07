@@ -48,8 +48,8 @@ const governedReleaseRunbook = read('docs/guides/operator/first-governed-release
 
 assert.match(
   operatorReadme,
-  /161 operations|161 of 161/u,
-  'Operator README must record OpenAPI 161-operation completeness.',
+  /162 operations|162 of 162/u,
+  'Operator README must record OpenAPI 162-operation completeness.',
 );
 assert.match(
   operatorReadme,

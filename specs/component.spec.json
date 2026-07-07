@@ -228,12 +228,32 @@
     "authority": "Root SDKWork specs remain authoritative. Local specs may extend but must not contradict them.",
     "dependencyPolicy": "Consumers integrate through public package exports, declared runtime entrypoints, generated SDK clients, or documented adapters only.",
     "sdkPolicy": "Generated SDK clients are injected through service/runtime boundaries; reusable UI must not create raw HTTP clients or manual auth headers.",
-    "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract."
+    "languagePolicy": "Language-specific packages follow their native manifest and build tools while preserving the same component contract.",
+    "siblingRepositories": [
+      {
+        "id": "sdkwork-kernel",
+        "path": "../sdkwork-kernel",
+        "role": "agent-code-kernel-spi",
+        "consumerRule": "BirdCoder MUST NOT depend directly; consume via sdkwork-agents-runtime-facade only."
+      },
+      {
+        "id": "sdkwork-agents",
+        "path": "../sdkwork-agents",
+        "role": "managed-agents-business-layer",
+        "consumerRule": "All agent operations via runtime-facade (Rust) and @sdkwork/agents-app-sdk (TypeScript target)."
+      }
+    ],
+    "alignmentSpecs": [
+      "specs/kernel-birdcoder-alignment.spec.json",
+      "specs/agents-birdcoder-alignment.spec.json"
+    ]
   },
   "verification": {
     "commands": [
       "pnpm typecheck",
       "pnpm check:sdkwork-birdcoder-structure",
+      "pnpm check:kernel-birdcoder-alignment",
+      "pnpm check:agents-birdcoder-alignment",
       "pnpm check:web-framework-standard",
       "pnpm check:database-framework-standard",
       "pnpm check:utils-standard",
@@ -246,6 +266,7 @@
   },
   "metadata": {
     "managedBy": "apps/scripts/initialize-component-specs.mjs",
-    "standardVersion": "2026-05-13"
+    "standardVersion": "2026-07-06",
+    "threeLayerArchitectureDoc": "docs/architecture/tech/TECH-36-three-layer-agent-platform-standard.md"
   }
 }

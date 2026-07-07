@@ -18,7 +18,7 @@ use sdkwork_iam_context_service::IamAppContext;
 
 use crate::error;
 use crate::mapper::request::{
-    CommerceListQueryParams, CreateOrderBody, CreatePaymentBody,
+    CommerceListQueryParams, ConfirmPaymentBody, CreateOrderBody, CreatePaymentBody,
 };
 
 fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
@@ -57,14 +57,13 @@ pub async fn list_orders(
 ) -> Result<Json<ApiListEnvelope<CommerceOrderPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = commerce_context(&iam);
+    let (offset, page_size) = query.normalized_pagination();
     let list_query: CommerceListQuery = query.into();
-    let offset = list_query.offset;
-    let limit = list_query.limit;
     match state.service.list_orders(&ctx, list_query).await {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
-            usize::try_from(offset).unwrap_or(0),
-            usize::try_from(limit).unwrap_or(50),
+            offset,
+            page_size,
             usize::try_from(total).unwrap_or(0),
             request_id(&web),
         ))),
@@ -111,14 +110,13 @@ pub async fn list_invoices(
 ) -> Result<Json<ApiListEnvelope<CommerceInvoicePayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = commerce_context(&iam);
+    let (offset, page_size) = query.normalized_pagination();
     let list_query: CommerceListQuery = query.into();
-    let offset = list_query.offset;
-    let limit = list_query.limit;
     match state.service.list_invoices(&ctx, list_query).await {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
-            usize::try_from(offset).unwrap_or(0),
-            usize::try_from(limit).unwrap_or(50),
+            offset,
+            page_size,
             usize::try_from(total).unwrap_or(0),
             request_id(&web),
         ))),
@@ -152,14 +150,13 @@ pub async fn list_payments(
 ) -> Result<Json<ApiListEnvelope<CommercePaymentPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = commerce_context(&iam);
+    let (offset, page_size) = query.normalized_pagination();
     let list_query: CommerceListQuery = query.into();
-    let offset = list_query.offset;
-    let limit = list_query.limit;
     match state.service.list_payments(&ctx, list_query).await {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
-            usize::try_from(offset).unwrap_or(0),
-            usize::try_from(limit).unwrap_or(50),
+            offset,
+            page_size,
             usize::try_from(total).unwrap_or(0),
             request_id(&web),
         ))),
@@ -195,6 +192,25 @@ pub async fn get_payment(
     match state
         .service
         .get_payment(&ctx, payment_id.as_str())
+        .await
+    {
+        Ok(item) => Ok(Json(build_data_envelope(item, request_id(&web)))),
+        Err(service_error) => Err(error::map_service_error(service_error, trace_id)),
+    }
+}
+
+pub async fn confirm_payment(
+    web: WebRequestContext,
+    RequiredIamContext(iam): RequiredIamContext,
+    State(state): State<CommerceAppState>,
+    Path(payment_id): Path<String>,
+    Json(body): Json<ConfirmPaymentBody>,
+) -> Result<Json<ApiDataEnvelope<CommercePaymentPayload>>, error::ProblemJsonBody> {
+    let trace_id = request_trace_id(&web);
+    let ctx = commerce_context(&iam);
+    match state
+        .service
+        .confirm_payment(&ctx, payment_id.as_str(), body.into())
         .await
     {
         Ok(item) => Ok(Json(build_data_envelope(item, request_id(&web)))),

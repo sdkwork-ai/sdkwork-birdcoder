@@ -28,7 +28,7 @@ This guide is the production operator entrypoint for SDKWork BirdCoder. It repla
 
 | Lane | Status | Evidence |
 | --- | --- | --- |
-| OpenAPI contract | **Complete** | 161 operations implemented, 0 deferred (`specs/coding-server-openapi-rust-defer-registry.json`) |
+| OpenAPI contract | **Complete** | 162 operations implemented, 0 deferred (`specs/coding-server-openapi-rust-defer-registry.json`) |
 | PC private beta | **Ready** | Session auth redirect, structured HTTP 401, proactive IAM refresh, workspace WS reconnect, Universal chat + Drive |
 | Mobile chat | **API-backed** | H5 + Flutter persist through generated app SDK; Flutter Drive attachments deferred until Dart `drive-app-sdk` consumer |
 | Enterprise K8s | **Pending env smoke** | PostgreSQL HA overlay + AnyPool repositories wired; requires DSN-backed smoke in target cluster |

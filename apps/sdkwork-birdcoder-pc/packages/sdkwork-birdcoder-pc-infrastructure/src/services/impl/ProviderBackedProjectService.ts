@@ -1,8 +1,10 @@
 import { isBlank } from '@sdkwork/utils/string';
+import { clampListPageSize } from '@sdkwork/utils/pagination';
 import type {
   BirdCoderProjectSummary,
   BirdCoderChatMessage,
   BirdCoderCodingSession,
+  BirdCoderListCodingSessionsRequest,
   BirdCoderProject,
 } from '@sdkwork/birdcoder-pc-types';
 import {
@@ -21,6 +23,7 @@ import {
 import type { IProjectSessionMirror } from '../interfaces/IProjectSessionMirror.ts';
 import type {
   BirdCoderCodingSessionMirrorSnapshot,
+  BirdCoderCodingSessionListResult,
   BirdCoderProjectMirrorSnapshot,
   BirdCoderServiceListPagination,
   CreateCodingSessionOptions,
@@ -809,12 +812,39 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     }
 
     if (this.repository.listProjectsByWorkspaceIds) {
-      return this.repository.listProjectsByWorkspaceIds([normalizedWorkspaceId]);
+      const page = await this.repository.listProjectsByWorkspaceIds([normalizedWorkspaceId]);
+      return page.items;
     }
 
     return (await this.repository.list()).filter(
       (record) => record.workspaceId === normalizedWorkspaceId,
     );
+  }
+
+  private async listProjectRecordsPage(
+    workspaceId: string | undefined,
+    pagination: BirdCoderServiceListPagination,
+  ): Promise<BirdCoderRepresentativeProjectRecord[]> {
+    const { offset, pageSize } = clampListPageSize(pagination.offset, pagination.limit);
+    if (workspaceId?.trim()) {
+      if (this.repository.listProjectsByWorkspaceIds) {
+        const page = await this.repository.listProjectsByWorkspaceIds(
+          [workspaceId.trim()],
+          { offset, limit: pageSize },
+        );
+        return page.items;
+      }
+      throw new Error(
+        'Paginated workspace project listing requires SQL-backed listProjectsByWorkspaceIds.',
+      );
+    }
+
+    if (this.repository.listProjectRecordsPage) {
+      const page = await this.repository.listProjectRecordsPage({ offset, limit: pageSize });
+      return page.items;
+    }
+
+    throw new Error('Paginated project listing requires SQL-backed listProjectRecordsPage.');
   }
 
   private async findProjectContentByProjectId(
@@ -934,11 +964,13 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
 
   async getProjects(
     workspaceId?: string,
-    _pagination?: BirdCoderServiceListPagination,
+    pagination?: BirdCoderServiceListPagination,
   ): Promise<BirdCoderProject[]> {
-    const filteredRecords = workspaceId
-      ? await this.listProjectRecordsByWorkspaceId(workspaceId)
-      : await this.repository.list();
+    const filteredRecords = pagination
+      ? await this.listProjectRecordsPage(workspaceId, pagination)
+      : workspaceId
+        ? await this.listProjectRecordsByWorkspaceId(workspaceId)
+        : await this.repository.list();
     const hydratedRecords = await this.hydrateProjectRecords(filteredRecords);
 
     const persistedSessionsByProjectId = this.codingSessionRepositories
@@ -956,6 +988,45 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       });
     });
     return projects.sort(compareBirdCoderProjectsByActivity);
+  }
+
+  async listCodingSessions(
+    request: BirdCoderListCodingSessionsRequest,
+  ): Promise<BirdCoderCodingSessionListResult> {
+    if (!this.codingSessionRepositories) {
+      return { items: [], total: 0 };
+    }
+
+    const { offset, pageSize } = clampListPageSize(request.offset, request.limit);
+    const page = await this.codingSessionRepositories.listSessionsFiltered(
+      {
+        workspaceId: request.workspaceId,
+        projectId: request.projectId,
+        engineId: request.engineId,
+      },
+      { offset, limit: pageSize },
+    );
+    const messageMetadataByCodingSessionId =
+      await this.codingSessionRepositories.readMessageMetadataByCodingSessionIds(
+        page.items.map((session) => session.id),
+      );
+    const items = page.items.map((session) => {
+      const metadata = messageMetadataByCodingSessionId.get(session.id);
+      return this.mapPersistedCodingSessionRecord(
+        {
+          ...session,
+          transcriptUpdatedAt: resolveLatestTranscriptTimestampCandidate(
+            session.transcriptUpdatedAt,
+            metadata?.latestTranscriptUpdatedAt,
+          ),
+        },
+        EMPTY_PERSISTED_CODING_SESSION_MESSAGES_BY_ID,
+      );
+    });
+    return {
+      items: items.sort(compareCodingSessionsByActivity),
+      total: page.total,
+    };
   }
 
   async getProjectById(projectId: string): Promise<BirdCoderProject | null> {
@@ -2262,20 +2333,17 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       projectIdSet.has(session.projectId),
     );
     const codingSessionIdSet = new Set(relevantSessions.map((session) => session.id));
-    const persistedMessages =
-      await this.codingSessionRepositories.listMessagesByCodingSessionIds(
-        [...codingSessionIdSet],
-      );
     const messagesByCodingSessionId = new Map<string, BirdCoderChatMessage[]>();
     const sessionsByProjectId = new Map<string, BirdCoderCodingSession[]>();
 
-    for (const message of persistedMessages) {
-      const collection = messagesByCodingSessionId.get(message.codingSessionId);
-      if (collection) {
-        collection.push(cloneChatMessage(message));
-      } else {
-        messagesByCodingSessionId.set(message.codingSessionId, [cloneChatMessage(message)]);
-      }
+    for (const sessionId of codingSessionIdSet) {
+      const persistedMessages = await this.codingSessionRepositories.listMessagesByCodingSessionIds(
+        [sessionId],
+      );
+      messagesByCodingSessionId.set(
+        sessionId,
+        persistedMessages.map((message) => cloneChatMessage(message)),
+      );
     }
 
     for (const session of relevantSessions) {

@@ -34,6 +34,7 @@ packages:
   - "../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript"
   - "../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript"
   - "../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript"
+  - "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript"
   - "../sdkwork-models/sdks/sdkwork-models-sdk/sdkwork-models-sdk-typescript"
   - "../sdkwork-sdk-commons/sdkwork-sdk-common-typescript"
   - "../sdkwork-utils/packages/sdkwork-utils-typescript"

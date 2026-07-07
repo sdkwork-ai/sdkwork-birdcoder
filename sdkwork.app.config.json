@@ -284,7 +284,7 @@
         "highlights": [
           "Pre-launch manifest: install packages disabled pending real artifacts",
           "Contract gates green; supply-chain evidence pending first release",
-          "OpenAPI contract complete: 161 operations implemented, 0 deferred; pagination remediation complete"
+          "OpenAPI contract complete: 162 operations implemented, 0 deferred; commerce payment confirm + pagination remediation complete"
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",
@@ -315,11 +315,11 @@
     "standardOwner": "sdkwork-platform",
     "initializedAt": "2026-05-07T00:00:00Z",
     "preLaunch": true,
-      "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-aligned-ci-governance-wired-prelaunch-artifacts-pending-dual-engine-sqlx-pagination-hardening-complete-tauri-graceful-shutdown-complete",
+      "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-162-openapi-commerce-payment-confirm-prelaunch-artifacts-pending-2026-07-06",
       "commercialReadiness": {
-        "pcPrivateBeta": "openapi-161-operations-iam-federation-teams-chat-commerce-aligned-dual-engine-anypool-pagination-sdk-clients-hardened",
-        "enterpriseK8s": "postgresql-ha-backup-template-liveness-readiness-split-redis-rate-limit-ready-prelaunch",
-        "saasPublicCloud": "governance-regression-release-rehearsal-openapi-complete-prelaunch-artifacts-pending-payment-gateway-pending",
+        "pcPrivateBeta": "iam-federation-openapi-162-aligned-postgres-returning-id-commerce-pending-confirm-payment-api-pagination-console-sql-pages",
+        "enterpriseK8s": "postgresql-ha-backup-template-liveness-readiness-split-redis-rate-limit-ready-pg-rust-crud-ci-pending",
+        "saasPublicCloud": "governance-regression-release-rehearsal-openapi-complete-payment-gateway-pending-prelaunch-artifacts-pending",
       "mobileProductParity": "h5-flutter-chat-api-ci-smoke-capacitor-sync-android-assemble-aligned-prelaunch-secure-storage-remediation-complete",
       "manifestHonesty": "root-1-shared-package-pc-h5-flutter-draft-prelaunch-contract-gated-honest-numbers-placeholder-packages-marked",
       "releaseGovernanceCI": "sbom-cosign-trivy-macos-signing-checksum-workflow-wired-pending-release-validation"
