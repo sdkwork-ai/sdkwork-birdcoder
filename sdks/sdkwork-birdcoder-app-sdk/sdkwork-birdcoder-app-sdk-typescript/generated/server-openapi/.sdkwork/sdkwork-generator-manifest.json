@@ -44,7 +44,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "ae025583153c36a8128ffc2d09d2bbbd926c9c0a36cb5055b809ed23292dafcf"
+      "sha256": "774c7be7866c17440e1e232c661fb4835f3e671eb0d5ac7deacbf0538400005a"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -64,15 +64,15 @@
     },
     {
       "path": "src/api/commerce.ts",
-      "sha256": "67699150501c1a08a0e0d356875016c32da89467eb986bdd8d6c683698ded7ee"
+      "sha256": "8dce503567f91322b99fbc66e15f3a19e752f119e29c212ffc56cf4447885201"
     },
     {
       "path": "src/api/content.ts",
-      "sha256": "45ae873302abf3490e38bd032c3d6a51ff634cc224c817f8c9f3812eca35cfab"
+      "sha256": "f2a0bd58a7c69a8c21f5a692f78c0090a0619cef014d8512e71476872cfbc87c"
     },
     {
       "path": "src/api/iam.ts",
-      "sha256": "603ac65894f03aa4f6df14539910a4661076c1467d2d3634871b93bf49927b3b"
+      "sha256": "ef7c7bdea0d88382637315b304642f70dcc5c2508ad182b4653f72cf840362e7"
     },
     {
       "path": "src/api/index.ts",
@@ -92,7 +92,7 @@
     },
     {
       "path": "src/api/platform.ts",
-      "sha256": "a6e223bf25cf79b3d129a4394dac1e07983673613360543056fe3161bec1821b"
+      "sha256": "189537ead91571b66f91fe1cc1fba045e5ec8cc0018eb332d9a55151d60c422b"
     },
     {
       "path": "src/api/runtime.ts",
@@ -100,15 +100,15 @@
     },
     {
       "path": "src/api/skills.ts",
-      "sha256": "7abdb01d91fb508e40dac84188ab5581b9a5c2ff27c29eee505307e262fece50"
+      "sha256": "3f2437e7b7760f55d97fa063f66353fd8526fb5dc546a760cfd46667e2511f94"
     },
     {
       "path": "src/api/system.ts",
-      "sha256": "3e7360e1d55f91678b010f35a28dbf3c356b15203556ef74f83bd1aa9cfc22be"
+      "sha256": "52b4d6447e3b42eb7642c3a2704ac10dc63606e75087aa6524c6c575f4998f3d"
     },
     {
       "path": "src/api/templates.ts",
-      "sha256": "08c5773fe2fb8655655ce24f5a268914122281c025045eb8916c22de9ed5fcb4"
+      "sha256": "e475b05a14d974891a3782023b04b13a2b3b80445c448bae479c7a7ecf36cb1f"
     },
     {
       "path": "src/auth/index.ts",
@@ -349,6 +349,10 @@
     {
       "path": "src/types/bird-coder-commit-project-git-changes-request.ts",
       "sha256": "9daf01f396a086a26b25ee630182572e4ef6d1b886914c32a091c84f65af84db"
+    },
+    {
+      "path": "src/types/bird-coder-confirm-commerce-payment-request.ts",
+      "sha256": "8dac1fcee73bce062e47a9177498ee2f6b0b8abc1c1f2e0ca997f50c67d38747"
     },
     {
       "path": "src/types/bird-coder-core-health-summary-envelope.ts",
@@ -848,7 +852,7 @@
     },
     {
       "path": "src/types/index.ts",
-      "sha256": "b3658bc0ec00a17d467900521c42122c6dcdd885d782685fc7e2c75c66352e0b"
+      "sha256": "e54828abf7118ee25f09ca68a061fc9c31e76066c9d03680384262eb032d26b8"
     },
     {
       "path": "src/types/page-info.ts",

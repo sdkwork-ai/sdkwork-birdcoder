@@ -156,21 +156,34 @@ const result = await client.iam.users.current.retrieve();
 
 ```typescript
 // List app templates
-const result = await client.templates.appTemplates.list();
+const params = {
+  limit: 1,
+  offset: 2,
+};
+const result = await client.templates.appTemplates.list(params);
 ```
 
 ### platform
 
 ```typescript
 // List deployments
-const result = await client.platform.deployments.list();
+const params = {
+  limit: 1,
+  offset: 2,
+};
+const result = await client.platform.deployments.list(params);
 ```
 
 ### content
 
 ```typescript
 // List project documents
-const result = await client.content.documents.list();
+const params = {
+  projectId: 'projectId',
+  limit: 2,
+  offset: 3,
+};
+const result = await client.content.documents.list(params);
 ```
 
 ### skills
@@ -180,6 +193,8 @@ const result = await client.content.documents.list();
 const params = {
   userId: 'userId',
   workspaceId: 'workspaceId',
+  limit: 3,
+  offset: 4,
 };
 const result = await client.skills.skillPackages.list(params);
 ```

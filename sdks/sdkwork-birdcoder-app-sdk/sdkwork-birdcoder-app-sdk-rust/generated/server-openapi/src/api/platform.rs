@@ -41,8 +41,12 @@ impl PlatformApi {
     }
 
     /// List project collaborators
-    pub async fn projects_collaborators_list(&self, project_id: &str) -> Result<BirdCoderProjectCollaboratorSummaryListEnvelope, SdkworkError> {
-        let path = app_path(&format!("/projects/{}/collaborators", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+    pub async fn projects_collaborators_list(&self, project_id: &str, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderProjectCollaboratorSummaryListEnvelope, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("limit", limit, "form", true, false, None),
+            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+        ]);
+        let path = append_query_string(app_path(&format!("/projects/{}/collaborators", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)))), &query);
         self.client.get(&path, None, None).await
     }
 
@@ -109,14 +113,22 @@ impl PlatformApi {
     }
 
     /// List deployments
-    pub async fn deployments_list(&self) -> Result<BirdCoderDeploymentRecordSummaryListEnvelope, SdkworkError> {
-        let path = app_path(&"/deployments".to_string());
+    pub async fn deployments_list(&self, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderDeploymentRecordSummaryListEnvelope, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("limit", limit, "form", true, false, None),
+            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+        ]);
+        let path = append_query_string(app_path(&"/deployments".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// List project deployment targets
-    pub async fn projects_deployment_targets_list(&self, project_id: &str) -> Result<BirdCoderDeploymentTargetSummaryListEnvelope, SdkworkError> {
-        let path = app_path(&format!("/projects/{}/deployment_targets", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
+    pub async fn projects_deployment_targets_list(&self, project_id: &str, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderDeploymentTargetSummaryListEnvelope, SdkworkError> {
+        let query = build_query_string(&[
+            QueryParameterSpec::new("limit", limit, "form", true, false, None),
+            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+        ]);
+        let path = append_query_string(app_path(&format!("/projects/{}/deployment_targets", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)))), &query);
         self.client.get(&path, None, None).await
     }
 

@@ -23,9 +23,9 @@ pub struct BirdCoderIamAuditEventSummary {
     #[serde(rename = "resourceId")]
     pub resource_id: String,
 
-    #[serde(rename = "requestId")]
+    #[serde(rename = "traceId")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub request_id: Option<String>,
+    pub trace_id: Option<String>,
 
     #[serde(rename = "appId")]
     #[serde(default, skip_serializing_if = "Option::is_none")]

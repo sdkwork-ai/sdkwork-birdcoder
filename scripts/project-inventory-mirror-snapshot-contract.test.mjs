@@ -20,8 +20,8 @@ assert.match(
 
 assert.match(
   useProjectsSource,
-  /return projectService\.getProjects\(workspaceId\);/,
-  'useProjects must keep a getProjects fallback when a project mirror snapshot reader is unavailable.',
+  /return projectService\.getProjects\(workspaceId, pagination\);/,
+  'useProjects must keep a paginated getProjects fallback when a project mirror snapshot reader is unavailable.',
 );
 
 console.log('project inventory mirror snapshot contract passed.');

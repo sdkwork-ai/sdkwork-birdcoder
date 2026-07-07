@@ -124,24 +124,37 @@ println!("{result:?}");
 ### templates
 
 ```rust
+use std::collections::HashMap;
 // List app templates
-let result = client.templates().app_templates_list().await?;
+let mut query = HashMap::new();
+query.insert("limit".to_string(), serde_json::json!(1));
+query.insert("offset".to_string(), serde_json::json!(2));
+let result = client.templates().app_templates_list(Some(&query)).await?;
 println!("{result:?}");
 ```
 
 ### platform
 
 ```rust
+use std::collections::HashMap;
 // List deployments
-let result = client.platform().deployments_list().await?;
+let mut query = HashMap::new();
+query.insert("limit".to_string(), serde_json::json!(1));
+query.insert("offset".to_string(), serde_json::json!(2));
+let result = client.platform().deployments_list(Some(&query)).await?;
 println!("{result:?}");
 ```
 
 ### content
 
 ```rust
+use std::collections::HashMap;
 // List project documents
-let result = client.content().documents_list().await?;
+let mut query = HashMap::new();
+query.insert("projectId".to_string(), serde_json::json!("1"));
+query.insert("limit".to_string(), serde_json::json!(2));
+query.insert("offset".to_string(), serde_json::json!(3));
+let result = client.content().documents_list(Some(&query)).await?;
 println!("{result:?}");
 ```
 
@@ -153,6 +166,8 @@ use std::collections::HashMap;
 let mut query = HashMap::new();
 query.insert("userId".to_string(), serde_json::json!("1"));
 query.insert("workspaceId".to_string(), serde_json::json!("1"));
+query.insert("limit".to_string(), serde_json::json!(3));
+query.insert("offset".to_string(), serde_json::json!(4));
 let result = client.skills().skill_packages_list(Some(&query)).await?;
 println!("{result:?}");
 ```

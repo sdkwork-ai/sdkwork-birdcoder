@@ -68,7 +68,7 @@
     },
     {
       "path": "src/api/platform.ts",
-      "sha256": "0654029e83514e52e721f3751a46dea69ebf733c0fd172fbcf9a1d205425877c"
+      "sha256": "0fcb18eae26e33df4c72459780ebe63d08ab9795201dff1332ed82bf7624bd58"
     },
     {
       "path": "src/auth/index.ts",
@@ -176,7 +176,7 @@
     },
     {
       "path": "src/types/bird-coder-iam-audit-event-summary.ts",
-      "sha256": "6014d22f45788946b23cea771998aae899b3e1ec6e04fd6b5c328ebfe8869f59"
+      "sha256": "08445dd88407a1dd5ac681ec1fea8f38f116621a74d0d829f930f686384a6885"
     },
     {
       "path": "src/types/bird-coder-iam-organization-member-summary-envelope.ts",

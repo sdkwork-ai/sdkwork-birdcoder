@@ -4,6 +4,11 @@ import type { HttpClient } from '../http/client';
 import type { BirdCoderCommitProjectGitChangesRequest, BirdCoderCreateProjectGitBranchRequest, BirdCoderCreateProjectGitWorktreeRequest, BirdCoderCreateProjectRequest, BirdCoderCreateWorkspaceRequest, BirdCoderDeletedResourceResult, BirdCoderDeploymentRecordSummary, BirdCoderDeploymentTargetSummary, BirdCoderProjectCollaboratorSummary, BirdCoderProjectGitOverview, BirdCoderProjectPublishResult, BirdCoderProjectSummary, BirdCoderPublishProjectRequest, BirdCoderPushProjectGitBranchRequest, BirdCoderRemoveProjectGitWorktreeRequest, BirdCoderSwitchProjectGitBranchRequest, BirdCoderUpdateProjectRequest, BirdCoderUpdateWorkspaceRequest, BirdCoderUpsertProjectCollaboratorRequest, BirdCoderWorkspaceSummary, PageInfo, ProblemDetail } from '../types';
 
 
+export interface PlatformDeploymentsListParams {
+  limit?: number;
+  offset?: number;
+}
+
 export class PlatformDeploymentsApi {
   private client: HttpClient;
 
@@ -13,8 +18,12 @@ export class PlatformDeploymentsApi {
 
 
 /** List deployments */
-  async list(): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(appApiPath(`/deployments`));
+  async list(params?: PlatformDeploymentsListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/deployments`), query));
   }
 }
 
@@ -237,6 +246,11 @@ export class PlatformProjectsGitApi {
 
 }
 
+export interface PlatformProjectsDeploymentTargetsListParams {
+  limit?: number;
+  offset?: number;
+}
+
 export class PlatformProjectsDeploymentTargetsApi {
   private client: HttpClient;
 
@@ -246,9 +260,18 @@ export class PlatformProjectsDeploymentTargetsApi {
 
 
 /** List project deployment targets */
-  async list(projectId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/deployment_targets`));
+  async list(projectId: string, params?: PlatformProjectsDeploymentTargetsListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/deployment_targets`), query));
   }
+}
+
+export interface PlatformProjectsCollaboratorsListParams {
+  limit?: number;
+  offset?: number;
 }
 
 export class PlatformProjectsCollaboratorsApi {
@@ -265,8 +288,12 @@ export class PlatformProjectsCollaboratorsApi {
   }
 
 /** List project collaborators */
-  async list(projectId: string): Promise<Record<string, unknown>> {
-    return this.client.get<Record<string, unknown>>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/collaborators`));
+  async list(projectId: string, params?: PlatformProjectsCollaboratorsListParams): Promise<Record<string, unknown>> {
+    const query = buildQueryString([
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+    ]);
+    return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/collaborators`), query));
   }
 }
 

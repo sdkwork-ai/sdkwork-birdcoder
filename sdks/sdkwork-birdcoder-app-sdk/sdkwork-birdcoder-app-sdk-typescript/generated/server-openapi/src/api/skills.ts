@@ -21,6 +21,8 @@ export class SkillsSkillPackagesInstallationsApi {
 export interface SkillsSkillPackagesListParams {
   userId?: string;
   workspaceId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export class SkillsSkillPackagesApi {
@@ -38,6 +40,8 @@ export class SkillsSkillPackagesApi {
     const query = buildQueryString([
       { name: 'userId', value: params?.userId, style: 'form', explode: true, allowReserved: false },
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
+      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
+      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/skill_packages`), query));
   }

@@ -362,7 +362,7 @@ export function mapReleaseSummary(
 export function mapAuditSummary(
   auditEvent: Awaited<ReturnType<BirdCoderConsoleQueries['listAuditEvents']>>[number],
 ): BirdCoderIamAuditEventSummary {
-  const canonical = auditEvent as Partial<BirdCoderIamAuditEventSummary>;
+  const canonical = auditEvent as Partial<BirdCoderIamAuditEventSummary> & { requestId?: string };
   return {
     id: auditEvent.id,
     tenantId: canonical.tenantId ?? auditEvent.tenantId ?? BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
@@ -371,7 +371,7 @@ export function mapAuditSummary(
     action: canonical.action ?? auditEvent.eventType,
     resourceType: canonical.resourceType ?? auditEvent.scopeType,
     resourceId: canonical.resourceId ?? auditEvent.scopeId,
-    requestId: canonical.requestId,
+    traceId: canonical.traceId ?? canonical.requestId,
     appId: canonical.appId,
     environment: canonical.environment,
     shardingKey: canonical.shardingKey,

@@ -60,7 +60,7 @@
     },
     {
       "path": "src/api/platform.rs",
-      "sha256": "39852a73d6a8c63839aded47e3d458c2b897c1648bbf9bc64223a5c97cbcfae1"
+      "sha256": "76985ccc0aa8bf12a684d4a9cb30ae1ff7d1a1bd3f8110260dc1d47750c5fc69"
     },
     {
       "path": "src/client.rs",
@@ -164,7 +164,7 @@
     },
     {
       "path": "src/models/bird_coder_iam_audit_event_summary.rs",
-      "sha256": "235948788c37634ac9d8efcdda9caa13e14ca855f5559c8b99a4799e55766ae9"
+      "sha256": "f5971c8bb0cb128d91657465d2aec9e8c743131ad59faac634f63c7aea68a06d"
     },
     {
       "path": "src/models/bird_coder_iam_organization_member_summary_envelope.rs",

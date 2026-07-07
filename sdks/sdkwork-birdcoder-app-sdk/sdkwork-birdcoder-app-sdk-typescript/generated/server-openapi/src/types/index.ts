@@ -54,6 +54,7 @@ export type { BirdCoderCommercePaymentSummary } from './bird-coder-commerce-paym
 export type { BirdCoderCommercePaymentSummaryEnvelope } from './bird-coder-commerce-payment-summary-envelope';
 export type { BirdCoderCommercePaymentSummaryListEnvelope } from './bird-coder-commerce-payment-summary-list-envelope';
 export type { BirdCoderCommitProjectGitChangesRequest } from './bird-coder-commit-project-git-changes-request';
+export type { BirdCoderConfirmCommercePaymentRequest } from './bird-coder-confirm-commerce-payment-request';
 export type { BirdCoderCoreHealthSummary } from './bird-coder-core-health-summary';
 export type { BirdCoderCoreHealthSummaryEnvelope } from './bird-coder-core-health-summary-envelope';
 export type { BirdCoderCoreRuntimeSummary } from './bird-coder-core-runtime-summary';

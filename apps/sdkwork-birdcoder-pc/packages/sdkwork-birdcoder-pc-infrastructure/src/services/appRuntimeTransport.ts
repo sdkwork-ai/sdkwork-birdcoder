@@ -59,11 +59,19 @@ import {
   type BirdCoderUpdateCodingSessionRequest,
   type BirdCoderUserQuestionAnswerResult,
 } from '@sdkwork/birdcoder-pc-types';
-import type { IProjectService } from './interfaces/IProjectService.ts';
+import type {
+  BirdCoderCodingSessionListResult,
+  IProjectService,
+} from './interfaces/IProjectService.ts';
 import { resolveRequiredCodingSessionSelection } from './codingSessionSelection.ts';
 import { createBirdCoderLocalServerRequestId } from './localServerRequestId.ts';
 import { randomString } from '@sdkwork/utils/id';
-import { clampListPageSize, DEFAULT_LIST_PAGE_SIZE, paginateItems } from '@sdkwork/utils/pagination';
+import {
+  clampListPageSize,
+  DEFAULT_LIST_PAGE_SIZE,
+  MAX_LIST_PAGE_SIZE,
+  paginateItems,
+} from '@sdkwork/utils/pagination';
 import { createListEnvelope } from './sdkTransportShared.ts';
 
 const IN_PROCESS_RUNTIME_SHIM_ERROR =
@@ -76,23 +84,31 @@ function throwInProcessRuntimeShimError(operationId: string): never {
 export interface CreateBirdCoderInProcessAppRuntimeTransportOptions {
   hostMode?: BirdCoderHostMode;
   observe?: (request: BirdCoderApiTransportRequest) => void;
-  projectService: Pick<
-    IProjectService,
-    | 'addCodingSessionMessage'
-    | 'createCodingSession'
-    | 'deleteCodingSession'
-    | 'deleteCodingSessionMessage'
-    | 'editCodingSessionMessage'
-    | 'forkCodingSession'
-    | 'getCodingSessionTranscript'
-    | 'getProjectById'
-    | 'getProjects'
-    | 'listCodingSessions'
-    | 'renameCodingSession'
-    | 'updateCodingSession'
-  >;
+  projectService: InProcessProjectService;
   runtime?: Partial<BirdCoderCoreRuntimeSummary>;
 }
+
+type InProcessProjectService = Pick<
+  IProjectService,
+  | 'addCodingSessionMessage'
+  | 'createCodingSession'
+  | 'deleteCodingSession'
+  | 'deleteCodingSessionMessage'
+  | 'editCodingSessionMessage'
+  | 'forkCodingSession'
+  | 'getCodingSessionTranscript'
+  | 'getProjectById'
+  | 'getProjects'
+  | 'renameCodingSession'
+  | 'updateCodingSession'
+> &
+  Partial<Pick<IProjectService, 'listCodingSessions'>>;
+
+type RuntimeCodingSessionInventoryProjectService = Pick<
+  IProjectService,
+  'getProjectById' | 'getProjects'
+> &
+  Partial<Pick<IProjectService, 'listCodingSessions'>>;
 
 interface ResolvedRouteOperation {
   operationId: string;

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderCommerceInvoiceSummaryEnvelope, BirdCoderCommerceInvoiceSummaryListEnvelope, BirdCoderCommerceMembershipCurrentEnvelope, BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope, BirdCoderCommerceOrderSummaryEnvelope, BirdCoderCommerceOrderSummaryListEnvelope, BirdCoderCommercePaymentSummaryEnvelope, BirdCoderCommercePaymentSummaryListEnvelope, BirdCoderCreateCommerceOrderRequest, BirdCoderCreateCommercePaymentRequest};
+use crate::models::{BirdCoderCommerceInvoiceSummaryEnvelope, BirdCoderCommerceInvoiceSummaryListEnvelope, BirdCoderCommerceMembershipCurrentEnvelope, BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope, BirdCoderCommerceOrderSummaryEnvelope, BirdCoderCommerceOrderSummaryListEnvelope, BirdCoderCommercePaymentSummaryEnvelope, BirdCoderCommercePaymentSummaryListEnvelope, BirdCoderConfirmCommercePaymentRequest, BirdCoderCreateCommerceOrderRequest, BirdCoderCreateCommercePaymentRequest};
 
 #[derive(Clone)]
 pub struct CommerceApi {
@@ -85,6 +85,12 @@ impl CommerceApi {
     pub async fn payments_retrieve(&self, payment_id: &str) -> Result<BirdCoderCommercePaymentSummaryEnvelope, SdkworkError> {
         let path = app_path(&format!("/commerce/payments/{}", serialize_path_parameter(payment_id, PathParameterSpec::new("paymentId", "simple", false))));
         self.client.get(&path, None, None).await
+    }
+
+    /// Confirm SDKWork commerce payment after gateway callback
+    pub async fn payments_confirm(&self, payment_id: &str, body: &BirdCoderConfirmCommercePaymentRequest) -> Result<BirdCoderCommercePaymentSummaryEnvelope, SdkworkError> {
+        let path = app_path(&format!("/commerce/payments/{}/confirm", serialize_path_parameter(payment_id, PathParameterSpec::new("paymentId", "simple", false))));
+        self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
 }

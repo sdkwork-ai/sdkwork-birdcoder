@@ -4,6 +4,7 @@
   "apiAuthority": "sdkwork-birdcoder-backend-api",
   "generationInputSpec": "../../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.sdkgen.json",
   "authoritySpec": "../../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json",
+  "generationScript": "../../../../scripts/generate-birdcoder-flutter-mobile-sdk-family.mjs",
   "discoverySurface": {
     "sdkTarget": "backend-admin",
     "apiPrefix": "/backend/v3/api",

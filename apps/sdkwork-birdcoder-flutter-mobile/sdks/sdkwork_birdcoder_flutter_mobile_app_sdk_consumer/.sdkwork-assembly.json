@@ -4,6 +4,7 @@
   "apiAuthority": "sdkwork-birdcoder-app-api",
   "generationInputSpec": "../../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.sdkgen.json",
   "authoritySpec": "../../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json",
+  "generationScript": "../../../../scripts/generate-birdcoder-flutter-mobile-sdk-family.mjs",
   "discoverySurface": {
     "sdkTarget": "app",
     "apiPrefix": "/app/v3/api",

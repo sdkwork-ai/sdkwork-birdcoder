@@ -1851,6 +1851,22 @@ const richReplayAppClient = createBirdCoderAppSdkApiClient({
     } as never,
   }),
 });
+const richReplaySessionList = await richReplayAppClient.listCodingSessions({
+  workspaceId: richReplaySession.workspaceId,
+});
+assert.deepEqual(
+  richReplaySessionList.map((session) => session.id),
+  [richReplaySession.id],
+  'in-process app runtime should list coding sessions from a minimal projectService through paged project inventory fallback',
+);
+const richReplayNativeSessionList = await richReplayAppClient.listNativeSessions({
+  workspaceId: richReplaySession.workspaceId,
+});
+assert.deepEqual(
+  richReplayNativeSessionList.map((session) => session.id),
+  [richReplaySession.id],
+  'in-process app runtime should list native sessions from a minimal projectService through the same paged project inventory fallback',
+);
 const richReplayEvents = await richReplayAppClient.listCodingSessionEvents(
   richReplaySession.id,
 );

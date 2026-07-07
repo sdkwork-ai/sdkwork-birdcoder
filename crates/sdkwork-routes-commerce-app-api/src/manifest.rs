@@ -60,13 +60,6 @@ pub const COMMERCE_APP_API_ROUTES: &[HttpRoute] = &[
         "commerce.payments.retrieve",
     )
     .with_required_permission("commerce.payments.read"),
-    HttpRoute::dual_token(
-        HttpMethod::Post,
-        paths::PAYMENT_CONFIRM_PATH,
-        "commerce",
-        "commerce.payments.confirm",
-    )
-    .with_required_permission("commerce.payments.create"),
 ];
 
 pub fn commerce_app_api_route_manifest() -> HttpRouteManifest {

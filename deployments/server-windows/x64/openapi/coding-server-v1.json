@@ -5717,7 +5717,7 @@
           "resourceId": {
             "type": "string"
           },
-          "requestId": {
+          "traceId": {
             "type": "string"
           },
           "appId": {

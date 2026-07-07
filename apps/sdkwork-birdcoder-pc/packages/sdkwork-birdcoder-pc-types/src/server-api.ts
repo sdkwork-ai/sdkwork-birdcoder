@@ -760,7 +760,7 @@ export interface BirdCoderIamAuditEventSummary {
   action: string;
   resourceType: string;
   resourceId: string;
-  requestId?: string;
+  traceId?: string;
   appId?: string;
   environment?: string;
   shardingKey?: string;

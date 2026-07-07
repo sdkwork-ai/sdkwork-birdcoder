@@ -2258,7 +2258,7 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         action: createOpenApiStringSchema(),
         resourceType: createOpenApiStringSchema(),
         resourceId: createOpenApiStringSchema(),
-        requestId: createOpenApiStringSchema(),
+        traceId: createOpenApiStringSchema(),
         appId: createOpenApiStringSchema(),
         environment: createOpenApiStringSchema(),
         shardingKey: createOpenApiStringSchema(),

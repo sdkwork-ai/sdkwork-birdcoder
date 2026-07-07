@@ -36,7 +36,7 @@
     },
     {
       "path": "README.md",
-      "sha256": "1589eb2cd2f4e0d5caa4a6d35a01da4fddebbfc15d352f7ee4e0a8e08ff2fc47"
+      "sha256": "8226428ce0a84d1d2de50ea3d65120ecc88a691f6cc79f457c39166d2506824a"
     },
     {
       "path": "sdkwork-sdk.json",
@@ -56,15 +56,15 @@
     },
     {
       "path": "src/api/commerce.rs",
-      "sha256": "25990069659b9fc9146bb62e162eeef92a227351ec2eb680965778d583dc8605"
+      "sha256": "37bc30e114c745e638398cab6d720cf49eac2df73a56f3ce087c74c8bbe87dd6"
     },
     {
       "path": "src/api/content.rs",
-      "sha256": "88ce7e45f104d14d2be9628029dbf727d89b76c08aa8a87f4ad0866cc9d12a08"
+      "sha256": "052606baeef43425857532535aeb545bca2f42ccc0de14d261949e47c8ca065f"
     },
     {
       "path": "src/api/iam.rs",
-      "sha256": "b579f75bfc90ac19948e8dbe7e6980cfe4121835e5fa35cf226273949a39098a"
+      "sha256": "576678d94d3b2fc3a93c0eb01eb49e4aa3a2e77e19bf602b39b301d3edd748ea"
     },
     {
       "path": "src/api/intelligence.rs",
@@ -84,7 +84,7 @@
     },
     {
       "path": "src/api/platform.rs",
-      "sha256": "e49b5e0c961ca805519c5b5d03d27d43c4261d00e7c333d72436518001eec987"
+      "sha256": "d44c297129c14c614a020fd55cc8dec7514d106bd08e48245179accbf56476b6"
     },
     {
       "path": "src/api/runtime.rs",
@@ -92,15 +92,15 @@
     },
     {
       "path": "src/api/skills.rs",
-      "sha256": "7aac8075e9dfa5f99b8ebfaacb013b5308f8dd74a59feb54840100abd8f302cd"
+      "sha256": "19726717557d8acff943160b1ef8d17b371f4f56a8d0da7591ec3a235a4ad027"
     },
     {
       "path": "src/api/system.rs",
-      "sha256": "93c555c6147f5deab0b1c585ddf8b0227fc0a8965b1e417c36d051b37950642f"
+      "sha256": "1177bc512c41c4abd8360805430e00fa87245d1c04acafff730539ea6596b481"
     },
     {
       "path": "src/api/templates.rs",
-      "sha256": "8646fb459556f710c4ef068c4f7690bd7a361435a96aa4f779c22e2d6dd28642"
+      "sha256": "4d88c7ccfcb28c04a5e0289195c54c02212af73e2070d342db32d9e9bfb2725d"
     },
     {
       "path": "src/client.rs",
@@ -337,6 +337,10 @@
     {
       "path": "src/models/bird_coder_commit_project_git_changes_request.rs",
       "sha256": "a6d69f5de1fc0adc53b393258dddfdef973afeb4abd0eb3bd61a699b49173c2d"
+    },
+    {
+      "path": "src/models/bird_coder_confirm_commerce_payment_request.rs",
+      "sha256": "8729800d2fa8f87f28c1202b21cc23e9c59de74808143bb924c5d29251bb5d27"
     },
     {
       "path": "src/models/bird_coder_core_health_summary_envelope.rs",
@@ -836,7 +840,7 @@
     },
     {
       "path": "src/models/mod.rs",
-      "sha256": "3ae92fd40ea91a07ac18707188e33825673fb9ea5727f9cb9a3647d26c4f74a2"
+      "sha256": "8f811c220f05816ad146c81d7e74df2a7eff44678607cc2905ae93e9272a7ab1"
     },
     {
       "path": "src/models/page_info.rs",

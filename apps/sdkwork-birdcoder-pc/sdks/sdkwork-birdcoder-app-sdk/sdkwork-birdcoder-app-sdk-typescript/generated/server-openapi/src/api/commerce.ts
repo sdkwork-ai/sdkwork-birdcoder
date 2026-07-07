@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderCommerceInvoiceSummary, BirdCoderCommerceMembershipCurrentSummary, BirdCoderCommerceMembershipPackageGroupSummary, BirdCoderCommerceOrderSummary, BirdCoderCommercePaymentSummary, BirdCoderCreateCommerceOrderRequest, BirdCoderCreateCommercePaymentRequest, PageInfo } from '../types';
+import type { BirdCoderCommerceInvoiceSummary, BirdCoderCommerceMembershipCurrentSummary, BirdCoderCommerceMembershipPackageGroupSummary, BirdCoderCommerceOrderSummary, BirdCoderCommercePaymentSummary, BirdCoderConfirmCommercePaymentRequest, BirdCoderCreateCommerceOrderRequest, BirdCoderCreateCommercePaymentRequest, PageInfo } from '../types';
 
 
 export interface CommercePaymentsListParams {
@@ -34,6 +34,11 @@ export class CommercePaymentsApi {
 /** Get SDKWork commerce payment */
   async retrieve(paymentId: string): Promise<BirdCoderCommercePaymentSummary> {
     return this.client.get<BirdCoderCommercePaymentSummary>(appApiPath(`/commerce/payments/${serializePathParameter(paymentId, { name: 'paymentId', style: 'simple', explode: false })}`));
+  }
+
+/** Confirm SDKWork commerce payment after gateway callback */
+  async confirm(paymentId: string, body: BirdCoderConfirmCommercePaymentRequest): Promise<BirdCoderCommercePaymentSummary> {
+    return this.client.post<BirdCoderCommercePaymentSummary>(appApiPath(`/commerce/payments/${serializePathParameter(paymentId, { name: 'paymentId', style: 'simple', explode: false })}/confirm`), body, undefined, undefined, 'application/json');
   }
 }
 

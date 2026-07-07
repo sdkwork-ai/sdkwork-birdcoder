@@ -12,7 +12,7 @@
   "mode": "apply",
   "hasChanges": false,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "5be737aae4fbef5e35a669bba7b5d33a5ce46a9a5d9a036e8a2e6d95e9f2da34",
+  "changeFingerprint": "804c6f27ae7060b665336c7dde105e837b8eaa3f1826456faf8f724eae127a15",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [],
@@ -56,10 +56,10 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 211,
-    "models": 181,
+    "totalFiles": 212,
+    "models": 182,
     "apis": 12,
-    "types": 183
+    "types": 184
   },
   "warnings": [],
   "syncSummary": {
@@ -67,10 +67,10 @@
     "controlPlaneEnabled": true,
     "writtenFiles": 0,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 210,
+    "skippedUnchangedGeneratedFiles": 211,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "5be737aae4fbef5e35a669bba7b5d33a5ce46a9a5d9a036e8a2e6d95e9f2da34",
+    "changeFingerprint": "804c6f27ae7060b665336c7dde105e837b8eaa3f1826456faf8f724eae127a15",
     "changes": {
       "createdGeneratedFiles": [],
       "updatedGeneratedFiles": [],
@@ -157,6 +157,7 @@
         "src/models/bird_coder_commerce_payment_summary_list_envelope.rs",
         "src/models/bird_coder_commerce_payment_summary.rs",
         "src/models/bird_coder_commit_project_git_changes_request.rs",
+        "src/models/bird_coder_confirm_commerce_payment_request.rs",
         "src/models/bird_coder_core_health_summary_envelope.rs",
         "src/models/bird_coder_core_health_summary.rs",
         "src/models/bird_coder_core_runtime_summary_envelope.rs",

@@ -1238,6 +1238,46 @@ function createBirdCoderProjectRepository({
     toRow: projectToRow,
   });
 
+  async function listProjectsByWorkspaceIdsFromRepositoryPages(
+    normalizedWorkspaceIds: readonly string[],
+    pagination?: BirdCoderProjectListPagination,
+  ): Promise<BirdCoderProjectListPage> {
+    const workspaceIdSet = new Set(normalizedWorkspaceIds);
+    const { offset: requestedOffset, pageSize } = clampListPageSize(
+      pagination?.offset,
+      pagination?.limit,
+    );
+    const items: BirdCoderRepresentativeProjectRecord[] = [];
+    let matchedCount = 0;
+    let sourceOffset = 0;
+
+    while (true) {
+      const page = await repository.listPage(sourceOffset, MAX_LIST_PAGE_SIZE);
+      for (const project of page.items) {
+        if (!workspaceIdSet.has(project.workspaceId)) {
+          continue;
+        }
+
+        if (!pagination || (matchedCount >= requestedOffset && items.length < pageSize)) {
+          items.push(project);
+        }
+        matchedCount += 1;
+      }
+
+      if (
+        page.items.length < MAX_LIST_PAGE_SIZE ||
+        sourceOffset + page.items.length >= page.total
+      ) {
+        return {
+          items,
+          total: matchedCount,
+        };
+      }
+
+      sourceOffset += MAX_LIST_PAGE_SIZE;
+    }
+  }
+
   return {
     ...repository,
     async listProjectsByWorkspaceIds(workspaceIds, pagination) {
@@ -1277,64 +1317,34 @@ function createBirdCoderProjectRepository({
 
           const collected: BirdCoderRepresentativeProjectRecord[] = [];
           let offset = 0;
-          let total = 0;
           while (true) {
             const pagePagination = { offset, limit: MAX_LIST_PAGE_SIZE };
-            const [listResult, countResult] = await Promise.all([
-              storage.executeSqlPlan(
-                buildProjectListByWorkspaceIdsPlan(
-                  providerId,
-                  normalizedWorkspaceIds,
-                  pagePagination,
-                ),
+            const listResult = await storage.executeSqlPlan(
+              buildProjectListByWorkspaceIdsPlan(
+                providerId,
+                normalizedWorkspaceIds,
+                pagePagination,
               ),
-              offset === 0
-                ? storage.executeSqlPlan(
-                    buildProjectCountByWorkspaceIdsPlan(providerId, normalizedWorkspaceIds),
-                  )
-                : Promise.resolve({ rows: [{ total }] }),
-            ]);
-            if (offset === 0) {
-              const countRow = countResult.rows?.[0] as Record<string, unknown> | undefined;
-              const totalValue = countRow?.total ?? countRow?.['COUNT(*)'];
-              total =
-                typeof totalValue === 'number'
-                  ? totalValue
-                  : typeof totalValue === 'string'
-                    ? Number.parseInt(totalValue, 10)
-                    : 0;
-            }
+            );
             const items = normalizeProjectRows(listResult.rows ?? []);
             collected.push(...items);
-            if (items.length < MAX_LIST_PAGE_SIZE || collected.length >= total) {
+            if (items.length < MAX_LIST_PAGE_SIZE) {
               return {
                 items: collected,
-                total: Number.isFinite(total) ? total : collected.length,
+                total: collected.length,
               };
             }
             offset += MAX_LIST_PAGE_SIZE;
           }
         } catch (error) {
           console.warn(
-            'BirdCoder listProjectsByWorkspaceIds SQL plan failed; falling back to repository.list()',
+            'BirdCoder listProjectsByWorkspaceIds SQL plan failed; falling back to repository pages',
             error,
           );
         }
       }
 
-      const workspaceIdSet = new Set(normalizedWorkspaceIds);
-      const filtered = (await repository.list()).filter((project) =>
-        workspaceIdSet.has(project.workspaceId),
-      );
-      if (!pagination) {
-        return {
-          items: filtered,
-          total: filtered.length,
-        };
-      }
-      throw new Error(
-        'Paginated workspace project listing requires SQL plan execution; volatile fallback is not supported.',
-      );
+      return listProjectsByWorkspaceIdsFromRepositoryPages(normalizedWorkspaceIds, pagination);
     },
     async listProjectRecordsPage(pagination) {
       const { offset, pageSize } = clampListPageSize(pagination?.offset, pagination?.limit);
