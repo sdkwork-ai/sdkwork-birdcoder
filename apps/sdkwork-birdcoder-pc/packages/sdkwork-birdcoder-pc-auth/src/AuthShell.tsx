@@ -105,13 +105,20 @@ function resolveTauriWindowApi(): DesktopWindowLike | null {
 }
 
 function resolveTauriInvoke(): TauriInvoke | null {
-  return (globalThis as {
+  const runtime = globalThis as {
     __TAURI__?: {
       core?: {
         invoke?: TauriInvoke;
       };
     };
-  }).__TAURI__?.core?.invoke ?? null;
+    __TAURI_INTERNALS__?: {
+      invoke?: TauriInvoke;
+    };
+  };
+
+  return runtime.__TAURI__?.core?.invoke
+    ?? runtime.__TAURI_INTERNALS__?.invoke
+    ?? null;
 }
 
 async function invokeDesktopWindowControl(action: WindowControlAction): Promise<boolean> {
@@ -161,6 +168,10 @@ async function handleWindowControl(action: WindowControlAction): Promise<void> {
 async function startAuthTitleBarDragging(): Promise<void> {
   const appWindow = resolveTauriWindowApi();
   await appWindow?.startDragging?.();
+}
+
+function ignoreWindowControlFailure(task: Promise<unknown>): void {
+  void task.catch(() => undefined);
 }
 
 function isAuthHeaderNoDragTarget(target: EventTarget | null): boolean {
@@ -301,12 +312,13 @@ export function AuthShell({ children }: AuthShellProps) {
   }, []);
 
   const onWindowControl = useCallback((action: WindowControlAction) => {
-    void handleWindowControl(action)
+    ignoreWindowControlFailure(handleWindowControl(action)
       .then(() => {
         if (action === 'toggleMaximize') {
-          void refreshWindowState();
+          return refreshWindowState();
         }
-      });
+        return undefined;
+      }));
   }, [refreshWindowState]);
 
   const handleTitleBarPointerDown = useCallback((event: React.PointerEvent<HTMLElement>) => {
@@ -315,7 +327,7 @@ export function AuthShell({ children }: AuthShellProps) {
     }
 
     event.preventDefault();
-    void startAuthTitleBarDragging();
+    ignoreWindowControlFailure(startAuthTitleBarDragging());
   }, []);
 
   const handleTitleBarDoubleClick = useCallback((event: React.MouseEvent<HTMLElement>) => {
@@ -323,7 +335,7 @@ export function AuthShell({ children }: AuthShellProps) {
       return;
     }
 
-    void handleWindowControl('toggleMaximize').then(refreshWindowState);
+    ignoreWindowControlFailure(handleWindowControl('toggleMaximize').then(refreshWindowState));
   }, [refreshWindowState]);
 
   const handleTitleBarContextMenu = useCallback((event: React.MouseEvent<HTMLElement>) => {

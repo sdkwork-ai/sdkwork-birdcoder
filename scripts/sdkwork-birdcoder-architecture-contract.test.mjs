@@ -4,28 +4,12 @@ import path from 'node:path';
 import process from 'node:process';
 import { resolveBirdcoderApplicationPackageRoots } from './lib/birdcoder-package-scan-roots.mjs';
 
-import { buildCanonicalDocPathIndex, resolveCanonicalDocPath } from './lib/canonical-doc-paths.mjs';
-
 const rootDir = process.cwd();
-const canonicalDocIndex = buildCanonicalDocPathIndex(rootDir);
 const pcPackagesDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages');
 const h5PackagesDir = path.join(rootDir, 'apps', 'sdkwork-birdcoder-h5', 'packages');
-const requiredArchitectureDocBasenames = [
-  'README.md',
-  '01-\u4ea7\u54c1\u8bbe\u8ba1\u4e0e\u9700\u6c42\u8303\u56f4.md',
-  '02-\u67b6\u6784\u6807\u51c6\u4e0e\u603b\u4f53\u8bbe\u8ba1.md',
-  '03-\u6a21\u5757\u89c4\u5212\u4e0e\u8fb9\u754c.md',
-  '04-\u6280\u672f\u9009\u578b\u4e0e\u53ef\u63d2\u62d4\u7b56\u7565.md',
-  '05-\u7edf\u4e00Kernel\u4e0eCode Engine\u6807\u51c6.md',
-  '06-\u7f16\u8bd1\u73af\u5883-\u9884\u89c8-\u6a21\u62df\u5668-\u6d4b\u8bd5\u4f53\u7cfb.md',
-  '07-\u6570\u636e\u6a21\u578b-\u72b6\u6001\u6a21\u578b-\u63a5\u53e3\u5951\u7ea6.md',
-  '08-\u6027\u80fd-\u5b89\u5168-\u53ef\u89c2\u6d4b\u6027\u6807\u51c6.md',
-  '09-\u5b89\u88c5-\u90e8\u7f72-\u53d1\u5e03\u6807\u51c6.md',
-  '10-\u5f00\u53d1\u6d41\u7a0b-\u8d28\u91cf\u95e8\u7981-\u8bc4\u4f30\u6807\u51c6.md',
-  '11-\u884c\u4e1a\u5bf9\u6807\u4e0e\u80fd\u529b\u77e9\u9635.md',
-  '12-\u7edf\u4e00\u5de5\u5177\u534f\u8bae-\u6743\u9650\u6c99\u7bb1-\u5ba1\u8ba1\u6807\u51c6.md',
-  '13-\u89c4\u5219-\u6280\u80fd-MCP-\u77e5\u8bc6\u7cfb\u7edf\u6807\u51c6.md',
-  '14-\u73b0\u72b6\u57fa\u7ebf-\u5dee\u8ddd-\u6f14\u8fdb\u8def\u7ebf.md',
+const requiredCanonicalDocs = [
+  'docs/product/prd/PRD.md',
+  'docs/architecture/tech/TECH_ARCHITECTURE.md',
 ];
 
 const requiredPaths = [
@@ -200,12 +184,10 @@ for (const relativePath of requiredPaths) {
   );
 }
 
-for (const basename of requiredArchitectureDocBasenames) {
-  const legacyPath = `docs/架构/${basename}`;
-  const resolvedPath = resolveCanonicalDocPath(rootDir, legacyPath, canonicalDocIndex);
+for (const canonicalDoc of requiredCanonicalDocs) {
   assert.ok(
-    fs.existsSync(path.join(rootDir, resolvedPath)),
-    `Expected architecture doc to exist: ${legacyPath} (resolved: ${resolvedPath})`,
+    fs.existsSync(path.join(rootDir, canonicalDoc)),
+    `Expected canonical documentation file to exist: ${canonicalDoc}`,
   );
 }
 

@@ -1,7 +1,7 @@
 import {
   getBirdCoderGeneratedBackendSdkClient,
   type BirdCoderTokenManagerAwareBackendSdkClient,
-} from '@sdkwork/birdcoder-pc-admin-core';
+} from '@sdkwork/birdcoder-pc-admin-core/sdk/backendGeneratedSdkClient';
 
 import './backendSdkTransportBootstrap.ts';
 

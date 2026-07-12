@@ -43,7 +43,7 @@ USER birdcoder
 VOLUME ["/var/lib/sdkwork-birdcoder"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl --fail --silent http://127.0.0.1:18989/health || exit 1
+    CMD curl --fail --silent http://127.0.0.1:18989/readyz || exit 1
 
 EXPOSE 18989
 

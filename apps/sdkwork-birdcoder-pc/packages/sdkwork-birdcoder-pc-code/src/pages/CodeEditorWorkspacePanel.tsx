@@ -147,6 +147,7 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
         />
         <ResizeHandle direction="horizontal" onResize={onExplorerResize} />
         <CodeEditorSurface
+          currentProjectId={currentProjectId}
           fileCount={files.length}
           openFiles={openFiles}
           selectedFile={selectedFile}

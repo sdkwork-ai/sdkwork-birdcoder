@@ -29,13 +29,13 @@ const deploymentServiceSource = readText(
 
 assert.match(
   dockerComposeSource,
-  /http:\/\/127\.0\.0\.1:18989\/health/u,
-  'Docker Compose healthcheck must probe the unauthenticated /health endpoint.',
+  /http:\/\/127\.0\.0\.1:18989\/readyz/u,
+  'Docker Compose healthcheck must probe the unauthenticated /readyz readiness endpoint.',
 );
 assert.match(
   dockerfileSource,
-  /http:\/\/127\.0\.0\.1:18989\/health/u,
-  'Dockerfile HEALTHCHECK must probe the unauthenticated /health endpoint.',
+  /http:\/\/127\.0\.0\.1:18989\/readyz/u,
+  'Dockerfile HEALTHCHECK must probe the unauthenticated /readyz readiness endpoint.',
 );
 assert.match(
   dockerComposeSource,

@@ -78,11 +78,13 @@ pub struct RuntimePayload {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OperationPayload {
-    pub id: String,
+    pub operation_id: String,
     pub status: String,
-    pub kind: String,
-    pub created_at: String,
-    pub updated_at: String,
+    pub artifact_refs: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stream_kind: Option<String>,
 }
 
 // ── Problem details ──────────────────────────────────────────────────

@@ -39,6 +39,7 @@ export function bindBirdCoderH5AppSessionPersistence(): void {
 
       cache = await getBirdCoderSecureStorageAdapter().read(APP_SESSION_STORAGE_KEY);
       hydrated = true;
+      resetAppSessionTokenStorageCache();
     },
   };
 

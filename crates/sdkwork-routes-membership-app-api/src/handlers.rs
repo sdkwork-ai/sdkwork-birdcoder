@@ -2,17 +2,17 @@ use axum::extract::{Query, State};
 use axum::Json;
 use sqlx::AnyPool;
 
+use sdkwork_birdcoder_errors::{
+    build_data_envelope, build_unbounded_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    ApiListEnvelope,
+};
 use sdkwork_birdcoder_membership_repository_sqlx::SqliteMembershipRepository;
 use sdkwork_birdcoder_membership_service::domain::models::{
     CommerceMembershipCurrentPayload, CommerceMembershipPackageGroupPayload,
 };
 use sdkwork_birdcoder_membership_service::service::membership_service::MembershipService;
-use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_unbounded_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
-    ApiListEnvelope,
-};
-use sdkwork_utils_rust::is_blank;
 use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
+use sdkwork_utils_rust::is_blank;
 
 use crate::error;
 use crate::mapper::request::MembershipQuery;
@@ -43,11 +43,7 @@ pub async fn get_current_membership(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<MembershipAppState>,
     Query(query): Query<MembershipQuery>,
-) -> Result<
-    Json<ApiDataEnvelope<CommerceMembershipCurrentPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiDataEnvelope<CommerceMembershipCurrentPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     if let Some(requested_owner_id) = query
         .owner_user_id
@@ -81,17 +77,13 @@ pub async fn list_membership_package_groups(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<MembershipAppState>,
-) -> Result<
-    Json<ApiListEnvelope<CommerceMembershipPackageGroupPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiListEnvelope<CommerceMembershipPackageGroupPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     match state.service.list_package_groups().await {
-        Ok(groups) => {
-            let total = groups.len();
-            Ok(Json(build_unbounded_list_envelope(groups, request_id(&web))))
-        }
+        Ok(groups) => Ok(Json(build_unbounded_list_envelope(
+            groups,
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_service_error(e, trace_id)),
     }
 }

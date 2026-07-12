@@ -8,19 +8,14 @@ use sdkwork_birdcoder_errors::{
 
 pub use sdkwork_birdcoder_errors::ProblemJsonBody;
 
-pub fn map_system_error(
-    error: SystemDescriptorError,
-    trace_id: Option<&str>,
-) -> ProblemJsonBody {
+pub fn map_system_error(error: SystemDescriptorError, trace_id: Option<&str>) -> ProblemJsonBody {
     match error {
         SystemDescriptorError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
         }
-        SystemDescriptorError::InvalidInput(msg) => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            msg,
-            trace_id,
-        ),
+        SystemDescriptorError::InvalidInput(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
+        }
         SystemDescriptorError::Internal(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
             client_safe_internal_problem(),

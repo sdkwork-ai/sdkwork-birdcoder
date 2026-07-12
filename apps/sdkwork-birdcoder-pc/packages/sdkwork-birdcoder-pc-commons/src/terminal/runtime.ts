@@ -10,6 +10,12 @@ import {
   type TerminalCliProfileId,
 } from './registry.ts';
 import { getStoredJson } from '../storage/localStore.ts';
+import {
+  normalizeTerminalApprovalPolicySetting,
+  normalizeTerminalCommandGuardSetting,
+  type TerminalApprovalPolicySetting,
+  type TerminalCommandGuardSetting,
+} from '../settings/appSettings.ts';
 import { globalEventBus } from '../utils/EventBus.ts';
 import type {
   BirdcoderApprovalDecision,
@@ -80,13 +86,14 @@ export interface TerminalProfileBlockedMessageOptions {
 }
 
 export interface TerminalGovernanceSettings {
-  approvalPolicy: BirdcoderApprovalPolicy;
-  sandboxSettings: string;
+  approvalPolicy: TerminalApprovalPolicySetting;
+  sandboxSettings: TerminalCommandGuardSetting;
 }
 
 export interface TerminalCommandGovernanceDecision {
   traceId: string;
   approvalPolicy: BirdcoderApprovalPolicy;
+  sandboxSettings: TerminalCommandGuardSetting;
   riskLevel: BirdcoderRiskLevel;
   approvalDecision: BirdcoderApprovalDecision;
   allowed: boolean;
@@ -109,37 +116,50 @@ interface TauriTerminalCliProfileAvailabilityResponse {
 
 const DEFAULT_TERMINAL_GOVERNANCE_SETTINGS: TerminalGovernanceSettings = {
   approvalPolicy: 'OnRequest',
-  sandboxSettings: 'Read only',
+  sandboxSettings: 'ReadOnly',
 };
 
 const TERMINAL_CLI_PROFILE_AVAILABILITY_CONCURRENCY = 2;
 
-const TERMINAL_APPROVAL_POLICY_ALIASES: Readonly<Record<string, BirdcoderApprovalPolicy>> = {
-  autoallow: 'AutoAllow',
-  'auto allow': 'AutoAllow',
-  onrequest: 'OnRequest',
-  'on request': 'OnRequest',
-  restricted: 'Restricted',
-  releaseonly: 'ReleaseOnly',
-  'release only': 'ReleaseOnly',
-};
-
+// This is a conservative UI preflight for BirdCoder-launched commands, not an OS sandbox.
 const READ_ONLY_TERMINAL_COMMAND_PATTERNS = [
-  /^\s*(pwd|ls|dir|echo|which|where|whoami|rg|find|cat|type|get-childitem|get-location)\b/i,
-  /^\s*git\s+(status|diff)\b/i,
+  /^\s*(pwd|whoami|get-location)\s*$/iu,
+  /^\s*(ls|dir|get-childitem)(?:\s+[^\r\n]*)?$/iu,
+  /^\s*(cat|type|get-content)(?:\s+[^\r\n]*)?$/iu,
+  /^\s*(which|where|get-command)(?:\s+[^\r\n]*)?$/iu,
+  /^\s*(echo|write-output)(?:\s+[^\r\n]*)?$/iu,
+  /^\s*(rg|findstr)(?:\s+[^\r\n]*)?$/iu,
+  /^\s*git\s+status(?:\s+[^\r\n]*)?$/iu,
 ] as const;
 
 const HIGH_RISK_TERMINAL_COMMAND_PATTERNS = [
-  /\brm\s+-rf\b/i,
-  /\bdel\b.*\/f.*\/s.*\/q/i,
-  /\bformat\b/i,
-  /\bmkfs\b/i,
-  /\bshutdown\b/i,
-  /\breboot\b/i,
-  /\bgit\s+reset\s+--hard\b/i,
-  /\bgit\s+clean\s+-fd\b/i,
-  /\bremove-item\b.*-recurse.*-force/i,
+  /(?:^|&&|\|\||[;&|])\s*(?:(?:sudo|doas)\s+)?rm\b[^\r\n]*(?:-[a-z]*r[a-z]*f|-[a-z]*f[a-z]*r|--recursive|--force)/iu,
+  /(?:^|&&|\|\||[;&|])\s*(del|erase)\b[^\r\n]*(?:\/f|\/s|\/q)/iu,
+  /(?:^|&&|\|\||[;&|])\s*(rd|rmdir)\b[^\r\n]*(?:\/s|--ignore-fail-on-non-empty)/iu,
+  /(?:^|&&|\|\||[;&|])\s*(?:format(?:\.com)?\s+[a-z]:|format-volume\b|mkfs(?:\.[a-z0-9_-]+)?\b|diskpart\b)/iu,
+  /(?:^|&&|\|\||[;&|])\s*(?:(?:sudo|doas)\s+)?dd\b[^\r\n]*\bof=/iu,
+  /(?:^|&&|\|\||[;&|])\s*(?:(?:sudo|doas)\s+)?(shutdown|reboot|restart-computer|stop-computer)\b/iu,
+  /(?:^|&&|\|\||[;&|])\s*git\s+reset\s+--hard\b/iu,
+  /(?:^|&&|\|\||[;&|])\s*git\s+clean\b[^\r\n]*(?:-f|--force)/iu,
+  /(?:^|&&|\|\||[;&|])\s*remove-item\b(?=[^\r\n]*(?:-recurse|-[a-z]*r[a-z]*))(?=[^\r\n]*(?:-force|-[a-z]*f[a-z]*))[^\r\n]*/iu,
+  /(?:^|&&|\|\||[;&|]|\$\(|@\()\s*remove-item\b[^\r\n]*(?:-recurse|-[a-z]*r[a-z]*)[^\r\n]*(?:-force|-[a-z]*f[a-z]*)/iu,
+  /(?:^|&&|\|\||[;&|]|\$\(|@\()\s*(?:rm|del|erase|rmdir)\b[^\r\n]*(?:-rf|\/s|\/f|\/q|--recursive|--force)/iu,
 ] as const;
+
+const READ_ONLY_COMMAND_ESCAPE_PATTERNS = [
+  /&&|\|\||[;&|<>`]|\$\(|@\(/u,
+  /\brg\b[^\r\n]*--pre(?:=|\s)/iu,
+] as const;
+
+const TERMINAL_AUDIT_SECRET_ARGUMENT_PATTERN =
+  /((?:--?|\/)(?:access[-_]?token|api[-_]?key|authorization|credential|password|refresh[-_]?token|secret|token)(?:=|\s+))("[^"]*"|'[^']*'|[^\s"']+)/giu;
+const TERMINAL_AUDIT_SECRET_ENV_PATTERN =
+  /\b([A-Z0-9_]*(?:ACCESS_TOKEN|API_KEY|AUTHORIZATION|CREDENTIAL|PASSWORD|REFRESH_TOKEN|SECRET|TOKEN)[A-Z0-9_]*)=("[^"]*"|'[^']*'|[^\s"']+)/giu;
+const TERMINAL_AUDIT_BEARER_PATTERN = /\bBearer\s+[^\s"']+/giu;
+const TERMINAL_AUDIT_URL_CREDENTIAL_PATTERN =
+  /\b(https?:\/\/)[^\s\/:@]+:[^\s\/@]+@/giu;
+
+let terminalGovernanceTraceSequence = 0;
 
 function buildTerminalGovernanceDigest(value: string): string {
   let hash = 5381;
@@ -151,34 +171,40 @@ function buildTerminalGovernanceDigest(value: string): string {
 }
 
 function buildTerminalGovernanceTraceId(command: string, timestamp = Date.now()): string {
-  return `terminal-governance:${timestamp.toString(36)}:${buildTerminalGovernanceDigest(command)}`;
+  terminalGovernanceTraceSequence =
+    (terminalGovernanceTraceSequence + 1) % Number.MAX_SAFE_INTEGER;
+  return [
+    'terminal-governance',
+    timestamp.toString(36),
+    terminalGovernanceTraceSequence.toString(36),
+    buildTerminalGovernanceDigest(command),
+  ].join(':');
 }
 
 async function loadTerminalGovernanceSettings(): Promise<TerminalGovernanceSettings> {
   const storedSettings = await getStoredJson<Record<string, unknown>>('settings', 'app', {});
   return {
-    approvalPolicy: normalizeTerminalApprovalPolicy(
-      typeof storedSettings.approvalPolicy === 'string'
-        ? storedSettings.approvalPolicy
-        : DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.approvalPolicy,
+    approvalPolicy: normalizeTerminalApprovalPolicySetting(
+      storedSettings.approvalPolicy,
+      DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.approvalPolicy,
     ),
-    sandboxSettings:
-      typeof storedSettings.sandboxSettings === 'string'
-        ? storedSettings.sandboxSettings
-        : DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.sandboxSettings,
+    sandboxSettings: normalizeTerminalCommandGuardSetting(
+      storedSettings.sandboxSettings,
+      DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.sandboxSettings,
+    ),
   };
 }
 
-function buildBlockedGovernanceReason(
-  approvalPolicy: BirdcoderApprovalPolicy,
+function buildApprovalPolicyBlockedReason(
+  approvalPolicy: TerminalApprovalPolicySetting,
   riskLevel: BirdcoderRiskLevel,
 ): string {
-  if (approvalPolicy === 'AutoAllow') {
-    return 'AutoAllow policy only permits read-only terminal commands.';
+  if (approvalPolicy === 'OnRequest') {
+    return 'Approval is required, but interactive terminal approval is not available. The command was blocked.';
   }
 
   if (approvalPolicy === 'ReleaseOnly') {
-    return 'ReleaseOnly policy blocked interactive terminal execution outside the release lane.';
+    return 'ReleaseOnly policy cannot verify a release lane for this terminal launch. The command was blocked.';
   }
 
   if (riskLevel === 'P3') {
@@ -186,6 +212,21 @@ function buildBlockedGovernanceReason(
   }
 
   return 'Restricted policy blocked side-effecting terminal command.';
+}
+
+function buildCommandGuardBlockedReason(
+  sandboxSettings: TerminalCommandGuardSetting,
+  riskLevel: BirdcoderRiskLevel,
+): string | null {
+  if (sandboxSettings === 'ReadOnly' && riskLevel !== 'P0') {
+    return 'Read-only command guard blocked a command that may change system or workspace state.';
+  }
+
+  if (sandboxSettings === 'ReadWrite' && riskLevel === 'P3') {
+    return 'Destructive-command guard blocked a high-risk terminal command.';
+  }
+
+  return null;
 }
 
 function resolveTerminalGovernanceCategory(
@@ -206,14 +247,18 @@ function isCommandMatchingAnyPattern(command: string, patterns: readonly RegExp[
 export function normalizeTerminalApprovalPolicy(
   value: string | null | undefined,
 ): BirdcoderApprovalPolicy {
-  const normalizedValue = value?.trim().toLowerCase();
-  if (!normalizedValue) {
-    return DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.approvalPolicy;
-  }
+  return normalizeTerminalApprovalPolicySetting(
+    value,
+    DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.approvalPolicy,
+  );
+}
 
-  return (
-    TERMINAL_APPROVAL_POLICY_ALIASES[normalizedValue] ??
-    DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.approvalPolicy
+export function normalizeTerminalSandboxPolicy(
+  value: string | null | undefined,
+): TerminalCommandGuardSetting {
+  return normalizeTerminalCommandGuardSetting(
+    value,
+    DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.sandboxSettings,
   );
 }
 
@@ -227,7 +272,10 @@ export function classifyTerminalCommandRisk(command: string): BirdcoderRiskLevel
     return 'P3';
   }
 
-  if (isCommandMatchingAnyPattern(normalizedCommand, READ_ONLY_TERMINAL_COMMAND_PATTERNS)) {
+  if (
+    !isCommandMatchingAnyPattern(normalizedCommand, READ_ONLY_COMMAND_ESCAPE_PATTERNS) &&
+    isCommandMatchingAnyPattern(normalizedCommand, READ_ONLY_TERMINAL_COMMAND_PATTERNS)
+  ) {
     return 'P0';
   }
 
@@ -240,49 +288,67 @@ export async function evaluateTerminalCommandGovernance(
 ): Promise<TerminalCommandGovernanceDecision> {
   const resolvedSettings = settings
     ? {
-      approvalPolicy: normalizeTerminalApprovalPolicy(settings.approvalPolicy),
-      sandboxSettings:
-        settings.sandboxSettings?.trim() || DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.sandboxSettings,
+      approvalPolicy: normalizeTerminalApprovalPolicySetting(
+        settings.approvalPolicy,
+        DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.approvalPolicy,
+      ),
+      sandboxSettings: normalizeTerminalCommandGuardSetting(
+        settings.sandboxSettings,
+        DEFAULT_TERMINAL_GOVERNANCE_SETTINGS.sandboxSettings,
+      ),
     }
     : await loadTerminalGovernanceSettings();
   const riskLevel = classifyTerminalCommandRisk(command);
-  const blocksForAutoAllow = resolvedSettings.approvalPolicy === 'AutoAllow' && riskLevel !== 'P0';
-  const blocksForRestricted =
-    (resolvedSettings.approvalPolicy === 'Restricted' ||
-      resolvedSettings.approvalPolicy === 'ReleaseOnly') &&
-    (riskLevel === 'P2' || riskLevel === 'P3');
-  const allowed = !blocksForAutoAllow && !blocksForRestricted;
-  const approvalDecision: BirdcoderApprovalDecision = allowed
-    ? riskLevel === 'P0'
-      ? 'auto_allowed'
-      : 'approved'
-    : 'blocked';
+  const commandGuardBlockedReason = buildCommandGuardBlockedReason(
+    resolvedSettings.sandboxSettings,
+    riskLevel,
+  );
+  const blocksForApproval =
+    resolvedSettings.approvalPolicy === 'ReleaseOnly' ||
+    ((resolvedSettings.approvalPolicy === 'OnRequest' ||
+      resolvedSettings.approvalPolicy === 'Restricted') &&
+      riskLevel !== 'P0');
+  const allowed = !commandGuardBlockedReason && !blocksForApproval;
+  const approvalDecision: BirdcoderApprovalDecision = allowed ? 'auto_allowed' : 'blocked';
 
   return {
-    traceId: buildTerminalGovernanceTraceId(command),
+    traceId: buildTerminalGovernanceTraceId(sanitizeTerminalCommandForAudit(command)),
     approvalPolicy: resolvedSettings.approvalPolicy,
+    sandboxSettings: resolvedSettings.sandboxSettings,
     riskLevel,
     approvalDecision,
     allowed,
     reason: allowed
       ? null
-      : buildBlockedGovernanceReason(resolvedSettings.approvalPolicy, riskLevel),
+      : commandGuardBlockedReason ??
+        buildApprovalPolicyBlockedReason(resolvedSettings.approvalPolicy, riskLevel),
     category: resolveTerminalGovernanceCategory(allowed, riskLevel),
   };
+}
+
+export function sanitizeTerminalCommandForAudit(command: string): string {
+  return command
+    .trim()
+    .replace(TERMINAL_AUDIT_SECRET_ARGUMENT_PATTERN, '$1<redacted>')
+    .replace(TERMINAL_AUDIT_SECRET_ENV_PATTERN, '$1=<redacted>')
+    .replace(TERMINAL_AUDIT_BEARER_PATTERN, 'Bearer <redacted>')
+    .replace(TERMINAL_AUDIT_URL_CREDENTIAL_PATTERN, '$1<redacted>@');
 }
 
 export function buildTerminalCommandAuditEvent(
   input: TerminalCommandAuditEventInput,
   timestamp = Date.now(),
 ): BirdcoderAuditEvent {
+  const sanitizedCommand = sanitizeTerminalCommandForAudit(input.command);
+
   return {
     category: input.decision.category,
     traceId: input.decision.traceId,
     engine: input.profileId,
-    tool: 'terminal.exec',
+    tool: 'terminal.launch.preflight',
     riskLevel: input.decision.riskLevel,
     approvalDecision: input.decision.approvalDecision,
-    inputDigest: buildTerminalGovernanceDigest(`${input.cwd}\n${input.command}`),
+    inputDigest: buildTerminalGovernanceDigest(`${input.cwd}\n${sanitizedCommand}`),
     outputDigest: buildTerminalGovernanceDigest(
       `${input.decision.allowed}:${input.decision.reason ?? 'allowed'}:${timestamp}`,
     ),

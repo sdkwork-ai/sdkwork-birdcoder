@@ -2,91 +2,89 @@
 
 Status: active
 Owner: SDKWork maintainers
-Application: sdkwork-birdcoder
-Updated: 2026-07-08
-Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md
+Application: `sdkwork-birdcoder`
+Updated: 2026-07-12
+Specs: `REQUIREMENTS_SPEC.md`, `DOCUMENTATION_SPEC.md`, `APP_PC_ARCHITECTURE_SPEC.md`, `DEPLOYMENT_SPEC.md`, `SECURITY_SPEC.md`
 
-## Document Map
+## 1. Product And Problem
 
-- [PRD-01 baseline audit](PRD-01-baseline-audit.md)
-- [PRD-01 product design and requirement scope](PRD-01-productdesignrequirementsscope.md)
-- [PRD-02 three-layer agent platform](PRD-02-three-layer-agent-platform.md)
+BirdCoder is a coding workbench that runs the same user workflow in two places:
 
-## 1. Background And Problem
+- `standalone`: a desktop installation operates on a user-selected local project.
+- `cloud`: a web or desktop client operates on an isolated managed workspace.
 
-BirdCoder is the SDKWork AI coding IDE product. It must deliver authenticated workspace, chat/agent, code editing, terminal, skills, commerce, deployment, and release governance surfaces across PC web/desktop, with H5 and Flutter companion roots. The product is backed by a contract-complete Rust standalone gateway and must stay aligned with `sdkwork-specs`.
+The first product milestone is real, resumable coding turns through Codex, Claude Code, Gemini CLI, and OpenCode. A catalog entry, a detected executable, a mock response, or a green route test is not a completed turn. Readiness is proven by an installed artifact changing the requested project and by the persisted session being resumable.
 
-The agent platform is now a three-layer system:
+## 2. Users And Modes
 
-- `sdkwork-kernel` defines standardized SPI, provider bindings, code-kernel abstractions, and runtime mechanisms.
-- `sdkwork-agents` owns business persistence, managed agent APIs, generated SDKs, session/message/task records, runtime facade, and composition with memory/knowledge/skills/prompts/drive/MCP modules.
-- `sdkwork-birdcoder` is the product consumer. All agent product operations go through `sdkwork-agents`; BirdCoder must not call `sdkwork-kernel` or `sdkwork-agent-provider-*` directly.
+| User | Mode | Outcome |
+| --- | --- | --- |
+| Individual developer | Local desktop | Edit, run, inspect, and continue work in a local directory. |
+| Individual or team developer | Cloud workspace | Resume the same workspace from multiple devices without exposing another user's files or credentials. |
+| Operator | Cloud control plane | Observe capacity, isolate failures, drain workers, and recover accepted work. |
 
-## 2. Target Users
+PC is the primary editing client. Web, H5, and Flutter provide progressively narrower session, event, approval, and artifact workflows until full editor parity is justified by usage evidence.
 
-- Individual developers using BirdCoder locally or against a managed SDKWork tenant.
-- Team leads operating shared workspaces, projects, coding sessions, and deployments.
-- Platform operators publishing governed releases and running enterprise Kubernetes deployments.
-- SDKWork platform engineers validating kernel, agents, SDK, API, and release governance.
+## 3. Goals And Non-Goals
 
-## 3. Goals
+Goals:
 
-- Ship a contract-governed IDE product aligned with sdkwork-specs across PC, mobile, API, SDK, data, and release surfaces.
-- Support multiple code agents through a pluggable kernel/provider model while keeping BirdCoder coupled only to `sdkwork-agents`.
-- Keep SDK integration, IAM, tenant isolation, pagination, OpenAPI parity, and commercial readiness verifiable in CI.
-- Reach governed commercial release with checksum-backed artifacts, SBOM, signing evidence, and honest preLaunch manifest state.
+- Keep only the SDKWork deployment profiles `standalone` and `cloud`; execution placement is a session property, not a third profile.
+- Execute real turns with the effective project directory, model, approval/sandbox policy, timeout, output budget, cancellation, and provider-native session continuation.
+- Fail closed when a provider runtime, credential, or conformance check is missing. Never persist a fake successful assistant turn.
+- Keep local files local unless the user explicitly imports or synchronizes them.
+- Isolate cloud tenant, organization, membership, user, workspace, provider state, credentials, temporary files, processes, network, and resource budgets.
+- Bound concurrency and storage so idle workspaces can suspend and active work can recover after worker loss.
 
-## 4. Scope
+Non-goals for the first release:
 
-In scope:
+- Implicitly uploading a local directory or tunneling a cloud request into a user's machine.
+- Exposing OpenClaw, Hermes, Rig, or another experimental provider as a P0 coding engine.
+- Claiming public multi-tenant arbitrary-code execution on a shared kernel without a reviewed strong sandbox.
 
-- PC web/desktop shell, Rust standalone gateway, OpenAPI app/backend routes, IAM federation, workspace realtime, operator runbooks, release rehearsal, H5/Flutter route parity.
-- P0 code-agent engines: Codex, Claude Code, Gemini CLI, and OpenCode through `sdkwork-kernel` provider bindings and `sdkwork-agents-runtime-facade`.
-- `sdkwork-agents` managed agent APIs: Open API 27 operations, App API 35 operations, Backend API 33 operations, 95 total operations.
-- BirdCoder service adoption of `@sdkwork/agents-app-sdk` for app-side agent catalog and future agent/session/message/task workflows.
+## 4. P0 Functional Requirements
 
-Out of scope until later governed phases:
+1. A user can create/select a workspace and project, submit a turn, observe bounded events, inspect file changes, cancel the turn, and continue the same coding session.
+2. Local execution is restricted to the authorized project root and uses user-private runtime/database files.
+3. Cloud execution is accepted durably, runs in a workspace-bound runner, and exposes one ordered terminal outcome after reconnect or worker recovery.
+4. Provider selection shows declaration, runtime availability, authentication, and conformance as separate states. Unavailable providers cannot become the default.
+5. Tenant and membership checks are enforced on every read, write, dispatch, attach/resume, secret grant, and interaction answer.
+6. H5 and Flutter use the same generated SDK contracts and receive typed unavailable, cancelled, failed, and indeterminate outcomes.
 
-- Public catalog install with synthetic artifacts.
-- Full PC feature parity on H5/Flutter mobile.
-- Autonomous OpenClaw/Hermes product exposure before conformance, feature flag, and operational runbook are complete.
-- Direct BirdCoder dependency on kernel/provider internals.
+## 5. Isolation And Capacity Requirements
 
-## 5. Non-Goals
+Cloud metadata is scoped by tenant, organization, user/membership, and workspace. Workspace storage, `HOME`, provider state, credentials, temporary files, process tree, and network policy are private to the active binding. Credentials are short-lived, scoped, redacted, and removed when a binding ends.
 
-- Replacing sdkwork-specs with repository-local copies.
-- Hand-written HTTP clients bypassing generated SDK families.
-- Shipping enabled install packages before `release:assert-ready` on real artifacts.
-- Defining agent business database schema inside `sdkwork-kernel`.
-- Treating experimental autonomous provider manifests as production product capability.
+The control plane admits work through durable idempotency and bounded queues. Initial defaults are one active turn per user and four globally, configurable via `BIRDCODER_MAX_CONCURRENT_CODE_ENGINE_TURNS` and `BIRDCODER_MAX_CONCURRENT_CODE_ENGINE_TURNS_PER_USER` environment variables. Provider and cluster limits are measured and configurable. Idle workspaces may suspend after ten minutes. PostgreSQL is the cloud source of truth; Redis is a delivery/cache projection and never the authorization source.
 
-## 6. Success Metrics
+Rate-limit API key buckets use SHA-256 hash of the bearer token (first 16 bytes, hex-encoded) to avoid storing any part of the secret in the rate limit store. Turn list queries use SQL-level `LIMIT`/`OFFSET` pagination with total count, aligned with `PAGINATION_SPEC.md` §2. Event sequence allocation, message edit/delete, and approval decisions are wrapped in single database transactions to guarantee atomicity.
 
-- `pnpm lint`, `pnpm run check:arch`, `pnpm run check:server`, and agent/kernel alignment checks pass on main.
-- OpenAPI defer registry reports `162 / 162` implemented operations and `0` deferred operations for BirdCoder.
-- `sdkwork-agents` API specification reports Open 27, App 35, Backend 33, Total 95 operations.
-- All app-side agent HTTP consumption uses composed SDK imports such as `@sdkwork/agents-app-sdk`; no raw agents app-api calls exist.
-- All `sdkwork.app.config.json` package surfaces remain DRAFT/preLaunch until the first governed release publishes real artifacts.
-- First real release produces signing, SBOM, checksum, and release rehearsal evidence before install packages are enabled.
+## 6. Acceptance Gates
 
-## 7. Release Phases
+| Gate | Evidence required |
+| --- | --- |
+| Local provider | Clean installed package, real file edit, effective cwd, model, native-session continuation, bounded output, cancellation, cleanup. |
+| Cloud isolation | Cross-tenant denial tests, separate workspace volumes and credentials, concurrent queue/load test, worker-loss recovery. |
+| Release | Runtime asset manifest with versions/checksums, signed artifacts, SBOM, readiness probe, rollback and operator evidence. |
 
-1. Private PC beta with standalone/cloud server profiles and P0 code-agent execution.
-2. Enterprise Kubernetes with PostgreSQL HA overlay, backup drills, and operator runbooks.
-3. Agent platform P5 hardening: agents app SDK adoption, task-run projection, memory runtime mounting, and message/run event streaming.
-4. Governed public release with real artifacts and unified manifest truth.
-5. Mobile store lanes after Flutter/iOS release CI and catalog assets are complete.
+The current repository has the turn propagation, transaction-safe persistence, OOM-protected process output (stdout capped at 10 MB, stderr at 1 MB), SQL-level pagination, SHA-256 rate-limit bucket hashing, and fail-closed bridge tests. Packaged provider runtime assets and the cloud runner/scheduler remain release blockers until their gates pass.
 
-## 8. Dependencies
+## 7. Delivery Phases
 
-- `sdkwork-specs` standards dictionary.
-- `sdkwork-kernel` for agent/code kernel SPI and provider plugin bindings. BirdCoder consumes it only through `sdkwork-agents-runtime-facade`.
-- `sdkwork-agents` for the business agent layer, `sdkwork-agents-runtime-facade`, 95 HTTP operations, and `@sdkwork/agents-app-sdk`.
-- `sdkwork-iam`, `sdkwork-appbase`, `sdkwork-web-framework`, and `sdkwork-database` lifecycle crates.
-- Generated `@sdkwork/birdcoder-app-sdk` families under application `sdks/`.
-- Sibling composition modules through agents slots: `sdkwork-memory`, `sdkwork-knowledgebase`, `sdkwork-skills`, `sdkwork-prompts`, `sdkwork-drive`, and MCP marketplaces.
+1. Local alpha: complete runtime asset packaging and real conformance for all four P0 providers.
+2. Durable execution beta: asynchronous operation state, idempotency, cancellation, ordered events, and restart-safe finalization.
+3. Isolated cloud beta: runner lifecycle, encrypted workspace storage, secret broker, admission control, recovery, and denial evidence.
+4. Enterprise/public release: HA, backup/restore, capacity evidence, signed/SBOM artifacts, runbooks, and cross-surface release smokes.
 
-## 9. Open Questions
+## 8. Traceability
 
-- iOS Capacitor headless assemble smoke timing on macOS CI runners.
-- Final product UX for agent configuration, session/message management, memory mounting, and task-run history after `@sdkwork/agents-app-sdk` consumption reaches full CRUD parity.
+- The product contract is defined by this PRD and the technical contract in
+  [TECH_ARCHITECTURE.md](../../architecture/tech/TECH_ARCHITECTURE.md).
+- Normative API, security, deployment, persistence, SDK, and test rules remain
+  in the relative sdkwork-specs files; this document does not duplicate them.
+
+## 9. Decisions Still Required
+
+- Select the provider-runtime bundle format and CI build source for the first signed desktop/server packages.
+- Select the strong sandbox implementation for public cloud arbitrary-code execution.
+- Set provider mix and absolute concurrency ceilings from measured capacity, not estimates.

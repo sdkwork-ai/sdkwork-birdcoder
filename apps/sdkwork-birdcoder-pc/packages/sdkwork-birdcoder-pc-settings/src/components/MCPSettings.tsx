@@ -12,6 +12,15 @@ type McpServerRecord = {
 
 const EMPTY_MCP_SERVERS: McpServerRecord[] = [];
 
+function createMcpServerId(): string {
+  const randomUuid = globalThis.crypto?.randomUUID;
+  if (typeof randomUuid === 'function') {
+    return randomUuid.call(globalThis.crypto);
+  }
+
+  return `mcp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function normalizeMcpServers(value: unknown): McpServerRecord[] {
   if (!Array.isArray(value)) {
     return EMPTY_MCP_SERVERS;
@@ -32,7 +41,7 @@ function normalizeMcpServers(value: unknown): McpServerRecord[] {
     const id =
       typeof record.id === 'string' && record.id.trim().length > 0
         ? record.id.trim()
-        : crypto.randomUUID();
+        : createMcpServerId();
 
     return [{ id, name, url }];
   });
@@ -70,7 +79,7 @@ export function MCPSettings(_props: SettingsProps) {
     setServers([
       ...servers,
       {
-        id: crypto.randomUUID(),
+        id: createMcpServerId(),
         name,
         url,
       },
@@ -106,7 +115,7 @@ export function MCPSettings(_props: SettingsProps) {
                 <div>
                   <div className="text-white font-medium">{server.name}</div>
                   <div className="text-sm text-gray-500">
-                    {server.url} � {t('settings.mcp.notConnected')}
+                    {server.url} - {t('settings.mcp.notConnected')}
                   </div>
                 </div>
               </div>

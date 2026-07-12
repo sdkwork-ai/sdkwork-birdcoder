@@ -33,6 +33,7 @@ import {
   saveSessionPromptHistoryEntry,
   settleWorkbenchChatQueuedTurnDispatch,
   useToast,
+  useBirdcoderAppSettings,
   useWorkbenchChatInputDraft,
   useWorkbenchChatMessageQueue,
   useWorkbenchPreferences,
@@ -661,6 +662,7 @@ export const UniversalChat = memo(function UniversalChat({
   const { t, i18n } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerCompositionRef = useRef(false);
   const [showModelMenu, setShowModelMenu] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showPromptModal, setShowPromptModal] = useState(false);
@@ -760,6 +762,7 @@ export const UniversalChat = memo(function UniversalChat({
   const queuedTurnDispatchSettlementTimerRef = useRef<number | null>(null);
   const [queuedTurnFlushGateVersion, setQueuedTurnFlushGateVersion] = useState(0);
   const { addToast } = useToast();
+  const { settings: appSettings } = useBirdcoderAppSettings();
   const { preferences } = useWorkbenchPreferences();
   const modelMenuRef = useRef<HTMLDivElement>(null);
   const selectedModelButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -2331,13 +2334,33 @@ export const UniversalChat = memo(function UniversalChat({
     }
   }, [isActive, showAttachmentMenu, showModelMenu, showPromptModal]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleComposerCompositionStart = () => {
+    composerCompositionRef.current = true;
+  };
+
+  const handleComposerCompositionEnd = () => {
+    composerCompositionRef.current = false;
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Tab') {
-      e.preventDefault();
-      if (inputValue.trim()) {
-        void handleSend();
+      // Keep the browser's normal focus navigation behavior for Tab.
+      return;
+    } else if (e.key === 'Enter') {
+      if (
+        e.shiftKey ||
+        e.nativeEvent.isComposing ||
+        e.nativeEvent.keyCode === 229 ||
+        composerCompositionRef.current
+      ) {
+        return;
       }
-    } else if (e.key === 'Enter' && !e.shiftKey) {
+
+      const hasSubmitModifier = (e.ctrlKey || e.metaKey) && !e.altKey;
+      if (appSettings.requireCtrlEnter && !hasSubmitModifier) {
+        return;
+      }
+
       e.preventDefault();
       void handleSend();
     } else if (e.key === 'ArrowUp') {
@@ -2683,6 +2706,8 @@ export const UniversalChat = memo(function UniversalChat({
               onChange={(e) => setInputValue(e.target.value)}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
+              onCompositionStart={handleComposerCompositionStart}
+              onCompositionEnd={handleComposerCompositionEnd}
               onKeyDown={handleKeyDown}
               placeholder={disabled ? t('chat.placeholderDisabled') : t('chat.placeholderEnabled')}
               className={`w-full bg-transparent outline-none text-[15px] placeholder-gray-500 text-white resize-none min-h-[24px] overflow-y-auto px-1 custom-scrollbar ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -3016,4 +3041,3 @@ export const UniversalChat = memo(function UniversalChat({
 });
 
 UniversalChat.displayName = 'UniversalChat';
-

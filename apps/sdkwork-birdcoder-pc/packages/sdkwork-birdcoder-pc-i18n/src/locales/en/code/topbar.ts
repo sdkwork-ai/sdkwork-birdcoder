@@ -11,7 +11,6 @@ export default defineLocaleModule('code/topbar', {
     "failedToCreateBranch": "Failed to create branch: {{error}}",
     "switchedToBranch": "Switched to branch: {{branch}}",
     "failedToSwitchBranch": "Failed to switch branch: {{error}}",
-    "linkCopied": "Link copied to clipboard",
     "invitationSent": "Invitation sent"
   }
 });

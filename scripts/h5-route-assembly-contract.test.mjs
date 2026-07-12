@@ -22,6 +22,12 @@ const catalogSource = readText(`${shellPrefix}/routes/routeCatalog.ts`);
 const chatRouteContributionsSource = readText(
   `${h5Prefix}/packages/sdkwork-birdcoder-h5-chat/src/routes/appRouteContributions.ts`,
 );
+const chatIndexSource = readText(
+  `${h5Prefix}/packages/sdkwork-birdcoder-h5-chat/src/index.ts`,
+);
+const settingsPageSource = readText(
+  `${h5Prefix}/packages/sdkwork-birdcoder-h5-chat/src/screens/SettingsPage.tsx`,
+);
 const routesSource = readText(`${h5Prefix}/src/routes/index.ts`);
 
 assert.match(
@@ -33,6 +39,21 @@ assert.match(
   appSource,
   /<BirdCoderH5AppRoutes \/>/u,
   'H5 App must mount the shell-owned router provider.',
+);
+assert.match(
+  appSource,
+  /<BirdCoderSettingsProvider>[\s\S]*<BirdCoderH5AppRoutes \/>[\s\S]*<\/BirdCoderSettingsProvider>/u,
+  'H5 App must provide one settings context across chat and settings routes.',
+);
+assert.match(
+  chatIndexSource,
+  /BirdCoderSettingsProvider/u,
+  'h5-chat must expose its settings provider through the package export boundary.',
+);
+assert.doesNotMatch(
+  settingsPageSource,
+  /<BirdCoderSettingsProvider>/u,
+  'H5 SettingsPage must reuse the app-level settings provider instead of creating isolated state.',
 );
 assert.doesNotMatch(
   appSource,

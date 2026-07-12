@@ -10,7 +10,9 @@ use sdkwork_birdcoder_document_service::service::document_service::{
 use sdkwork_birdcoder_errors::{
     build_offset_list_envelope, trace_id_from_request_id, ApiListEnvelope,
 };
-use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
+use sdkwork_birdcoder_router_context::{
+    RequiredIamContext, StrictOffsetListQuery, WebRequestContext,
+};
 
 use crate::error;
 use crate::mapper::request::DocumentListQuery;
@@ -39,36 +41,32 @@ impl DocumentAppState {
 pub async fn list_documents(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<DocumentAppState>,
     Query(query): Query<DocumentListQuery>,
-) -> Result<
-    Json<ApiListEnvelope<DocumentPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiListEnvelope<DocumentPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .service
         .list_documents(
             query.project_id.as_deref(),
             Some(iam.tenant_id.as_str()),
             &DocumentListServiceQuery {
-                offset: query.offset,
-                limit: query.limit,
+                offset: Some(offset),
+                page_size: Some(page_size),
             },
         )
         .await
     {
-        Ok(page) => {
-            let (offset, page_size) = query.normalized_pagination();
-            Ok(Json(build_offset_list_envelope(
-                page.items,
-                offset,
-                page_size,
-                page.total,
-                request_id(&web),
-            )))
-        }
+        Ok(page) => Ok(Json(build_offset_list_envelope(
+            page.items,
+            offset,
+            page_size,
+            page.total,
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_service_error(e, trace_id)),
     }
 }

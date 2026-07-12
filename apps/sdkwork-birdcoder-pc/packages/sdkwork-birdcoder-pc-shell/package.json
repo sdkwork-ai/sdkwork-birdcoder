@@ -16,10 +16,8 @@
     "@sdkwork/birdcoder-pc-code": "workspace:*",
     "@sdkwork/birdcoder-pc-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-settings": "workspace:*",
-    "@sdkwork/birdcoder-pc-skills": "workspace:*",
     "@sdkwork/birdcoder-pc-studio": "workspace:*",
     "@sdkwork/birdcoder-pc-multiwindow": "workspace:*",
-    "@sdkwork/birdcoder-pc-templates": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/terminal-pc-desktop": "workspace:*",
@@ -35,9 +33,12 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./providers/ShellRuntimeProviders": {
+      "import": "./src/application/providers/ShellRuntimeProviders.tsx",
+      "types": "./src/application/providers/ShellRuntimeProviders.tsx"
     }
   }
 }
-
 
 

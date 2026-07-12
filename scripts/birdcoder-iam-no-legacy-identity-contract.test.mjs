@@ -94,9 +94,8 @@ for (const relativePath of [
   '.env.example',
   'README.md',
   'README.zh-CN.md',
-  'docs/superpowers/plans/2026-04-09-birdcoder-data-kernel-implementation.md',
-  'docs/architecture/tech/TECH-17-sdkwork-iam-auth-user-standard.md',
-  'docs/architecture/tech/TECH-topology-standard.md',
+  'docs/product/prd/PRD.md',
+  'docs/architecture/tech/TECH_ARCHITECTURE.md',
   'scripts/birdcoder-command-options.mjs',
   'scripts/birdcoder-iam-command-matrix.mjs',
   'scripts/birdcoder-iam-env.mjs',
@@ -122,8 +121,7 @@ for (const relativePath of [
 for (const relativePath of [
   'docs/guide/development.md',
   'docs/README.md',
-  'docs/architecture/TECH_ARCHITECTURE.md',
-  'docs/architecture/tech/TECH-17-sdkwork-iam-auth-user-standard.md',
+  'docs/architecture/tech/TECH_ARCHITECTURE.md',
 ]) {
   assertNoRetiredAppbaseIamText(relativePath);
 }
@@ -156,13 +154,11 @@ for (const retiredPath of [
   );
 }
 
-const iamIntegrationPlanSource = readText(
-  'docs/superpowers/plans/2026-05-25-birdcoder-iam-integration.md',
-);
+const iamIntegrationPlanSource = readText('docs/product/prd/PRD.md');
 assert.doesNotMatch(
   iamIntegrationPlanSource,
   /^- \[ \]/mu,
-  'BirdCoder IAM integration plan must not leave open implementation checklist items after the standard IAM migration lands.',
+  'BirdCoder PRD must not use unchecked implementation tasks as product requirements.',
 );
 
 console.log('birdcoder iam no legacy identity contract passed.');

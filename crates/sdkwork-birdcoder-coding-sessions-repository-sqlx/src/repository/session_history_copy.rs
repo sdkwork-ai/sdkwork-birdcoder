@@ -2,7 +2,7 @@ use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_project_service::pagination::MAX_LIST_PAGE_SIZE;
 use sdkwork_birdcoder_sqlx_repository_pool::dialect::IS_NOT_DELETED;
-use sqlx::{AnyRow, Row, Transaction};
+use sqlx::{any::AnyRow, Row, Transaction};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -26,13 +26,9 @@ pub async fn copy_session_history_on_pool(
     target_session_id: &str,
 ) -> Result<usize, CodingSessionError> {
     let mut tx = map_sqlx_error(pool.begin().await)?;
-    let copied = copy_session_history_in_transaction(
-        &mut tx,
-        ctx,
-        source_session_id,
-        target_session_id,
-    )
-    .await?;
+    let copied =
+        copy_session_history_in_transaction(&mut tx, ctx, source_session_id, target_session_id)
+            .await?;
     map_sqlx_error(tx.commit().await)?;
     Ok(copied)
 }
@@ -49,10 +45,12 @@ pub async fn copy_session_history_in_transaction(
     let now = now_iso();
     let mut total_copied: usize = 0;
 
-    total_copied += copy_messages_in_batches(tx, source_session_id, target_session_id, &now).await?;
+    total_copied +=
+        copy_messages_in_batches(tx, source_session_id, target_session_id, &now).await?;
     total_copied += copy_turns_in_batches(tx, source_session_id, target_session_id, &now).await?;
     total_copied += copy_events_in_batches(tx, source_session_id, target_session_id, &now).await?;
-    total_copied += copy_artifacts_in_batches(tx, source_session_id, target_session_id, &now).await?;
+    total_copied +=
+        copy_artifacts_in_batches(tx, source_session_id, target_session_id, &now).await?;
 
     Ok(total_copied)
 }
@@ -122,20 +120,28 @@ async fn copy_messages_in_batches(
             let turn_id: Option<String> = row.try_get(columns::message::TURN_ID).ok().flatten();
             let role: String = row.try_get(columns::message::ROLE).unwrap_or_default();
             let content: String = row.try_get(columns::message::CONTENT).unwrap_or_default();
-            let metadata_json: String =
-                row.try_get(columns::message::METADATA_JSON).unwrap_or_default();
-            let timestamp_ms: Option<i64> = row.try_get(columns::message::TIMESTAMP_MS).ok().flatten();
+            let metadata_json: String = row
+                .try_get(columns::message::METADATA_JSON)
+                .unwrap_or_default();
+            let timestamp_ms: Option<i64> =
+                row.try_get(columns::message::TIMESTAMP_MS).ok().flatten();
             let name: Option<String> = row.try_get(columns::message::NAME).ok().flatten();
-            let tool_calls_json: Option<String> =
-                row.try_get(columns::message::TOOL_CALLS_JSON).ok().flatten();
+            let tool_calls_json: Option<String> = row
+                .try_get(columns::message::TOOL_CALLS_JSON)
+                .ok()
+                .flatten();
             let tool_call_id: Option<String> =
                 row.try_get(columns::message::TOOL_CALL_ID).ok().flatten();
-            let file_changes_json: Option<String> =
-                row.try_get(columns::message::FILE_CHANGES_JSON).ok().flatten();
+            let file_changes_json: Option<String> = row
+                .try_get(columns::message::FILE_CHANGES_JSON)
+                .ok()
+                .flatten();
             let commands_json: Option<String> =
                 row.try_get(columns::message::COMMANDS_JSON).ok().flatten();
-            let task_progress_json: Option<String> =
-                row.try_get(columns::message::TASK_PROGRESS_JSON).ok().flatten();
+            let task_progress_json: Option<String> = row
+                .try_get(columns::message::TASK_PROGRESS_JSON)
+                .ok()
+                .flatten();
 
             map_sqlx_error(
                 sqlx::query(&insert_sql)
@@ -211,7 +217,9 @@ async fn copy_turns_in_batches(
             let runtime_id: Option<String> = row.try_get(columns::turn::RUNTIME_ID).ok().flatten();
             let request_kind: String = row.try_get(columns::turn::REQUEST_KIND).unwrap_or_default();
             let status: String = row.try_get(columns::turn::STATUS).unwrap_or_default();
-            let input_summary: String = row.try_get(columns::turn::INPUT_SUMMARY).unwrap_or_default();
+            let input_summary: String = row
+                .try_get(columns::turn::INPUT_SUMMARY)
+                .unwrap_or_default();
             let started_at: Option<String> = row.try_get(columns::turn::STARTED_AT).ok().flatten();
             let completed_at: Option<String> =
                 row.try_get(columns::turn::COMPLETED_AT).ok().flatten();
@@ -285,7 +293,9 @@ async fn copy_events_in_batches(
             let runtime_id: Option<String> = row.try_get(columns::event::RUNTIME_ID).ok().flatten();
             let event_kind: String = row.try_get(columns::event::EVENT_KIND).unwrap_or_default();
             let sequence_no: i32 = row.try_get(columns::event::SEQUENCE_NO).unwrap_or(0);
-            let payload_json: String = row.try_get(columns::event::PAYLOAD_JSON).unwrap_or_default();
+            let payload_json: String = row
+                .try_get(columns::event::PAYLOAD_JSON)
+                .unwrap_or_default();
 
             map_sqlx_error(
                 sqlx::query(&insert_sql)
@@ -352,12 +362,14 @@ async fn copy_artifacts_in_batches(
         for row in &rows {
             let new_id = Uuid::new_v4().to_string();
             let turn_id: Option<String> = row.try_get(columns::artifact::TURN_ID).ok().flatten();
-            let artifact_kind: String =
-                row.try_get(columns::artifact::ARTIFACT_KIND).unwrap_or_default();
+            let artifact_kind: String = row
+                .try_get(columns::artifact::ARTIFACT_KIND)
+                .unwrap_or_default();
             let title: String = row.try_get(columns::artifact::TITLE).unwrap_or_default();
             let blob_ref: Option<String> = row.try_get(columns::artifact::BLOB_REF).ok().flatten();
-            let metadata_json: String =
-                row.try_get(columns::artifact::METADATA_JSON).unwrap_or_default();
+            let metadata_json: String = row
+                .try_get(columns::artifact::METADATA_JSON)
+                .unwrap_or_default();
 
             map_sqlx_error(
                 sqlx::query(&insert_sql)

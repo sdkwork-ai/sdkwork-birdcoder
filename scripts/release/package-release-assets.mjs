@@ -23,8 +23,11 @@ import {
   resolveServerBinaryFileName,
   SERVER_CRATE_BINARY_NAME,
 } from './release-build-paths.mjs';
+import { sha256File } from '../sdkwork-utils-digest.mjs';
 
 const DEFAULT_KUBERNETES_IMAGE_REPOSITORY = 'ghcr.io/sdkwork-cloud/sdkwork-birdcoder-server';
+const PROVIDER_RUNTIME_BUILD_REL = path.join('artifacts', 'provider-runtime');
+const PROVIDER_RUNTIME_MANIFEST_FILE_NAME = 'runtime-manifest.json';
 
 function parseOptions(argv) {
   const options = {};
@@ -121,6 +124,101 @@ function copyRequiredFile({
 
   ensureDir(path.dirname(targetPath));
   fs.copyFileSync(sourcePath, targetPath);
+}
+
+function computeSha256(filePath) {
+  return sha256File(filePath);
+}
+
+function validateProviderRuntimeAsset(sourceRoot, asset, label) {
+  const relativePath = String(asset?.relativePath ?? '').trim().replaceAll('\\', '/');
+  if (!relativePath || path.isAbsolute(relativePath) || relativePath.split('/').includes('..')) {
+    throw new Error(`Invalid ${label} path in provider runtime manifest: ${relativePath || 'missing'}`);
+  }
+  const assetPath = path.resolve(sourceRoot, relativePath);
+  const normalizedSourceRoot = `${path.resolve(sourceRoot)}${path.sep}`;
+  if (!assetPath.startsWith(normalizedSourceRoot)) {
+    throw new Error(`Unsafe ${label} path in provider runtime manifest: ${relativePath}`);
+  }
+  if (!fs.existsSync(assetPath) || !fs.statSync(assetPath).isFile()) {
+    throw new Error(
+      `Missing required ${label}: ${assetPath}. Run \`pnpm provider-runtime:prepare\` before packaging provider-enabled release assets.`,
+    );
+  }
+  const expectedSha256 = String(asset?.sha256 ?? '').trim().toLowerCase();
+  const actualSha256 = computeSha256(assetPath);
+  if (!/^[a-f0-9]{64}$/u.test(expectedSha256) || expectedSha256 !== actualSha256) {
+    throw new Error(
+      `Provider runtime checksum mismatch for ${relativePath}: manifest=${expectedSha256 || 'missing'} actual=${actualSha256}. Run \`pnpm provider-runtime:prepare\` before packaging.`,
+    );
+  }
+  if (Number(asset?.size) !== fs.statSync(assetPath).size) {
+    throw new Error(
+      `Provider runtime size mismatch for ${relativePath}. Run \`pnpm provider-runtime:prepare\` before packaging.`,
+    );
+  }
+}
+
+function copyRequiredProviderRuntime({
+  bundleRoot,
+  descriptor,
+  rootDir,
+}) {
+  const sourceRoot = path.join(rootDir, PROVIDER_RUNTIME_BUILD_REL);
+  const manifestPath = path.join(sourceRoot, PROVIDER_RUNTIME_MANIFEST_FILE_NAME);
+  copyRequiredFile({
+    sourcePath: manifestPath,
+    targetPath: manifestPath,
+    label: 'provider runtime manifest',
+    command: 'pnpm provider-runtime:prepare',
+    releaseAssetsLabel: `${descriptor.family} release assets`,
+  });
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  } catch (error) {
+    throw new Error(`Invalid provider runtime manifest ${manifestPath}: ${error.message}`);
+  }
+  if (manifest?.kind !== 'sdkwork.birdcoder.provider-runtime' || manifest?.schemaVersion !== 1) {
+    throw new Error(`Unsupported provider runtime manifest contract: ${manifestPath}`);
+  }
+  const targetPlatform = String(manifest?.target?.platform ?? '').trim();
+  const targetArchitecture = String(manifest?.target?.architecture ?? '').trim();
+  if (targetPlatform !== descriptor.platform || targetArchitecture !== descriptor.arch) {
+    throw new Error(
+      `Provider runtime target mismatch: release=${descriptor.platform}/${descriptor.arch} runtime=${targetPlatform || 'missing'}/${targetArchitecture || 'missing'}. Run \`pnpm provider-runtime:prepare\` for the release target.`,
+    );
+  }
+  validateProviderRuntimeAsset(sourceRoot, manifest.node, 'provider runtime Node executable');
+  const workerAssets = Array.isArray(manifest.workers) ? manifest.workers : [];
+  const workerPaths = new Set(workerAssets.map((asset) => String(asset?.relativePath ?? '').replaceAll('\\', '/')));
+  for (const requiredWorker of [
+    'workers/generic-ts-sdk-worker.mjs',
+    'workers/engine-sdk-live.mjs',
+    'workers/codex-cli-live.mjs',
+    'workers/provider-cli-live.mjs',
+  ]) {
+    if (!workerPaths.has(requiredWorker)) {
+      throw new Error(`Provider runtime manifest is missing required worker: ${requiredWorker}`);
+    }
+  }
+  for (const workerAsset of workerAssets) {
+    validateProviderRuntimeAsset(sourceRoot, workerAsset, 'provider runtime worker');
+  }
+  const providerIds = new Set((manifest.providers ?? []).map((provider) => provider?.id));
+  for (const providerId of ['codex', 'claude-code', 'gemini-cli', 'opencode']) {
+    if (!providerIds.has(providerId)) {
+      throw new Error(`Provider runtime manifest is missing provider contract: ${providerId}`);
+    }
+  }
+  copyRequiredBuildOutput({
+    sourcePath: sourceRoot,
+    targetPath: path.join(bundleRoot, 'provider-runtime'),
+    label: 'provider runtime build output',
+    command: 'pnpm provider-runtime:prepare',
+    releaseAssetsLabel: `${descriptor.family} release assets`,
+    requiredEntries: [PROVIDER_RUNTIME_MANIFEST_FILE_NAME],
+  });
 }
 
 function resolveRequiredServerBinaryPath({
@@ -784,6 +882,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
       releaseAssetsLabel: 'desktop release assets',
       requiredEntries: ['index.html'],
     });
+    copyRequiredProviderRuntime({ bundleRoot, descriptor, rootDir });
     return;
   }
 
@@ -809,6 +908,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
       releaseAssetsLabel: 'server release assets',
       requiredEntries: ['index.html'],
     });
+    copyRequiredProviderRuntime({ bundleRoot, descriptor, rootDir });
     return;
   }
 
@@ -836,6 +936,7 @@ function stageFamilyPayload(bundleRoot, family, descriptor, rootDir, profile) {
       releaseAssetsLabel: 'container release assets',
       requiredEntries: ['index.html'],
     });
+    copyRequiredProviderRuntime({ bundleRoot, descriptor, rootDir });
     writeContainerReleaseSidecars(bundleRoot, descriptor);
     return;
   }
@@ -895,6 +996,11 @@ function publishDockerHostServerArtifacts({
 }
 
 function copyFamilySidecars(bundleRoot, outputFamilyDir, family) {
+  copyIfExists(
+    path.join(bundleRoot, 'provider-runtime', PROVIDER_RUNTIME_MANIFEST_FILE_NAME),
+    path.join(outputFamilyDir, 'provider-runtime', PROVIDER_RUNTIME_MANIFEST_FILE_NAME),
+  );
+
   if (family === 'desktop') {
     return;
   }

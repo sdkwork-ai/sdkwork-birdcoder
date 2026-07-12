@@ -14,7 +14,6 @@ export interface StudioDialogSurfaceModel {
   currentProjectName?: string;
   deleteConfirmation: StudioDeleteConfirmation | null;
   handleConfirmDelete: StudioPageDialogsProps['onConfirmDelete'];
-  handleCopyPublicLink: StudioPageDialogsProps['onCopyPublicLink'];
   handleInviteCollaborator: StudioPageDialogsProps['onInviteCollaborator'];
   handleRunTaskExecution: StudioPageDialogsProps['onRunTask'];
   handleSaveDebugConfiguration: StudioPageDialogsProps['onSaveDebugConfig'];
@@ -26,7 +25,6 @@ export interface StudioDialogSurfaceModel {
   isInvitePending: StudioPageDialogsProps['isInvitePending'];
   isRunConfigVisible: StudioPageDialogsProps['isRunConfigVisible'];
   isRunTaskVisible: StudioPageDialogsProps['isRunTaskVisible'];
-  publicShareUrl: StudioPageDialogsProps['publicShareUrl'];
   runConfigurationDraft: StudioPageDialogsProps['runConfigurationDraft'];
   runConfigurations: StudioPageDialogsProps['runConfigurations'];
   setDeleteConfirmation: Dispatch<SetStateAction<StudioDeleteConfirmation | null>>;
@@ -36,10 +34,8 @@ export interface StudioDialogSurfaceModel {
   setIsRunConfigVisible: Dispatch<SetStateAction<boolean>>;
   setIsRunTaskVisible: Dispatch<SetStateAction<boolean>>;
   setRunConfigurationDraft: StudioPageDialogsProps['onRunConfigurationDraftChange'];
-  setShareAccess: StudioPageDialogsProps['onShareAccessChange'];
   setShowPublishModal: Dispatch<SetStateAction<boolean>>;
   setShowShareModal: Dispatch<SetStateAction<boolean>>;
-  shareAccess: StudioPageDialogsProps['shareAccess'];
   showPublishModal: StudioPageDialogsProps['showPublishModal'];
   showShareModal: StudioPageDialogsProps['showShareModal'];
 }
@@ -56,7 +52,6 @@ export function StudioDialogSurface({ model }: StudioDialogSurfaceProps) {
     currentProjectName,
     deleteConfirmation,
     handleConfirmDelete,
-    handleCopyPublicLink,
     handleInviteCollaborator,
     handleRunTaskExecution,
     handleSaveDebugConfiguration,
@@ -68,7 +63,6 @@ export function StudioDialogSurface({ model }: StudioDialogSurfaceProps) {
     isInvitePending,
     isRunConfigVisible,
     isRunTaskVisible,
-    publicShareUrl,
     runConfigurationDraft,
     runConfigurations,
     setDeleteConfirmation,
@@ -78,10 +72,8 @@ export function StudioDialogSurface({ model }: StudioDialogSurfaceProps) {
     setIsRunConfigVisible,
     setIsRunTaskVisible,
     setRunConfigurationDraft,
-    setShareAccess,
     setShowPublishModal,
     setShowShareModal,
-    shareAccess,
     showPublishModal,
     showShareModal,
   } = model;
@@ -109,15 +101,11 @@ export function StudioDialogSurface({ model }: StudioDialogSurfaceProps) {
       onCancelDelete={() => setDeleteConfirmation(null)}
       onConfirmDelete={handleConfirmDelete}
       showShareModal={showShareModal}
-      shareAccess={shareAccess}
-      publicShareUrl={publicShareUrl}
       collaborators={collaborators}
       inviteEmail={inviteEmail}
       isCollaboratorsLoading={isCollaboratorsLoading}
       isInvitePending={isInvitePending}
-      onShareAccessChange={setShareAccess}
       onCloseShare={() => setShowShareModal(false)}
-      onCopyPublicLink={handleCopyPublicLink}
       onInviteEmailChange={setInviteEmail}
       onInviteCollaborator={handleInviteCollaborator}
       showPublishModal={showPublishModal}

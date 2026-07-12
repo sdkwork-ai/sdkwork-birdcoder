@@ -1,7 +1,7 @@
 import type { BirdHostDescriptor } from '@sdkwork/birdcoder-pc-host-core';
 import {
   bindDefaultBirdCoderIdeServicesRuntime,
-  loadDefaultBirdCoderIdeService,
+  bootstrapBirdCoderMembershipSdk,
   type BirdCoderAppSdkApiClient,
   type BirdCoderBackendSdkApiClient,
 } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
@@ -62,14 +62,7 @@ function createShellRuntimeBootstrapTimeoutPromise(
 
 async function runBootstrapShellRuntimeOnce(attemptId: number): Promise<void> {
   try {
-    const [appRuntimeReadService, appRuntimeWriteService] = await Promise.all([
-      loadDefaultBirdCoderIdeService('appRuntimeReadService'),
-      loadDefaultBirdCoderIdeService('appRuntimeWriteService'),
-    ]);
-    await bootstrapShellUserState({
-      appRuntimeReadService,
-      appRuntimeWriteService,
-    });
+    await bootstrapShellUserState();
     if (
       attemptId === bootstrapShellRuntimeAttemptId &&
       !abandonedBootstrapAttemptIds.has(attemptId)
@@ -98,6 +91,7 @@ export async function bootstrapShellRuntimeImpl(
   options: BootstrapShellRuntimeOptions = {},
 ): Promise<void> {
   bindDefaultBirdCoderIdeServicesRuntime(options);
+  bootstrapBirdCoderMembershipSdk();
 
   if (bootstrapped) {
     return;

@@ -2,9 +2,9 @@ export const SDKWORK_IAM_WORKSPACE_REL = '../sdkwork-iam';
 export const SDKWORK_APPBASE_WORKSPACE_REL = '../sdkwork-appbase';
 
 export const IAM_APP_SDK_REL =
-  'sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts';
+  'sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts';
 export const IAM_BACKEND_SDK_REL =
-  'sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi/src/index.ts';
+  'sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/src/index.ts';
 
 export const IAM_CONTRACTS_INDEX_REL =
   'apps/sdkwork-iam-common/packages/sdkwork-iam-contracts/src/index.ts';

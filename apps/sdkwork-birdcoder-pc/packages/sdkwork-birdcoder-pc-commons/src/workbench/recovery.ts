@@ -13,8 +13,6 @@ const WORKBENCH_RECOVERY_TABS = new Set<AppTab>([
   'auth',
   'user',
   'vip',
-  'skills',
-  'templates',
 ]);
 
 export interface WorkbenchRecoverySnapshot {

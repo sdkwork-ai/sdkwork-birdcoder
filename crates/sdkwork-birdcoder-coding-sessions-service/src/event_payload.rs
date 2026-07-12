@@ -1,4 +1,4 @@
-﻿use std::collections::BTreeMap;
+use std::collections::BTreeMap;
 
 use sdkwork_utils_rust::is_blank;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -206,7 +206,10 @@ pub fn next_event_sequence(snapshot: &ProjectionSnapshot) -> usize {
         .unwrap_or(0)
 }
 
-pub fn payload_string_ref<'a>(payload: &'a CodingSessionEventPayloadMap, key: &str) -> Option<&'a str> {
+pub fn payload_string_ref<'a>(
+    payload: &'a CodingSessionEventPayloadMap,
+    key: &str,
+) -> Option<&'a str> {
     payload.get(key).and_then(serde_json::Value::as_str)
 }
 
@@ -278,17 +281,34 @@ pub fn build_projection_turn_event_id(runtime_id: &str, turn_id: &str, sequence:
     format!("{runtime_id}:{turn_id}:event:{sequence}")
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct SucceededCodingSessionTurnEventInput<'a> {
+    pub coding_session_id: &'a str,
+    pub runtime_id: &'a str,
+    pub turn_id: &'a str,
+    pub operation_id: &'a str,
+    pub assistant_content: &'a str,
+    pub commands: Option<&'a [NativeSessionCommandPayload]>,
+    pub base_sequence: usize,
+    pub completed_at: &'a str,
+    pub native_session_id: Option<&'a str>,
+}
+
 pub fn build_succeeded_coding_session_turn_events(
-    coding_session_id: &str,
-    runtime_id: &str,
-    turn_id: &str,
-    operation_id: &str,
-    assistant_content: &str,
-    commands: Option<&[NativeSessionCommandPayload]>,
-    base_sequence: usize,
-    completed_at: &str,
-    native_session_id: Option<&str>,
+    input: SucceededCodingSessionTurnEventInput<'_>,
 ) -> Vec<CodingSessionEventPayload> {
+    let SucceededCodingSessionTurnEventInput {
+        coding_session_id,
+        runtime_id,
+        turn_id,
+        operation_id,
+        assistant_content,
+        commands,
+        base_sequence,
+        completed_at,
+        native_session_id,
+    } = input;
+
     let mut assistant_message_payload = CodingSessionEventPayloadMap::new();
     insert_payload_string(&mut assistant_message_payload, "role", "assistant");
     insert_payload_string(&mut assistant_message_payload, "content", assistant_content);

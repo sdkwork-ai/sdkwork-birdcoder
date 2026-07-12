@@ -218,8 +218,8 @@ assert.match(
 );
 assert.match(
   sdkClientsSource,
-  /client\.runtime\.modelConfig\.sync/u,
-  'app SDK wrapper must route runtime model config sync through the generated app SDK runtime namespace.',
+  /client\.runtime\.modelConfig\.update/u,
+  'app SDK wrapper must route runtime model config updates through the generated app SDK runtime namespace.',
 );
 assert.doesNotMatch(
   sdkClientsSource,

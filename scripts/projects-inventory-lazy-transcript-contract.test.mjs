@@ -35,14 +35,8 @@ assert.match(
 
 assert.match(
   source,
-  /const projectMirrorReader = projectService\.getProjectMirrorSnapshots\?\.bind\(projectService\);[\s\S]*return projectSnapshots\.map\(materializeProjectInventoryFromMirrorSnapshot\);[\s\S]*return projectService\.getProjects\(workspaceId, pagination\);/,
-  'useProjects startup inventory must prefer project mirror snapshots before falling back to full project reads.',
-);
-
-assert.match(
-  source,
-  /messages:\s*EMPTY_PROJECT_INVENTORY_MESSAGES/,
-  'project mirror snapshots must be materialized as summary-only sessions without transcript messages.',
+  /function readProjectInventoryPageForWorkspace\([\s\S]*return projectService\.getProjectsPage\(workspaceId, request\);/,
+  'useProjects startup inventory must use the bounded project page service.',
 );
 
 assert.match(
@@ -59,7 +53,7 @@ assert.match(
 
 assert.match(
   source,
-  /normalizeProjectsForInventoryStore\(projects\.filter\(Boolean\)\)/,
+  /normalizeProjectsForInventoryStore\(page\.items\.filter\(Boolean\)\)/,
   'useProjects must normalize authoritative project inventory payloads before merging them into the shared store.',
 );
 

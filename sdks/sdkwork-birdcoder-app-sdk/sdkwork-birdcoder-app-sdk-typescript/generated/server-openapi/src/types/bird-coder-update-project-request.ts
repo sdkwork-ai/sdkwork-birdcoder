@@ -1,7 +1,7 @@
 export interface BirdCoderUpdateProjectRequest {
   description?: string;
   /** DATABASE_SPEC.md standard data scope. */
-  dataScope?: 'workspace' | 'project' | 'user' | 'team' | 'organization';
+  dataScope?: 'DEFAULT' | 'PRIVATE' | 'ORGANIZATION' | 'TENANT' | 'PUBLIC';
   userId?: string;
   parentId?: string;
   parentUuid?: string;

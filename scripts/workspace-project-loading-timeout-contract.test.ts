@@ -140,8 +140,8 @@ assert.match(
 );
 assert.match(
   useWorkspacesSource,
-  /function runWorkspaceFetchWithTimeout\([\s\S]*Promise\.race\(\[[\s\S]*workspaceService\.getWorkspaces\(pagination\)[\s\S]*timeoutBoundary\.promise[\s\S]*\]\)[\s\S]*timeoutBoundary\.clear\(\);/,
-  'useWorkspaces must race paginated workspaceService.getWorkspaces against a timeout boundary.',
+  /function runWorkspaceFetchWithTimeout\([\s\S]*Promise\.race\(\[[\s\S]*workspaceService\.getWorkspacesPage\(request\)[\s\S]*timeoutBoundary\.promise[\s\S]*\]\)[\s\S]*timeoutBoundary\.clear\(\);/,
+  'useWorkspaces must race paginated workspaceService.getWorkspacesPage against a timeout boundary.',
 );
 assert.match(
   useProjectsSource,
@@ -150,8 +150,8 @@ assert.match(
 );
 assert.match(
   useProjectsSource,
-  /function readProjectInventoryForWorkspaceWithTimeout\([\s\S]*Promise\.race\(\[[\s\S]*readProjectInventoryForWorkspace\(workspaceId, projectService, pagination\)[\s\S]*timeoutBoundary\.promise[\s\S]*\]\)[\s\S]*timeoutBoundary\.clear\(\);/,
-  'useProjects must race paginated project inventory reads against a timeout boundary.',
+  /function readProjectInventoryPageForWorkspaceWithTimeout\([\s\S]*Promise\.race\(\[[\s\S]*readProjectInventoryPageForWorkspace\(workspaceId, projectService, request\)[\s\S]*timeoutBoundary\.promise[\s\S]*\]\)[\s\S]*timeoutBoundary\.clear\(\);/,
+  'useProjects must race paginated project page reads against a timeout boundary.',
 );
 assert.match(
   importedProjectHydrationSource,

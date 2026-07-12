@@ -18,8 +18,9 @@ interface MultiWindowComposerProps {
   dispatchSummary?: MultiWindowDispatchBatchSummary | null;
   dispatchState: MultiWindowDispatchState;
   isDispatching: boolean;
+  isStoppingDispatch?: boolean;
   value: string;
-  onCancelDispatch?: () => void;
+  onStopDispatch?: () => void;
   onRetryFailed?: () => void;
   onSubmit: () => void;
   onValueChange: (value: string) => void;
@@ -32,15 +33,16 @@ export const MultiWindowComposer = memo(function MultiWindowComposer({
   dispatchSummary,
   dispatchState,
   isDispatching,
+  isStoppingDispatch = false,
   value,
-  onCancelDispatch,
+  onStopDispatch,
   onRetryFailed,
   onSubmit,
   onValueChange,
 }: MultiWindowComposerProps) {
   const { t } = useTranslation();
   const canSubmit = value.trim().length > 0 && !disabled && !isDispatching;
-  const canCancelDispatch = isDispatching && Boolean(onCancelDispatch);
+  const showStopDispatch = isDispatching && Boolean(onStopDispatch);
   const canRetry = canRetryFailed && !disabled && !isDispatching && Boolean(onRetryFailed);
   const hasDispatchSummary = dispatchState !== 'idle' && Boolean(dispatchSummary);
 
@@ -94,7 +96,9 @@ export const MultiWindowComposer = memo(function MultiWindowComposer({
                   <span className="text-emerald-300">{t('multiWindow.successCount', { count: dispatchSummary.successPaneCount })}</span>
                   <span className="text-red-300">{t('multiWindow.failedCount', { count: dispatchSummary.failedPaneCount })}</span>
                   <span className="text-gray-500">{t('multiWindow.skippedCount', { count: dispatchSummary.skippedPaneCount })}</span>
-                  <span className="text-amber-300">{t('multiWindow.cancelledCount', { count: dispatchSummary.cancelledPaneCount })}</span>
+                  <span className="text-amber-300">
+                    {t('multiWindow.notSubmittedCount', { count: dispatchSummary.notSubmittedPaneCount })}
+                  </span>
                   <span className="text-gray-400">
                     {t('multiWindow.durationSummary', { durationMs: dispatchSummary.durationMs })}
                   </span>
@@ -119,14 +123,15 @@ export const MultiWindowComposer = memo(function MultiWindowComposer({
                   <span>{t('multiWindow.retryFailed')}</span>
                 </button>
               ) : null}
-              {canCancelDispatch ? (
+              {showStopDispatch ? (
                 <button
                   type="button"
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/15 text-amber-100 ring-1 ring-amber-300/20 transition-colors hover:bg-amber-500/25"
-                  onClick={onCancelDispatch}
-                  title={t('multiWindow.cancelDispatch')}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/15 text-amber-100 ring-1 ring-amber-300/20 transition-colors hover:bg-amber-500/25 disabled:cursor-wait disabled:opacity-60"
+                  disabled={isStoppingDispatch}
+                  onClick={onStopDispatch}
+                  title={t(isStoppingDispatch ? 'multiWindow.stoppingDispatch' : 'multiWindow.stopDispatch')}
                 >
-                  <Square size={14} />
+                  {isStoppingDispatch ? <Loader2 size={14} className="animate-spin" /> : <Square size={14} />}
                 </button>
               ) : null}
               <button

@@ -3,9 +3,46 @@ description = "Default desktop app permissions for the BirdCoder Rust host bridg
 permissions = [
   "allow-host-mode",
   "allow-desktop-runtime-config",
-  "allow-local-store",
-  "allow-file-system-bridge",
-  "allow-desktop-host-bridge",
+  "allow-local-store-get",
+  "allow-local-store-set",
+  "allow-local-store-delete",
+  "allow-local-store-list",
+  "allow-local-sql-execute-plan",
+  "allow-user-home-config-read",
+  "allow-user-home-config-write",
+  "allow-fs-list-directory",
+  "allow-fs-snapshot-folder",
+  "allow-fs-read-file",
+  "allow-fs-get-file-revision",
+  "allow-fs-get-file-revisions",
+  "allow-fs-get-directory-revisions",
+  "allow-fs-write-file",
+  "allow-fs-create-file",
+  "allow-fs-create-directory",
+  "allow-fs-delete-entry",
+  "allow-fs-rename-entry",
+  "allow-fs-watch-start",
+  "allow-fs-watch-stop",
+  "allow-terminal-cli-profile-detect",
+  "allow-desktop-pick-working-directory",
+  "allow-desktop-reveal-in-file-manager",
+  "allow-desktop-window-controls-bridge-capabilities",
+  "allow-desktop-configure-window-controls-bridge",
+  "allow-desktop-perform-window-control-action",
+  "allow-desktop-session-index",
+  "allow-desktop-session-replay-slice",
+  "allow-desktop-session-attach",
+  "allow-desktop-session-detach",
+  "allow-desktop-session-reattach",
+  "allow-desktop-terminal-session-inventory-list",
+  "allow-desktop-local-shell-exec",
+  "allow-desktop-local-shell-session-create",
+  "allow-desktop-local-process-session-create",
+  "allow-desktop-session-input",
+  "allow-desktop-session-input-bytes",
+  "allow-desktop-session-attachment-acknowledge",
+  "allow-desktop-session-resize",
+  "allow-desktop-session-terminate",
 ]
 
 [[set]]
@@ -46,6 +83,7 @@ description = "Allows desktop shell host bridge commands."
 permissions = [
   "allow-terminal-cli-profile-detect",
   "allow-desktop-pick-working-directory",
+  "allow-desktop-reveal-in-file-manager",
   "allow-desktop-window-controls-bridge-capabilities",
   "allow-desktop-configure-window-controls-bridge",
   "allow-desktop-perform-window-control-action",
@@ -184,6 +222,11 @@ commands.allow = ["terminal_cli_profile_detect"]
 identifier = "allow-desktop-pick-working-directory"
 description = "Enables the desktop_pick_working_directory command."
 commands.allow = ["desktop_pick_working_directory"]
+
+[[permission]]
+identifier = "allow-desktop-reveal-in-file-manager"
+description = "Enables the desktop_reveal_in_file_manager command."
+commands.allow = ["desktop_reveal_in_file_manager"]
 
 [[permission]]
 identifier = "allow-desktop-window-controls-bridge-capabilities"

@@ -47,3 +47,4 @@ export * from './services/interfaces/ITeamService.ts';
 export * from './services/interfaces/IFileSystemService.ts';
 export * from './services/interfaces/IAuthService.ts';
 export * from './services/interfaces/IVipMembershipService.ts';
+export * from './services/membershipSdkBootstrap.ts';

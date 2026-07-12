@@ -10,6 +10,7 @@ mod boundaries;
 mod chat_assistant;
 mod engine_registry;
 mod host;
+mod kernel_turn_io;
 mod turn_executor;
 
 pub use agent_projection::{
@@ -26,6 +27,10 @@ pub use engine_registry::{
 };
 pub use host::{
     submit_approval_decision, submit_user_question_answer, BirdcoderKernelHost,
+};
+pub use kernel_turn_io::{
+    read_bounded_turn_request, serialize_bounded_turn_result, KernelTurnIoError,
+    MAX_KERNEL_TURN_REQUEST_BYTES, MAX_KERNEL_TURN_RESPONSE_BYTES,
 };
 pub use sdkwork_agents_runtime_facade::{
     AgentsCodeEngineHost, ApprovalDecision, CodeEngineCatalog, CodeEngineModelCatalogEntry,

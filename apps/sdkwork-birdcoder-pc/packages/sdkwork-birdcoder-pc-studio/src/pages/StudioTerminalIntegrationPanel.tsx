@@ -1,7 +1,8 @@
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import {
   areTerminalCommandRequestsEqual,
   useBirdcoderTerminalLaunchPlanResolver,
+  useToast,
   type TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-commons';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
@@ -37,9 +38,15 @@ export const StudioTerminalIntegrationPanel = memo(function StudioTerminalIntegr
   projectId,
   onResize,
 }: StudioTerminalIntegrationPanelProps) {
+  const { addToast } = useToast();
+  const handleLaunchBlocked = useCallback(
+    (message: string) => addToast(message, 'error'),
+    [addToast],
+  );
   const resolveTerminalLaunchPlan = useBirdcoderTerminalLaunchPlanResolver(
     workspaceId,
     projectId,
+    handleLaunchBlocked,
   );
 
   return (

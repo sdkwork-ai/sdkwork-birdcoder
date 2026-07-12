@@ -15,6 +15,7 @@ time = { workspace = true }
 tokio = { version = "1", features = ["full"] }
 sdkwork-birdcoder-coding-sessions-service = { workspace = true }
 sdkwork-birdcoder-errors = { path = "../sdkwork-birdcoder-errors" }
+sdkwork-birdcoder-project-service = { workspace = true }
 sdkwork-birdcoder-sqlx-repository-pool = { workspace = true }
 sdkwork-utils-rust.workspace = true
 

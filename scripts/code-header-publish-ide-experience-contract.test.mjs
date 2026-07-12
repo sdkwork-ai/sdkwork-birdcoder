@@ -34,8 +34,14 @@ assert.match(
 
 assert.match(
   source,
-  /publishRuntime === 'web'\s*\? 'SDKWORK Cloud Web'/s,
+  /function resolveDefaultPublishTargetName\([\s\S]*?return runtime === 'web'\s*\? 'SDKWORK Cloud Web'/u,
   'New web app publish targets must default to SDKWORK Cloud Web for one-click frontend publishing.',
+);
+
+assert.match(
+  source,
+  /resolveDefaultPublishTargetName\(target\?\.runtime \?\? 'web', projectName\)/u,
+  'New publish target drafts must consume the shared SDKWORK Cloud Web default resolver.',
 );
 
 assert.doesNotMatch(

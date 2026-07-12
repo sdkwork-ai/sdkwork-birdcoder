@@ -652,8 +652,8 @@
           "transportKind": {
             "type": "string",
             "enum": [
-              "sdk-stream",
               "cli-jsonl",
+              "sdk-stream",
               "remote-control-http",
               "openapi-http"
             ]
@@ -661,6 +661,7 @@
           "status": {
             "type": "string",
             "enum": [
+              "planned",
               "ready"
             ]
           },
@@ -848,7 +849,6 @@
           "installationKind": {
             "type": "string",
             "enum": [
-              "embedded-sdk",
               "external-cli"
             ]
           },
@@ -874,8 +874,8 @@
             "items": {
               "type": "string",
               "enum": [
-                "sdk-stream",
                 "cli-jsonl",
+                "sdk-stream",
                 "remote-control-http",
                 "openapi-http"
               ]
@@ -975,8 +975,8 @@
             "items": {
               "type": "string",
               "enum": [
-                "sdk-stream",
                 "cli-jsonl",
+                "sdk-stream",
                 "remote-control-http",
                 "openapi-http"
               ]
@@ -2055,8 +2055,8 @@
             "items": {
               "type": "string",
               "enum": [
-                "sdk-stream",
                 "cli-jsonl",
+                "sdk-stream",
                 "remote-control-http",
                 "openapi-http"
               ]
@@ -3363,6 +3363,489 @@
         ],
         "additionalProperties": false
       },
+      "BirdCoderCreateCommerceApiKeyRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresInDays": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "workspaceId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceApiKeySummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "prefix",
+          "scopes",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceApiKeyCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "description": "Plaintext API key returned exactly once."
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "key",
+          "prefix",
+          "scopes",
+          "status",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCreateCommerceNotificationRequest": {
+        "type": "object",
+        "properties": {
+          "notificationType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {},
+            "description": "Free-form JSON metadata owned by the caller and validated by the service.",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "notificationType",
+          "title",
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceNotificationSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "notificationType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "readAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sentAt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "notificationType",
+          "title",
+          "content",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceNotificationCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "notificationType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "notificationType",
+          "title",
+          "status",
+          "sentAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceNotificationRead": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "readAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "readAt"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceMarkAllRead": {
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "updated",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceUnreadCount": {
+        "type": "object",
+        "properties": {
+          "unreadCount": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          }
+        },
+        "required": [
+          "unreadCount"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderRecordCommerceUsageRequest": {
+        "type": "object",
+        "properties": {
+          "metricType": {
+            "type": "string"
+          },
+          "metricValue": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {},
+            "description": "Free-form JSON metadata owned by the caller and validated by the service.",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "metricType",
+          "metricValue"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceMetricTotal": {
+        "type": "object",
+        "properties": {
+          "metricType": {
+            "type": "string"
+          },
+          "total": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          }
+        },
+        "required": [
+          "metricType",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceUsageHistoryBucket": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string"
+          },
+          "metricType": {
+            "type": "string"
+          },
+          "total": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          }
+        },
+        "required": [
+          "period",
+          "metricType",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceCurrentPeriodUsage": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderCommerceMetricTotal"
+            }
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd",
+          "metrics"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceUsageBreakdown": {
+        "type": "object",
+        "properties": {
+          "periodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BirdCoderCommerceMetricTotal"
+            }
+          }
+        },
+        "required": [
+          "periodStart",
+          "periodEnd",
+          "metrics"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceQuotaStatus": {
+        "type": "object",
+        "properties": {
+          "metricType": {
+            "type": "string"
+          },
+          "used": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "limit": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "remaining": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          },
+          "percentage": {
+            "type": "number"
+          },
+          "periodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "periodEnd": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "metricType",
+          "used",
+          "limit",
+          "remaining",
+          "percentage",
+          "periodStart",
+          "periodEnd"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderCommerceRecordUsage": {
+        "type": "object",
+        "properties": {
+          "recorded": {
+            "type": "boolean"
+          },
+          "metricType": {
+            "type": "string"
+          },
+          "metricValue": {
+            "type": "string",
+            "description": "Java Long/BIGINT value serialized as an exact decimal string."
+          }
+        },
+        "required": [
+          "recorded",
+          "metricType",
+          "metricValue"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderCreateCommerceOrderRequest": {
         "type": "object",
         "properties": {
@@ -3663,11 +4146,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "workspace",
-              "project",
-              "user",
-              "team",
-              "organization"
+              "DEFAULT",
+              "PRIVATE",
+              "ORGANIZATION",
+              "TENANT",
+              "PUBLIC"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -3780,11 +4263,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "workspace",
-              "project",
-              "user",
-              "team",
-              "organization"
+              "DEFAULT",
+              "PRIVATE",
+              "ORGANIZATION",
+              "TENANT",
+              "PUBLIC"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -3864,11 +4347,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "workspace",
-              "project",
-              "user",
-              "team",
-              "organization"
+              "DEFAULT",
+              "PRIVATE",
+              "ORGANIZATION",
+              "TENANT",
+              "PUBLIC"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -3968,11 +4451,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "workspace",
-              "project",
-              "user",
-              "team",
-              "organization"
+              "DEFAULT",
+              "PRIVATE",
+              "ORGANIZATION",
+              "TENANT",
+              "PUBLIC"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -4355,11 +4838,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "workspace",
-              "project",
-              "user",
-              "team",
-              "organization"
+              "DEFAULT",
+              "PRIVATE",
+              "ORGANIZATION",
+              "TENANT",
+              "PUBLIC"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -4463,11 +4946,11 @@
           "dataScope": {
             "type": "string",
             "enum": [
-              "workspace",
-              "project",
-              "user",
-              "team",
-              "organization"
+              "DEFAULT",
+              "PRIVATE",
+              "ORGANIZATION",
+              "TENANT",
+              "PUBLIC"
             ],
             "description": "DATABASE_SPEC.md standard data scope."
           },
@@ -7555,6 +8038,391 @@
           }
         ]
       },
+      "BirdCoderCommerceApiKeyCreatedEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceApiKeyCreated"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceApiKeySummaryListEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderCommerceApiKeySummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceNotificationSummaryEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceNotificationSummary"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceNotificationSummaryListEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderCommerceNotificationSummary"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceNotificationCreatedEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceNotificationCreated"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceNotificationReadEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceNotificationRead"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceMarkAllReadEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceMarkAllRead"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceUnreadCountEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceUnreadCount"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceRecordUsageEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceRecordUsage"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceCurrentPeriodUsageEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceCurrentPeriodUsage"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceUsageHistoryListEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/BirdCoderCommerceUsageHistoryBucket"
+                    }
+                  },
+                  "pageInfo": {
+                    "$ref": "#/components/schemas/PageInfo"
+                  }
+                },
+                "required": [
+                  "items",
+                  "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceUsageBreakdownEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceUsageBreakdown"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderCommerceQuotaStatusEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderCommerceQuotaStatus"
+                  }
+                },
+                "required": [
+                  "item"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
       "BirdCoderCommerceOrderSummaryEnvelope": {
         "allOf": [
           {
@@ -9197,9 +10065,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.read",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -9222,15 +10090,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Coding session deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "Coding session deleted successfully."
           },
           "404": {
             "description": "Coding session was not found.",
@@ -9273,9 +10134,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.delete",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -9369,9 +10230,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.update",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -9416,21 +10277,22 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -9476,9 +10338,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.read",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -9551,9 +10413,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.create",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -9598,9 +10460,9 @@
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.descriptor.read",
+        "x-sdkwork-permission": "birdcoder.system-descriptor.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.descriptor",
+        "x-sdkwork-resource": "birdcoder.system-descriptor",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -9666,9 +10528,9 @@
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "runtime",
-        "x-sdkwork-permission": "runtime.engines.capabilities.read",
+        "x-sdkwork-permission": "birdcoder.runtime-engines-capabilities.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "runtime.engines.capabilities",
+        "x-sdkwork-resource": "birdcoder.runtime-engines-capabilities",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -9713,9 +10575,9 @@
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "runtime",
-        "x-sdkwork-permission": "runtime.engines.read",
+        "x-sdkwork-permission": "birdcoder.runtime-engines.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "runtime.engines",
+        "x-sdkwork-resource": "birdcoder.runtime-engines",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -9811,9 +10673,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.forks.create",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions-forks.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.forks",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions-forks",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -9919,9 +10781,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "runtime",
-        "x-sdkwork-permission": "runtime.nativeSessions.read",
+        "x-sdkwork-permission": "birdcoder.runtime-native-sessions.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "runtime.nativeSessions",
+        "x-sdkwork-resource": "birdcoder.runtime-native-sessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -9976,9 +10838,9 @@
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "runtime",
-        "x-sdkwork-permission": "runtime.nativeSessionProviders.read",
+        "x-sdkwork-permission": "birdcoder.runtime-native-session-providers.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "runtime.nativeSessionProviders",
+        "x-sdkwork-resource": "birdcoder.runtime-native-session-providers",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10023,21 +10885,22 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -10083,9 +10946,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "runtime",
-        "x-sdkwork-permission": "runtime.nativeSessions.read",
+        "x-sdkwork-permission": "birdcoder.runtime-native-sessions.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "runtime.nativeSessions",
+        "x-sdkwork-resource": "birdcoder.runtime-native-sessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10161,9 +11024,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.events.read",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions-events.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.events",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions-events",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10208,9 +11071,9 @@
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.health.read",
+        "x-sdkwork-permission": "birdcoder.system-health.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.health",
+        "x-sdkwork-resource": "birdcoder.system-health",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10255,14 +11118,14 @@
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "runtime",
-        "x-sdkwork-permission": "runtime.modelConfig.read",
+        "x-sdkwork-permission": "birdcoder.runtime-model-config.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "runtime.modelConfig",
+        "x-sdkwork-resource": "birdcoder.runtime-model-config",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
       "put": {
-        "operationId": "modelConfig.sync",
+        "operationId": "modelConfig.update",
         "summary": "Sync code engine model configuration",
         "description": "Sync code engine model configuration. Requires an authenticated BirdCoder user session.",
         "tags": [
@@ -10280,7 +11143,7 @@
         },
         "responses": {
           "200": {
-            "description": "Code engine model configuration synchronized successfully.",
+            "description": "Code engine model configuration updated successfully.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10310,9 +11173,9 @@
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "runtime",
-        "x-sdkwork-permission": "runtime.modelConfig.update",
+        "x-sdkwork-permission": "birdcoder.runtime-model-config.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "runtime.modelConfig",
+        "x-sdkwork-resource": "birdcoder.runtime-model-config",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10357,9 +11220,9 @@
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "runtime",
-        "x-sdkwork-permission": "runtime.models.read",
+        "x-sdkwork-permission": "birdcoder.runtime-models.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "runtime.models",
+        "x-sdkwork-resource": "birdcoder.runtime-models",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10425,9 +11288,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.operations.read",
+        "x-sdkwork-permission": "birdcoder.system-operations.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.operations",
+        "x-sdkwork-resource": "birdcoder.system-operations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10471,7 +11334,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Approval decision applied successfully.",
             "content": {
               "application/json": {
@@ -10522,9 +11385,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.checkpoints.approval.create",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions-checkpoints-approval.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.checkpoints.approval",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions-checkpoints-approval",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10568,7 +11431,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "User-question answer applied successfully.",
             "content": {
               "application/json": {
@@ -10619,9 +11482,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.questions.answers.create",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions-questions-answers.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.questions.answers",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions-questions-answers",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10666,9 +11529,9 @@
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.routes.read",
+        "x-sdkwork-permission": "birdcoder.system-routes.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.routes",
+        "x-sdkwork-resource": "birdcoder.system-routes",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10713,9 +11576,9 @@
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.runtime.read",
+        "x-sdkwork-permission": "birdcoder.system-runtime.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.runtime",
+        "x-sdkwork-resource": "birdcoder.system-runtime",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10781,9 +11644,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.artifacts.read",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions-artifacts.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.artifacts",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions-artifacts",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10849,9 +11712,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.checkpoints.read",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions-checkpoints.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.checkpoints",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions-checkpoints",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -10947,9 +11810,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.turns.create",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions-turns.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.turns",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions-turns",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -11054,9 +11917,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.messages.update",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions-messages.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.messages",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions-messages",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -11088,15 +11951,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Coding session message deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeleteCodingSessionMessageResultEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "Coding session message deleted successfully."
           },
           "404": {
             "description": "Coding session message was not found.",
@@ -11139,9 +11995,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "intelligence",
-        "x-sdkwork-permission": "intelligence.codingSessions.messages.delete",
+        "x-sdkwork-permission": "birdcoder.intelligence-coding-sessions-messages.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "intelligence.codingSessions.messages",
+        "x-sdkwork-resource": "birdcoder.intelligence-coding-sessions-messages",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -11150,7 +12006,7 @@
       "get": {
         "operationId": "iam.runtime.retrieve",
         "summary": "Get SDKWork IAM runtime metadata",
-        "description": "Get SDKWork IAM runtime metadata. Requires an authenticated BirdCoder user session.",
+        "description": "Get SDKWork IAM runtime metadata. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "system"
         ],
@@ -11177,12 +12033,12 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.runtime",
+        "x-sdkwork-resource": "birdcoder.iam-runtime",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11191,7 +12047,7 @@
       "get": {
         "operationId": "iam.verificationPolicy.retrieve",
         "summary": "Get SDKWork IAM verification policy",
-        "description": "Get SDKWork IAM verification policy. Requires an authenticated BirdCoder user session.",
+        "description": "Get SDKWork IAM verification policy. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "system"
         ],
@@ -11218,12 +12074,12 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.verificationPolicy",
+        "x-sdkwork-resource": "birdcoder.iam-verification-policy",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11232,7 +12088,7 @@
       "post": {
         "operationId": "oauth.authorizationUrls.create",
         "summary": "Resolve OAuth authorization URL for SDKWork IAM sign-in",
-        "description": "Resolve OAuth authorization URL for SDKWork IAM sign-in. Requires an authenticated BirdCoder user session.",
+        "description": "Resolve OAuth authorization URL for SDKWork IAM sign-in. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "oauth"
         ],
@@ -11247,7 +12103,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "OAuth authorization URL resolved successfully.",
             "content": {
               "application/json": {
@@ -11279,12 +12135,13 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
+        "x-sdkwork-forbid-credential-headers": true,
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "system.oauth.authorizationUrls",
+        "x-sdkwork-resource": "birdcoder.oauth-authorization-urls",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11293,7 +12150,7 @@
       "post": {
         "operationId": "oauth.sessions.create",
         "summary": "Create SDKWork IAM session with OAuth authorization code",
-        "description": "Create SDKWork IAM session with OAuth authorization code. Requires an authenticated BirdCoder user session.",
+        "description": "Create SDKWork IAM session with OAuth authorization code. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "oauth"
         ],
@@ -11308,7 +12165,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM session created successfully with OAuth authorization.",
             "content": {
               "application/json": {
@@ -11350,12 +12207,13 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
+        "x-sdkwork-forbid-credential-headers": true,
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "system.oauth.sessions",
+        "x-sdkwork-resource": "birdcoder.oauth-sessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11364,7 +12222,7 @@
       "post": {
         "operationId": "oauth.deviceAuthorizations.create",
         "summary": "Create SDKWork IAM OAuth device authorization",
-        "description": "Create SDKWork IAM OAuth device authorization. Requires an authenticated BirdCoder user session.",
+        "description": "Create SDKWork IAM OAuth device authorization. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "oauth"
         ],
@@ -11379,7 +12237,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM OAuth device authorization created successfully.",
             "content": {
               "application/json": {
@@ -11411,12 +12269,13 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
+        "x-sdkwork-forbid-credential-headers": true,
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "system.oauth.deviceAuthorizations",
+        "x-sdkwork-resource": "birdcoder.oauth-device-authorizations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11425,7 +12284,7 @@
       "get": {
         "operationId": "oauth.deviceAuthorizations.retrieve",
         "summary": "Get SDKWork IAM OAuth device authorization",
-        "description": "Get SDKWork IAM OAuth device authorization. Requires an authenticated BirdCoder user session.",
+        "description": "Get SDKWork IAM OAuth device authorization. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "oauth"
         ],
@@ -11473,12 +12332,12 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "system.oauth.deviceAuthorizations",
+        "x-sdkwork-resource": "birdcoder.oauth-device-authorizations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11487,7 +12346,7 @@
       "post": {
         "operationId": "oauth.deviceAuthorizations.scans.create",
         "summary": "Create SDKWork IAM OAuth device authorization scan",
-        "description": "Create SDKWork IAM OAuth device authorization scan. Requires an authenticated BirdCoder user session.",
+        "description": "Create SDKWork IAM OAuth device authorization scan. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "oauth"
         ],
@@ -11513,7 +12372,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM OAuth device authorization scan accepted successfully.",
             "content": {
               "application/json": {
@@ -11545,12 +12404,13 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
+        "x-sdkwork-forbid-credential-headers": true,
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "system.oauth.deviceAuthorizations.scans",
+        "x-sdkwork-resource": "birdcoder.oauth-device-authorizations-scans",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11559,7 +12419,7 @@
       "post": {
         "operationId": "oauth.deviceAuthorizations.passwordCompletions.create",
         "summary": "Complete SDKWork IAM OAuth device authorization with password",
-        "description": "Complete SDKWork IAM OAuth device authorization with password. Requires an authenticated BirdCoder user session.",
+        "description": "Complete SDKWork IAM OAuth device authorization with password. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "oauth"
         ],
@@ -11585,7 +12445,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM OAuth device authorization completed with password successfully.",
             "content": {
               "application/json": {
@@ -11627,12 +12487,13 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
+        "x-sdkwork-forbid-credential-headers": true,
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "system.oauth.deviceAuthorizations.passwordCompletions",
+        "x-sdkwork-resource": "birdcoder.oauth-device-authorizations-password-completions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11641,7 +12502,7 @@
       "post": {
         "operationId": "oauth.deviceAuthorizations.sessionExchanges.create",
         "summary": "Exchange SDKWork IAM OAuth device authorization for a session",
-        "description": "Exchange SDKWork IAM OAuth device authorization for a session. Requires an authenticated BirdCoder user session.",
+        "description": "Exchange SDKWork IAM OAuth device authorization for a session. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "oauth"
         ],
@@ -11667,7 +12528,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM OAuth device authorization session exchanged successfully.",
             "content": {
               "application/json": {
@@ -11729,12 +12590,13 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
+        "x-sdkwork-forbid-credential-headers": true,
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "system.oauth.deviceAuthorizations.sessionExchanges",
+        "x-sdkwork-resource": "birdcoder.oauth-device-authorizations-session-exchanges",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11743,7 +12605,7 @@
       "post": {
         "operationId": "passwordResetRequests.create",
         "summary": "Create SDKWork IAM password reset request",
-        "description": "Create SDKWork IAM password reset request. Requires an authenticated BirdCoder user session.",
+        "description": "Create SDKWork IAM password reset request. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "auth"
         ],
@@ -11758,7 +12620,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Password reset challenge accepted successfully.",
             "content": {
               "application/json": {
@@ -11790,12 +12652,13 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
+        "x-sdkwork-forbid-credential-headers": true,
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.passwordResetRequests",
+        "x-sdkwork-resource": "birdcoder.iam-password-reset-requests",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11804,7 +12667,7 @@
       "post": {
         "operationId": "passwordResets.create",
         "summary": "Reset SDKWork IAM password",
-        "description": "Reset SDKWork IAM password. Requires an authenticated BirdCoder user session.",
+        "description": "Reset SDKWork IAM password. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "auth"
         ],
@@ -11819,7 +12682,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Password reset completed successfully.",
             "content": {
               "application/json": {
@@ -11861,12 +12724,13 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
+        "x-sdkwork-forbid-credential-headers": true,
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.passwordResets",
+        "x-sdkwork-resource": "birdcoder.iam-password-resets",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11875,7 +12739,7 @@
       "post": {
         "operationId": "registrations.create",
         "summary": "Register SDKWork IAM user",
-        "description": "Register SDKWork IAM user. Requires an authenticated BirdCoder user session.",
+        "description": "Register SDKWork IAM user. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "auth"
         ],
@@ -11890,7 +12754,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM user registered successfully.",
             "content": {
               "application/json": {
@@ -11922,12 +12786,13 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
+        "x-sdkwork-forbid-credential-headers": true,
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.registrations",
+        "x-sdkwork-resource": "birdcoder.iam-registrations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -11936,7 +12801,7 @@
       "post": {
         "operationId": "sessions.create",
         "summary": "Create SDKWork IAM session",
-        "description": "Create SDKWork IAM session. Requires an authenticated BirdCoder user session.",
+        "description": "Create SDKWork IAM session. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "auth"
         ],
@@ -11951,7 +12816,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM session created successfully.",
             "content": {
               "application/json": {
@@ -11993,12 +12858,13 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
+        "x-sdkwork-forbid-credential-headers": true,
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.sessions",
+        "x-sdkwork-resource": "birdcoder.oauth-sessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -12043,9 +12909,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.sessions.current.read",
+        "x-sdkwork-permission": "birdcoder.oauth-sessions-current.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.sessions.current",
+        "x-sdkwork-resource": "birdcoder.oauth-sessions-current",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -12098,9 +12964,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.sessions.current.update",
+        "x-sdkwork-permission": "birdcoder.oauth-sessions-current.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.sessions.current",
+        "x-sdkwork-resource": "birdcoder.oauth-sessions-current",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -12112,15 +12978,8 @@
           "auth"
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM session revoked successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM session revoked successfully."
           },
           "default": {
             "description": "Problem response envelope.",
@@ -12143,9 +13002,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.sessions.current.delete",
+        "x-sdkwork-permission": "birdcoder.oauth-sessions-current.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.sessions.current",
+        "x-sdkwork-resource": "birdcoder.oauth-sessions-current",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -12154,7 +13013,7 @@
       "post": {
         "operationId": "sessions.refresh",
         "summary": "Refresh SDKWork IAM session",
-        "description": "Refresh SDKWork IAM session. Requires an authenticated BirdCoder user session.",
+        "description": "Refresh SDKWork IAM session. No user session is required; this route is available as an anonymous public operation.",
         "tags": [
           "auth"
         ],
@@ -12211,12 +13070,12 @@
           }
         },
         "security": [],
-        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-auth-mode": "anonymous",
         "x-sdkwork-data-scope": "platform",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
         "x-sdkwork-public": true,
-        "x-sdkwork-resource": "iam.sessions",
+        "x-sdkwork-resource": "birdcoder.oauth-sessions",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "platform"
       }
@@ -12261,9 +13120,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.current.read",
+        "x-sdkwork-permission": "birdcoder.iam-users-current.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users.current",
+        "x-sdkwork-resource": "birdcoder.iam-users-current",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -12316,9 +13175,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.current.update",
+        "x-sdkwork-permission": "birdcoder.iam-users-current.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users.current",
+        "x-sdkwork-resource": "birdcoder.iam-users-current",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -12333,21 +13192,22 @@
         ],
         "parameters": [
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -12383,9 +13243,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "ecosystem",
-        "x-sdkwork-permission": "ecosystem.appTemplates.read",
+        "x-sdkwork-permission": "birdcoder.ecosystem-app-templates.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "ecosystem.appTemplates",
+        "x-sdkwork-resource": "birdcoder.ecosystem-app-templates",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -12460,9 +13320,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.create",
+        "x-sdkwork-permission": "birdcoder.platform-projects.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects",
+        "x-sdkwork-resource": "birdcoder.platform-projects",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -12499,21 +13359,22 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -12549,16 +13410,16 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.read",
+        "x-sdkwork-permission": "birdcoder.platform-projects.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects",
+        "x-sdkwork-resource": "birdcoder.platform-projects",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
     "/app/v3/api/projects/{projectId}/collaborators": {
       "post": {
-        "operationId": "projects.collaborators.upsert",
+        "operationId": "projects.collaborators.create",
         "summary": "Upsert project collaborator",
         "description": "Upsert project collaborator. Requires an authenticated BirdCoder user session.",
         "tags": [
@@ -12586,16 +13447,6 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Project collaborator updated successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderProjectCollaboratorSummaryEnvelope"
-                }
-              }
-            }
-          },
           "201": {
             "description": "Project collaborator created successfully.",
             "content": {
@@ -12647,9 +13498,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.collaborators.create",
+        "x-sdkwork-permission": "birdcoder.platform-projects-collaborators.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.collaborators",
+        "x-sdkwork-resource": "birdcoder.platform-projects-collaborators",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -12671,21 +13522,22 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -12731,9 +13583,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.collaborators.read",
+        "x-sdkwork-permission": "birdcoder.platform-projects-collaborators.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.collaborators",
+        "x-sdkwork-resource": "birdcoder.platform-projects-collaborators",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -12798,9 +13650,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.workspaces.create",
+        "x-sdkwork-permission": "birdcoder.platform-workspaces.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.workspaces",
+        "x-sdkwork-resource": "birdcoder.platform-workspaces",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -12821,21 +13673,22 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -12871,16 +13724,16 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.workspaces.read",
+        "x-sdkwork-permission": "birdcoder.platform-workspaces.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.workspaces",
+        "x-sdkwork-resource": "birdcoder.platform-workspaces",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
     "/app/v3/api/workspaces/{workspaceId}/members": {
       "post": {
-        "operationId": "workspaces.members.upsert",
+        "operationId": "workspaces.members.create",
         "summary": "Upsert workspace member",
         "description": "Upsert workspace member. Requires an authenticated BirdCoder user session.",
         "tags": [
@@ -12908,16 +13761,6 @@
           }
         },
         "responses": {
-          "200": {
-            "description": "Workspace member updated successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderWorkspaceMemberSummaryEnvelope"
-                }
-              }
-            }
-          },
           "201": {
             "description": "Workspace member created successfully.",
             "content": {
@@ -12969,9 +13812,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.workspaces.members.create",
+        "x-sdkwork-permission": "birdcoder.iam-workspaces-members.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.workspaces.members",
+        "x-sdkwork-resource": "birdcoder.iam-workspaces-members",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -12993,21 +13836,22 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -13053,9 +13897,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.workspaces.members.read",
+        "x-sdkwork-permission": "birdcoder.iam-workspaces-members.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.workspaces.members",
+        "x-sdkwork-resource": "birdcoder.iam-workspaces-members",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -13080,15 +13924,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Project removed successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "Project removed successfully."
           },
           "404": {
             "description": "Project was not found.",
@@ -13121,9 +13958,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.delete",
+        "x-sdkwork-permission": "birdcoder.platform-projects.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects",
+        "x-sdkwork-resource": "birdcoder.platform-projects",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -13187,9 +14024,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.read",
+        "x-sdkwork-permission": "birdcoder.platform-projects.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects",
+        "x-sdkwork-resource": "birdcoder.platform-projects",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -13273,9 +14110,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.update",
+        "x-sdkwork-permission": "birdcoder.platform-projects.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects",
+        "x-sdkwork-resource": "birdcoder.platform-projects",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -13300,15 +14137,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Workspace removed successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "Workspace removed successfully."
           },
           "404": {
             "description": "Workspace was not found.",
@@ -13341,9 +14171,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.workspaces.delete",
+        "x-sdkwork-permission": "birdcoder.platform-workspaces.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.workspaces",
+        "x-sdkwork-resource": "birdcoder.platform-workspaces",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -13407,9 +14237,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.workspaces.read",
+        "x-sdkwork-permission": "birdcoder.platform-workspaces.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.workspaces",
+        "x-sdkwork-resource": "birdcoder.platform-workspaces",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -13493,100 +14323,10 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.workspaces.update",
+        "x-sdkwork-permission": "birdcoder.platform-workspaces.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.workspaces",
+        "x-sdkwork-resource": "birdcoder.platform-workspaces",
         "x-sdkwork-surface": "app",
-        "x-sdkwork-tenant-scope": "tenant"
-      }
-    },
-    "/app/v3/api/workspaces/{workspaceId}/realtime": {
-      "get": {
-        "operationId": "workspaces.realtime.subscribe",
-        "summary": "Subscribe to workspace realtime invalidation events",
-        "description": "Subscribe to workspace realtime invalidation events. Requires an authenticated BirdCoder user session.",
-        "tags": [
-          "platform"
-        ],
-        "parameters": [
-          {
-            "name": "workspaceId",
-            "in": "path",
-            "required": true,
-            "description": "BirdCoder workspace identifier.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "sessionId",
-            "in": "query",
-            "description": "Runtime SDKWork IAM session id used to authorize the websocket upgrade.",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "101": {
-            "description": "WebSocket upgrade accepted for workspace realtime delivery."
-          },
-          "400": {
-            "description": "Workspace realtime subscription request is invalid.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "A valid SDKWork IAM session is required.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Workspace was not found.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Problem response envelope.",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetail"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": [],
-            "sdkworkAccessToken": []
-          }
-        ],
-        "x-sdkwork-auth-mode": "user",
-        "x-sdkwork-data-scope": "organization",
-        "x-sdkwork-deployment": "all",
-        "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.workspaces.realtime.subscribe",
-        "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.workspaces.realtime",
-        "x-sdkwork-surface": "app",
-        "x-sdkwork-stream-kind": "websocket",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
@@ -13600,21 +14340,22 @@
         ],
         "parameters": [
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -13650,9 +14391,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.deployments.read",
+        "x-sdkwork-permission": "birdcoder.platform-deployments.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.deployments",
+        "x-sdkwork-resource": "birdcoder.platform-deployments",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -13676,21 +14417,22 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -13736,9 +14478,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.deploymentTargets.read",
+        "x-sdkwork-permission": "birdcoder.platform-projects-deployment-targets.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.deploymentTargets",
+        "x-sdkwork-resource": "birdcoder.platform-projects-deployment-targets",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -13761,21 +14503,22 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -13811,9 +14554,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "content",
-        "x-sdkwork-permission": "content.documents.read",
+        "x-sdkwork-permission": "birdcoder.content-documents.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "content.documents",
+        "x-sdkwork-resource": "birdcoder.content-documents",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -13828,21 +14571,22 @@
         ],
         "parameters": [
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -13878,9 +14622,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.chat.conversations.read",
+        "x-sdkwork-permission": "birdcoder.system-chat-conversations.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.chat.conversations",
+        "x-sdkwork-resource": "birdcoder.system-chat-conversations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -13933,9 +14677,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.chat.conversations.create",
+        "x-sdkwork-permission": "birdcoder.system-chat-conversations.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.chat.conversations",
+        "x-sdkwork-resource": "birdcoder.system-chat-conversations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14001,9 +14745,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.chat.conversations.read",
+        "x-sdkwork-permission": "birdcoder.system-chat-conversations.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.chat.conversations",
+        "x-sdkwork-resource": "birdcoder.system-chat-conversations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -14026,15 +14770,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "Chat conversation deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeleteChatConversationEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "Chat conversation deleted successfully."
           },
           "404": {
             "description": "Chat conversation was not found.",
@@ -14067,9 +14804,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.chat.conversations.delete",
+        "x-sdkwork-permission": "birdcoder.system-chat-conversations.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.chat.conversations",
+        "x-sdkwork-resource": "birdcoder.system-chat-conversations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14093,21 +14830,22 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -14153,9 +14891,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.chat.conversations.messages.read",
+        "x-sdkwork-permission": "birdcoder.system-chat-conversations-messages.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.chat.conversations.messages",
+        "x-sdkwork-resource": "birdcoder.system-chat-conversations-messages",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -14229,9 +14967,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "system",
-        "x-sdkwork-permission": "system.chat.conversations.messages.create",
+        "x-sdkwork-permission": "birdcoder.system-chat-conversations-messages.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "system.chat.conversations.messages",
+        "x-sdkwork-resource": "birdcoder.system-chat-conversations-messages",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14297,9 +15035,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.git.overview.read",
+        "x-sdkwork-permission": "birdcoder.platform-projects-git-overview.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.git.overview",
+        "x-sdkwork-resource": "birdcoder.platform-projects-git-overview",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14334,7 +15072,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Project Git branch created successfully.",
             "content": {
               "application/json": {
@@ -14385,9 +15123,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.git.branches.create",
+        "x-sdkwork-permission": "birdcoder.platform-projects-git-branches.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.git.branches",
+        "x-sdkwork-resource": "birdcoder.platform-projects-git-branches",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14422,7 +15160,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Project Git branch switched successfully.",
             "content": {
               "application/json": {
@@ -14473,9 +15211,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.git.branchSwitch.create",
+        "x-sdkwork-permission": "birdcoder.platform-projects-git-branch-switch.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.git.branchSwitch",
+        "x-sdkwork-resource": "birdcoder.platform-projects-git-branch-switch",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14510,7 +15248,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Project Git changes committed successfully.",
             "content": {
               "application/json": {
@@ -14561,9 +15299,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.git.commits.create",
+        "x-sdkwork-permission": "birdcoder.platform-projects-git-commits.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.git.commits",
+        "x-sdkwork-resource": "birdcoder.platform-projects-git-commits",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14598,7 +15336,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Project Git branch pushed successfully.",
             "content": {
               "application/json": {
@@ -14649,9 +15387,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.git.pushes.create",
+        "x-sdkwork-permission": "birdcoder.platform-projects-git-pushes.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.git.pushes",
+        "x-sdkwork-resource": "birdcoder.platform-projects-git-pushes",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14686,7 +15424,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Project Git worktree created successfully.",
             "content": {
               "application/json": {
@@ -14737,9 +15475,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.git.worktrees.create",
+        "x-sdkwork-permission": "birdcoder.platform-projects-git-worktrees.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.git.worktrees",
+        "x-sdkwork-resource": "birdcoder.platform-projects-git-worktrees",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14774,7 +15512,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Project Git worktree removed successfully.",
             "content": {
               "application/json": {
@@ -14825,9 +15563,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.git.worktreeRemovals.create",
+        "x-sdkwork-permission": "birdcoder.platform-projects-git-worktree-removals.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.git.worktreeRemovals",
+        "x-sdkwork-resource": "birdcoder.platform-projects-git-worktree-removals",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14852,7 +15590,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "201": {
             "description": "Project Git worktrees pruned successfully.",
             "content": {
               "application/json": {
@@ -14903,9 +15641,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.git.worktreePrune.create",
+        "x-sdkwork-permission": "birdcoder.platform-projects-git-worktree-prune.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.git.worktreePrune",
+        "x-sdkwork-resource": "birdcoder.platform-projects-git-worktree-prune",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -14940,7 +15678,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Skill package installed successfully.",
             "content": {
               "application/json": {
@@ -14991,16 +15729,16 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "ecosystem",
-        "x-sdkwork-permission": "ecosystem.skillPackages.installations.create",
+        "x-sdkwork-permission": "birdcoder.ecosystem-skill-packages-installations.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "ecosystem.skillPackages.installations",
+        "x-sdkwork-resource": "birdcoder.ecosystem-skill-packages-installations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
     "/app/v3/api/projects/{projectId}/publish": {
       "post": {
-        "operationId": "projects.publish.create",
+        "operationId": "projects.publish.publish",
         "summary": "Publish project release flow",
         "description": "Publish project release flow. Requires an authenticated BirdCoder user session.",
         "tags": [
@@ -15069,9 +15807,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.publish.create",
+        "x-sdkwork-permission": "birdcoder.platform-projects-publish.execute",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.publish",
+        "x-sdkwork-resource": "birdcoder.platform-projects-publish",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15102,21 +15840,22 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -15152,9 +15891,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "ecosystem",
-        "x-sdkwork-permission": "ecosystem.skillPackages.read",
+        "x-sdkwork-permission": "birdcoder.ecosystem-skill-packages.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "ecosystem.skillPackages",
+        "x-sdkwork-resource": "birdcoder.ecosystem-skill-packages",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15217,9 +15956,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "collaboration",
-        "x-sdkwork-permission": "collaboration.workspaceTeams.read",
+        "x-sdkwork-permission": "birdcoder.collaboration-workspace-teams.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "collaboration.workspaceTeams",
+        "x-sdkwork-resource": "birdcoder.collaboration-workspace-teams",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15264,9 +16003,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.memberships.current.read",
+        "x-sdkwork-permission": "birdcoder.commerce-memberships-current.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.memberships.current",
+        "x-sdkwork-resource": "birdcoder.commerce-memberships-current",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15311,9 +16050,9 @@
         "x-sdkwork-data-scope": "user",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.memberships.packageGroups.read",
+        "x-sdkwork-permission": "birdcoder.commerce-memberships-package-groups.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.memberships.packageGroups",
+        "x-sdkwork-resource": "birdcoder.commerce-memberships-package-groups",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15328,21 +16067,22 @@
         ],
         "parameters": [
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -15378,9 +16118,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.orders.read",
+        "x-sdkwork-permission": "birdcoder.commerce-orders.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.orders",
+        "x-sdkwork-resource": "birdcoder.commerce-orders",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -15443,9 +16183,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.orders.create",
+        "x-sdkwork-permission": "birdcoder.commerce-orders.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.orders",
+        "x-sdkwork-resource": "birdcoder.commerce-orders",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15511,9 +16251,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.orders.read",
+        "x-sdkwork-permission": "birdcoder.commerce-orders.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.orders",
+        "x-sdkwork-resource": "birdcoder.commerce-orders",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15528,21 +16268,22 @@
         ],
         "parameters": [
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -15578,9 +16319,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.invoices.read",
+        "x-sdkwork-permission": "birdcoder.commerce-invoices.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.invoices",
+        "x-sdkwork-resource": "birdcoder.commerce-invoices",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15646,9 +16387,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.invoices.read",
+        "x-sdkwork-permission": "birdcoder.commerce-invoices.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.invoices",
+        "x-sdkwork-resource": "birdcoder.commerce-invoices",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15663,21 +16404,22 @@
         ],
         "parameters": [
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
@@ -15713,9 +16455,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.payments.read",
+        "x-sdkwork-permission": "birdcoder.commerce-payments.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.payments",
+        "x-sdkwork-resource": "birdcoder.commerce-payments",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -15788,9 +16530,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.payments.create",
+        "x-sdkwork-permission": "birdcoder.commerce-payments.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.payments",
+        "x-sdkwork-resource": "birdcoder.commerce-payments",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15856,9 +16598,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.payments.read",
+        "x-sdkwork-permission": "birdcoder.commerce-payments.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.payments",
+        "x-sdkwork-resource": "birdcoder.commerce-payments",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -15954,9 +16696,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.payments.create",
+        "x-sdkwork-permission": "birdcoder.commerce-payments.execute",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.payments",
+        "x-sdkwork-resource": "birdcoder.commerce-payments",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16001,9 +16743,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.apiKeys.read",
+        "x-sdkwork-permission": "birdcoder.iam-api-keys.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.apiKeys",
+        "x-sdkwork-resource": "birdcoder.iam-api-keys",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16069,9 +16811,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.apiKeys.create",
+        "x-sdkwork-permission": "birdcoder.iam-api-keys.execute",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.apiKeys",
+        "x-sdkwork-resource": "birdcoder.iam-api-keys",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16116,9 +16858,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.auditEvents.read",
+        "x-sdkwork-permission": "birdcoder.iam-audit-events.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.auditEvents",
+        "x-sdkwork-resource": "birdcoder.iam-audit-events",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16163,9 +16905,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.read",
+        "x-sdkwork-permission": "birdcoder.iam-organizations.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-resource": "birdcoder.iam-organizations",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16231,9 +16973,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.read",
+        "x-sdkwork-permission": "birdcoder.iam-organizations.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-resource": "birdcoder.iam-organizations",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -16317,9 +17059,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.update",
+        "x-sdkwork-permission": "birdcoder.iam-organizations.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-resource": "birdcoder.iam-organizations",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -16342,15 +17084,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM organization deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM organization deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM organization was not found.",
@@ -16383,9 +17118,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.delete",
+        "x-sdkwork-permission": "birdcoder.iam-organizations.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-resource": "birdcoder.iam-organizations",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16409,7 +17144,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM organization created successfully.",
             "content": {
               "application/json": {
@@ -16450,9 +17185,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.create",
+        "x-sdkwork-permission": "birdcoder.iam-organizations.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-resource": "birdcoder.iam-organizations",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16497,9 +17232,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.tree.read",
+        "x-sdkwork-permission": "birdcoder.iam-organizations-tree.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations.tree",
+        "x-sdkwork-resource": "birdcoder.iam-organizations-tree",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16544,9 +17279,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizationMemberships.read",
+        "x-sdkwork-permission": "birdcoder.iam-organization-memberships.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizationMemberships",
+        "x-sdkwork-resource": "birdcoder.iam-organization-memberships",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16570,7 +17305,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM organization membership created successfully.",
             "content": {
               "application/json": {
@@ -16611,9 +17346,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizationMemberships.create",
+        "x-sdkwork-permission": "birdcoder.iam-organization-memberships.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizationMemberships",
+        "x-sdkwork-resource": "birdcoder.iam-organization-memberships",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16699,9 +17434,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizationMemberships.update",
+        "x-sdkwork-permission": "birdcoder.iam-organization-memberships.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizationMemberships",
+        "x-sdkwork-resource": "birdcoder.iam-organization-memberships",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16746,9 +17481,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.permissions.read",
+        "x-sdkwork-permission": "birdcoder.iam-permissions.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -16770,7 +17505,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM permission created successfully.",
             "content": {
               "application/json": {
@@ -16811,9 +17546,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.permissions.create",
+        "x-sdkwork-permission": "birdcoder.iam-permissions.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -16879,9 +17614,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.permissions.read",
+        "x-sdkwork-permission": "birdcoder.iam-permissions.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -16965,9 +17700,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.permissions.update",
+        "x-sdkwork-permission": "birdcoder.iam-permissions.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -16990,15 +17725,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM permission deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM permission deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM permission was not found.",
@@ -17031,9 +17759,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.permissions.delete",
+        "x-sdkwork-permission": "birdcoder.iam-permissions.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -17078,9 +17806,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.policies.read",
+        "x-sdkwork-permission": "birdcoder.iam-policies.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-resource": "birdcoder.iam-policies",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -17102,7 +17830,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM policy created successfully.",
             "content": {
               "application/json": {
@@ -17143,9 +17871,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.policies.create",
+        "x-sdkwork-permission": "birdcoder.iam-policies.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-resource": "birdcoder.iam-policies",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -17211,9 +17939,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.policies.read",
+        "x-sdkwork-permission": "birdcoder.iam-policies.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-resource": "birdcoder.iam-policies",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -17297,9 +18025,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.policies.update",
+        "x-sdkwork-permission": "birdcoder.iam-policies.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-resource": "birdcoder.iam-policies",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -17322,15 +18050,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM policy deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM policy deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM policy was not found.",
@@ -17363,9 +18084,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.policies.delete",
+        "x-sdkwork-permission": "birdcoder.iam-policies.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-resource": "birdcoder.iam-policies",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -17410,9 +18131,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.read",
+        "x-sdkwork-permission": "birdcoder.iam-roles.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-resource": "birdcoder.iam-roles",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -17434,7 +18155,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM role created successfully.",
             "content": {
               "application/json": {
@@ -17475,9 +18196,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.create",
+        "x-sdkwork-permission": "birdcoder.iam-roles.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-resource": "birdcoder.iam-roles",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -17543,9 +18264,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.read",
+        "x-sdkwork-permission": "birdcoder.iam-roles.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-resource": "birdcoder.iam-roles",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -17629,9 +18350,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.update",
+        "x-sdkwork-permission": "birdcoder.iam-roles.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-resource": "birdcoder.iam-roles",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -17654,15 +18375,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM role deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM role deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM role was not found.",
@@ -17695,9 +18409,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.delete",
+        "x-sdkwork-permission": "birdcoder.iam-roles.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-resource": "birdcoder.iam-roles",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -17763,9 +18477,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.permissions.read",
+        "x-sdkwork-permission": "birdcoder.iam-roles-permissions.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-roles-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -17798,7 +18512,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM role permission created successfully.",
             "content": {
               "application/json": {
@@ -17849,9 +18563,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.permissions.create",
+        "x-sdkwork-permission": "birdcoder.iam-roles-permissions.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-roles-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -17885,15 +18599,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM role permission deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM role permission deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM role permission was not found.",
@@ -17926,9 +18633,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.permissions.delete",
+        "x-sdkwork-permission": "birdcoder.iam-roles-permissions.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-roles-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -17973,9 +18680,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.securityEvents.read",
+        "x-sdkwork-permission": "birdcoder.iam-security-events.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.securityEvents",
+        "x-sdkwork-resource": "birdcoder.iam-security-events",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -18020,9 +18727,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.read",
+        "x-sdkwork-permission": "birdcoder.iam-tenants.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-resource": "birdcoder.iam-tenants",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -18044,7 +18751,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM tenant created successfully.",
             "content": {
               "application/json": {
@@ -18085,9 +18792,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.create",
+        "x-sdkwork-permission": "birdcoder.iam-tenants.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-resource": "birdcoder.iam-tenants",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -18153,9 +18860,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.read",
+        "x-sdkwork-permission": "birdcoder.iam-tenants.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-resource": "birdcoder.iam-tenants",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -18239,9 +18946,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.update",
+        "x-sdkwork-permission": "birdcoder.iam-tenants.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-resource": "birdcoder.iam-tenants",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -18264,15 +18971,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM tenant deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM tenant deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM tenant was not found.",
@@ -18305,9 +19005,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.delete",
+        "x-sdkwork-permission": "birdcoder.iam-tenants.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-resource": "birdcoder.iam-tenants",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -18373,9 +19073,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.members.read",
+        "x-sdkwork-permission": "birdcoder.iam-tenants-members.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-resource": "birdcoder.iam-tenants-members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -18408,7 +19108,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM tenant member created successfully.",
             "content": {
               "application/json": {
@@ -18459,9 +19159,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.members.create",
+        "x-sdkwork-permission": "birdcoder.iam-tenants-members.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-resource": "birdcoder.iam-tenants-members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -18556,9 +19256,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.members.update",
+        "x-sdkwork-permission": "birdcoder.iam-tenants-members.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-resource": "birdcoder.iam-tenants-members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -18590,15 +19290,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM tenant member deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM tenant member deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM tenant member was not found.",
@@ -18631,9 +19324,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.members.delete",
+        "x-sdkwork-permission": "birdcoder.iam-tenants-members.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-resource": "birdcoder.iam-tenants-members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -18678,9 +19371,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.read",
+        "x-sdkwork-permission": "birdcoder.iam-users.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-resource": "birdcoder.iam-users",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -18702,7 +19395,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM user created successfully.",
             "content": {
               "application/json": {
@@ -18743,9 +19436,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.create",
+        "x-sdkwork-permission": "birdcoder.iam-users.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-resource": "birdcoder.iam-users",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -18811,9 +19504,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.read",
+        "x-sdkwork-permission": "birdcoder.iam-users.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-resource": "birdcoder.iam-users",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -18897,9 +19590,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.update",
+        "x-sdkwork-permission": "birdcoder.iam-users.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-resource": "birdcoder.iam-users",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -18922,15 +19615,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM user deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM user deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM user was not found.",
@@ -18963,9 +19649,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.delete",
+        "x-sdkwork-permission": "birdcoder.iam-users.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-resource": "birdcoder.iam-users",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19010,9 +19696,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roleBindings.read",
+        "x-sdkwork-permission": "birdcoder.iam-role-bindings.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roleBindings",
+        "x-sdkwork-resource": "birdcoder.iam-role-bindings",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19036,7 +19722,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM user role binding created successfully.",
             "content": {
               "application/json": {
@@ -19077,9 +19763,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roleBindings.create",
+        "x-sdkwork-permission": "birdcoder.iam-role-bindings.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roleBindings",
+        "x-sdkwork-resource": "birdcoder.iam-role-bindings",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19104,15 +19790,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM user role binding deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM user role binding deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM user role binding was not found.",
@@ -19145,9 +19824,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roleBindings.delete",
+        "x-sdkwork-permission": "birdcoder.iam-role-bindings.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roleBindings",
+        "x-sdkwork-resource": "birdcoder.iam-role-bindings",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19192,16 +19871,16 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.deploymentGovernance.read",
+        "x-sdkwork-permission": "birdcoder.platform-deployment-governance.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.deploymentGovernance",
+        "x-sdkwork-resource": "birdcoder.platform-deployment-governance",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
     },
     "/backend/v3/api/projects/{projectId}/deployment_targets": {
       "get": {
-        "operationId": "projects.deploymentTargets.list",
+        "operationId": "deploymentGovernance.targets.list",
         "summary": "List deployment targets",
         "description": "List deployment targets. Requires an authenticated BirdCoder admin session.",
         "tags": [
@@ -19218,27 +19897,28 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Deployment targets returned successfully.",
+            "description": "Admin deployment targets returned successfully.",
             "content": {
               "application/json": {
                 "schema": {
@@ -19278,9 +19958,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.deploymentTargets.read",
+        "x-sdkwork-permission": "birdcoder.platform-deployment-governance-targets.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.deploymentTargets",
+        "x-sdkwork-resource": "birdcoder.platform-deployment-governance-targets",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19325,9 +20005,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.releases.read",
+        "x-sdkwork-permission": "birdcoder.platform-releases.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.releases",
+        "x-sdkwork-resource": "birdcoder.platform-releases",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19393,9 +20073,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.teams.members.read",
+        "x-sdkwork-permission": "birdcoder.iam-teams-members.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.teams.members",
+        "x-sdkwork-resource": "birdcoder.iam-teams-members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19458,9 +20138,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.teams.read",
+        "x-sdkwork-permission": "birdcoder.iam-teams.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.teams",
+        "x-sdkwork-resource": "birdcoder.iam-teams",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19473,9 +20153,46 @@
         "tags": [
           "commerce"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateCommerceApiKeyRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
-            "description": "Successful response"
+          "201": {
+            "description": "BirdCoder commerce API key created successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceApiKeyCreatedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BirdCoder commerce API key request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "BirdCoder commerce API key creation is not permitted.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19498,9 +20215,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.apiKeys.create",
+        "x-sdkwork-permission": "birdcoder.commerce-api-keys.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-resource": "birdcoder.commerce-api-keys",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -19511,9 +20228,37 @@
         "tags": [
           "commerce"
         ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number used for offset-mode pagination.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce API keys returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceApiKeySummaryListEnvelope"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19536,9 +20281,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.apiKeys.read",
+        "x-sdkwork-permission": "birdcoder.commerce-api-keys.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-resource": "birdcoder.commerce-api-keys",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19551,9 +20296,40 @@
         "tags": [
           "commerce"
         ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Resource identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
-          "200": {
-            "description": "Successful response"
+          "204": {
+            "description": "BirdCoder commerce API key revoked successfully."
+          },
+          "403": {
+            "description": "BirdCoder commerce API key revocation is not permitted.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BirdCoder commerce API key was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19576,9 +20352,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.apiKeys.delete",
+        "x-sdkwork-permission": "birdcoder.commerce-api-keys.execute",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-resource": "birdcoder.commerce-api-keys",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19591,9 +20367,47 @@
         "tags": [
           "commerce"
         ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Resource identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce API key rotated successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceApiKeyCreatedEnvelope"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "BirdCoder commerce API key rotation is not permitted.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BirdCoder commerce API key was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19616,9 +20430,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.apiKeys.create",
+        "x-sdkwork-permission": "birdcoder.commerce-api-keys.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.apiKeys",
+        "x-sdkwork-resource": "birdcoder.commerce-api-keys",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19631,9 +20445,45 @@
         "tags": [
           "commerce"
         ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter notifications by read status.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number used for offset-mode pagination.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce notifications returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceNotificationSummaryListEnvelope"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19656,9 +20506,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.notifications.read",
+        "x-sdkwork-permission": "birdcoder.commerce-notifications.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-resource": "birdcoder.commerce-notifications",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       },
@@ -19669,9 +20519,46 @@
         "tags": [
           "commerce"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderCreateCommerceNotificationRequest"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
-            "description": "Successful response"
+          "201": {
+            "description": "BirdCoder commerce notification sent successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceNotificationCreatedEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BirdCoder commerce notification request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "BirdCoder commerce notification send is not permitted.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19694,9 +20581,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.notifications.create",
+        "x-sdkwork-permission": "birdcoder.commerce-notifications.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-resource": "birdcoder.commerce-notifications",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19709,9 +20596,37 @@
         "tags": [
           "commerce"
         ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Resource identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce notification returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceNotificationSummaryEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BirdCoder commerce notification was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19734,9 +20649,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.notifications.read",
+        "x-sdkwork-permission": "birdcoder.commerce-notifications.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-resource": "birdcoder.commerce-notifications",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19751,7 +20666,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce unread notification count returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceUnreadCountEnvelope"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19774,9 +20696,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.notifications.read",
+        "x-sdkwork-permission": "birdcoder.commerce-notifications.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-resource": "birdcoder.commerce-notifications",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19789,9 +20711,37 @@
         "tags": [
           "commerce"
         ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Resource identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce notification marked as read successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceNotificationReadEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "BirdCoder commerce notification was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19814,9 +20764,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.notifications.create",
+        "x-sdkwork-permission": "birdcoder.commerce-notifications.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-resource": "birdcoder.commerce-notifications",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19831,7 +20781,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce notifications marked as read successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceMarkAllReadEnvelope"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19854,9 +20811,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.notifications.create",
+        "x-sdkwork-permission": "birdcoder.commerce-notifications.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.notifications",
+        "x-sdkwork-resource": "birdcoder.commerce-notifications",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19869,9 +20826,46 @@
         "tags": [
           "commerce"
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BirdCoderRecordCommerceUsageRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce usage event recorded successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceRecordUsageEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "BirdCoder commerce usage request is invalid.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "BirdCoder commerce usage recording is not permitted.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19894,9 +20888,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.usage.create",
+        "x-sdkwork-permission": "birdcoder.commerce-usage.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-resource": "birdcoder.commerce-usage",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19911,7 +20905,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce current-period usage returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceCurrentPeriodUsageEnvelope"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19934,9 +20935,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.usage.read",
+        "x-sdkwork-permission": "birdcoder.commerce-usage.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-resource": "birdcoder.commerce-usage",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19949,9 +20950,45 @@
         "tags": [
           "commerce"
         ],
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Usage history period granularity. Monthly is the supported runtime value.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number used for offset-mode pagination.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce usage history returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceUsageHistoryListEnvelope"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -19974,9 +21011,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.usage.read",
+        "x-sdkwork-permission": "birdcoder.commerce-usage.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-resource": "birdcoder.commerce-usage",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -19989,9 +21026,26 @@
         "tags": [
           "commerce"
         ],
+        "parameters": [
+          {
+            "name": "metric",
+            "in": "query",
+            "description": "Filter usage breakdown or quota status to one metric type.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce usage breakdown returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceUsageBreakdownEnvelope"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -20014,9 +21068,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.usage.read",
+        "x-sdkwork-permission": "birdcoder.commerce-usage.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-resource": "birdcoder.commerce-usage",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }
@@ -20029,9 +21083,26 @@
         "tags": [
           "commerce"
         ],
+        "parameters": [
+          {
+            "name": "metric",
+            "in": "query",
+            "description": "Filter usage breakdown or quota status to one metric type.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Successful response"
+            "description": "BirdCoder commerce usage quota returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderCommerceQuotaStatusEnvelope"
+                }
+              }
+            }
           },
           "default": {
             "description": "Problem response envelope.",
@@ -20054,9 +21125,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "commerce",
-        "x-sdkwork-permission": "commerce.usage.read",
+        "x-sdkwork-permission": "birdcoder.commerce-usage.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "commerce.usage",
+        "x-sdkwork-resource": "birdcoder.commerce-usage",
         "x-sdkwork-surface": "app",
         "x-sdkwork-tenant-scope": "tenant"
       }

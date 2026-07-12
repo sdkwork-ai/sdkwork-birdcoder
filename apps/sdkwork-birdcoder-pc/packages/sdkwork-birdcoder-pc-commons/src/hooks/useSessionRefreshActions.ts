@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 import { useAuth } from '../context/AuthContext.ts';
 import {
@@ -72,6 +72,19 @@ export function useSessionRefreshActions({
     codingSessionId: string;
     projectId: string | null;
   } | null>(null);
+  const projectRefreshGenerationRef = useRef(0);
+  const codingSessionRefreshGenerationRef = useRef(0);
+
+  const isPreservedSelectionStillCurrent = useCallback(
+    (preservedSelection: PreservedSessionRefreshSelection) => {
+      const currentSelection = getPreservedSelection();
+      return (
+        currentSelection.projectId === preservedSelection.projectId &&
+        currentSelection.codingSessionId === preservedSelection.codingSessionId
+      );
+    },
+    [getPreservedSelection],
+  );
 
   const handleRefreshProjectSessions = useCallback(async (targetProjectId: string) => {
     const normalizedWorkspaceId = workspaceId?.trim() ?? '';
@@ -82,6 +95,7 @@ export function useSessionRefreshActions({
 
     const preservedSelection = getPreservedSelection();
     const projectName = resolveProjectName(targetProjectId);
+    const requestGeneration = ++projectRefreshGenerationRef.current;
 
     setRefreshingProjectId(targetProjectId);
     try {
@@ -92,6 +106,9 @@ export function useSessionRefreshActions({
         projectService,
         workspaceId: normalizedWorkspaceId,
       });
+      if (projectRefreshGenerationRef.current !== requestGeneration) {
+        return;
+      }
       if (result.status !== 'refreshed') {
         addToast(messages.failedToRefreshProjectSessions, 'error');
         return;
@@ -104,16 +121,23 @@ export function useSessionRefreshActions({
           normalizedUserScope,
         );
       }
-      restoreSelectionAfterRefresh(
-        preservedSelection.projectId,
-        preservedSelection.codingSessionId,
-      );
+      if (isPreservedSelectionStillCurrent(preservedSelection)) {
+        restoreSelectionAfterRefresh(
+          preservedSelection.projectId,
+          preservedSelection.codingSessionId,
+        );
+      }
       addToast(messages.projectSessionsRefreshed(projectName), 'success');
     } catch (error) {
+      if (projectRefreshGenerationRef.current !== requestGeneration) {
+        return;
+      }
       console.error('Failed to refresh project sessions', error);
       addToast(messages.failedToRefreshProjectSessions, 'error');
     } finally {
-      setRefreshingProjectId(null);
+      if (projectRefreshGenerationRef.current === requestGeneration) {
+        setRefreshingProjectId(null);
+      }
     }
   }, [
     addToast,
@@ -124,6 +148,7 @@ export function useSessionRefreshActions({
     projectService,
     resolveProjectName,
     restoreSelectionAfterRefresh,
+    isPreservedSelectionStillCurrent,
     workspaceId,
   ]);
 
@@ -142,6 +167,8 @@ export function useSessionRefreshActions({
       return;
     }
 
+    const requestGeneration = ++codingSessionRefreshGenerationRef.current;
+
     setRefreshingCodingSessionScope({
       codingSessionId,
       projectId: normalizedProjectId || null,
@@ -155,6 +182,9 @@ export function useSessionRefreshActions({
         ...(resolvedLocation ? { resolvedLocation } : {}),
         workspaceId,
       });
+      if (codingSessionRefreshGenerationRef.current !== requestGeneration) {
+        return;
+      }
       if (result.status !== 'refreshed') {
         addToast(messages.failedToRefreshSessionMessages, 'error');
         return;
@@ -170,6 +200,9 @@ export function useSessionRefreshActions({
             return null;
           },
         );
+        if (codingSessionRefreshGenerationRef.current !== requestGeneration) {
+          return;
+        }
 
         if (synchronizedProject) {
           upsertProjectIntoProjectsStore(
@@ -189,16 +222,23 @@ export function useSessionRefreshActions({
         );
       }
 
-      restoreSelectionAfterRefresh(
-        preservedSelection.projectId,
-        preservedSelection.codingSessionId,
-      );
+      if (isPreservedSelectionStillCurrent(preservedSelection)) {
+        restoreSelectionAfterRefresh(
+          preservedSelection.projectId,
+          preservedSelection.codingSessionId,
+        );
+      }
       addToast(messages.sessionMessagesRefreshed(codingSessionTitle), 'success');
     } catch (error) {
+      if (codingSessionRefreshGenerationRef.current !== requestGeneration) {
+        return;
+      }
       console.error('Failed to refresh coding session messages', error);
       addToast(messages.failedToRefreshSessionMessages, 'error');
     } finally {
-      setRefreshingCodingSessionScope(null);
+      if (codingSessionRefreshGenerationRef.current === requestGeneration) {
+        setRefreshingCodingSessionScope(null);
+      }
     }
   }, [
     addToast,
@@ -210,6 +250,7 @@ export function useSessionRefreshActions({
     resolveCodingSessionLocation,
     resolveCodingSessionTitle,
     restoreSelectionAfterRefresh,
+    isPreservedSelectionStillCurrent,
     workspaceId,
   ]);
 

@@ -17,8 +17,6 @@ pub struct ProjectPathParams {
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceListQuery {
     pub user_id: Option<String>,
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -27,8 +25,6 @@ pub struct ProjectListQuery {
     pub workspace_id: Option<String>,
     pub root_path: Option<String>,
     pub user_id: Option<String>,
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,38 +32,6 @@ pub struct ProjectListQuery {
 pub struct TeamListQuery {
     pub user_id: Option<String>,
     pub workspace_id: Option<String>,
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
-}
-
-#[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct MemberListQuery {
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
-}
-
-#[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct ProjectCollaboratorListQuery {
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
-}
-
-#[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct DeploymentListQuery {
-    pub project_id: Option<String>,
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
-}
-
-#[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct DeploymentTargetListQuery {
-    pub project_id: Option<String>,
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]

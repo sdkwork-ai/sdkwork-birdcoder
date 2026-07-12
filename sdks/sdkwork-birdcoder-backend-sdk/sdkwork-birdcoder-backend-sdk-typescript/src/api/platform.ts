@@ -7,16 +7,14 @@ import type {
 import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
-type PlatformProjectsDeploymentTargetsListPathParams = Types.PlatformProjectsDeploymentTargetsListPathParams;
-type PlatformProjectsDeploymentTargetsListQuery = Types.PlatformProjectsDeploymentTargetsListQuery;
+type PlatformDeploymentGovernanceTargetsListPathParams = Types.PlatformDeploymentGovernanceTargetsListPathParams;
+type PlatformDeploymentGovernanceTargetsListQuery = Types.PlatformDeploymentGovernanceTargetsListQuery;
 
 export interface PlatformApi {
   deploymentGovernance: {
     list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeploymentRecordSummaryListEnvelope>;
-  };
-  projects: {
-    deploymentTargets: {
-      list(pathParams: PlatformProjectsDeploymentTargetsListPathParams, query?: PlatformProjectsDeploymentTargetsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeploymentTargetSummaryListEnvelope>;
+    targets: {
+      list(pathParams: PlatformDeploymentGovernanceTargetsListPathParams, query?: PlatformDeploymentGovernanceTargetsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeploymentTargetSummaryListEnvelope>;
     };
   };
   releases: {
@@ -29,12 +27,10 @@ export function createPlatformApi(requestOperation: BirdcoderSdkRequestOperation
     deploymentGovernance: {
       list(options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderDeploymentRecordSummaryListEnvelope>("platform.deploymentGovernance.list", {}, options);
-      }
-    },
-    projects: {
-      deploymentTargets: {
-        list(pathParams: PlatformProjectsDeploymentTargetsListPathParams, query: PlatformProjectsDeploymentTargetsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderDeploymentTargetSummaryListEnvelope>("platform.projects.deploymentTargets.list", { pathParams, query }, options);
+      },
+      targets: {
+        list(pathParams: PlatformDeploymentGovernanceTargetsListPathParams, query: PlatformDeploymentGovernanceTargetsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderDeploymentTargetSummaryListEnvelope>("platform.deploymentGovernance.targets.list", { pathParams, query }, options);
         }
       }
     },

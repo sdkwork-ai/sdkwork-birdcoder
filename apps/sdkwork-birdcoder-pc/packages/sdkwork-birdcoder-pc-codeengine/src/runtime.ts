@@ -361,8 +361,8 @@ function createFallbackIntegrationDescriptor(input: {
 }): ChatEngineIntegrationDescriptor {
   return {
     engineId: input.engineId,
-    integrationClass: 'official-sdk',
-    runtimeMode: 'sdk',
+    integrationClass: 'official-protocol',
+    runtimeMode: 'headless',
     officialEntry: {
       packageName: input.kernel.executionTopology.officialSdkPackageName,
       sdkPath: input.descriptor.officialIntegration?.officialEntry.sdkPath,
@@ -440,7 +440,7 @@ export function createWorkbenchCanonicalChatEngine(
           modelId: options?.model?.trim() || defaultModelId,
           transportKind: resolveTransportKindForRuntimeMode(
             descriptor.transportKinds,
-            'sdk',
+            'headless',
           ),
           capabilityMatrix: descriptor.capabilityMatrix,
         })),
@@ -469,13 +469,13 @@ export function createWorkbenchCanonicalChatEngine(
     describeRawExtensions: runtime.describeRawExtensions?.bind(runtime),
     describeRuntime(options?: ChatOptions): ChatCanonicalRuntimeDescriptor {
       const integration = this.describeIntegration?.();
-      const runtimeMode = integration?.runtimeMode ?? 'sdk';
+      const runtimeMode = integration?.runtimeMode ?? 'headless';
 
       return {
         ...createDefaultChatCanonicalRuntimeDescriptor({
           descriptor: integration ?? {
             engineId,
-            integrationClass: 'official-sdk',
+            integrationClass: 'official-protocol',
             runtimeMode,
             officialEntry: {
               packageName: kernel.executionTopology.officialSdkPackageName,

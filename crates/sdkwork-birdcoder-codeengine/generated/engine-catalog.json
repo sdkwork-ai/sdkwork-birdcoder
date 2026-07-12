@@ -9,7 +9,7 @@
       "engineKey": "codex",
       "displayName": "Codex",
       "vendor": "OpenAI",
-      "installationKind": "embedded-sdk",
+      "installationKind": "external-cli",
       "defaultModelId": "gpt-5.4",
       "homepage": "https://openai.com/codex",
       "supportedHostModes": [
@@ -18,8 +18,8 @@
         "server"
       ],
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {
         "chat": true,
@@ -40,9 +40,9 @@
       },
       "status": "active",
       "accessPlan": {
-        "primaryLaneId": "codex-sdk-stream",
+        "primaryLaneId": "codex-cli-jsonl",
         "fallbackLaneIds": [
-          "codex-cli-jsonl"
+          "codex-sdk-stream"
         ],
         "lanes": [
           {
@@ -52,13 +52,13 @@
             "runtimeOwner": "rust-server",
             "bridgeProtocol": "direct",
             "transportKind": "sdk-stream",
-            "status": "ready",
-            "enabledByDefault": true,
+            "status": "planned",
+            "enabledByDefault": false,
             "hostModes": [
               "desktop",
               "server"
             ],
-            "description": "OpenAI Codex official SDK streaming lane."
+            "description": "OpenAI Codex official SDK lane; runtime promotion is pending live SDK conformance."
           },
           {
             "laneId": "codex-cli-jsonl",
@@ -68,18 +68,18 @@
             "bridgeProtocol": "stdio",
             "transportKind": "cli-jsonl",
             "status": "ready",
-            "enabledByDefault": false,
+            "enabledByDefault": true,
             "hostModes": [
               "desktop",
               "server"
             ],
-            "description": "OpenAI Codex CLI JSONL fallback lane."
+            "description": "OpenAI Codex CLI JSONL execution lane used by the local kernel runtime."
           }
         ]
       },
       "officialIntegration": {
-        "integrationClass": "official-sdk",
-        "runtimeMode": "sdk",
+        "integrationClass": "official-protocol",
+        "runtimeMode": "headless",
         "officialEntry": {
           "packageName": "@openai/codex-sdk",
           "sdkPath": "external/codex/sdk/typescript",
@@ -106,8 +106,8 @@
         "server"
       ],
       "transportKinds": [
-        "sdk-stream",
         "cli-jsonl",
+        "sdk-stream",
         "remote-control-http"
       ],
       "capabilityMatrix": {
@@ -124,14 +124,14 @@
         "testArtifacts": true,
         "approvalCheckpoints": true,
         "sessionResume": true,
-        "remoteBridge": true,
+        "remoteBridge": false,
         "mcp": true
       },
       "status": "active",
       "accessPlan": {
-        "primaryLaneId": "claude-code-sdk-stream",
+        "primaryLaneId": "claude-code-cli-print",
         "fallbackLaneIds": [
-          "claude-code-cli-print",
+          "claude-code-sdk-stream",
           "claude-code-remote-control"
         ],
         "lanes": [
@@ -142,13 +142,13 @@
             "runtimeOwner": "typescript-bridge",
             "bridgeProtocol": "grpc",
             "transportKind": "sdk-stream",
-            "status": "ready",
-            "enabledByDefault": true,
+            "status": "planned",
+            "enabledByDefault": false,
             "hostModes": [
               "desktop",
               "server"
             ],
-            "description": "Anthropic Claude Agent SDK streaming lane."
+            "description": "Anthropic Claude Agent SDK lane; runtime promotion is pending live SDK conformance."
           },
           {
             "laneId": "claude-code-cli-print",
@@ -158,12 +158,12 @@
             "bridgeProtocol": "stdio",
             "transportKind": "cli-jsonl",
             "status": "ready",
-            "enabledByDefault": false,
+            "enabledByDefault": true,
             "hostModes": [
               "desktop",
               "server"
             ],
-            "description": "Claude Code CLI fallback lane."
+            "description": "Claude Code CLI print execution lane used by the local kernel runtime."
           },
           {
             "laneId": "claude-code-remote-control",
@@ -172,20 +172,20 @@
             "runtimeOwner": "typescript-bridge",
             "bridgeProtocol": "http",
             "transportKind": "remote-control-http",
-            "status": "ready",
+            "status": "planned",
             "enabledByDefault": false,
             "hostModes": [
               "web",
               "desktop",
               "server"
             ],
-            "description": "Claude Code remote-control lane."
+            "description": "Claude Code remote-control lane; cloud transport is not implemented yet."
           }
         ]
       },
       "officialIntegration": {
-        "integrationClass": "official-sdk",
-        "runtimeMode": "sdk",
+        "integrationClass": "official-protocol",
+        "runtimeMode": "headless",
         "officialEntry": {
           "packageName": "@anthropic-ai/claude-agent-sdk",
           "sdkPath": null,
@@ -216,8 +216,8 @@
         "server"
       ],
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {
         "chat": true,
@@ -233,14 +233,14 @@
         "testArtifacts": true,
         "approvalCheckpoints": true,
         "sessionResume": true,
-        "remoteBridge": true,
+        "remoteBridge": false,
         "mcp": true
       },
       "status": "active",
       "accessPlan": {
-        "primaryLaneId": "gemini-sdk-stream",
+        "primaryLaneId": "gemini-cli-jsonl",
         "fallbackLaneIds": [
-          "gemini-cli-jsonl"
+          "gemini-sdk-stream"
         ],
         "lanes": [
           {
@@ -250,13 +250,13 @@
             "runtimeOwner": "typescript-bridge",
             "bridgeProtocol": "grpc",
             "transportKind": "sdk-stream",
-            "status": "ready",
-            "enabledByDefault": true,
+            "status": "planned",
+            "enabledByDefault": false,
             "hostModes": [
               "desktop",
               "server"
             ],
-            "description": "Google Gemini CLI SDK streaming lane."
+            "description": "Google Gemini CLI SDK lane; runtime promotion is pending live SDK conformance."
           },
           {
             "laneId": "gemini-cli-jsonl",
@@ -266,18 +266,18 @@
             "bridgeProtocol": "stdio",
             "transportKind": "cli-jsonl",
             "status": "ready",
-            "enabledByDefault": false,
+            "enabledByDefault": true,
             "hostModes": [
               "desktop",
               "server"
             ],
-            "description": "Gemini CLI fallback lane."
+            "description": "Gemini CLI JSONL execution lane used by the local kernel runtime."
           }
         ]
       },
       "officialIntegration": {
-        "integrationClass": "official-sdk",
-        "runtimeMode": "sdk",
+        "integrationClass": "official-protocol",
+        "runtimeMode": "headless",
         "officialEntry": {
           "packageName": "@google/gemini-cli-sdk",
           "sdkPath": "external/gemini/packages/sdk",
@@ -304,9 +304,9 @@
         "server"
       ],
       "transportKinds": [
+        "cli-jsonl",
         "sdk-stream",
-        "openapi-http",
-        "cli-jsonl"
+        "openapi-http"
       ],
       "capabilityMatrix": {
         "chat": true,
@@ -322,15 +322,15 @@
         "testArtifacts": true,
         "approvalCheckpoints": true,
         "sessionResume": true,
-        "remoteBridge": true,
+        "remoteBridge": false,
         "mcp": true
       },
       "status": "active",
       "accessPlan": {
-        "primaryLaneId": "opencode-sdk-stream",
+        "primaryLaneId": "opencode-cli-jsonl",
         "fallbackLaneIds": [
-          "opencode-openapi-http",
-          "opencode-cli-jsonl"
+          "opencode-sdk-stream",
+          "opencode-openapi-http"
         ],
         "lanes": [
           {
@@ -340,13 +340,13 @@
             "runtimeOwner": "rust-server",
             "bridgeProtocol": "grpc",
             "transportKind": "sdk-stream",
-            "status": "ready",
-            "enabledByDefault": true,
+            "status": "planned",
+            "enabledByDefault": false,
             "hostModes": [
               "desktop",
               "server"
             ],
-            "description": "OpenCode SDK streaming lane."
+            "description": "OpenCode SDK lane; runtime promotion is pending live SDK conformance."
           },
           {
             "laneId": "opencode-openapi-http",
@@ -355,14 +355,14 @@
             "runtimeOwner": "rust-server",
             "bridgeProtocol": "http",
             "transportKind": "openapi-http",
-            "status": "ready",
+            "status": "planned",
             "enabledByDefault": false,
             "hostModes": [
               "web",
               "desktop",
               "server"
             ],
-            "description": "OpenCode OpenAPI fallback lane."
+            "description": "OpenCode OpenAPI lane; remote HTTP transport is not implemented yet."
           },
           {
             "laneId": "opencode-cli-jsonl",
@@ -372,18 +372,18 @@
             "bridgeProtocol": "stdio",
             "transportKind": "cli-jsonl",
             "status": "ready",
-            "enabledByDefault": false,
+            "enabledByDefault": true,
             "hostModes": [
               "desktop",
               "server"
             ],
-            "description": "OpenCode CLI fallback lane."
+            "description": "OpenCode CLI JSON execution lane used by the local kernel runtime."
           }
         ]
       },
       "officialIntegration": {
-        "integrationClass": "official-sdk",
-        "runtimeMode": "sdk",
+        "integrationClass": "official-protocol",
+        "runtimeMode": "headless",
         "officialEntry": {
           "packageName": "@opencode-ai/sdk",
           "sdkPath": "external/opencode/packages/sdk/js",
@@ -407,8 +407,8 @@
       "status": "active",
       "defaultForEngine": true,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -425,8 +425,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -443,8 +443,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -461,8 +461,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -479,8 +479,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -497,8 +497,8 @@
       "status": "active",
       "defaultForEngine": true,
       "transportKinds": [
-        "sdk-stream",
         "cli-jsonl",
+        "sdk-stream",
         "remote-control-http"
       ],
       "capabilityMatrix": {}
@@ -516,8 +516,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
         "cli-jsonl",
+        "sdk-stream",
         "remote-control-http"
       ],
       "capabilityMatrix": {}
@@ -535,8 +535,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
         "cli-jsonl",
+        "sdk-stream",
         "remote-control-http"
       ],
       "capabilityMatrix": {}
@@ -554,8 +554,8 @@
       "status": "active",
       "defaultForEngine": true,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -572,8 +572,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -590,8 +590,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -608,8 +608,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -626,8 +626,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -644,8 +644,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -662,8 +662,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -680,8 +680,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -698,8 +698,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -716,8 +716,8 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "capabilityMatrix": {}
     },
@@ -734,9 +734,9 @@
       "status": "active",
       "defaultForEngine": true,
       "transportKinds": [
+        "cli-jsonl",
         "sdk-stream",
-        "openapi-http",
-        "cli-jsonl"
+        "openapi-http"
       ],
       "capabilityMatrix": {}
     },
@@ -753,9 +753,9 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
+        "cli-jsonl",
         "sdk-stream",
-        "openapi-http",
-        "cli-jsonl"
+        "openapi-http"
       ],
       "capabilityMatrix": {}
     },
@@ -772,9 +772,9 @@
       "status": "active",
       "defaultForEngine": false,
       "transportKinds": [
+        "cli-jsonl",
         "sdk-stream",
-        "openapi-http",
-        "cli-jsonl"
+        "openapi-http"
       ],
       "capabilityMatrix": {}
     }
@@ -787,8 +787,8 @@
       "prefix": "codex-native:",
       "nativeSessionIdPrefix": "codex-native:",
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "discoveryMode": "passive-global",
       "rawIdKind": "uuid",
@@ -801,8 +801,8 @@
       "prefix": "claude-code-native:",
       "nativeSessionIdPrefix": "claude-code-native:",
       "transportKinds": [
-        "sdk-stream",
         "cli-jsonl",
+        "sdk-stream",
         "remote-control-http"
       ],
       "discoveryMode": "passive-global",
@@ -816,8 +816,8 @@
       "prefix": "gemini-native:",
       "nativeSessionIdPrefix": "gemini-native:",
       "transportKinds": [
-        "sdk-stream",
-        "cli-jsonl"
+        "cli-jsonl",
+        "sdk-stream"
       ],
       "discoveryMode": "passive-global",
       "rawIdKind": "string",
@@ -830,9 +830,9 @@
       "prefix": "opencode-native:",
       "nativeSessionIdPrefix": "opencode-native:",
       "transportKinds": [
+        "cli-jsonl",
         "sdk-stream",
-        "openapi-http",
-        "cli-jsonl"
+        "openapi-http"
       ],
       "discoveryMode": "passive-global",
       "rawIdKind": "string",

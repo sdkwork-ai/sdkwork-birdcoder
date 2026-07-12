@@ -11,6 +11,7 @@ type CommerceInvoicesListQuery = Types.CommerceInvoicesListQuery;
 type CommerceInvoicesRetrievePathParams = Types.CommerceInvoicesRetrievePathParams;
 type CommerceOrdersListQuery = Types.CommerceOrdersListQuery;
 type CommerceOrdersRetrievePathParams = Types.CommerceOrdersRetrievePathParams;
+type CommercePaymentsConfirmPathParams = Types.CommercePaymentsConfirmPathParams;
 type CommercePaymentsListQuery = Types.CommercePaymentsListQuery;
 type CommercePaymentsRetrievePathParams = Types.CommercePaymentsRetrievePathParams;
 
@@ -26,6 +27,7 @@ export interface CommerceApi {
       retrieve(pathParams: CommerceOrdersRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommerceOrderSummaryEnvelope>;
     };
     payments: {
+      confirm(pathParams: CommercePaymentsConfirmPathParams, body: Types.BirdCoderConfirmCommercePaymentRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommercePaymentSummaryEnvelope>;
       create(body: Types.BirdCoderCreateCommercePaymentRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommercePaymentSummaryEnvelope>;
       list(query?: CommercePaymentsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommercePaymentSummaryListEnvelope>;
       retrieve(pathParams: CommercePaymentsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCommercePaymentSummaryEnvelope>;
@@ -64,6 +66,9 @@ export function createCommerceApi(requestOperation: BirdcoderSdkRequestOperation
         }
       },
       payments: {
+        confirm(pathParams: CommercePaymentsConfirmPathParams, body: Types.BirdCoderConfirmCommercePaymentRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderCommercePaymentSummaryEnvelope>("commerce.payments.confirm", { pathParams, body }, options);
+        },
         create(body: Types.BirdCoderCreateCommercePaymentRequest, options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<Types.BirdCoderCommercePaymentSummaryEnvelope>("commerce.payments.create", { body }, options);
         },

@@ -4,6 +4,7 @@ import type {
   BirdCoderOpenApiResponseObject,
   BirdCoderOpenApiSchema,
 } from './openApiDocumentTypes.ts';
+import { BIRDCODER_DATA_SCOPES } from '@sdkwork/birdcoder-pc-types';
 
 export function createOpenApiSchemaReference(schemaName: string): BirdCoderOpenApiSchema {
   return {
@@ -107,10 +108,14 @@ export function createOpenApiNullableStringSchema(description?: string): BirdCod
   return createOpenApiNullableSchema({ type: 'string' }, description);
 }
 
-export function createOpenApiIntegerSchema(minimum?: number): BirdCoderOpenApiSchema {
+export function createOpenApiIntegerSchema(
+  minimum?: number,
+  maximum?: number,
+): BirdCoderOpenApiSchema {
   return {
     type: 'integer',
     ...(typeof minimum === 'number' ? { minimum } : {}),
+    ...(typeof maximum === 'number' ? { maximum } : {}),
   };
 }
 
@@ -144,7 +149,7 @@ export function createOpenApiStringEnumSchema(
 
 export function createOpenApiDataScopeSchema(): BirdCoderOpenApiSchema {
   return createOpenApiStringEnumSchema(
-    ['workspace', 'project', 'user', 'team', 'organization'] as const,
+    BIRDCODER_DATA_SCOPES,
     'DATABASE_SPEC.md standard data scope.',
   );
 }
@@ -357,10 +362,15 @@ export function buildOpenApiResponses(
   }>,
 ): Record<string, BirdCoderOpenApiResponseObject> {
   const responses: Record<string, BirdCoderOpenApiResponseObject> = {};
-  if (options?.successSchema && options.successStatus) {
-    responses[options.successStatus] = createOpenApiResponse(
+  const successStatus = options?.successStatus ?? '200';
+  if (options?.successSchema) {
+    responses[successStatus] = createOpenApiResponse(
       options.successDescription ?? 'Successful response',
       options.successSchema,
+    );
+  } else if (options?.successStatus) {
+    responses[successStatus] = createOpenApiResponse(
+      options.successDescription ?? 'Successful response',
     );
   } else {
     responses['200'] = createOpenApiResponse('Successful response');

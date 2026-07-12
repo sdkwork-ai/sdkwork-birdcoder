@@ -139,10 +139,11 @@ export interface BirdCoderOpenApiOperationObject {
   requestBody?: BirdCoderOpenApiRequestBodyObject;
   responses: Record<string, BirdCoderOpenApiResponseObject>;
   security: Array<{ bearerAuth: []; sdkworkAccessToken: [] }> | [];
-  'x-sdkwork-auth-mode': BirdCoderApiRouteDefinition['authMode'];
+  'x-sdkwork-auth-mode': 'anonymous' | BirdCoderApiRouteDefinition['authMode'];
   'x-sdkwork-data-scope': BirdCoderOpenApiScope;
   'x-sdkwork-deployment': 'all';
   'x-sdkwork-domain': BirdCoderOpenApiDomain;
+  'x-sdkwork-forbid-credential-headers'?: boolean;
   'x-sdkwork-permission'?: string;
   'x-sdkwork-public': boolean;
   'x-sdkwork-resource': string;
@@ -207,4 +208,3 @@ export interface BirdCoderOpenApiOperationDefinition {
   responses: Record<string, BirdCoderOpenApiResponseObject>;
   streamKind?: (typeof BIRDCODER_STREAM_KINDS)[number];
 }
-

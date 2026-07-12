@@ -1,10 +1,5 @@
-use std::collections::BTreeMap;
-
+use sdkwork_birdcoder_engine_catalog_service::service::engine_catalog_service::CodeEngineModelConfigPayload;
 use serde::Deserialize;
-use sdkwork_birdcoder_engine_catalog_service::service::engine_catalog_service::{
-    CodeEngineModelConfigCustomModelPayload, CodeEngineModelConfigEnginePayload,
-    CodeEngineModelConfigPayload,
-};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,7 +19,6 @@ pub struct NativeSessionQueryParams {
     pub workspace_id: Option<String>,
     pub project_id: Option<String>,
     pub engine_id: Option<String>,
-    pub limit: Option<usize>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,4 +34,3 @@ pub struct NativeSessionScopeQuery {
 pub struct SyncModelConfigRequest {
     pub local_config: CodeEngineModelConfigPayload,
 }
-

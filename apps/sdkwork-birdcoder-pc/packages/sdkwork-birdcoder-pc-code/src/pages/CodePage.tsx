@@ -70,7 +70,9 @@ function CodePageComponent({
     workspaceId,
   });
   const {
+    hasMore: hasMoreProjects,
     hasFetched: hasFetchedProjects,
+    isLoadingMore: isLoadingMoreProjects,
     projects,
     filteredProjects,
     searchQuery,
@@ -87,8 +89,10 @@ function CodePageComponent({
     deleteCodingSessionMessage,
     sendMessage,
     forkCodingSession,
+    loadMoreProjects,
   } = useProjects(effectiveWorkspaceId, {
     isActive: isVisible,
+    targetProjectId: projectId,
   });
   const { appRuntimeReadService, projectService } = useIDEServices();
   const { user } = useAuth();
@@ -357,6 +361,34 @@ function CodePageComponent({
     },
   );
 
+  const {
+    files,
+    loadingDirectoryPaths,
+    openFiles,
+    selectedFile,
+    fileContent,
+    saveError,
+    isSearchingFiles,
+    mountRecoveryState,
+    selectFile,
+    loadDirectory,
+    closeFile,
+    updateFileDraft,
+    saveFileContent,
+    createFile,
+    createFolder,
+    deleteFile,
+    deleteFolder,
+    renameNode,
+    searchFiles,
+    mountFolder,
+    flushPendingAutosave,
+  } = useFileSystem(currentProjectId, currentProject?.path, {
+    isActive: isVisible,
+    loadActive: isVisible && activeTab === 'editor',
+    realtimeActive: isVisible && activeTab === 'editor',
+  });
+
   useCodeWorkbenchCommands({
     isActive: isVisible,
     projects,
@@ -375,34 +407,15 @@ function CodePageComponent({
     setIsDebugConfigVisible,
     setIsRunTaskVisible,
     onRunWithoutDebugging: handleRunWithoutDebugging,
+    flushPendingAutosave,
     addToast,
   });
 
-  const {
-    files,
-    loadingDirectoryPaths,
-    openFiles,
-    selectedFile,
-    fileContent,
-    isSearchingFiles,
-    mountRecoveryState,
-    selectFile,
-    loadDirectory,
-    closeFile,
-    updateFileDraft,
-    saveFileContent,
-    createFile,
-    createFolder,
-    deleteFile,
-    deleteFolder,
-    renameNode,
-    searchFiles,
-    mountFolder,
-  } = useFileSystem(currentProjectId, currentProject?.path, {
-    isActive: isVisible,
-    loadActive: isVisible && activeTab === 'editor',
-    realtimeActive: isVisible && activeTab === 'editor',
-  });
+  useEffect(() => {
+    if (saveError) {
+      addToast(saveError, 'error');
+    }
+  }, [addToast, saveError]);
   const previousMountRecoveryStatusRef = useRef(mountRecoveryState.status);
 
   useEffect(() => {
@@ -1184,12 +1197,14 @@ function CodePageComponent({
     fileContent,
     files,
     filteredProjects,
+    hasMoreProjects,
     isChatBusy,
     isChatEngineBusy,
     isEngineBusyCurrentSession: isSelectedSessionEngineBusy,
     isDebugConfigVisible,
     isFindVisible,
     isMountRecoveryActionPending,
+    isLoadingMoreProjects,
     isQuickOpenVisible,
     isRunConfigVisible,
     isRunTaskVisible,
@@ -1262,6 +1277,7 @@ function CodePageComponent({
     onMarkCodingSessionUnread: handleMarkSessionUnread,
     onNewCodingSessionInProject: createCodingSessionInProjectWithTranscriptReset,
     onNewProject: handleNewProject,
+    onLoadMoreProjects: loadMoreProjects,
     onNotifyNoResults: handleNotifyNoCodeResults,
     onOpenFolder: handleOpenFolder,
     onOpenCodingSessionInTerminal: handleOpenCodingSessionInTerminal,

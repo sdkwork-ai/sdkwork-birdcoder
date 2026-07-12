@@ -56,12 +56,35 @@ export interface BirdCoderServiceListPagination {
   offset?: number;
 }
 
+export interface BirdCoderServicePageRequest {
+  page: number;
+  pageSize: number;
+}
+
+export interface BirdCoderServiceOffsetPageInfo {
+  hasMore: boolean;
+  mode: 'offset';
+  page: number;
+  pageSize: number;
+  totalItems: string;
+  totalPages: number;
+}
+
+export interface BirdCoderServiceListPage<TItem> {
+  items: TItem[];
+  pageInfo: BirdCoderServiceOffsetPageInfo;
+}
+
 export interface BirdCoderCodingSessionListResult {
   items: BirdCoderCodingSession[];
   total: number;
 }
 
 export interface IProjectService {
+  getProjectsPage(
+    workspaceId: string | undefined,
+    request: BirdCoderServicePageRequest,
+  ): Promise<BirdCoderServiceListPage<BirdCoderProject>>;
   getProjects(
     workspaceId?: string,
     pagination?: BirdCoderServiceListPagination,

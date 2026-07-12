@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { resolveBirdCoderLegalLinks } from '@sdkwork/birdcoder-h5-commons';
 import { clearBirdCoderSessionRecord } from '@sdkwork/birdcoder-h5-core';
 import {
-  BirdCoderSettingsProvider,
   BIRDCODER_H5_ENGINE_OPTIONS,
   BIRDCODER_H5_LANGUAGE_OPTIONS,
   BIRDCODER_H5_THEME_OPTIONS,
@@ -259,9 +258,5 @@ function SettingsContent() {
 }
 
 export function SettingsPage() {
-  return (
-    <BirdCoderSettingsProvider>
-      <SettingsContent />
-    </BirdCoderSettingsProvider>
-  );
+  return <SettingsContent />;
 }

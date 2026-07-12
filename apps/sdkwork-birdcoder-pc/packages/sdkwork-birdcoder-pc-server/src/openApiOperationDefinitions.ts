@@ -46,15 +46,15 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'Filter resources to a single code engine.',
     engineQuerySchema,
   );
-  const limitParameter = createOpenApiQueryParameter(
-    'limit',
-    'Maximum number of items to return.',
+  const pageParameter = createOpenApiQueryParameter(
+    'page',
+    'One-based page number used for offset-mode pagination.',
     createOpenApiIntegerSchema(1),
   );
-  const offsetParameter = createOpenApiQueryParameter(
-    'offset',
-    'Zero-based starting offset used for incremental loading.',
-    createOpenApiIntegerSchema(0),
+  const pageSizeParameter = createOpenApiQueryParameter(
+    'page_size',
+    'Maximum number of items to return. Defaults to 20 and must not exceed 200.',
+    createOpenApiIntegerSchema(1, 200),
   );
   const codingSessionIdPathParameter = createOpenApiPathParameter(
     'sessionId',
@@ -159,6 +159,22 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'userId',
     'SDKWork IAM user identifier.',
   );
+  const idPathParameter = createOpenApiPathParameter('id', 'Resource identifier.');
+  const notificationStatusParameter = createOpenApiQueryParameter(
+    'status',
+    'Filter notifications by read status.',
+    createOpenApiStringSchema(),
+  );
+  const usagePeriodParameter = createOpenApiQueryParameter(
+    'period',
+    'Usage history period granularity. Monthly is the supported runtime value.',
+    createOpenApiStringSchema(),
+  );
+  const usageMetricParameter = createOpenApiQueryParameter(
+    'metric',
+    'Filter usage breakdown or quota status to one metric type.',
+    createOpenApiStringSchema(),
+  );
 
   return {
     'descriptor.retrieve': {
@@ -187,8 +203,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         workspaceIdParameter,
         projectIdParameter,
         engineIdParameter,
-        limitParameter,
-        offsetParameter,
+        pageParameter,
+        pageSizeParameter,
       ],
       responses: buildOpenApiResponses({
         successStatus: '200',
@@ -244,9 +260,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'codingSessions.delete': {
       parameters: [codingSessionIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'Coding session deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
         extraResponses: {
           '404': createProblemResponse('Coding session was not found.'),
           '500': createProblemResponse('Coding session could not be deleted.'),
@@ -305,9 +320,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'codingSessions.messages.delete': {
       parameters: [codingSessionIdPathParameter, messageIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'Coding session message deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeleteCodingSessionMessageResultEnvelope'),
         extraResponses: {
           '404': createProblemResponse('Coding session message was not found.'),
           '500': createProblemResponse('Coding session message could not be deleted.'),
@@ -331,8 +345,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         workspaceIdParameter,
         projectIdParameter,
         engineIdParameter,
-        limitParameter,
-        offsetParameter,
+        pageParameter,
+        pageSizeParameter,
       ],
       responses: buildOpenApiResponses({
         successStatus: '200',
@@ -399,13 +413,13 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         successSchema: createOpenApiSchemaReference('BirdCoderCodeEngineModelConfigEnvelope'),
       }),
     },
-    'modelConfig.sync': {
+    'modelConfig.update': {
       requestBody: createOpenApiRequestBody(
         createOpenApiSchemaReference('BirdCoderSyncCodeEngineModelConfigRequest'),
       ),
       responses: buildOpenApiResponses({
         successStatus: '200',
-        successDescription: 'Code engine model configuration synchronized successfully.',
+        successDescription: 'Code engine model configuration updated successfully.',
         successSchema: createOpenApiSchemaReference(
           'BirdCoderCodeEngineModelConfigSyncResultEnvelope',
         ),
@@ -442,7 +456,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderSubmitApprovalDecisionRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Approval decision applied successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderApprovalDecisionResultEnvelope'),
         extraResponses: {
@@ -463,7 +477,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderSubmitUserQuestionAnswerRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'User-question answer applied successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderUserQuestionAnswerResultEnvelope'),
         extraResponses: {
@@ -531,7 +545,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderIamOAuthAuthorizationCreateRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'OAuth authorization URL resolved successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamOAuthAuthorizationEnvelope'),
         extraResponses: {
@@ -544,7 +558,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderIamOAuthSessionCreateRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM session created successfully with OAuth authorization.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
         extraResponses: {
@@ -558,7 +572,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderIamDeviceAuthorizationCreateRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM OAuth device authorization created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamDeviceAuthorizationEnvelope'),
         extraResponses: {
@@ -584,7 +598,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         false,
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM OAuth device authorization scan accepted successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
         extraResponses: {
@@ -598,7 +612,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderIamDeviceAuthorizationPasswordCompletionRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription:
           'SDKWork IAM OAuth device authorization completed with password successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
@@ -614,7 +628,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderIamDeviceAuthorizationSessionExchangeRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription:
           'SDKWork IAM OAuth device authorization session exchanged successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
@@ -631,7 +645,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderIamCreateSessionRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM session created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
         extraResponses: {
@@ -645,7 +659,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderIamRegistrationCreateRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM user registered successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamSessionEnvelope'),
         extraResponses: {
@@ -658,7 +672,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderIamPasswordResetRequestCreateRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Password reset challenge accepted successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
         extraResponses: {
@@ -671,7 +685,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderIamPasswordResetCreateRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Password reset completed successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
         extraResponses: {
@@ -682,9 +696,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     },
     'sessions.current.delete': {
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'SDKWork IAM session revoked successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
       }),
     },
     'sessions.refresh': {
@@ -735,7 +748,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'commerce.orders.list': {
-      parameters: [limitParameter, offsetParameter],
+      parameters: [pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'SDKWork commerce orders returned successfully.',
@@ -767,7 +780,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'commerce.invoices.list': {
-      parameters: [limitParameter, offsetParameter],
+      parameters: [pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'SDKWork commerce invoices returned successfully.',
@@ -786,7 +799,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'commerce.payments.list': {
-      parameters: [limitParameter, offsetParameter],
+      parameters: [pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'SDKWork commerce payments returned successfully.',
@@ -834,8 +847,164 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
+    'commerce.apiKeys.create': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateCommerceApiKeyRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '201',
+        successDescription: 'BirdCoder commerce API key created successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceApiKeyCreatedEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('BirdCoder commerce API key request is invalid.'),
+          '403': createProblemResponse('BirdCoder commerce API key creation is not permitted.'),
+        },
+      }),
+    },
+    'commerce.apiKeys.list': {
+      parameters: [pageParameter, pageSizeParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce API keys returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceApiKeySummaryListEnvelope'),
+      }),
+    },
+    'commerce.apiKeys.revoke': {
+      parameters: [idPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '204',
+        successDescription: 'BirdCoder commerce API key revoked successfully.',
+        extraResponses: {
+          '403': createProblemResponse('BirdCoder commerce API key revocation is not permitted.'),
+          '404': createProblemResponse('BirdCoder commerce API key was not found.'),
+        },
+      }),
+    },
+    'commerce.apiKeys.rotate': {
+      parameters: [idPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce API key rotated successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceApiKeyCreatedEnvelope'),
+        extraResponses: {
+          '403': createProblemResponse('BirdCoder commerce API key rotation is not permitted.'),
+          '404': createProblemResponse('BirdCoder commerce API key was not found.'),
+        },
+      }),
+    },
+    'commerce.notifications.list': {
+      parameters: [notificationStatusParameter, pageParameter, pageSizeParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce notifications returned successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderCommerceNotificationSummaryListEnvelope',
+        ),
+      }),
+    },
+    'commerce.notifications.send': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderCreateCommerceNotificationRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '201',
+        successDescription: 'BirdCoder commerce notification sent successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderCommerceNotificationCreatedEnvelope',
+        ),
+        extraResponses: {
+          '400': createProblemResponse('BirdCoder commerce notification request is invalid.'),
+          '403': createProblemResponse('BirdCoder commerce notification send is not permitted.'),
+        },
+      }),
+    },
+    'commerce.notifications.get': {
+      parameters: [idPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce notification returned successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderCommerceNotificationSummaryEnvelope',
+        ),
+        extraResponses: {
+          '404': createProblemResponse('BirdCoder commerce notification was not found.'),
+        },
+      }),
+    },
+    'commerce.notifications.unreadCount': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce unread notification count returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceUnreadCountEnvelope'),
+      }),
+    },
+    'commerce.notifications.markRead': {
+      parameters: [idPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce notification marked as read successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceNotificationReadEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('BirdCoder commerce notification was not found.'),
+        },
+      }),
+    },
+    'commerce.notifications.markAllRead': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce notifications marked as read successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceMarkAllReadEnvelope'),
+      }),
+    },
+    'commerce.usage.record': {
+      requestBody: createOpenApiRequestBody(
+        createOpenApiSchemaReference('BirdCoderRecordCommerceUsageRequest'),
+      ),
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce usage event recorded successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceRecordUsageEnvelope'),
+        extraResponses: {
+          '400': createProblemResponse('BirdCoder commerce usage request is invalid.'),
+          '403': createProblemResponse('BirdCoder commerce usage recording is not permitted.'),
+        },
+      }),
+    },
+    'commerce.usage.currentPeriod': {
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce current-period usage returned successfully.',
+        successSchema: createOpenApiSchemaReference(
+          'BirdCoderCommerceCurrentPeriodUsageEnvelope',
+        ),
+      }),
+    },
+    'commerce.usage.history': {
+      parameters: [usagePeriodParameter, pageParameter, pageSizeParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce usage history returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceUsageHistoryListEnvelope'),
+      }),
+    },
+    'commerce.usage.breakdown': {
+      parameters: [usageMetricParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce usage breakdown returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceUsageBreakdownEnvelope'),
+      }),
+    },
+    'commerce.usage.quota': {
+      parameters: [usageMetricParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'BirdCoder commerce usage quota returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderCommerceQuotaStatusEnvelope'),
+      }),
+    },
     'workspaces.list': {
-      parameters: [userIdParameter, limitParameter, offsetParameter],
+      parameters: [userIdParameter, pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Workspace inventory returned successfully.',
@@ -884,9 +1053,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'workspaces.delete': {
       parameters: [workspaceIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'Workspace removed successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
         extraResponses: {
           '404': createProblemResponse('Workspace was not found.'),
         },
@@ -910,8 +1078,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         userIdParameter,
         workspaceIdParameter,
         rootPathParameter,
-        limitParameter,
-        offsetParameter,
+        pageParameter,
+        pageSizeParameter,
       ],
       responses: buildOpenApiResponses({
         successStatus: '200',
@@ -947,7 +1115,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateProjectGitBranchRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Project Git branch created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
         extraResponses: {
@@ -962,7 +1130,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderSwitchProjectGitBranchRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Project Git branch switched successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
         extraResponses: {
@@ -977,7 +1145,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCommitProjectGitChangesRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Project Git changes committed successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
         extraResponses: {
@@ -993,7 +1161,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         false,
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Project Git branch pushed successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
         extraResponses: {
@@ -1008,7 +1176,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateProjectGitWorktreeRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Project Git worktree created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
         extraResponses: {
@@ -1023,7 +1191,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderRemoveProjectGitWorktreeRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Project Git worktree removed successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
         extraResponses: {
@@ -1035,7 +1203,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'projects.git.worktreePrune.create': {
       parameters: [projectIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Project Git worktrees pruned successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectGitOverviewEnvelope'),
         extraResponses: {
@@ -1045,7 +1213,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'projects.collaborators.list': {
-      parameters: [projectIdPathParameter, limitParameter, offsetParameter],
+      parameters: [projectIdPathParameter, pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Project collaborators returned successfully.',
@@ -1057,20 +1225,16 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
-    'projects.collaborators.upsert': {
+    'projects.collaborators.create': {
       parameters: [projectIdPathParameter],
       requestBody: createOpenApiRequestBody(
         createOpenApiSchemaReference('BirdCoderUpsertProjectCollaboratorRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'Project collaborator updated successfully.',
+        successStatus: '201',
+        successDescription: 'Project collaborator created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderProjectCollaboratorSummaryEnvelope'),
         extraResponses: {
-          '201': createOpenApiResponse(
-            'Project collaborator created successfully.',
-            createOpenApiSchemaReference('BirdCoderProjectCollaboratorSummaryEnvelope'),
-          ),
           '400': createProblemResponse('Project collaborator request is invalid.'),
           '404': createProblemResponse('Project was not found.'),
         },
@@ -1108,16 +1272,15 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'projects.delete': {
       parameters: [projectIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'Project removed successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
         extraResponses: {
           '404': createProblemResponse('Project was not found.'),
         },
       }),
     },
     'skillPackages.list': {
-      parameters: [userIdParameter, workspaceIdParameter, limitParameter, offsetParameter],
+      parameters: [userIdParameter, workspaceIdParameter, pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Skill package catalog returned successfully.',
@@ -1130,7 +1293,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderInstallSkillPackageRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'Skill package installed successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderSkillInstallationSummaryEnvelope'),
         extraResponses: {
@@ -1140,7 +1303,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'appTemplates.list': {
-      parameters: [limitParameter, offsetParameter],
+      parameters: [pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'App template catalog returned successfully.',
@@ -1148,7 +1311,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'documents.list': {
-      parameters: [projectIdParameter, limitParameter, offsetParameter],
+      parameters: [projectIdParameter, pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Project documents returned successfully.',
@@ -1156,7 +1319,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'chat.conversations.list': {
-      parameters: [limitParameter, offsetParameter],
+      parameters: [pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Chat conversations returned successfully.',
@@ -1187,16 +1350,15 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'chat.conversations.delete': {
       parameters: [conversationIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'Chat conversation deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeleteChatConversationEnvelope'),
         extraResponses: {
           '404': createProblemResponse('Chat conversation was not found.'),
         },
       }),
     },
     'chat.conversations.messages.list': {
-      parameters: [conversationIdPathParameter, limitParameter, offsetParameter],
+      parameters: [conversationIdPathParameter, pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Chat messages returned successfully.',
@@ -1229,7 +1391,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'workspaces.members.list': {
-      parameters: [workspaceIdPathParameter, limitParameter, offsetParameter],
+      parameters: [workspaceIdPathParameter, pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Workspace members returned successfully.',
@@ -1239,26 +1401,22 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
-    'workspaces.members.upsert': {
+    'workspaces.members.create': {
       parameters: [workspaceIdPathParameter],
       requestBody: createOpenApiRequestBody(
         createOpenApiSchemaReference('BirdCoderUpsertWorkspaceMemberRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
-        successDescription: 'Workspace member updated successfully.',
+        successStatus: '201',
+        successDescription: 'Workspace member created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderWorkspaceMemberSummaryEnvelope'),
         extraResponses: {
-          '201': createOpenApiResponse(
-            'Workspace member created successfully.',
-            createOpenApiSchemaReference('BirdCoderWorkspaceMemberSummaryEnvelope'),
-          ),
           '400': createProblemResponse('Workspace member request is invalid.'),
           '404': createProblemResponse('Workspace was not found.'),
         },
       }),
     },
-    'projects.publish.create': {
+    'projects.publish.publish': {
       parameters: [projectIdPathParameter],
       requestBody: createOpenApiRequestBody(
         createOpenApiSchemaReference('BirdCoderPublishProjectRequest'),
@@ -1274,7 +1432,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'deployments.list': {
-      parameters: [limitParameter, offsetParameter],
+      parameters: [pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Deployment inventory returned successfully.',
@@ -1318,7 +1476,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateIamOrganizationRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM organization created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamOrganizationSummaryEnvelope'),
         extraResponses: {
@@ -1355,9 +1513,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'organizations.delete': {
       parameters: [organizationIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'SDKWork IAM organization deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
         extraResponses: {
           '404': createProblemResponse('SDKWork IAM organization was not found.'),
         },
@@ -1384,7 +1541,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateIamOrganizationMemberRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM organization membership created successfully.',
         successSchema: createOpenApiSchemaReference(
           'BirdCoderIamOrganizationMemberSummaryEnvelope',
@@ -1423,7 +1580,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateIamPermissionRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM permission created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamPermissionSummaryEnvelope'),
         extraResponses: {
@@ -1460,9 +1617,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'permissions.delete': {
       parameters: [permissionIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'SDKWork IAM permission deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
         extraResponses: {
           '404': createProblemResponse('SDKWork IAM permission was not found.'),
         },
@@ -1480,7 +1636,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateIamPolicyRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM policy created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamPolicySummaryEnvelope'),
         extraResponses: {
@@ -1517,9 +1673,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'policies.delete': {
       parameters: [policyIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'SDKWork IAM policy deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
         extraResponses: {
           '404': createProblemResponse('SDKWork IAM policy was not found.'),
         },
@@ -1537,7 +1692,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateIamRoleRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM role created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamRoleSummaryEnvelope'),
         extraResponses: {
@@ -1574,9 +1729,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'roles.delete': {
       parameters: [roleIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'SDKWork IAM role deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
         extraResponses: {
           '404': createProblemResponse('SDKWork IAM role was not found.'),
         },
@@ -1601,7 +1755,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateIamRolePermissionRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM role permission created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamRolePermissionSummaryEnvelope'),
         extraResponses: {
@@ -1613,9 +1767,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'roles.permissions.delete': {
       parameters: [roleIdPathParameter, permissionIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'SDKWork IAM role permission deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
         extraResponses: {
           '404': createProblemResponse('SDKWork IAM role permission was not found.'),
         },
@@ -1640,7 +1793,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateIamTenantRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM tenant created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamTenantSummaryEnvelope'),
         extraResponses: {
@@ -1677,9 +1830,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'tenants.delete': {
       parameters: [tenantIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'SDKWork IAM tenant deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
         extraResponses: {
           '404': createProblemResponse('SDKWork IAM tenant was not found.'),
         },
@@ -1702,7 +1854,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateIamTenantMemberRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM tenant member created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamTenantMemberSummaryEnvelope'),
         extraResponses: {
@@ -1729,9 +1881,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'tenants.members.delete': {
       parameters: [tenantIdPathParameter, iamUserIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'SDKWork IAM tenant member deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
         extraResponses: {
           '404': createProblemResponse('SDKWork IAM tenant member was not found.'),
         },
@@ -1749,7 +1900,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateIamUserRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM user created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamUserSummaryEnvelope'),
         extraResponses: {
@@ -1786,9 +1937,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'users.delete': {
       parameters: [iamUserIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'SDKWork IAM user deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderDeletedResourceEnvelope'),
         extraResponses: {
           '404': createProblemResponse('SDKWork IAM user was not found.'),
         },
@@ -1806,7 +1956,7 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         createOpenApiSchemaReference('BirdCoderCreateIamUserRoleRequest'),
       ),
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '201',
         successDescription: 'SDKWork IAM user role binding created successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderIamUserRoleSummaryEnvelope'),
         extraResponses: {
@@ -1817,9 +1967,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'roleBindings.delete': {
       parameters: [roleBindingIdPathParameter],
       responses: buildOpenApiResponses({
-        successStatus: '200',
+        successStatus: '204',
         successDescription: 'SDKWork IAM user role binding deleted successfully.',
-        successSchema: createOpenApiSchemaReference('BirdCoderBooleanSuccessEnvelope'),
         extraResponses: {
           '404': createProblemResponse('SDKWork IAM user role binding was not found.'),
         },
@@ -1845,10 +1994,21 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       }),
     },
     'projects.deploymentTargets.list': {
-      parameters: [projectIdPathParameter, limitParameter, offsetParameter],
+      parameters: [projectIdPathParameter, pageParameter, pageSizeParameter],
       responses: buildOpenApiResponses({
         successStatus: '200',
         successDescription: 'Deployment targets returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderDeploymentTargetSummaryListEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
+    'deploymentGovernance.targets.list': {
+      parameters: [projectIdPathParameter, pageParameter, pageSizeParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Admin deployment targets returned successfully.',
         successSchema: createOpenApiSchemaReference('BirdCoderDeploymentTargetSummaryListEnvelope'),
         extraResponses: {
           '404': createProblemResponse('Project was not found.'),

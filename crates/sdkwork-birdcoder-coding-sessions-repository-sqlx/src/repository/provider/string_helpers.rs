@@ -132,9 +132,7 @@ pub fn normalize_data_scope(value: Option<String>) -> Result<Option<String>, &'s
         "3" | "TENANT" => "TENANT",
         "4" | "PUBLIC" => "PUBLIC",
         _ => {
-            return Err(
-                "dataScope must be DEFAULT, PRIVATE, ORGANIZATION, TENANT, PUBLIC, or 0-4.",
-            )
+            return Err("dataScope must be DEFAULT, PRIVATE, ORGANIZATION, TENANT, PUBLIC, or 0-4.")
         }
     };
 

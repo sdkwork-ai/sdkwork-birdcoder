@@ -36,13 +36,13 @@ assert.ok(
 );
 assert.equal(
   liveRegistry.summary.contractOperationCount,
-  162,
-  'OpenAPI contract must expose 162 operations (product/IAM/commerce gateway/commerce transactions/chat).',
+  161,
+  'HTTP OpenAPI contract must expose 161 operations; workspace realtime remains a WebSocket route catalog entry and is not emitted as an HTTP OpenAPI operation.',
 );
 assert.equal(
   liveRegistry.summary.implementedOperationCount,
-  162,
-  'Product, federated IAM, and commerce gateway routes must implement all OpenAPI operations.',
+  161,
+  'Product, federated IAM, and commerce gateway routes must implement all HTTP OpenAPI operations.',
 );
 assert.equal(
   liveRegistry.summary.deferredOperationCount,
@@ -73,6 +73,16 @@ assert.match(
   manifestGeneratorSource,
   /TEAMS_PATH/u,
   'Manifest generator must include workspace teams route.',
+);
+assert.match(
+  manifestGeneratorSource,
+  /PAYMENT_CONFIRM_PATH/u,
+  'Manifest generator must include commerce payment confirm route.',
+);
+assert.match(
+  manifestGeneratorSource,
+  /WORKSPACE_REALTIME_PATH[\s\S]*routeCatalogOnly: true[\s\S]*streamKind: 'websocket'/u,
+  'Manifest generator must keep workspace realtime as a route-catalog-only WebSocket instead of requiring an HTTP OpenAPI operation.',
 );
 
 process.stdout.write('coding-server-openapi-rust-defer-registry contract passed\n');

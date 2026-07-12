@@ -50,9 +50,7 @@ export type AppTab =
   | 'settings'
   | 'auth'
   | 'user'
-  | 'vip'
-  | 'skills'
-  | 'templates';
+  | 'vip';
 
 export * from './projectBusinessIdentity.ts';
 

@@ -9,12 +9,32 @@
       "language": "flutter",
       "name": "sdkwork_birdcoder_app_sdk",
       "version": "0.1.0",
-      "generatedPath": "generated/server-openapi"
+      "generatedPath": "generated/server-openapi",
+      "generationState": "materialized"
     }
   ],
   "sdkDependencies": [],
   "sdkFamily": "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer",
   "sdkName": "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer",
   "packageName": "@sdkwork/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer",
-  "transportPackageName": "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer-generated-typescript"
+  "transportPackageName": "sdkwork_birdcoder_flutter_mobile_app_sdk_consumer-generated-typescript",
+  "authoritySpec": "../../../sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json",
+  "discoverySurface": {
+    "sdkTarget": "app",
+    "apiPrefix": "/app/v3/api",
+    "generatedProtocols": [
+      "http-openapi"
+    ]
+  },
+  "metadata": {
+    "providerStandard": {
+      "generationScript": "../../../../scripts/generate-birdcoder-flutter-mobile-sdk-family.mjs",
+      "kind": "sdkwork.sdk.consumer.assembly",
+      "dependencyMode": "consumer-sdk",
+      "sourceSdkFamily": "sdkwork-birdcoder-app-sdk",
+      "sourceApplicationRoot": "apps/sdkwork-birdcoder-pc",
+      "consumerApplicationRoot": "apps/sdkwork-birdcoder-flutter-mobile"
+    }
+  },
+  "standardProfile": "sdkwork-v3"
 }

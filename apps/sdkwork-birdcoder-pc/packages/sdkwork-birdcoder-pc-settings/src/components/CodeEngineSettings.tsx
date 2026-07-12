@@ -16,9 +16,11 @@ import {
   type WorkbenchCodeEngineId,
 } from '@sdkwork/birdcoder-pc-codeengine';
 import {
+  listTerminalCliProfileAvailability,
   removeWorkbenchCodeEngineCustomModel,
   setWorkbenchActiveCodeEngine,
   setWorkbenchCodeEngineDefaultModel,
+  type TerminalCliProfileAvailability,
   upsertWorkbenchCodeEngineCustomModel,
   useToast,
 } from '@sdkwork/birdcoder-pc-commons';
@@ -30,6 +32,10 @@ interface EngineDraftState {
   label: string;
   modelId: string;
 }
+
+type EngineCliAvailabilityMap = Partial<
+  Record<WorkbenchCodeEngineId, TerminalCliProfileAvailability>
+>;
 
 type CodeEngineSettingsSelectionProps = {
   activeEngineId?: WorkbenchCodeEngineId;
@@ -196,9 +202,11 @@ export function CodeEngineSettingsSidebar({
   workbenchPreferences,
   activeEngineId,
   setActiveEngineId,
+  cliAvailabilityByEngineId,
 }: Pick<SettingsProps, 'workbenchPreferences'> & {
   activeEngineId: WorkbenchCodeEngineId;
   setActiveEngineId: (engineId: WorkbenchCodeEngineId) => void;
+  cliAvailabilityByEngineId: EngineCliAvailabilityMap;
 }) {
   const { t } = useTranslation();
   const engines = useMemo(
@@ -238,8 +246,12 @@ export function CodeEngineSettingsSidebar({
         {engines.map((engine) => {
           const enginePresentation = resolveWorkbenchEnginePresentation(engine.id);
           const engineSupport = resolveWorkbenchServerEngineSupportState(engine.id);
+          const cliAvailability = cliAvailabilityByEngineId[engine.id];
           const isActive = activeEngineId === engine.id;
           const isWorkspaceDefault = workspaceDefaultEngineId === engine.id;
+          const availabilityStatus = engineSupport.serverImplemented
+            ? cliAvailability?.status ?? 'unknown'
+            : 'unsupported';
           return (
             <button
               key={engine.id}
@@ -266,14 +278,20 @@ export function CodeEngineSettingsSidebar({
                 <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-wide">
                   <span
                     className={`rounded px-2 py-0.5 font-medium ${
-                      engineSupport.serverImplemented
+                      availabilityStatus === 'available'
                         ? 'bg-emerald-500/10 text-emerald-300'
-                        : 'bg-amber-500/10 text-amber-300'
+                        : availabilityStatus === 'missing'
+                          ? 'bg-red-500/10 text-red-300'
+                          : 'bg-amber-500/10 text-amber-300'
                     }`}
                   >
-                    {engineSupport.serverImplemented
-                      ? t('settings.engines.serverReady')
-                      : t('settings.engines.serverPlanned')}
+                    {availabilityStatus === 'available'
+                      ? t('settings.engines.cliAvailable')
+                      : availabilityStatus === 'missing'
+                        ? t('settings.engines.cliMissing')
+                        : availabilityStatus === 'unknown'
+                          ? t('settings.engines.cliUnknown')
+                          : t('settings.engines.serverPlanned')}
                   </span>
                   <span className="text-gray-500">
                     {t('settings.engines.modelCount', {
@@ -303,8 +321,27 @@ export function CodeEngineSettings({
   const [internalActiveEngineId, setInternalActiveEngineId] = useState(
     BIRDCODER_STANDARD_DEFAULT_ENGINE_ID,
   );
+  const [cliAvailabilityByEngineId, setCliAvailabilityByEngineId] =
+    useState<EngineCliAvailabilityMap>({});
   const activeEngineId = controlledActiveEngineId ?? internalActiveEngineId;
   const setActiveEngineId = setControlledActiveEngineId ?? setInternalActiveEngineId;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void listTerminalCliProfileAvailability().then((entries) => {
+      if (cancelled) {
+        return;
+      }
+      setCliAvailabilityByEngineId(
+        Object.fromEntries(entries.map((entry) => [entry.profileId, entry])) as EngineCliAvailabilityMap,
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const engines = useMemo(() => {
     return listSortedWorkbenchCodeEngines(workbenchPreferences);
@@ -338,6 +375,12 @@ export function CodeEngineSettings({
 
   const activeEngineSupport = resolveWorkbenchServerEngineSupportState(activeEngine.id);
   const activeEnginePresentation = resolveWorkbenchEnginePresentation(activeEngine.id);
+  const activeCliAvailability = cliAvailabilityByEngineId[activeEngine.id];
+  const activeAvailabilityStatus = activeEngineSupport.serverImplemented
+    ? activeCliAvailability?.status ?? 'unknown'
+    : 'unsupported';
+  const canSelectAsDefault =
+    activeEngineSupport.serverImplemented && activeAvailabilityStatus !== 'missing';
   const activeTopology = activeEnginePresentation.executionTopology;
   const activePrimaryLane = activeTopology.primaryLane;
   const activeFallbackLanes = activeTopology.fallbackLanes;
@@ -379,6 +422,7 @@ export function CodeEngineSettings({
         activeEngineId={activeEngine.id}
         setActiveEngineId={setActiveEngineId}
         workbenchPreferences={workbenchPreferences}
+        cliAvailabilityByEngineId={cliAvailabilityByEngineId}
       />
       <div className="min-w-0 flex-1 overflow-y-auto p-12">
         <div className="mx-auto max-w-6xl animate-in fade-in slide-in-from-bottom-4 fill-mode-both">
@@ -397,14 +441,20 @@ export function CodeEngineSettings({
                     </span>
                     <span
                       className={`rounded px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                        activeEngineSupport.serverImplemented
+                        activeAvailabilityStatus === 'available'
                           ? 'bg-emerald-500/10 text-emerald-300'
-                          : 'bg-amber-500/10 text-amber-300'
+                          : activeAvailabilityStatus === 'missing'
+                            ? 'bg-red-500/10 text-red-300'
+                            : 'bg-amber-500/10 text-amber-300'
                       }`}
                     >
-                      {activeEngineSupport.serverImplemented
-                        ? t('settings.engines.serverReady')
-                        : t('settings.engines.serverPlanned')}
+                      {activeAvailabilityStatus === 'available'
+                        ? t('settings.engines.cliAvailable')
+                        : activeAvailabilityStatus === 'missing'
+                          ? t('settings.engines.cliMissing')
+                          : activeAvailabilityStatus === 'unknown'
+                            ? t('settings.engines.cliUnknown')
+                            : t('settings.engines.serverPlanned')}
                     </span>
                     {workspaceDefaultEngineId === activeEngine.id ? (
                       <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blue-200">
@@ -437,9 +487,9 @@ export function CodeEngineSettings({
                     <Button
                       size="sm"
                       className="mt-3 w-full"
-                      disabled={!activeEngineSupport.serverImplemented}
+                      disabled={!canSelectAsDefault}
                       onClick={() => {
-                        if (!activeEngineSupport.serverImplemented) {
+                        if (!canSelectAsDefault) {
                           return;
                         }
 
@@ -591,8 +641,8 @@ export function CodeEngineSettings({
                           }`}
                         >
                           {lane.status === 'ready'
-                            ? t('settings.engines.serverReady')
-                            : t('settings.engines.serverPlanned')}
+                            ? t('settings.engines.laneImplemented')
+                            : t('settings.engines.lanePlanned')}
                         </span>
                       </div>
                       <div className="mt-1 text-gray-500">

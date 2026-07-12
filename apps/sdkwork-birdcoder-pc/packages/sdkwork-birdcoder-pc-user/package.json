@@ -19,11 +19,21 @@
     "@sdkwork/birdcoder-pc-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*",
-    "@sdkwork/user-pc-react": "workspace:*"
+    "@sdkwork/user-pc-react": "workspace:*",
+    "@sdkwork/membership-service": "workspace:*",
+    "@sdkwork/membership-pc-membership": "workspace:*",
+    "@sdkwork/membership-pc-subscription": "workspace:*",
+    "@sdkwork/promotion-pc-coupon": "workspace:*",
+    "@sdkwork/promotion-service": "workspace:*",
+    "@sdkwork/ui-pc-react": "workspace:*",
+    "@sdkwork/appbase-pc-react": "workspace:*",
+    "lucide-react": "catalog:",
+    "react-i18next": "catalog:"
   },
   "peerDependencies": {
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "react-router-dom": "catalog:"
   },
   "devDependencies": {
     "@types/react": "catalog:",

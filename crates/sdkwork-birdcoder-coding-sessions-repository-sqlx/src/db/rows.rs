@@ -1,5 +1,5 @@
-use sqlx::Row;
 use sdkwork_birdcoder_sqlx_repository_pool::dialect::row_get_bool_as_i64;
+use sqlx::Row;
 
 pub struct SessionRow {
     pub id: String,
@@ -273,6 +273,54 @@ impl OperationRow {
             stream_url: row.try_get("stream_url")?,
             stream_kind: row.try_get("stream_kind")?,
             artifact_refs_json: row.try_get("artifact_refs_json")?,
+        })
+    }
+}
+
+pub struct DurableOperationRow {
+    pub id: String,
+    pub tenant_id: i64,
+    pub user_id: i64,
+    pub coding_session_id: String,
+    pub turn_id: String,
+    pub status: String,
+    pub request_payload_json: String,
+    pub request_fingerprint: String,
+    pub idempotency_key: Option<String>,
+    pub available_at: String,
+    pub attempt: i64,
+    pub max_attempt: i64,
+    pub lease_owner: Option<String>,
+    pub lease_expires_at: Option<String>,
+    pub fencing_token: i64,
+    pub runner_id: Option<String>,
+    pub started_at: Option<String>,
+    pub completed_at: Option<String>,
+    pub problem_json: Option<String>,
+}
+
+impl DurableOperationRow {
+    pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            tenant_id: row.try_get("tenant_id")?,
+            user_id: row.try_get("user_id")?,
+            coding_session_id: row.try_get("coding_session_id")?,
+            turn_id: row.try_get("turn_id")?,
+            status: row.try_get("status")?,
+            request_payload_json: row.try_get("request_payload_json")?,
+            request_fingerprint: row.try_get("request_fingerprint")?,
+            idempotency_key: row.try_get("idempotency_key")?,
+            available_at: row.try_get("available_at")?,
+            attempt: row.try_get("attempt")?,
+            max_attempt: row.try_get("max_attempt")?,
+            lease_owner: row.try_get("lease_owner")?,
+            lease_expires_at: row.try_get("lease_expires_at")?,
+            fencing_token: row.try_get("fencing_token")?,
+            runner_id: row.try_get("runner_id")?,
+            started_at: row.try_get("started_at")?,
+            completed_at: row.try_get("completed_at")?,
+            problem_json: row.try_get("problem_json")?,
         })
     }
 }

@@ -22,12 +22,12 @@ impl SkillsApi {
     }
 
     /// List skill packages
-    pub async fn skill_packages_list(&self, user_id: Option<&str>, workspace_id: Option<&str>, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderSkillPackageSummaryListEnvelope, SdkworkError> {
+    pub async fn skill_packages_list(&self, user_id: Option<&str>, workspace_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderSkillPackageSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("userId", user_id, "form", true, false, None),
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/skill_packages".to_string()), &query);
         self.client.get(&path, None, None).await

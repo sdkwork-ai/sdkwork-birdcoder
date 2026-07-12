@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_message (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    coding_session_id TEXT NOT NULL,
+    coding_session_id TEXT NOT NULL REFERENCES ai_coding_session(id),
     turn_id TEXT NULL,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_runtime (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    coding_session_id TEXT NOT NULL,
+    coding_session_id TEXT NOT NULL REFERENCES ai_coding_session(id),
     engine_id TEXT NOT NULL,
     model_id TEXT NOT NULL,
     host_mode TEXT NOT NULL,
@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_turn (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    coding_session_id TEXT NOT NULL,
+    coding_session_id TEXT NOT NULL REFERENCES ai_coding_session(id),
     runtime_id TEXT NOT NULL,
     request_kind TEXT NOT NULL,
     status TEXT NOT NULL,
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_event (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    coding_session_id TEXT NOT NULL,
+    coding_session_id TEXT NOT NULL REFERENCES ai_coding_session(id),
     turn_id TEXT NULL,
     runtime_id TEXT NULL,
     event_kind TEXT NOT NULL,
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_artifact (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    coding_session_id TEXT NOT NULL,
+    coding_session_id TEXT NOT NULL REFERENCES ai_coding_session(id),
     turn_id TEXT NULL,
     artifact_kind TEXT NOT NULL,
     title TEXT NOT NULL,
@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_checkpoint (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    coding_session_id TEXT NOT NULL,
+    coding_session_id TEXT NOT NULL REFERENCES ai_coding_session(id),
     runtime_id TEXT NULL,
     checkpoint_kind TEXT NOT NULL,
     resumable INTEGER NOT NULL,
@@ -164,12 +164,25 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_operation (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    coding_session_id TEXT NOT NULL,
+    coding_session_id TEXT NOT NULL REFERENCES ai_coding_session(id),
     turn_id TEXT NOT NULL,
     status TEXT NOT NULL,
     stream_url TEXT NOT NULL,
     stream_kind TEXT NOT NULL,
-    artifact_refs_json TEXT NOT NULL
+    artifact_refs_json TEXT NOT NULL,
+    request_payload_json TEXT NOT NULL DEFAULT '{}',
+    request_fingerprint TEXT NOT NULL DEFAULT '',
+    idempotency_key TEXT NULL,
+    available_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z',
+    attempt INTEGER NOT NULL DEFAULT 0,
+    max_attempt INTEGER NOT NULL DEFAULT 1,
+    lease_owner TEXT NULL,
+    lease_expires_at TEXT NULL,
+    fencing_token INTEGER NOT NULL DEFAULT 0,
+    runner_id TEXT NULL,
+    started_at TEXT NULL,
+    completed_at TEXT NULL,
+    problem_json TEXT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
@@ -182,7 +195,7 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    coding_session_id TEXT NOT NULL,
+    coding_session_id TEXT NOT NULL REFERENCES ai_coding_session(id),
     prompt_text TEXT NOT NULL,
     normalized_prompt_text TEXT NOT NULL,
     last_used_at TEXT NOT NULL,
@@ -296,7 +309,7 @@ CREATE TABLE IF NOT EXISTS studio_project (
     description TEXT NULL,
     status INTEGER NOT NULL,
     conversation_id INTEGER NULL,
-    workspace_id INTEGER NULL,
+    workspace_id INTEGER NULL REFERENCES studio_workspace(id),
     workspace_uuid TEXT NULL,
     leader_id INTEGER NULL,
     start_time TEXT NULL,
@@ -327,7 +340,7 @@ CREATE TABLE IF NOT EXISTS studio_project_content (
     data_scope INTEGER NOT NULL DEFAULT 1,
     user_id INTEGER NOT NULL DEFAULT 0,
     parent_id INTEGER NULL,
-    project_id INTEGER NOT NULL,
+    project_id INTEGER NOT NULL REFERENCES studio_project(id),
     project_uuid TEXT NOT NULL,
     config_data TEXT NULL,
     content_data TEXT NULL,
@@ -356,7 +369,7 @@ CREATE TABLE IF NOT EXISTS studio_project_document (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    project_id TEXT NOT NULL,
+    project_id INTEGER NOT NULL REFERENCES studio_project(id),
     document_kind TEXT NOT NULL,
     title TEXT NOT NULL,
     slug TEXT NOT NULL,
@@ -377,7 +390,7 @@ CREATE TABLE IF NOT EXISTS studio_deployment_target (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    project_id TEXT NOT NULL,
+    project_id INTEGER NOT NULL REFERENCES studio_project(id),
     name TEXT NOT NULL,
     environment_key TEXT NOT NULL,
     runtime TEXT NOT NULL,
@@ -397,8 +410,8 @@ CREATE TABLE IF NOT EXISTS studio_deployment_record (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    project_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
+    project_id INTEGER NOT NULL REFERENCES studio_project(id),
+    target_id TEXT NOT NULL REFERENCES studio_deployment_target(id),
     release_record_id TEXT NULL,
     status TEXT NOT NULL,
     endpoint_url TEXT NULL,
@@ -440,7 +453,7 @@ CREATE TABLE IF NOT EXISTS studio_team_member (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    team_id INTEGER NOT NULL,
+    team_id INTEGER NOT NULL REFERENCES studio_team(id),
     user_id INTEGER NOT NULL,
     role TEXT NOT NULL,
     created_by_user_id INTEGER NULL,
@@ -457,7 +470,7 @@ CREATE TABLE IF NOT EXISTS studio_workspace_member (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    workspace_id INTEGER NOT NULL,
+    workspace_id INTEGER NOT NULL REFERENCES studio_workspace(id),
     user_id INTEGER NOT NULL,
     team_id INTEGER NULL,
     role TEXT NOT NULL,
@@ -475,7 +488,7 @@ CREATE TABLE IF NOT EXISTS studio_project_collaborator (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    project_id INTEGER NOT NULL,
+    project_id INTEGER NOT NULL REFERENCES studio_project(id),
     workspace_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     team_id INTEGER NULL,
@@ -513,7 +526,7 @@ CREATE TABLE IF NOT EXISTS ai_skill_version (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    skill_package_id TEXT NOT NULL,
+    skill_package_id TEXT NOT NULL REFERENCES ai_skill_package(id),
     version_label TEXT NOT NULL,
     manifest_json TEXT NOT NULL,
     status TEXT NOT NULL
@@ -528,7 +541,7 @@ CREATE TABLE IF NOT EXISTS ai_skill_capability (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    skill_version_id TEXT NOT NULL,
+    skill_version_id TEXT NOT NULL REFERENCES ai_skill_version(id),
     capability_key TEXT NOT NULL,
     description_text TEXT NOT NULL,
     payload_json TEXT NOT NULL
@@ -545,7 +558,7 @@ CREATE TABLE IF NOT EXISTS ai_skill_installation (
     is_deleted INTEGER NOT NULL DEFAULT 0,
     scope_type TEXT NOT NULL,
     scope_id TEXT NOT NULL,
-    skill_version_id TEXT NOT NULL,
+    skill_version_id TEXT NOT NULL REFERENCES ai_skill_version(id),
     status TEXT NOT NULL,
     installed_at TEXT NOT NULL
 );
@@ -587,7 +600,7 @@ CREATE TABLE IF NOT EXISTS studio_app_template_version (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    app_template_id TEXT NOT NULL,
+    app_template_id TEXT NOT NULL REFERENCES studio_app_template(id),
     version_label TEXT NOT NULL,
     manifest_json TEXT NOT NULL,
     status TEXT NOT NULL
@@ -602,7 +615,7 @@ CREATE TABLE IF NOT EXISTS studio_app_template_target_profile (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    app_template_version_id TEXT NOT NULL,
+    app_template_version_id TEXT NOT NULL REFERENCES studio_app_template_version(id),
     profile_key TEXT NOT NULL,
     runtime TEXT NOT NULL,
     deployment_mode TEXT NOT NULL,
@@ -618,7 +631,7 @@ CREATE TABLE IF NOT EXISTS studio_app_template_preset (
     updated_at TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    app_template_version_id TEXT NOT NULL,
+    app_template_version_id TEXT NOT NULL REFERENCES studio_app_template_version(id),
     preset_key TEXT NOT NULL,
     description_text TEXT NOT NULL,
     payload_json TEXT NOT NULL
@@ -634,7 +647,7 @@ CREATE TABLE IF NOT EXISTS studio_app_template_instantiation (
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted INTEGER NOT NULL DEFAULT 0,
     project_id TEXT NOT NULL,
-    app_template_version_id TEXT NOT NULL,
+    app_template_version_id TEXT NOT NULL REFERENCES studio_app_template_version(id),
     preset_key TEXT NOT NULL,
     status TEXT NOT NULL,
     output_root TEXT NOT NULL
@@ -732,12 +745,12 @@ CREATE TABLE IF NOT EXISTS commerce_membership (
     status TEXT NOT NULL,
     started_at TEXT NULL,
     expires_at TEXT NULL,
-    remaining_days TEXT NOT NULL DEFAULT '0',
-    total_days TEXT NOT NULL DEFAULT '0',
-    total_spent TEXT NOT NULL DEFAULT '0',
-    points TEXT NOT NULL DEFAULT '0',
-    growth_value TEXT NOT NULL DEFAULT '0',
-    upgrade_growth_value TEXT NOT NULL DEFAULT '0'
+    remaining_days INTEGER NOT NULL DEFAULT 0,
+    total_days INTEGER NOT NULL DEFAULT 0,
+    total_spent NUMERIC NOT NULL DEFAULT 0,
+    points INTEGER NOT NULL DEFAULT 0,
+    growth_value NUMERIC NOT NULL DEFAULT 0,
+    upgrade_growth_value NUMERIC NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS commerce_membership_benefit (
@@ -756,8 +769,8 @@ CREATE TABLE IF NOT EXISTS commerce_membership_benefit (
     description TEXT NULL,
     icon TEXT NULL,
     claimed INTEGER NOT NULL DEFAULT 0,
-    usage_limit TEXT NULL,
-    used_count TEXT NULL
+    usage_limit INTEGER NULL,
+    used_count INTEGER NULL
 );
 
 CREATE TABLE IF NOT EXISTS commerce_membership_package_group (
@@ -771,7 +784,7 @@ CREATE TABLE IF NOT EXISTS commerce_membership_package_group (
     is_deleted INTEGER NOT NULL DEFAULT 0,
     name TEXT NOT NULL,
     description TEXT NULL,
-    sort_weight TEXT NOT NULL DEFAULT '0'
+    sort_weight INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS commerce_membership_package (
@@ -786,12 +799,12 @@ CREATE TABLE IF NOT EXISTS commerce_membership_package (
     group_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT NULL,
-    price TEXT NOT NULL,
-    original_price TEXT NULL,
-    point_amount TEXT NOT NULL DEFAULT '0',
-    duration_days TEXT NOT NULL DEFAULT '30',
+    price NUMERIC NOT NULL DEFAULT 0,
+    original_price NUMERIC NULL,
+    point_amount INTEGER NOT NULL DEFAULT 0,
+    duration_days INTEGER NOT NULL DEFAULT 30,
     plan_name TEXT NULL,
-    sort_weight TEXT NOT NULL DEFAULT '0',
+    sort_weight INTEGER NOT NULL DEFAULT 0,
     recommended INTEGER NOT NULL DEFAULT 0
 );
 
@@ -851,7 +864,7 @@ CREATE TABLE IF NOT EXISTS commerce_invoice (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tenant_id INTEGER NOT NULL DEFAULT 0,
     invoice_no TEXT NOT NULL,
-    order_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL REFERENCES commerce_order(id),
     user_id INTEGER NOT NULL,
     amount NUMERIC NOT NULL DEFAULT 0,
     tax NUMERIC NOT NULL DEFAULT 0,
@@ -883,7 +896,7 @@ CREATE TABLE IF NOT EXISTS commerce_payment (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tenant_id INTEGER NOT NULL DEFAULT 0,
     payment_no TEXT NOT NULL,
-    order_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL REFERENCES commerce_order(id),
     user_id INTEGER NOT NULL,
     channel TEXT NOT NULL,
     channel_transaction_id TEXT NULL,
@@ -1038,6 +1051,17 @@ ON ai_coding_session_artifact(coding_session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_coding_session_operation_session_status
 ON ai_coding_session_operation(coding_session_id, status);
 
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_operation_queue
+ON ai_coding_session_operation(status, available_at, created_at, id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_operation_idempotency
+ON ai_coding_session_operation(tenant_id, user_id, coding_session_id, idempotency_key)
+WHERE idempotency_key IS NOT NULL AND is_deleted IS NOT TRUE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_operation_tenant_user_running
+ON ai_coding_session_operation(tenant_id, user_id)
+WHERE status = 'running' AND is_deleted IS NOT TRUE;
+
 CREATE INDEX IF NOT EXISTS idx_ai_coding_session_checkpoint_session_created
 ON ai_coding_session_checkpoint(coding_session_id, created_at);
 
@@ -1081,17 +1105,8 @@ ON ops_audit_event(tenant_id, created_at);
 -- lock: lightweight
 -- contract_version: 1.0.0
 --
--- SQLite cannot add FK constraints to existing tables via ALTER TABLE; foreign
--- keys must be declared inline in CREATE TABLE. The birdcoder baseline 0001 does
--- not declare inline REFERENCES, so on SQLite the equivalent of the PostgreSQL
--- 0005_foreign_keys constraints cannot be retrofitted through a migration.
---
--- Per DATABASE_FRAMEWORK_SPEC.md section 9 and the P1-17 task note ("无对应 SQLite
--- 操作"), this migration therefore:
---   1. Enables PRAGMA foreign_keys for the migration connection (documentary; the
---      runtime pool MUST enable this pragma on every connection).
---   2. Records the intended FK graph so a future baseline revision can declare the
---      inline REFERENCES clauses and the drift engine can verify them.
+-- SQLite baseline 0001 now declares inline REFERENCES clauses
+-- so FK enforcement is active when PRAGMA foreign_keys = ON.
 --
 -- The PostgreSQL twin migration (migrations/postgres/0005_foreign_keys.up.sql)
 -- materializes the actual ALTER TABLE ADD CONSTRAINT statements.

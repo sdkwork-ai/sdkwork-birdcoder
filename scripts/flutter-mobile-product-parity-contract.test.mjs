@@ -20,7 +20,10 @@ assert.match(routeCatalog, /app\.im\.chat\.index/u, 'Flutter route catalog must 
 assert.match(routeCatalog, /app\.account\.settings\.index/u, 'Flutter route catalog must include settings route.');
 assert.match(routeFactory, /buildBirdCoderRoutePageForPath/u, 'Flutter routing must resolve pages from the route catalog.');
 assert.match(appRouter, /buildBirdCoderRoutePageForPath/u, 'App router must delegate product routes to the route page factory.');
-assert.match(appShell, /pushReplacementNamed/u, 'App shell bottom navigation must navigate between catalog routes.');
+assert.match(appShell, /static const _tabPaths = \['\/', '\/settings'\];/u, 'App shell must bind bottom navigation to catalog route paths.');
+assert.match(appShell, /onTap: _openTab/u, 'App shell bottom navigation must switch through the persistent tab controller.');
+assert.match(appShell, /_pages\.putIfAbsent\(/u, 'App shell must preserve mounted tab pages and their local state.');
+assert.doesNotMatch(appShell, /pushReplacementNamed/u, 'Tab navigation must not replace the AppShell route and discard its AppBar or bottom navigation.');
 assert.doesNotMatch(appDart, /_HomePlaceholder/u, 'Flutter app shell must not keep the bootstrap placeholder home surface.');
 
 console.log('flutter mobile product parity contract passed.');

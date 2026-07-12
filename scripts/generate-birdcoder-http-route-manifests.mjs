@@ -35,12 +35,28 @@ function readPathConstants(crateDir) {
   return constants;
 }
 
-function resolveOperation(method, pathConst, pathConstants) {
+function resolveOperation(method, pathConst, pathConstants, routeOptions = {}) {
   const routePath = pathConstants[pathConst];
   if (!routePath) {
     throw new Error(`Unknown path constant ${pathConst}`);
   }
   const resolved = operationByMethodPath.get(`${method.toUpperCase()} ${routePath}`);
+  if (routeOptions.routeCatalogOnly === true) {
+    if (resolved) {
+      throw new Error(
+        `Route ${method.toUpperCase()} ${routePath} is marked route-catalog-only but exists in HTTP OpenAPI`,
+      );
+    }
+    if (!routeOptions.operationId || !routeOptions.permission) {
+      throw new Error(
+        `Route-catalog-only route ${method.toUpperCase()} ${routePath} requires explicit operationId and permission`,
+      );
+    }
+    return {
+      operationId: routeOptions.operationId,
+      permission: routeOptions.permission,
+    };
+  }
   if (!resolved) {
     throw new Error(`OpenAPI has no operation for ${method.toUpperCase()} ${routePath}`);
   }
@@ -97,7 +113,17 @@ const crates = [
       ['Get', 'WORKSPACE_DETAIL_PATH', 'workspaces'],
       ['Patch', 'WORKSPACE_DETAIL_PATH', 'workspaces'],
       ['Delete', 'WORKSPACE_DETAIL_PATH', 'workspaces'],
-      ['Get', 'WORKSPACE_REALTIME_PATH', 'workspaces'],
+      [
+        'Get',
+        'WORKSPACE_REALTIME_PATH',
+        'workspaces',
+        {
+          operationId: 'workspaces.realtime.subscribe',
+          permission: 'birdcoder.platform-workspaces-realtime.subscribe',
+          routeCatalogOnly: true,
+          streamKind: 'websocket',
+        },
+      ],
       ['Get', 'WORKSPACE_MEMBERS_PATH', 'workspaces'],
       ['Post', 'WORKSPACE_MEMBERS_PATH', 'workspaces'],
       ['Get', 'PROJECTS_PATH', 'projects'],
@@ -174,6 +200,7 @@ const crates = [
       ['Get', 'PAYMENTS_PATH', 'commerce'],
       ['Post', 'PAYMENTS_PATH', 'commerce'],
       ['Get', 'PAYMENT_PATH', 'commerce'],
+      ['Post', 'PAYMENT_CONFIRM_PATH', 'commerce'],
     ],
   },
   {
@@ -190,8 +217,8 @@ const crates = [
   },
 ];
 
-function renderRoute(method, pathConst, tag, pathConstants) {
-  const resolved = resolveOperation(method, pathConst, pathConstants);
+function renderRoute(method, pathConst, tag, pathConstants, routeOptions = {}) {
+  const resolved = resolveOperation(method, pathConst, pathConstants, routeOptions);
   return `    HttpRoute::dual_token(
         HttpMethod::${method},
         paths::${pathConst},
@@ -209,7 +236,7 @@ use sdkwork_web_core::HttpRouteManifest;
 use crate::paths;
 
 pub const ${crate.routesConst}: &[HttpRoute] = &[
-${crate.routes.map(([method, pathConst, tag]) => renderRoute(method, pathConst, tag, pathConstants)).join('\n')}
+${crate.routes.map(([method, pathConst, tag, routeOptions]) => renderRoute(method, pathConst, tag, pathConstants, routeOptions)).join('\n')}
 ];
 
 pub fn ${crate.fnName}() -> HttpRouteManifest {

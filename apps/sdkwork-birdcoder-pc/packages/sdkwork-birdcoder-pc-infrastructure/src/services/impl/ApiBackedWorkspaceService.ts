@@ -1,7 +1,11 @@
 import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-pc-types';
 import type { BirdCoderAppSdkApiClient } from '../sdkClients.ts';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
-import type { BirdCoderServiceListPagination } from '../interfaces/IProjectService.ts';
+import type {
+  BirdCoderServiceListPage,
+  BirdCoderServiceListPagination,
+  BirdCoderServicePageRequest,
+} from '../interfaces/IProjectService.ts';
 import type { IWorkspaceService } from '../interfaces/IWorkspaceService.ts';
 import {
   isBirdCoderTransientApiError,
@@ -11,6 +15,10 @@ import {
   CurrentUserScopeResolver,
   type CurrentUserScope,
 } from '../currentUserScope.ts';
+import {
+  createBirdCoderServiceOffsetPageInfo,
+  resolveBirdCoderServicePageRequest,
+} from '../servicePagination.ts';
 
 export interface ApiBackedWorkspaceServiceOptions {
   appClient: BirdCoderAppSdkApiClient;
@@ -66,6 +74,40 @@ function filterLocalWorkspacesForUser(
   return workspaces.filter((workspace) => isLocalWorkspaceVisibleForUser(workspace, userId));
 }
 
+function buildWorkspacePageFromLocalMirror(
+  request: BirdCoderServicePageRequest,
+  localPage: BirdCoderServiceListPage<IWorkspace>,
+  visibleWorkspaces: IWorkspace[],
+): BirdCoderServiceListPage<IWorkspace> {
+  const sourcePageInfoMatchesRequest =
+    localPage.pageInfo.mode === 'offset' &&
+    localPage.pageInfo.page === request.page &&
+    localPage.pageInfo.pageSize === request.pageSize &&
+    localPage.items.length <= request.pageSize;
+
+  if (visibleWorkspaces.length === localPage.items.length && sourcePageInfoMatchesRequest) {
+    return {
+      items: visibleWorkspaces,
+      pageInfo: localPage.pageInfo,
+    };
+  }
+
+  // Do not reuse a total that may include records belonging to another user.
+  // The requested page remains stable, while the total reflects only the
+  // bounded range observed in this local fallback read.
+  const resolvedRequest = resolveBirdCoderServicePageRequest(request);
+  const conservativeTotal = localPage.pageInfo.hasMore
+    ? resolvedRequest.offset + resolvedRequest.pageSize + 1
+    : resolvedRequest.offset + visibleWorkspaces.length;
+  return {
+    items: visibleWorkspaces,
+    pageInfo: createBirdCoderServiceOffsetPageInfo(
+      request,
+      conservativeTotal,
+    ),
+  };
+}
+
 function mapWorkspaceSummaryToWorkspace(
   workspace: Awaited<ReturnType<BirdCoderAppSdkApiClient['listWorkspaces']>>[number],
 ): IWorkspace {
@@ -103,6 +145,10 @@ function mapWorkspaceSummaryToWorkspace(
 export class ApiBackedWorkspaceService implements IWorkspaceService {
   private readonly appClient: BirdCoderAppSdkApiClient;
   private readonly currentUserScopeResolver: CurrentUserScopeResolver;
+  private readonly pageReadCacheByUserScope = new Map<
+    string,
+    WorkspaceCacheEntry<BirdCoderServiceListPage<IWorkspace>>
+  >();
   private readonly readCacheByUserScope = new Map<string, WorkspaceCacheEntry<IWorkspace[]>>();
   private readonly workspaceMirror?: {
     syncWorkspaceSummary(summary: BirdCoderWorkspaceSummary): Promise<IWorkspace>;
@@ -127,13 +173,14 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
     return this.currentUserScopeResolver.resolve();
   }
 
-  private readThroughCache(
+  private readThroughCache<T>(
+    cache: Map<string, WorkspaceCacheEntry<T>>,
     userScope: string,
     ttlMs: number,
-    loader: () => Promise<IWorkspace[]>,
-  ): Promise<IWorkspace[]> {
+    loader: () => Promise<T>,
+  ): Promise<T> {
     const now = Date.now();
-    const cacheEntry = this.readCacheByUserScope.get(userScope);
+    const cacheEntry = cache.get(userScope);
 
     if (cacheEntry?.inflight) {
       return cacheEntry.inflight;
@@ -146,22 +193,22 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
     const request = loader()
       .then((value) => {
         if (ttlMs > 0) {
-          this.readCacheByUserScope.set(userScope, {
+          cache.set(userScope, {
             expiresAt: Date.now() + ttlMs,
             inflight: null,
             value,
           });
         } else {
-          this.readCacheByUserScope.delete(userScope);
+          cache.delete(userScope);
         }
         return value;
       })
       .catch((error) => {
-        this.readCacheByUserScope.delete(userScope);
+        cache.delete(userScope);
         throw error;
       });
 
-    this.readCacheByUserScope.set(userScope, {
+    cache.set(userScope, {
       expiresAt: now + ttlMs,
       inflight: request,
       value: cacheEntry?.value,
@@ -171,7 +218,77 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
   }
 
   private invalidateReadCache(): void {
+    this.pageReadCacheByUserScope.clear();
     this.readCacheByUserScope.clear();
+  }
+
+  async getWorkspacesPage(
+    request: BirdCoderServicePageRequest,
+  ): Promise<BirdCoderServiceListPage<IWorkspace>> {
+    const currentUserScope = await this.resolveCurrentUserScope();
+    const userId = currentUserScope.userId === 'anonymous' ? undefined : currentUserScope.userId;
+    const canReadUserScopedLocalMirror = currentUserScope.cacheable && Boolean(userId);
+    const cacheScopeKey = `${currentUserScope.userId}:${request.page}:${request.pageSize}`;
+    return this.readThroughCache(
+      this.pageReadCacheByUserScope,
+      cacheScopeKey,
+      currentUserScope.cacheable ? WORKSPACE_LIST_CACHE_TTL_MS : INFLIGHT_ONLY_TTL_MS,
+            async () => {
+        try {
+          const page = await retryBirdCoderTransientApiTask(() =>
+            this.appClient.listWorkspacePage({
+              page: request.page,
+              pageSize: request.pageSize,
+            }),
+          );
+          const resolvedWorkspaces = this.workspaceMirror
+            ? await Promise.all(
+                page.items.map((workspace) => this.workspaceMirror!.syncWorkspaceSummary(workspace)),
+              )
+            : page.items.map(mapWorkspaceSummaryToWorkspace);
+          return {
+            items: resolvedWorkspaces.sort(
+              (left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
+            ),
+            pageInfo: page.pageInfo,
+          };
+        } catch (error) {
+          if (!isBirdCoderTransientApiError(error)) {
+            throw error;
+          }
+
+          if (!canReadUserScopedLocalMirror) {
+            console.warn(
+              'Remote workspace page API is temporarily unavailable and current-user scope is unavailable; returning an empty local workspace page.',
+              error,
+            );
+            return {
+              items: [],
+              pageInfo: createBirdCoderServiceOffsetPageInfo(request, 0),
+            };
+          }
+
+          const localPage = await this.writeService.getWorkspacesPage(request);
+          const visibleWorkspaces = filterLocalWorkspacesForUser(
+            localPage.items,
+            userId,
+          );
+          console.warn(
+            visibleWorkspaces.length > 0
+              ? 'Falling back to the bounded locally mirrored workspace page because the remote workspace API is temporarily unavailable.'
+              : 'Remote workspace API is temporarily unavailable and no current-user local workspace page is available; returning an empty page.',
+            error,
+          );
+          return buildWorkspacePageFromLocalMirror(
+            request,
+            localPage,
+            visibleWorkspaces.sort(
+              (left, right) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id),
+            ),
+          );
+        }
+      },
+    );
   }
 
   async getWorkspaces(
@@ -182,13 +299,13 @@ export class ApiBackedWorkspaceService implements IWorkspaceService {
     const canReadUserScopedLocalMirror = currentUserScope.cacheable && Boolean(userId);
     const cacheScopeKey = `${currentUserScope.userId}:${pagination?.limit ?? ''}:${pagination?.offset ?? ''}`;
     return this.readThroughCache(
+      this.readCacheByUserScope,
       cacheScopeKey,
       currentUserScope.cacheable ? WORKSPACE_LIST_CACHE_TTL_MS : INFLIGHT_ONLY_TTL_MS,
       async () => {
         try {
           const workspaces = await retryBirdCoderTransientApiTask(() =>
             this.appClient.listWorkspaces({
-              userId,
               limit: pagination?.limit,
               offset: pagination?.offset,
             }),

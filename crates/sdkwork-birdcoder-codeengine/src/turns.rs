@@ -46,6 +46,8 @@ pub struct CodeEngineTurnRequestRecord {
     pub input_summary: String,
     pub ide_context: Option<CodeEngineTurnIdeContextRecord>,
     pub working_directory: Option<PathBuf>,
+    pub timeout_ms: Option<u64>,
+    pub max_output_bytes: Option<usize>,
     pub config: CodeEngineTurnConfigRecord,
 }
 

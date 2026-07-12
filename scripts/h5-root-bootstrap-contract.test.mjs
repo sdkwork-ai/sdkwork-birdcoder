@@ -24,7 +24,7 @@ const appSource = readText(`${rootPrefix}/App.tsx`);
 
 assert.match(
   iamRuntimeSource,
-  /from ['"]@sdkwork\/birdcoder-pc-infrastructure['"]/u,
+  /from ['"]@sdkwork\/birdcoder-pc-infrastructure(?:\/services\/iamRuntime)?['"]/u,
   'H5 IAM bootstrap must delegate to the infrastructure-owned appbase runtime.',
 );
 assert.doesNotMatch(

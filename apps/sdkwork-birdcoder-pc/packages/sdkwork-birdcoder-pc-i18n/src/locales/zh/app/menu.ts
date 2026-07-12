@@ -49,7 +49,6 @@ export default defineLocaleModule('app/menu', {
       help: '\u5e2e\u52a9',
       documentation: 'Codex \u6587\u6863',
       whatsNew: '\u65b0\u53d8\u5316',
-      skills: '\u6280\u80fd',
       keyboardShortcuts: '\u952e\u76d8\u5feb\u6377\u952e\u53c2\u8003',
       startTraceRecording: '\u5f00\u59cb\u5f55\u5236\u8ffd\u8e2a',
       stopTraceRecording: '\u505c\u6b62\u5f55\u5236\u8ffd\u8e2a',

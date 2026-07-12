@@ -20,7 +20,6 @@ import {
   buildMessageTranscriptPrompt,
   createCapabilitySnapshot,
   createDefaultChatCanonicalRuntimeDescriptor,
-  createDetectedHealthReport,
   createRawExtensionDescriptor,
   createRuntimeIntegrationDescriptor,
   resolveExecutablePresence,
@@ -37,11 +36,15 @@ interface KernelTurnResult {
 }
 
 const ADAPTER_NAMES: Record<WorkbenchCodeEngineId, string> = {
-  codex: 'codex-kernel-sdk-adapter',
-  'claude-code': 'claude-code-kernel-sdk-adapter',
-  gemini: 'gemini-cli-kernel-sdk-adapter',
-  opencode: 'opencode-kernel-sdk-adapter',
+  codex: 'codex-kernel-cli-adapter',
+  'claude-code': 'claude-code-kernel-cli-adapter',
+  gemini: 'gemini-cli-kernel-cli-adapter',
+  opencode: 'opencode-kernel-cli-adapter',
 };
+
+const DEFAULT_KERNEL_TURN_TIMEOUT_MS = 300_000;
+const DEFAULT_KERNEL_TURN_MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
+const LIVE_CONFIRMED_ENGINES = new Set<WorkbenchCodeEngineId>();
 
 function resolveExecFileSync(): typeof nodeExecFileSync {
   const runtimeProcess = process as {
@@ -85,18 +88,48 @@ function executeKernelTurn(input: {
   modelId: string;
   messages: readonly ChatMessage[];
   nativeSessionId?: string | null;
+  options?: ChatOptions;
 }): KernelTurnResult {
   const binary = resolveKernelTurnBinary();
+  const context = input.options?.context;
+  const workingDirectory = context?.workspaceRoot?.trim();
+  if (context?.projectId?.trim() && !workingDirectory) {
+    throw new Error(
+      `Kernel turn for project ${context.projectId.trim()} requires an authoritative workspaceRoot.`,
+    );
+  }
   const payload = {
     engineId: input.engineId,
     modelId: input.modelId,
     requestKind: 'user_message',
     inputSummary: buildMessageTranscriptPrompt(input.messages),
     nativeSessionId: input.nativeSessionId ?? null,
+    ideContext: context
+      ? {
+          workspaceId: context.workspaceId?.trim() || null,
+          projectId: context.projectId?.trim() || null,
+          sessionId: context.codingSessionId?.trim() || context.sessionId?.trim() || null,
+          currentFile: context.currentFile
+            ? {
+                path: context.currentFile.path,
+                content: context.currentFile.content,
+                language: context.currentFile.language,
+              }
+            : null,
+        }
+      : null,
+    workingDirectory: workingDirectory || null,
+    timeoutMs: DEFAULT_KERNEL_TURN_TIMEOUT_MS,
+    maxOutputBytes: DEFAULT_KERNEL_TURN_MAX_OUTPUT_BYTES,
     config: {
+      approvalPolicy: 'on-failure',
       ephemeral: false,
       fullAuto: false,
+      sandboxMode: 'workspace-write',
       skipGitRepoCheck: false,
+      temperature: input.options?.temperature,
+      topP: input.options?.topP,
+      maxTokens: input.options?.maxTokens,
     },
   };
 
@@ -195,8 +228,8 @@ function createIntegrationDescriptor(
 
   return createRuntimeIntegrationDescriptor({
     engineId,
-    integrationClass: 'official-sdk',
-    runtimeMode: 'sdk',
+    integrationClass: 'official-protocol',
+    runtimeMode: 'headless',
     officialEntry: {
       packageName,
       sdkPath: officialEntry?.sdkPath,
@@ -206,7 +239,7 @@ function createIntegrationDescriptor(
     transportKinds: descriptor.transportKinds,
     sourceMirrorPath: officialEntry?.sourceMirrorPath,
     packagePresence,
-    notes: 'Kernel bridge execution via sdkwork-birdcoder-kernel-bridge',
+    notes: 'Kernel bridge execution through the provider CLI lane via sdkwork-birdcoder-kernel-bridge.',
   });
 }
 
@@ -261,30 +294,46 @@ export function createKernelTurnRuntime(
     async getHealth(): Promise<ChatEngineHealthReport> {
       const executable = CLI_EXECUTABLE_BY_ENGINE[kernel.id];
       const cliAvailable = resolveExecutablePresence(executable);
-      const health = createDetectedHealthReport({
-        descriptor: integration,
-        packagePresence,
-        executable,
-        cliAvailable,
-        fallbackAvailable: cliAvailable || undefined,
-      });
+      const diagnostics: string[] = [];
+      let kernelBinaryAvailable = false;
 
       try {
         resolveKernelTurnBinary();
-        return {
-          ...health,
-          diagnostics: [...health.diagnostics, 'Kernel bridge binary is available.'],
-        };
+        kernelBinaryAvailable = true;
+        diagnostics.push('Kernel bridge binary is available.');
       } catch (error) {
-        return {
-          ...health,
-          status: 'missing',
-          diagnostics: [
-            ...health.diagnostics,
-            error instanceof Error ? error.message : String(error),
-          ],
-        };
+        diagnostics.push(error instanceof Error ? error.message : String(error));
       }
+
+      diagnostics.push(
+        cliAvailable
+          ? `Provider CLI executable ${executable} is available.`
+          : `Provider CLI executable ${executable} was not found on PATH.`,
+      );
+      if (packagePresence.installed || packagePresence.mirrorVersion) {
+        diagnostics.push(
+          'An SDK package or source mirror is present, but the SDK lane remains planned until live conformance passes.',
+        );
+      }
+
+      const runtimeAvailable = cliAvailable && kernelBinaryAvailable;
+      const liveConfirmed = runtimeAvailable && LIVE_CONFIRMED_ENGINES.has(kernel.id);
+      if (runtimeAvailable && !liveConfirmed) {
+        diagnostics.push('CLI presence is detected; authentication and live provider conformance are not confirmed yet.');
+      }
+
+      return {
+        status: runtimeAvailable ? (liveConfirmed ? 'ready' : 'degraded') : 'missing',
+        runtimeMode: 'headless',
+        officialEntry: integration.officialEntry,
+        sdkAvailable: false,
+        cliAvailable,
+        authConfigured: liveConfirmed,
+        fallbackActive: false,
+        sourceMirrorStatus: integration.sourceMirrorStatus,
+        diagnostics,
+        checkedAt: Date.now(),
+      };
     },
     async getCapabilities(): Promise<ChatEngineCapabilitySnapshot> {
       const health = await this.getHealth?.();
@@ -343,7 +392,9 @@ export function createKernelTurnRuntime(
           modelId: runtime.modelId,
           messages,
           nativeSessionId: options?.context?.nativeSessionId,
+          options,
         });
+        LIVE_CONFIRMED_ENGINES.add(kernel.id);
 
         if (result.assistantContent) {
           yield createCanonicalEvent(++sequence, 'message.delta', 'streaming', {

@@ -284,7 +284,7 @@
         "highlights": [
           "Pre-launch manifest: install packages disabled pending real artifacts",
           "Contract gates green; supply-chain evidence pending first release",
-          "OpenAPI contract complete: 162 operations implemented, 0 deferred; commerce payment confirm + pagination remediation complete"
+          "Agent platform boundary aligned: sdkwork-agents 95 operations, agents app SDK catalog consumption, and runtime-facade execution"
         ],
         "packageIds": [
           "web-universal-cloud-browser-zip",
@@ -315,11 +315,11 @@
     "standardOwner": "sdkwork-platform",
     "initializedAt": "2026-05-07T00:00:00Z",
     "preLaunch": true,
-      "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-162-openapi-commerce-payment-confirm-prelaunch-artifacts-pending-2026-07-06",
-      "commercialReadiness": {
-        "pcPrivateBeta": "iam-federation-openapi-162-aligned-postgres-returning-id-commerce-pending-confirm-payment-api-pagination-console-sql-pages",
-        "enterpriseK8s": "postgresql-ha-backup-template-liveness-readiness-split-redis-rate-limit-ready-pg-rust-crud-ci-pending",
-        "saasPublicCloud": "governance-regression-release-rehearsal-openapi-complete-payment-gateway-pending-prelaunch-artifacts-pending",
+    "releaseEvidenceStatus": "contract-gates-green-release-rehearsal-http-openapi-161-route-catalog-162-agents-95-app-sdk-catalog-prelaunch-artifacts-pending-2026-07-08",
+    "commercialReadiness": {
+      "pcPrivateBeta": "iam-federation-http-openapi-161-route-catalog-162-aligned-agents-app-sdk-catalog-runtime-facade-private-beta-ready",
+      "enterpriseK8s": "postgresql-ha-backup-template-liveness-readiness-split-redis-rate-limit-aligned-ci-smoke-pending-release-runbook",
+      "saasPublicCloud": "governance-pr-ci-aligned-release-rehearsal-openapi-complete-agent-crud-ui-memory-task-run-streaming-pending-prelaunch-artifacts-pending",
       "mobileProductParity": "h5-flutter-chat-api-ci-smoke-capacitor-sync-android-assemble-aligned-prelaunch-secure-storage-remediation-complete",
       "manifestHonesty": "root-1-shared-package-pc-h5-flutter-draft-prelaunch-contract-gated-honest-numbers-placeholder-packages-marked",
       "releaseGovernanceCI": "sbom-cosign-trivy-macos-signing-checksum-workflow-wired-pending-release-validation"

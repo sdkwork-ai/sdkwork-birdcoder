@@ -109,27 +109,25 @@ function readCommerceGatewayRoutes() {
 
   for (const relativePath of COMMERCE_GATEWAY_ROUTE_FILES) {
     const source = readText(relativePath);
-    for (const line of source.split('\n')) {
-      const routeMatch = line.match(/\.route\(\s*"([^"]+)"/u);
-      if (!routeMatch) {
-        continue;
-      }
-
+    const routePattern = /\.route\s*\(\s*"([^"]+)"/gu;
+    for (const routeMatch of source.matchAll(routePattern)) {
       const routePath = routeMatch[1];
+      const invocation = readRustRouteInvocation(source, routeMatch.index ?? 0);
+
       const methods = [];
-      if (/\bpost\s*\(/u.test(line)) {
+      if (/\bpost\s*\(/u.test(invocation)) {
         methods.push('POST');
       }
-      if (/\bget\s*\(/u.test(line)) {
+      if (/\bget\s*\(/u.test(invocation)) {
         methods.push('GET');
       }
-      if (/\bdelete\s*\(/u.test(line)) {
+      if (/\bdelete\s*\(/u.test(invocation)) {
         methods.push('DELETE');
       }
-      if (/\bput\s*\(/u.test(line)) {
+      if (/\bput\s*\(/u.test(invocation)) {
         methods.push('PUT');
       }
-      if (/\bpatch\s*\(/u.test(line)) {
+      if (/\bpatch\s*\(/u.test(invocation)) {
         methods.push('PATCH');
       }
 
@@ -144,6 +142,47 @@ function readCommerceGatewayRoutes() {
   }
 
   return routes;
+}
+
+function readRustRouteInvocation(source, routeStartIndex) {
+  const openParenIndex = source.indexOf('(', routeStartIndex);
+  if (openParenIndex < 0) {
+    throw new Error('Unable to parse Axum route invocation: missing opening parenthesis.');
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = openParenIndex; index < source.length; index += 1) {
+    const char = source[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === '\\') {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === '(') {
+      depth += 1;
+      continue;
+    }
+    if (char === ')') {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(routeStartIndex, index + 1);
+      }
+    }
+  }
+
+  throw new Error('Unable to parse Axum route invocation: missing closing parenthesis.');
 }
 
 function readRustIamManifestRoutes(crateRoot, sourceLabel) {

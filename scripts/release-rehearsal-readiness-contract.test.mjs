@@ -12,9 +12,6 @@ const packageJson = JSON.parse(read('package.json'));
 const appConfig = JSON.parse(read('sdkwork.app.config.json'));
 const ciWorkflow = read('.github/workflows/ci.yml');
 const governanceReport = read('scripts/governance-regression-report.mjs');
-const commercialTruthDoc = read(
-  'docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md',
-);
 
 assert.equal(
   packageJson.scripts['release:fixture:ready'],
@@ -48,8 +45,8 @@ const governedReleaseRunbook = read('docs/guides/operator/first-governed-release
 
 assert.match(
   operatorReadme,
-  /162 operations|162 of 162/u,
-  'Operator README must record OpenAPI 162-operation completeness.',
+  /HTTP OpenAPI 161 operations[\s\S]*route catalog 162/u,
+  'Operator README must record HTTP OpenAPI 161-operation completeness and 162-entry route catalog truth.',
 );
 assert.match(
   operatorReadme,
@@ -77,17 +74,6 @@ assert.match(
   String(appConfig.metadata?.releaseEvidenceStatus ?? ''),
   /release-rehearsal|contract-gates-green/u,
   'App manifest must record contract-gate or release-rehearsal readiness.',
-);
-
-assert.match(
-  commercialTruthDoc,
-  /release:fixture:ready|release:candidate:dry-run|release:plan|release rehearsal/u,
-  'Commercial truth doc must document governed release rehearsal entrypoints.',
-);
-assert.match(
-  commercialTruthDoc,
-  /surface-manifest-parity/u,
-  'Commercial truth doc must reference surface manifest parity contract.',
 );
 
 console.log('release rehearsal readiness contract passed.');

@@ -22,7 +22,7 @@ export interface AuthApi {
   sessions: {
     create(body: Types.BirdCoderIamCreateSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
     current: {
-      delete(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderBooleanSuccessEnvelope>;
+      delete(options?: BirdcoderSdkRequestOptions): Promise<void>;
       retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
       update(body: Types.BirdCoderIamUpdateCurrentSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderIamSessionEnvelope>;
     };
@@ -53,7 +53,7 @@ export function createAuthApi(requestOperation: BirdcoderSdkRequestOperation): A
       },
       current: {
         delete(options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderBooleanSuccessEnvelope>("auth.sessions.current.delete", {}, options);
+          return requestOperation<void>("auth.sessions.current.delete", {}, options);
         },
         retrieve(options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<Types.BirdCoderIamSessionEnvelope>("auth.sessions.current.retrieve", {}, options);

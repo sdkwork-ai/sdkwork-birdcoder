@@ -9,6 +9,18 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./AuthGate": {
+      "import": "./src/AuthGate.tsx",
+      "types": "./src/AuthGate.tsx"
+    },
+    "./auth": {
+      "import": "./src/auth.ts",
+      "types": "./src/auth.ts"
+    },
+    "./authSurface": {
+      "import": "./src/authSurface.ts",
+      "types": "./src/authSurface.ts"
     }
   },
   "scripts": {

@@ -19,7 +19,7 @@ export interface SystemApi {
   chat: {
     conversations: {
       create(body: Types.BirdCoderCreateChatConversationRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderChatConversationSummaryEnvelope>;
-      delete(pathParams: SystemChatConversationsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeleteChatConversationEnvelope>;
+      delete(pathParams: SystemChatConversationsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<void>;
       list(query?: SystemChatConversationsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderChatConversationSummaryListEnvelope>;
       messages: {
         create(pathParams: SystemChatConversationsMessagesCreatePathParams, body: Types.BirdCoderCreateChatMessageRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderChatMessageSummaryEnvelope>;
@@ -61,7 +61,7 @@ export function createSystemApi(requestOperation: BirdcoderSdkRequestOperation):
           return requestOperation<Types.BirdCoderChatConversationSummaryEnvelope>("system.chat.conversations.create", { body }, options);
         },
         delete(pathParams: SystemChatConversationsDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderDeleteChatConversationEnvelope>("system.chat.conversations.delete", { pathParams }, options);
+          return requestOperation<void>("system.chat.conversations.delete", { pathParams }, options);
         },
         list(query: SystemChatConversationsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<Types.BirdCoderChatConversationSummaryListEnvelope>("system.chat.conversations.list", { query }, options);

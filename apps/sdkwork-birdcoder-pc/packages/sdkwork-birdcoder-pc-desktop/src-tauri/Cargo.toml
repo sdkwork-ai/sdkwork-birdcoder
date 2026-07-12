@@ -9,10 +9,9 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 rfd = "0.16"
 sdkwork-birdcoder-standalone-gateway = { workspace = true }
-sdkwork-birdcoder-tauri-host = { path = "../../../../../crates/sdkwork-birdcoder-tauri-host" }
+sdkwork-birdcoder-tauri-host = { workspace = true }
 serde_json = { workspace = true }
 tauri = { version = "~2.11.0", features = [] }
-tauri-plugin-shell = "2"
 
 [lib]
 name = "sdkwork_birdcoder_pc_desktop_lib"

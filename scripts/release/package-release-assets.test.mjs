@@ -13,6 +13,7 @@ import {
   WORKSPACE_CARGO_TARGET_REL,
 } from './release-build-paths.mjs';
 import { RELEASE_ASSET_MANIFEST_FILE_NAME } from './release-profiles.mjs';
+import { sha256File } from '../sdkwork-utils-digest.mjs';
 
 const SERVER_BINARY_TARGET = 'x86_64-unknown-linux-gnu';
 const SERVER_BINARY_NAME = SERVER_CRATE_BINARY_NAME;
@@ -39,6 +40,56 @@ const MISSING_CONTAINER_WEB_DIST_ERROR = new RegExp(
 function writeFile(targetPath, value) {
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   fs.writeFileSync(targetPath, value);
+}
+
+function writeProviderRuntimeFixture(rootDir, platform, architecture) {
+  const runtimeRoot = path.join(rootDir, 'artifacts', 'provider-runtime');
+  const nodeRelativePath = platform === 'windows' ? 'node/node.exe' : 'node/bin/node';
+  const workerRelativePaths = [
+    'workers/generic-ts-sdk-worker.mjs',
+    'workers/engine-sdk-live.mjs',
+    'workers/codex-cli-live.mjs',
+    'workers/provider-cli-live.mjs',
+  ];
+  const writeAsset = (relativePath, value) => {
+    const absolutePath = path.join(runtimeRoot, relativePath);
+    writeFile(absolutePath, value);
+    return {
+      relativePath,
+      sha256: sha256File(absolutePath),
+      size: fs.statSync(absolutePath).size,
+    };
+  };
+  const node = {
+    version: '22.20.0',
+    ...writeAsset(nodeRelativePath, 'fixture-node-runtime\n'),
+  };
+  const workers = workerRelativePaths.map((relativePath) =>
+    writeAsset(relativePath, '// fixture ' + relativePath + '\n'),
+  );
+  writeFile(
+    path.join(runtimeRoot, 'runtime-manifest.json'),
+    JSON.stringify(
+      {
+        schemaVersion: 1,
+        kind: 'sdkwork.birdcoder.provider-runtime',
+        target: {
+          platform,
+          architecture,
+        },
+        node,
+        workers,
+        providers: [
+          { id: 'codex' },
+          { id: 'claude-code' },
+          { id: 'gemini-cli' },
+          { id: 'opencode' },
+        ],
+      },
+      null,
+      2,
+    ) + '\n',
+  );
 }
 
 function writeWebDistFixture(rootDir) {
@@ -294,6 +345,7 @@ withFixture((fixtureRoot) => {
   writeDesktopInstallerBundleFixture(fixtureRoot, 'x86_64-pc-windows-msvc');
   writeServerFixture(fixtureRoot);
   writeDeploymentFixtures(fixtureRoot);
+  writeProviderRuntimeFixture(fixtureRoot, 'windows', 'x64');
 
   const webResult = packageReleaseAssets('web', {
     profile: 'sdkwork-birdcoder',
@@ -447,6 +499,7 @@ withFixture((fixtureRoot) => {
     'desktop package output must preserve the second same-basename native installer contents',
   );
 
+  writeProviderRuntimeFixture(fixtureRoot, 'linux', 'x64');
   const serverResult = packageReleaseAssets('server', {
     profile: 'sdkwork-birdcoder',
     'release-tag': 'release-local',
@@ -513,6 +566,7 @@ withFixture((fixtureRoot) => {
 withFixture((fixtureRoot) => {
   writeDesktopDistFixture(fixtureRoot);
   writePartialDesktopInstallerBundleFixture(fixtureRoot, 'x86_64-pc-windows-msvc');
+  writeProviderRuntimeFixture(fixtureRoot, 'windows', 'x64');
 
   const desktopExeResult = packageReleaseAssets('desktop', {
     profile: 'sdkwork-birdcoder',
@@ -636,6 +690,7 @@ withFixture((fixtureRoot) => {
 withFixture((fixtureRoot) => {
   writeDesktopDistFixture(fixtureRoot);
   writeMacosDesktopInstallerBundleFixture(fixtureRoot, 'aarch64-apple-darwin', 'aarch64');
+  writeProviderRuntimeFixture(fixtureRoot, 'macos', 'arm64');
 
   const desktopResult = packageReleaseAssets('desktop', {
     profile: 'sdkwork-birdcoder',
@@ -663,6 +718,7 @@ withFixture((fixtureRoot) => {
 withFixture((fixtureRoot) => {
   writeDesktopDistFixture(fixtureRoot);
   writePartialDesktopInstallerBundleFixture(fixtureRoot, 'x86_64-pc-windows-msvc');
+  writeProviderRuntimeFixture(fixtureRoot, 'windows', 'x64');
   const outputFamilyDir = path.join(fixtureRoot, 'artifacts', 'release', 'desktop', 'windows', 'x64');
 
   assertThrowsWithMessage(
@@ -692,6 +748,7 @@ withFixture((fixtureRoot) => {
 withFixture((fixtureRoot) => {
   writeDesktopDistFixture(fixtureRoot);
   writeMismatchedDesktopInstallerBundleFixture(fixtureRoot, 'x86_64-pc-windows-msvc');
+  writeProviderRuntimeFixture(fixtureRoot, 'windows', 'x64');
 
   assertThrowsWithMessage(
     () => packageReleaseAssets('desktop', {

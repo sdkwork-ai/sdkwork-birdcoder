@@ -118,8 +118,11 @@ export function smokeKubernetesPostgresqlHaChart({
     if (/kind:\s*PersistentVolumeClaim/m.test(manifest)) {
       failures.push('rendered PostgreSQL HA chart must not create a PersistentVolumeClaim');
     }
-    if (!/path:\s*\/health/m.test(manifest)) {
-      failures.push('rendered chart must keep unauthenticated /health probes');
+    if (!/path:\s*\/healthz/m.test(manifest)) {
+      failures.push('rendered chart must keep unauthenticated /healthz liveness probes');
+    }
+    if (!/path:\s*\/readyz/m.test(manifest)) {
+      failures.push('rendered chart must keep unauthenticated /readyz readiness probes');
     }
   }
 

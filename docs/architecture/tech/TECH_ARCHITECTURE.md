@@ -1,543 +1,128 @@
-# SDKWork Birdcoder Technical Architecture
+# SDKWork BirdCoder Technical Architecture
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-06
-Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md
-
-## Document Map
-
-- [TECH-00-implementation.md](TECH-00-implementation.md)
-- [TECH-02-architecturestandardoverviewdesign.md](TECH-02-architecturestandardoverviewdesign.md)
-- [TECH-02-shell-host-kernel.md](TECH-02-shell-host-kernel.md)
-- [TECH-03-modulesplanningboundaries.md](TECH-03-modulesplanningboundaries.md)
-- [TECH-03-standard.md](TECH-03-standard.md)
-- [TECH-04-tech-stack.md](TECH-04-tech-stack.md)
-- [TECH-04-workspace-project-auth-settingsgovernance.md](TECH-04-workspace-project-auth-settingsgovernance.md)
-- [TECH-05-code-engine-spi.md](TECH-05-code-engine-spi.md)
-- [TECH-05-kernelcode-enginestandard.md](TECH-05-kernelcode-enginestandard.md)
-- [TECH-06-code.md](TECH-06-code.md)
-- [TECH-06-testing.md](TECH-06-testing.md)
-- [TECH-07-compare-diagnostics.md](TECH-07-compare-diagnostics.md)
-- [TECH-07-compare-identity-block.md](TECH-07-compare-identity-block.md)
-- [TECH-07-compare-issue-template.md](TECH-07-compare-issue-template.md)
-- [TECH-07-compare-release-note-template.md](TECH-07-compare-release-note-template.md)
-- [TECH-07-compare-summary-template.md](TECH-07-compare-summary-template.md)
-- [TECH-07-release-note-template.md](TECH-07-release-note-template.md)
-- [TECH-07-studio.md](TECH-07-studio.md)
-- [TECH-07-summary-template.md](TECH-07-summary-template.md)
-- [TECH-07-visible-slice-identity-block.md](TECH-07-visible-slice-identity-block.md)
-- [TECH-08-performance-security-standard.md](TECH-08-performance-security-standard.md)
-- [TECH-08-terminal-cliintegration-sqlitestandard.md](TECH-08-terminal-cliintegration-sqlitestandard.md)
-- [TECH-09-installation-deployment-releasestandard.md](TECH-09-installation-deployment-releasestandard.md)
-- [TECH-09-server-runtime-openapi.md](TECH-09-server-runtime-openapi.md)
-- [TECH-10-assessmentstandard.md](TECH-10-assessmentstandard.md)
-- [TECH-10-performance-security-auditgovernance.md](TECH-10-performance-security-auditgovernance.md)
-- [TECH-11-docker-k8s-deployment-release.md](TECH-11-docker-k8s-deployment-release.md)
-- [TECH-12-auditstandard.md](TECH-12-auditstandard.md)
-- [TECH-12-testing.md](TECH-12-testing.md)
-- [TECH-13-mcp-standard.md](TECH-13-mcp-standard.md)
-- [TECH-13-release-github-flow.md](TECH-13-release-github-flow.md)
-- [TECH-14-baseline-evolution.md](TECH-14-baseline-evolution.md)
-- [TECH-14-sdkwork-iam-integration.md](TECH-14-sdkwork-iam-integration.md)
-- [TECH-15-provider-standard.md](TECH-15-provider-standard.md)
-- [TECH-15-standard.md](TECH-15-standard.md)
-- [TECH-16-prompt-skillhub-apptemplate.md](TECH-16-prompt-skillhub-apptemplate.md)
-- [TECH-16-standard.md](TECH-16-standard.md)
-- [TECH-17-coding-server-app-backend-sdk.md](TECH-17-coding-server-app-backend-sdk.md)
-- [TECH-17-sdkwork-iam-auth-user-standard.md](TECH-17-sdkwork-iam-auth-user-standard.md)
-- [TECH-17za-real-admin-deployment-governance-lane.md](TECH-17za-real-admin-deployment-governance-lane.md)
-- [TECH-17zb-real-admin-policy-governance-lane.md](TECH-17zb-real-admin-policy-governance-lane.md)
-- [TECH-18-code-engine-adapter.md](TECH-18-code-engine-adapter.md)
-- [TECH-18-provider-standard.md](TECH-18-provider-standard.md)
-- [TECH-19-governance-regression-deterministic-baseline-lane.md](TECH-19-governance-regression-deterministic-baseline-lane.md)
-- [TECH-19-prompt-skillhub-apptemplatestandard.md](TECH-19-prompt-skillhub-apptemplatestandard.md)
-- [TECH-20-runtime-data-kernel-v2-authority.md](TECH-20-runtime-data-kernel-v2-authority.md)
-- [TECH-20-rust-coding-server-api-standard.md](TECH-20-rust-coding-server-api-standard.md)
-- [TECH-2026-04-08-birdcoder-claw-parity-design.md](TECH-2026-04-08-birdcoder-claw-parity-design.md)
-- [TECH-2026-04-08-birdcoder-claw-parity-implementation.md](TECH-2026-04-08-birdcoder-claw-parity-implementation.md)
-- [TECH-2026-04-08-birdcoder-rename-alignment.md](TECH-2026-04-08-birdcoder-rename-alignment.md)
-- [TECH-2026-04-08-birdcoder-workbench-runtime-design.md](TECH-2026-04-08-birdcoder-workbench-runtime-design.md)
-- [TECH-2026-04-08-birdcoder-workbench-runtime-implementation.md](TECH-2026-04-08-birdcoder-workbench-runtime-implementation.md)
-- [TECH-2026-04-09-birdcoder-data-kernel-implementation.md](TECH-2026-04-09-birdcoder-data-kernel-implementation.md)
-- [TECH-2026-04-13-governance-tail-closure.md](TECH-2026-04-13-governance-tail-closure.md)
-- [TECH-2026-04-13-step20a-team-member-authority.md](TECH-2026-04-13-step20a-team-member-authority.md)
-- [TECH-2026-04-13-step20b-deployment-target-authority.md](TECH-2026-04-13-step20b-deployment-target-authority.md)
-- [TECH-2026-04-14-birdcoder-multi-engine-official-sdk-design.md](TECH-2026-04-14-birdcoder-multi-engine-official-sdk-design.md)
-- [TECH-2026-04-14-birdcoder-multi-engine-official-sdk-implementation.md](TECH-2026-04-14-birdcoder-multi-engine-official-sdk-implementation.md)
-- [TECH-2026-04-14-birdcoder-runtime-truth-repair-design.md](TECH-2026-04-14-birdcoder-runtime-truth-repair-design.md)
-- [TECH-2026-04-14-birdcoder-runtime-truth-repair.md](TECH-2026-04-14-birdcoder-runtime-truth-repair.md)
-- [TECH-2026-04-14-postgresql-host-pass-docs-alignment.md](TECH-2026-04-14-postgresql-host-pass-docs-alignment.md)
-- [TECH-2026-04-14-step17-docs-truth-alignment.md](TECH-2026-04-14-step17-docs-truth-alignment.md)
-- [TECH-2026-04-15-birdcoder-bootstrap-recovery-design.md](TECH-2026-04-15-birdcoder-bootstrap-recovery-design.md)
-- [TECH-2026-04-15-birdcoder-bootstrap-recovery-implementation.md](TECH-2026-04-15-birdcoder-bootstrap-recovery-implementation.md)
-- [TECH-2026-04-16-birdcoder-session-refresh-design.md](TECH-2026-04-16-birdcoder-session-refresh-design.md)
-- [TECH-2026-04-16-birdcoder-session-refresh-implementation.md](TECH-2026-04-16-birdcoder-session-refresh-implementation.md)
-- [TECH-2026-04-19-birdcoder-terminal-sdkwork-terminal-design.md](TECH-2026-04-19-birdcoder-terminal-sdkwork-terminal-design.md)
-- [TECH-2026-04-19-terminal-unification-with-sdkwork-terminal.md](TECH-2026-04-19-terminal-unification-with-sdkwork-terminal.md)
-- [TECH-2026-04-21-content-workbench-previewer.md](TECH-2026-04-21-content-workbench-previewer.md)
-- [TECH-2026-04-24-workspace-project-rust-plus-schema.md](TECH-2026-04-24-workspace-project-rust-plus-schema.md)
-- [TECH-2026-05-25-birdcoder-iam-integration-design.md](TECH-2026-05-25-birdcoder-iam-integration-design.md)
-- [TECH-2026-05-25-birdcoder-iam-integration.md](TECH-2026-05-25-birdcoder-iam-integration.md)
-- [TECH-2026-06-15-rust-backend-sdkwork-specs-migration.md](TECH-2026-06-15-rust-backend-sdkwork-specs-migration.md)
-- [TECH-2026-06-24-commercial-readiness-alignment.md](TECH-2026-06-24-commercial-readiness-alignment.md)
-- [TECH-21-code-engine-sdk-standard.md](TECH-21-code-engine-sdk-standard.md)
-- [TECH-22-code-engine-standard.md](TECH-22-code-engine-standard.md)
-- [TECH-23-coding-server-engine-truth-promotion-standard.md](TECH-23-coding-server-engine-truth-promotion-standard.md)
-- [TECH-24-rust-host-engine-truth-artifact-standard.md](TECH-24-rust-host-engine-truth-artifact-standard.md)
-- [TECH-25-rust-host-engine-route-parity-standard.md](TECH-25-rust-host-engine-route-parity-standard.md)
-- [TECH-26-step-18-engine-governance-release-flow-standard.md](TECH-26-step-18-engine-governance-release-flow-standard.md)
-- [TECH-27-step-18-engine-governance-score-surface-standard.md](TECH-27-step-18-engine-governance-score-surface-standard.md)
-- [TECH-28-governance-regression-deterministic-baseline-standard.md](TECH-28-governance-regression-deterministic-baseline-standard.md)
-- [TECH-29-multi-engine-official-sdk-runtime-selection-standard.md](TECH-29-multi-engine-official-sdk-runtime-selection-standard.md)
-- [TECH-29-web-bundle-segmentation-and-production-build-standard.md](TECH-29-web-bundle-segmentation-and-production-build-standard.md)
-- [TECH-30-kernel-birdcoder-boundariesstandard.md](TECH-30-kernel-birdcoder-boundariesstandard.md)
-- [TECH-31-kernel-birdcoder-integrationimplementation.md](TECH-31-kernel-birdcoder-integrationimplementation.md)
-- [TECH-32-kernel-birdcoder.md](TECH-32-kernel-birdcoder.md)
-- [TECH-33-agents-birdcoder-boundariesstandard.md](TECH-33-agents-birdcoder-boundariesstandard.md)
-- [TECH-34-agents-birdcoder-integrationimplementation.md](TECH-34-agents-birdcoder-integrationimplementation.md)
-- [TECH-35-agents-birdcoder-alignment.md](TECH-35-agents-birdcoder-alignment.md)
-- [TECH-36-three-layer-agent-platform-standard.md](TECH-36-three-layer-agent-platform-standard.md)
-- [TECH-90-architecture-step.md](TECH-90-architecture-step.md)
-- [TECH-91-step-audit.md](TECH-91-step-audit.md)
-- [TECH-92-step.md](TECH-92-step.md)
-- [TECH-94-step-agent.md](TECH-94-step-agent.md)
-- [TECH-95-architecture-standard.md](TECH-95-architecture-standard.md)
-- [TECH-97-step-architecture.md](TECH-97-step-architecture.md)
-- [TECH-98-step-integration-standard.md](TECH-98-step-integration-standard.md)
-- [TECH-99-step.md](TECH-99-step.md)
-- [TECH-admin-team-client-boundary.md](TECH-admin-team-client-boundary.md)
-- [TECH-alignment-comprehensive-report.md](TECH-alignment-comprehensive-report.md)
-- [TECH-alignment-final-report.md](TECH-alignment-final-report.md)
-- [TECH-alignment-report.md](TECH-alignment-report.md)
-- [TECH-api-reference.md](TECH-api-reference.md)
-- [TECH-app-level-coding-session-projection-consumer-adoption-lane.md](TECH-app-level-coding-session-projection-consumer-adoption-lane.md)
-- [TECH-app-runtime-approval-decision-lane.md](TECH-app-runtime-approval-decision-lane.md)
-- [TECH-app-runtime-create-coding-session-route-lane.md](TECH-app-runtime-create-coding-session-route-lane.md)
-- [TECH-app-runtime-create-coding-session-sdk-and-consumer-adoption-lane.md](TECH-app-runtime-create-coding-session-sdk-and-consumer-adoption-lane.md)
-- [TECH-app-runtime-create-coding-session-turn-sdk-and-consumer-adoption-lane.md](TECH-app-runtime-create-coding-session-turn-sdk-and-consumer-adoption-lane.md)
-- [TECH-app-runtime-engine-capability-and-model-catalog-lane.md](TECH-app-runtime-engine-capability-and-model-catalog-lane.md)
-- [TECH-app-runtime-projection-read-sdk-lane.md](TECH-app-runtime-projection-read-sdk-lane.md)
-- [TECH-app-runtime-read-sdk-lane.md](TECH-app-runtime-read-sdk-lane.md)
-- [TECH-app-runtime-sdk-governance-lane.md](TECH-app-runtime-sdk-governance-lane.md)
-- [TECH-app-team-surface-split-lane.md](TECH-app-team-surface-split-lane.md)
-- [TECH-application-modes.md](TECH-application-modes.md)
-- [TECH-architecture-2.md](TECH-architecture-2.md)
-- [TECH-architecture-migration-plan.md](TECH-architecture-migration-plan.md)
-- [TECH-architecture.md](TECH-architecture.md)
-- [TECH-codepage-boundaries-lane.md](TECH-codepage-boundaries-lane.md)
-- [TECH-coding-server-canonical-runtime-projection-lane.md](TECH-coding-server-canonical-runtime-projection-lane.md)
-- [TECH-coding-server-engine-truth-promotion.md](TECH-coding-server-engine-truth-promotion.md)
-- [TECH-coding-server-finalized-openapi-governance-and-codegen-input.md](TECH-coding-server-finalized-openapi-governance-and-codegen-input.md)
-- [TECH-coding-server-finalized-openapi-types-codegen-lane.md](TECH-coding-server-finalized-openapi-types-codegen-lane.md)
-- [TECH-coding-server-finalized-typed-client-codegen-lane.md](TECH-coding-server-finalized-typed-client-codegen-lane.md)
-- [TECH-coding-server-openapi-export-and-server-release-sidecar.md](TECH-coding-server-openapi-export-and-server-release-sidecar.md)
-- [TECH-coding-server-split-sdk-client-lane.md](TECH-coding-server-split-sdk-client-lane.md)
-- [TECH-commands.md](TECH-commands.md)
-- [TECH-default-ide-app-runtime-read-adoption-lane.md](TECH-default-ide-app-runtime-read-adoption-lane.md)
-- [TECH-default-ide-release-service-adoption-lane.md](TECH-default-ide-release-service-adoption-lane.md)
-- [TECH-default-ide-services-split-sdk-adoption-lane.md](TECH-default-ide-services-split-sdk-adoption-lane.md)
-- [TECH-desktop.md](TECH-desktop.md)
-- [TECH-development.md](TECH-development.md)
-- [TECH-engine-governance-packaged-release-evidence-lane.md](TECH-engine-governance-packaged-release-evidence-lane.md)
-- [TECH-engine-governance-release-flow-promotion-lane.md](TECH-engine-governance-release-flow-promotion-lane.md)
-- [TECH-engine-governance-score-surface-lane.md](TECH-engine-governance-score-surface-lane.md)
-- [TECH-engine-sdk-integration.md](TECH-engine-sdk-integration.md)
-- [TECH-engine-source-mirror-truth-lane.md](TECH-engine-source-mirror-truth-lane.md)
-- [TECH-environment.md](TECH-environment.md)
-- [TECH-getting-started.md](TECH-getting-started.md)
-- [TECH-host-runtime-transport-adoption.md](TECH-host-runtime-transport-adoption.md)
-- [TECH-index-2.md](TECH-index-2.md)
-- [TECH-index.md](TECH-index.md)
-- [TECH-install-and-deploy.md](TECH-install-and-deploy.md)
-- [TECH-kernel.md](TECH-kernel.md)
-- [TECH-legacy-07.md](TECH-legacy-07.md)
-- [TECH-legacy-11.md](TECH-legacy-11.md)
-- [TECH-legacy-93.md](TECH-legacy-93.md)
-- [TECH-legacy-96.md](TECH-legacy-96.md)
-- [TECH-mixed-app-transport-wrapper-removal-lane.md](TECH-mixed-app-transport-wrapper-removal-lane.md)
-- [TECH-package-rename-mapping.md](TECH-package-rename-mapping.md)
-- [TECH-packages.md](TECH-packages.md)
-- [TECH-postgresql-live-smoke-preflight.md](TECH-postgresql-live-smoke-preflight.md)
-- [TECH-real-admin-audit-lane.md](TECH-real-admin-audit-lane.md)
-- [TECH-real-app-deployment-catalog-lane.md](TECH-real-app-deployment-catalog-lane.md)
-- [TECH-real-app-document-catalog-lane.md](TECH-real-app-document-catalog-lane.md)
-- [TECH-release-2026-04-08-01.md](TECH-release-2026-04-08-01.md)
-- [TECH-release-2026-04-08-02.md](TECH-release-2026-04-08-02.md)
-- [TECH-release-2026-04-08-03.md](TECH-release-2026-04-08-03.md)
-- [TECH-release-2026-04-08-04.md](TECH-release-2026-04-08-04.md)
-- [TECH-release-2026-04-08-05.md](TECH-release-2026-04-08-05.md)
-- [TECH-release-2026-04-08-06.md](TECH-release-2026-04-08-06.md)
-- [TECH-release-2026-04-08-07.md](TECH-release-2026-04-08-07.md)
-- [TECH-release-2026-04-08-08.md](TECH-release-2026-04-08-08.md)
-- [TECH-release-2026-04-08-09.md](TECH-release-2026-04-08-09.md)
-- [TECH-release-2026-04-08-10.md](TECH-release-2026-04-08-10.md)
-- [TECH-release-2026-04-08-11.md](TECH-release-2026-04-08-11.md)
-- [TECH-release-2026-04-08-12.md](TECH-release-2026-04-08-12.md)
-- [TECH-release-2026-04-08-13.md](TECH-release-2026-04-08-13.md)
-- [TECH-release-2026-04-08-14.md](TECH-release-2026-04-08-14.md)
-- [TECH-release-2026-04-08-15.md](TECH-release-2026-04-08-15.md)
-- [TECH-release-2026-04-08-16.md](TECH-release-2026-04-08-16.md)
-- [TECH-release-2026-04-08-17.md](TECH-release-2026-04-08-17.md)
-- [TECH-release-2026-04-08-18.md](TECH-release-2026-04-08-18.md)
-- [TECH-release-2026-04-08-19.md](TECH-release-2026-04-08-19.md)
-- [TECH-release-2026-04-08-20.md](TECH-release-2026-04-08-20.md)
-- [TECH-release-2026-04-08-21.md](TECH-release-2026-04-08-21.md)
-- [TECH-release-2026-04-08-22.md](TECH-release-2026-04-08-22.md)
-- [TECH-release-2026-04-08-23.md](TECH-release-2026-04-08-23.md)
-- [TECH-release-2026-04-08-24.md](TECH-release-2026-04-08-24.md)
-- [TECH-release-2026-04-08-25.md](TECH-release-2026-04-08-25.md)
-- [TECH-release-2026-04-08-26.md](TECH-release-2026-04-08-26.md)
-- [TECH-release-2026-04-08-27.md](TECH-release-2026-04-08-27.md)
-- [TECH-release-2026-04-08-28.md](TECH-release-2026-04-08-28.md)
-- [TECH-release-2026-04-08-29.md](TECH-release-2026-04-08-29.md)
-- [TECH-release-2026-04-08-30.md](TECH-release-2026-04-08-30.md)
-- [TECH-release-2026-04-08-31.md](TECH-release-2026-04-08-31.md)
-- [TECH-release-2026-04-08-32.md](TECH-release-2026-04-08-32.md)
-- [TECH-release-2026-04-08-33.md](TECH-release-2026-04-08-33.md)
-- [TECH-release-2026-04-08-34.md](TECH-release-2026-04-08-34.md)
-- [TECH-release-2026-04-08-35.md](TECH-release-2026-04-08-35.md)
-- [TECH-release-2026-04-08-36.md](TECH-release-2026-04-08-36.md)
-- [TECH-release-2026-04-08-37.md](TECH-release-2026-04-08-37.md)
-- [TECH-release-2026-04-08-38.md](TECH-release-2026-04-08-38.md)
-- [TECH-release-2026-04-08-39.md](TECH-release-2026-04-08-39.md)
-- [TECH-release-2026-04-08-40.md](TECH-release-2026-04-08-40.md)
-- [TECH-release-2026-04-08-41.md](TECH-release-2026-04-08-41.md)
-- [TECH-release-2026-04-08-42.md](TECH-release-2026-04-08-42.md)
-- [TECH-release-2026-04-08-43.md](TECH-release-2026-04-08-43.md)
-- [TECH-release-2026-04-08-44.md](TECH-release-2026-04-08-44.md)
-- [TECH-release-2026-04-08-45.md](TECH-release-2026-04-08-45.md)
-- [TECH-release-2026-04-08-46.md](TECH-release-2026-04-08-46.md)
-- [TECH-release-2026-04-08-47.md](TECH-release-2026-04-08-47.md)
-- [TECH-release-2026-04-08-48.md](TECH-release-2026-04-08-48.md)
-- [TECH-release-2026-04-08-49.md](TECH-release-2026-04-08-49.md)
-- [TECH-release-2026-04-08-50.md](TECH-release-2026-04-08-50.md)
-- [TECH-release-2026-04-08-51.md](TECH-release-2026-04-08-51.md)
-- [TECH-release-2026-04-08-52.md](TECH-release-2026-04-08-52.md)
-- [TECH-release-2026-04-08-53.md](TECH-release-2026-04-08-53.md)
-- [TECH-release-2026-04-08-54.md](TECH-release-2026-04-08-54.md)
-- [TECH-release-2026-04-08-55.md](TECH-release-2026-04-08-55.md)
-- [TECH-release-2026-04-08-56.md](TECH-release-2026-04-08-56.md)
-- [TECH-release-2026-04-08-57.md](TECH-release-2026-04-08-57.md)
-- [TECH-release-2026-04-08-58.md](TECH-release-2026-04-08-58.md)
-- [TECH-release-2026-04-08-59.md](TECH-release-2026-04-08-59.md)
-- [TECH-release-2026-04-08-60.md](TECH-release-2026-04-08-60.md)
-- [TECH-release-2026-04-08-61.md](TECH-release-2026-04-08-61.md)
-- [TECH-release-2026-04-08-62.md](TECH-release-2026-04-08-62.md)
-- [TECH-release-2026-04-08-63.md](TECH-release-2026-04-08-63.md)
-- [TECH-release-2026-04-08-64.md](TECH-release-2026-04-08-64.md)
-- [TECH-release-2026-04-08-65.md](TECH-release-2026-04-08-65.md)
-- [TECH-release-2026-04-08-66.md](TECH-release-2026-04-08-66.md)
-- [TECH-release-2026-04-08-67.md](TECH-release-2026-04-08-67.md)
-- [TECH-release-2026-04-08-68.md](TECH-release-2026-04-08-68.md)
-- [TECH-release-2026-04-08-69.md](TECH-release-2026-04-08-69.md)
-- [TECH-release-2026-04-08-70.md](TECH-release-2026-04-08-70.md)
-- [TECH-release-2026-04-08-71.md](TECH-release-2026-04-08-71.md)
-- [TECH-release-2026-04-08-72.md](TECH-release-2026-04-08-72.md)
-- [TECH-release-2026-04-08-73.md](TECH-release-2026-04-08-73.md)
-- [TECH-release-2026-04-08-74.md](TECH-release-2026-04-08-74.md)
-- [TECH-release-2026-04-08-75.md](TECH-release-2026-04-08-75.md)
-- [TECH-release-2026-04-08-76.md](TECH-release-2026-04-08-76.md)
-- [TECH-release-2026-04-08-77.md](TECH-release-2026-04-08-77.md)
-- [TECH-release-2026-04-08-78.md](TECH-release-2026-04-08-78.md)
-- [TECH-release-2026-04-08-79.md](TECH-release-2026-04-08-79.md)
-- [TECH-release-2026-04-08-80.md](TECH-release-2026-04-08-80.md)
-- [TECH-release-2026-04-08-81.md](TECH-release-2026-04-08-81.md)
-- [TECH-release-2026-04-08-82.md](TECH-release-2026-04-08-82.md)
-- [TECH-release-2026-04-08-83.md](TECH-release-2026-04-08-83.md)
-- [TECH-release-2026-04-08-84.md](TECH-release-2026-04-08-84.md)
-- [TECH-release-2026-04-08-85.md](TECH-release-2026-04-08-85.md)
-- [TECH-release-2026-04-08-86.md](TECH-release-2026-04-08-86.md)
-- [TECH-release-2026-04-08-87.md](TECH-release-2026-04-08-87.md)
-- [TECH-release-2026-04-08-88.md](TECH-release-2026-04-08-88.md)
-- [TECH-release-2026-04-09-100.md](TECH-release-2026-04-09-100.md)
-- [TECH-release-2026-04-09-101.md](TECH-release-2026-04-09-101.md)
-- [TECH-release-2026-04-09-102.md](TECH-release-2026-04-09-102.md)
-- [TECH-release-2026-04-09-103.md](TECH-release-2026-04-09-103.md)
-- [TECH-release-2026-04-09-104.md](TECH-release-2026-04-09-104.md)
-- [TECH-release-2026-04-09-105.md](TECH-release-2026-04-09-105.md)
-- [TECH-release-2026-04-09-106.md](TECH-release-2026-04-09-106.md)
-- [TECH-release-2026-04-09-107.md](TECH-release-2026-04-09-107.md)
-- [TECH-release-2026-04-09-108.md](TECH-release-2026-04-09-108.md)
-- [TECH-release-2026-04-09-109.md](TECH-release-2026-04-09-109.md)
-- [TECH-release-2026-04-09-110.md](TECH-release-2026-04-09-110.md)
-- [TECH-release-2026-04-09-111.md](TECH-release-2026-04-09-111.md)
-- [TECH-release-2026-04-09-112.md](TECH-release-2026-04-09-112.md)
-- [TECH-release-2026-04-09-113.md](TECH-release-2026-04-09-113.md)
-- [TECH-release-2026-04-09-114.md](TECH-release-2026-04-09-114.md)
-- [TECH-release-2026-04-09-115.md](TECH-release-2026-04-09-115.md)
-- [TECH-release-2026-04-09-116.md](TECH-release-2026-04-09-116.md)
-- [TECH-release-2026-04-09-117.md](TECH-release-2026-04-09-117.md)
-- [TECH-release-2026-04-09-118.md](TECH-release-2026-04-09-118.md)
-- [TECH-release-2026-04-09-119.md](TECH-release-2026-04-09-119.md)
-- [TECH-release-2026-04-09-120.md](TECH-release-2026-04-09-120.md)
-- [TECH-release-2026-04-09-121.md](TECH-release-2026-04-09-121.md)
-- [TECH-release-2026-04-09-122.md](TECH-release-2026-04-09-122.md)
-- [TECH-release-2026-04-09-123.md](TECH-release-2026-04-09-123.md)
-- [TECH-release-2026-04-09-124.md](TECH-release-2026-04-09-124.md)
-- [TECH-release-2026-04-09-125.md](TECH-release-2026-04-09-125.md)
-- [TECH-release-2026-04-09-126.md](TECH-release-2026-04-09-126.md)
-- [TECH-release-2026-04-09-127.md](TECH-release-2026-04-09-127.md)
-- [TECH-release-2026-04-09-128.md](TECH-release-2026-04-09-128.md)
-- [TECH-release-2026-04-09-129.md](TECH-release-2026-04-09-129.md)
-- [TECH-release-2026-04-09-130.md](TECH-release-2026-04-09-130.md)
-- [TECH-release-2026-04-09-131.md](TECH-release-2026-04-09-131.md)
-- [TECH-release-2026-04-09-132.md](TECH-release-2026-04-09-132.md)
-- [TECH-release-2026-04-09-133.md](TECH-release-2026-04-09-133.md)
-- [TECH-release-2026-04-09-134.md](TECH-release-2026-04-09-134.md)
-- [TECH-release-2026-04-09-135.md](TECH-release-2026-04-09-135.md)
-- [TECH-release-2026-04-09-136.md](TECH-release-2026-04-09-136.md)
-- [TECH-release-2026-04-09-137.md](TECH-release-2026-04-09-137.md)
-- [TECH-release-2026-04-09-138.md](TECH-release-2026-04-09-138.md)
-- [TECH-release-2026-04-09-139.md](TECH-release-2026-04-09-139.md)
-- [TECH-release-2026-04-09-140.md](TECH-release-2026-04-09-140.md)
-- [TECH-release-2026-04-09-141.md](TECH-release-2026-04-09-141.md)
-- [TECH-release-2026-04-09-142.md](TECH-release-2026-04-09-142.md)
-- [TECH-release-2026-04-09-143.md](TECH-release-2026-04-09-143.md)
-- [TECH-release-2026-04-09-144.md](TECH-release-2026-04-09-144.md)
-- [TECH-release-2026-04-09-145.md](TECH-release-2026-04-09-145.md)
-- [TECH-release-2026-04-09-146.md](TECH-release-2026-04-09-146.md)
-- [TECH-release-2026-04-09-147.md](TECH-release-2026-04-09-147.md)
-- [TECH-release-2026-04-09-148.md](TECH-release-2026-04-09-148.md)
-- [TECH-release-2026-04-09-149.md](TECH-release-2026-04-09-149.md)
-- [TECH-release-2026-04-09-150.md](TECH-release-2026-04-09-150.md)
-- [TECH-release-2026-04-09-151.md](TECH-release-2026-04-09-151.md)
-- [TECH-release-2026-04-09-152.md](TECH-release-2026-04-09-152.md)
-- [TECH-release-2026-04-09-153.md](TECH-release-2026-04-09-153.md)
-- [TECH-release-2026-04-09-154.md](TECH-release-2026-04-09-154.md)
-- [TECH-release-2026-04-09-155.md](TECH-release-2026-04-09-155.md)
-- [TECH-release-2026-04-09-156.md](TECH-release-2026-04-09-156.md)
-- [TECH-release-2026-04-09-157.md](TECH-release-2026-04-09-157.md)
-- [TECH-release-2026-04-09-158.md](TECH-release-2026-04-09-158.md)
-- [TECH-release-2026-04-09-159.md](TECH-release-2026-04-09-159.md)
-- [TECH-release-2026-04-09-160.md](TECH-release-2026-04-09-160.md)
-- [TECH-release-2026-04-09-161.md](TECH-release-2026-04-09-161.md)
-- [TECH-release-2026-04-09-162.md](TECH-release-2026-04-09-162.md)
-- [TECH-release-2026-04-09-163.md](TECH-release-2026-04-09-163.md)
-- [TECH-release-2026-04-09-89.md](TECH-release-2026-04-09-89.md)
-- [TECH-release-2026-04-09-90.md](TECH-release-2026-04-09-90.md)
-- [TECH-release-2026-04-09-91.md](TECH-release-2026-04-09-91.md)
-- [TECH-release-2026-04-09-92.md](TECH-release-2026-04-09-92.md)
-- [TECH-release-2026-04-09-93.md](TECH-release-2026-04-09-93.md)
-- [TECH-release-2026-04-09-94.md](TECH-release-2026-04-09-94.md)
-- [TECH-release-2026-04-09-95.md](TECH-release-2026-04-09-95.md)
-- [TECH-release-2026-04-09-96.md](TECH-release-2026-04-09-96.md)
-- [TECH-release-2026-04-09-97.md](TECH-release-2026-04-09-97.md)
-- [TECH-release-2026-04-09-98.md](TECH-release-2026-04-09-98.md)
-- [TECH-release-2026-04-09-99.md](TECH-release-2026-04-09-99.md)
-- [TECH-release-2026-04-10-01.md](TECH-release-2026-04-10-01.md)
-- [TECH-release-2026-04-10-02.md](TECH-release-2026-04-10-02.md)
-- [TECH-release-2026-04-10-03.md](TECH-release-2026-04-10-03.md)
-- [TECH-release-2026-04-10-04.md](TECH-release-2026-04-10-04.md)
-- [TECH-release-2026-04-10-05.md](TECH-release-2026-04-10-05.md)
-- [TECH-release-2026-04-10-06.md](TECH-release-2026-04-10-06.md)
-- [TECH-release-2026-04-10-07.md](TECH-release-2026-04-10-07.md)
-- [TECH-release-2026-04-10-08.md](TECH-release-2026-04-10-08.md)
-- [TECH-release-2026-04-10-09.md](TECH-release-2026-04-10-09.md)
-- [TECH-release-2026-04-10-10.md](TECH-release-2026-04-10-10.md)
-- [TECH-release-2026-04-10-11.md](TECH-release-2026-04-10-11.md)
-- [TECH-release-2026-04-10-12.md](TECH-release-2026-04-10-12.md)
-- [TECH-release-2026-04-10-13.md](TECH-release-2026-04-10-13.md)
-- [TECH-release-2026-04-10-14.md](TECH-release-2026-04-10-14.md)
-- [TECH-release-2026-04-10-15.md](TECH-release-2026-04-10-15.md)
-- [TECH-release-2026-04-10-16.md](TECH-release-2026-04-10-16.md)
-- [TECH-release-2026-04-10-17.md](TECH-release-2026-04-10-17.md)
-- [TECH-release-2026-04-10-18.md](TECH-release-2026-04-10-18.md)
-- [TECH-release-2026-04-10-19.md](TECH-release-2026-04-10-19.md)
-- [TECH-release-2026-04-10-20.md](TECH-release-2026-04-10-20.md)
-- [TECH-release-2026-04-10-21.md](TECH-release-2026-04-10-21.md)
-- [TECH-release-2026-04-10-22.md](TECH-release-2026-04-10-22.md)
-- [TECH-release-2026-04-10-23.md](TECH-release-2026-04-10-23.md)
-- [TECH-release-2026-04-10-24.md](TECH-release-2026-04-10-24.md)
-- [TECH-release-2026-04-10-25.md](TECH-release-2026-04-10-25.md)
-- [TECH-release-2026-04-10-26.md](TECH-release-2026-04-10-26.md)
-- [TECH-release-2026-04-10-27.md](TECH-release-2026-04-10-27.md)
-- [TECH-release-2026-04-10-28.md](TECH-release-2026-04-10-28.md)
-- [TECH-release-2026-04-10-29.md](TECH-release-2026-04-10-29.md)
-- [TECH-release-2026-04-10-30.md](TECH-release-2026-04-10-30.md)
-- [TECH-release-2026-04-10-31.md](TECH-release-2026-04-10-31.md)
-- [TECH-release-2026-04-10-32.md](TECH-release-2026-04-10-32.md)
-- [TECH-release-2026-04-10-33.md](TECH-release-2026-04-10-33.md)
-- [TECH-release-2026-04-10-34.md](TECH-release-2026-04-10-34.md)
-- [TECH-release-2026-04-10-35.md](TECH-release-2026-04-10-35.md)
-- [TECH-release-2026-04-10-36.md](TECH-release-2026-04-10-36.md)
-- [TECH-release-2026-04-10-37.md](TECH-release-2026-04-10-37.md)
-- [TECH-release-2026-04-10-38.md](TECH-release-2026-04-10-38.md)
-- [TECH-release-2026-04-10-39.md](TECH-release-2026-04-10-39.md)
-- [TECH-release-2026-04-10-40.md](TECH-release-2026-04-10-40.md)
-- [TECH-release-2026-04-10-41.md](TECH-release-2026-04-10-41.md)
-- [TECH-release-2026-04-10-42.md](TECH-release-2026-04-10-42.md)
-- [TECH-release-2026-04-10-43.md](TECH-release-2026-04-10-43.md)
-- [TECH-release-2026-04-10-44.md](TECH-release-2026-04-10-44.md)
-- [TECH-release-2026-04-10-45.md](TECH-release-2026-04-10-45.md)
-- [TECH-release-2026-04-11-01.md](TECH-release-2026-04-11-01.md)
-- [TECH-release-2026-04-11-02.md](TECH-release-2026-04-11-02.md)
-- [TECH-release-2026-04-11-03.md](TECH-release-2026-04-11-03.md)
-- [TECH-release-2026-04-11-04.md](TECH-release-2026-04-11-04.md)
-- [TECH-release-2026-04-11-05.md](TECH-release-2026-04-11-05.md)
-- [TECH-release-2026-04-11-06.md](TECH-release-2026-04-11-06.md)
-- [TECH-release-2026-04-11-07.md](TECH-release-2026-04-11-07.md)
-- [TECH-release-2026-04-11-08.md](TECH-release-2026-04-11-08.md)
-- [TECH-release-2026-04-11-09.md](TECH-release-2026-04-11-09.md)
-- [TECH-release-2026-04-11-10.md](TECH-release-2026-04-11-10.md)
-- [TECH-release-2026-04-11-11.md](TECH-release-2026-04-11-11.md)
-- [TECH-release-2026-04-11-12.md](TECH-release-2026-04-11-12.md)
-- [TECH-release-2026-04-11-13.md](TECH-release-2026-04-11-13.md)
-- [TECH-release-2026-04-11-14.md](TECH-release-2026-04-11-14.md)
-- [TECH-release-2026-04-11-15.md](TECH-release-2026-04-11-15.md)
-- [TECH-release-2026-04-11-16.md](TECH-release-2026-04-11-16.md)
-- [TECH-release-2026-04-11-17.md](TECH-release-2026-04-11-17.md)
-- [TECH-release-2026-04-11-18.md](TECH-release-2026-04-11-18.md)
-- [TECH-release-2026-04-11-19.md](TECH-release-2026-04-11-19.md)
-- [TECH-release-2026-04-11-20.md](TECH-release-2026-04-11-20.md)
-- [TECH-release-2026-04-11-21.md](TECH-release-2026-04-11-21.md)
-- [TECH-release-2026-04-11-22.md](TECH-release-2026-04-11-22.md)
-- [TECH-release-2026-04-11-23.md](TECH-release-2026-04-11-23.md)
-- [TECH-release-2026-04-11-24.md](TECH-release-2026-04-11-24.md)
-- [TECH-release-2026-04-11-25.md](TECH-release-2026-04-11-25.md)
-- [TECH-release-2026-04-11-26.md](TECH-release-2026-04-11-26.md)
-- [TECH-release-2026-04-11-27.md](TECH-release-2026-04-11-27.md)
-- [TECH-release-2026-04-11-28.md](TECH-release-2026-04-11-28.md)
-- [TECH-release-2026-04-11-29.md](TECH-release-2026-04-11-29.md)
-- [TECH-release-2026-04-11-30.md](TECH-release-2026-04-11-30.md)
-- [TECH-release-2026-04-11-31.md](TECH-release-2026-04-11-31.md)
-- [TECH-release-2026-04-11-32.md](TECH-release-2026-04-11-32.md)
-- [TECH-release-2026-04-11-33.md](TECH-release-2026-04-11-33.md)
-- [TECH-release-2026-04-11-34.md](TECH-release-2026-04-11-34.md)
-- [TECH-release-2026-04-11-35.md](TECH-release-2026-04-11-35.md)
-- [TECH-release-2026-04-12-01.md](TECH-release-2026-04-12-01.md)
-- [TECH-release-2026-04-12-02.md](TECH-release-2026-04-12-02.md)
-- [TECH-release-2026-04-12-03.md](TECH-release-2026-04-12-03.md)
-- [TECH-release-2026-04-12-04.md](TECH-release-2026-04-12-04.md)
-- [TECH-release-2026-04-12-05.md](TECH-release-2026-04-12-05.md)
-- [TECH-release-2026-04-12-06.md](TECH-release-2026-04-12-06.md)
-- [TECH-release-2026-04-12-07.md](TECH-release-2026-04-12-07.md)
-- [TECH-release-2026-04-12-08.md](TECH-release-2026-04-12-08.md)
-- [TECH-release-2026-04-12-09.md](TECH-release-2026-04-12-09.md)
-- [TECH-release-2026-04-12-10.md](TECH-release-2026-04-12-10.md)
-- [TECH-release-2026-04-12-11.md](TECH-release-2026-04-12-11.md)
-- [TECH-release-2026-04-12-12.md](TECH-release-2026-04-12-12.md)
-- [TECH-release-2026-04-12-13.md](TECH-release-2026-04-12-13.md)
-- [TECH-release-2026-04-13-01.md](TECH-release-2026-04-13-01.md)
-- [TECH-release-2026-04-13-02.md](TECH-release-2026-04-13-02.md)
-- [TECH-release-2026-04-13-03.md](TECH-release-2026-04-13-03.md)
-- [TECH-release-2026-04-13-04.md](TECH-release-2026-04-13-04.md)
-- [TECH-release-2026-04-13-05.md](TECH-release-2026-04-13-05.md)
-- [TECH-release-2026-04-13-06.md](TECH-release-2026-04-13-06.md)
-- [TECH-release-2026-04-13-07.md](TECH-release-2026-04-13-07.md)
-- [TECH-release-2026-04-13-08.md](TECH-release-2026-04-13-08.md)
-- [TECH-release-2026-04-13-09.md](TECH-release-2026-04-13-09.md)
-- [TECH-release-2026-04-13-10.md](TECH-release-2026-04-13-10.md)
-- [TECH-release-2026-04-13-11.md](TECH-release-2026-04-13-11.md)
-- [TECH-release-2026-04-13-12.md](TECH-release-2026-04-13-12.md)
-- [TECH-release-2026-04-14-01.md](TECH-release-2026-04-14-01.md)
-- [TECH-release-2026-04-14-02.md](TECH-release-2026-04-14-02.md)
-- [TECH-release-2026-04-14-03.md](TECH-release-2026-04-14-03.md)
-- [TECH-release-2026-04-14-04.md](TECH-release-2026-04-14-04.md)
-- [TECH-release-2026-04-14-05.md](TECH-release-2026-04-14-05.md)
-- [TECH-release-2026-04-14-06.md](TECH-release-2026-04-14-06.md)
-- [TECH-release-2026-04-14-07.md](TECH-release-2026-04-14-07.md)
-- [TECH-release-2026-04-14-08.md](TECH-release-2026-04-14-08.md)
-- [TECH-release-2026-04-14-09.md](TECH-release-2026-04-14-09.md)
-- [TECH-release-2026-04-14-10.md](TECH-release-2026-04-14-10.md)
-- [TECH-release-2026-04-14-11.md](TECH-release-2026-04-14-11.md)
-- [TECH-release-2026-04-14-12.md](TECH-release-2026-04-14-12.md)
-- [TECH-release-2026-04-14-13.md](TECH-release-2026-04-14-13.md)
-- [TECH-release-2026-04-14-14.md](TECH-release-2026-04-14-14.md)
-- [TECH-release-2026-04-14-15.md](TECH-release-2026-04-14-15.md)
-- [TECH-release-2026-04-14-16.md](TECH-release-2026-04-14-16.md)
-- [TECH-release-2026-04-14-17.md](TECH-release-2026-04-14-17.md)
-- [TECH-release-2026-04-14-18.md](TECH-release-2026-04-14-18.md)
-- [TECH-release-2026-04-14-19.md](TECH-release-2026-04-14-19.md)
-- [TECH-release-2026-04-14-20.md](TECH-release-2026-04-14-20.md)
-- [TECH-release-2026-04-15-01.md](TECH-release-2026-04-15-01.md)
-- [TECH-release-2026-04-15-02.md](TECH-release-2026-04-15-02.md)
-- [TECH-release-2026-04-15-03.md](TECH-release-2026-04-15-03.md)
-- [TECH-release-2026-04-15-04.md](TECH-release-2026-04-15-04.md)
-- [TECH-release-2026-04-15-05.md](TECH-release-2026-04-15-05.md)
-- [TECH-release-2026-04-15-06.md](TECH-release-2026-04-15-06.md)
-- [TECH-release-2026-04-15-07.md](TECH-release-2026-04-15-07.md)
-- [TECH-release-2026-04-15-08.md](TECH-release-2026-04-15-08.md)
-- [TECH-release-2026-04-15-09.md](TECH-release-2026-04-15-09.md)
-- [TECH-release-2026-04-15-10.md](TECH-release-2026-04-15-10.md)
-- [TECH-release-2026-04-15-11.md](TECH-release-2026-04-15-11.md)
-- [TECH-release-2026-04-15-12.md](TECH-release-2026-04-15-12.md)
-- [TECH-release-2026-04-15-13.md](TECH-release-2026-04-15-13.md)
-- [TECH-release-2026-04-15-14.md](TECH-release-2026-04-15-14.md)
-- [TECH-release-2026-04-28-01.md](TECH-release-2026-04-28-01.md)
-- [TECH-release-2026-05-06-01.md](TECH-release-2026-05-06-01.md)
-- [TECH-release-and-deployment.md](TECH-release-and-deployment.md)
-- [TECH-release.md](TECH-release.md)
-- [TECH-rust-host-engine-route-parity-lane.md](TECH-rust-host-engine-route-parity-lane.md)
-- [TECH-rust-host-engine-truth-artifact-lane.md](TECH-rust-host-engine-truth-artifact-lane.md)
-- [TECH-server-runtime-transport-binding.md](TECH-server-runtime-transport-binding.md)
-- [TECH-shared-package-dependency-verification.md](TECH-shared-package-dependency-verification.md)
-- [TECH-step.md](TECH-step.md)
-- [TECH-studiopage-boundaries-lane.md](TECH-studiopage-boundaries-lane.md)
-- [TECH-topology-standard.md](TECH-topology-standard.md)
-- [TECH-web-bundle-segmentation-and-production-build-lane.md](TECH-web-bundle-segmentation-and-production-build-lane.md)
+Updated: 2026-07-12
+Specs: `APPLICATION_LAYERED_ARCHITECTURE_SPEC.md`, `APP_PC_ARCHITECTURE_SPEC.md`, `DESKTOP_APP_ARCHITECTURE_SPEC.md`, `ARCHITECTURE_DECISION_SPEC.md`, `API_SPEC.md`, `SDK_SPEC.md`, `DATABASE_SPEC.md`, `SECURITY_SPEC.md`, `DEPLOYMENT_SPEC.md`
 
 ## 1. Architecture Overview
 
-BirdCoder is a multi-surface SDKWork application: PC web/desktop (`apps/sdkwork-birdcoder-pc`), H5/Capacitor (`apps/sdkwork-birdcoder-h5`), Flutter mobile (`apps/sdkwork-birdcoder-flutter-mobile`), and a Rust standalone gateway (`crates/sdkwork-birdcoder-standalone-gateway`). Client surfaces consume generated `@sdkwork/birdcoder-app-sdk` families; the server exposes 162 OpenAPI operations with federated `sdkwork-iam`, commerce gateway, commerce transactions, and mobile chat routes.
+BirdCoder has one product model and two runtime topologies:
 
-Agent capability follows the three-layer boundary: `sdkwork-kernel` owns provider SPI and bindings, `sdkwork-agents` owns business persistence/API/session/task/configuration/memory composition, and BirdCoder consumes only through `sdkwork-agents-runtime-facade` plus `@sdkwork/agents-app-sdk`. BirdCoder must not import `sdkwork-agent-kernel` or provider crates/packages directly.
+```text
+standalone desktop
+  React/Tauri -> embedded Rust gateway -> coding-session service/store
+  -> BirdCoder kernel bridge -> sdkwork-agents runtime facade -> sdkwork-kernel provider
+  -> authorized local project
 
-Current commercial truth: [TECH-2026-06-24-commercial-readiness-alignment.md](TECH-2026-06-24-commercial-readiness-alignment.md).
+cloud
+  web/desktop/mobile -> stateless control plane -> durable operation store/scheduler
+  -> isolated workspace runner -> sdkwork-agents runtime facade -> sdkwork-kernel provider
+  -> encrypted workspace volume
+```
 
-## 2. Technology Choices
+Only `standalone` and `cloud` are deployment profiles. `local-host` and `cloud-workspace` describe where one session executes.
 
-| Layer | Choice |
+## 2. Current Implementation Truth
+
+| Area | State |
 | --- | --- |
-| PC UI | React + Vite + Tauri desktop host |
-| Mobile | Capacitor H5 + Flutter |
-| API server | Rust + Axum + `sdkwork-web-framework` |
-| Persistence | SQLite default; PostgreSQL HA overlay |
-| Auth | `sdkwork-iam` + appbase IAM runtime |
-| Contracts | OpenAPI 3.1.2 + generated SDKs + script contract gates |
+| Turn contract | Implemented: cwd, model/options, timeout/output budget, approval/sandbox policy, and provider-native session flow through the BirdCoder bridge. |
+| Persistence | Implemented: turn/session/event finalization and native-session persistence use repository transactions and tenant-scoped project lookup. Event sequence allocation is transaction-safe. Multi-step operations (edit/delete message, approval, question answer) are wrapped in single transactions. Durable operation SQL is validated and correct. |
+| OOM protection | Implemented: Codex CLI stdout capped at 10 MB, stderr at 1 MB, file reads at 8 MB. Process output is truncated or errored before unbounded memory growth. |
+| Provider scope | Implemented: BirdCoder exposes only Codex, Claude Code, Gemini, and OpenCode P0 slots. |
+| Provider honesty | Partially implemented: runtime and desktop CLI checks fail closed, but the server catalog still needs one authoritative runtime-health projection. |
+| Installed runtime | Blocked: current artifacts do not yet contain a complete versioned provider-runtime bundle and must not depend on repository-relative worker paths. |
+| Cloud execution | Blocked: no production durable scheduler, lease/fencing model, or strongly isolated workspace runner is complete yet. |
 
-## 3. System Boundaries And Modules
+Route counts, generated SDK output, static catalog status, or synthetic smoke fixtures are contract evidence only. They are not installed-runtime evidence.
 
-- **Shell**: `@sdkwork/birdcoder-pc-shell`, bootstrap, routing, auth gate
-- **Infrastructure**: SDK clients, IAM runtime, session persistence, IDE services
-- **Product modules**: code, studio, chat, skills, templates, settings
-- **Server**: route crates under `crates/sdkwork-routes-*`, services/repositories under `crates/sdkwork-birdcoder-*`
+## 3. Ownership And Dependency Boundaries
 
-## 4. Directory And Package Layout
+- PC/H5/Flutter own presentation, session workflows, and generated SDK consumption.
+- HTTP routes decode/encode SDKWork contracts and delegate to services; they do not own business policy or SQL.
+- Coding-session services own validation and orchestration through repository/provider ports.
+- SQLx repositories own SQLite/PostgreSQL persistence and scoped transactions.
+- The standalone gateway owns process bootstrap and dependency wiring, not durable scheduling.
+- The Tauri host owns native dialogs, filesystem/process/credential adapters, and embedded gateway startup, not business routes.
+- `sdkwork-birdcoder-kernel-bridge` adapts BirdCoder records to `sdkwork-agents-runtime-facade`.
+- `sdkwork-agents` owns managed-agent business behavior; `sdkwork-kernel` owns provider SPI and transports.
+- `SDKWORK_APP_ROOT` or `SDKWORK_BIRDCODER_APP_ROOT` selects the BirdCoder application profile; `SDKWORK_IAM_APP_ROOT` remains the sibling `sdkwork-iam` catalog/database-assets root.
 
-See [APP_PC_ARCHITECTURE_SPEC.md](../../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md) and repository `AGENTS.md`. Authoritative app identity: root `sdkwork.app.config.json`.
+BirdCoder application code must not import provider internals, bypass the agents facade, handwrite HTTP around generated SDKs, or persist agents-owned business state locally.
 
-## 5. API, SDK, And Data Ownership
+## 4. Execution Contract
 
-- OpenAPI authority: `apps/sdkwork-birdcoder-pc/sdks/` and deployed snapshot `deployments/server-windows/x64/openapi/coding-server-v1.json`
-- Database lifecycle: root `database/` consumed via `SDKWORK_BIRDCODER_APP_ROOT`
-- Defer registry: `specs/coding-server-openapi-rust-defer-registry.json` (162 of 162 contract operations implemented, 0 deferred; see `TECH-2026-06-24-commercial-readiness-alignment.md` §2b, §11f, and §15)
+A provider turn carries the authorized working directory, engine/model, provider-native session id, approval and sandbox policies, sampling options, deadline, cancellation, and output budget. The bridge rejects empty output, probes, mocks, stubs, failed live SDK fallbacks, and any other result that cannot prove a real provider completion.
 
-## 6. Security, Privacy, And Observability
+Local paths are canonicalized and must remain inside the selected project root. Cloud requests never provide a server filesystem path; the control plane resolves an opaque workspace id to an authorized runner and volume.
 
-- IAM middleware on product routes; Problem JSON 401/403
-- Browser CSP baseline on PC shell entry HTML
-- `/health` checks application database ping, IAM database ping (when `SDKWORK_IAM_DATABASE_URL` is set), and realtime backend readiness
-- `/metrics` Prometheus endpoint; operator runbooks under `docs/guides/operator/`
+Provider state is split into four facts:
 
-## 7. Deployment And Runtime Topology
+1. cataloged: the product knows the provider contract;
+2. runtime available: required binary/worker/assets exist and authentication can be attempted;
+3. conformance passed: a real installed-artifact test passed;
+4. production enabled: policy allows selection for the current deployment.
 
-- Standalone: local SQLite + memory realtime
-- Cloud/container: `deployments/docker/Dockerfile` bundles server binary, `database/`, OpenAPI snapshot
-- Enterprise HA: `deployments/kubernetes/values-postgresql-ha.yaml` overlay
+Only the fourth state may be presented as ready for production use.
 
-## 8. Architecture Decision Index
+## 5. Data Isolation And Concurrency
 
-Detailed ADRs and lane shards are linked in the Document Map above. For release and manifest policy, see `docs/guides/operator/first-governed-release.md`.
+Standalone desktop uses user-private SQLite/runtime files and the selected project directory. It does not upload local source by default.
+
+Cloud metadata is scoped by tenant, organization, membership/user, workspace, project, session, and operation. PostgreSQL is authoritative for admission, idempotency, lease/fencing, ordered events, final outcome, and outbox state. Redis may accelerate realtime delivery and queue projections but cannot grant authorization or become the only operation record.
+
+Each active runner binding receives private workspace storage, `HOME`, provider state, credentials, temporary files, process namespace, network policy, and CPU/memory/time budgets. Membership is revalidated before dispatch, attach/resume, secret grant, interaction answer, and continuation. Public arbitrary-code multi-tenancy requires a reviewed strong sandbox such as gVisor, Kata, microVM, or evidenced equivalent.
+
+Initial admission defaults are one active turn per user and four globally, configurable via `BIRDCODER_MAX_CONCURRENT_CODE_ENGINE_TURNS` and `BIRDCODER_MAX_CONCURRENT_CODE_ENGINE_TURNS_PER_USER` environment variables. Leases use fencing tokens so a recovered worker cannot commit after ownership changes. Idle workspaces are suspendable and resume from durable metadata plus encrypted snapshots.
+
+## 6. Runtime Packaging And Readiness
+
+Desktop, server, and container releases need one provider-runtime asset contract containing:
+
+- Node/runtime executable where a Node worker is required;
+- provider worker scripts and built SDK/CLI dependencies;
+- platform/architecture, versions, checksums, and license/source metadata;
+- an install-root-relative resolver with no compiled repository path fallback;
+- a manifest consumed by startup health, release packaging, and smoke tests.
+
+Missing assets are a typed unavailable state. Development may use explicit environment overrides; release mode must resolve only packaged or operator-configured assets. A packaged smoke installs or extracts into a clean temporary root, starts the real binary, checks readiness, executes enabled providers, verifies cwd and native-session continuation, and confirms cleanup.
+
+## 7. Deployment Topology
+
+- Standalone desktop: signed Tauri bundle, embedded gateway, SQLite, user-private data, selected local project, packaged runtime manifest, and OS credential integration.
+- Standalone server/appliance: one application unit with PostgreSQL where shared state is required; code execution is disabled unless an approved runtime bundle or isolated runner is configured.
+- Cloud: stateless control services, PostgreSQL, scheduler/workspace manager, strong-isolation runners, encrypted workspace storage, secret broker, Redis projections, autoscaling, observability, backup, and rollback.
+
+Cloud and standalone expose the same shared API contract. A topology that cannot execute code returns a typed unavailable capability instead of changing schemas or silently falling back.
+
+## 8. Architecture Decisions
+
+The product contract is [PRD.md](../../product/prd/PRD.md). Normative API,
+security, deployment, persistence, SDK, and test rules are referenced from the
+relative sdkwork-specs files. Historical ADRs, lane notes, and step documents
+are intentionally not maintained as parallel sources of truth.
 
 ## 9. Verification
 
 ```bash
-pnpm run lint
 pnpm run check:arch
 pnpm run check:server
-pnpm run check:i18n
-pnpm run check:quality:release
+pnpm run check:kernel-birdcoder-alignment
+pnpm run check:agents-birdcoder-alignment
+cargo test -p sdkwork-birdcoder-kernel-bridge
+cargo test -p sdkwork-birdcoder-standalone-gateway
+cargo test -p sdkwork-birdcoder-coding-sessions-service
+cargo test -p sdkwork-birdcoder-coding-sessions-repository-sqlx
+node ../sdkwork-specs/tools/check-repository-docs-standard.mjs --root . --profile application
 ```
 
-Release packaging additionally requires `release-preflight` in `.github/workflows/package.yml` before governed artifacts publish.
+## 10. Database Integrity
+
+SQLite and PostgreSQL baselines declare inline `REFERENCES` foreign-key constraints for all session, skill, project, team, workspace, template, deployment, and commerce order tables. SQLite enables `PRAGMA foreign_keys = ON` on every connection. `studio_project_document`, `studio_deployment_target`, and `studio_deployment_record` use `INTEGER`/`BIGINT` `project_id` matching `studio_project.id`. Commerce membership numeric fields (`total_spent`, `growth_value`, `price`) use `NUMERIC`; integer counters (`points`, `remaining_days`, `duration_days`, `sort_weight`) use `INTEGER`.
+
+Rate-limit API key buckets use SHA-256 hash of the bearer token (first 16 bytes, hex-encoded) to avoid storing any part of the secret in the rate limit store.
+
+`list_turns` uses SQL-level `LIMIT`/`OFFSET` pagination with total count, aligned with `PAGINATION_SPEC.md` §2.
+
+Release promotion additionally requires clean-install provider runtime smokes with mock fallback disabled and credential-backed evidence for every enabled provider.

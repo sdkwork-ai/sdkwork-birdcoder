@@ -9,7 +9,7 @@ import {
   shouldBootIntoAuthSurface,
 } from '@sdkwork/birdcoder-pc-iam';
 
-export const GUEST_HOME_APP_TAB: AppTab = 'templates';
+export const GUEST_HOME_APP_TAB: AppTab = 'auth';
 export const AUTHENTICATED_DEFAULT_APP_TAB: AppTab = 'code';
 
 const AUTH_REQUIRED_APP_TABS = new Set<AppTab>([

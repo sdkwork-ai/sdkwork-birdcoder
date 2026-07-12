@@ -7,7 +7,9 @@ fn host_mode() -> &'static str {
 }
 
 #[tauri::command]
-async fn desktop_runtime_config(app: tauri::AppHandle) -> Result<host::DesktopRuntimeConfig, String> {
+async fn desktop_runtime_config(
+    app: tauri::AppHandle,
+) -> Result<host::DesktopRuntimeConfig, String> {
     host::desktop_runtime_config(app).await
 }
 
@@ -58,8 +60,9 @@ async fn local_sql_execute_plan(
 #[tauri::command]
 async fn fs_snapshot_folder(
     root_path: String,
+    max_nodes: Option<usize>,
 ) -> Result<host::FileSystemSnapshotResponse, String> {
-    host::fs_snapshot_folder(root_path).await
+    host::fs_snapshot_folder(root_path, max_nodes).await
 }
 
 #[tauri::command]
@@ -80,10 +83,7 @@ async fn fs_read_file(
 }
 
 #[tauri::command]
-async fn fs_get_file_revision(
-    root_path: String,
-    relative_path: String,
-) -> Result<String, String> {
+async fn fs_get_file_revision(root_path: String, relative_path: String) -> Result<String, String> {
     host::fs_get_file_revision(root_path, relative_path).await
 }
 
@@ -183,8 +183,12 @@ async fn desktop_pick_working_directory(
 }
 
 #[tauri::command]
-fn desktop_window_controls_bridge_capabilities(
-) -> host::NativeWindowControlsBridgeCapabilities {
+async fn desktop_reveal_in_file_manager(path: String) -> Result<(), String> {
+    host::desktop_reveal_in_file_manager(path).await
+}
+
+#[tauri::command]
+fn desktop_window_controls_bridge_capabilities() -> host::NativeWindowControlsBridgeCapabilities {
     host::desktop_window_controls_bridge_capabilities()
 }
 
@@ -205,105 +209,120 @@ fn desktop_perform_window_control_action(
 }
 
 #[tauri::command]
-fn desktop_session_index() -> Result<host::DesktopSessionIndexSnapshot, String> {
-    host::desktop_session_index()
+fn desktop_session_index(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
+) -> Result<host::DesktopSessionIndexSnapshot, String> {
+    host::desktop_session_index(state)
 }
 
 #[tauri::command]
 fn desktop_session_replay_slice(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     session_id: String,
     from_cursor: Option<String>,
     limit: Option<usize>,
 ) -> Result<host::DesktopSessionReplaySnapshot, String> {
-    host::desktop_session_replay_slice(session_id, from_cursor, limit)
+    host::desktop_session_replay_slice(state, session_id, from_cursor, limit)
 }
 
 #[tauri::command]
 fn desktop_session_attach(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     request: host::DesktopSessionAttachRequest,
 ) -> Result<host::DesktopSessionAttachmentSnapshot, String> {
-    host::desktop_session_attach(request)
+    host::desktop_session_attach(state, request)
 }
 
 #[tauri::command]
 fn desktop_session_detach(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     request: host::DesktopSessionDetachRequest,
 ) -> Result<host::DesktopSessionDescriptorSnapshot, String> {
-    host::desktop_session_detach(request)
+    host::desktop_session_detach(state, request)
 }
 
 #[tauri::command]
 fn desktop_session_reattach(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     request: host::DesktopSessionAttachRequest,
 ) -> Result<host::DesktopSessionAttachmentSnapshot, String> {
-    host::desktop_session_reattach(request)
+    host::desktop_session_reattach(state, request)
 }
 
 #[tauri::command]
 fn desktop_terminal_session_inventory_list(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
 ) -> Result<Vec<host::DesktopTerminalSessionInventorySnapshot>, String> {
-    host::desktop_terminal_session_inventory_list()
+    host::desktop_terminal_session_inventory_list(state)
 }
 
 #[tauri::command]
-fn desktop_local_shell_exec(
+async fn desktop_local_shell_exec(
     request: host::DesktopLocalShellExecRequest,
 ) -> Result<host::DesktopLocalShellExecSnapshot, String> {
-    host::desktop_local_shell_exec(request)
+    tauri::async_runtime::spawn_blocking(move || host::desktop_local_shell_exec(request))
+        .await
+        .map_err(|error| format!("desktop local shell worker failed: {error}"))?
 }
 
 #[tauri::command]
 fn desktop_local_shell_session_create(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     request: host::DesktopLocalShellSessionCreateRequest,
 ) -> Result<host::DesktopLocalShellSessionCreateSnapshot, String> {
-    host::desktop_local_shell_session_create(request)
+    host::desktop_local_shell_session_create(state, request)
 }
 
 #[tauri::command]
 fn desktop_local_process_session_create(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     request: host::DesktopLocalProcessSessionCreateRequest,
 ) -> Result<host::DesktopLocalProcessSessionCreateSnapshot, String> {
-    host::desktop_local_process_session_create(request)
+    host::desktop_local_process_session_create(state, request)
 }
 
 #[tauri::command]
 fn desktop_session_input(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     request: host::DesktopLocalShellSessionInputRequest,
 ) -> Result<host::DesktopLocalShellSessionInputSnapshot, String> {
-    host::desktop_session_input(request)
+    host::desktop_session_input(state, request)
 }
 
 #[tauri::command]
 fn desktop_session_input_bytes(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     request: host::DesktopLocalShellSessionInputBytesRequest,
 ) -> Result<host::DesktopLocalShellSessionInputSnapshot, String> {
-    host::desktop_session_input_bytes(request)
+    host::desktop_session_input_bytes(state, request)
 }
 
 #[tauri::command]
 fn desktop_session_attachment_acknowledge(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     request: host::DesktopSessionAttachmentAcknowledgeRequest,
 ) -> Result<host::DesktopAttachmentDescriptorSnapshot, String> {
-    host::desktop_session_attachment_acknowledge(request)
+    host::desktop_session_attachment_acknowledge(state, request)
 }
 
 #[tauri::command]
 fn desktop_session_resize(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     request: host::DesktopLocalShellSessionResizeRequest,
 ) -> Result<host::DesktopLocalShellSessionResizeSnapshot, String> {
-    host::desktop_session_resize(request)
+    host::desktop_session_resize(state, request)
 }
 
 #[tauri::command]
 fn desktop_session_terminate(
+    state: tauri::State<'_, host::DesktopTerminalRuntimeState>,
     session_id: String,
 ) -> Result<host::DesktopLocalShellSessionTerminateSnapshot, String> {
-    host::desktop_session_terminate(session_id)
+    host::desktop_session_terminate(state, session_id)
 }
 
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             app.manage(host::FileSystemWatchState::new());
             host::setup_tauri_host(app.handle())?;
@@ -335,6 +354,7 @@ pub fn run() {
             user_home_config_write,
             terminal_cli_profile_detect,
             desktop_pick_working_directory,
+            desktop_reveal_in_file_manager,
             desktop_window_controls_bridge_capabilities,
             desktop_configure_window_controls_bridge,
             desktop_perform_window_control_action,

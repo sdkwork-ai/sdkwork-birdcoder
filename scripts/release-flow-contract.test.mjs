@@ -340,6 +340,23 @@ const packageSbomPlan = commandPlanText(lifecycleModule.buildLifecycleCommands('
   SDKWORK_RELEASE_TAG: 'release-0.1.0',
 }));
 assert.match(packageSbomPlan, /sbom\/linux-x64-standalone-server-tar-gz\.sbom\.json/u);
+assert.match(packageSbomPlan, /write-package-sbom-evidence\.mjs/u);
+assert.match(
+  packageSbomPlan,
+  /server\/linux\/x64\/provider-runtime\/runtime-manifest\.json/u,
+  'server package SBOM must inventory the packaged Provider runtime sidecar',
+);
+
+const webSbomPlan = commandPlanText(lifecycleModule.buildLifecycleCommands('sbom', {
+  SDKWORK_PACKAGE_TARGET_ID: 'web-universal-cloud-browser-tar-gz',
+  SDKWORK_PACKAGE_ID: 'web-universal-cloud-browser-tar-gz',
+  SDKWORK_RELEASE_TAG: 'release-0.1.0',
+}));
+assert.doesNotMatch(
+  webSbomPlan,
+  /provider-runtime\/runtime-manifest\.json/u,
+  'web package SBOM must not claim a bundled Provider runtime',
+);
 
 const aggregateFixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-aggregate-release-'));
 try {

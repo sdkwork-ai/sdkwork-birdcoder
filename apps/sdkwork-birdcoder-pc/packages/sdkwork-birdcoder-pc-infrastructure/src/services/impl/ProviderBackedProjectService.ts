@@ -25,7 +25,9 @@ import type {
   BirdCoderCodingSessionMirrorSnapshot,
   BirdCoderCodingSessionListResult,
   BirdCoderProjectMirrorSnapshot,
+  BirdCoderServiceListPage,
   BirdCoderServiceListPagination,
+  BirdCoderServicePageRequest,
   CreateCodingSessionOptions,
   CreateCodingSessionMessageInput,
   CreateProjectOptions,
@@ -36,6 +38,7 @@ import type {
 import type {
   BirdCoderProjectContentRepository,
   BirdCoderProjectContentRecord,
+  BirdCoderProjectListPage,
   BirdCoderProjectRepository,
   BirdCoderRepresentativeProjectRecord,
 } from '../../storage/appConsoleRepository.ts';
@@ -57,6 +60,10 @@ import {
 } from '../projectContentConfigData.ts';
 import { createBirdCoderLocalBusinessUuid } from '../localBusinessUuid.ts';
 import { createBirdCoderLocalEntityId } from '../localEntityId.ts';
+import {
+  createBirdCoderServiceOffsetPageInfo,
+  resolveBirdCoderServicePageRequest,
+} from '../servicePagination.ts';
 
 function createTimestamp(): string {
   return new Date().toISOString();
@@ -824,15 +831,14 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   private async listProjectRecordsPage(
     workspaceId: string | undefined,
     pagination: BirdCoderServiceListPagination,
-  ): Promise<BirdCoderRepresentativeProjectRecord[]> {
+  ): Promise<BirdCoderProjectListPage> {
     const { offset, pageSize } = clampListPageSize(pagination.offset, pagination.limit);
     if (workspaceId?.trim()) {
       if (this.repository.listProjectsByWorkspaceIds) {
-        const page = await this.repository.listProjectsByWorkspaceIds(
+        return this.repository.listProjectsByWorkspaceIds(
           [workspaceId.trim()],
           { offset, limit: pageSize },
         );
-        return page.items;
       }
       throw new Error(
         'Paginated workspace project listing requires SQL-backed listProjectsByWorkspaceIds.',
@@ -840,11 +846,33 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     }
 
     if (this.repository.listProjectRecordsPage) {
-      const page = await this.repository.listProjectRecordsPage({ offset, limit: pageSize });
-      return page.items;
+      return this.repository.listProjectRecordsPage({ offset, limit: pageSize });
     }
 
     throw new Error('Paginated project listing requires SQL-backed listProjectRecordsPage.');
+  }
+
+  private async materializeProjectRecords(
+    records: readonly BirdCoderRepresentativeProjectRecord[],
+  ): Promise<BirdCoderProject[]> {
+    const hydratedRecords = await this.hydrateProjectRecords(records);
+    const persistedSessionsByProjectId = this.codingSessionRepositories
+      ? await this.loadPersistedCodingSessionInventorySnapshot(
+          hydratedRecords.map((record) => record.id),
+        )
+      : undefined;
+    const projects = hydratedRecords.map((record) => {
+      const sessions = this.mergeLocallyMutatedTranscriptSessions(
+        record.id,
+        persistedSessionsByProjectId?.get(record.id) ??
+          this.sessionsByProjectId.get(record.id) ??
+          [],
+      );
+      return this.mapProjectRecord(record, sessions, {
+        sessionsSortedByActivity: true,
+      });
+    });
+    return projects.sort(compareBirdCoderProjectsByActivity);
   }
 
   private async findProjectContentByProjectId(
@@ -966,28 +994,27 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     workspaceId?: string,
     pagination?: BirdCoderServiceListPagination,
   ): Promise<BirdCoderProject[]> {
-    const filteredRecords = pagination
+    const page = pagination
       ? await this.listProjectRecordsPage(workspaceId, pagination)
       : workspaceId
-        ? await this.listProjectRecordsByWorkspaceId(workspaceId)
-        : await this.repository.list();
-    const hydratedRecords = await this.hydrateProjectRecords(filteredRecords);
+        ? { items: await this.listProjectRecordsByWorkspaceId(workspaceId), total: 0 }
+        : { items: await this.repository.list(), total: 0 };
+    return this.materializeProjectRecords(page.items);
+  }
 
-    const persistedSessionsByProjectId = this.codingSessionRepositories
-      ? await this.loadPersistedCodingSessionInventorySnapshot(hydratedRecords.map((record) => record.id))
-      : undefined;
-    const projects = hydratedRecords.map((record) => {
-      const sessions = this.mergeLocallyMutatedTranscriptSessions(
-        record.id,
-        persistedSessionsByProjectId?.get(record.id) ??
-          this.sessionsByProjectId.get(record.id) ??
-          [],
-      );
-      return this.mapProjectRecord(record, sessions, {
-        sessionsSortedByActivity: true,
-      });
+  async getProjectsPage(
+    workspaceId: string | undefined,
+    request: BirdCoderServicePageRequest,
+  ): Promise<BirdCoderServiceListPage<BirdCoderProject>> {
+    const resolvedRequest = resolveBirdCoderServicePageRequest(request);
+    const page = await this.listProjectRecordsPage(workspaceId, {
+      limit: resolvedRequest.pageSize,
+      offset: resolvedRequest.offset,
     });
-    return projects.sort(compareBirdCoderProjectsByActivity);
+    return {
+      items: await this.materializeProjectRecords(page.items),
+      pageInfo: createBirdCoderServiceOffsetPageInfo(resolvedRequest, page.total),
+    };
   }
 
   async listCodingSessions(

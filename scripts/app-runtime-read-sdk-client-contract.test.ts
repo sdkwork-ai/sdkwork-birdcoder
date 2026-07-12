@@ -311,7 +311,7 @@ const routes = await client.listRoutes();
 const codingSessions = await client.listCodingSessions({
   engineId: 'codex',
   limit: 20,
-  offset: 5,
+  offset: 0,
   projectId: 'project-generated-contract',
   workspaceId: 'workspace-generated-contract',
 });
@@ -378,8 +378,8 @@ assert.deepEqual(observedRequests, [
     path: '/app/v3/api/intelligence/coding_sessions',
     query: {
       engineId: 'codex',
-      limit: 20,
-      offset: 5,
+      page: 1,
+      page_size: 20,
       projectId: 'project-generated-contract',
       workspaceId: 'workspace-generated-contract',
     },
@@ -389,7 +389,7 @@ assert.deepEqual(observedRequests, [
     path: '/app/v3/api/native_sessions',
     query: {
       engineId: 'codex',
-      limit: 20,
+      page_size: 20,
       projectId: 'project-generated-contract',
       workspaceId: 'workspace-generated-contract',
     },

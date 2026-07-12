@@ -38,12 +38,16 @@ const userBProject = createLocalProject(
   'User B project',
 );
 
+let boundedPageReads = 0;
 const client = {
   async listProjects(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>> {
     throw new Error('Failed to fetch project catalog');
   },
   async getProject(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>> {
     throw new Error('Failed to fetch project detail');
+  },
+  async listProjectPage(): Promise<never> {
+    throw new Error('Failed to fetch project page');
   },
 } as unknown as BirdCoderAppSdkApiClient;
 
@@ -71,6 +75,20 @@ const writeService = {
       return structuredClone(userBProject);
     }
     return null;
+  },
+  async getProjectsPage() {
+    boundedPageReads += 1;
+    return {
+      items: [structuredClone(userAProject), structuredClone(userBProject)],
+      pageInfo: {
+        hasMore: false,
+        mode: 'offset' as const,
+        page: 1,
+        pageSize: 2,
+        totalItems: '2',
+        totalPages: 1,
+      },
+    };
   },
 } as unknown as IProjectService;
 
@@ -106,6 +124,33 @@ try {
     'project mirror snapshot fallback must remain scoped to the current authenticated user.',
   );
 
+  const fallbackPage = await service.getProjectsPage('workspace-1', {
+    page: 1,
+    pageSize: 2,
+  });
+  assert.deepEqual(
+    fallbackPage.items.map((project) => project.id),
+    ['project-user-b'],
+    'project page transient fallback must filter a mixed local page to the current authenticated user.',
+  );
+  assert.deepEqual(
+    fallbackPage.pageInfo,
+    {
+      hasMore: false,
+      mode: 'offset',
+      page: 1,
+      pageSize: 2,
+      totalItems: '1',
+      totalPages: 1,
+    },
+    'project page transient fallback must rebuild PageInfo after removing another user\'s local record.',
+  );
+  assert.equal(
+    boundedPageReads,
+    1,
+    'project page transient fallback must use one bounded local page read instead of broad inventory collection.',
+  );
+
   assert.equal(
     await service.getProjectById('project-user-a'),
     null,
@@ -122,6 +167,58 @@ try {
     userBDetail?.id,
     'project-user-b',
     'project detail transient fallback may use the current user local mirror.',
+  );
+} finally {
+  console.warn = originalConsoleWarn;
+}
+
+let anonymousLocalPageReads = 0;
+const anonymousService = new ApiBackedProjectService({
+  appClient: {
+    async listProjectPage(): Promise<never> {
+      throw new Error('Failed to fetch anonymous project page');
+    },
+  } as unknown as BirdCoderAppSdkApiClient,
+  currentUserProvider: {
+    async getCurrentUser() {
+      throw new Error(
+        'BirdCoder API request timed out after 8000ms: GET /app/v3/api/iam/users/current',
+      );
+    },
+  },
+  writeService: {
+    async getProjectsPage() {
+      anonymousLocalPageReads += 1;
+      return {
+        items: [structuredClone(userAProject)],
+        pageInfo: {
+          hasMore: false,
+          mode: 'offset' as const,
+          page: 1,
+          pageSize: 20,
+          totalItems: '1',
+          totalPages: 1,
+        },
+      };
+    },
+  } as unknown as IProjectService,
+});
+
+console.warn = () => {};
+try {
+  const anonymousPage = await anonymousService.getProjectsPage('workspace-1', {
+    page: 1,
+    pageSize: 20,
+  });
+  assert.deepEqual(
+    anonymousPage.items,
+    [],
+    'project page transient fallback must fail closed when current-user scope cannot be resolved.',
+  );
+  assert.equal(
+    anonymousLocalPageReads,
+    0,
+    'project page transient fallback must not read local mirrors for anonymous or unresolved scope.',
   );
 } finally {
   console.warn = originalConsoleWarn;

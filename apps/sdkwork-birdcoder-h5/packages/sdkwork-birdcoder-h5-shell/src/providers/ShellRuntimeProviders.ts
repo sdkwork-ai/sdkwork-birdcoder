@@ -1,1 +1,1 @@
-export { ShellRuntimeProviders } from '@sdkwork/birdcoder-pc-shell';
+export { ShellRuntimeProviders } from '@sdkwork/birdcoder-pc-shell/providers/ShellRuntimeProviders';

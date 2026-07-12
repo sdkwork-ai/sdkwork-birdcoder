@@ -37,6 +37,17 @@ try {
     `${runtimeServerSessionModulePath.href}?persistence=first-${Date.now()}`
   );
 
+  runtimeSession.clearRuntimeServerSessionId();
+  assert.throws(
+    () => runtimeSession.writeRuntimeServerSessionId('session-without-authentication'),
+    /requires an authenticated SDKWork IAM token bundle/u,
+    'a session id without the dual IAM token bundle must fail closed instead of becoming a synthetic credential.',
+  );
+
+  runtimeSession.writeRuntimeServerTokenBundle({
+    accessToken: ' access-token-before-session ',
+    authToken: ' auth-token-before-session ',
+  });
   assert.equal(
     runtimeSession.writeRuntimeServerSessionId('  session-after-login  '),
     'session-after-login',
@@ -72,14 +83,16 @@ try {
     {
       Authorization: 'Bearer auth-token',
       'Access-Token': 'access-token',
-      'Refresh-Token': 'refresh-token',
-      'X-SDKWork-Session-Id': 'session-token',
     },
-    'generated SDK transports must receive canonical SDKWork IAM auth/access/session headers.',
+    'generated SDK transports must receive canonical SDKWork IAM auth/access headers without forbidden client identity projection headers.',
   );
 
   localStore.clear();
   runtimeSession.clearRuntimeServerSessionId();
+  runtimeSession.writeRuntimeServerTokenBundle({
+    accessToken: ' access-token-before-quota ',
+    authToken: ' auth-token-before-quota ',
+  });
   const quotaFailingSessionStorage = {
     getItem(key: string) {
       return localStore.has(key) ? localStore.get(key)! : null;
@@ -113,9 +126,9 @@ try {
     'runtime session reader must preserve the in-memory session for the current startup when durable storage rejects writes.',
   );
   assert.equal(
-    runtimeSession.resolveRuntimeServerSessionHeaders()['X-SDKWork-Session-Id'],
+    runtimeSession.readRuntimeServerSessionId(),
     'session-after-quota',
-    'API headers must continue to include the in-memory runtime session after a durable storage quota failure.',
+    'in-memory runtime session must be preserved after a durable storage quota failure.',
   );
 } finally {
   if (originalWindowDescriptor) {

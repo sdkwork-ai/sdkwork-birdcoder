@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use async_trait::async_trait;
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::db::schema::SCHEMA_SQL;
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::coding_session_repository::SqliteCodingSessionRepository;
-use sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL as WORKSPACE_TABLES_DDL;
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::domain::commands::{
     SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
@@ -21,9 +20,12 @@ use sdkwork_birdcoder_coding_sessions_service::ports::events::{
 };
 use sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider;
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
+use sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL as WORKSPACE_TABLES_DDL;
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine, DeploymentMode};
 use sdkwork_database_sqlx::create_any_pool_from_config;
-use sdkwork_iam_context_service::{AuthLevel, DeploymentMode as IamDeploymentMode, Environment, IamAppContext};
+use sdkwork_iam_context_service::{
+    AuthLevel, DeploymentMode as IamDeploymentMode, Environment, IamAppContext,
+};
 use sdkwork_routes_coding_sessions_app_api::build_coding_sessions_app_api_router;
 use sdkwork_routes_coding_sessions_app_api::handlers::CodingSessionsAppState;
 use sdkwork_web_core::{
@@ -124,7 +126,11 @@ fn test_iam_context() -> IamAppContext {
 }
 
 async fn execute_sql_batch(pool: &AnyPool, sql: &str) -> Result<(), sqlx::Error> {
-    for statement in sql.split(';').map(str::trim).filter(|part| !part.is_empty()) {
+    for statement in sql
+        .split(';')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+    {
         sqlx::query(statement).execute(pool).await?;
     }
     Ok(())
@@ -270,6 +276,37 @@ async fn list_sessions_returns_ok_with_empty_inventory() {
     assert_eq!(json["data"]["pageInfo"]["pageSize"], 20);
     assert_eq!(json["data"]["pageInfo"]["page"], 1);
     assert_eq!(json["data"]["pageInfo"]["totalItems"], "0");
+}
+
+#[tokio::test]
+async fn list_sessions_rejects_invalid_page_size_before_accessing_the_repository() {
+    let response = build_coding_sessions_app_api_router()
+        .with_state(test_state().await)
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri("/app/v3/api/intelligence/coding_sessions?page_size=0")
+                .body(Body::empty())
+                .expect("build invalid list sessions request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve invalid list sessions request");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response
+            .headers()
+            .get("content-type")
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json")
+    );
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read invalid list sessions body");
+    let json: serde_json::Value = serde_json::from_slice(&body).expect("parse invalid list JSON");
+    assert_eq!(json["code"], 40003);
+    assert_eq!(json["traceId"], "handler-smoke-request");
 }
 
 #[tokio::test]

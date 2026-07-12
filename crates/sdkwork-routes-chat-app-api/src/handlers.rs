@@ -1,4 +1,4 @@
-use axum::extract::{Path, Query, State};
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use sqlx::AnyPool;
@@ -10,17 +10,18 @@ use sdkwork_birdcoder_chat_service::domain::models::{
 };
 use sdkwork_birdcoder_chat_service::service::chat_service::ChatService;
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_offset_list_envelope, client_safe_provider_problem,
-    trace_id_from_request_id, traced_problem_json, ApiDataEnvelope, ApiListEnvelope,
+    build_data_envelope, build_offset_list_envelope, checked_list_total_items,
+    client_safe_provider_problem, trace_id_from_request_id, traced_problem_json, ApiDataEnvelope,
+    ApiListEnvelope,
 };
-use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
-use sdkwork_iam_context_service::IamAppContext;
 use sdkwork_birdcoder_kernel_bridge::generate_mobile_chat_assistant_reply;
+use sdkwork_birdcoder_router_context::{
+    RequiredIamContext, StrictOffsetListQuery, WebRequestContext,
+};
+use sdkwork_iam_context_service::IamAppContext;
 
 use crate::error;
-use crate::mapper::request::{
-    ChatListQueryParams, CreateChatConversationBody, CreateChatMessageBody,
-};
+use crate::mapper::request::{CreateChatConversationBody, CreateChatMessageBody};
 use crate::mapper::response::DeleteChatConversationResponse;
 
 fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
@@ -54,19 +55,23 @@ impl ChatAppState {
 pub async fn list_conversations(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<ChatAppState>,
-    Query(query): Query<ChatListQueryParams>,
 ) -> Result<Json<ApiListEnvelope<ChatConversationPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = chat_context(&iam);
-    let (offset, page_size) = query.normalized_pagination();
-    let list_query: ChatListQuery = query.into();
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
+    let list_query = ChatListQuery {
+        offset: pagination.offset,
+        limit: pagination.page_size,
+    };
     match state.service.list_conversations(&ctx, list_query).await {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
             page_size,
-            usize::try_from(total).unwrap_or(0),
+            checked_list_total_items(total, trace_id)?,
             request_id(&web),
         ))),
         Err(service_error) => Err(error::map_service_error(service_error, trace_id)),
@@ -78,8 +83,7 @@ pub async fn create_conversation(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<ChatAppState>,
     Json(body): Json<CreateChatConversationBody>,
-) -> Result<(StatusCode, Json<ApiDataEnvelope<ChatConversationPayload>>), error::ProblemJsonBody>
-{
+) -> Result<(StatusCode, Json<ApiDataEnvelope<ChatConversationPayload>>), error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = chat_context(&iam);
     match state.service.create_conversation(&ctx, body.into()).await {
@@ -124,9 +128,7 @@ pub async fn delete_conversation(
         .await
     {
         Ok(()) => Ok(Json(build_data_envelope(
-            DeleteChatConversationResponse {
-                id: normalized_id,
-            },
+            DeleteChatConversationResponse { id: normalized_id },
             request_id(&web),
         ))),
         Err(service_error) => Err(error::map_service_error(service_error, trace_id)),
@@ -136,14 +138,18 @@ pub async fn delete_conversation(
 pub async fn list_messages(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<ChatAppState>,
     Path(conversation_id): Path<String>,
-    Query(query): Query<ChatListQueryParams>,
 ) -> Result<Json<ApiListEnvelope<ChatMessagePayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = chat_context(&iam);
-    let (offset, page_size) = query.normalized_pagination();
-    let list_query: ChatListQuery = query.into();
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
+    let list_query = ChatListQuery {
+        offset: pagination.offset,
+        limit: pagination.page_size,
+    };
     match state
         .service
         .list_messages(&ctx, conversation_id.as_str(), list_query)
@@ -153,7 +159,7 @@ pub async fn list_messages(
             items,
             offset,
             page_size,
-            usize::try_from(total).unwrap_or(0),
+            checked_list_total_items(total, trace_id)?,
             request_id(&web),
         ))),
         Err(service_error) => Err(error::map_service_error(service_error, trace_id)),

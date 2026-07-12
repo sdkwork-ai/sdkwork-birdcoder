@@ -3,7 +3,6 @@ import {
   Bot,
   ChevronDown,
   CheckCircle2,
-  Copy,
   FileCode2,
   Globe,
   Loader2,
@@ -21,7 +20,6 @@ import type {
   BirdCoderReleaseSummary,
 } from '@sdkwork/birdcoder-pc-types';
 import {
-  copyTextToClipboard,
   ProjectGitHeaderControls,
   WorkbenchNewSessionButton,
 } from '@sdkwork/birdcoder-pc-ui';
@@ -163,7 +161,6 @@ function TopBarComponent({
   const [showCommitModal, setShowCommitModal] = useState(false);
   const [showPushModal, setShowPushModal] = useState(false);
   const [commitMessage, setCommitMessage] = useState('');
-  const [shareAccess, setShareAccess] = useState<'private' | 'public'>('private');
   const [inviteEmail, setInviteEmail] = useState('');
   const [projectCollaborators, setProjectCollaborators] = useState<
     BirdCoderProjectCollaboratorSummary[]
@@ -349,11 +346,11 @@ function TopBarComponent({
   }, [handleClickOutside, showSubmitMenu]);
 
   useEffect(() => {
-    if (!showShareModal || shareAccess !== 'private') {
+    if (!showShareModal) {
       return;
     }
     void loadProjectCollaborators();
-  }, [loadProjectCollaborators, shareAccess, showShareModal]);
+  }, [loadProjectCollaborators, showShareModal]);
 
   useEffect(() => {
     if (!showShareModal) {
@@ -681,132 +678,132 @@ function TopBarComponent({
       {/* Share Modal */}
       {showShareModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="code-share-dialog-title"
+            className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+          >
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-[#121214]">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <h3
+                id="code-share-dialog-title"
+                className="text-lg font-semibold text-white flex items-center gap-2"
+              >
                 <Share size={18} className="text-blue-400" />
                 {t('app.shareProject')}
               </h3>
-              <button 
+              <button
+                type="button"
                 onClick={() => setShowShareModal(false)}
+                aria-label={t('app.close')}
                 className="text-gray-400 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
             <div className="p-6 space-y-6">
               <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-300">{t('app.accessLevel')}</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all ${shareAccess === 'private' ? 'bg-blue-600/10 border-blue-500 text-blue-400' : 'bg-[#121214] border-white/10 text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}
-                    onClick={() => setShareAccess('private')}
+                <div className="text-sm font-medium text-gray-300">{t('app.accessLevel')}</div>
+                <div className="grid grid-cols-2 gap-3" role="group" aria-label={t('app.accessLevel')}>
+                  <div
+                    className="flex flex-col items-center justify-center gap-2 rounded-lg border border-blue-500 bg-blue-600/10 p-4 text-blue-400"
                   >
-                    <Lock size={24} />
+                    <Lock size={24} aria-hidden="true" />
                     <span className="text-sm font-medium">{t('app.private')}</span>
-                  </button>
-                  <button 
-                    className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all ${shareAccess === 'public' ? 'bg-blue-600/10 border-blue-500 text-blue-400' : 'bg-[#121214] border-white/10 text-gray-400 hover:bg-white/5 hover:text-gray-200'}`}
-                    onClick={() => setShareAccess('public')}
+                  </div>
+                  <button
+                    type="button"
+                    disabled
+                    aria-describedby="code-public-share-unavailable"
+                    className="flex cursor-not-allowed flex-col items-center justify-center gap-2 rounded-lg border border-white/10 bg-[#121214] p-4 text-gray-500 opacity-70"
                   >
-                    <Globe size={24} />
+                    <Globe size={24} aria-hidden="true" />
                     <span className="text-sm font-medium">{t('app.publicLink')}</span>
+                    <span className="text-[11px] font-medium uppercase text-amber-300">
+                      {t('app.publicLinkUnavailable')}
+                    </span>
                   </button>
+                </div>
+                <div
+                  id="code-public-share-unavailable"
+                  role="status"
+                  className="flex gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-amber-100"
+                >
+                  <Lock size={16} className="mt-0.5 shrink-0 text-amber-300" aria-hidden="true" />
+                  <p className="text-xs leading-5 text-amber-100/80">
+                    {t('app.publicLinkUnavailableDesc')}
+                  </p>
                 </div>
               </div>
 
-              {shareAccess === 'public' && (
-                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-sm font-medium text-gray-300">{t('app.publicLink')}</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      readOnly 
-                      value={`https://ide.sdkwork.com/p/${projectId || 'demo'}`}
-                      className="flex-1 bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
-                    />
-                    <Button 
-                      onClick={() => {
-                        void copyTextToClipboard(`https://ide.sdkwork.com/p/${projectId || 'demo'}`)
-                          .then((didCopy) => {
-                            addToast(
-                              didCopy ? t('code.linkCopied') : 'Unable to copy project link',
-                              didCopy ? 'success' : 'error',
-                            );
-                          });
-                      }}
-                      className="bg-[#18181b] hover:bg-white/10 text-white border border-white/10"
-                    >
-                      <Copy size={16} />
-                    </Button>
-                  </div>
+              <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                <label
+                  className="text-sm font-medium text-gray-300"
+                  htmlFor="code-share-invite-email"
+                >
+                  {t('app.inviteCollaborators')}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="code-share-invite-email"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void handleInviteCollaborator();
+                      }
+                    }}
+                    placeholder={t('app.emailPlaceholder')}
+                    className="flex-1 bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
+                  />
+                  <Button
+                    onClick={() => void handleInviteCollaborator()}
+                    disabled={!inviteEmail.trim() || isInvitingCollaborator || !projectId}
+                    className="bg-blue-600 hover:bg-blue-500 text-white"
+                  >
+                    {isInvitingCollaborator ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      t('app.invite')
+                    )}
+                  </Button>
                 </div>
-              )}
-
-              {shareAccess === 'private' && (
-                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-sm font-medium text-gray-300">{t('app.inviteCollaborators')}</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="email" 
-                      value={inviteEmail}
-                      onChange={(event) => setInviteEmail(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          void handleInviteCollaborator();
-                        }
-                      }}
-                      placeholder={t('app.emailPlaceholder')} 
-                      className="flex-1 bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
-                    />
-                    <Button 
-                      onClick={() => void handleInviteCollaborator()}
-                      disabled={!inviteEmail.trim() || isInvitingCollaborator || !projectId}
-                      className="bg-blue-600 hover:bg-blue-500 text-white"
-                    >
-                      {isInvitingCollaborator ? (
+                {(isLoadingCollaborators || projectCollaborators.length > 0) && (
+                  <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-white/5 bg-[#121214] p-2">
+                    {isLoadingCollaborators ? (
+                      <div className="flex justify-center py-3 text-gray-400">
                         <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        t('app.invite')
-                      )}
-                    </Button>
-                  </div>
-                  {(isLoadingCollaborators || projectCollaborators.length > 0) && (
-                    <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-white/5 bg-[#121214] p-2">
-                      {isLoadingCollaborators ? (
-                        <div className="flex justify-center py-3 text-gray-400">
-                          <Loader2 size={16} className="animate-spin" />
-                        </div>
-                      ) : (
-                        projectCollaborators.map((collaborator) => (
-                          <div
-                            key={collaborator.id}
-                            className="flex items-center justify-between gap-3 rounded-md border border-white/5 bg-black/20 px-3 py-2"
-                          >
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-medium text-gray-200">
-                                {resolveCollaboratorTitle(collaborator)}
-                              </div>
-                              <div className="truncate text-xs text-gray-500">
-                                {resolveCollaboratorSubtitle(collaborator)}
-                              </div>
+                      </div>
+                    ) : (
+                      projectCollaborators.map((collaborator) => (
+                        <div
+                          key={collaborator.id}
+                          className="flex items-center justify-between gap-3 rounded-md border border-white/5 bg-black/20 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-gray-200">
+                              {resolveCollaboratorTitle(collaborator)}
                             </div>
-                            <div className="flex shrink-0 items-center gap-2 text-[11px] uppercase tracking-wide">
-                              <span className="rounded-full border border-white/10 px-2 py-0.5 text-gray-300">
-                                {collaborator.role}
-                              </span>
-                              <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-blue-300">
-                                {collaborator.status}
-                              </span>
+                            <div className="truncate text-xs text-gray-500">
+                              {resolveCollaboratorSubtitle(collaborator)}
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+                          <div className="flex shrink-0 items-center gap-2 text-[11px] uppercase tracking-wide">
+                            <span className="rounded-full border border-white/10 px-2 py-0.5 text-gray-300">
+                              {collaborator.role}
+                            </span>
+                            <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-blue-300">
+                              {collaborator.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="p-4 border-t border-white/5 bg-[#121214] flex justify-end gap-3">
               <Button variant="outline" onClick={() => setShowShareModal(false)}>{t('app.done')}</Button>

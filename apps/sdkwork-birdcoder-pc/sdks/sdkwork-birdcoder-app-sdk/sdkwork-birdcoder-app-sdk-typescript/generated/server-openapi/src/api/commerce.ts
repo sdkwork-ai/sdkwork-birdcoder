@@ -5,8 +5,8 @@ import type { BirdCoderCommerceInvoiceSummary, BirdCoderCommerceMembershipCurren
 
 
 export interface CommercePaymentsListParams {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class CommercePaymentsApi {
@@ -20,8 +20,8 @@ export class CommercePaymentsApi {
 /** List SDKWork commerce payments */
   async list(params?: CommercePaymentsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/commerce/payments`), query));
   }
@@ -43,8 +43,8 @@ export class CommercePaymentsApi {
 }
 
 export interface CommerceInvoicesListParams {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class CommerceInvoicesApi {
@@ -58,8 +58,8 @@ export class CommerceInvoicesApi {
 /** List SDKWork commerce invoices */
   async list(params?: CommerceInvoicesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/commerce/invoices`), query));
   }
@@ -71,8 +71,8 @@ export class CommerceInvoicesApi {
 }
 
 export interface CommerceOrdersListParams {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class CommerceOrdersApi {
@@ -86,8 +86,8 @@ export class CommerceOrdersApi {
 /** List SDKWork commerce orders */
   async list(params?: CommerceOrdersListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/commerce/orders`), query));
   }

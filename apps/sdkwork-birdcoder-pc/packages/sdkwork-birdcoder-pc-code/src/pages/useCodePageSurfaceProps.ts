@@ -55,12 +55,14 @@ interface UseCodePageSurfacePropsOptions {
   fileContent: string;
   files: FileNode[];
   filteredProjects: BirdCoderProject[];
+  hasMoreProjects: boolean;
   isChatBusy: boolean;
   isChatEngineBusy: boolean;
   isEngineBusyCurrentSession: boolean;
   isDebugConfigVisible: boolean;
   isFindVisible: boolean;
   isMountRecoveryActionPending: boolean;
+  isLoadingMoreProjects: boolean;
   isQuickOpenVisible: boolean;
   isRunConfigVisible: boolean;
   isRunTaskVisible: boolean;
@@ -135,6 +137,7 @@ interface UseCodePageSurfacePropsOptions {
   onMarkCodingSessionUnread: NonNullable<ProjectExplorerProps['onMarkCodingSessionUnread']>;
   onNewCodingSessionInProject: NonNullable<ProjectExplorerProps['onNewCodingSessionInProject']>;
   onNewProject: NonNullable<ProjectExplorerProps['onNewProject']>;
+  onLoadMoreProjects: NonNullable<ProjectExplorerProps['onLoadMoreProjects']>;
   onNotifyNoResults: NonNullable<CodeWorkspaceOverlaysComponentProps['onNotifyNoResults']>;
   onOpenFolder: NonNullable<ProjectExplorerProps['onOpenFolder']>;
   onOpenInFileExplorer: NonNullable<ProjectExplorerProps['onOpenInFileExplorer']>;
@@ -191,12 +194,14 @@ export function useCodePageSurfaceProps({
   fileContent,
   files,
   filteredProjects,
+  hasMoreProjects,
   isChatBusy,
   isChatEngineBusy,
   isEngineBusyCurrentSession,
   isDebugConfigVisible,
   isFindVisible,
   isMountRecoveryActionPending,
+  isLoadingMoreProjects,
   isQuickOpenVisible,
   isRunConfigVisible,
   isRunTaskVisible,
@@ -269,6 +274,7 @@ export function useCodePageSurfaceProps({
   onMarkCodingSessionUnread,
   onNewCodingSessionInProject,
   onNewProject,
+  onLoadMoreProjects,
   onNotifyNoResults,
   onOpenFolder,
   onOpenInFileExplorer,
@@ -344,6 +350,8 @@ export function useCodePageSurfaceProps({
   });
 
   const projectExplorerProps = useMemo<ProjectExplorerProps>(() => ({
+    hasMoreProjects,
+    isLoadingMoreProjects,
     isVisible: isVisible && isSidebarVisible,
     width: sidebarWidth,
     projects: filteredProjects,
@@ -356,6 +364,7 @@ export function useCodePageSurfaceProps({
     onRenameProject,
     onDeleteProject,
     onNewProject,
+    onLoadMoreProjects,
     onOpenFolder,
     onNewCodingSessionInProject,
     onRefreshProjectSessions,
@@ -382,6 +391,8 @@ export function useCodePageSurfaceProps({
   }), [
     currentProjectId,
     filteredProjects,
+    hasMoreProjects,
+    isLoadingMoreProjects,
     isSidebarVisible,
     isVisible,
     onArchiveCodingSession,
@@ -399,6 +410,7 @@ export function useCodePageSurfaceProps({
     onMarkCodingSessionUnread,
     onNewCodingSessionInProject,
     onNewProject,
+    onLoadMoreProjects,
     onOpenFolder,
     onOpenCodingSessionInTerminal,
     onOpenInFileExplorer,

@@ -9,6 +9,7 @@ pub mod realtime_hub;
 pub mod repositories;
 pub mod route_manifest;
 pub mod routers;
+pub mod runner_isolation;
 pub mod services;
 pub mod state;
 
@@ -18,7 +19,6 @@ use config::BirdServerConfig;
 
 pub async fn build_app(config: &BirdServerConfig) -> Result<Router, Box<dyn std::error::Error>> {
     let database_pool = database::bootstrap_database(config).await?;
-    crate::health::init_iam_pool().await;
     let repositories = repositories::wire_repositories(database_pool.clone()).await?;
     let services = services::wire_services(&repositories, config)
         .await
@@ -26,6 +26,7 @@ pub async fn build_app(config: &BirdServerConfig) -> Result<Router, Box<dyn std:
     let adapters = adapters::wire_adapters(config);
     let state = state::AppState::new(services, repositories, adapters, database_pool);
     let app = routers::build_router(state, config).await?;
+    crate::health::init_iam_pool().await;
 
     Ok(app)
 }

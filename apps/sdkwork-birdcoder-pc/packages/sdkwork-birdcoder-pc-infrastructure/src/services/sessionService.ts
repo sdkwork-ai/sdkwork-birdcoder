@@ -7,9 +7,11 @@ import {
 } from './appSessionToken.ts';
 import {
   getBirdCoderIamRuntime,
-  resetBirdCoderIamRuntime,
 } from './iamRuntime.ts';
+import { retrieveBirdCoderCurrentSession, invalidateBirdCoderCurrentSession } from './iamCurrentSession.ts';
+import { invalidateBirdCoderCurrentUser } from './iamCurrentUser.ts';
 import {
+  getBirdCoderGlobalTokenManager,
   resetBirdCoderSdkClients,
 } from './sdkClients.ts';
 
@@ -26,10 +28,14 @@ export async function createAppSession(
   options: CreateAppSessionOptions = {},
 ): Promise<StoredAppSessionToken | null> {
   const runtime = options.getRuntime?.() ?? getBirdCoderIamRuntime();
-  const result = await runtime.service.auth.sessions.current.retrieve();
-  const stored = storeAppSessionFromResult(result);
+  const result = await retrieveBirdCoderCurrentSession(runtime);
+  if (!result) {
+    return null;
+  }
+  const stored = storeAppSessionFromResult(result, {
+    preserveSessionMetadata: true,
+  });
   resetBirdCoderSdkClients();
-  resetBirdCoderIamRuntime();
   return stored;
 }
 
@@ -38,9 +44,11 @@ export function getCurrentAppSession(): StoredAppSessionToken | null {
 }
 
 export function clearAppSession(): void {
+  invalidateBirdCoderCurrentSession();
+  invalidateBirdCoderCurrentUser();
+  getBirdCoderGlobalTokenManager().clearTokens();
   clearStoredAppSessionToken();
   resetBirdCoderSdkClients();
-  resetBirdCoderIamRuntime();
 }
 
 export async function revokeAppSession(

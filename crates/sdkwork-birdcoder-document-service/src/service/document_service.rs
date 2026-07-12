@@ -8,7 +8,7 @@ use sdkwork_utils_rust::{is_blank, trim as trim_string};
 #[derive(Clone, Copy, Debug, Default)]
 pub struct DocumentListQuery {
     pub offset: Option<usize>,
-    pub limit: Option<usize>,
+    pub page_size: Option<usize>,
 }
 
 #[derive(Clone, Debug)]

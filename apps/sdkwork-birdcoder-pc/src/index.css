@@ -2,9 +2,19 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+@source "../packages";
+@source "../src";
 @source "../../../../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react/src";
 @source "../../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react/src";
+@source "../../../../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react/src";
 @source "../../../../sdkwork-ui/sdkwork-ui-pc-react/src";
+@source "../../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership/src";
+@source "../../../../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src";
+@source "../../../../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon/src";
+@source "../../../../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-core/src";
+@source "../../../../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-order/src";
+@source "../../../../sdkwork-payment/apps/sdkwork-payment-pc/packages/sdkwork-payment-pc-payment/src";
+@source "../../../../sdkwork-account/apps/sdkwork-account-pc/packages/sdkwork-account-pc-wallet/src";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -348,4 +358,48 @@ html.light-mode .sdkwork-birdcoder-auth-window-button-danger:hover {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+}
+
+/* Token Plan modal and toast animations */
+@keyframes token-plan-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes token-plan-modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes token-plan-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.token-plan-overlay {
+  animation: token-plan-fade-in 200ms ease-out;
+}
+
+.token-plan-dialog {
+  animation: token-plan-modal-in 200ms ease-out;
+}
+
+.token-plan-toast {
+  animation: token-plan-toast-in 200ms ease-out;
 }

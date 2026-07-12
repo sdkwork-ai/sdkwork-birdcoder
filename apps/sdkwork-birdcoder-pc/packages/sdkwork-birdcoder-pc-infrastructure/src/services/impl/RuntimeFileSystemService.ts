@@ -21,11 +21,13 @@ import type {
 } from '../interfaces/IFileSystemService.ts';
 
 interface BrowserWritableLike {
+  abort?(): Promise<void>;
   close(): Promise<void>;
-  write(data: string): Promise<void>;
+  write(data: ArrayBuffer | string): Promise<void>;
 }
 
 interface BrowserFileLike {
+  arrayBuffer?(): Promise<ArrayBuffer>;
   lastModified?: number;
   slice?(start?: number, end?: number): BrowserFileLike;
   size?: number;
@@ -58,8 +60,67 @@ interface BrowserDirectoryHandleLike {
 
 type BrowserHandleLike = BrowserDirectoryHandleLike | BrowserFileHandleLike;
 
+async function copyBrowserFileSnapshot(
+  file: BrowserFileLike,
+  writable: BrowserWritableLike,
+): Promise<void> {
+  try {
+    const payload = file.arrayBuffer ? await file.arrayBuffer() : await file.text();
+    await writable.write(payload);
+    await writable.close();
+  } catch (error) {
+    try {
+      await writable.abort?.();
+    } catch {
+      // Preserve the original copy failure.
+    }
+    throw error;
+  }
+}
+
+function readBrowserHandleLookupErrorName(error: unknown): string {
+  if (!error || typeof error !== 'object' || !('name' in error)) {
+    return '';
+  }
+
+  return typeof error.name === 'string' ? error.name : '';
+}
+
+async function browserDirectoryEntryExists(
+  directory: BrowserDirectoryHandleLike,
+  name: string,
+): Promise<boolean> {
+  const lookups: Array<() => Promise<BrowserHandleLike>> = [];
+  if (directory.getFileHandle) {
+    lookups.push(() => directory.getFileHandle!(name));
+  }
+  if (directory.getDirectoryHandle) {
+    lookups.push(() => directory.getDirectoryHandle!(name));
+  }
+
+  for (const lookup of lookups) {
+    try {
+      await lookup();
+      return true;
+    } catch (error) {
+      const errorName = readBrowserHandleLookupErrorName(error);
+      const errorMessage = error instanceof Error ? error.message : String(error ?? '');
+      if (errorName === 'TypeMismatchError' || /type mismatch/iu.test(errorMessage)) {
+        return true;
+      }
+      if (errorName === 'NotFoundError' || /not found|does not exist/iu.test(errorMessage)) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  return false;
+}
+
 interface BrowserMountState {
   cachedSearchTree?: IFileNode[];
+  cachedSearchTreeLimitReached?: boolean;
   cachedTree?: IFileNode[];
   directoryHandles: Map<string, BrowserDirectoryHandleLike>;
   fileHandles: Map<string, BrowserFileHandleLike>;
@@ -71,6 +132,7 @@ interface BrowserMountState {
 
 interface TauriMountState {
   cachedSearchTree?: IFileNode[];
+  cachedSearchTreeLimitReached?: boolean;
   cachedTree?: IFileNode[];
   directoryRevisions: Map<string, string>;
   loadedDirectoryPaths: Set<string>;
@@ -106,8 +168,16 @@ type ProjectTauriWatchQueue = {
   timerId: ReturnType<typeof setTimeout> | null;
 };
 interface SearchTreeSnapshotContext {
+  limitReached: boolean;
+  maxNodeCount: number;
   signal?: AbortSignal;
+  totalVisitedNodeCount: number;
   visitedNodeCount: number;
+}
+
+interface SearchFileTreeSnapshot {
+  files: IFileNode[];
+  limitReached: boolean;
 }
 
 const FILE_TREE_POLL_INTERVAL_MS = 1500;
@@ -117,6 +187,7 @@ const DIRECTORY_POLL_BATCH_SIZE = 4;
 const MAX_LOADED_DIRECTORY_REVISIONS_PER_POLL = 24;
 const MAX_TRACKED_FILE_REVISIONS_PER_POLL = 7;
 const MIN_RUNTIME_FILE_SEARCH_CONTENT_CHARACTERS = 4_096;
+const MAX_RUNTIME_FILE_SEARCH_TREE_NODES = 20_000;
 const SEARCH_TREE_SNAPSHOT_YIELD_INTERVAL = 128;
 
 export interface RuntimeFileSystemServiceOptions {
@@ -186,16 +257,23 @@ async function yieldSearchTreeSnapshot(): Promise<void> {
 
 async function trackSearchTreeSnapshotEntry(
   context: SearchTreeSnapshotContext,
-): Promise<void> {
+): Promise<boolean> {
   throwIfSearchTreeSnapshotAborted(context.signal);
+  if (context.totalVisitedNodeCount >= context.maxNodeCount) {
+    context.limitReached = true;
+    return false;
+  }
+
+  context.totalVisitedNodeCount += 1;
   context.visitedNodeCount += 1;
   if (context.visitedNodeCount < SEARCH_TREE_SNAPSHOT_YIELD_INTERVAL) {
-    return;
+    return true;
   }
 
   context.visitedNodeCount = 0;
   await yieldSearchTreeSnapshot();
   throwIfSearchTreeSnapshotAborted(context.signal);
+  return true;
 }
 
 async function* listBrowserDirectoryEntries(
@@ -1047,9 +1125,9 @@ export class RuntimeFileSystemService implements IFileSystemService {
     const searchMaxFileContentCharacters = normalizeRuntimeFileSearchContentBudget(
       options.maxFileContentCharacters,
     );
-    let files: IFileNode[];
+    let searchTreeSnapshot: SearchFileTreeSnapshot;
     try {
-      files = await this.getSearchFileTree(projectId, options.signal);
+      searchTreeSnapshot = await this.getSearchFileTree(projectId, options.signal);
     } catch (error) {
       if (isSearchTreeSnapshotAbortError(error)) {
         return createEmptyRuntimeFileSearchResult();
@@ -1062,8 +1140,8 @@ export class RuntimeFileSystemService implements IFileSystemService {
       return createEmptyRuntimeFileSearchResult();
     }
 
-    return searchProjectFiles({
-      files,
+    const searchResult = await searchProjectFiles({
+      files: searchTreeSnapshot.files,
       query: options.query,
       maxFileContentCharacters: searchMaxFileContentCharacters,
       maxResults: options.maxResults,
@@ -1081,6 +1159,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
         }
       },
     });
+    return {
+      ...searchResult,
+      limitReached: searchResult.limitReached || searchTreeSnapshot.limitReached,
+    };
   }
 
   async mountFolder(projectId: string, folderInfo: LocalFolderMountSource): Promise<void> {
@@ -1123,26 +1205,34 @@ export class RuntimeFileSystemService implements IFileSystemService {
   private async getSearchFileTree(
     projectId: string,
     signal?: AbortSignal,
-  ): Promise<IFileNode[]> {
+  ): Promise<SearchFileTreeSnapshot> {
     throwIfSearchTreeSnapshotAborted(signal);
 
     const browserMount = this.projectBrowserMounts[projectId];
     if (browserMount) {
       if (!browserMount.cachedSearchTree) {
+        const browserSearchTreeSnapshotContext: SearchTreeSnapshotContext = {
+          limitReached: false,
+          maxNodeCount: MAX_RUNTIME_FILE_SEARCH_TREE_NODES,
+          signal,
+          totalVisitedNodeCount: 0,
+          visitedNodeCount: 0,
+        };
         const browserSearchTreeSnapshot = await this.snapshotBrowserDirectoryRecursively(
           browserMount.rootHandle,
           browserMount.rootPath,
           browserMount.directoryHandles,
           browserMount.fileHandles,
-          {
-            signal,
-            visitedNodeCount: 0,
-          },
+          browserSearchTreeSnapshotContext,
         );
         throwIfSearchTreeSnapshotAborted(signal);
         browserMount.cachedSearchTree = createReadonlyMountedTree(browserSearchTreeSnapshot);
+        browserMount.cachedSearchTreeLimitReached = browserSearchTreeSnapshotContext.limitReached;
       }
-      return browserMount.cachedSearchTree;
+      return {
+        files: browserMount.cachedSearchTree,
+        limitReached: browserMount.cachedSearchTreeLimitReached === true,
+      };
     }
 
     const tauriMount = this.projectTauriMounts[projectId];
@@ -1151,27 +1241,38 @@ export class RuntimeFileSystemService implements IFileSystemService {
         throwIfSearchTreeSnapshotAborted(signal);
         const tauriSearchTreeSnapshot = await this.tauriRuntime.snapshotFolder(
           tauriMount.rootSystemPath,
+          MAX_RUNTIME_FILE_SEARCH_TREE_NODES,
         );
         throwIfSearchTreeSnapshotAborted(signal);
         tauriMount.cachedSearchTree = createReadonlyMountedTree(
           tauriSearchTreeSnapshot.tree,
         );
+        tauriMount.cachedSearchTreeLimitReached =
+          tauriSearchTreeSnapshot.limitReached === true;
       }
-      return tauriMount.cachedSearchTree;
+      return {
+        files: tauriMount.cachedSearchTree,
+        limitReached: tauriMount.cachedSearchTreeLimitReached === true,
+      };
     }
 
-    return this.getFiles(projectId);
+    return {
+      files: await this.getFiles(projectId),
+      limitReached: false,
+    };
   }
 
   private invalidateProjectSearchTree(projectId: string): void {
     const browserMount = this.projectBrowserMounts[projectId];
     if (browserMount) {
       browserMount.cachedSearchTree = undefined;
+      browserMount.cachedSearchTreeLimitReached = undefined;
     }
 
     const tauriMount = this.projectTauriMounts[projectId];
     if (tauriMount) {
       tauriMount.cachedSearchTree = undefined;
+      tauriMount.cachedSearchTreeLimitReached = undefined;
     }
   }
 
@@ -1246,7 +1347,9 @@ export class RuntimeFileSystemService implements IFileSystemService {
     const children: IFileNode[] = [];
 
     for await (const entry of listBrowserDirectoryEntries(handle)) {
-      await trackSearchTreeSnapshotEntry(context);
+      if (!(await trackSearchTreeSnapshotEntry(context))) {
+        break;
+      }
       const childPath = buildChildPath(directoryPath, entry.name);
       if (isBrowserDirectoryHandle(entry)) {
         directoryHandles.set(childPath, entry);
@@ -1259,6 +1362,9 @@ export class RuntimeFileSystemService implements IFileSystemService {
             context,
           ),
         );
+        if (context.limitReached) {
+          break;
+        }
         continue;
       }
 
@@ -2289,6 +2395,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
       return false;
     }
 
+    if (await browserDirectoryEntryExists(parentHandle, fileName)) {
+      throw new Error(`A browser-mounted entry already exists at "${path}".`);
+    }
+
     await parentHandle.getFileHandle(fileName, { create: true });
     await this.refreshBrowserDirectory(projectId, parentPath);
     this.projectFileContent[projectId] ??= {};
@@ -2343,6 +2453,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
     const directoryName = path.split('/').pop();
     if (!parentHandle?.getDirectoryHandle || !directoryName) {
       return false;
+    }
+
+    if (await browserDirectoryEntryExists(parentHandle, directoryName)) {
+      throw new Error(`A browser-mounted entry already exists at "${path}".`);
     }
 
     await parentHandle.getDirectoryHandle(directoryName, { create: true });
@@ -2416,6 +2530,9 @@ export class RuntimeFileSystemService implements IFileSystemService {
     if (!mountState) {
       return false;
     }
+    if (oldPath === newPath) {
+      return true;
+    }
 
     const oldParent = mountState.directoryHandles.get(getParentPath(oldPath));
     const newParent = mountState.directoryHandles.get(getParentPath(newPath));
@@ -2423,6 +2540,9 @@ export class RuntimeFileSystemService implements IFileSystemService {
     const newName = newPath.split('/').pop();
     if (!oldParent?.removeEntry || !newParent || !oldName || !newName) {
       return false;
+    }
+    if (await browserDirectoryEntryExists(newParent, newName)) {
+      throw new Error(`A browser-mounted entry already exists at "${newPath}".`);
     }
 
     const fileHandle = mountState.fileHandles.get(oldPath);
@@ -2434,8 +2554,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       }
 
       const writable = await createdHandle.createWritable();
-      await writable.write(await file.text());
-      await writable.close();
+      await copyBrowserFileSnapshot(file, writable);
       await oldParent.removeEntry(oldName);
       await this.refreshBrowserDirectory(projectId, getParentPath(oldPath));
       if (getParentPath(newPath) !== getParentPath(oldPath)) {
@@ -2512,8 +2631,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       }
 
       const writable = await nextFile.createWritable();
-      await writable.write(await file.text());
-      await writable.close();
+      await copyBrowserFileSnapshot(file, writable);
     }
   }
 

@@ -13,6 +13,7 @@ const rootPrefix = 'apps/sdkwork-birdcoder-flutter-mobile/lib';
 
 const iamRuntimeSource = readText(`${corePrefix}/iam_runtime.dart`);
 const sdkClientsSource = readText(`${corePrefix}/sdk_clients.dart`);
+const apiReadySource = readText(`${corePrefix}/bootstrap_api_ready.dart`);
 const environmentSource = readText(`${corePrefix}/environment.dart`);
 const runtimeSource = readText(`${rootPrefix}/bootstrap/runtime.dart`);
 const routesSource = readText(`${rootPrefix}/bootstrap/routes.dart`);
@@ -56,6 +57,16 @@ assert.match(
   runtimeSource,
   /resolveBirdCoderBootstrapServerBaseUrl/u,
   'Flutter runtime bootstrap must resolve the canonical server base URL.',
+);
+assert.match(
+  apiReadySource,
+  /const _defaultApiReadyPaths = \[\s*'\/readyz',\s*\];/u,
+  'Flutter local API readiness must default to the anonymous SDKWork infrastructure readiness probe.',
+);
+assert.doesNotMatch(
+  apiReadySource,
+  /_defaultApiReadyPaths = \[[\s\S]*\/app\/v3\/api\/system\//u,
+  'Flutter local API readiness must not use protected business app-api system routes before login.',
 );
 assert.match(
   routesSource,

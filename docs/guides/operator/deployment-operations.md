@@ -6,12 +6,13 @@ Updated: 2026-06-24
 
 ```bash
 docker compose -f deployments/docker/docker-compose.yml up -d
-curl -fsS http://127.0.0.1:18989/health
+curl -fsS http://127.0.0.1:18989/healthz
+curl -fsS http://127.0.0.1:18989/readyz
 curl -fsS http://127.0.0.1:18989/openapi.json | head
 curl -fsS http://127.0.0.1:18989/metrics | head
 ```
 
-Health and metrics are intentionally unauthenticated. Protected product APIs require IAM dual-token headers.
+Infrastructure liveness, readiness, OpenAPI, and metrics are intentionally unauthenticated. Protected product APIs require IAM dual-token headers.
 
 ## Kubernetes (default SQLite)
 
@@ -58,8 +59,8 @@ helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
 
 - Live snapshot: `GET /openapi.json` (unauthenticated)
 - Canonical export artifact: `artifacts/openapi/coding-server-v1.json`
-- Contract route count: **162 operations** (product routers + federated `sdkwork-iam` app/backend routers + commerce gateway routes + commerce transactions + chat routes in standalone-gateway); **162 implemented**, **0 deferred**
-- Defer registry: `specs/coding-server-openapi-rust-defer-registry.json` — **162 of 162 implemented**, **0 deferred**
+- Route catalog count: **162 entries** (product routers + federated `sdkwork-iam` app/backend routers + commerce gateway routes + commerce transactions + chat routes + workspace realtime WebSocket in standalone-gateway)
+- Defer registry: `specs/coding-server-openapi-rust-defer-registry.json` — **HTTP OpenAPI 161 of 161 implemented**, **0 deferred**; workspace realtime remains route-catalog-only WebSocket and is intentionally excluded from HTTP OpenAPI
 
 ## Session/auth operations note
 

@@ -16,7 +16,7 @@ fs.writeFileSync(
       releaseKind: 'formal',
       rolloutStage: 'general-availability',
       monitoringWindowMinutes: 120,
-      rollbackRunbookRef: 'docs/step/13-发布就绪-github-flow-灰度回滚闭环.md',
+      rollbackRunbookRef: 'docs/guides/operator/incident-response.md',
       rollbackCommand: '',
     },
     assets: [

@@ -6,8 +6,8 @@ import type { BirdCoderProjectDocumentSummary, PageInfo } from '../types';
 
 export interface ContentDocumentsListParams {
   projectId?: string;
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class ContentDocumentsApi {
@@ -22,8 +22,8 @@ export class ContentDocumentsApi {
   async list(params?: ContentDocumentsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'projectId', value: params?.projectId, style: 'form', explode: true, allowReserved: false },
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/documents`), query));
   }

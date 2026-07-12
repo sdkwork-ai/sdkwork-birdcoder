@@ -10,7 +10,16 @@ function read(relativePath) {
 }
 
 const fileExplorerSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx');
+const fileExplorerNameValidationSource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/fileExplorerNameValidation.ts',
+);
 const useFileSystemSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useFileSystem.ts');
+const runtimeFileSystemSource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/RuntimeFileSystemService.ts',
+);
+const tauriFileSystemSource = read(
+  'crates/sdkwork-birdcoder-tauri-host/src/commands/filesystem_commands.rs',
+);
 
 assert.match(
   fileExplorerSource,
@@ -82,6 +91,75 @@ assert.match(
   useFileSystemSource,
   /const normalizedPath = resolveMountedMutationPath\(path, resolveProjectMountedRootPath\(\)\);\s*await ensureMountedProjectRoot\(mutationProjectId\);\s*await fileSystemService\.createFolder\(mutationProjectId, normalizedPath\);/,
   'useFileSystem must ensure the project root is mounted before creating folders.',
+);
+
+assert.match(
+  fileExplorerNameValidationSource,
+  /WINDOWS_RESERVED_DEVICE_NAME_PATTERN[\s\S]*con\|prn\|aux\|nul\|com[\s\S]*lpt/i,
+  'FileExplorer names must reject Windows reserved device names consistently in browser and desktop modes.',
+);
+
+for (const requiredValidation of [
+  "reason: 'empty'",
+  "reason: 'dot-entry'",
+  "reason: 'path-separator'",
+  "reason: 'invalid-character'",
+  "reason: 'trailing-dot-or-space'",
+  "reason: 'windows-reserved-name'",
+]) {
+  assert.equal(
+    fileExplorerNameValidationSource.includes(requiredValidation),
+    true,
+    `FileExplorer name validation must cover ${requiredValidation}.`,
+  );
+}
+
+assert.match(
+  fileExplorerSource,
+  /const validation = validateFileExplorerNodeName\(inputValue\);[\s\S]*hasFileExplorerNameConflict\([\s\S]*await createNode\(newPath\);[\s\S]*await onRenameNode\(renamingNode\.path, newPath\);/,
+  'FileExplorer must validate names, reject known sibling conflicts, and await create/rename callbacks before closing the draft.',
+);
+
+assert.match(
+  fileExplorerSource,
+  /isFileExplorerNameConflictError\(error\)[\s\S]*t\('code\.fileNameConflict'\)/,
+  'FileExplorer must present backend name conflicts to the user instead of logging them only.',
+);
+
+assert.match(
+  useFileSystemSource,
+  /console\.error\("Failed to create file", error\);\s*throw error;/,
+  'useFileSystem create-file failures must propagate to the FileExplorer feedback boundary.',
+);
+
+assert.match(
+  useFileSystemSource,
+  /console\.error\("Failed to create folder", error\);\s*throw error;/,
+  'useFileSystem create-folder failures must propagate to the FileExplorer feedback boundary.',
+);
+
+assert.match(
+  useFileSystemSource,
+  /console\.error\("Failed to rename node", error\);\s*throw error;/,
+  'useFileSystem rename failures must propagate to the FileExplorer feedback boundary.',
+);
+
+assert.match(
+  runtimeFileSystemSource,
+  /if \(await browserDirectoryEntryExists\(parentHandle, fileName\)\) \{\s*throw new Error\(`A browser-mounted entry already exists/,
+  'Browser-mounted file creation must reject an existing target instead of reopening it with create=true.',
+);
+
+assert.match(
+  runtimeFileSystemSource,
+  /if \(await browserDirectoryEntryExists\(newParent, newName\)\) \{\s*throw new Error\(`A browser-mounted entry already exists/,
+  'Browser-mounted rename must reject an existing destination instead of overwriting or merging it.',
+);
+
+assert.match(
+  tauriFileSystemSource,
+  /if new_path\.exists\(\) \{\s*return Err\(format!\(\s*"cannot rename mounted entry because the destination already exists:/,
+  'Tauri rename must reject an existing destination on every desktop platform.',
 );
 
 console.log('file system root create contract passed.');

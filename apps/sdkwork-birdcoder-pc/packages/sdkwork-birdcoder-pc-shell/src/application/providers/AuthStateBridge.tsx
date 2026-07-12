@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type PropsWithChildren } from 'react';
-import { useAuth } from '@sdkwork/birdcoder-pc-commons';
+import { useAuth } from '@sdkwork/birdcoder-pc-commons/context/AuthContext';
 
 export interface AuthStateSnapshot {
   isAuthenticated: boolean;

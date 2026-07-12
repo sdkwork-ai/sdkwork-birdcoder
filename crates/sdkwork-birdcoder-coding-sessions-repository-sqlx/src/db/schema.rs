@@ -159,7 +159,20 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_operation (
     status TEXT NOT NULL,
     stream_url TEXT NOT NULL,
     stream_kind TEXT NOT NULL,
-    artifact_refs_json TEXT NOT NULL
+    artifact_refs_json TEXT NOT NULL,
+    request_payload_json TEXT NOT NULL DEFAULT '{}',
+    request_fingerprint TEXT NOT NULL DEFAULT '',
+    idempotency_key TEXT NULL,
+    available_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z',
+    attempt INTEGER NOT NULL DEFAULT 0,
+    max_attempt INTEGER NOT NULL DEFAULT 1,
+    lease_owner TEXT NULL,
+    lease_expires_at TEXT NULL,
+    fencing_token INTEGER NOT NULL DEFAULT 0,
+    runner_id TEXT NULL,
+    started_at TEXT NULL,
+    completed_at TEXT NULL,
+    problem_json TEXT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
@@ -193,6 +206,17 @@ ON ai_coding_session_prompt_entry(tenant_id, coding_session_id, last_used_at);
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_prompt_entry_tenant_session_normalized_prompt
 ON ai_coding_session_prompt_entry(tenant_id, coding_session_id, normalized_prompt_text);
+
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_operation_queue
+ON ai_coding_session_operation(status, available_at, created_at, id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_operation_idempotency
+ON ai_coding_session_operation(tenant_id, user_id, coding_session_id, idempotency_key)
+WHERE idempotency_key IS NOT NULL AND is_deleted IS NOT TRUE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_operation_tenant_user_running
+ON ai_coding_session_operation(tenant_id, user_id)
+WHERE status = 'running' AND is_deleted IS NOT TRUE;
 
 CREATE TABLE IF NOT EXISTS ai_saved_prompt_entry (
     id TEXT PRIMARY KEY,
@@ -742,7 +766,20 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_operation (
     status TEXT NOT NULL,
     stream_url TEXT NOT NULL,
     stream_kind TEXT NOT NULL,
-    artifact_refs_json TEXT NOT NULL
+    artifact_refs_json TEXT NOT NULL,
+    request_payload_json TEXT NOT NULL DEFAULT '{}',
+    request_fingerprint TEXT NOT NULL DEFAULT '',
+    idempotency_key TEXT NULL,
+    available_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z',
+    attempt INTEGER NOT NULL DEFAULT 0,
+    max_attempt INTEGER NOT NULL DEFAULT 1,
+    lease_owner TEXT NULL,
+    lease_expires_at TEXT NULL,
+    fencing_token INTEGER NOT NULL DEFAULT 0,
+    runner_id TEXT NULL,
+    started_at TEXT NULL,
+    completed_at TEXT NULL,
+    problem_json TEXT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
@@ -776,4 +813,15 @@ ON ai_coding_session_prompt_entry(tenant_id, coding_session_id, last_used_at);
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_prompt_entry_tenant_session_normalized_prompt
 ON ai_coding_session_prompt_entry(tenant_id, coding_session_id, normalized_prompt_text);
+
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_operation_queue
+ON ai_coding_session_operation(status, available_at, created_at, id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_operation_idempotency
+ON ai_coding_session_operation(tenant_id, user_id, coding_session_id, idempotency_key)
+WHERE idempotency_key IS NOT NULL AND is_deleted IS NOT TRUE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_operation_tenant_user_running
+ON ai_coding_session_operation(tenant_id, user_id)
+WHERE status = 'running' AND is_deleted IS NOT TRUE;
 "#;

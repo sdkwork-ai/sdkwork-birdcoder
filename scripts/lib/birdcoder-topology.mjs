@@ -25,26 +25,35 @@ export const IAM_APPLICATION_BOOTSTRAP_ENV = {
 
 const spec = loadTopologySpec(SPEC_PATH);
 const runtime = createTopologyRuntime(spec, REPO_ROOT);
+const supportsServiceLayout =
+  Array.isArray(runtime.serviceLayoutValues) && runtime.serviceLayoutValues.length > 0;
 
 export const DEFAULT_DEV_PROFILE_ID = runtime.defaults.developmentProfileId;
 export const DEFAULT_PRODUCTION_PROFILE_ID = runtime.defaults.productionProfileId;
 
-export function resolveDevProfileId(deploymentProfile, serviceLayout = 'split-services') {
+function resolveTopologyProfileId(deploymentProfile, serviceLayout, environment) {
   runtime.assertDeploymentProfile(deploymentProfile);
-  runtime.assertServiceLayout(serviceLayout);
-  return buildProfileId(deploymentProfile, serviceLayout, 'development');
+  if (supportsServiceLayout) {
+    runtime.assertServiceLayout(serviceLayout);
+    return buildProfileId(deploymentProfile, serviceLayout, environment);
+  }
+  return buildProfileId(deploymentProfile, environment);
+}
+
+export function resolveDevProfileId(deploymentProfile, serviceLayout = 'split-services') {
+  return resolveTopologyProfileId(deploymentProfile, serviceLayout, 'development');
 }
 
 export function resolveProfileIdFromIamMode(iamMode, environment = 'development') {
   if (iamMode === 'cloud-saas') {
-    return buildProfileId('cloud', 'split-services', environment);
+    return resolveTopologyProfileId('cloud', 'split-services', environment);
   }
 
   if (iamMode === 'desktop-local') {
-    return buildProfileId('standalone', 'unified-process', environment);
+    return resolveTopologyProfileId('standalone', 'unified-process', environment);
   }
 
-  return buildProfileId('standalone', 'split-services', environment);
+  return resolveTopologyProfileId('standalone', 'split-services', environment);
 }
 
 export function resolveIamModeFromTopology(deploymentProfile, serviceLayout = 'split-services') {
@@ -64,6 +73,13 @@ function readTrimmedValue(value) {
   return normalizedValue || undefined;
 }
 
+function normalizeDeploymentProfileValue(value) {
+  const normalizedValue = readTrimmedValue(value)?.toLowerCase();
+  return normalizedValue === 'standalone' || normalizedValue === 'cloud'
+    ? normalizedValue
+    : undefined;
+}
+
 export function bridgeLegacyApiEnv(profileEnv = {}) {
   const applicationHttpUrl =
     readTrimmedValue(profileEnv.SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL)
@@ -71,7 +87,26 @@ export function bridgeLegacyApiEnv(profileEnv = {}) {
   const platformHttpUrl =
     readTrimmedValue(profileEnv.SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL)
     ?? readTrimmedValue(profileEnv.VITE_SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_HTTP_URL);
+  const deploymentProfile = normalizeDeploymentProfileValue(
+    profileEnv.SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
+      ?? profileEnv.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
+      ?? profileEnv.VITE_SDKWORK_DEPLOYMENT_PROFILE,
+  );
+  const runtimeTarget =
+    readTrimmedValue(profileEnv.SDKWORK_BIRDCODER_RUNTIME_TARGET)
+    ?? readTrimmedValue(profileEnv.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET)
+    ?? readTrimmedValue(profileEnv.VITE_SDKWORK_RUNTIME_TARGET);
   const bridged = {};
+
+  if (deploymentProfile) {
+    bridged.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE = deploymentProfile;
+    bridged.VITE_SDKWORK_DEPLOYMENT_PROFILE = deploymentProfile;
+  }
+
+  if (runtimeTarget) {
+    bridged.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET = runtimeTarget;
+    bridged.VITE_SDKWORK_RUNTIME_TARGET = runtimeTarget;
+  }
 
   if (applicationHttpUrl) {
     bridged.BIRDCODER_API_BASE_URL = applicationHttpUrl;
@@ -99,12 +134,12 @@ export function applyTopologyProfileToEnv({
 } = {}) {
   const environment = isProductionTarget(target) ? 'production' : 'development';
   const profileId = resolveProfileIdFromIamMode(iamMode, environment);
-  const profile = loadProfile(profileId);
+  const profileEnv = loadProfile(profileId);
 
   return mergeRuntimeEnv(
     env,
-    profile.env,
-    bridgeLegacyApiEnv(profile.env),
+    profileEnv,
+    bridgeLegacyApiEnv(profileEnv),
     resolveIamDevEnv(env),
     {
       SDKWORK_BIRDCODER_PROFILE_ID: profileId,
@@ -118,7 +153,12 @@ export const applyProfileEnv = runtime.applyProfileEnv;
 export const mergeRuntimeEnv = runtime.mergeRuntimeEnv;
 export const loadEnvFile = runtime.loadEnvFile;
 export const assertDeploymentProfile = runtime.assertDeploymentProfile;
-export const assertServiceLayout = runtime.assertServiceLayout;
+export function assertServiceLayout(serviceLayout) {
+  if (supportsServiceLayout) {
+    return runtime.assertServiceLayout(serviceLayout);
+  }
+  return normalizeText(serviceLayout);
+}
 export const resolveSurfaceHttpUrl = runtime.resolveSurfaceHttpUrl.bind(runtime);
 export const resolveSurfaceBind = runtime.resolveSurfaceBind.bind(runtime);
 export const shouldAutostartGateway = runtime.shouldAutostartGateway;

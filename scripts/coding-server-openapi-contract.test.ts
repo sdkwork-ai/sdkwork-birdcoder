@@ -56,6 +56,106 @@ assert.deepEqual(
     document['x-sdkwork-api-cloud-gateway'].routesBySurface.backend,
   ],
 );
+assert.equal(
+  document.paths['/api/v1/api-keys']?.post?.responses['201']?.content['application/json']?.schema
+    ?.$ref,
+  '#/components/schemas/BirdCoderCommerceApiKeyCreatedEnvelope',
+  'commerce API key creation must declare the real one-time-secret response envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/api-keys']?.get?.responses['200']?.content['application/json']?.schema
+    ?.$ref,
+  '#/components/schemas/BirdCoderCommerceApiKeySummaryListEnvelope',
+  'commerce API key list must declare the paginated API key summary envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/api-keys/{id}']?.delete?.responses['204']?.content,
+  undefined,
+  'commerce API key revoke must use API_SPEC delete semantics: 204 with no JSON success body.',
+);
+assert.equal(
+  document.paths['/api/v1/api-keys/{id}']?.delete?.responses['200'],
+  undefined,
+  'commerce API key revoke must not keep a legacy 200 command envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/api-keys/{id}/rotate']?.post?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceApiKeyCreatedEnvelope',
+  'commerce API key rotation must declare the real one-time-secret response envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/notifications']?.get?.responses['200']?.content['application/json']
+    ?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceNotificationSummaryListEnvelope',
+  'commerce notification list must declare the paginated notification envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/notifications']?.post?.responses['201']?.content['application/json']
+    ?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceNotificationCreatedEnvelope',
+  'commerce notification send must declare the notification-created response envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/notifications/{id}']?.get?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceNotificationSummaryEnvelope',
+  'commerce notification retrieve must declare the notification summary envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/notifications/unread-count']?.get?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceUnreadCountEnvelope',
+  'commerce unread-count must declare the unread-count response envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/notifications/{id}/read']?.post?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceNotificationReadEnvelope',
+  'commerce mark-read must declare the notification-read response envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/notifications/read-all']?.post?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceMarkAllReadEnvelope',
+  'commerce mark-all-read must declare the bulk read command response envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/usage/record']?.post?.responses['200']?.content['application/json']
+    ?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceRecordUsageEnvelope',
+  'commerce usage record must declare the usage-record response envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/usage/current-period']?.get?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceCurrentPeriodUsageEnvelope',
+  'commerce current-period usage must declare the current usage response envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/usage/history']?.get?.responses['200']?.content['application/json']
+    ?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceUsageHistoryListEnvelope',
+  'commerce usage history must declare the paginated usage history envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/usage/breakdown']?.get?.responses['200']?.content['application/json']
+    ?.schema?.$ref,
+  '#/components/schemas/BirdCoderCommerceUsageBreakdownEnvelope',
+  'commerce usage breakdown must declare the usage breakdown response envelope.',
+);
+assert.equal(
+  document.paths['/api/v1/usage/quota']?.get?.responses['200']?.content['application/json']?.schema
+    ?.$ref,
+  '#/components/schemas/BirdCoderCommerceQuotaStatusEnvelope',
+  'commerce usage quota must declare the quota status response envelope.',
+);
 const operationsWithoutSuccessSchema = Object.entries(document.paths).flatMap(([pathKey, methods]) =>
   Object.entries(methods ?? {}).flatMap(([methodKey, operation]) => {
     if (operation['x-sdkwork-stream-kind'] === 'websocket') {
@@ -65,6 +165,9 @@ const operationsWithoutSuccessSchema = Object.entries(document.paths).flatMap(([
     }
 
     const successResponse = operation.responses['200'] ?? operation.responses['201'];
+    if (operation.responses['204'] && !operation.responses['204'].content) {
+      return [];
+    }
     return successResponse?.content?.['application/json']?.schema
       ? []
       : [{ method: methodKey.toUpperCase(), operationId: operation.operationId, path: pathKey }];
@@ -130,15 +233,55 @@ assert.equal(document.paths['/app/v3/api/system/routes']?.get?.['x-sdkwork-auth-
 assert.equal(document.paths['/app/v3/api/native_sessions']?.get?.operationId, 'nativeSessions.list');
 assert.equal(document.paths['/app/v3/api/native_sessions/{id}']?.get?.operationId, 'nativeSessions.retrieve');
 assert.equal(document.paths['/app/v3/api/intelligence/coding_sessions']?.post?.operationId, 'codingSessions.create');
+assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions']?.post?.['x-sdkwork-resource'],
+  'birdcoder.intelligence-coding-sessions',
+);
+assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions']?.post?.['x-sdkwork-permission'],
+  'birdcoder.intelligence-coding-sessions.create',
+);
 assert.equal(document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.patch?.operationId, 'codingSessions.update');
+assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.patch?.['x-sdkwork-resource'],
+  'birdcoder.intelligence-coding-sessions',
+);
+assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.patch?.['x-sdkwork-permission'],
+  'birdcoder.intelligence-coding-sessions.update',
+);
 assert.equal(document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.delete?.operationId, 'codingSessions.delete');
+assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.delete?.['x-sdkwork-resource'],
+  'birdcoder.intelligence-coding-sessions',
+);
+assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.delete?.['x-sdkwork-permission'],
+  'birdcoder.intelligence-coding-sessions.delete',
+);
 assert.equal(
   document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/fork']?.post?.operationId,
   'codingSessions.forks.create',
 );
 assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/fork']?.post?.['x-sdkwork-resource'],
+  'birdcoder.intelligence-coding-sessions-forks',
+);
+assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/fork']?.post?.['x-sdkwork-permission'],
+  'birdcoder.intelligence-coding-sessions-forks.create',
+);
+assert.equal(
   document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/events']?.get?.operationId,
   'codingSessions.events.list',
+);
+assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/events']?.get?.['x-sdkwork-resource'],
+  'birdcoder.intelligence-coding-sessions-events',
+);
+assert.equal(
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/events']?.get?.['x-sdkwork-permission'],
+  'birdcoder.intelligence-coding-sessions-events.read',
 );
 assert.equal(document.paths['/app/v3/api/operations/{operationId}']?.get?.operationId, 'operations.retrieve');
 assert.equal(
@@ -308,31 +451,28 @@ assert.equal(document.paths['/app/v3/api/projects/{projectId}']?.patch?.operatio
 assert.equal(document.paths['/app/v3/api/projects/{projectId}']?.delete?.operationId, 'projects.delete');
 assert.equal(
   document.paths['/app/v3/api/projects/{projectId}/publish']?.post?.operationId,
-  'projects.publish.create',
+  'projects.publish.publish',
 );
 assert.equal(document.paths['/app/v3/api/workspaces']?.post?.operationId, 'workspaces.create');
 assert.equal(document.paths['/app/v3/api/workspaces/{workspaceId}']?.patch?.operationId, 'workspaces.update');
 assert.equal(document.paths['/app/v3/api/workspaces/{workspaceId}']?.delete?.operationId, 'workspaces.delete');
 assert.equal(
-  document.paths['/app/v3/api/workspaces/{workspaceId}/realtime']?.get?.operationId,
-  'workspaces.realtime.subscribe',
-);
-assert.equal(
-  document.paths['/app/v3/api/workspaces/{workspaceId}/realtime']?.get?.['x-sdkwork-stream-kind'],
-  'websocket',
+  document.paths['/app/v3/api/workspaces/{workspaceId}/realtime'],
+  undefined,
+  'WebSocket realtime subscribe remains in the route catalog and must not be emitted as an HTTP OpenAPI operation.',
 );
 assert.equal(document.paths['/app/v3/api/teams']?.get?.operationId, 'workspaceTeams.list');
 assert.equal(document.paths['/app/v3/api/teams']?.get?.['x-sdkwork-domain'], 'collaboration');
-assert.equal(document.paths['/app/v3/api/teams']?.get?.['x-sdkwork-resource'], 'collaboration.workspaceTeams');
-assert.equal(document.paths['/app/v3/api/teams']?.get?.['x-sdkwork-permission'], 'collaboration.workspaceTeams.read');
+assert.equal(document.paths['/app/v3/api/teams']?.get?.['x-sdkwork-resource'], 'birdcoder.collaboration-workspace-teams');
+assert.equal(document.paths['/app/v3/api/teams']?.get?.['x-sdkwork-permission'], 'birdcoder.collaboration-workspace-teams.read');
 assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.operationId, 'teams.list');
 assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-domain'], 'iam');
-assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-resource'], 'iam.teams');
-assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-permission'], 'iam.teams.read');
+assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-resource'], 'birdcoder.iam-teams');
+assert.equal(document.paths['/backend/v3/api/iam/teams']?.get?.['x-sdkwork-permission'], 'birdcoder.iam-teams.read');
 assert.equal(document.paths['/backend/v3/api/iam/users']?.get?.operationId, 'users.list');
 assert.equal(document.paths['/backend/v3/api/iam/users']?.get?.['x-sdkwork-domain'], 'iam');
-assert.equal(document.paths['/backend/v3/api/iam/users']?.get?.['x-sdkwork-resource'], 'iam.users');
-assert.equal(document.paths['/backend/v3/api/iam/users']?.get?.['x-sdkwork-permission'], 'iam.users.read');
+assert.equal(document.paths['/backend/v3/api/iam/users']?.get?.['x-sdkwork-resource'], 'birdcoder.iam-users');
+assert.equal(document.paths['/backend/v3/api/iam/users']?.get?.['x-sdkwork-permission'], 'birdcoder.iam-users.read');
 assert.equal(
   document.paths['/backend/v3/api/iam/users']?.get?.responses['200']?.content['application/json']
     ?.schema?.['$ref'],
@@ -352,10 +492,10 @@ assert.equal(
   'roleBindings.list',
 );
 assert.equal(document.paths['/app/v3/api/iam/role_bindings']?.get?.['x-sdkwork-domain'], 'iam');
-assert.equal(document.paths['/app/v3/api/iam/role_bindings']?.get?.['x-sdkwork-resource'], 'iam.roleBindings');
+assert.equal(document.paths['/app/v3/api/iam/role_bindings']?.get?.['x-sdkwork-resource'], 'birdcoder.iam-role-bindings');
 assert.equal(
   document.paths['/app/v3/api/iam/role_bindings']?.get?.['x-sdkwork-permission'],
-  'iam.roleBindings.read',
+  'birdcoder.iam-role-bindings.read',
 );
 assert.equal(
   document.paths['/app/v3/api/iam/role_bindings']?.get?.responses['200']?.content[
@@ -368,10 +508,10 @@ assert.equal(
   'roleBindings.create',
 );
 assert.equal(document.paths['/backend/v3/api/iam/role_bindings']?.post?.['x-sdkwork-domain'], 'iam');
-assert.equal(document.paths['/backend/v3/api/iam/role_bindings']?.post?.['x-sdkwork-resource'], 'iam.roleBindings');
+assert.equal(document.paths['/backend/v3/api/iam/role_bindings']?.post?.['x-sdkwork-resource'], 'birdcoder.iam-role-bindings');
 assert.equal(
   document.paths['/backend/v3/api/iam/role_bindings']?.post?.['x-sdkwork-permission'],
-  'iam.roleBindings.create',
+  'birdcoder.iam-role-bindings.create',
 );
 assert.equal(
   document.paths['/backend/v3/api/iam/role_bindings/{roleBindingId}']?.delete?.operationId,
@@ -383,18 +523,18 @@ assert.equal(
 );
 assert.equal(
   document.paths['/backend/v3/api/iam/role_bindings/{roleBindingId}']?.delete?.['x-sdkwork-resource'],
-  'iam.roleBindings',
+  'birdcoder.iam-role-bindings',
 );
 assert.equal(
   document.paths['/backend/v3/api/iam/role_bindings/{roleBindingId}']?.delete?.['x-sdkwork-permission'],
-  'iam.roleBindings.delete',
+  'birdcoder.iam-role-bindings.delete',
 );
 assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.operationId, 'teams.members.list');
 assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.['x-sdkwork-domain'], 'iam');
-assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.['x-sdkwork-resource'], 'iam.teams.members');
+assert.equal(document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.['x-sdkwork-resource'], 'birdcoder.iam-teams-members');
 assert.equal(
   document.paths['/backend/v3/api/iam/teams/{teamId}/members']?.get?.['x-sdkwork-permission'],
-  'iam.teams.members.read',
+  'birdcoder.iam-teams-members.read',
 );
 assert.equal(document.paths['/backend/v3/api/releases']?.get?.operationId, 'releases.list');
 assert.ok(document.components.schemas?.BirdCoderCodingSessionSummary);
@@ -670,10 +810,9 @@ assert.equal(
   '#/components/schemas/BirdCoderForkCodingSessionRequest',
 );
 assert.equal(
-  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.delete?.responses['200']?.content[
-    'application/json'
-  ]?.schema?.['$ref'],
-  '#/components/schemas/BirdCoderDeletedResourceEnvelope',
+  document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.delete?.responses['204']?.content,
+  undefined,
+  'Coding session delete must use 204 with no JSON success body.',
 );
 assert.equal(
   document.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}/fork']?.post?.responses['201']?.content[
@@ -788,10 +927,24 @@ assert.equal(
   document.paths['/app/v3/api/projects/{projectId}/git/branches']?.post?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
+  undefined,
+  'Project Git branch creation must not keep a legacy 200 success body.',
+);
+assert.equal(
+  document.paths['/app/v3/api/projects/{projectId}/git/branches']?.post?.responses['201']?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
   document.paths['/app/v3/api/projects/{projectId}/git/branch_switch']?.post?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  undefined,
+  'Project Git branch switch creation-style operation must not keep a legacy 200 success body.',
+);
+assert.equal(
+  document.paths['/app/v3/api/projects/{projectId}/git/branch_switch']?.post?.responses['201']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
@@ -800,10 +953,24 @@ assert.equal(
   document.paths['/app/v3/api/projects/{projectId}/git/commits']?.post?.responses['200']?.content[
     'application/json'
   ]?.schema?.['$ref'],
+  undefined,
+  'Project Git commit creation must not keep a legacy 200 success body.',
+);
+assert.equal(
+  document.paths['/app/v3/api/projects/{projectId}/git/commits']?.post?.responses['201']?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
   document.paths['/app/v3/api/projects/{projectId}/git/pushes']?.post?.responses['200']?.content[
+    'application/json'
+  ]?.schema?.['$ref'],
+  undefined,
+  'Project Git push creation-style operation must not keep a legacy 200 success body.',
+);
+assert.equal(
+  document.paths['/app/v3/api/projects/{projectId}/git/pushes']?.post?.responses['201']?.content[
     'application/json'
   ]?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
@@ -811,18 +978,38 @@ assert.equal(
 assert.equal(
   document.paths['/app/v3/api/projects/{projectId}/git/worktrees']?.post?.responses['200']
     ?.content['application/json']?.schema?.['$ref'],
+  undefined,
+  'Project Git worktree creation must not keep a legacy 200 success body.',
+);
+assert.equal(
+  document.paths['/app/v3/api/projects/{projectId}/git/worktrees']?.post?.responses['201']
+    ?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
   document.paths[
     '/app/v3/api/projects/{projectId}/git/worktree_removals'
   ]?.post?.responses['200']?.content['application/json']?.schema?.['$ref'],
+  undefined,
+  'Project Git worktree removal creation-style operation must not keep a legacy 200 success body.',
+);
+assert.equal(
+  document.paths[
+    '/app/v3/api/projects/{projectId}/git/worktree_removals'
+  ]?.post?.responses['201']?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(
   document.paths[
     '/app/v3/api/projects/{projectId}/git/worktree_prune'
   ]?.post?.responses['200']?.content['application/json']?.schema?.['$ref'],
+  undefined,
+  'Project Git worktree prune creation-style operation must not keep a legacy 200 success body.',
+);
+assert.equal(
+  document.paths[
+    '/app/v3/api/projects/{projectId}/git/worktree_prune'
+  ]?.post?.responses['201']?.content['application/json']?.schema?.['$ref'],
   '#/components/schemas/BirdCoderProjectGitOverviewEnvelope',
 );
 assert.equal(

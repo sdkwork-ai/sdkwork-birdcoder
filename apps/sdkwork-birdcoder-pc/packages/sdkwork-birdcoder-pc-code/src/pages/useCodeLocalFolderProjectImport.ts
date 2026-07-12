@@ -38,6 +38,7 @@ export function useCodeEffectiveWorkspaceId({
 }) {
   const {
     createWorkspace,
+    error: workspacesError,
     hasFetched,
     workspaces,
     refreshWorkspaces,
@@ -74,7 +75,12 @@ export function useCodeEffectiveWorkspaceId({
       return;
     }
 
-    if (effectiveWorkspaceId || !hasFetched || workspaceBootstrapPromiseRef.current) {
+    if (
+      effectiveWorkspaceId ||
+      !hasFetched ||
+      workspacesError ||
+      workspaceBootstrapPromiseRef.current
+    ) {
       return;
     }
 
@@ -113,6 +119,7 @@ export function useCodeEffectiveWorkspaceId({
     refreshWorkspaces,
     workspaceId,
     workspaces,
+    workspacesError,
   ]);
 
   return {

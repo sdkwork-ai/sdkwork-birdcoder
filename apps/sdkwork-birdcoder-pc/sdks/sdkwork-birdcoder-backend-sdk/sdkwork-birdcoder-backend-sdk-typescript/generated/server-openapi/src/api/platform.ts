@@ -18,12 +18,12 @@ export class PlatformReleasesApi {
   }
 }
 
-export interface PlatformProjectsDeploymentTargetsListParams {
-  limit?: number;
-  offset?: number;
+export interface PlatformDeploymentGovernanceTargetsListParams {
+  page?: number;
+  pageSize?: number;
 }
 
-export class PlatformProjectsDeploymentTargetsApi {
+export class PlatformDeploymentGovernanceTargetsApi {
   private client: HttpClient;
 
   constructor(client: HttpClient) {
@@ -32,31 +32,22 @@ export class PlatformProjectsDeploymentTargetsApi {
 
 
 /** List deployment targets */
-  async list(projectId: string, params?: PlatformProjectsDeploymentTargetsListParams): Promise<Record<string, unknown>> {
+  async list(projectId: string, params?: PlatformDeploymentGovernanceTargetsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(backendApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/deployment_targets`), query));
   }
 }
 
-export class PlatformProjectsApi {
-  private client: HttpClient;
-  public readonly deploymentTargets: PlatformProjectsDeploymentTargetsApi;
-
-  constructor(client: HttpClient) {
-    this.client = client;
-    this.deploymentTargets = new PlatformProjectsDeploymentTargetsApi(client);
-  }
-
-}
-
 export class PlatformDeploymentGovernanceApi {
   private client: HttpClient;
+  public readonly targets: PlatformDeploymentGovernanceTargetsApi;
 
   constructor(client: HttpClient) {
     this.client = client;
+    this.targets = new PlatformDeploymentGovernanceTargetsApi(client);
   }
 
 
@@ -69,13 +60,11 @@ export class PlatformDeploymentGovernanceApi {
 export class PlatformApi {
   private client: HttpClient;
   public readonly deploymentGovernance: PlatformDeploymentGovernanceApi;
-  public readonly projects: PlatformProjectsApi;
   public readonly releases: PlatformReleasesApi;
 
   constructor(client: HttpClient) {
     this.client = client;
     this.deploymentGovernance = new PlatformDeploymentGovernanceApi(client);
-    this.projects = new PlatformProjectsApi(client);
     this.releases = new PlatformReleasesApi(client);
   }
 

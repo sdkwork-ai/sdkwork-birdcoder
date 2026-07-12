@@ -17,21 +17,21 @@ function createBrowserSessionStoragePort(): AppSessionPersistencePort {
   return {
     read() {
       try {
-        return globalThis.sessionStorage?.getItem(APP_SESSION_STORAGE_KEY) ?? null;
+        return globalThis.localStorage?.getItem(APP_SESSION_STORAGE_KEY) ?? null;
       } catch {
         return null;
       }
     },
     write(raw) {
       try {
-        globalThis.sessionStorage?.setItem(APP_SESSION_STORAGE_KEY, raw);
+        globalThis.localStorage?.setItem(APP_SESSION_STORAGE_KEY, raw);
       } catch {
         // Memory storage remains available for restrictive browser contexts.
       }
     },
     remove() {
       try {
-        globalThis.sessionStorage?.removeItem(APP_SESSION_STORAGE_KEY);
+        globalThis.localStorage?.removeItem(APP_SESSION_STORAGE_KEY);
       } catch {
         // Nothing to clear when storage is unavailable.
       }

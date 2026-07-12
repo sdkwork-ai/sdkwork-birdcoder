@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-test('guest home renders the templates catalog surface', async ({ page }) => {
+test('guest home redirects to the auth surface', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByText('Project Templates')).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText('E2E Starter')).toBeVisible();
+  await expect(page.getByText('Sign in')).toBeVisible({ timeout: 60_000 });
 });

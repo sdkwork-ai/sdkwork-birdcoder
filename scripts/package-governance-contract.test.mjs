@@ -221,6 +221,7 @@ const qualityFastRunnerModule = await import(
 );
 const workspaceConfigSource = fs.readFileSync(workspaceConfigPath, 'utf8');
 const workspacePackages = collectWorkspaceManifests();
+const workspacePackageGlobs = collectWorkspacePackageGlobs(workspaceConfigSource);
 const workspacePackageNames = collectConfiguredWorkspacePackageNames(workspaceConfigSource);
 const catalogEntries = collectCatalogEntries(workspaceConfigSource);
 
@@ -248,24 +249,20 @@ assert.ok(
   ),
   'lint must execute the package-subpath-exports contract through the governed quality-fast runner.',
 );
-assert.match(
-  workspaceConfigSource,
-  /  - 'apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-\*'/,
+assert.ok(
+  workspacePackageGlobs.includes('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*'),
   'pnpm-workspace.yaml must target apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*.',
 );
-assert.match(
-  workspaceConfigSource,
-  /  - 'apps\/sdkwork-birdcoder-h5\/packages\/sdkwork-birdcoder-h5-\*'/,
+assert.ok(
+  workspacePackageGlobs.includes('apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*'),
   'pnpm-workspace.yaml must target apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*.',
 );
-assert.match(
-  workspaceConfigSource,
-  /  - "apps\/sdkwork-birdcoder-common"/,
+assert.ok(
+  workspacePackageGlobs.includes('apps/sdkwork-birdcoder-common'),
   'pnpm-workspace.yaml must include apps/sdkwork-birdcoder-common for cross-surface packages.',
 );
-assert.match(
-  workspaceConfigSource,
-  /  - "apps\/sdkwork-birdcoder-flutter-mobile"/,
+assert.ok(
+  workspacePackageGlobs.includes('apps/sdkwork-birdcoder-flutter-mobile'),
   'pnpm-workspace.yaml must include apps/sdkwork-birdcoder-flutter-mobile.',
 );
 assert.doesNotMatch(

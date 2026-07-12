@@ -1,10 +1,7 @@
-﻿use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
 
-use super::models::{
-    CodingSessionTurnIdeContextPayload,
-    CodingSessionTurnOptionsPayload,
-};
+use super::models::{CodingSessionTurnIdeContextPayload, CodingSessionTurnOptionsPayload};
 
 // 鈹€鈹€ Serialization helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
@@ -36,7 +33,9 @@ fn parse_usize_decimal_string<E: de::Error>(value: &str) -> Result<usize, E> {
         .map_err(|_| E::custom("expected a usize decimal string"))
 }
 
-pub fn deserialize_i64_from_decimal_string_or_number<'de, D>(deserializer: D) -> Result<i64, D::Error>
+pub fn deserialize_i64_from_decimal_string_or_number<'de, D>(
+    deserializer: D,
+) -> Result<i64, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -238,6 +237,7 @@ pub struct PendingProjectionTurnExecution {
 pub struct FinalizedProjectionTurnExecution {
     pub turn: CodingSessionTurnPayload,
     pub events: Vec<CodingSessionEventPayload>,
+    pub native_session_id: Option<String>,
 }
 
 // 鈹€鈹€ Delete entity payload 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€

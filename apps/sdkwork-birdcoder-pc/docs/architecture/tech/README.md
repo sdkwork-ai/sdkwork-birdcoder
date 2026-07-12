@@ -10,6 +10,6 @@ This directory owns the technical architecture Canon for the repository.
 
 - Split large architecture content into sibling shards named `TECH-<kebab-topic>.md`.
 - Every shard `MUST` be linked from `TECH_ARCHITECTURE.md`.
-- Do not create competing architecture roots such as `docs/architecture/TECH_ARCHITECTURE.md`; that path is retired and redirect-only.
+- Do not create competing architecture roots such as `docs/architecture/TECH_ARCHITECTURE.md`; that path is retired and must not be recreated.
 
 See `DOCUMENTATION_SPEC.md` section 2.2.

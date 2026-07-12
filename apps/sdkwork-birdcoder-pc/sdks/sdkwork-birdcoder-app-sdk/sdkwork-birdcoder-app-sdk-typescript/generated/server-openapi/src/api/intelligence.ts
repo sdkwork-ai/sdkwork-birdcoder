@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderApprovalDecisionResult, BirdCoderCodingSessionArtifact, BirdCoderCodingSessionCheckpoint, BirdCoderCodingSessionEvent, BirdCoderCodingSessionSummary, BirdCoderCodingSessionTurn, BirdCoderCreateCodingSessionRequest, BirdCoderCreateCodingSessionTurnRequest, BirdCoderDeleteCodingSessionMessageResult, BirdCoderDeletedResourceResult, BirdCoderEditCodingSessionMessageRequest, BirdCoderEditCodingSessionMessageResult, BirdCoderForkCodingSessionRequest, BirdCoderSubmitApprovalDecisionRequest, BirdCoderSubmitUserQuestionAnswerRequest, BirdCoderUpdateCodingSessionRequest, BirdCoderUserQuestionAnswerResult, PageInfo } from '../types';
+import type { BirdCoderApprovalDecisionResult, BirdCoderCodingSessionArtifact, BirdCoderCodingSessionCheckpoint, BirdCoderCodingSessionEvent, BirdCoderCodingSessionSummary, BirdCoderCodingSessionTurn, BirdCoderCreateCodingSessionRequest, BirdCoderCreateCodingSessionTurnRequest, BirdCoderEditCodingSessionMessageRequest, BirdCoderEditCodingSessionMessageResult, BirdCoderForkCodingSessionRequest, BirdCoderSubmitApprovalDecisionRequest, BirdCoderSubmitUserQuestionAnswerRequest, BirdCoderUpdateCodingSessionRequest, BirdCoderUserQuestionAnswerResult, PageInfo } from '../types';
 
 
 export class IntelligenceCodingSessionsMessagesApi {
@@ -18,8 +18,8 @@ export class IntelligenceCodingSessionsMessagesApi {
   }
 
 /** Delete coding session message */
-  async delete(sessionId: string, messageId: string): Promise<BirdCoderDeleteCodingSessionMessageResult> {
-    return this.client.delete<BirdCoderDeleteCodingSessionMessageResult>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}`));
+  async delete(sessionId: string, messageId: string): Promise<void> {
+    return this.client.delete<void>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}/messages/${serializePathParameter(messageId, { name: 'messageId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -138,8 +138,8 @@ export interface IntelligenceCodingSessionsListParams {
   workspaceId?: string;
   projectId?: string;
   engineId?: 'codex' | 'claude-code' | 'gemini' | 'opencode';
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class IntelligenceCodingSessionsApi {
@@ -170,8 +170,8 @@ export class IntelligenceCodingSessionsApi {
   }
 
 /** Delete coding session */
-  async delete(sessionId: string): Promise<BirdCoderDeletedResourceResult> {
-    return this.client.delete<BirdCoderDeletedResourceResult>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}`));
+  async delete(sessionId: string): Promise<void> {
+    return this.client.delete<void>(appApiPath(`/intelligence/coding_sessions/${serializePathParameter(sessionId, { name: 'sessionId', style: 'simple', explode: false })}`));
   }
 
 /** Update coding session */
@@ -185,8 +185,8 @@ export class IntelligenceCodingSessionsApi {
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
       { name: 'projectId', value: params?.projectId, style: 'form', explode: true, allowReserved: false },
       { name: 'engineId', value: params?.engineId, style: 'form', explode: true, allowReserved: false },
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/intelligence/coding_sessions`), query));
   }

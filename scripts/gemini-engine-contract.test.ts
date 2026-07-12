@@ -15,7 +15,7 @@ assert.equal(normalizeWorkbenchCodeEngineId('Gemini'), 'gemini');
 assert.equal(normalizeWorkbenchCodeEngineId('gemini cli'), 'gemini');
 
 const geminiEngine = createChatEngineById('gemini');
-assert.equal(geminiEngine.name, 'gemini-cli-kernel-sdk-adapter');
+assert.equal(geminiEngine.name, 'gemini-cli-kernel-cli-adapter');
 
 assert.throws(
   () => createChatEngineById('unknown-engine'),

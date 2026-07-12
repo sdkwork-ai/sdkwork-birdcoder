@@ -47,7 +47,7 @@ assert.doesNotMatch(
 assert.match(
   healthSource,
   /DatabasePool::Postgres/u,
-  'Unauthenticated /health must probe PostgreSQL pools when configured.',
+  'Unauthenticated /readyz readiness checks must probe PostgreSQL pools when configured.',
 );
 assert.match(
   valuesSource,

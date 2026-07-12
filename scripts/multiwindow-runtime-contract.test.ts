@@ -374,63 +374,116 @@ assert.equal(
   'The progress observer failure contract must exercise the observer callback path.',
 );
 
-const cancelledEvents: Array<[string, string]> = [];
-const cancelledController = new AbortController();
-cancelledController.abort();
-const cancelledResult = await dispatchMultiWindowPrompt({
+const stoppedEvents: Array<[string, string]> = [];
+const stoppedController = new AbortController();
+stoppedController.abort();
+const stoppedResult = await dispatchMultiWindowPrompt({
   maxConcurrentDispatches: 2,
   onPaneResult: (event) => {
-    cancelledEvents.push([event.paneId, event.status]);
+    stoppedEvents.push([event.paneId, event.status]);
   },
   panes: [
     {
-      id: 'cancelled-pane-1',
+      id: 'stopped-pane-1',
       enabled: true,
       projectId: 'project-a',
       codingSessionId: 'session-a',
       sendPrompt: async () => {
-        throw new Error('cancelled panes must not dispatch');
+        throw new Error('stopped panes must not dispatch');
       },
     },
     {
-      id: 'cancelled-pane-2',
+      id: 'stopped-pane-2',
       enabled: true,
       projectId: 'project-b',
       codingSessionId: 'session-b',
       sendPrompt: async () => {
-        throw new Error('cancelled panes must not dispatch');
+        throw new Error('stopped panes must not dispatch');
       },
     },
   ],
-  prompt: 'Do not dispatch after cancellation',
-  signal: cancelledController.signal,
+  prompt: 'Do not dispatch after stop',
+  signal: stoppedController.signal,
 });
 assert.equal(
-  cancelledResult.status,
-  'cancelled',
-  'A pre-cancelled multi-window batch must return an explicit cancelled status.',
+  stoppedResult.status,
+  'stopped',
+  'A pre-stopped multi-window batch must return an explicit stopped status.',
 );
 assert.deepEqual(
-  cancelledResult.results.map((paneResult) => [paneResult.paneId, paneResult.status]),
+  stoppedResult.results.map((paneResult) => [paneResult.paneId, paneResult.status]),
   [
-    ['cancelled-pane-1', 'cancelled'],
-    ['cancelled-pane-2', 'cancelled'],
+    ['stopped-pane-1', 'not-submitted'],
+    ['stopped-pane-2', 'not-submitted'],
   ],
-  'A cancelled batch must mark every dispatchable pane as cancelled without calling sendPrompt.',
+  'A stopped batch must mark every dispatchable pane as not submitted without calling sendPrompt.',
 );
 assert.equal(
-  cancelledResult.summary.cancelledPaneCount,
+  stoppedResult.summary.notSubmittedPaneCount,
   2,
-  'Batch summary must expose cancelled panes for lifecycle observability.',
+  'Batch summary must expose not-submitted panes for lifecycle observability.',
 );
 assert.deepEqual(
-  cancelledEvents,
+  stoppedEvents,
   [
-    ['cancelled-pane-1', 'cancelled'],
-    ['cancelled-pane-2', 'cancelled'],
+    ['stopped-pane-1', 'not-submitted'],
+    ['stopped-pane-2', 'not-submitted'],
   ],
-  'Cancelled panes must publish deterministic lifecycle progress events.',
+  'Stopped panes must publish deterministic lifecycle progress events.',
 );
+
+let releaseActivePane: (() => void) | null = null;
+let activePaneStarted: (() => void) | null = null;
+const activePaneStartedPromise = new Promise<void>((resolve) => {
+  activePaneStarted = resolve;
+});
+const activePaneReleasePromise = new Promise<void>((resolve) => {
+  releaseActivePane = resolve;
+});
+const midFlightStopController = new AbortController();
+let midFlightSecondPaneCalls = 0;
+const midFlightResultPromise = dispatchMultiWindowPrompt({
+  maxConcurrentDispatches: 1,
+  panes: [
+    {
+      id: 'mid-flight-active',
+      enabled: true,
+      projectId: 'project-mid-flight-a',
+      codingSessionId: 'session-mid-flight-a',
+      sendPrompt: async () => {
+        activePaneStarted?.();
+        await activePaneReleasePromise;
+      },
+    },
+    {
+      id: 'mid-flight-pending',
+      enabled: true,
+      projectId: 'project-mid-flight-b',
+      codingSessionId: 'session-mid-flight-b',
+      sendPrompt: async () => {
+        midFlightSecondPaneCalls += 1;
+      },
+    },
+  ],
+  prompt: 'Stop only undispatched windows',
+  signal: midFlightStopController.signal,
+});
+await activePaneStartedPromise;
+midFlightStopController.abort();
+releaseActivePane?.();
+const midFlightResult = await midFlightResultPromise;
+assert.equal(
+  midFlightResult.results.find((result) => result.paneId === 'mid-flight-active')?.status,
+  'success',
+  'A prompt already submitted before stop must report its real completion result.',
+);
+assert.equal(
+  midFlightResult.results.find((result) => result.paneId === 'mid-flight-pending')?.status,
+  'not-submitted',
+  'Stopping a batch must prevent queued panes from being submitted.',
+);
+assert.equal(midFlightSecondPaneCalls, 0);
+assert.equal(midFlightResult.status, 'stopped');
 
 const memoryStorage = new Map<string, string>();
 const storage = {

@@ -92,16 +92,6 @@ export interface BirdCoderCreateIamUserRoleRequest {
   roleCode?: string;
 }
 
-export interface BirdCoderDeletedResourceEnvelope {
-  code: 0;
-  data: Record<string, unknown>;
-  traceId: string;
-}
-
-export interface BirdCoderDeletedResourceResult {
-  id: string;
-}
-
 export interface BirdCoderDeploymentRecordSummary {
   id: string;
   uuid?: string;
@@ -170,7 +160,7 @@ export interface BirdCoderIamAuditEventSummary {
   action: string;
   resourceType: string;
   resourceId: string;
-  requestId?: string;
+  traceId?: string;
   appId?: string;
   environment?: string;
   shardingKey?: string;
@@ -677,13 +667,13 @@ export interface IamUsersUpdatePathParams {
   userId: string;
 }
 
-export interface PlatformProjectsDeploymentTargetsListPathParams {
+export interface PlatformDeploymentGovernanceTargetsListPathParams {
   projectId: string;
 }
 
-export interface PlatformProjectsDeploymentTargetsListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
+export interface PlatformDeploymentGovernanceTargetsListQuery extends Record<string, BirdcoderSdkQueryValue> {
+  page?: number;
+  page_size?: number;
 }
 
 export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
@@ -696,9 +686,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.apiKeys.read",
+    "permission": "birdcoder.iam-api-keys.read",
     "public": false,
-    "resource": "iam.apiKeys",
+    "resource": "birdcoder.iam-api-keys",
     "summary": "List SDKWork IAM API keys",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -714,9 +704,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.apiKeys.create",
+    "permission": "birdcoder.iam-api-keys.execute",
     "public": false,
-    "resource": "iam.apiKeys",
+    "resource": "birdcoder.iam-api-keys",
     "summary": "Revoke SDKWork IAM API key",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -730,9 +720,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.auditEvents.read",
+    "permission": "birdcoder.iam-audit-events.read",
     "public": false,
-    "resource": "iam.auditEvents",
+    "resource": "birdcoder.iam-audit-events",
     "summary": "List SDKWork IAM audit events",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -746,9 +736,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.organizationMemberships.create",
+    "permission": "birdcoder.iam-organization-memberships.create",
     "public": false,
-    "resource": "iam.organizationMemberships",
+    "resource": "birdcoder.iam-organization-memberships",
     "summary": "Create SDKWork IAM organization membership",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -764,9 +754,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.organizationMemberships.update",
+    "permission": "birdcoder.iam-organization-memberships.update",
     "public": false,
-    "resource": "iam.organizationMemberships",
+    "resource": "birdcoder.iam-organization-memberships",
     "summary": "Update SDKWork IAM organization membership",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -780,9 +770,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.organizations.create",
+    "permission": "birdcoder.iam-organizations.create",
     "public": false,
-    "resource": "iam.organizations",
+    "resource": "birdcoder.iam-organizations",
     "summary": "Create SDKWork IAM organization",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -798,9 +788,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.organizations.delete",
+    "permission": "birdcoder.iam-organizations.delete",
     "public": false,
-    "resource": "iam.organizations",
+    "resource": "birdcoder.iam-organizations",
     "summary": "Delete SDKWork IAM organization",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -816,9 +806,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.organizations.read",
+    "permission": "birdcoder.iam-organizations.read",
     "public": false,
-    "resource": "iam.organizations",
+    "resource": "birdcoder.iam-organizations",
     "summary": "Get SDKWork IAM organization",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -834,9 +824,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.organizations.update",
+    "permission": "birdcoder.iam-organizations.update",
     "public": false,
-    "resource": "iam.organizations",
+    "resource": "birdcoder.iam-organizations",
     "summary": "Update SDKWork IAM organization",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -850,9 +840,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.permissions.create",
+    "permission": "birdcoder.iam-permissions.create",
     "public": false,
-    "resource": "iam.permissions",
+    "resource": "birdcoder.iam-permissions",
     "summary": "Create SDKWork IAM permission",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -868,9 +858,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.permissions.delete",
+    "permission": "birdcoder.iam-permissions.delete",
     "public": false,
-    "resource": "iam.permissions",
+    "resource": "birdcoder.iam-permissions",
     "summary": "Delete SDKWork IAM permission",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -884,9 +874,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.permissions.read",
+    "permission": "birdcoder.iam-permissions.read",
     "public": false,
-    "resource": "iam.permissions",
+    "resource": "birdcoder.iam-permissions",
     "summary": "List SDKWork IAM permissions",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -902,9 +892,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.permissions.read",
+    "permission": "birdcoder.iam-permissions.read",
     "public": false,
-    "resource": "iam.permissions",
+    "resource": "birdcoder.iam-permissions",
     "summary": "Get SDKWork IAM permission",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -920,9 +910,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.permissions.update",
+    "permission": "birdcoder.iam-permissions.update",
     "public": false,
-    "resource": "iam.permissions",
+    "resource": "birdcoder.iam-permissions",
     "summary": "Update SDKWork IAM permission",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -936,9 +926,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.policies.create",
+    "permission": "birdcoder.iam-policies.create",
     "public": false,
-    "resource": "iam.policies",
+    "resource": "birdcoder.iam-policies",
     "summary": "Create SDKWork IAM policy",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -954,9 +944,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.policies.delete",
+    "permission": "birdcoder.iam-policies.delete",
     "public": false,
-    "resource": "iam.policies",
+    "resource": "birdcoder.iam-policies",
     "summary": "Delete SDKWork IAM policy",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -970,9 +960,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.policies.read",
+    "permission": "birdcoder.iam-policies.read",
     "public": false,
-    "resource": "iam.policies",
+    "resource": "birdcoder.iam-policies",
     "summary": "List SDKWork IAM policies",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -988,9 +978,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.policies.read",
+    "permission": "birdcoder.iam-policies.read",
     "public": false,
-    "resource": "iam.policies",
+    "resource": "birdcoder.iam-policies",
     "summary": "Get SDKWork IAM policy",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1006,9 +996,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.policies.update",
+    "permission": "birdcoder.iam-policies.update",
     "public": false,
-    "resource": "iam.policies",
+    "resource": "birdcoder.iam-policies",
     "summary": "Update SDKWork IAM policy",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1022,9 +1012,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roleBindings.create",
+    "permission": "birdcoder.iam-role-bindings.create",
     "public": false,
-    "resource": "iam.roleBindings",
+    "resource": "birdcoder.iam-role-bindings",
     "summary": "Create SDKWork IAM user role binding",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1040,9 +1030,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roleBindings.delete",
+    "permission": "birdcoder.iam-role-bindings.delete",
     "public": false,
-    "resource": "iam.roleBindings",
+    "resource": "birdcoder.iam-role-bindings",
     "summary": "Delete SDKWork IAM user role binding",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1056,9 +1046,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roles.create",
+    "permission": "birdcoder.iam-roles.create",
     "public": false,
-    "resource": "iam.roles",
+    "resource": "birdcoder.iam-roles",
     "summary": "Create SDKWork IAM role",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1074,9 +1064,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roles.delete",
+    "permission": "birdcoder.iam-roles.delete",
     "public": false,
-    "resource": "iam.roles",
+    "resource": "birdcoder.iam-roles",
     "summary": "Delete SDKWork IAM role",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1090,9 +1080,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roles.read",
+    "permission": "birdcoder.iam-roles.read",
     "public": false,
-    "resource": "iam.roles",
+    "resource": "birdcoder.iam-roles",
     "summary": "List SDKWork IAM roles",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1108,9 +1098,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roles.permissions.create",
+    "permission": "birdcoder.iam-roles-permissions.create",
     "public": false,
-    "resource": "iam.roles.permissions",
+    "resource": "birdcoder.iam-roles-permissions",
     "summary": "Create SDKWork IAM role permission",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1127,9 +1117,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roles.permissions.delete",
+    "permission": "birdcoder.iam-roles-permissions.delete",
     "public": false,
-    "resource": "iam.roles.permissions",
+    "resource": "birdcoder.iam-roles-permissions",
     "summary": "Delete SDKWork IAM role permission",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1145,9 +1135,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roles.permissions.read",
+    "permission": "birdcoder.iam-roles-permissions.read",
     "public": false,
-    "resource": "iam.roles.permissions",
+    "resource": "birdcoder.iam-roles-permissions",
     "summary": "List SDKWork IAM role permissions",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1163,9 +1153,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roles.read",
+    "permission": "birdcoder.iam-roles.read",
     "public": false,
-    "resource": "iam.roles",
+    "resource": "birdcoder.iam-roles",
     "summary": "Get SDKWork IAM role",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1181,9 +1171,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roles.update",
+    "permission": "birdcoder.iam-roles.update",
     "public": false,
-    "resource": "iam.roles",
+    "resource": "birdcoder.iam-roles",
     "summary": "Update SDKWork IAM role",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1197,9 +1187,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.securityEvents.read",
+    "permission": "birdcoder.iam-security-events.read",
     "public": false,
-    "resource": "iam.securityEvents",
+    "resource": "birdcoder.iam-security-events",
     "summary": "List SDKWork IAM security events",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1213,9 +1203,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.teams.read",
+    "permission": "birdcoder.iam-teams.read",
     "public": false,
-    "resource": "iam.teams",
+    "resource": "birdcoder.iam-teams",
     "summary": "List teams",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1231,9 +1221,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.teams.members.read",
+    "permission": "birdcoder.iam-teams-members.read",
     "public": false,
-    "resource": "iam.teams.members",
+    "resource": "birdcoder.iam-teams-members",
     "summary": "List team members",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1247,9 +1237,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.tenants.create",
+    "permission": "birdcoder.iam-tenants.create",
     "public": false,
-    "resource": "iam.tenants",
+    "resource": "birdcoder.iam-tenants",
     "summary": "Create SDKWork IAM tenant",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1265,9 +1255,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.tenants.delete",
+    "permission": "birdcoder.iam-tenants.delete",
     "public": false,
-    "resource": "iam.tenants",
+    "resource": "birdcoder.iam-tenants",
     "summary": "Delete SDKWork IAM tenant",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1281,9 +1271,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.tenants.read",
+    "permission": "birdcoder.iam-tenants.read",
     "public": false,
-    "resource": "iam.tenants",
+    "resource": "birdcoder.iam-tenants",
     "summary": "List SDKWork IAM tenants",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1299,9 +1289,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.tenants.members.create",
+    "permission": "birdcoder.iam-tenants-members.create",
     "public": false,
-    "resource": "iam.tenants.members",
+    "resource": "birdcoder.iam-tenants-members",
     "summary": "Create SDKWork IAM tenant member",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1318,9 +1308,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.tenants.members.delete",
+    "permission": "birdcoder.iam-tenants-members.delete",
     "public": false,
-    "resource": "iam.tenants.members",
+    "resource": "birdcoder.iam-tenants-members",
     "summary": "Delete SDKWork IAM tenant member",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1336,9 +1326,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.tenants.members.read",
+    "permission": "birdcoder.iam-tenants-members.read",
     "public": false,
-    "resource": "iam.tenants.members",
+    "resource": "birdcoder.iam-tenants-members",
     "summary": "List SDKWork IAM tenant members",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1355,9 +1345,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.tenants.members.update",
+    "permission": "birdcoder.iam-tenants-members.update",
     "public": false,
-    "resource": "iam.tenants.members",
+    "resource": "birdcoder.iam-tenants-members",
     "summary": "Update SDKWork IAM tenant member",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1373,9 +1363,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.tenants.read",
+    "permission": "birdcoder.iam-tenants.read",
     "public": false,
-    "resource": "iam.tenants",
+    "resource": "birdcoder.iam-tenants",
     "summary": "Get SDKWork IAM tenant",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1391,9 +1381,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.tenants.update",
+    "permission": "birdcoder.iam-tenants.update",
     "public": false,
-    "resource": "iam.tenants",
+    "resource": "birdcoder.iam-tenants",
     "summary": "Update SDKWork IAM tenant",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1407,9 +1397,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.users.create",
+    "permission": "birdcoder.iam-users.create",
     "public": false,
-    "resource": "iam.users",
+    "resource": "birdcoder.iam-users",
     "summary": "Create SDKWork IAM user",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1425,9 +1415,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.users.delete",
+    "permission": "birdcoder.iam-users.delete",
     "public": false,
-    "resource": "iam.users",
+    "resource": "birdcoder.iam-users",
     "summary": "Delete SDKWork IAM user",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1441,9 +1431,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.users.read",
+    "permission": "birdcoder.iam-users.read",
     "public": false,
-    "resource": "iam.users",
+    "resource": "birdcoder.iam-users",
     "summary": "List SDKWork IAM users",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1459,9 +1449,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.users.read",
+    "permission": "birdcoder.iam-users.read",
     "public": false,
-    "resource": "iam.users",
+    "resource": "birdcoder.iam-users",
     "summary": "Get SDKWork IAM user",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1477,9 +1467,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.users.update",
+    "permission": "birdcoder.iam-users.update",
     "public": false,
-    "resource": "iam.users",
+    "resource": "birdcoder.iam-users",
     "summary": "Update SDKWork IAM user",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -1493,17 +1483,17 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.deploymentGovernance.read",
+    "permission": "birdcoder.platform-deployment-governance.read",
     "public": false,
-    "resource": "platform.deploymentGovernance",
+    "resource": "birdcoder.platform-deployment-governance",
     "summary": "List governed deployments",
     "tag": "platform",
     "tenantScope": "tenant"
   },
   {
-    "key": "platform.projects.deploymentTargets.list",
+    "key": "platform.deploymentGovernance.targets.list",
     "method": "GET",
-    "operationId": "projects.deploymentTargets.list",
+    "operationId": "deploymentGovernance.targets.list",
     "path": "/backend/v3/api/projects/{projectId}/deployment_targets",
     "pathParamNames": [
       "projectId"
@@ -1511,9 +1501,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.deploymentTargets.read",
+    "permission": "birdcoder.platform-deployment-governance-targets.read",
     "public": false,
-    "resource": "platform.projects.deploymentTargets",
+    "resource": "birdcoder.platform-deployment-governance-targets",
     "summary": "List deployment targets",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -1527,9 +1517,9 @@ export const BIRDCODER_BACKEND_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.releases.read",
+    "permission": "birdcoder.platform-releases.read",
     "public": false,
-    "resource": "platform.releases",
+    "resource": "birdcoder.platform-releases",
     "summary": "List releases",
     "tag": "platform",
     "tenantScope": "tenant"

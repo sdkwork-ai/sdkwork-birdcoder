@@ -32,7 +32,7 @@ export class RuntimeModelConfigApi {
   }
 
 /** Sync code engine model configuration */
-  async sync(body: BirdCoderSyncCodeEngineModelConfigRequest): Promise<BirdCoderCodeEngineModelConfigSyncResult> {
+  async update(body: BirdCoderSyncCodeEngineModelConfigRequest): Promise<BirdCoderCodeEngineModelConfigSyncResult> {
     return this.client.put<BirdCoderCodeEngineModelConfigSyncResult>(appApiPath(`/model_config`), body, undefined, undefined, 'application/json');
   }
 }
@@ -61,8 +61,8 @@ export interface RuntimeNativeSessionsListParams {
   workspaceId?: string;
   projectId?: string;
   engineId?: 'codex' | 'claude-code' | 'gemini' | 'opencode';
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class RuntimeNativeSessionsApi {
@@ -89,8 +89,8 @@ export class RuntimeNativeSessionsApi {
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
       { name: 'projectId', value: params?.projectId, style: 'form', explode: true, allowReserved: false },
       { name: 'engineId', value: params?.engineId, style: 'form', explode: true, allowReserved: false },
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/native_sessions`), query));
   }

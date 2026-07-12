@@ -133,6 +133,7 @@
       "./theme/*",
       "./platform/fileSystem",
       "./terminal/*",
+      "./settings/appSettings",
       "./storage/dataKernel",
       "./storage/localStore"
     ],

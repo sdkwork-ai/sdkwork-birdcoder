@@ -102,11 +102,11 @@ async function main() {
   }
 
   const profileId = resolveDevProfileId(settings.deploymentProfile, settings.serviceLayout);
-  const profile = loadProfile(profileId);
+  const profileEnv = loadProfile(profileId);
   const mergedEnv = mergeRuntimeEnv(
     process.env,
-    profile.env,
-    bridgeLegacyApiEnv(profile.env),
+    profileEnv,
+    bridgeLegacyApiEnv(profileEnv),
     resolveIamDevEnv(process.env),
     {
       SDKWORK_BIRDCODER_PROFILE_ID: profileId,
@@ -122,11 +122,7 @@ async function main() {
     defaultDevProfileId: DEFAULT_DEV_PROFILE_ID,
     iamMode,
     target: settings.target,
-    applicationPublicHttpUrl: resolveSurfaceHttpUrl(
-      profileId,
-      'application.public-ingress',
-      mergedEnv,
-    ),
+    applicationPublicHttpUrl: resolveSurfaceHttpUrl(mergedEnv, 'application.public-ingress'),
     platformApiGatewayHttpUrl: resolveGatewayBaseUrl(mergedEnv, settings.deploymentProfile),
     healthSurfaces: listHealthSurfaces(profileId),
   };

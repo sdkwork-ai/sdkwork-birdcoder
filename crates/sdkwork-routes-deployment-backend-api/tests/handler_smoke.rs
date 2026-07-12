@@ -86,7 +86,11 @@ fn test_iam_context() -> IamAppContext {
 }
 
 async fn execute_sql_batch(pool: &AnyPool, sql: &str) -> Result<(), sqlx::Error> {
-    for statement in sql.split(';').map(str::trim).filter(|part| !part.is_empty()) {
+    for statement in sql
+        .split(';')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+    {
         sqlx::query(statement).execute(pool).await?;
     }
     Ok(())
@@ -197,6 +201,37 @@ async fn admin_teams_returns_ok_with_empty_inventory() {
     assert_eq!(json["traceId"], "handler-smoke-request");
     assert_eq!(json["data"]["items"].as_array().map(Vec::len), Some(0));
     assert_eq!(json["data"]["pageInfo"]["totalItems"], "0");
+}
+
+#[tokio::test]
+async fn admin_teams_rejects_over_max_page_size_before_repository_access() {
+    let response = build_deployment_backend_router()
+        .with_state(test_state().await)
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri("/backend/v3/api/iam/teams?page_size=201")
+                .body(Body::empty())
+                .expect("build invalid admin teams request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve invalid admin teams request");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response
+            .headers()
+            .get("content-type")
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json")
+    );
+    let body = axum::body::to_bytes(response.into_body(), 64 * 1024)
+        .await
+        .expect("read bounded invalid pagination response");
+    let problem: serde_json::Value =
+        serde_json::from_slice(&body).expect("parse invalid pagination problem");
+    assert_eq!(problem["code"], 40003);
+    assert_eq!(problem["traceId"], "handler-smoke-request");
 }
 
 #[tokio::test]

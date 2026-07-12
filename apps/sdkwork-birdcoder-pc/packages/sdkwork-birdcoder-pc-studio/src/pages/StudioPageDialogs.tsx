@@ -11,7 +11,7 @@ import type {
   BirdCoderProjectPublishResult,
   BirdCoderReleaseSummary,
 } from '@sdkwork/birdcoder-pc-types';
-import { Code2, Copy, Globe, Lock, Share, Upload, X, Loader2 } from 'lucide-react';
+import { Code2, Globe, Lock, Share, Upload, X, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 type PublishTargetMode = 'existing' | 'new';
@@ -90,15 +90,11 @@ interface StudioPageDialogsProps {
   onCancelDelete: () => void;
   onConfirmDelete: () => void;
   showShareModal: boolean;
-  shareAccess: 'private' | 'public';
-  publicShareUrl: string;
   collaborators: BirdCoderProjectCollaboratorSummary[];
   inviteEmail: string;
   isCollaboratorsLoading: boolean;
   isInvitePending: boolean;
-  onShareAccessChange: (access: 'private' | 'public') => void;
   onCloseShare: () => void;
-  onCopyPublicLink: () => void;
   onInviteEmailChange: (value: string) => void;
   onInviteCollaborator: () => void | Promise<void>;
   showPublishModal: boolean;
@@ -127,15 +123,11 @@ export function StudioPageDialogs({
   onCancelDelete,
   onConfirmDelete,
   showShareModal,
-  shareAccess,
-  publicShareUrl,
   collaborators,
   inviteEmail,
   isCollaboratorsLoading,
   isInvitePending,
-  onShareAccessChange,
   onCloseShare,
-  onCopyPublicLink,
   onInviteEmailChange,
   onInviteCollaborator,
   showPublishModal,
@@ -476,120 +468,132 @@ export function StudioPageDialogs({
 
       {showShareModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-[#0e0e11] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="studio-share-dialog-title"
+            className="bg-[#0e0e11] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+          >
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-[#18181b]/50">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <h3
+                id="studio-share-dialog-title"
+                className="text-lg font-semibold text-white flex items-center gap-2"
+              >
                 <Share size={18} className="text-blue-400" />
                 {t('studio.shareProject')}
               </h3>
               <button
+                type="button"
                 onClick={onCloseShare}
+                aria-label={t('studio.close')}
                 className="text-gray-400 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
               >
-                <X size={18} />
+                <X size={18} aria-hidden="true" />
               </button>
             </div>
             <div className="p-6 space-y-6">
               <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-300">{t('studio.accessLevel')}</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all ${shareAccess === 'private' ? 'bg-blue-600/10 border-blue-500 text-blue-400' : 'bg-[#18181b] border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-200'}`}
-                    onClick={() => onShareAccessChange('private')}
+                <div className="text-sm font-medium text-gray-300">{t('studio.accessLevel')}</div>
+                <div className="grid grid-cols-2 gap-3" role="group" aria-label={t('studio.accessLevel')}>
+                  <div
+                    className="flex flex-col items-center justify-center gap-2 rounded-lg border border-blue-500 bg-blue-600/10 p-4 text-blue-400"
                   >
-                    <Lock size={24} />
+                    <Lock size={24} aria-hidden="true" />
                     <span className="text-sm font-medium">{t('studio.private')}</span>
-                  </button>
+                  </div>
                   <button
-                    className={`flex flex-col items-center justify-center gap-2 p-4 rounded-lg border transition-all ${shareAccess === 'public' ? 'bg-blue-600/10 border-blue-500 text-blue-400' : 'bg-[#18181b] border-white/10 text-gray-400 hover:bg-white/10 hover:text-gray-200'}`}
-                    onClick={() => onShareAccessChange('public')}
+                    type="button"
+                    disabled
+                    aria-describedby="studio-public-share-unavailable"
+                    className="flex cursor-not-allowed flex-col items-center justify-center gap-2 rounded-lg border border-white/10 bg-[#18181b] p-4 text-gray-500 opacity-70"
                   >
-                    <Globe size={24} />
+                    <Globe size={24} aria-hidden="true" />
                     <span className="text-sm font-medium">{t('studio.publicLink')}</span>
+                    <span className="text-[11px] font-medium uppercase text-amber-300">
+                      {t('studio.publicLinkUnavailable')}
+                    </span>
                   </button>
+                </div>
+                <div
+                  id="studio-public-share-unavailable"
+                  role="status"
+                  className="flex gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2.5 text-amber-100"
+                >
+                  <Lock size={16} className="mt-0.5 shrink-0 text-amber-300" aria-hidden="true" />
+                  <p className="text-xs leading-5 text-amber-100/80">
+                    {t('studio.publicLinkUnavailableDesc')}
+                  </p>
                 </div>
               </div>
 
-              {shareAccess === 'public' && (
-                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-sm font-medium text-gray-300">{t('studio.publicLink')}</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={publicShareUrl}
-                      className="flex-1 bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
-                    />
-                    <Button
-                      onClick={onCopyPublicLink}
-                      className="bg-[#18181b] hover:bg-white/10 text-white border border-white/10"
-                    >
-                      <Copy size={16} />
-                    </Button>
-                  </div>
+              <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                <label
+                  className="text-sm font-medium text-gray-300"
+                  htmlFor="studio-share-invite-email"
+                >
+                  {t('studio.inviteCollaborators')}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="studio-share-invite-email"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(event) => onInviteEmailChange(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void onInviteCollaborator();
+                      }
+                    }}
+                    placeholder={t('studio.emailAddress')}
+                    className="flex-1 bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
+                  />
+                  <Button
+                    onClick={() => void onInviteCollaborator()}
+                    disabled={!inviteEmail.trim() || isInvitePending}
+                    className="bg-blue-600 hover:bg-blue-500 text-white"
+                  >
+                    {isInvitePending ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      t('studio.invite')
+                    )}
+                  </Button>
                 </div>
-              )}
-
-              {shareAccess === 'private' && (
-                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                  <label className="text-sm font-medium text-gray-300">{t('studio.inviteCollaborators')}</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(event) => onInviteEmailChange(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
-                          event.preventDefault();
-                          void onInviteCollaborator();
-                        }
-                      }}
-                      placeholder={t('studio.emailAddress')}
-                      className="flex-1 bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
-                    />
-                    <Button
-                      onClick={() => void onInviteCollaborator()}
-                      disabled={!inviteEmail.trim() || isInvitePending}
-                      className="bg-blue-600 hover:bg-blue-500 text-white"
-                    >
-                      {isInvitePending ? <Loader2 size={16} className="animate-spin" /> : t('studio.invite')}
-                    </Button>
-                  </div>
-                  {(isCollaboratorsLoading || collaborators.length > 0) && (
-                    <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-white/5 bg-[#121214] p-2">
-                      {isCollaboratorsLoading ? (
-                        <div className="flex justify-center py-3 text-gray-400">
-                          <Loader2 size={16} className="animate-spin" />
-                        </div>
-                      ) : (
-                        collaborators.map((collaborator) => (
-                          <div
-                            key={collaborator.id}
-                            className="flex items-center justify-between gap-3 rounded-md border border-white/5 bg-black/20 px-3 py-2"
-                          >
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-medium text-gray-200">
-                                {resolveCollaboratorTitle(collaborator)}
-                              </div>
-                              <div className="truncate text-xs text-gray-500">
-                                {resolveCollaboratorSubtitle(collaborator)}
-                              </div>
+                {(isCollaboratorsLoading || collaborators.length > 0) && (
+                  <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-white/5 bg-[#121214] p-2">
+                    {isCollaboratorsLoading ? (
+                      <div className="flex justify-center py-3 text-gray-400">
+                        <Loader2 size={16} className="animate-spin" />
+                      </div>
+                    ) : (
+                      collaborators.map((collaborator) => (
+                        <div
+                          key={collaborator.id}
+                          className="flex items-center justify-between gap-3 rounded-md border border-white/5 bg-black/20 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium text-gray-200">
+                              {resolveCollaboratorTitle(collaborator)}
                             </div>
-                            <div className="flex shrink-0 items-center gap-2 text-[11px] uppercase tracking-wide">
-                              <span className="rounded-full border border-white/10 px-2 py-0.5 text-gray-300">
-                                {collaborator.role}
-                              </span>
-                              <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-blue-300">
-                                {collaborator.status}
-                              </span>
+                            <div className="truncate text-xs text-gray-500">
+                              {resolveCollaboratorSubtitle(collaborator)}
                             </div>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+                          <div className="flex shrink-0 items-center gap-2 text-[11px] uppercase tracking-wide">
+                            <span className="rounded-full border border-white/10 px-2 py-0.5 text-gray-300">
+                              {collaborator.role}
+                            </span>
+                            <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-blue-300">
+                              {collaborator.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="p-4 border-t border-white/5 bg-[#18181b]/30 flex justify-end gap-3">
               <Button variant="outline" onClick={onCloseShare}>

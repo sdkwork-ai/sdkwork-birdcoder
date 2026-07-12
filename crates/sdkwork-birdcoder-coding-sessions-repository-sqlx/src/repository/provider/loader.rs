@@ -1,6 +1,6 @@
 use sqlx::{AnyPool, Row};
 
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{IS_NOT_DELETED, qualified_is_not_deleted};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{qualified_is_not_deleted, IS_NOT_DELETED};
 
 use super::payload_types::{ProjectPayload, WorkspacePayload};
 use super::sql_helpers::{
@@ -10,8 +10,8 @@ use super::sql_helpers::{
 };
 use super::string_helpers::{
     decode_optional_sqlite_bool, normalize_optional_storage_timestamp_value,
-    optional_long_integer_json_string, parse_optional_json_value, parse_project_root_path_from_config_data,
-    resolve_effective_user_authority,
+    optional_long_integer_json_string, parse_optional_json_value,
+    parse_project_root_path_from_config_data, resolve_effective_user_authority,
 };
 
 pub async fn load_provider_workspace_payloads(
@@ -54,9 +54,9 @@ pub async fn load_provider_workspace_payloads(
             "#,
     );
     let rows = sqlx::query(&sql)
-    .fetch_all(pool)
-    .await
-    .map_err(|error| format!("query workspaces failed: {error}"))?;
+        .fetch_all(pool)
+        .await
+        .map_err(|error| format!("query workspaces failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {
@@ -150,9 +150,7 @@ pub async fn load_provider_workspace_payloads(
     Ok(records)
 }
 
-pub async fn load_provider_project_payloads(
-    pool: &AnyPool,
-) -> Result<Vec<ProjectPayload>, String> {
+pub async fn load_provider_project_payloads(pool: &AnyPool) -> Result<Vec<ProjectPayload>, String> {
     let project_deleted = qualified_is_not_deleted("projects");
     let sql = format!(
         r#"
@@ -197,9 +195,9 @@ pub async fn load_provider_project_payloads(
             "#,
     );
     let rows = sqlx::query(&sql)
-    .fetch_all(pool)
-    .await
-    .map_err(|error| format!("query projects failed: {error}"))?;
+        .fetch_all(pool)
+        .await
+        .map_err(|error| format!("query projects failed: {error}"))?;
 
     let mut records = Vec::new();
     for row in rows {

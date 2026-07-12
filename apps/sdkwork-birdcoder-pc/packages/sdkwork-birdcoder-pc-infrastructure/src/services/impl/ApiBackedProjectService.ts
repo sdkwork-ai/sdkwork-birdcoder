@@ -32,12 +32,17 @@ import {
   retryBirdCoderTransientApiTask,
 } from '../runtimeApiRetry.ts';
 import { resolveRequiredCodingSessionSelection } from '../codingSessionSelection.ts';
-import { CurrentUserScopeResolver } from '../currentUserScope.ts';
+import {
+  CurrentUserScopeResolver,
+  type CurrentUserScope,
+} from '../currentUserScope.ts';
 import type {
   BirdCoderCodingSessionListResult,
   BirdCoderCodingSessionMirrorSnapshot,
   BirdCoderProjectMirrorSnapshot,
+  BirdCoderServiceListPage,
   BirdCoderServiceListPagination,
+  BirdCoderServicePageRequest,
   CreateCodingSessionOptions,
   CreateCodingSessionMessageInput,
   CreateProjectOptions,
@@ -50,7 +55,13 @@ import type {
   BirdCoderAppRuntimeSdkApiClient,
   BirdCoderAppRuntimeWriteSdkApiClient,
   BirdCoderAppSdkApiClient,
+  BirdCoderPage,
+  BirdCoderProjectPageRequest,
 } from '../sdkClients.ts';
+import {
+  createBirdCoderServiceOffsetPageInfo,
+  resolveBirdCoderServicePageRequest,
+} from '../servicePagination.ts';
 
 const ZERO_TIMESTAMP = new Date(0).toISOString();
 const PROJECT_LIST_CACHE_TTL_MS = 30_000;
@@ -563,6 +574,41 @@ function filterLocalProjectsForUser<TProject extends LocalProjectSnapshot>(
   userId?: string,
 ): TProject[] {
   return projects.filter((project) => isLocalProjectVisibleForUser(project, userId));
+}
+
+function buildProjectPageFromLocalMirror(
+  request: BirdCoderServicePageRequest,
+  localPage: BirdCoderServiceListPage<BirdCoderProject>,
+  visibleProjects: BirdCoderProject[],
+): BirdCoderServiceListPage<BirdCoderProject> {
+  const sourcePageInfoMatchesRequest =
+    localPage.pageInfo.mode === 'offset' &&
+    localPage.pageInfo.page === request.page &&
+    localPage.pageInfo.pageSize === request.pageSize &&
+    localPage.items.length <= request.pageSize;
+
+  if (visibleProjects.length === localPage.items.length && sourcePageInfoMatchesRequest) {
+    return {
+      items: visibleProjects,
+      pageInfo: localPage.pageInfo,
+    };
+  }
+
+  // A local mirror can contain records from an older authenticated session. Once
+  // those records are removed, the source total is no longer trustworthy. Report
+  // only the bounded range we can prove, while keeping the requested page stable
+  // for append-based consumers.
+  const resolvedRequest = resolveBirdCoderServicePageRequest(request);
+  const conservativeTotal = localPage.pageInfo.hasMore
+    ? resolvedRequest.offset + resolvedRequest.pageSize + 1
+    : resolvedRequest.offset + visibleProjects.length;
+  return {
+    items: visibleProjects,
+    pageInfo: createBirdCoderServiceOffsetPageInfo(
+      request,
+      conservativeTotal,
+    ),
+  };
 }
 
 function isAbsoluteProjectPath(path: string): boolean {
@@ -1511,8 +1557,12 @@ export class ApiBackedProjectService implements IProjectService {
     this.writeService = writeService;
   }
 
+  private async resolveCurrentUserScope(): Promise<CurrentUserScope> {
+    return this.currentUserScopeResolver.resolve();
+  }
+
   private async resolveCurrentUserId(): Promise<string | undefined> {
-    const scope = await this.currentUserScopeResolver.resolve();
+    const scope = await this.resolveCurrentUserScope();
     return scope.userId === 'anonymous' ? undefined : scope.userId;
   }
 
@@ -2174,7 +2224,6 @@ export class ApiBackedProjectService implements IProjectService {
   ): Promise<BirdCoderProjectSummary[]> {
     return retryBirdCoderTransientApiTask(() =>
       this.appClient.listProjects({
-        userId: userId ?? undefined,
         workspaceId,
         limit: pagination?.limit,
         offset: pagination?.offset,
@@ -2446,6 +2495,103 @@ export class ApiBackedProjectService implements IProjectService {
     );
   }
 
+  async getProjectsPage(
+    workspaceId: string | undefined,
+    request: BirdCoderServicePageRequest,
+  ): Promise<BirdCoderServiceListPage<BirdCoderProject>> {
+    const normalizedWorkspaceId = workspaceId?.trim() || undefined;
+    const currentUserScope = await this.resolveCurrentUserScope();
+    const currentUserId =
+      currentUserScope.userId === 'anonymous' ? undefined : currentUserScope.userId;
+    const canReadUserScopedLocalMirror = currentUserScope.cacheable && Boolean(currentUserId);
+    return this.readThroughCache(
+      this.buildCacheKey('getProjectsPage', {
+        page: request.page,
+        pageSize: request.pageSize,
+        userId: currentUserId ?? null,
+        workspaceId: normalizedWorkspaceId ?? null,
+      }),
+      currentUserScope.cacheable ? PROJECT_LIST_CACHE_TTL_MS : 0,
+      async () => {
+        try {
+          const page = await retryBirdCoderTransientApiTask(() =>
+            this.appClient.listProjectPage({
+              page: request.page,
+              pageSize: request.pageSize,
+              workspaceId: normalizedWorkspaceId,
+            }),
+          );
+          const projects = page.items.map((summary) =>
+            normalizeProjectForInventory(mergeProjectSummary(summary, undefined)),
+          );
+          return {
+            items: projects,
+            pageInfo: page.pageInfo,
+          };
+        } catch (error) {
+          if (!isBirdCoderTransientApiError(error)) {
+            throw error;
+          }
+
+          if (!canReadUserScopedLocalMirror) {
+            console.warn(
+              'Remote project page API is temporarily unavailable and current-user scope is unavailable; returning an empty local project page.',
+              error,
+            );
+            return {
+              items: [],
+              pageInfo: createBirdCoderServiceOffsetPageInfo(request, 0),
+            };
+          }
+
+          const localPage = await this.writeService.getProjectsPage(
+            normalizedWorkspaceId,
+            request,
+          );
+          const visibleProjects = filterLocalProjectsForUser(
+            localPage.items
+              .filter(
+                (project) =>
+                  (!normalizedWorkspaceId || project.workspaceId === normalizedWorkspaceId) &&
+                  !shouldHideProjectFromCatalog(project),
+              )
+              .map(normalizeProjectForInventory),
+            currentUserId,
+          );
+          console.warn(
+            visibleProjects.length > 0
+              ? 'Falling back to the bounded locally mirrored project page because the remote project API is temporarily unavailable.'
+              : 'Remote project API is temporarily unavailable and no current-user local project page is available; returning an empty page.',
+            error,
+          );
+          return buildProjectPageFromLocalMirror(request, localPage, visibleProjects);
+        }
+      },
+    );
+  }
+
+  async listProjectPage(
+    input: BirdCoderProjectPageRequest,
+  ): Promise<BirdCoderPage<BirdCoderProject>> {
+    const currentUserId = await this.resolveCurrentUserId();
+    return this.readThroughCache(
+      this.buildCacheKey('listProjectPage', {
+        input,
+        userId: currentUserId ?? null,
+      }),
+      PROJECT_LIST_CACHE_TTL_MS,
+      async () => {
+        const page = await retryBirdCoderTransientApiTask(() =>
+          this.appClient.listProjectPage(input),
+        );
+        return {
+          items: page.items.map((summary) => mergeProjectSummary(summary, undefined)),
+          pageInfo: page.pageInfo,
+        };
+      },
+    );
+  }
+
   async listCodingSessions(
     request: BirdCoderListCodingSessionsRequest,
   ): Promise<BirdCoderCodingSessionListResult> {
@@ -2627,7 +2773,6 @@ export class ApiBackedProjectService implements IProjectService {
             await retryBirdCoderTransientApiTask(() =>
               this.appClient.listProjects({
                 rootPath: normalizedPath,
-                userId: currentUserId,
                 workspaceId: normalizedWorkspaceId,
               }),
             )
@@ -2707,7 +2852,6 @@ export class ApiBackedProjectService implements IProjectService {
     try {
       projectSummaries = await retryBirdCoderTransientApiTask(async () =>
         this.appClient.listProjects({
-          userId: currentUserId,
           workspaceId: normalizedWorkspaceId,
         }),
       );

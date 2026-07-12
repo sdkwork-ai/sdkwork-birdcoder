@@ -1,33 +1,5 @@
-use serde::Deserialize;
 use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
-use sdkwork_birdcoder_project_service::pagination::clamp_list_page_size;
-
-// Per PAGINATION_SPEC.md §3: route layer normalizes page_size into [1, 200]
-// and pushes LIMIT/OFFSET to SQL at the repository layer (§2/§5). The local
-// constants previously declared here (MAX_LIST_PAGE_SIZE = 100) silently
-// diverged from the canonical `clamp_list_page_size` cap of 200; route
-// handlers now delegate to the shared helper to keep a single source of
-// truth.
-
-pub(crate) fn normalize_list_pagination(
-    offset: Option<usize>,
-    limit: Option<usize>,
-) -> (usize, usize) {
-    clamp_list_page_size(offset, limit)
-}
-
-#[derive(Clone, Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SessionChildListQuery {
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
-}
-
-impl SessionChildListQuery {
-    pub fn normalized_pagination(&self) -> (usize, usize) {
-        normalize_list_pagination(self.offset, self.limit)
-    }
-}
+use serde::Deserialize;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,30 +7,43 @@ pub struct ListSessionsQuery {
     pub workspace_id: Option<String>,
     pub project_id: Option<String>,
     pub engine_id: Option<String>,
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
 }
 
 impl ListSessionsQuery {
-    /// Returns `(offset, limit)` after normalization through
-    /// [`clamp_list_page_size`]. Use this for both the SQL push-down and the
-    /// envelope's `pageInfo` so the values reported to clients match the
-    /// values actually used in the query.
-    pub fn normalized_pagination(&self) -> (usize, usize) {
-        normalize_list_pagination(self.offset, self.limit)
+    /// Combines domain filters with pagination already validated by the route.
+    /// The same values must be used for SQL push-down and response `pageInfo`.
+    pub fn into_service_query(self, offset: usize, page_size: usize) -> CodingSessionListQuery {
+        CodingSessionListQuery {
+            workspace_id: self.workspace_id,
+            project_id: self.project_id,
+            engine_id: self.engine_id,
+            page_size: Some(page_size),
+            offset: Some(offset),
+        }
     }
 }
 
-impl From<ListSessionsQuery> for CodingSessionListQuery {
-    fn from(q: ListSessionsQuery) -> Self {
-        let (offset, limit) = q.normalized_pagination();
-        Self {
-            workspace_id: q.workspace_id,
-            project_id: q.project_id,
-            engine_id: q.engine_id,
-            limit: Some(limit),
-            offset: Some(offset),
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn list_sessions_query_maps_validated_pagination_to_the_service_query() {
+        let query: ListSessionsQuery = serde_json::from_value(json!({
+            "workspaceId": "workspace-1",
+            "projectId": "project-1",
+            "engineId": "engine-1"
+        }))
+        .expect("deserialize query");
+
+        let service_query = query.into_service_query(30, 15);
+
+        assert_eq!(service_query.workspace_id.as_deref(), Some("workspace-1"));
+        assert_eq!(service_query.project_id.as_deref(), Some("project-1"));
+        assert_eq!(service_query.engine_id.as_deref(), Some("engine-1"));
+        assert_eq!(service_query.offset, Some(30));
+        assert_eq!(service_query.page_size, Some(15));
     }
 }
 
@@ -211,4 +196,3 @@ impl From<SubmitUserQuestionAnswerRequest>
         }
     }
 }
-

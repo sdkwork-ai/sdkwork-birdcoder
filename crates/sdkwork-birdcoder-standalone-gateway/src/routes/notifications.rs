@@ -19,11 +19,20 @@ use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 
-use sdkwork_birdcoder_errors::{build_data_envelope, build_offset_list_envelope, ApiDataEnvelope, ApiListEnvelope};
-use sdkwork_utils_rust::{OffsetListPageParams, SdkWorkResultCode, validated_offset_list_params};
+use sdkwork_birdcoder_errors::{
+    build_data_envelope, build_offset_list_envelope, checked_list_total_items, ApiDataEnvelope,
+    ApiListEnvelope,
+};
+use sdkwork_birdcoder_router_context::StrictOffsetListQuery;
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{
+    any_sql, inserted_row_id, sql_with_returning_id,
+};
+use sdkwork_utils_rust::OffsetListPageParams;
 
 use crate::routes::api_keys::now_rfc3339;
-use crate::routes::{problem_with, CommerceAppState, CommercePrincipal, CommerceRequestContext, ProblemJsonBody};
+use crate::routes::{
+    problem_with, CommerceAppState, CommercePrincipal, CommerceRequestContext, ProblemJsonBody,
+};
 
 const TABLE: &str = "commerce_notification";
 const ALL_COLUMNS: &str = "id, tenant_id, workspace_id, user_id, type, title, content, status, read_at, sent_at, metadata, created_at, updated_at";
@@ -114,25 +123,40 @@ impl NotificationRow {
 
 /// Inserts a notification row. This is the internal entry point used by other
 /// services (e.g. usage metering quota-warning integration) to emit a
-/// notification without going through the HTTP layer.
+/// notification without going through the HTTP layer. Returns the persisted
+/// database row id from the same insert statement.
+pub struct CreateNotificationInput<'a> {
+    pub tenant_id: i64,
+    pub workspace_id: Option<&'a str>,
+    pub user_id: i64,
+    pub notification_type: &'a str,
+    pub title: &'a str,
+    pub content: &'a str,
+    pub metadata: Option<&'a str>,
+}
+
 pub async fn create_notification(
     pool: &sqlx::AnyPool,
-    tenant_id: i64,
-    workspace_id: Option<&str>,
-    user_id: i64,
-    notification_type: &str,
-    title: &str,
-    content: &str,
-    metadata: Option<&str>,
-) -> Result<(), sqlx::Error> {
+    input: CreateNotificationInput<'_>,
+) -> Result<i64, sqlx::Error> {
+    let CreateNotificationInput {
+        tenant_id,
+        workspace_id,
+        user_id,
+        notification_type,
+        title,
+        content,
+        metadata,
+    } = input;
     let now = now_rfc3339();
     let metadata_json = metadata.unwrap_or("{}");
-    let sql = format!(
+    let insert_sql = format!(
         "INSERT INTO {TABLE} \
          (tenant_id, workspace_id, user_id, type, title, content, status, sent_at, metadata, created_at, updated_at) \
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)"
     );
-    sqlx::query(&sql)
+    let sql = sql_with_returning_id(&any_sql(&insert_sql));
+    let row = sqlx::query(&sql)
         .bind(tenant_id)
         .bind(workspace_id)
         .bind(user_id)
@@ -144,9 +168,9 @@ pub async fn create_notification(
         .bind(metadata_json)
         .bind(&now)
         .bind(&now)
-        .execute(pool)
+        .fetch_one(pool)
         .await?;
-    Ok(())
+    inserted_row_id(&row)
 }
 
 /// Fetches a single notification by id, scoped to the tenant and user.
@@ -208,7 +232,10 @@ async fn list_notifications_for_user(
         .bind(params.offset)
         .fetch_all(pool)
         .await?;
-    let items = rows.iter().map(NotificationRow::from_row).collect::<Result<Vec<_>, _>>()?;
+    let items = rows
+        .iter()
+        .map(NotificationRow::from_row)
+        .collect::<Result<Vec<_>, _>>()?;
     Ok((items, total))
 }
 
@@ -326,6 +353,7 @@ pub struct NotificationReadResponse {
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkAllReadResponse {
+    #[serde(with = "sdkwork_utils_rust::serde_uint64")]
     pub updated: u64,
     pub status: String,
 }
@@ -333,6 +361,7 @@ pub struct MarkAllReadResponse {
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UnreadCountResponse {
+    #[serde(with = "sdkwork_utils_rust::serde_int64")]
     pub unread_count: i64,
 }
 
@@ -350,8 +379,6 @@ pub struct CreateNotificationRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ListNotificationsQuery {
     pub status: Option<String>,
-    pub page: Option<i64>,
-    pub page_size: Option<i64>,
 }
 
 // ---------------------------------------------------------------------------
@@ -396,30 +423,32 @@ pub async fn send_notification(
         .metadata
         .as_ref()
         .map(|value| serde_json::to_string(value).unwrap_or_else(|_| "{}".to_string()));
-    if let Err(error) = create_notification(
+    let notification_id = create_notification(
         &state.pool,
-        tenant_id,
-        body.workspace_id.as_deref(),
-        user_id,
-        body.notification_type.trim(),
-        body.title.trim(),
-        body.content.trim(),
-        metadata.as_deref(),
+        CreateNotificationInput {
+            tenant_id,
+            workspace_id: body.workspace_id.as_deref(),
+            user_id,
+            notification_type: body.notification_type.trim(),
+            title: body.title.trim(),
+            content: body.content.trim(),
+            metadata: metadata.as_deref(),
+        },
     )
     .await
-    {
+    .map_err(|error| {
         tracing::warn!(%error, "failed to create notification");
-        return Err(problem_with(
+        problem_with(
             StatusCode::INTERNAL_SERVER_ERROR,
             "internal",
             "failed to create notification",
             true,
             ctx.trace_id_opt(),
-        ));
-    }
+        )
+    })?;
     let now = now_rfc3339();
     let response = NotificationCreatedResponse {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: notification_id.to_string(),
         notification_type: body.notification_type.trim().to_string(),
         title: body.title.trim().to_string(),
         status: STATUS_UNREAD.to_string(),
@@ -431,6 +460,7 @@ pub async fn send_notification(
 pub async fn list_notifications(
     principal: CommercePrincipal,
     ctx: CommerceRequestContext,
+    StrictOffsetListQuery(params): StrictOffsetListQuery,
     State(state): State<CommerceAppState>,
     Query(query): Query<ListNotificationsQuery>,
 ) -> Result<Json<ApiListEnvelope<NotificationResponse>>, ProblemJsonBody> {
@@ -456,49 +486,23 @@ pub async fn list_notifications(
             ));
         }
     }
-    let params = match validated_offset_list_params(query.page, query.page_size) {
-        Ok(params) => params,
-        Err(SdkWorkResultCode::InvalidParameter) => {
-            return Err(problem_with(
-                StatusCode::BAD_REQUEST,
-                "invalid_input",
-                "page must be >= 1 and page_size must be between 1 and 200",
-                false,
-                ctx.trace_id_opt(),
-            ));
-        }
-        Err(_) => {
-            return Err(problem_with(
-                StatusCode::BAD_REQUEST,
-                "invalid_input",
-                "invalid pagination parameters",
-                false,
-                ctx.trace_id_opt(),
-            ));
-        }
-    };
-    let (rows, total) = list_notifications_for_user(
-        &state.pool,
-        tenant_id,
-        user_id,
-        status,
-        params,
-    )
-    .await
-    .map_err(|error| {
-        tracing::warn!(%error, "failed to list notifications");
-        problem_with(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "internal",
-            "failed to list notifications",
-            true,
-            ctx.trace_id_opt(),
-        )
-    })?;
+    let (rows, total) =
+        list_notifications_for_user(&state.pool, tenant_id, user_id, status, params)
+            .await
+            .map_err(|error| {
+                tracing::warn!(%error, "failed to list notifications");
+                problem_with(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "internal",
+                    "failed to list notifications",
+                    true,
+                    ctx.trace_id_opt(),
+                )
+            })?;
     let items: Vec<NotificationResponse> = rows.iter().map(NotificationRow::to_response).collect();
     let offset = usize::try_from(params.offset).unwrap_or(0);
     let page_size = usize::try_from(params.page_size).unwrap_or(1);
-    let total_items = usize::try_from(total).unwrap_or(0);
+    let total_items = checked_list_total_items(total, ctx.trace_id_opt())?;
     Ok(Json(build_offset_list_envelope(
         items,
         offset,
@@ -545,7 +549,10 @@ pub async fn get_notification(
             ctx.trace_id_opt(),
         )
     })?;
-    Ok(Json(build_data_envelope(row.to_response(), &ctx.request_id)))
+    Ok(Json(build_data_envelope(
+        row.to_response(),
+        &ctx.request_id,
+    )))
 }
 
 pub async fn mark_as_read(
@@ -654,7 +661,9 @@ pub async fn unread_count(
                 ctx.trace_id_opt(),
             )
         })?;
-    let response = UnreadCountResponse { unread_count: count };
+    let response = UnreadCountResponse {
+        unread_count: count,
+    };
     Ok(Json(build_data_envelope(response, &ctx.request_id)))
 }
 
@@ -690,7 +699,10 @@ fn parse_principal_ids(
 /// [`CommercePrincipal`].
 pub fn build_notifications_router() -> Router<CommerceAppState> {
     Router::new()
-        .route("/api/v1/notifications", post(send_notification).get(list_notifications))
+        .route(
+            "/api/v1/notifications",
+            post(send_notification).get(list_notifications),
+        )
         .route("/api/v1/notifications/unread-count", get(unread_count))
         .route("/api/v1/notifications/read-all", post(mark_all_as_read))
         .route("/api/v1/notifications/{id}", get(get_notification))
@@ -699,14 +711,98 @@ pub fn build_notifications_router() -> Router<CommerceAppState> {
 
 #[cfg(test)]
 mod tests {
+    use axum::body::{to_bytes, Body};
+    use axum::http::{header::CONTENT_TYPE, Request};
+    use axum::Extension;
+    use sqlx::any::AnyPoolOptions;
+    use tower::ServiceExt;
+
     use super::*;
+
+    const MAX_TEST_RESPONSE_BYTES: usize = 64 * 1024;
+
+    async fn notification_test_pool() -> sqlx::AnyPool {
+        sqlx::any::install_default_drivers();
+        let pool = AnyPoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("open notification test database");
+
+        sqlx::query(
+            "CREATE TABLE commerce_notification (\
+                 id INTEGER PRIMARY KEY AUTOINCREMENT, \
+                 tenant_id INTEGER NOT NULL, \
+                 workspace_id TEXT NULL, \
+                 user_id INTEGER NOT NULL, \
+                 type TEXT NOT NULL, \
+                 title TEXT NOT NULL, \
+                 content TEXT NOT NULL, \
+                 status TEXT NOT NULL, \
+                 read_at TEXT NULL, \
+                 sent_at TEXT NULL, \
+                 metadata TEXT NOT NULL, \
+                 created_at TEXT NOT NULL, \
+                 updated_at TEXT NOT NULL, \
+                 deleted_at TEXT NULL\
+             )",
+        )
+        .execute(&pool)
+        .await
+        .expect("create notification test table");
+
+        pool
+    }
+
+    fn notification_test_principal() -> CommercePrincipal {
+        CommercePrincipal {
+            user_id: "42".to_owned(),
+            tenant_id: "7".to_owned(),
+            api_key_id: "test-api-key".to_owned(),
+            scopes: vec!["read".to_owned(), "write".to_owned()],
+        }
+    }
+
+    async fn response_json(response: axum::response::Response) -> serde_json::Value {
+        let bytes = to_bytes(response.into_body(), MAX_TEST_RESPONSE_BYTES)
+            .await
+            .expect("read bounded notification response");
+        serde_json::from_slice(&bytes).expect("parse notification response JSON")
+    }
+
+    #[tokio::test]
+    async fn list_notifications_rejects_legacy_pagination_alias_before_database_access() {
+        let app = build_notifications_router()
+            .with_state(CommerceAppState::new(notification_test_pool().await))
+            .layer(Extension(notification_test_principal()));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/notifications?limit=20")
+                    .body(Body::empty())
+                    .expect("build legacy notification pagination request"),
+            )
+            .await
+            .expect("serve legacy notification pagination request");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let problem = response_json(response).await;
+        assert_eq!(problem["code"], 40003);
+    }
 
     #[test]
     fn valid_notification_types_are_recognized() {
         assert!(is_valid_notification_type(NOTIFICATION_TYPE_QUOTA_WARNING));
-        assert!(is_valid_notification_type(NOTIFICATION_TYPE_PAYMENT_RECEIVED));
-        assert!(is_valid_notification_type(NOTIFICATION_TYPE_SUBSCRIPTION_RENEWED));
-        assert!(is_valid_notification_type(NOTIFICATION_TYPE_API_KEY_EXPIRING));
+        assert!(is_valid_notification_type(
+            NOTIFICATION_TYPE_PAYMENT_RECEIVED
+        ));
+        assert!(is_valid_notification_type(
+            NOTIFICATION_TYPE_SUBSCRIPTION_RENEWED
+        ));
+        assert!(is_valid_notification_type(
+            NOTIFICATION_TYPE_API_KEY_EXPIRING
+        ));
     }
 
     #[test]
@@ -760,5 +856,117 @@ mod tests {
         assert_eq!(response.status, STATUS_UNREAD);
         assert!(response.read_at.is_none());
         assert!(response.sent_at.is_some());
+    }
+
+    #[test]
+    fn count_responses_serialize_int64_values_as_strings() {
+        let unread = serde_json::to_value(UnreadCountResponse {
+            unread_count: i64::MAX,
+        })
+        .expect("serialize unread count response");
+        assert_eq!(unread["unreadCount"], i64::MAX.to_string());
+
+        let mark_all = serde_json::to_value(MarkAllReadResponse {
+            updated: u64::MAX,
+            status: STATUS_READ.to_owned(),
+        })
+        .expect("serialize mark-all-read response");
+        assert_eq!(mark_all["updated"], u64::MAX.to_string());
+    }
+
+    #[tokio::test]
+    async fn create_notification_returns_the_inserted_database_id() {
+        let pool = notification_test_pool().await;
+
+        let notification_id: i64 = create_notification(
+            &pool,
+            CreateNotificationInput {
+                tenant_id: 7,
+                workspace_id: Some("workspace-42"),
+                user_id: 42,
+                notification_type: NOTIFICATION_TYPE_QUOTA_WARNING,
+                title: "Quota warning",
+                content: "You have reached 80 percent of your quota",
+                metadata: Some("{\"threshold\":80}"),
+            },
+        )
+        .await
+        .expect("create notification");
+
+        let persisted_id: i64 = sqlx::query_scalar(
+            "SELECT id FROM commerce_notification WHERE id = ? AND tenant_id = ? AND user_id = ?",
+        )
+        .bind(notification_id)
+        .bind(7)
+        .bind(42)
+        .fetch_one(&pool)
+        .await
+        .expect("load created notification by its returned id");
+
+        assert_eq!(persisted_id, notification_id);
+    }
+
+    #[tokio::test]
+    async fn notification_create_response_id_retrieves_and_marks_the_persisted_notification() {
+        let app = build_notifications_router()
+            .with_state(CommerceAppState::new(notification_test_pool().await))
+            .layer(Extension(notification_test_principal()));
+
+        let create_request = Request::builder()
+            .method("POST")
+            .uri("/api/v1/notifications")
+            .header(CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                serde_json::json!({
+                    "notificationType": NOTIFICATION_TYPE_QUOTA_WARNING,
+                    "title": "Quota warning",
+                    "content": "You have reached 80 percent of your quota"
+                })
+                .to_string(),
+            ))
+            .expect("build notification create request");
+        let create_response = app
+            .clone()
+            .oneshot(create_request)
+            .await
+            .expect("create notification response");
+        assert_eq!(create_response.status(), StatusCode::OK);
+        let created = response_json(create_response).await;
+        assert_eq!(created["code"], 0);
+        let notification_id = created["data"]["item"]["id"]
+            .as_str()
+            .expect("create response contains a string notification id");
+        notification_id
+            .parse::<i64>()
+            .expect("create response id is the persisted numeric notification id");
+
+        let get_request = Request::builder()
+            .method("GET")
+            .uri(format!("/api/v1/notifications/{notification_id}"))
+            .body(Body::empty())
+            .expect("build notification retrieve request");
+        let get_response = app
+            .clone()
+            .oneshot(get_request)
+            .await
+            .expect("retrieve notification response");
+        assert_eq!(get_response.status(), StatusCode::OK);
+        let fetched = response_json(get_response).await;
+        assert_eq!(fetched["data"]["item"]["id"], notification_id);
+        assert_eq!(fetched["data"]["item"]["status"], STATUS_UNREAD);
+
+        let mark_read_request = Request::builder()
+            .method("POST")
+            .uri(format!("/api/v1/notifications/{notification_id}/read"))
+            .body(Body::empty())
+            .expect("build notification mark-read request");
+        let mark_read_response = app
+            .oneshot(mark_read_request)
+            .await
+            .expect("mark notification read response");
+        assert_eq!(mark_read_response.status(), StatusCode::OK);
+        let marked_read = response_json(mark_read_response).await;
+        assert_eq!(marked_read["data"]["item"]["id"], notification_id);
+        assert_eq!(marked_read["data"]["item"]["status"], STATUS_READ);
     }
 }

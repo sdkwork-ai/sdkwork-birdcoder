@@ -6,9 +6,9 @@ use crate::context::CodingSessionContext;
 use crate::domain::commands::{
     CreateCodingSessionInput, CreateCodingSessionRequest, CreateCodingSessionTurnInput,
     CreateCodingSessionTurnRequest, EditCodingSessionMessageInput, EditCodingSessionMessageRequest,
-    ForkCodingSessionInput, ForkCodingSessionRequest,
-    SubmitApprovalDecisionInput, SubmitApprovalDecisionRequest, SubmitUserQuestionAnswerInput,
-    SubmitUserQuestionAnswerRequest, UpdateCodingSessionInput, UpdateCodingSessionRequest,
+    ForkCodingSessionInput, ForkCodingSessionRequest, SubmitApprovalDecisionInput,
+    SubmitApprovalDecisionRequest, SubmitUserQuestionAnswerInput, SubmitUserQuestionAnswerRequest,
+    UpdateCodingSessionInput, UpdateCodingSessionRequest,
 };
 use crate::domain::models::{
     CodingSessionListQuery, CodingSessionTurnCurrentFileContextPayload,
@@ -16,9 +16,9 @@ use crate::domain::models::{
 };
 use crate::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
-    CodingSessionEventPayload, CodingSessionListPage, CodingSessionPayload, DeleteEntityPayload,
-    DeleteCodingSessionMessagePayload, EditCodingSessionMessagePayload, OperationPayload,
-    PendingProjectionTurnExecution, PendingTurnResult, UserQuestionAnswerPayload,
+    CodingSessionEventPayload, CodingSessionListPage, CodingSessionPayload,
+    DeleteCodingSessionMessagePayload, DeleteEntityPayload, EditCodingSessionMessagePayload,
+    OperationPayload, PendingProjectionTurnExecution, PendingTurnResult, UserQuestionAnswerPayload,
 };
 use crate::error::CodingSessionError;
 use crate::ports::engine_validator::EngineValidator;
@@ -107,12 +107,7 @@ impl CodingSessionService {
         self.event_publisher
             .publish_coding_session_event(
                 ctx,
-                &build_session_realtime_event(
-                    "coding-session.created",
-                    "core",
-                    &session,
-                    None,
-                ),
+                &build_session_realtime_event("coding-session.created", "core", &session, None),
             )
             .await?;
 
@@ -135,17 +130,15 @@ impl CodingSessionService {
         let input = Self::validate_update_session_request(request)?;
         Self::ensure_engine_model_immutable(&existing, &input)?;
 
-        let session = self.repository.update_session(ctx, &session_id, &input).await?;
+        let session = self
+            .repository
+            .update_session(ctx, &session_id, &input)
+            .await?;
 
         self.event_publisher
             .publish_coding_session_event(
                 ctx,
-                &build_session_realtime_event(
-                    "coding-session.updated",
-                    "core",
-                    &session,
-                    None,
-                ),
+                &build_session_realtime_event("coding-session.updated", "core", &session, None),
             )
             .await?;
 
@@ -169,12 +162,7 @@ impl CodingSessionService {
         self.event_publisher
             .publish_coding_session_event(
                 ctx,
-                &build_session_realtime_event(
-                    "coding-session.deleted",
-                    "core",
-                    &existing,
-                    None,
-                ),
+                &build_session_realtime_event("coding-session.deleted", "core", &existing, None),
             )
             .await?;
 
@@ -212,12 +200,7 @@ impl CodingSessionService {
         self.event_publisher
             .publish_coding_session_event(
                 ctx,
-                &build_session_realtime_event(
-                    "coding-session.created",
-                    "core",
-                    &session,
-                    None,
-                ),
+                &build_session_realtime_event("coding-session.created", "core", &session, None),
             )
             .await?;
 
@@ -248,7 +231,9 @@ impl CodingSessionService {
                 ctx,
                 &session_id,
                 &message_id,
-                &EditCodingSessionMessageInput { content: content.clone() },
+                &EditCodingSessionMessageInput {
+                    content: content.clone(),
+                },
             )
             .await?;
 
@@ -328,12 +313,26 @@ impl CodingSessionService {
         let input = Self::validate_create_turn_request(request)?;
 
         let session = self.repository.get_session(ctx, &session_id).await?;
+        let project_working_directory = self
+            .repository
+            .resolve_project_working_directory(ctx, &session.project_id)
+            .await?
+            .or_else(|| self.default_working_directory.clone());
+
+        if project_working_directory.is_none() {
+            return Err(CodingSessionError::InvalidInput(
+                "The selected project does not have an executable root path.".into(),
+            ));
+        }
 
         tracing::Span::current()
             .record("workspace_id", session.workspace_id.as_str())
             .record("engine_id", session.engine_id.as_str());
 
-        let turn = self.repository.create_turn(ctx, &session_id, &input).await?;
+        let turn = self
+            .repository
+            .create_turn(ctx, &session_id, &input)
+            .await?;
 
         tracing::Span::current().record("turn_id", turn.id.as_str());
 
@@ -378,10 +377,7 @@ impl CodingSessionService {
             turn_model_id: turn_model_id.clone(),
             ide_context: input.ide_context.clone(),
             options: input.options.clone(),
-            working_directory: self
-                .default_working_directory
-                .as_deref()
-                .map(std::path::PathBuf::from),
+            working_directory: project_working_directory.map(std::path::PathBuf::from),
         };
 
         let finalized = match self.provider.execute_turn(ctx, &pending_execution).await {
@@ -394,6 +390,10 @@ impl CodingSessionService {
                 return Err(error);
             }
         };
+        let finalized_native_session_id = finalized
+            .native_session_id
+            .clone()
+            .or_else(|| session.native_session_id.clone());
 
         let turn = self
             .repository
@@ -415,7 +415,7 @@ impl CodingSessionService {
                     coding_session_engine_id: session.engine_id.clone(),
                     coding_session_model_id: session.model_id.clone(),
                     coding_session_runtime_status: Some("completed".into()),
-                    native_session_id: session.native_session_id.clone(),
+                    native_session_id: finalized_native_session_id.clone(),
                     coding_session_updated_at: turn.completed_at.clone(),
                     turn_id: Some(turn.id.clone()),
                 },
@@ -423,9 +423,12 @@ impl CodingSessionService {
             .await?;
 
         Ok(PendingTurnResult {
-            session,
+            session: CodingSessionPayload {
+                native_session_id: finalized_native_session_id.clone(),
+                ..session
+            },
             turn,
-            native_session_id: None,
+            native_session_id: finalized_native_session_id,
             turn_model_id,
         })
     }
@@ -628,10 +631,10 @@ impl CodingSessionService {
             .ok_or_else(|| CodingSessionError::InvalidInput("workspaceId is required.".into()))?;
         let project_id = normalize_required_string(&request.project_id)
             .ok_or_else(|| CodingSessionError::InvalidInput("projectId is required.".into()))?;
-        let title = normalize_optional_string(request.title)
-            .unwrap_or_else(|| "New Session".to_owned());
-        let host_mode = normalize_optional_string(request.host_mode)
-            .unwrap_or_else(|| "server".to_owned());
+        let title =
+            normalize_optional_string(request.title).unwrap_or_else(|| "New Session".to_owned());
+        let host_mode =
+            normalize_optional_string(request.host_mode).unwrap_or_else(|| "server".to_owned());
 
         if !matches!(host_mode.as_str(), "web" | "desktop" | "server") {
             return Err(CodingSessionError::InvalidInput(
@@ -686,9 +689,10 @@ impl CodingSessionService {
             ));
         }
 
-        if status.as_deref().is_some_and(|v| {
-            !matches!(v, "draft" | "active" | "paused" | "completed" | "archived")
-        }) {
+        if status
+            .as_deref()
+            .is_some_and(|v| !matches!(v, "draft" | "active" | "paused" | "completed" | "archived"))
+        {
             return Err(CodingSessionError::InvalidInput(
                 "status must be one of draft/active/paused/completed/archived.".into(),
             ));
@@ -762,14 +766,14 @@ impl CodingSessionService {
         request: SubmitUserQuestionAnswerRequest,
     ) -> Result<SubmitUserQuestionAnswerInput, CodingSessionError> {
         let rejected = request.rejected.unwrap_or(false);
-        let answer = if rejected {
-            None
-        } else {
-            Some(
-                normalize_optional_string(request.answer)
-                    .ok_or_else(|| CodingSessionError::InvalidInput("answer is required.".into()))?,
-            )
-        };
+        let answer =
+            if rejected {
+                None
+            } else {
+                Some(normalize_optional_string(request.answer).ok_or_else(|| {
+                    CodingSessionError::InvalidInput("answer is required.".into())
+                })?)
+            };
 
         Ok(SubmitUserQuestionAnswerInput {
             answer,

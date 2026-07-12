@@ -26,7 +26,7 @@ const selectedSessionMessagesHookSource = fs.readFileSync(
 
 assert.match(
   appSource,
-  /refreshProjects: refreshActiveProjects,[\s\S]*\} = useProjects\(projectsWorkspaceId\);/,
+  /refreshProjects: refreshActiveProjects,[\s\S]*\} = useProjects\(projectsWorkspaceId(?:,\s*\{[\s\S]*?\})?\);/,
   'App must own the active workspace session inventory through the shared useProjects store.',
 );
 
@@ -106,6 +106,42 @@ assert.match(
   sharedRefreshHookSource,
   /refreshCodingSessionMessages\(/,
   'Shared refresh hook must call the session message refresh orchestrator.',
+);
+
+assert.match(
+  sharedRefreshHookSource,
+  /projectRefreshGenerationRef\s*=\s*useRef\(0\)[\s\S]*codingSessionRefreshGenerationRef\s*=\s*useRef\(0\)/,
+  'Session refresh actions must track independent request generations so an older response cannot clear a newer refresh state.',
+);
+
+assert.match(
+  sharedRefreshHookSource,
+  /const requestGeneration = \+\+projectRefreshGenerationRef\.current;[\s\S]*await refreshProjectSessions\([\s\S]*if \(projectRefreshGenerationRef\.current !== requestGeneration\) \{\s*return;/,
+  'Project refresh actions must ignore stale responses before applying inventory or error state.',
+);
+
+assert.match(
+  sharedRefreshHookSource,
+  /const requestGeneration = \+\+codingSessionRefreshGenerationRef\.current;[\s\S]*await refreshCodingSessionMessages\([\s\S]*if \(codingSessionRefreshGenerationRef\.current !== requestGeneration\) \{\s*return;/,
+  'Coding-session refresh actions must ignore stale responses before applying inventory or error state.',
+);
+
+assert.match(
+  sharedRefreshHookSource,
+  /if \(projectRefreshGenerationRef\.current === requestGeneration\) \{\s*setRefreshingProjectId\(null\);/,
+  'An older project refresh must not clear the visible state for a newer project refresh.',
+);
+
+assert.match(
+  sharedRefreshHookSource,
+  /if \(codingSessionRefreshGenerationRef\.current === requestGeneration\) \{\s*setRefreshingCodingSessionScope\(null\);/,
+  'An older coding-session refresh must not clear the visible state for a newer session refresh.',
+);
+
+assert.match(
+  sharedRefreshHookSource,
+  /if \(isPreservedSelectionStillCurrent\(preservedSelection\)\) \{\s*restoreSelectionAfterRefresh\(/,
+  'Refresh completion must not restore a selection that the user changed while the request was in flight.',
 );
 
 assert.match(

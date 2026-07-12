@@ -48,13 +48,3 @@ export async function loadVipPage() {
   return module.loadVipPage();
 }
 
-export async function loadSkillsPage() {
-  const module = await import('@sdkwork/birdcoder-pc-skills');
-  return { default: module.SkillsPage };
-}
-
-export async function loadTemplatesPage() {
-  const module = await import('@sdkwork/birdcoder-pc-templates');
-  return { default: module.TemplatesPage };
-}
-

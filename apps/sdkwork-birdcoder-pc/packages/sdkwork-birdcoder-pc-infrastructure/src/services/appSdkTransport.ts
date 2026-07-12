@@ -4,8 +4,10 @@ import type {
   BirdCoderApiTransport,
   BirdCoderApiTransportRequest,
 } from '@sdkwork/birdcoder-pc-types';
+import { BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-core/birdCoderApiTransportError';
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import { createBirdCoderInProcessAppRuntimeTransport } from './appRuntimeTransport.ts';
+import { createBirdCoderLocalServerRequestId } from './localServerRequestId.ts';
 import type { BirdCoderConsoleQueries } from './consoleQueries.ts';
 import {
   BIRDCODER_CODING_SERVER_API_PREFIXES,
@@ -18,6 +20,7 @@ import {
   mapTeamSummary,
   mapWorkspaceSummary,
   normalizeQueryValue,
+  readStrictOffsetListPage,
 } from './sdkTransportShared.ts';
 
 export interface CreateBirdCoderInProcessAppSdkTransportOptions {
@@ -179,9 +182,21 @@ export function createBirdCoderInProcessAppSdkTransport({
 
       switch (request.path) {
         case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/workspaces`:
-          return createListEnvelope(
-            (await queries.listWorkspaces()).map(mapWorkspaceSummary),
-          ) as TResponse;
+          {
+            const pagination = readStrictOffsetListPage(request);
+            const page = await queries.listWorkspacePage({
+              page: pagination.page,
+              pageSize: pagination.pageSize,
+            });
+            return createListEnvelope(
+              page.items.map(mapWorkspaceSummary),
+              {
+                offset: pagination.offset,
+                pageSize: pagination.pageSize,
+                total: page.total,
+              },
+            ) as TResponse;
+          }
         case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/documents`:
           return createListEnvelope(
             (await queries.listDocuments()).map(mapDocumentSummary),
@@ -191,14 +206,33 @@ export function createBirdCoderInProcessAppSdkTransport({
             (await queries.listDeployments()).map(mapDeploymentSummary),
           ) as TResponse;
         case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects`:
+          if (normalizeQueryValue('rootPath', request.query?.rootPath)) {
+            throw new BirdCoderApiTransportError({
+              code: 42201,
+              detail:
+                'Project rootPath filtering is unavailable until the local project-content index is provisioned.',
+              httpStatus: 422,
+              method: request.method,
+              path: request.path,
+              traceId: createBirdCoderLocalServerRequestId(),
+            });
+          }
+          {
+            const pagination = readStrictOffsetListPage(request);
+            const page = await queries.listProjectPage({
+              page: pagination.page,
+              pageSize: pagination.pageSize,
+              workspaceId: normalizeQueryValue('workspaceId', request.query?.workspaceId),
+            });
           return createListEnvelope(
-            (
-              await queries.listProjects({
-                rootPath: normalizeQueryValue('rootPath', request.query?.rootPath),
-                workspaceId: normalizeQueryValue('workspaceId', request.query?.workspaceId),
-              })
-            ).map(mapProjectSummary),
+              page.items.map(mapProjectSummary),
+              {
+                offset: pagination.offset,
+                pageSize: pagination.pageSize,
+                total: page.total,
+              },
           ) as TResponse;
+          }
         case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/teams`:
           return createListEnvelope(
             (await queries.listTeams({

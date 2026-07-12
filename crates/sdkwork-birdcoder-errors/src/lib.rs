@@ -1,14 +1,11 @@
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use sdkwork_utils_rust::{
-    legacy_wire_result_code, uuid, SdkWorkProblemDetail, SdkWorkResultCode,
-};
+use sdkwork_utils_rust::{legacy_wire_result_code, uuid, SdkWorkProblemDetail, SdkWorkResultCode};
 
+pub mod client_safe;
 pub mod envelope;
 pub mod tenant_scope;
-pub mod client_safe;
-pub use tenant_scope::{require_scoped_tenant_id, require_scoped_user_id, TenantScopeViolation};
 pub use client_safe::{
     client_safe_data_access_problem, client_safe_event_publish_problem,
     client_safe_internal_problem, client_safe_provider_problem, CLIENT_SAFE_DATA_ACCESS_MESSAGE,
@@ -20,6 +17,7 @@ pub use envelope::{
     BIRDCODER_CODING_SERVER_API_VERSION,
 };
 pub use sdkwork_utils_rust::SdkWorkProblemDetail as ProblemDetailsPayload;
+pub use tenant_scope::{require_scoped_tenant_id, require_scoped_user_id, TenantScopeViolation};
 
 pub fn resolve_trace_id(trace_id: Option<&str>) -> String {
     trace_id
@@ -48,7 +46,7 @@ pub fn legacy_problem(
 #[derive(Debug)]
 pub struct AppError {
     pub status: StatusCode,
-    pub body: SdkWorkProblemDetail,
+    pub body: Box<SdkWorkProblemDetail>,
 }
 
 impl AppError {
@@ -76,7 +74,7 @@ impl AppError {
         Self {
             status: StatusCode::from_u16(result_code.http_status_code())
                 .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
-            body: SdkWorkProblemDetail::platform(result_code, message, uuid()),
+            body: Box::new(SdkWorkProblemDetail::platform(result_code, message, uuid())),
         }
     }
 
@@ -89,7 +87,7 @@ impl AppError {
 pub type ProblemJsonBody = (
     StatusCode,
     [(axum::http::header::HeaderName, HeaderValue); 1],
-    Json<SdkWorkProblemDetail>,
+    Json<Box<SdkWorkProblemDetail>>,
 );
 
 pub fn problem_json(status: StatusCode, body: SdkWorkProblemDetail) -> ProblemJsonBody {
@@ -99,7 +97,7 @@ pub fn problem_json(status: StatusCode, body: SdkWorkProblemDetail) -> ProblemJs
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/problem+json"),
         )],
-        Json(body),
+        Json(Box::new(body)),
     )
 }
 
@@ -135,6 +133,19 @@ pub fn traced_problem_json(
             ..body
         },
     )
+}
+
+pub fn checked_list_total_items(
+    total: i64,
+    trace_id: Option<&str>,
+) -> Result<usize, ProblemJsonBody> {
+    usize::try_from(total).map_err(|_| {
+        traced_problem_json(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            client_safe_data_access_problem(),
+            trace_id,
+        )
+    })
 }
 
 impl IntoResponse for AppError {
@@ -179,7 +190,10 @@ mod tests {
         let payload = platform_problem(SdkWorkResultCode::InternalError, "failed", Some("req-123"));
         let json = serde_json::to_value(payload).expect("serialize payload");
         assert_eq!(json["code"], 50001);
-        assert_eq!(json.get("traceId").and_then(|value| value.as_str()), Some("req-123"));
+        assert_eq!(
+            json.get("traceId").and_then(|value| value.as_str()),
+            Some("req-123")
+        );
     }
 
     #[test]
@@ -198,5 +212,16 @@ mod tests {
             client_safe_provider_problem().code,
             SdkWorkResultCode::BadGateway.as_i32()
         );
+    }
+
+    #[test]
+    fn checked_list_total_items_rejects_negative_repository_totals() {
+        let (status, _, Json(problem)) =
+            checked_list_total_items(-1, Some("trace-invalid-list-total"))
+                .expect_err("negative repository total must fail closed");
+
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(problem.code, SdkWorkResultCode::InternalError.as_i32());
+        assert_eq!(problem.trace_id, "trace-invalid-list-total");
     }
 }

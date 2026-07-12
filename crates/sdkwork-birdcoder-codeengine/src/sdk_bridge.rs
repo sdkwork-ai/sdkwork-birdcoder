@@ -359,6 +359,8 @@ mod tests {
             updated_at: "2026-04-24T00:00:01Z".to_owned(),
             last_turn_at: Some("2026-04-24T00:00:01Z".to_owned()),
             native_cwd: Some("D:/repo/demo".to_owned()),
+            workspace_id: None,
+            project_id: None,
             messages: Vec::new(),
         });
 
@@ -385,6 +387,8 @@ mod tests {
             updated_at: "2026-04-24T00:00:01Z".to_owned(),
             last_turn_at: Some("2026-04-24T00:00:01Z".to_owned()),
             native_cwd: Some("D:/repo/demo".to_owned()),
+            workspace_id: None,
+            project_id: None,
             messages: vec![SdkBridgeStoredMessage {
                 id: "session-awaiting-user:message:1:assistant".to_owned(),
                 turn_id: "sdk-bridge-turn-1".to_owned(),
@@ -427,6 +431,8 @@ mod tests {
             updated_at: "2026-04-24T00:00:01Z".to_owned(),
             last_turn_at: Some("2026-04-24T00:00:01Z".to_owned()),
             native_cwd: Some("D:/repo/demo".to_owned()),
+            workspace_id: None,
+            project_id: None,
             messages: vec![SdkBridgeStoredMessage {
                 id: "session-awaiting-tool:message:1:assistant".to_owned(),
                 turn_id: "sdk-bridge-turn-1".to_owned(),
@@ -469,6 +475,8 @@ mod tests {
             updated_at: "2026-04-24T00:00:01Z".to_owned(),
             last_turn_at: Some("2026-04-24T00:00:01Z".to_owned()),
             native_cwd: Some("D:/repo/demo".to_owned()),
+            workspace_id: None,
+            project_id: None,
             messages: vec![SdkBridgeStoredMessage {
                 id: "session-stale-awaiting-user:message:1:assistant".to_owned(),
                 turn_id: "sdk-bridge-turn-1".to_owned(),
@@ -511,6 +519,8 @@ mod tests {
             updated_at: "2026-04-24T00:00:01Z".to_owned(),
             last_turn_at: Some("2026-04-24T00:00:01Z".to_owned()),
             native_cwd: Some("D:/repo/demo".to_owned()),
+            workspace_id: None,
+            project_id: None,
             messages: vec![SdkBridgeStoredMessage {
                 id: "session-failed:message:1:assistant".to_owned(),
                 turn_id: "sdk-bridge-turn-1".to_owned(),

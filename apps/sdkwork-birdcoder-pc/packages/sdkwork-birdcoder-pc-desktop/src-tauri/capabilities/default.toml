@@ -22,8 +22,6 @@ windows = ["main"]
 permissions = [
   # Core framework permissions
   "core:default",
-  "default",
-  "shell:allow-open",
 
   # Window control permissions
   "core:window:allow-hide",
@@ -82,6 +80,7 @@ permissions = [
   # Desktop shell host bridge commands
   "allow-terminal-cli-profile-detect",
   "allow-desktop-pick-working-directory",
+  "allow-desktop-reveal-in-file-manager",
   "allow-desktop-window-controls-bridge-capabilities",
   "allow-desktop-configure-window-controls-bridge",
   "allow-desktop-perform-window-control-action",

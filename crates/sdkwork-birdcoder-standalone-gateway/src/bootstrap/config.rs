@@ -7,6 +7,7 @@ pub const DEFAULT_RATE_LIMIT_ENABLED: bool = true;
 pub const DEFAULT_RATE_LIMIT_MAX_REQUESTS: u32 = 120;
 pub const DEFAULT_RATE_LIMIT_WINDOW_SECS: u64 = 60;
 const BIRDCODER_DATABASE_SERVICE: &str = "BIRDCODER";
+pub const PROVIDER_RUNNER_ROOT_ENV: &str = "SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT";
 
 pub struct BirdServerConfig {
     pub host: String,
@@ -21,7 +22,8 @@ pub struct BirdServerConfig {
 
 impl BirdServerConfig {
     pub fn from_env() -> Self {
-        let host = std::env::var("BIRDCODER_SERVER_HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string());
+        let host =
+            std::env::var("BIRDCODER_SERVER_HOST").unwrap_or_else(|_| DEFAULT_HOST.to_string());
         let port: u16 = std::env::var("BIRDCODER_SERVER_PORT")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -68,14 +70,19 @@ impl BirdServerConfig {
     /// `std::env::set_var` which is unsafe in multi-threaded contexts.
     pub fn resolved_database_url(&self) -> String {
         let url_key = format!("SDKWORK_{BIRDCODER_DATABASE_SERVICE}_DATABASE_URL");
-        std::env::var(&url_key)
-            .unwrap_or_else(|_| sqlite_database_url(&self.sqlite_file))
+        std::env::var(&url_key).unwrap_or_else(|_| sqlite_database_url(&self.sqlite_file))
     }
 
     /// Returns the resolved database engine, preferring env var over default.
     pub fn resolved_database_engine(&self) -> String {
         let engine_key = format!("SDKWORK_{BIRDCODER_DATABASE_SERVICE}_DATABASE_ENGINE");
         std::env::var(&engine_key).unwrap_or_else(|_| "sqlite".to_string())
+    }
+
+    pub fn provider_runner_root(&self) -> Option<PathBuf> {
+        std::env::var_os(PROVIDER_RUNNER_ROOT_ENV)
+            .filter(|value| !value.is_empty())
+            .map(PathBuf::from)
     }
 }
 
@@ -138,18 +145,14 @@ fn normalize_bind_host(host: &str) -> String {
 }
 
 pub fn default_loopback_browser_origins() -> Vec<String> {
-    vec![
-        "http://127.0.0.1:5173".to_string(),
-        "http://localhost:5173".to_string(),
-        "http://127.0.0.1:3000".to_string(),
-        "http://localhost:3000".to_string(),
-        "http://127.0.0.1:4173".to_string(),
-        "http://localhost:4173".to_string(),
-        "http://127.0.0.1:10240".to_string(),
-        "http://localhost:10240".to_string(),
-        "tauri://localhost".to_string(),
-        "https://tauri.localhost".to_string(),
-    ]
+    let mut origins = Vec::new();
+    for port in [5173, 3000, 3001, 3002, 3003, 4173, 10240] {
+        origins.push(format!("http://127.0.0.1:{port}"));
+        origins.push(format!("http://localhost:{port}"));
+    }
+    origins.push("tauri://localhost".to_string());
+    origins.push("https://tauri.localhost".to_string());
+    origins
 }
 
 #[cfg(test)]

@@ -1,5 +1,6 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
+use sqlx::any::AnyPoolOptions;
 use tower::ServiceExt;
 
 use sdkwork_iam_context_service::{AuthLevel, DeploymentMode, Environment, IamAppContext};
@@ -18,10 +19,14 @@ fn test_state() -> SystemAppState {
 }
 
 fn test_iam_context() -> IamAppContext {
+    test_iam_context_for_user("handler-smoke-user")
+}
+
+fn test_iam_context_for_user(user_id: &str) -> IamAppContext {
     IamAppContext::new(
         "1",
         None,
-        "handler-smoke-user",
+        user_id,
         "handler-smoke-session",
         "birdcoder",
         Environment::Dev,
@@ -148,6 +153,114 @@ async fn get_operation_returns_not_found_for_unknown_operation() {
         .expect("serve operation request");
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn get_operation_reads_owned_durable_operation_and_hides_other_users() {
+    sqlx::any::install_default_drivers();
+    let pool = AnyPoolOptions::new()
+        .max_connections(1)
+        .connect("sqlite::memory:")
+        .await
+        .expect("open operation route database");
+    for statement in [
+        "CREATE TABLE studio_workspace (\
+             id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, owner_id INTEGER NOT NULL, \
+             is_deleted INTEGER NOT NULL DEFAULT 0\
+         )",
+        "CREATE TABLE studio_workspace_member (\
+             id INTEGER PRIMARY KEY, tenant_id INTEGER NOT NULL, workspace_id INTEGER NOT NULL, \
+             user_id INTEGER NOT NULL, status TEXT NOT NULL, \
+             is_deleted INTEGER NOT NULL DEFAULT 0\
+         )",
+        "CREATE TABLE ai_coding_session (\
+             id TEXT PRIMARY KEY, tenant_id INTEGER NOT NULL, user_id INTEGER NOT NULL, \
+             workspace_id TEXT NOT NULL, is_deleted INTEGER NOT NULL DEFAULT 0\
+         )",
+        "CREATE TABLE ai_coding_session_operation (\
+             id TEXT PRIMARY KEY, tenant_id INTEGER NOT NULL, user_id INTEGER NOT NULL, \
+             coding_session_id TEXT NOT NULL, status TEXT NOT NULL, \
+             artifact_refs_json TEXT NOT NULL, stream_url TEXT NOT NULL, \
+             stream_kind TEXT NOT NULL, is_deleted INTEGER NOT NULL DEFAULT 0\
+         )",
+    ] {
+        sqlx::query(statement)
+            .execute(&pool)
+            .await
+            .expect("create operation route table");
+    }
+    sqlx::query("INSERT INTO studio_workspace (id, tenant_id, owner_id) VALUES (101, 1, 99)")
+        .execute(&pool)
+        .await
+        .expect("seed operation workspace");
+    sqlx::query(
+        "INSERT INTO studio_workspace_member \
+         (id, tenant_id, workspace_id, user_id, status) VALUES (1, 1, 101, 42, 'active')",
+    )
+    .execute(&pool)
+    .await
+    .expect("seed active workspace member");
+    sqlx::query(
+        "INSERT INTO ai_coding_session \
+         (id, tenant_id, user_id, workspace_id) VALUES ('session-1', 1, 42, '101')",
+    )
+    .execute(&pool)
+    .await
+    .expect("seed owned coding session");
+    sqlx::query(
+        "INSERT INTO ai_coding_session_operation \
+         (id, tenant_id, user_id, coding_session_id, status, artifact_refs_json, \
+          stream_url, stream_kind) \
+         VALUES ('turn-1:operation', 1, 42, 'session-1', 'running', \
+                 '[\"artifact-1\"]', '', 'none')",
+    )
+    .execute(&pool)
+    .await
+    .expect("seed durable operation");
+
+    let state = SystemAppState::with_repository_pool(pool, SYSTEM_APP_API_ROUTES);
+    let response = test_app()
+        .with_state(state.clone())
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri("/app/v3/api/operations/turn-1:operation")
+                .body(Body::empty())
+                .expect("build owned operation request"),
+            Some(test_iam_context_for_user("42")),
+        ))
+        .await
+        .expect("serve owned operation request");
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read operation response");
+    let payload: serde_json::Value =
+        serde_json::from_slice(&body).expect("decode operation response");
+    assert_eq!(
+        payload["data"]["item"]["operationId"],
+        serde_json::json!("turn-1:operation")
+    );
+    assert_eq!(
+        payload["data"]["item"]["artifactRefs"],
+        serde_json::json!(["artifact-1"])
+    );
+    assert!(
+        payload["data"]["item"].get("streamKind").is_none(),
+        "a missing stream transport must not be advertised as a real SSE/WebSocket stream",
+    );
+
+    let other_user_response = test_app()
+        .with_state(state)
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri("/app/v3/api/operations/turn-1:operation")
+                .body(Body::empty())
+                .expect("build cross-user operation request"),
+            Some(test_iam_context_for_user("43")),
+        ))
+        .await
+        .expect("serve cross-user operation request");
+    assert_eq!(other_user_response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

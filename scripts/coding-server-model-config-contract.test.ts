@@ -36,12 +36,12 @@ assert.deepEqual(
   },
 );
 assert.deepEqual(
-  routeCatalog.find((route) => route.operationId === 'modelConfig.sync'),
+  routeCatalog.find((route) => route.operationId === 'modelConfig.update'),
   {
     authMode: 'user',
     method: 'PUT',
     openApiPath: '/app/v3/api/model_config',
-    operationId: 'modelConfig.sync',
+    operationId: 'modelConfig.update',
     path: '/app/v3/api/model_config',
     surface: 'app',
     summary: 'Sync code engine model configuration',
@@ -55,7 +55,7 @@ assert.equal(
 );
 assert.equal(
   openApiDocument.paths['/app/v3/api/model_config']?.put?.operationId,
-  'modelConfig.sync',
+  'modelConfig.update',
 );
 assert.ok(openApiDocument.components.schemas?.BirdCoderCodeEngineModelConfig);
 assert.ok(openApiDocument.components.schemas?.BirdCoderCodeEngineModelConfigSyncResult);

@@ -2,6 +2,7 @@ import {
   type BirdCoderCodingSessionPendingApproval,
   type BirdCoderCodingSessionPendingUserQuestion,
   deduplicateBirdCoderProjectsForRender,
+  useToast,
 } from '@sdkwork/birdcoder-pc-commons';
 import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-pc-codeengine';
 import {
@@ -98,7 +99,9 @@ function buildStudioSidebarSurfaceStyle(containIntrinsicSize: string): CSSProper
 }
 
 interface StudioChatSidebarProps {
+  hasMoreProjects: boolean;
   isVisible: boolean;
+  isLoadingMoreProjects: boolean;
   width: number;
   projects: BirdCoderProject[];
   currentProjectId: string;
@@ -133,6 +136,7 @@ interface StudioChatSidebarProps {
   ) => void | Promise<void>;
   onSelectCodingSession: (projectId: string, codingSessionId: string) => void;
   onCreateProject: () => Promise<void>;
+  onLoadMoreProjects: () => Promise<unknown> | void;
   onOpenFolder: () => Promise<void>;
   onCreateCodingSession: (
     projectId: string,
@@ -244,6 +248,8 @@ function areStudioChatSidebarPropsEqual(
 ): boolean {
   return (
     left.isVisible === right.isVisible &&
+    left.hasMoreProjects === right.hasMoreProjects &&
+    left.isLoadingMoreProjects === right.isLoadingMoreProjects &&
     left.width === right.width &&
     areStudioProjectInventoriesEqual(left.projects, right.projects) &&
     left.currentProjectId === right.currentProjectId &&
@@ -269,6 +275,7 @@ function areStudioChatSidebarPropsEqual(
     left.onSubmitUserQuestionAnswer === right.onSubmitUserQuestionAnswer &&
     left.onSelectCodingSession === right.onSelectCodingSession &&
     left.onCreateProject === right.onCreateProject &&
+    left.onLoadMoreProjects === right.onLoadMoreProjects &&
     left.onOpenFolder === right.onOpenFolder &&
     left.onCreateCodingSession === right.onCreateCodingSession &&
     left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
@@ -284,7 +291,9 @@ function areStudioChatSidebarPropsEqual(
 }
 
 export const StudioChatSidebar = memo(function StudioChatSidebar({
+  hasMoreProjects,
   isVisible,
+  isLoadingMoreProjects,
   width,
   projects,
   currentProjectId,
@@ -310,6 +319,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onSubmitUserQuestionAnswer,
   onSelectCodingSession,
   onCreateProject,
+  onLoadMoreProjects,
   onOpenFolder,
   onCreateCodingSession,
   onRefreshProjectSessions,
@@ -323,6 +333,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onRestoreMessage,
 }: StudioChatSidebarProps) {
   const { t } = useTranslation();
+  const { addToast } = useToast();
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [visibleSessionCountByProjectId, setVisibleSessionCountByProjectId] = useState<
     Record<string, number>
@@ -334,6 +345,20 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     () => deduplicateBirdCoderProjectsForRender(projects),
     [projects],
   );
+  const handleLoadMoreProjects = useCallback(async () => {
+    if (isLoadingMoreProjects) {
+      return;
+    }
+
+    try {
+      await onLoadMoreProjects();
+    } catch (error) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message
+        : t('studio.failedToLoadMoreProjects');
+      addToast(message, 'error');
+    }
+  }, [addToast, isLoadingMoreProjects, onLoadMoreProjects, t]);
 
   const handleProjectMenuClickOutside = useCallback((event: MouseEvent) => {
       if (!showProjectMenu) {
@@ -696,6 +721,27 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                         {t('studio.noProjectsFound')}
                       </div>
                     )}
+                    {hasMoreProjects ? (
+                      <button
+                        type="button"
+                        className="mx-1 mt-1 inline-flex w-[calc(100%-0.5rem)] items-center justify-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-gray-400 transition-colors hover:border-white/15 hover:bg-white/5 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={isLoadingMoreProjects}
+                        onClick={() => {
+                          void handleLoadMoreProjects();
+                        }}
+                      >
+                        {isLoadingMoreProjects ? (
+                          <Loader2 size={13} className="animate-spin" />
+                        ) : (
+                          <ChevronDown size={13} />
+                        )}
+                        <span>
+                          {isLoadingMoreProjects
+                            ? t('studio.loadingMoreProjects')
+                            : t('studio.loadMoreProjects')}
+                        </span>
+                      </button>
+                    ) : null}
                   </div>
 
                   <div

@@ -93,9 +93,29 @@ pub struct SyncModelConfigResultPayload {
 
 pub trait EngineCatalogProvider: Send + Sync {
     fn list_engine_descriptors(&self) -> Result<Vec<EngineDescriptorPayload>, String>;
-    fn find_engine_descriptor(&self, engine_key: &str) -> Result<Option<EngineDescriptorPayload>, String>;
+    fn find_engine_descriptor(
+        &self,
+        engine_key: &str,
+    ) -> Result<Option<EngineDescriptorPayload>, String>;
     fn list_model_catalog_entries(&self) -> Result<Vec<ModelCatalogEntryPayload>, String>;
-    fn list_native_session_provider_entries(&self) -> Result<Vec<NativeSessionProviderPayload>, String>;
+    fn list_native_session_provider_entries(
+        &self,
+    ) -> Result<Vec<NativeSessionProviderPayload>, String>;
+}
+
+pub const MAX_BOUNDED_CATALOG_ITEMS: usize = 100;
+
+fn ensure_bounded_catalog<T>(
+    items: Vec<T>,
+    resource_kind: &str,
+) -> Result<Vec<T>, EngineCatalogError> {
+    if items.len() > MAX_BOUNDED_CATALOG_ITEMS {
+        return Err(EngineCatalogError::Internal(format!(
+            "{resource_kind} catalog contains {} items; the bounded catalog maximum is {MAX_BOUNDED_CATALOG_ITEMS}.",
+            items.len()
+        )));
+    }
+    Ok(items)
 }
 
 // ── Service ──────────────────────────────────────────────────────────
@@ -108,13 +128,18 @@ pub struct EngineCatalogService<P: EngineCatalogProvider> {
 
 impl<P: EngineCatalogProvider> EngineCatalogService<P> {
     pub fn new(provider: P, api_version: String) -> Self {
-        Self { provider, api_version }
+        Self {
+            provider,
+            api_version,
+        }
     }
 
     pub fn list_engines(&self) -> Result<Vec<EngineDescriptorPayload>, EngineCatalogError> {
-        self.provider
+        let items = self
+            .provider
             .list_engine_descriptors()
-            .map_err(EngineCatalogError::Repository)
+            .map_err(EngineCatalogError::Repository)?;
+        ensure_bounded_catalog(items, "engine")
     }
 
     pub fn get_engine_capabilities(
@@ -125,21 +150,21 @@ impl<P: EngineCatalogProvider> EngineCatalogService<P> {
             .provider
             .find_engine_descriptor(engine_key)
             .map_err(EngineCatalogError::Repository)?
-            .ok_or_else(|| EngineCatalogError::NotFound(format!(
-                "Engine \"{engine_key}\" was not found."
-            )))?;
+            .ok_or_else(|| {
+                EngineCatalogError::NotFound(format!("Engine \"{engine_key}\" was not found."))
+            })?;
         Ok(engine.capability_matrix)
     }
 
     pub fn list_models(&self) -> Result<Vec<ModelCatalogEntryPayload>, EngineCatalogError> {
-        self.provider
+        let items = self
+            .provider
             .list_model_catalog_entries()
-            .map_err(EngineCatalogError::Repository)
+            .map_err(EngineCatalogError::Repository)?;
+        ensure_bounded_catalog(items, "model")
     }
 
-    pub fn get_model_config(
-        &self,
-    ) -> Result<CodeEngineModelConfigPayload, EngineCatalogError> {
+    pub fn get_model_config(&self) -> Result<CodeEngineModelConfigPayload, EngineCatalogError> {
         let models = self.list_models()?;
         let updated_at = models
             .iter()
@@ -220,9 +245,11 @@ impl<P: EngineCatalogProvider> EngineCatalogService<P> {
     pub fn list_native_session_providers(
         &self,
     ) -> Result<Vec<NativeSessionProviderPayload>, EngineCatalogError> {
-        self.provider
+        let items = self
+            .provider
             .list_native_session_provider_entries()
-            .map_err(EngineCatalogError::Repository)
+            .map_err(EngineCatalogError::Repository)?;
+        ensure_bounded_catalog(items, "native session provider")
     }
 }
 
@@ -233,5 +260,21 @@ fn compare_model_config_versions(
     match left.version.cmp(&right.version) {
         std::cmp::Ordering::Equal => left.updated_at.cmp(&right.updated_at),
         ordering => ordering,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bounded_catalog_guard_accepts_the_cap_and_rejects_larger_collections() {
+        let bounded = ensure_bounded_catalog(vec![(); MAX_BOUNDED_CATALOG_ITEMS], "engine")
+            .expect("catalog at the documented cap must remain available");
+        assert_eq!(bounded.len(), MAX_BOUNDED_CATALOG_ITEMS);
+
+        let error = ensure_bounded_catalog(vec![(); MAX_BOUNDED_CATALOG_ITEMS + 1], "engine")
+            .expect_err("catalog above the documented cap must fail closed");
+        assert!(matches!(error, EngineCatalogError::Internal(_)));
     }
 }

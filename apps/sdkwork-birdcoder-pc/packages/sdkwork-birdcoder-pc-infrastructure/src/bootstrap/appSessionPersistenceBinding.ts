@@ -45,6 +45,10 @@ export function bindBirdCoderDesktopAppSessionPersistence(): void {
 
       cache = await getStoredRawValue(DESKTOP_APP_SESSION_SCOPE, APP_SESSION_STORAGE_KEY);
       hydrated = true;
+      // A runtime may have synchronously read the empty adapter cache while
+      // this host read was pending. Force the next session read to consume the
+      // hydrated durable value.
+      resetAppSessionTokenStorageCache();
     },
   };
 

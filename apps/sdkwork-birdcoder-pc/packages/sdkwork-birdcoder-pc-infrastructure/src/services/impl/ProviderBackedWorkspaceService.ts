@@ -1,5 +1,9 @@
 import type { BirdCoderWorkspaceSummary, IWorkspace } from '@sdkwork/birdcoder-pc-types';
-import type { BirdCoderServiceListPagination } from '../interfaces/IProjectService.ts';
+import type {
+  BirdCoderServiceListPage,
+  BirdCoderServiceListPagination,
+  BirdCoderServicePageRequest,
+} from '../interfaces/IProjectService.ts';
 import type { IWorkspaceService } from '../interfaces/IWorkspaceService.ts';
 import type { BirdCoderTableRecordRepository } from '../../storage/dataKernel.ts';
 import type { BirdCoderWorkspaceRecord } from '../../storage/appConsoleRepository.ts';
@@ -11,6 +15,10 @@ import {
 } from '../../storage/bootstrapConsoleCatalog.ts';
 import { createBirdCoderLocalBusinessUuid } from '../localBusinessUuid.ts';
 import { createBirdCoderLocalEntityId } from '../localEntityId.ts';
+import {
+  createBirdCoderServiceOffsetPageInfo,
+  resolveBirdCoderServicePageRequest,
+} from '../servicePagination.ts';
 
 function createTimestamp(): string {
   return new Date().toISOString();
@@ -66,6 +74,21 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
   }: ProviderBackedWorkspaceServiceOptions) {
     this.defaultOwnerUserId = defaultOwnerUserId;
     this.repository = repository;
+  }
+
+  async getWorkspacesPage(
+    request: BirdCoderServicePageRequest,
+  ): Promise<BirdCoderServiceListPage<IWorkspace>> {
+    await this.ensureBootstrapWorkspaceExists();
+    const resolvedRequest = resolveBirdCoderServicePageRequest(request);
+    const page = await this.repository.listPage(
+      resolvedRequest.offset,
+      resolvedRequest.pageSize,
+    );
+    return {
+      items: page.items.map(mapWorkspaceRecordToWorkspace),
+      pageInfo: createBirdCoderServiceOffsetPageInfo(resolvedRequest, page.total),
+    };
   }
 
   async getWorkspaces(_pagination?: BirdCoderServiceListPagination): Promise<IWorkspace[]> {
@@ -173,13 +196,15 @@ export class ProviderBackedWorkspaceService implements IWorkspaceService {
   }
 
   private async ensureBootstrapWorkspace(): Promise<BirdCoderWorkspaceRecord[]> {
-    const existingRecords = await this.repository.list();
-    if (existingRecords.length > 0) {
-      return existingRecords;
+    await this.ensureBootstrapWorkspaceExists();
+    return this.repository.list();
+  }
+
+  private async ensureBootstrapWorkspaceExists(): Promise<void> {
+    if ((await this.repository.count()) > 0) {
+      return;
     }
 
     await this.repository.save(createBirdCoderBootstrapWorkspaceRecord(this.defaultOwnerUserId));
-
-    return this.repository.list();
   }
 }

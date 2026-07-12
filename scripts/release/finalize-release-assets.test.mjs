@@ -382,7 +382,7 @@ const result = finalizeReleaseAssets({
   'release-kind': 'canary',
   'rollout-stage': 'ring-1',
   'monitoring-window-minutes': '45',
-  'rollback-runbook-ref': 'docs/step/13-发布就绪-github-flow-灰度回滚闭环.md',
+  'rollback-runbook-ref': 'docs/guides/operator/incident-response.md',
   'rollback-command': 'gh workflow run rollback.yml --ref main',
   'release-assets-dir': releaseAssetsDir,
   'quality-execution-report-path': qualityExecutionReportSourcePath,
@@ -413,7 +413,7 @@ assert.deepEqual(manifest.releaseControl, {
   releaseKind: 'canary',
   rolloutStage: 'ring-1',
   monitoringWindowMinutes: 45,
-  rollbackRunbookRef: 'docs/step/13-发布就绪-github-flow-灰度回滚闭环.md',
+  rollbackRunbookRef: 'docs/guides/operator/incident-response.md',
   rollbackCommand: 'gh workflow run rollback.yml --ref main',
 });
 assert.equal(manifest.assets.length, 3);

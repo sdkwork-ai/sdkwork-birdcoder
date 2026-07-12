@@ -36,7 +36,7 @@ function readCatalogItems(payload: Record<string, unknown>): BirdCoderCodeEngine
       displayName: readString(row, 'displayName', 'display_name', 'label') || readString(model, 'label') || engineId,
       providerId: readString(row, 'providerId', 'provider_id') || readString(model, 'providerId', 'provider_id'),
       bindingId: readString(row, 'bindingId', 'binding_id') || readString(model, 'bindingId', 'binding_id'),
-      healthy: typeof row.healthy === 'boolean' ? row.healthy : true,
+      healthy: typeof row.healthy === 'boolean' ? row.healthy : false,
       tier: typeof row.tier === 'string' ? row.tier : undefined,
     }];
   });

@@ -1,0 +1,1101 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.iam.module",
+  "moduleId": "birdcoder",
+  "catalogVersion": "1.0.0",
+  "domain": "birdcoder",
+  "owner": "sdkwork-birdcoder",
+  "displayName": "SDKWork BirdCoder Application Module",
+  "permissions": {
+    "catalog": [
+      {
+        "code": "birdcoder.collaboration-workspace-teams.read",
+        "name": "Read collaboration workspace teams",
+        "resource": "birdcoder.collaboration-workspace-teams",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.commerce-invoices.read",
+        "name": "Read commerce invoices",
+        "resource": "birdcoder.commerce-invoices",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.commerce-memberships-current.read",
+        "name": "Read commerce memberships current",
+        "resource": "birdcoder.commerce-memberships-current",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.commerce-memberships-package-groups.read",
+        "name": "Read commerce memberships package groups",
+        "resource": "birdcoder.commerce-memberships-package-groups",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.commerce-orders.create",
+        "name": "Create commerce orders",
+        "resource": "birdcoder.commerce-orders",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.commerce-orders.read",
+        "name": "Read commerce orders",
+        "resource": "birdcoder.commerce-orders",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.commerce-payments.create",
+        "name": "Create commerce payments",
+        "resource": "birdcoder.commerce-payments",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.commerce-payments.execute",
+        "name": "Execute commerce payments",
+        "resource": "birdcoder.commerce-payments",
+        "action": "execute",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.commerce-payments.read",
+        "name": "Read commerce payments",
+        "resource": "birdcoder.commerce-payments",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.content-documents.read",
+        "name": "Read content documents",
+        "resource": "birdcoder.content-documents",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.ecosystem-app-templates.read",
+        "name": "Read ecosystem app templates",
+        "resource": "birdcoder.ecosystem-app-templates",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.ecosystem-skill-packages-installations.create",
+        "name": "Create ecosystem skill packages installations",
+        "resource": "birdcoder.ecosystem-skill-packages-installations",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.ecosystem-skill-packages.read",
+        "name": "Read ecosystem skill packages",
+        "resource": "birdcoder.ecosystem-skill-packages",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-api-keys.execute",
+        "name": "Execute iam api keys",
+        "resource": "birdcoder.iam-api-keys",
+        "action": "execute",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-api-keys.read",
+        "name": "Read iam api keys",
+        "resource": "birdcoder.iam-api-keys",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-audit-events.read",
+        "name": "Read iam audit events",
+        "resource": "birdcoder.iam-audit-events",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-organization-memberships.create",
+        "name": "Create iam organization memberships",
+        "resource": "birdcoder.iam-organization-memberships",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-organization-memberships.read",
+        "name": "Read iam organization memberships",
+        "resource": "birdcoder.iam-organization-memberships",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-organization-memberships.update",
+        "name": "Update iam organization memberships",
+        "resource": "birdcoder.iam-organization-memberships",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-organizations-tree.read",
+        "name": "Read iam organizations tree",
+        "resource": "birdcoder.iam-organizations-tree",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-organizations.create",
+        "name": "Create iam organizations",
+        "resource": "birdcoder.iam-organizations",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-organizations.delete",
+        "name": "Delete iam organizations",
+        "resource": "birdcoder.iam-organizations",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-organizations.read",
+        "name": "Read iam organizations",
+        "resource": "birdcoder.iam-organizations",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-organizations.update",
+        "name": "Update iam organizations",
+        "resource": "birdcoder.iam-organizations",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-permissions.create",
+        "name": "Create iam permissions",
+        "resource": "birdcoder.iam-permissions",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-permissions.delete",
+        "name": "Delete iam permissions",
+        "resource": "birdcoder.iam-permissions",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-permissions.read",
+        "name": "Read iam permissions",
+        "resource": "birdcoder.iam-permissions",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-permissions.update",
+        "name": "Update iam permissions",
+        "resource": "birdcoder.iam-permissions",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-policies.create",
+        "name": "Create iam policies",
+        "resource": "birdcoder.iam-policies",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-policies.delete",
+        "name": "Delete iam policies",
+        "resource": "birdcoder.iam-policies",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-policies.read",
+        "name": "Read iam policies",
+        "resource": "birdcoder.iam-policies",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-policies.update",
+        "name": "Update iam policies",
+        "resource": "birdcoder.iam-policies",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-role-bindings.create",
+        "name": "Create iam role bindings",
+        "resource": "birdcoder.iam-role-bindings",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-role-bindings.delete",
+        "name": "Delete iam role bindings",
+        "resource": "birdcoder.iam-role-bindings",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-role-bindings.read",
+        "name": "Read iam role bindings",
+        "resource": "birdcoder.iam-role-bindings",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-roles-permissions.create",
+        "name": "Create iam roles permissions",
+        "resource": "birdcoder.iam-roles-permissions",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-roles-permissions.delete",
+        "name": "Delete iam roles permissions",
+        "resource": "birdcoder.iam-roles-permissions",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-roles-permissions.read",
+        "name": "Read iam roles permissions",
+        "resource": "birdcoder.iam-roles-permissions",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-roles.create",
+        "name": "Create iam roles",
+        "resource": "birdcoder.iam-roles",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-roles.delete",
+        "name": "Delete iam roles",
+        "resource": "birdcoder.iam-roles",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-roles.read",
+        "name": "Read iam roles",
+        "resource": "birdcoder.iam-roles",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-roles.update",
+        "name": "Update iam roles",
+        "resource": "birdcoder.iam-roles",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-security-events.read",
+        "name": "Read iam security events",
+        "resource": "birdcoder.iam-security-events",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-teams-members.read",
+        "name": "Read iam teams members",
+        "resource": "birdcoder.iam-teams-members",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-teams.read",
+        "name": "Read iam teams",
+        "resource": "birdcoder.iam-teams",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-tenants-members.create",
+        "name": "Create iam tenants members",
+        "resource": "birdcoder.iam-tenants-members",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-tenants-members.delete",
+        "name": "Delete iam tenants members",
+        "resource": "birdcoder.iam-tenants-members",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-tenants-members.read",
+        "name": "Read iam tenants members",
+        "resource": "birdcoder.iam-tenants-members",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-tenants-members.update",
+        "name": "Update iam tenants members",
+        "resource": "birdcoder.iam-tenants-members",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-tenants.create",
+        "name": "Create iam tenants",
+        "resource": "birdcoder.iam-tenants",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-tenants.delete",
+        "name": "Delete iam tenants",
+        "resource": "birdcoder.iam-tenants",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-tenants.read",
+        "name": "Read iam tenants",
+        "resource": "birdcoder.iam-tenants",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-tenants.update",
+        "name": "Update iam tenants",
+        "resource": "birdcoder.iam-tenants",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-users-current.read",
+        "name": "Read iam users current",
+        "resource": "birdcoder.iam-users-current",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-users-current.update",
+        "name": "Update iam users current",
+        "resource": "birdcoder.iam-users-current",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-users.create",
+        "name": "Create iam users",
+        "resource": "birdcoder.iam-users",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-users.delete",
+        "name": "Delete iam users",
+        "resource": "birdcoder.iam-users",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-users.read",
+        "name": "Read iam users",
+        "resource": "birdcoder.iam-users",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-users.update",
+        "name": "Update iam users",
+        "resource": "birdcoder.iam-users",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-workspaces-members.create",
+        "name": "Create iam workspaces members",
+        "resource": "birdcoder.iam-workspaces-members",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.iam-workspaces-members.read",
+        "name": "Read iam workspaces members",
+        "resource": "birdcoder.iam-workspaces-members",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions-artifacts.read",
+        "name": "Read intelligence coding sessions artifacts",
+        "resource": "birdcoder.intelligence-coding-sessions-artifacts",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions-checkpoints-approval.create",
+        "name": "Create intelligence coding sessions checkpoints approval",
+        "resource": "birdcoder.intelligence-coding-sessions-checkpoints-approval",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions-checkpoints.read",
+        "name": "Read intelligence coding sessions checkpoints",
+        "resource": "birdcoder.intelligence-coding-sessions-checkpoints",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions-events.read",
+        "name": "Read intelligence coding sessions events",
+        "resource": "birdcoder.intelligence-coding-sessions-events",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions-forks.create",
+        "name": "Create intelligence coding sessions forks",
+        "resource": "birdcoder.intelligence-coding-sessions-forks",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions-messages.delete",
+        "name": "Delete intelligence coding sessions messages",
+        "resource": "birdcoder.intelligence-coding-sessions-messages",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions-messages.update",
+        "name": "Update intelligence coding sessions messages",
+        "resource": "birdcoder.intelligence-coding-sessions-messages",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions-questions-answers.create",
+        "name": "Create intelligence coding sessions questions answers",
+        "resource": "birdcoder.intelligence-coding-sessions-questions-answers",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions-turns.create",
+        "name": "Create intelligence coding sessions turns",
+        "resource": "birdcoder.intelligence-coding-sessions-turns",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions.create",
+        "name": "Create intelligence coding sessions",
+        "resource": "birdcoder.intelligence-coding-sessions",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions.delete",
+        "name": "Delete intelligence coding sessions",
+        "resource": "birdcoder.intelligence-coding-sessions",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions.read",
+        "name": "Read intelligence coding sessions",
+        "resource": "birdcoder.intelligence-coding-sessions",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.intelligence-coding-sessions.update",
+        "name": "Update intelligence coding sessions",
+        "resource": "birdcoder.intelligence-coding-sessions",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.oauth-sessions-current.delete",
+        "name": "Delete oauth sessions current",
+        "resource": "birdcoder.oauth-sessions-current",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.oauth-sessions-current.read",
+        "name": "Read oauth sessions current",
+        "resource": "birdcoder.oauth-sessions-current",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.oauth-sessions-current.update",
+        "name": "Update oauth sessions current",
+        "resource": "birdcoder.oauth-sessions-current",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-deployment-governance.read",
+        "name": "Read platform deployment governance",
+        "resource": "birdcoder.platform-deployment-governance",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-deployments.read",
+        "name": "Read platform deployments",
+        "resource": "birdcoder.platform-deployments",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-collaborators.create",
+        "name": "Create platform projects collaborators",
+        "resource": "birdcoder.platform-projects-collaborators",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-collaborators.read",
+        "name": "Read platform projects collaborators",
+        "resource": "birdcoder.platform-projects-collaborators",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-deployment-targets.read",
+        "name": "Read platform projects deployment targets",
+        "resource": "birdcoder.platform-projects-deployment-targets",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-git-branch-switch.create",
+        "name": "Create platform projects git branch switch",
+        "resource": "birdcoder.platform-projects-git-branch-switch",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-git-branches.create",
+        "name": "Create platform projects git branches",
+        "resource": "birdcoder.platform-projects-git-branches",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-git-commits.create",
+        "name": "Create platform projects git commits",
+        "resource": "birdcoder.platform-projects-git-commits",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-git-overview.read",
+        "name": "Read platform projects git overview",
+        "resource": "birdcoder.platform-projects-git-overview",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-git-pushes.create",
+        "name": "Create platform projects git pushes",
+        "resource": "birdcoder.platform-projects-git-pushes",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-git-worktree-prune.create",
+        "name": "Create platform projects git worktree prune",
+        "resource": "birdcoder.platform-projects-git-worktree-prune",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-git-worktree-removals.create",
+        "name": "Create platform projects git worktree removals",
+        "resource": "birdcoder.platform-projects-git-worktree-removals",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-git-worktrees.create",
+        "name": "Create platform projects git worktrees",
+        "resource": "birdcoder.platform-projects-git-worktrees",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects-publish.execute",
+        "name": "Execute platform projects publish",
+        "resource": "birdcoder.platform-projects-publish",
+        "action": "execute",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects.create",
+        "name": "Create platform projects",
+        "resource": "birdcoder.platform-projects",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects.delete",
+        "name": "Delete platform projects",
+        "resource": "birdcoder.platform-projects",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects.read",
+        "name": "Read platform projects",
+        "resource": "birdcoder.platform-projects",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-projects.update",
+        "name": "Update platform projects",
+        "resource": "birdcoder.platform-projects",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-releases.read",
+        "name": "Read platform releases",
+        "resource": "birdcoder.platform-releases",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-workspaces-realtime.subscribe",
+        "name": "Subscribe to platform workspaces realtime",
+        "resource": "birdcoder.platform-workspaces-realtime",
+        "action": "subscribe",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-workspaces.create",
+        "name": "Create platform workspaces",
+        "resource": "birdcoder.platform-workspaces",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-workspaces.delete",
+        "name": "Delete platform workspaces",
+        "resource": "birdcoder.platform-workspaces",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-workspaces.read",
+        "name": "Read platform workspaces",
+        "resource": "birdcoder.platform-workspaces",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.platform-workspaces.update",
+        "name": "Update platform workspaces",
+        "resource": "birdcoder.platform-workspaces",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.runtime-engines-capabilities.read",
+        "name": "Read runtime engines capabilities",
+        "resource": "birdcoder.runtime-engines-capabilities",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.runtime-engines.read",
+        "name": "Read runtime engines",
+        "resource": "birdcoder.runtime-engines",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.runtime-model-config.read",
+        "name": "Read runtime model config",
+        "resource": "birdcoder.runtime-model-config",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.runtime-model-config.update",
+        "name": "Update runtime model config",
+        "resource": "birdcoder.runtime-model-config",
+        "action": "update",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.runtime-models.read",
+        "name": "Read runtime models",
+        "resource": "birdcoder.runtime-models",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.runtime-native-session-providers.read",
+        "name": "Read runtime native session providers",
+        "resource": "birdcoder.runtime-native-session-providers",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.runtime-native-sessions.read",
+        "name": "Read runtime native sessions",
+        "resource": "birdcoder.runtime-native-sessions",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.system-chat-conversations-messages.create",
+        "name": "Create system chat conversations messages",
+        "resource": "birdcoder.system-chat-conversations-messages",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.system-chat-conversations-messages.read",
+        "name": "Read system chat conversations messages",
+        "resource": "birdcoder.system-chat-conversations-messages",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.system-chat-conversations.create",
+        "name": "Create system chat conversations",
+        "resource": "birdcoder.system-chat-conversations",
+        "action": "create",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.system-chat-conversations.delete",
+        "name": "Delete system chat conversations",
+        "resource": "birdcoder.system-chat-conversations",
+        "action": "delete",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.system-chat-conversations.read",
+        "name": "Read system chat conversations",
+        "resource": "birdcoder.system-chat-conversations",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.system-descriptor.read",
+        "name": "Read system descriptor",
+        "resource": "birdcoder.system-descriptor",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.system-health.read",
+        "name": "Read system health",
+        "resource": "birdcoder.system-health",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.system-operations.read",
+        "name": "Read system operations",
+        "resource": "birdcoder.system-operations",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.system-routes.read",
+        "name": "Read system routes",
+        "resource": "birdcoder.system-routes",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      },
+      {
+        "code": "birdcoder.system-runtime.read",
+        "name": "Read system runtime",
+        "resource": "birdcoder.system-runtime",
+        "action": "read",
+        "status": "active",
+        "since": "1.0.0",
+        "replacementCode": null
+      }
+    ],
+    "openapiAuthorities": [
+      "sdks/sdkwork-birdcoder-app-sdk/openapi/sdkwork-birdcoder-app-api.openapi.json",
+      "sdks/sdkwork-birdcoder-backend-sdk/openapi/sdkwork-birdcoder-backend-api.openapi.json"
+    ]
+  },
+  "roles": {
+    "domainStandardRoles": [],
+    "roleGrantExtensions": [],
+    "roleExclusions": [],
+    "assignability": [],
+    "bootstrapDefaults": []
+  },
+  "directory": {
+    "organizationTemplates": [],
+    "departmentTemplates": [],
+    "positionTemplates": [],
+    "membershipTemplates": []
+  },
+  "policyConditions": {
+    "supportedAttributes": []
+  },
+  "oauthScopeMappings": [],
+  "dependencies": {
+    "requiresModules": [
+      "iam-kernel"
+    ]
+  }
+}

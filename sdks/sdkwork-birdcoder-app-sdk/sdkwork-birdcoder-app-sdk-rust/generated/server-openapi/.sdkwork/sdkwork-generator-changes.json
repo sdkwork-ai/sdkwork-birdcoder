@@ -9,10 +9,15 @@
     "protocol": "http",
     "packageName": "@sdkwork/birdcoder-app-sdk"
   },
-  "changeFingerprint": "804c6f27ae7060b665336c7dde105e837b8eaa3f1826456faf8f724eae127a15",
+  "changeFingerprint": "cce2e2fddbd94c960bdad74d6177c0e887da117cd753e5faf064fc7245dd103c",
   "changes": {
     "createdGeneratedFiles": [],
-    "updatedGeneratedFiles": [],
+    "updatedGeneratedFiles": [
+      "sdkwork-sdk.json",
+      "src/api/auth.rs",
+      "src/api/oauth.rs",
+      "src/api/system.rs"
+    ],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
       "bin/publish.ps1",
@@ -21,8 +26,6 @@
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
-      "sdkwork-sdk.json",
-      "src/api/auth.rs",
       "src/api/base.rs",
       "src/api/collaboration.rs",
       "src/api/commerce.rs",
@@ -30,12 +33,10 @@
       "src/api/iam.rs",
       "src/api/intelligence.rs",
       "src/api/mod.rs",
-      "src/api/oauth.rs",
       "src/api/paths.rs",
       "src/api/platform.rs",
       "src/api/runtime.rs",
       "src/api/skills.rs",
-      "src/api/system.rs",
       "src/api/templates.rs",
       "src/client.rs",
       "src/http/client.rs",
@@ -111,12 +112,6 @@
       "src/models/bird_coder_create_project_git_worktree_request.rs",
       "src/models/bird_coder_create_project_request.rs",
       "src/models/bird_coder_create_workspace_request.rs",
-      "src/models/bird_coder_delete_chat_conversation_envelope.rs",
-      "src/models/bird_coder_delete_chat_conversation_result.rs",
-      "src/models/bird_coder_delete_coding_session_message_result_envelope.rs",
-      "src/models/bird_coder_delete_coding_session_message_result.rs",
-      "src/models/bird_coder_deleted_resource_envelope.rs",
-      "src/models/bird_coder_deleted_resource_result.rs",
       "src/models/bird_coder_deployment_record_summary_list_envelope.rs",
       "src/models/bird_coder_deployment_record_summary.rs",
       "src/models/bird_coder_deployment_target_summary_list_envelope.rs",
@@ -231,30 +226,89 @@
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
-    "backedUpFiles": []
+    "backedUpFiles": [
+      "sdkwork-sdk.json"
+    ]
   },
   "impact": {
     "schemaVersion": 1,
-    "areas": [],
-    "details": [],
-    "requiresVerification": false,
-    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
+    "areas": [
+      "api-surface",
+      "build-metadata"
+    ],
+    "details": [
+      {
+        "area": "api-surface",
+        "paths": [
+          "src/api/auth.rs",
+          "src/api/oauth.rs",
+          "src/api/system.rs"
+        ]
+      },
+      {
+        "area": "build-metadata",
+        "paths": [
+          "sdkwork-sdk.json"
+        ]
+      }
+    ],
+    "requiresVerification": true,
+    "summary": "Detected impact areas: api-surface, build-metadata. Verification is required."
   },
   "verificationPlan": {
-    "shouldRun": false,
-    "runPhase": "skip",
-    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
-    "steps": []
+    "shouldRun": true,
+    "runPhase": "now",
+    "summary": "Detected impact areas: api-surface, build-metadata. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "steps": [
+      {
+        "id": "check",
+        "title": "Unified package check",
+        "required": true,
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "rust",
+          "--project-dir",
+          ".",
+          "--action",
+          "check"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action check"
+      },
+      {
+        "id": "build",
+        "title": "Unified package build",
+        "required": true,
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, build-metadata.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "rust",
+          "--project-dir",
+          ".",
+          "--action",
+          "build"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action build"
+      }
+    ]
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "low",
-    "nextAction": "skip",
+    "riskLevel": "high",
+    "nextAction": "verify",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "No actionable changes were detected. No apply or verification step is required.",
+    "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "no-actionable-changes"
+      "backed-up-generated-files",
+      "manual-review-required",
+      "verification-required"
     ]
   },
   "preservedLegacyFiles": false

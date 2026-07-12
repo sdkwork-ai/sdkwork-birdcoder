@@ -37,7 +37,9 @@ import {
 } from '../runtime/multiWindowLayout.ts';
 import {
   collectFailedMultiWindowDispatchPaneIds,
+  DEFAULT_MULTI_WINDOW_MAX_CONCURRENT_DISPATCHES,
   dispatchMultiWindowPrompt,
+  MultiWindowDispatchStoppedError,
   type MultiWindowDispatchBatchSummary,
   type MultiWindowDispatchPaneResult,
 } from '../runtime/multiWindowDispatch.ts';
@@ -212,21 +214,6 @@ function buildInitialDispatchPaneResult(
   };
 }
 
-function buildCancelledDispatchPaneResult(
-  result: MultiWindowDispatchPaneResult,
-  completedAt: number,
-): MultiWindowDispatchPaneResult {
-  return {
-    ...result,
-    completedAt,
-    durationMs:
-      typeof result.startedAt === 'number'
-        ? Math.max(0, completedAt - result.startedAt)
-        : result.durationMs,
-    status: 'cancelled',
-  };
-}
-
 function buildFailedDispatchPaneResult(
   result: MultiWindowDispatchPaneResult,
   completedAt: number,
@@ -254,33 +241,6 @@ function resolveUnexpectedDispatchErrorMessage(error: unknown): string {
   }
 
   return 'Multi-window dispatch failed unexpectedly.';
-}
-
-function buildManualCancelDispatchResults({
-  bindingsByPaneId,
-  completedAt,
-  previousResults,
-  visiblePanes,
-}: {
-  bindingsByPaneId: Map<string, MultiWindowPaneBinding>;
-  completedAt: number;
-  previousResults: readonly MultiWindowDispatchPaneResult[];
-  visiblePanes: readonly MultiWindowPaneConfig[];
-}): MultiWindowDispatchPaneResult[] {
-  const previousResultsByPaneId = new Map(
-    previousResults.map((result) => [result.paneId, result]),
-  );
-
-  return visiblePanes.map((pane) => {
-    const previousResult =
-      previousResultsByPaneId.get(pane.id) ??
-      buildInitialDispatchPaneResult(pane, bindingsByPaneId.get(pane.id));
-    if (previousResult.status !== 'pending') {
-      return previousResult;
-    }
-
-    return buildCancelledDispatchPaneResult(previousResult, completedAt);
-  });
 }
 
 function buildUnexpectedFailureDispatchResults({
@@ -312,7 +272,7 @@ function buildUnexpectedFailureDispatchResults({
   });
 }
 
-function buildManualCancelDispatchSummary({
+function buildFallbackDispatchSummary({
   completedAt,
   previousSummary,
   results,
@@ -330,19 +290,22 @@ function buildManualCancelDispatchSummary({
   const successPaneCount = results.filter((result) => result.status === 'success').length;
   const failedPaneCount = results.filter((result) => result.status === 'failed').length;
   const skippedPaneCount = results.filter((result) => result.status === 'skipped').length;
-  const cancelledPaneCount = results.filter((result) => result.status === 'cancelled').length;
+  const notSubmittedPaneCount = results.filter(
+    (result) => result.status === 'not-submitted',
+  ).length;
   const pendingPaneCount = results.filter((result) => result.status === 'pending').length;
 
   return {
-    cancelledPaneCount,
     completedAt,
     dispatchablePaneCount: results.length - skippedPaneCount,
     durationMs: Math.max(0, completedAt - startedAt),
     effectiveConcurrency: previousSummary?.effectiveConcurrency ?? 0,
     failedPaneCount,
     maxObservedConcurrency: previousSummary?.maxObservedConcurrency ?? 0,
+    notSubmittedPaneCount,
     pendingPaneCount,
-    requestedConcurrency: previousSummary?.requestedConcurrency ?? MAX_MULTI_WINDOW_PANES,
+    requestedConcurrency:
+      previousSummary?.requestedConcurrency ?? DEFAULT_MULTI_WINDOW_MAX_CONCURRENT_DISPATCHES,
     skippedPaneCount,
     startedAt,
     successPaneCount,
@@ -368,6 +331,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     sendMessage,
   } = useProjects(workspaceId, {
     isActive: isVisible,
+    targetProjectId: projectId,
   });
   const [initialWorkspaceState] = useState(() =>
     readMultiWindowWorkspaceState(
@@ -389,6 +353,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
   const [dispatchResults, setDispatchResults] = useState<MultiWindowDispatchPaneResult[]>([]);
   const [dispatchSummary, setDispatchSummary] = useState<MultiWindowDispatchBatchSummary | null>(null);
   const [isDispatching, setIsDispatching] = useState(false);
+  const [isStoppingDispatch, setIsStoppingDispatch] = useState(false);
   const [sessionPickerPaneId, setSessionPickerPaneId] = useState<string | null>(null);
   const [pendingWindowCountTarget, setPendingWindowCountTarget] = useState<number | null>(null);
   const [creatingSessionPaneId, setCreatingSessionPaneId] = useState<string | null>(null);
@@ -460,10 +425,11 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     activeDispatchBatchIdRef.current === batchId,
   []);
 
-  const cancelActiveDispatchBatch = useCallback((options: { resetDispatching?: boolean } = {}) => {
+  const discardActiveDispatchBatch = useCallback((options: { resetDispatching?: boolean } = {}) => {
     activeDispatchAbortControllerRef.current?.abort();
     activeDispatchAbortControllerRef.current = null;
     activeDispatchBatchIdRef.current = null;
+    setIsStoppingDispatch(false);
     if (options.resetDispatching !== false) {
       setIsDispatching(false);
     }
@@ -530,7 +496,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     }
 
     flushPendingMultiWindowWorkspaceStatePersistence();
-    cancelActiveDispatchBatch();
+    discardActiveDispatchBatch();
     activeWorkspaceIdRef.current = workspaceId;
     const nextWorkspaceState = readMultiWindowWorkspaceState(
       resolveBrowserMultiWindowWorkspaceStorage(),
@@ -549,12 +515,12 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     setSessionPickerPaneId(null);
     setPendingWindowCountTarget(null);
     setCreatingSessionPaneId(null);
-  }, [cancelActiveDispatchBatch, flushPendingMultiWindowWorkspaceStatePersistence, preferences, workspaceId]);
+  }, [discardActiveDispatchBatch, flushPendingMultiWindowWorkspaceStatePersistence, preferences, workspaceId]);
 
   useEffect(() => () => {
     flushPendingMultiWindowWorkspaceStatePersistence();
-    cancelActiveDispatchBatch({ resetDispatching: false });
-  }, [cancelActiveDispatchBatch, flushPendingMultiWindowWorkspaceStatePersistence]);
+    discardActiveDispatchBatch({ resetDispatching: false });
+  }, [discardActiveDispatchBatch, flushPendingMultiWindowWorkspaceStatePersistence]);
 
   const bindingsByPaneId = useMemo(() => {
     const bindings = new Map<string, MultiWindowPaneBinding>();
@@ -817,11 +783,12 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     const previousResultsByPaneId = new Map(
       dispatchResults.map((result) => [result.paneId, result]),
     );
-    cancelActiveDispatchBatch();
+    discardActiveDispatchBatch();
     activeDispatchBatchIdRef.current = dispatchBatchId;
     activeDispatchAbortControllerRef.current = dispatchAbortController;
     setLastBroadcastPrompt(prompt);
     setIsDispatching(true);
+    setIsStoppingDispatch(false);
     setDispatchState('running');
     setDispatchSummary(null);
     const initialDispatchResults = visiblePanes.map((pane) => {
@@ -843,7 +810,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
 
     try {
       const result = await dispatchMultiWindowPrompt({
-        maxConcurrentDispatches: MAX_MULTI_WINDOW_PANES,
+        maxConcurrentDispatches: DEFAULT_MULTI_WINDOW_MAX_CONCURRENT_DISPATCHES,
         onPaneResult: (paneResult) => {
           if (!isActiveDispatchBatch(dispatchBatchId)) {
             return;
@@ -865,7 +832,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
             ).status === 'needs-session',
           sendPrompt: async ({ prompt: dispatchPrompt }) => {
             if (!isActiveDispatchBatch(dispatchBatchId) || dispatchAbortController.signal.aborted) {
-              throw new Error('Dispatch cancelled');
+              throw new MultiWindowDispatchStoppedError();
             }
 
             let effectivePane = pane;
@@ -883,10 +850,6 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
                   modelId: pane.selectedModelId,
                 },
               );
-              if (!isActiveDispatchBatch(dispatchBatchId) || dispatchAbortController.signal.aborted) {
-                throw new Error('Dispatch cancelled');
-              }
-
               effectiveCodingSessionId = provisionedSession.id;
               effectivePane = {
                 ...pane,
@@ -896,13 +859,18 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
                 selectedModelId: provisionedSession.modelId?.trim() || pane.selectedModelId,
                 title: buildMultiWindowProvisionedSessionTitle(pane, paneIndex),
               };
-              setPanes((previousPanes) =>
-                updatePaneById(previousPanes, pane.id, () => effectivePane),
-              );
-              notifyActiveCodingSessionSelection(
-                effectivePane.projectId,
-                effectiveCodingSessionId,
-              );
+              if (isActiveDispatchBatch(dispatchBatchId)) {
+                setPanes((previousPanes) =>
+                  updatePaneById(previousPanes, pane.id, () => effectivePane),
+                );
+                notifyActiveCodingSessionSelection(
+                  effectivePane.projectId,
+                  effectiveCodingSessionId,
+                );
+              }
+              if (!isActiveDispatchBatch(dispatchBatchId) || dispatchAbortController.signal.aborted) {
+                throw new MultiWindowDispatchStoppedError();
+              }
             }
 
             const context = buildWorkbenchCodingSessionTurnContext({
@@ -914,6 +882,9 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
               dispatchPrompt,
               effectivePane,
             );
+            if (!isActiveDispatchBatch(dispatchBatchId) || dispatchAbortController.signal.aborted) {
+              throw new MultiWindowDispatchStoppedError();
+            }
             const sentMessage = await sendMessage(
               effectivePane.projectId,
               effectiveCodingSessionId,
@@ -929,12 +900,12 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
                 }),
               },
             );
-            if (!isActiveDispatchBatch(dispatchBatchId) || dispatchAbortController.signal.aborted) {
-              throw new Error('Dispatch cancelled');
-            }
-
             const nextCodingSessionId = sentMessage?.codingSessionId?.trim() ?? '';
-            if (nextCodingSessionId && nextCodingSessionId !== effectiveCodingSessionId) {
+            if (
+              isActiveDispatchBatch(dispatchBatchId) &&
+              nextCodingSessionId &&
+              nextCodingSessionId !== effectiveCodingSessionId
+            ) {
               setPanes((previousPanes) =>
                 updatePaneById(previousPanes, pane.id, (currentPane) => ({
                   ...currentPane,
@@ -982,8 +953,8 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
         addToast(t('multiWindow.dispatchFailed'), 'error');
         return;
       }
-      if (result.status === 'cancelled') {
-        addToast(t('multiWindow.dispatchCancelled'), 'info');
+      if (result.status === 'stopped') {
+        addToast(t('multiWindow.dispatchStopped'), 'info');
         return;
       }
       addToast(t('multiWindow.dispatchSkipped'), 'info');
@@ -1004,7 +975,7 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
       });
       setDispatchResults(failedResults);
       setDispatchSummary(
-        buildManualCancelDispatchSummary({
+        buildFallbackDispatchSummary({
           completedAt,
           previousSummary: dispatchSummary,
           results: failedResults,
@@ -1017,13 +988,14 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
         activeDispatchBatchIdRef.current = null;
         activeDispatchAbortControllerRef.current = null;
         setIsDispatching(false);
+        setIsStoppingDispatch(false);
       }
     }
   }, [
     addToast,
     bindingsByPaneId,
-    cancelActiveDispatchBatch,
     createCodingSession,
+    discardActiveDispatchBatch,
     dispatchResults,
     dispatchSummary,
     isActiveDispatchBatch,
@@ -1060,38 +1032,24 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
     });
   }, [dispatchPromptToPanes, lastBroadcastPrompt, visibleRetryFailedPaneIds]);
 
-  const handleCancelDispatch = useCallback(() => {
-    if (!isDispatching) {
+  const handleStopDispatch = useCallback(() => {
+    if (!isDispatching || isStoppingDispatch) {
       return;
     }
 
-    const completedAt = Date.now();
-    const nextResults = buildManualCancelDispatchResults({
-      bindingsByPaneId,
-      completedAt,
-      previousResults: dispatchResults,
-      visiblePanes,
-    });
-    cancelActiveDispatchBatch();
-    setDispatchResults(nextResults);
-    setDispatchSummary(
-      buildManualCancelDispatchSummary({
-        completedAt,
-        previousSummary: dispatchSummary,
-        results: nextResults,
-      }),
-    );
-    setDispatchState('cancelled');
-    addToast(t('multiWindow.dispatchCancelled'), 'info');
+    const activeController = activeDispatchAbortControllerRef.current;
+    if (!activeController || activeController.signal.aborted) {
+      return;
+    }
+
+    activeController.abort();
+    setIsStoppingDispatch(true);
+    addToast(t('multiWindow.dispatchStopRequested'), 'info');
   }, [
     addToast,
-    bindingsByPaneId,
-    cancelActiveDispatchBatch,
-    dispatchResults,
-    dispatchSummary,
     isDispatching,
+    isStoppingDispatch,
     t,
-    visiblePanes,
   ]);
 
   return (
@@ -1125,8 +1083,9 @@ export const MultiWindowProgrammingPage = memo(function MultiWindowProgrammingPa
         dispatchState={dispatchState}
         disabled={Boolean(composerDisabledReasonText)}
         isDispatching={isDispatching}
+        isStoppingDispatch={isStoppingDispatch}
         value={composerValue}
-        onCancelDispatch={handleCancelDispatch}
+        onStopDispatch={handleStopDispatch}
         onRetryFailed={handleRetryFailedPrompt}
         onSubmit={handleBroadcastPrompt}
         onValueChange={setComposerValue}

@@ -16,6 +16,7 @@ import {
   useWorkbenchPreferences,
 } from '@sdkwork/birdcoder-pc-commons';
 import { useFixedSizeWindowedRange, useRelativeMinuteNow } from '@sdkwork/birdcoder-pc-ui-shell';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ProjectExplorerHeader } from './ProjectExplorerHeader';
 import { ProjectExplorerProjectContextMenu } from './ProjectExplorerProjectContextMenu';
@@ -234,6 +235,8 @@ function areSidebarProjectInventoriesEqual(
 function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorerProps): boolean {
   return (
     areSidebarProjectInventoriesEqual(left.projects, right.projects) &&
+    left.hasMoreProjects === right.hasMoreProjects &&
+    left.isLoadingMoreProjects === right.isLoadingMoreProjects &&
     left.isVisible === right.isVisible &&
     left.selectedProjectId === right.selectedProjectId &&
     left.selectedCodingSessionId === right.selectedCodingSessionId &&
@@ -244,6 +247,7 @@ function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorer
     left.onRenameProject === right.onRenameProject &&
     left.onDeleteProject === right.onDeleteProject &&
     left.onNewProject === right.onNewProject &&
+    left.onLoadMoreProjects === right.onLoadMoreProjects &&
     left.onOpenFolder === right.onOpenFolder &&
     left.onNewCodingSessionInProject === right.onNewCodingSessionInProject &&
     left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
@@ -282,6 +286,8 @@ const EMPTY_SIDEBAR_FILTERED_PROJECT_SESSIONS: SidebarFilteredProjectSessionsEnt
 const EMPTY_SIDEBAR_PROJECT_ENTRIES: SidebarProjectEntry[] = [];
 
 export const Sidebar = React.memo(function Sidebar({
+  hasMoreProjects = false,
+  isLoadingMoreProjects = false,
   isVisible = true,
   projects,
   selectedProjectId,
@@ -293,6 +299,7 @@ export const Sidebar = React.memo(function Sidebar({
   onRenameProject,
   onDeleteProject,
   onNewProject,
+  onLoadMoreProjects,
   onOpenFolder,
   onNewCodingSessionInProject,
   onRefreshProjectSessions,
@@ -740,6 +747,20 @@ export const Sidebar = React.memo(function Sidebar({
   const handleCreateProjectFromRootContextMenu = useCallback(async () => {
     await handleCreateProjectFromHeader();
   }, [handleCreateProjectFromHeader]);
+  const handleLoadMoreProjects = useCallback(async () => {
+    if (!onLoadMoreProjects || isLoadingMoreProjects) {
+      return;
+    }
+
+    try {
+      await onLoadMoreProjects();
+    } catch (error) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message
+        : t('code.failedToLoadMoreProjects');
+      addToast(message, 'error');
+    }
+  }, [addToast, isLoadingMoreProjects, onLoadMoreProjects, t]);
   const handleCreateDefaultSessionFromRootContextMenu = useCallback(() => {
     if (selectedProjectId) {
       onNewCodingSessionInProject(
@@ -1098,7 +1119,28 @@ export const Sidebar = React.memo(function Sidebar({
               ) : null}
             </>
           )}
-          
+
+          {hasMoreProjects && onLoadMoreProjects ? (
+            <button
+              type="button"
+              className="mt-1 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-white/10 px-3 text-xs font-medium text-gray-400 transition-colors hover:border-white/15 hover:bg-white/5 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isLoadingMoreProjects}
+              onClick={() => {
+                void handleLoadMoreProjects();
+              }}
+            >
+              {isLoadingMoreProjects ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <ChevronDown size={14} />
+              )}
+              <span>
+                {isLoadingMoreProjects
+                  ? t('code.loadingMoreProjects')
+                  : t('code.loadMoreProjects')}
+              </span>
+            </button>
+          ) : null}
         </div>
       </ProjectExplorerHeader>
 

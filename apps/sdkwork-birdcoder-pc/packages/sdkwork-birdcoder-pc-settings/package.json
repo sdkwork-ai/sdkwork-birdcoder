@@ -21,7 +21,6 @@
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure-runtime": "workspace:*",
-    "@sdkwork/birdcoder-pc-skills": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
     "@sdkwork/birdcoder-pc-ui": "workspace:*"
   },

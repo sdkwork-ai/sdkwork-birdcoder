@@ -12,7 +12,7 @@ export type MultiWindowPaneRuntimeStatus =
   | 'success'
   | 'failed'
   | 'skipped'
-  | 'cancelled';
+  | 'not-submitted';
 export type MultiWindowDispatchState =
   | 'idle'
   | 'running'
@@ -20,7 +20,7 @@ export type MultiWindowDispatchState =
   | 'partial-failure'
   | 'failed'
   | 'skipped'
-  | 'cancelled';
+  | 'stopped';
 
 export interface MultiWindowModelParameters {
   maxOutputTokens: number;

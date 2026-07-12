@@ -2,7 +2,7 @@ import {
   BIRDCODER_AUTH_BASE_PATH,
   createBirdCoderAuthRouteCatalog,
   type BirdCoderAuthRouteDefinition,
-} from '@sdkwork/birdcoder-pc-auth';
+} from '@sdkwork/birdcoder-pc-auth/auth';
 import { BIRDCODER_H5_CHAT_ROUTE_CONTRIBUTIONS } from '@sdkwork/birdcoder-h5-chat/routes';
 
 export interface BirdCoderH5RouteDefinition {

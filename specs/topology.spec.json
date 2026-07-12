@@ -1,17 +1,11 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 4,
   "kind": "sdkwork.app.topology",
   "appId": "sdkwork-birdcoder",
   "archetype": "application-http-gateway",
   "profileRoot": "configs/topology",
-  "profilePattern": "{deploymentProfile}.{serviceLayout}.{environment}.env",
+  "profilePattern": "{deploymentProfile}.{environment}.env",
   "vocabulary": {
-    "serviceLayout": {
-      "allowed": [
-        "unified-process",
-        "split-services"
-      ]
-    },
     "environment": {
       "allowed": [
         "development",
@@ -32,21 +26,18 @@
     }
   },
   "defaults": {
-    "developmentProfileId": "standalone.split-services.development",
-    "productionProfileId": "cloud.split-services.production",
-    "desktopBuildProfileId": "cloud.split-services.production",
+    "developmentProfileId": "standalone.development",
+    "productionProfileId": "cloud.production",
+    "desktopBuildProfileId": "standalone.production",
     "gatewayBind": "127.0.0.1:3900"
   },
   "profileFiles": {
-    "standalone.split-services.development": "configs/topology/standalone.split-services.development.env",
-    "standalone.unified-process.development": "configs/topology/standalone.unified-process.development.env",
-    "standalone.split-services.production": "configs/topology/standalone.split-services.production.env",
-    "cloud.split-services.development": "configs/topology/cloud.split-services.development.env",
-    "cloud.split-services.production": "configs/topology/cloud.split-services.production.env",
-    "standalone.unified-process.production": "configs/topology/standalone.unified-process.production.env"
+    "standalone.development": "configs/topology/standalone.development.env",
+    "standalone.production": "configs/topology/standalone.production.env",
+    "cloud.development": "configs/topology/cloud.development.env",
+    "cloud.production": "configs/topology/cloud.production.env"
   },
   "envKeys": {
-    "serviceLayout": "SDKWORK_BIRDCODER_SERVICE_LAYOUT",
     "environment": "SDKWORK_BIRDCODER_ENVIRONMENT",
     "profileId": "SDKWORK_BIRDCODER_PROFILE_ID",
     "gatewayAutostart": "SDKWORK_BIRDCODER_PLATFORM_API_GATEWAY_AUTOSTART",
@@ -102,32 +93,7 @@
   },
   "orchestration": {
     "profiles": {
-      "standalone.split-services.development": {
-        "processes": [
-          {
-            "id": "application.public-ingress",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-server",
-            "script": "dev:base",
-            "required": true
-          },
-          {
-            "id": "pc-web-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web",
-            "script": "dev:base",
-            "required": false
-          },
-          {
-            "id": "pc-desktop-renderer",
-            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
-            "script": "tauri:dev:base",
-            "required": false
-          }
-        ],
-        "healthSurfaces": [
-          "application.public-ingress"
-        ]
-      },
-      "standalone.unified-process.development": {
+      "standalone.development": {
         "processes": [
           {
             "id": "pc-desktop-renderer",
@@ -138,7 +104,7 @@
         ],
         "healthSurfaces": []
       },
-      "cloud.split-services.development": {
+      "cloud.development": {
         "processes": [
           {
             "id": "platform.api-gateway",
@@ -163,7 +129,7 @@
           "application.public-ingress"
         ]
       },
-      "cloud.split-services.production": {
+      "cloud.production": {
         "processes": [
           {
             "id": "platform.api-gateway",
@@ -195,6 +161,17 @@
           "application.public-ingress",
           "platform.api-gateway"
         ]
+      },
+      "standalone.production": {
+        "processes": [
+          {
+            "id": "pc-desktop-renderer",
+            "package": "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop",
+            "script": "tauri:dev:base",
+            "required": true
+          }
+        ],
+        "healthSurfaces": []
       }
     }
   },

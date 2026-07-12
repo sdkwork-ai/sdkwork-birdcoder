@@ -79,6 +79,7 @@ thiserror = "2"
 tokio = { version = "1", features = ["full"] }
 redis = { version = "0.27", features = ["tokio-comp"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio-rustls", "sqlite", "postgres", "any", "macros"] }
+rusqlite = { version = "0.32.1", features = ["bundled"] }
 
 # Relocated crates
 sdkwork-birdcoder-codeengine = { package = "sdkwork-birdcoder-codeengine", path = "crates/sdkwork-birdcoder-codeengine" }

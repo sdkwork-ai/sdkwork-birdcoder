@@ -63,9 +63,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.apiKeys.read",
+        "x-sdkwork-permission": "birdcoder.iam-api-keys.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.apiKeys",
+        "x-sdkwork-resource": "birdcoder.iam-api-keys",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -135,9 +135,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.apiKeys.create",
+        "x-sdkwork-permission": "birdcoder.iam-api-keys.execute",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.apiKeys",
+        "x-sdkwork-resource": "birdcoder.iam-api-keys",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -186,9 +186,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.auditEvents.read",
+        "x-sdkwork-permission": "birdcoder.iam-audit-events.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.auditEvents",
+        "x-sdkwork-resource": "birdcoder.iam-audit-events",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -258,9 +258,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.read",
+        "x-sdkwork-permission": "birdcoder.iam-organizations.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-resource": "birdcoder.iam-organizations",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -348,9 +348,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.update",
+        "x-sdkwork-permission": "birdcoder.iam-organizations.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-resource": "birdcoder.iam-organizations",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -377,15 +377,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM organization deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM organization deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM organization was not found.",
@@ -418,9 +411,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.delete",
+        "x-sdkwork-permission": "birdcoder.iam-organizations.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-resource": "birdcoder.iam-organizations",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -448,7 +441,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM organization created successfully.",
             "content": {
               "application/json": {
@@ -489,9 +482,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizations.create",
+        "x-sdkwork-permission": "birdcoder.iam-organizations.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizations",
+        "x-sdkwork-resource": "birdcoder.iam-organizations",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -519,7 +512,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM organization membership created successfully.",
             "content": {
               "application/json": {
@@ -560,9 +553,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizationMemberships.create",
+        "x-sdkwork-permission": "birdcoder.iam-organization-memberships.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizationMemberships",
+        "x-sdkwork-resource": "birdcoder.iam-organization-memberships",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -652,9 +645,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.organizationMemberships.update",
+        "x-sdkwork-permission": "birdcoder.iam-organization-memberships.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.organizationMemberships",
+        "x-sdkwork-resource": "birdcoder.iam-organization-memberships",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -703,9 +696,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.permissions.read",
+        "x-sdkwork-permission": "birdcoder.iam-permissions.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -731,7 +724,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM permission created successfully.",
             "content": {
               "application/json": {
@@ -772,9 +765,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.permissions.create",
+        "x-sdkwork-permission": "birdcoder.iam-permissions.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -844,9 +837,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.permissions.read",
+        "x-sdkwork-permission": "birdcoder.iam-permissions.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -934,9 +927,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.permissions.update",
+        "x-sdkwork-permission": "birdcoder.iam-permissions.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -963,15 +956,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM permission deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM permission deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM permission was not found.",
@@ -1004,9 +990,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.permissions.delete",
+        "x-sdkwork-permission": "birdcoder.iam-permissions.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1055,9 +1041,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.policies.read",
+        "x-sdkwork-permission": "birdcoder.iam-policies.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-resource": "birdcoder.iam-policies",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1083,7 +1069,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM policy created successfully.",
             "content": {
               "application/json": {
@@ -1124,9 +1110,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.policies.create",
+        "x-sdkwork-permission": "birdcoder.iam-policies.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-resource": "birdcoder.iam-policies",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1196,9 +1182,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.policies.read",
+        "x-sdkwork-permission": "birdcoder.iam-policies.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-resource": "birdcoder.iam-policies",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1286,9 +1272,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.policies.update",
+        "x-sdkwork-permission": "birdcoder.iam-policies.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-resource": "birdcoder.iam-policies",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1315,15 +1301,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM policy deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM policy deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM policy was not found.",
@@ -1356,9 +1335,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.policies.delete",
+        "x-sdkwork-permission": "birdcoder.iam-policies.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.policies",
+        "x-sdkwork-resource": "birdcoder.iam-policies",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1407,9 +1386,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.read",
+        "x-sdkwork-permission": "birdcoder.iam-roles.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-resource": "birdcoder.iam-roles",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1435,7 +1414,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM role created successfully.",
             "content": {
               "application/json": {
@@ -1476,9 +1455,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.create",
+        "x-sdkwork-permission": "birdcoder.iam-roles.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-resource": "birdcoder.iam-roles",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1548,9 +1527,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.read",
+        "x-sdkwork-permission": "birdcoder.iam-roles.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-resource": "birdcoder.iam-roles",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1638,9 +1617,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.update",
+        "x-sdkwork-permission": "birdcoder.iam-roles.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-resource": "birdcoder.iam-roles",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1667,15 +1646,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM role deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM role deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM role was not found.",
@@ -1708,9 +1680,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.delete",
+        "x-sdkwork-permission": "birdcoder.iam-roles.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles",
+        "x-sdkwork-resource": "birdcoder.iam-roles",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1780,9 +1752,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.permissions.read",
+        "x-sdkwork-permission": "birdcoder.iam-roles-permissions.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-roles-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1819,7 +1791,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM role permission created successfully.",
             "content": {
               "application/json": {
@@ -1870,9 +1842,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.permissions.create",
+        "x-sdkwork-permission": "birdcoder.iam-roles-permissions.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-roles-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -1910,15 +1882,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM role permission deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM role permission deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM role permission was not found.",
@@ -1951,9 +1916,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roles.permissions.delete",
+        "x-sdkwork-permission": "birdcoder.iam-roles-permissions.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roles.permissions",
+        "x-sdkwork-resource": "birdcoder.iam-roles-permissions",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2002,9 +1967,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.securityEvents.read",
+        "x-sdkwork-permission": "birdcoder.iam-security-events.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.securityEvents",
+        "x-sdkwork-resource": "birdcoder.iam-security-events",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2053,9 +2018,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.read",
+        "x-sdkwork-permission": "birdcoder.iam-tenants.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-resource": "birdcoder.iam-tenants",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2081,7 +2046,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM tenant created successfully.",
             "content": {
               "application/json": {
@@ -2122,9 +2087,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.create",
+        "x-sdkwork-permission": "birdcoder.iam-tenants.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-resource": "birdcoder.iam-tenants",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2194,9 +2159,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.read",
+        "x-sdkwork-permission": "birdcoder.iam-tenants.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-resource": "birdcoder.iam-tenants",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2284,9 +2249,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.update",
+        "x-sdkwork-permission": "birdcoder.iam-tenants.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-resource": "birdcoder.iam-tenants",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2313,15 +2278,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM tenant deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM tenant deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM tenant was not found.",
@@ -2354,9 +2312,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.delete",
+        "x-sdkwork-permission": "birdcoder.iam-tenants.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants",
+        "x-sdkwork-resource": "birdcoder.iam-tenants",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2426,9 +2384,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.members.read",
+        "x-sdkwork-permission": "birdcoder.iam-tenants-members.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-resource": "birdcoder.iam-tenants-members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2465,7 +2423,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM tenant member created successfully.",
             "content": {
               "application/json": {
@@ -2516,9 +2474,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.members.create",
+        "x-sdkwork-permission": "birdcoder.iam-tenants-members.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-resource": "birdcoder.iam-tenants-members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2617,9 +2575,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.members.update",
+        "x-sdkwork-permission": "birdcoder.iam-tenants-members.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-resource": "birdcoder.iam-tenants-members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2655,15 +2613,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM tenant member deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM tenant member deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM tenant member was not found.",
@@ -2696,9 +2647,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.tenants.members.delete",
+        "x-sdkwork-permission": "birdcoder.iam-tenants-members.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.tenants.members",
+        "x-sdkwork-resource": "birdcoder.iam-tenants-members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2747,9 +2698,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.read",
+        "x-sdkwork-permission": "birdcoder.iam-users.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-resource": "birdcoder.iam-users",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2775,7 +2726,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM user created successfully.",
             "content": {
               "application/json": {
@@ -2816,9 +2767,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.create",
+        "x-sdkwork-permission": "birdcoder.iam-users.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-resource": "birdcoder.iam-users",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2888,9 +2839,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.read",
+        "x-sdkwork-permission": "birdcoder.iam-users.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-resource": "birdcoder.iam-users",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -2978,9 +2929,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.update",
+        "x-sdkwork-permission": "birdcoder.iam-users.update",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-resource": "birdcoder.iam-users",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -3007,15 +2958,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM user deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderDeletedResourceEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM user deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM user was not found.",
@@ -3048,9 +2992,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.users.delete",
+        "x-sdkwork-permission": "birdcoder.iam-users.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.users",
+        "x-sdkwork-resource": "birdcoder.iam-users",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -3078,7 +3022,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "SDKWork IAM user role binding created successfully.",
             "content": {
               "application/json": {
@@ -3119,9 +3063,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roleBindings.create",
+        "x-sdkwork-permission": "birdcoder.iam-role-bindings.create",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roleBindings",
+        "x-sdkwork-resource": "birdcoder.iam-role-bindings",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -3150,15 +3094,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "SDKWork IAM user role binding deleted successfully.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BirdCoderBooleanSuccessEnvelope"
-                }
-              }
-            }
+          "204": {
+            "description": "SDKWork IAM user role binding deleted successfully."
           },
           "404": {
             "description": "SDKWork IAM user role binding was not found.",
@@ -3191,9 +3128,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.roleBindings.delete",
+        "x-sdkwork-permission": "birdcoder.iam-role-bindings.delete",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.roleBindings",
+        "x-sdkwork-resource": "birdcoder.iam-role-bindings",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -3242,9 +3179,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.deploymentGovernance.read",
+        "x-sdkwork-permission": "birdcoder.platform-deployment-governance.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.deploymentGovernance",
+        "x-sdkwork-resource": "birdcoder.platform-deployment-governance",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -3255,7 +3192,7 @@
     },
     "/backend/v3/api/projects/{projectId}/deployment_targets": {
       "get": {
-        "operationId": "projects.deploymentTargets.list",
+        "operationId": "deploymentGovernance.targets.list",
         "summary": "List deployment targets",
         "description": "List deployment targets. Requires an authenticated BirdCoder admin session.",
         "tags": [
@@ -3272,27 +3209,28 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
-            "description": "Maximum number of items to return.",
+            "description": "One-based page number used for offset-mode pagination.",
             "schema": {
               "type": "integer",
               "minimum": 1
             }
           },
           {
-            "name": "offset",
+            "name": "page_size",
             "in": "query",
-            "description": "Zero-based starting offset used for incremental loading.",
+            "description": "Maximum number of items to return. Defaults to 20 and must not exceed 200.",
             "schema": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1,
+              "maximum": 200
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "Deployment targets returned successfully.",
+            "description": "Admin deployment targets returned successfully.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3332,9 +3270,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.projects.deploymentTargets.read",
+        "x-sdkwork-permission": "birdcoder.platform-deployment-governance-targets.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.projects.deploymentTargets",
+        "x-sdkwork-resource": "birdcoder.platform-deployment-governance-targets",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -3383,9 +3321,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "platform",
-        "x-sdkwork-permission": "platform.releases.read",
+        "x-sdkwork-permission": "birdcoder.platform-releases.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "platform.releases",
+        "x-sdkwork-resource": "birdcoder.platform-releases",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -3455,9 +3393,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.teams.members.read",
+        "x-sdkwork-permission": "birdcoder.iam-teams-members.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.teams.members",
+        "x-sdkwork-resource": "birdcoder.iam-teams-members",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -3524,9 +3462,9 @@
         "x-sdkwork-data-scope": "organization",
         "x-sdkwork-deployment": "all",
         "x-sdkwork-domain": "iam",
-        "x-sdkwork-permission": "iam.teams.read",
+        "x-sdkwork-permission": "birdcoder.iam-teams.read",
         "x-sdkwork-public": false,
-        "x-sdkwork-resource": "iam.teams",
+        "x-sdkwork-resource": "birdcoder.iam-teams",
         "x-sdkwork-surface": "backend",
         "x-sdkwork-tenant-scope": "tenant",
         "x-sdkwork-api-authority": "sdkwork-birdcoder-backend-api",
@@ -3777,46 +3715,6 @@
         },
         "required": [
           "roleId"
-        ],
-        "additionalProperties": false
-      },
-      "BirdCoderDeletedResourceEnvelope": {
-        "allOf": [
-          {
-            "$ref": "#/components/schemas/SdkWorkApiResponse"
-          },
-          {
-            "type": "object",
-            "properties": {
-              "data": {
-                "type": "object",
-                "properties": {
-                  "item": {
-                    "$ref": "#/components/schemas/BirdCoderDeletedResourceResult"
-                  }
-                },
-                "required": [
-                  "item"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "data"
-            ],
-            "additionalProperties": false
-          }
-        ]
-      },
-      "BirdCoderDeletedResourceResult": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id"
         ],
         "additionalProperties": false
       },

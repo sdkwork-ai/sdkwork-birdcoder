@@ -13,11 +13,13 @@ import {
   resolveBirdCoderSessionSortTimestampString,
   stringifyBirdCoderApiJson,
 } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderServiceOffsetPageInfo } from '../services/interfaces/IProjectService.ts';
 
 export interface ProjectsStoreSnapshot {
   error: string | null;
   hasFetched: boolean;
   isLoading: boolean;
+  pageInfo: BirdCoderServiceOffsetPageInfo | null;
   projects: BirdCoderProject[];
 }
 
@@ -29,7 +31,9 @@ export interface ProjectsStoreRealtimeBinding {
 }
 
 export interface ProjectsStore {
+  inventoryVersion: number;
   inflight: Promise<BirdCoderProject[]> | null;
+  inflightKey: string | null;
   listeners: Set<(snapshot: ProjectsStoreSnapshot) => void>;
   pendingRefreshTimer: ReturnType<typeof setTimeout> | null;
   realtime: ProjectsStoreRealtimeBinding | null;
@@ -57,6 +61,7 @@ export function createProjectsStoreSnapshot(): ProjectsStoreSnapshot {
     error: null,
     hasFetched: false,
     isLoading: false,
+    pageInfo: null,
     projects: [],
   };
 }
@@ -155,6 +160,7 @@ function areProjectsStoreSnapshotsEqual(
     left.error === right.error &&
     left.hasFetched === right.hasFetched &&
     left.isLoading === right.isLoading &&
+    left.pageInfo === right.pageInfo &&
     left.projects === right.projects
   );
 }
@@ -663,7 +669,9 @@ export function getProjectsStore(scopeKey: string): ProjectsStore {
   let store = projectStoresByScopeKey.get(scopeKey);
   if (!store) {
     store = {
+      inventoryVersion: 0,
       inflight: null,
+      inflightKey: null,
       listeners: new Set(),
       pendingRefreshTimer: null,
       realtime: null,
@@ -699,6 +707,7 @@ export function mutateProjectsStore(
   userScope: string,
   workspaceId: string,
   updater: (projects: readonly BirdCoderProject[]) => BirdCoderProject[],
+  options: { invalidatePagination?: boolean } = {},
 ): void {
   const normalizedWorkspaceId = workspaceId.trim();
   if (!normalizedWorkspaceId) {
@@ -718,10 +727,15 @@ export function mutateProjectsStore(
       return previousSnapshot;
     }
 
+    if (options.invalidatePagination) {
+      store.inventoryVersion += 1;
+    }
+
     return {
       ...previousSnapshot,
       error: null,
       hasFetched: true,
+      pageInfo: options.invalidatePagination ? null : previousSnapshot.pageInfo,
       projects: reuseProjectCollectionIfUnchanged(previousSnapshot.projects, nextProjects),
     };
   });

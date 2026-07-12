@@ -1,5 +1,6 @@
 import { memo, useDeferredValue, useMemo } from 'react';
 import {
+  buildBirdCoderEditorModelPath,
   ContentWorkbench,
   DeferredDiffEditor,
   resolveContentPreviewDescriptor,
@@ -10,6 +11,7 @@ import { FileCode2, FolderPlus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface CodeEditorSurfaceProps {
+  currentProjectId?: string;
   fileCount: number;
   openFiles: string[];
   selectedFile?: string | null;
@@ -25,6 +27,7 @@ interface CodeEditorSurfaceProps {
 }
 
 export const CodeEditorSurface = memo(function CodeEditorSurface({
+  currentProjectId,
   fileCount,
   openFiles,
   selectedFile,
@@ -56,6 +59,24 @@ export const CodeEditorSurface = memo(function CodeEditorSurface({
     () =>
       previewDescriptor?.shouldDefaultToSplit ? 'split' : 'edit',
     [previewDescriptor],
+  );
+  const editorModelPath = useMemo(
+    () => buildBirdCoderEditorModelPath('code', currentProjectId, selectedFile),
+    [currentProjectId, selectedFile],
+  );
+  const retainedModelPaths = useMemo(
+    () =>
+      openFiles
+        .map((path) => buildBirdCoderEditorModelPath('code', currentProjectId, path))
+        .filter((path): path is string => Boolean(path)),
+    [currentProjectId, openFiles],
+  );
+  const editorProps = useMemo(
+    () => ({
+      path: editorModelPath,
+      retainedModelPaths,
+    }),
+    [editorModelPath, retainedModelPaths],
   );
 
   return (
@@ -139,6 +160,7 @@ export const CodeEditorSurface = memo(function CodeEditorSurface({
           </div>
           <ContentWorkbench
             defaultMode={defaultWorkbenchMode}
+            editorProps={editorProps}
             language={selectedFileLanguage}
             path={selectedFile}
             previewDescriptor={previewDescriptor ?? undefined}

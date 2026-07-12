@@ -11,7 +11,6 @@ export default defineLocaleModule('code/topbar', {
     "failedToCreateBranch": "创建分支失败: {{error}}",
     "switchedToBranch": "已切换到分支: {{branch}}",
     "failedToSwitchBranch": "切换分支失败: {{error}}",
-    "linkCopied": "链接已复制到剪贴板",
     "invitationSent": "邀请已发送"
   }
 });

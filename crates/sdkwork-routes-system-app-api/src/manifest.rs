@@ -10,35 +10,35 @@ pub const SYSTEM_APP_API_ROUTES: &[HttpRoute] = &[
         "system",
         "descriptor.retrieve",
     )
-    .with_required_permission("system.descriptor.read"),
+    .with_required_permission("birdcoder.system-descriptor.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SYSTEM_ROUTES_PATH,
         "system",
         "routes.list",
     )
-    .with_required_permission("system.routes.read"),
+    .with_required_permission("birdcoder.system-routes.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SYSTEM_RUNTIME_PATH,
         "system",
         "runtime.retrieve",
     )
-    .with_required_permission("system.runtime.read"),
+    .with_required_permission("birdcoder.system-runtime.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SYSTEM_HEALTH_PATH,
         "system",
         "health.retrieve",
     )
-    .with_required_permission("system.health.read"),
+    .with_required_permission("birdcoder.system-health.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::OPERATIONS_PATH,
         "system",
         "operations.retrieve",
     )
-    .with_required_permission("system.operations.read"),
+    .with_required_permission("birdcoder.system-operations.read"),
 ];
 
 pub fn system_app_api_route_manifest() -> HttpRouteManifest {

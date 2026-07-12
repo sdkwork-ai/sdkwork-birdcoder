@@ -23,8 +23,6 @@ import studioPreview from './studio/preview.ts';
 import studioWorkspace from './studio/workspace.ts';
 import studioActions from './studio/actions.ts';
 import studioDialogs from './studio/dialogs.ts';
-import skillsPage from './skills/page.ts';
-import templatesPage from './templates/page.ts';
 import uiContentPreview from './ui/content-preview.ts';
 import { buildLocaleResource, type LocaleModule } from '../resource.ts';
 
@@ -54,8 +52,6 @@ export const enModules = [
   studioWorkspace,
   studioActions,
   studioDialogs,
-  skillsPage,
-  templatesPage,
   uiContentPreview,
 ] as const satisfies readonly LocaleModule[];
 

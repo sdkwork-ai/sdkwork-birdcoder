@@ -44,6 +44,14 @@ const workspaceHandlersSource = readFileSync(
   new URL('../crates/sdkwork-routes-workspace-app-api/src/handlers.rs', import.meta.url),
   'utf8',
 );
+const workspaceRequestMapperSource = readFileSync(
+  new URL('../crates/sdkwork-routes-workspace-app-api/src/mapper/request.rs', import.meta.url),
+  'utf8',
+);
+const projectPaginationSource = readFileSync(
+  new URL('../crates/sdkwork-birdcoder-project-service/src/pagination.rs', import.meta.url),
+  'utf8',
+);
 const SHARED_PROBLEM_PAYLOAD_PATTERN =
   /sdkwork_birdcoder_errors::|traced_platform_problem|traced_problem_json|traced_legacy_problem|SdkWorkProblemDetail|ProblemDetailsPayload/;
 
@@ -87,10 +95,124 @@ assert.match(
   /trace_service_error\(/,
   'Coding session handlers must attach request trace IDs to AppError responses.',
 );
-assert.match(
-  workspaceHandlersSource,
-  /clamp_list_page_size\(/,
-  'Workspace list handlers must apply server-side pagination clamping (default page_size=20, max=200) at the route layer.',
+
+const strictOffsetRouteContracts = [
+  ['workspace-app-api', workspaceHandlersSource, workspaceRequestMapperSource, 7],
+  [
+    'deployment-backend-api',
+    readFileSync(
+      new URL('../crates/sdkwork-routes-deployment-backend-api/src/handlers.rs', import.meta.url),
+      'utf8',
+    ),
+    readFileSync(
+      new URL(
+        '../crates/sdkwork-routes-deployment-backend-api/src/mapper/request.rs',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    5,
+  ],
+  [
+    'commerce-app-api',
+    readFileSync(
+      new URL('../crates/sdkwork-routes-commerce-app-api/src/handlers.rs', import.meta.url),
+      'utf8',
+    ),
+    readFileSync(
+      new URL('../crates/sdkwork-routes-commerce-app-api/src/mapper/request.rs', import.meta.url),
+      'utf8',
+    ),
+    3,
+  ],
+  [
+    'chat-app-api',
+    readFileSync(
+      new URL('../crates/sdkwork-routes-chat-app-api/src/handlers.rs', import.meta.url),
+      'utf8',
+    ),
+    readFileSync(
+      new URL('../crates/sdkwork-routes-chat-app-api/src/mapper/request.rs', import.meta.url),
+      'utf8',
+    ),
+    2,
+  ],
+  [
+    'skill-packages-app-api',
+    readFileSync(
+      new URL('../crates/sdkwork-routes-skill-packages-app-api/src/handlers.rs', import.meta.url),
+      'utf8',
+    ),
+    readFileSync(
+      new URL(
+        '../crates/sdkwork-routes-skill-packages-app-api/src/mapper/request.rs',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    2,
+  ],
+  [
+    'document-app-api',
+    readFileSync(
+      new URL('../crates/sdkwork-routes-document-app-api/src/handlers.rs', import.meta.url),
+      'utf8',
+    ),
+    readFileSync(
+      new URL('../crates/sdkwork-routes-document-app-api/src/mapper/request.rs', import.meta.url),
+      'utf8',
+    ),
+    1,
+  ],
+  [
+    'engine-catalog-app-api',
+    readFileSync(
+      new URL('../crates/sdkwork-routes-engine-catalog-app-api/src/handlers.rs', import.meta.url),
+      'utf8',
+    ),
+    readFileSync(
+      new URL(
+        '../crates/sdkwork-routes-engine-catalog-app-api/src/mapper/request.rs',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+    1,
+  ],
+] as const;
+
+for (const [crate, routeHandlersSource, requestMapperSource, expectedListHandlers] of
+  strictOffsetRouteContracts) {
+  const strictExtractorCount =
+    routeHandlersSource.match(
+      /StrictOffsetListQuery\(pagination\): StrictOffsetListQuery/g,
+    )?.length ?? 0;
+  assert.equal(
+    strictExtractorCount,
+    expectedListHandlers,
+    `${crate} must reject invalid pagination through StrictOffsetListQuery before repository access.`,
+  );
+  assert.doesNotMatch(
+    routeHandlersSource,
+    /\.normalized_pagination\(\)/,
+    `${crate} handlers must not silently clamp HTTP pagination.`,
+  );
+  assert.doesNotMatch(
+    requestMapperSource,
+    /normalize_page_list_query|normalized_pagination/,
+    `${crate} request mappers must receive validated pagination from the shared HTTP extractor.`,
+  );
+  assert.doesNotMatch(
+    routeHandlersSource,
+    /usize::try_from\(total\)\.unwrap_or\(0\)/,
+    `${crate} list handlers must not turn an invalid repository total into a successful zero-total page.`,
+  );
+}
+
+assert.doesNotMatch(
+  projectPaginationSource,
+  /pub fn normalize_page_list_query/,
+  'Project service must not expose an HTTP page normalizer that silently clamps invalid input.',
 );
 assert.doesNotMatch(
   workspaceHandlersSource,
@@ -99,18 +221,18 @@ assert.doesNotMatch(
 );
 assert.match(
   sdkClientsSource,
-  /DEFAULT_SDK_LIST_LIMIT = 20/,
+  /DEFAULT_SDK_PAGE_SIZE = 20/,
   'SDK list clients must apply the server-aligned default page size.',
 );
 assert.match(
   sdkClientsSource,
-  /withDefaultListLimit\(request\)/,
-  'Paginated SDK list queries must apply the default limit helper.',
+  /withDefaultPageSize\(request\)/,
+  'Paginated SDK list queries must apply the default page_size helper.',
 );
 assert.match(
   sdkClientsSource,
-  /withDefaultListLimit\(options\)/,
-  'Workspace and project SDK list queries must apply the default limit helper.',
+  /withDefaultPageSize\(options\)/,
+  'Workspace and project SDK list queries must apply the default page_size helper.',
 );
 
 const openApiSource = readFileSync(
@@ -122,28 +244,33 @@ const openApiSource = readFileSync(
 );
 assert.match(
   openApiSource,
-  /'workspaces\.list':[\s\S]*limitParameter[\s\S]*offsetParameter/,
-  'OpenAPI workspaces.list must document limit and offset query parameters.',
+  /'workspaces\.list':[\s\S]*pageParameter[\s\S]*pageSizeParameter/,
+  'OpenAPI workspaces.list must document page and page_size query parameters.',
 );
 assert.match(
   sdkClientsSource,
-  /toGeneratedOffsetLimitQuery\(options\)/,
-  'Deployment and collaborator SDK list queries must apply the default limit helper.',
+  /toGeneratedPageQuery\(options\)/,
+  'Deployment and collaborator SDK list queries must apply the default page_size helper.',
 );
 assert.match(
   openApiSource,
-  /'deployments\.list':[\s\S]*limitParameter[\s\S]*offsetParameter/,
-  'OpenAPI deployments.list must document limit and offset query parameters.',
+  /'deployments\.list':[\s\S]*pageParameter[\s\S]*pageSizeParameter/,
+  'OpenAPI deployments.list must document page and page_size query parameters.',
 );
 assert.match(
   openApiSource,
-  /'projects\.list':[\s\S]*limitParameter[\s\S]*offsetParameter/,
-  'OpenAPI projects.list must document limit and offset query parameters.',
+  /'projects\.list':[\s\S]*pageParameter[\s\S]*pageSizeParameter/,
+  'OpenAPI projects.list must document page and page_size query parameters.',
 );
 assert.match(
   openApiSource,
-  /'documents\.list':[\s\S]*projectIdParameter[\s\S]*limitParameter[\s\S]*offsetParameter/,
-  'OpenAPI documents.list must document projectId, limit, and offset query parameters.',
+  /'documents\.list':[\s\S]*projectIdParameter[\s\S]*pageParameter[\s\S]*pageSizeParameter/,
+  'OpenAPI documents.list must document projectId, page, and page_size query parameters.',
+);
+assert.doesNotMatch(
+  openApiSource,
+  /const limitParameter|const offsetParameter/,
+  'OpenAPI source must not keep pre-launch limit/offset HTTP query parameter aliases.',
 );
 
 const nativeSessionHandlersSource = readFileSync(

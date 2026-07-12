@@ -35,7 +35,7 @@ pnpm check:multi-mode
 pnpm check:iam:sample
 ```
 
-Use `pnpm dev` for the default private BirdCoder web sample stack, `pnpm dev:local` or `pnpm tauri:dev` for the desktop-local loop, and `pnpm server:dev` for the private server-hosted loop. `pnpm dev` and `pnpm dev:private` are stack-style entrypoints: they start the native BirdCoder server, wait for `/app/v3/api/system/health` and `/app/v3/api/system/iam/runtime`, then boot the browser host against the same SDKWork IAM facade. Use `pnpm web:dev:private` only when the browser host should attach to an already running private server.
+Use `pnpm dev` for the default private BirdCoder web sample stack, `pnpm dev:local` or `pnpm tauri:dev` for the desktop-local loop, and `pnpm server:dev` for the private server-hosted loop. `pnpm dev` and `pnpm dev:private` are stack-style entrypoints: they start the native BirdCoder server, wait for the unauthenticated infrastructure readiness probe at `/readyz`, then boot the browser host against the same SDKWork IAM facade. Use `pnpm web:dev:private` only when the browser host should attach to an already running private server.
 
 ## IAM Deployment Commands
 

@@ -476,6 +476,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
   const [openFiles, setOpenFiles] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string>('');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState(false);
   const [isSearchingFiles, setIsSearchingFiles] = useState(false);
   const [isRealtimeDocumentActive, setIsRealtimeDocumentActive] = useState<boolean>(() =>
@@ -678,6 +679,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
         return;
       }
 
+      setSaveError(null);
       setCachedFileContent(path, content);
       if (
         targetProjectId === normalizedProjectId &&
@@ -698,6 +700,14 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
       }
     } catch (error) {
       console.error('Failed to save file content', error);
+      if (isProjectActive(targetProjectId)) {
+        setSaveError(
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : 'Failed to save file content.',
+        );
+      }
+      throw error;
     }
   }, [
     commitVisibleFileContent,
@@ -747,7 +757,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
         pendingAutosave.projectId,
         pendingAutosave.path,
         pendingAutosave.content,
-      );
+      ).catch(() => undefined);
     }, FILE_AUTOSAVE_DELAY_MS);
   }, [
     clearPendingAutosaveTimer,
@@ -779,7 +789,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
     const previousSelectedFilePath = selectedFileRef.current;
     const didSelectedFileChange = normalizedState.selectedFilePath !== previousSelectedFilePath;
     if (didSelectedFileChange) {
-      void flushPendingAutosave();
+      void flushPendingAutosave().catch(() => undefined);
     }
     openFilesRef.current = normalizedState.openFilePaths;
     selectedFileRef.current = normalizedState.selectedFilePath;
@@ -1167,7 +1177,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
     }
 
     persistProjectEditorState(previousProjectIdRef.current, readCurrentEditorOpenFileState());
-    void flushPendingAutosave();
+    void flushPendingAutosave().catch(() => undefined);
     previousProjectIdRef.current = nextProjectId;
     searchAbortControllerRef.current?.abort();
     searchAbortControllerRef.current = null;
@@ -1206,7 +1216,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
 
   useEffect(() => {
     return () => {
-      void flushPendingAutosave();
+      void flushPendingAutosave().catch(() => undefined);
       clearPendingAutosaveTimer();
       searchAbortControllerRef.current?.abort();
       searchAbortControllerRef.current = null;
@@ -1588,6 +1598,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
       );
     } catch (error) {
       console.error("Failed to create file", error);
+      throw error;
     } finally {
       completeFileTreeRequestVersion(mutationProjectId);
     }
@@ -1631,6 +1642,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
       );
     } catch (error) {
       console.error("Failed to create folder", error);
+      throw error;
     } finally {
       completeFileTreeRequestVersion(mutationProjectId);
     }
@@ -1751,6 +1763,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
       );
     } catch (error) {
       console.error("Failed to rename node", error);
+      throw error;
     } finally {
       completeFileTreeRequestVersion(mutationProjectId);
     }
@@ -1997,6 +2010,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
     openFiles,
     selectedFile,
     fileContent,
+    saveError,
     isLoadingContent,
     isSearchingFiles,
     mountRecoveryState,
@@ -2005,6 +2019,7 @@ export function useFileSystem(projectId: string, projectPath?: string, options?:
     closeFile,
     updateFileDraft,
     saveFileContent,
+    flushPendingAutosave,
     createFile,
     createFolder,
     deleteFile,

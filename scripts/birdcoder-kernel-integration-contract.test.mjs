@@ -68,9 +68,9 @@ const alignmentSpec = JSON.parse(
 );
 assert.ok(
   alignmentSpec.authorityDocs.includes(
-    'docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md',
+    'docs/architecture/tech/TECH_ARCHITECTURE.md',
   ),
-  'alignment spec must index TECH-31 kernel integration implementation doc',
+  'alignment spec must index the canonical technical architecture',
 );
 
 const agentsAlignmentSpec = JSON.parse(

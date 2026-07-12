@@ -33,10 +33,14 @@ const userBWorkspace = createLocalWorkspace(
   'User B workspace',
 );
 
+let boundedPageReads = 0;
 const service = new ApiBackedWorkspaceService({
   appClient: {
     async listWorkspaces(): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listWorkspaces']>>> {
       throw new Error('Failed to fetch workspace catalog');
+    },
+    async listWorkspacePage(): Promise<never> {
+      throw new Error('Failed to fetch workspace page');
     },
   } as unknown as BirdCoderAppSdkApiClient,
   currentUserProvider: {
@@ -55,6 +59,20 @@ const service = new ApiBackedWorkspaceService({
         structuredClone(userBWorkspace),
       ];
     },
+    async getWorkspacesPage() {
+      boundedPageReads += 1;
+      return {
+        items: [structuredClone(userAWorkspace), structuredClone(userBWorkspace)],
+        pageInfo: {
+          hasMore: false,
+          mode: 'offset' as const,
+          page: 1,
+          pageSize: 2,
+          totalItems: '2',
+          totalPages: 1,
+        },
+      };
+    },
   } as unknown as IWorkspaceService,
 });
 
@@ -68,6 +86,33 @@ try {
     fallbackWorkspaces.map((workspace) => workspace.id),
     ['workspace-user-b'],
     'workspace catalog transient fallback must not expose locally mirrored workspaces owned by another authenticated user.',
+  );
+
+  const fallbackPage = await service.getWorkspacesPage({
+    page: 1,
+    pageSize: 2,
+  });
+  assert.deepEqual(
+    fallbackPage.items.map((workspace) => workspace.id),
+    ['workspace-user-b'],
+    'workspace page transient fallback must filter a mixed local page to the current authenticated user.',
+  );
+  assert.deepEqual(
+    fallbackPage.pageInfo,
+    {
+      hasMore: false,
+      mode: 'offset',
+      page: 1,
+      pageSize: 2,
+      totalItems: '1',
+      totalPages: 1,
+    },
+    'workspace page transient fallback must rebuild PageInfo after removing another user\'s local record.',
+  );
+  assert.equal(
+    boundedPageReads,
+    1,
+    'workspace page transient fallback must use one bounded local page read instead of broad inventory collection.',
   );
 } finally {
   console.warn = originalConsoleWarn;
@@ -154,6 +199,58 @@ try {
     fallbackWorkspaces,
     [],
     'workspace fallback must fail closed to an empty local mirror when current-user scope is unavailable, instead of throwing or exposing workspaces owned by another user.',
+  );
+} finally {
+  console.warn = originalConsoleWarn;
+}
+
+let anonymousLocalPageReads = 0;
+const anonymousPageService = new ApiBackedWorkspaceService({
+  appClient: {
+    async listWorkspacePage(): Promise<never> {
+      throw new Error('Failed to fetch anonymous workspace page');
+    },
+  } as unknown as BirdCoderAppSdkApiClient,
+  currentUserProvider: {
+    async getCurrentUser() {
+      throw new Error(
+        'BirdCoder API request timed out after 8000ms: GET /app/v3/api/iam/users/current',
+      );
+    },
+  },
+  writeService: {
+    async getWorkspacesPage() {
+      anonymousLocalPageReads += 1;
+      return {
+        items: [structuredClone(userAWorkspace)],
+        pageInfo: {
+          hasMore: false,
+          mode: 'offset' as const,
+          page: 1,
+          pageSize: 20,
+          totalItems: '1',
+          totalPages: 1,
+        },
+      };
+    },
+  } as unknown as IWorkspaceService,
+});
+
+console.warn = () => {};
+try {
+  const anonymousPage = await anonymousPageService.getWorkspacesPage({
+    page: 1,
+    pageSize: 20,
+  });
+  assert.deepEqual(
+    anonymousPage.items,
+    [],
+    'workspace page transient fallback must fail closed when current-user scope cannot be resolved.',
+  );
+  assert.equal(
+    anonymousLocalPageReads,
+    0,
+    'workspace page transient fallback must not read local mirrors for anonymous or unresolved scope.',
   );
 } finally {
   console.warn = originalConsoleWarn;

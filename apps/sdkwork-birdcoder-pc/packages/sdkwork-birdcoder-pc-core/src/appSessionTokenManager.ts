@@ -1,7 +1,13 @@
 import { createTokenManager, type AuthTokenManager } from '@sdkwork/sdk-common';
 import { loadStoredAppSessionToken } from './appSessionToken.ts';
 
-let globalTokenManager: AuthTokenManager | undefined;
+type BirdCoderTokenManagerHost = typeof globalThis & {
+  __SDKWORK_BIRDCODER_GLOBAL_TOKEN_MANAGER__?: AuthTokenManager;
+};
+
+function getTokenManagerHost(): BirdCoderTokenManagerHost {
+  return globalThis as BirdCoderTokenManagerHost;
+}
 
 function hydrateTokenManagerFromStoredSession(tokenManager: AuthTokenManager): void {
   const stored = loadStoredAppSessionToken();
@@ -20,25 +26,27 @@ function hydrateTokenManagerFromStoredSession(tokenManager: AuthTokenManager): v
 }
 
 export function getBirdCoderGlobalTokenManager(): AuthTokenManager {
-  if (!globalTokenManager) {
-    globalTokenManager = createTokenManager();
-    hydrateTokenManagerFromStoredSession(globalTokenManager);
+  const host = getTokenManagerHost();
+  if (!host.__SDKWORK_BIRDCODER_GLOBAL_TOKEN_MANAGER__) {
+    host.__SDKWORK_BIRDCODER_GLOBAL_TOKEN_MANAGER__ = createTokenManager();
+    hydrateTokenManagerFromStoredSession(host.__SDKWORK_BIRDCODER_GLOBAL_TOKEN_MANAGER__);
   }
-  return globalTokenManager;
+  return host.__SDKWORK_BIRDCODER_GLOBAL_TOKEN_MANAGER__;
 }
 
 export function setBirdCoderGlobalTokenManager(tokenManager: AuthTokenManager): void {
   hydrateTokenManagerFromStoredSession(tokenManager);
-  globalTokenManager = tokenManager;
+  getTokenManagerHost().__SDKWORK_BIRDCODER_GLOBAL_TOKEN_MANAGER__ = tokenManager;
 }
 
 export function resetBirdCoderGlobalTokenManager(): void {
-  globalTokenManager = undefined;
+  delete getTokenManagerHost().__SDKWORK_BIRDCODER_GLOBAL_TOKEN_MANAGER__;
 }
 
 export function syncBirdCoderGlobalTokenManagerFromStorage(): void {
-  if (!globalTokenManager) {
+  const tokenManager = getTokenManagerHost().__SDKWORK_BIRDCODER_GLOBAL_TOKEN_MANAGER__;
+  if (!tokenManager) {
     return;
   }
-  hydrateTokenManagerFromStoredSession(globalTokenManager);
+  hydrateTokenManagerFromStoredSession(tokenManager);
 }

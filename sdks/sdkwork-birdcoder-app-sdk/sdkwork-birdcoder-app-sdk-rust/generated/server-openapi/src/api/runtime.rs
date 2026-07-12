@@ -45,13 +45,13 @@ impl RuntimeApi {
     }
 
     /// List discovered native engine sessions
-    pub async fn native_sessions_list(&self, workspace_id: Option<&str>, project_id: Option<&str>, engine_id: Option<&str>, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderNativeSessionSummaryListEnvelope, SdkworkError> {
+    pub async fn native_sessions_list(&self, workspace_id: Option<&str>, project_id: Option<&str>, engine_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderNativeSessionSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
             QueryParameterSpec::new("projectId", project_id, "form", true, false, None),
             QueryParameterSpec::new("engineId", engine_id, "form", true, false, None),
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/native_sessions".to_string()), &query);
         self.client.get(&path, None, None).await
@@ -64,7 +64,7 @@ impl RuntimeApi {
     }
 
     /// Sync code engine model configuration
-    pub async fn model_config_sync(&self, body: &BirdCoderSyncCodeEngineModelConfigRequest) -> Result<BirdCoderCodeEngineModelConfigSyncResultEnvelope, SdkworkError> {
+    pub async fn model_config_update(&self, body: &BirdCoderSyncCodeEngineModelConfigRequest) -> Result<BirdCoderCodeEngineModelConfigSyncResultEnvelope, SdkworkError> {
         let path = app_path(&"/model_config".to_string());
         self.client.put(&path, Some(body), None, None, Some("application/json")).await
     }

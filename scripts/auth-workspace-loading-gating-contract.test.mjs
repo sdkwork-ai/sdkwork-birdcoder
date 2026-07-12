@@ -22,7 +22,7 @@ assert.match(
 
 assert.match(
   appSource,
-  /useWorkspaces\(\{\s*isActive: Boolean\(user\),\s*\}\)/,
+  /useWorkspaces\(\{[\s\S]*?isActive:\s*Boolean\(user\),[\s\S]*?\}\)/s,
   'BirdcoderApp must not load workspaces until an authenticated user exists.',
 );
 

@@ -7,13 +7,22 @@ export type MultiWindowDispatchPaneStatus =
   | 'success'
   | 'failed'
   | 'skipped'
-  | 'cancelled';
+  | 'not-submitted';
 export type MultiWindowDispatchBatchStatus =
   | 'success'
   | 'partial-failure'
   | 'failed'
   | 'skipped'
-  | 'cancelled';
+  | 'stopped';
+
+export const DEFAULT_MULTI_WINDOW_MAX_CONCURRENT_DISPATCHES = 4;
+
+export class MultiWindowDispatchStoppedError extends Error {
+  constructor() {
+    super('Multi-window dispatch stopped before prompt submission');
+    this.name = 'MultiWindowDispatchStoppedError';
+  }
+}
 
 export interface MultiWindowDispatchPromptInput {
   codingSessionId: string;
@@ -50,13 +59,13 @@ export interface MultiWindowDispatchPaneResult {
 }
 
 export interface MultiWindowDispatchBatchSummary {
-  cancelledPaneCount: number;
   completedAt: number;
   dispatchablePaneCount: number;
   durationMs: number;
   effectiveConcurrency: number;
   failedPaneCount: number;
   maxObservedConcurrency: number;
+  notSubmittedPaneCount: number;
   pendingPaneCount: number;
   requestedConcurrency: number;
   skippedPaneCount: number;
@@ -119,7 +128,7 @@ function resolveErrorMessage(error: unknown): string {
 
 function normalizeDispatchConcurrency(value: number | null | undefined): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return MAX_MULTI_WINDOW_PANES;
+    return DEFAULT_MULTI_WINDOW_MAX_CONCURRENT_DISPATCHES;
   }
 
   return Math.max(1, Math.min(MAX_MULTI_WINDOW_PANES, Math.floor(value)));
@@ -142,7 +151,7 @@ function resolveBatchStatus(
 ): MultiWindowDispatchBatchStatus {
   const successCount = results.filter((result) => result.status === 'success').length;
   const failedCount = results.filter((result) => result.status === 'failed').length;
-  const cancelledCount = results.filter((result) => result.status === 'cancelled').length;
+  const notSubmittedCount = results.filter((result) => result.status === 'not-submitted').length;
 
   if (successCount > 0 && failedCount > 0) {
     return 'partial-failure';
@@ -150,8 +159,8 @@ function resolveBatchStatus(
   if (failedCount > 0) {
     return 'failed';
   }
-  if (cancelledCount > 0) {
-    return 'cancelled';
+  if (notSubmittedCount > 0) {
+    return 'stopped';
   }
   if (successCount > 0) {
     return 'success';
@@ -181,17 +190,19 @@ function buildBatchSummary({
   const successPaneCount = results.filter((result) => result.status === 'success').length;
   const failedPaneCount = results.filter((result) => result.status === 'failed').length;
   const skippedPaneCount = results.filter((result) => result.status === 'skipped').length;
-  const cancelledPaneCount = results.filter((result) => result.status === 'cancelled').length;
+  const notSubmittedPaneCount = results.filter(
+    (result) => result.status === 'not-submitted',
+  ).length;
   const pendingPaneCount = results.filter((result) => result.status === 'pending').length;
 
   return {
-    cancelledPaneCount,
     completedAt,
     dispatchablePaneCount,
     durationMs: Math.max(0, completedAt - startedAt),
     effectiveConcurrency,
     failedPaneCount,
     maxObservedConcurrency,
+    notSubmittedPaneCount,
     pendingPaneCount,
     requestedConcurrency,
     skippedPaneCount,
@@ -211,18 +222,22 @@ function buildSkippedPaneResult(pane: MultiWindowDispatchPaneTarget): MultiWindo
   };
 }
 
-function buildCancelledPaneResult(
+function buildNotSubmittedPaneResult(
   pane: MultiWindowDispatchPaneTarget,
-  cancelledAt = Date.now(),
+  stoppedAt = Date.now(),
 ): MultiWindowDispatchPaneResult {
   return {
     codingSessionId: pane.codingSessionId,
-    completedAt: cancelledAt,
+    completedAt: stoppedAt,
     durationMs: 0,
     paneId: pane.id,
     projectId: pane.projectId,
-    status: 'cancelled',
+    status: 'not-submitted',
   };
+}
+
+function isDispatchStoppedBeforeSubmission(error: unknown): boolean {
+  return error instanceof MultiWindowDispatchStoppedError;
 }
 
 function publishPaneResult(
@@ -286,7 +301,7 @@ export async function dispatchMultiWindowPrompt({
 
       const { index, pane } = target;
       if (signal?.aborted) {
-        results[index] = buildCancelledPaneResult(pane);
+        results[index] = buildNotSubmittedPaneResult(pane);
         publishPaneResult(results[index]!, onPaneResult);
         continue;
       }
@@ -311,12 +326,6 @@ export async function dispatchMultiWindowPrompt({
           prompt: normalizedPrompt,
           signal,
         });
-        if (signal?.aborted) {
-          results[index] = buildCancelledPaneResult(pane);
-          publishPaneResult(results[index]!, onPaneResult);
-          continue;
-        }
-
         const effectiveCodingSessionId =
           readDispatchPaneSendResultCodingSessionId(sendResult) || pane.codingSessionId;
         const completedAt = Date.now();
@@ -332,8 +341,8 @@ export async function dispatchMultiWindowPrompt({
         publishPaneResult(results[index]!, onPaneResult);
       } catch (error) {
         const completedAt = Date.now();
-        if (signal?.aborted) {
-          results[index] = buildCancelledPaneResult(pane, completedAt);
+        if (isDispatchStoppedBeforeSubmission(error)) {
+          results[index] = buildNotSubmittedPaneResult(pane, completedAt);
           publishPaneResult(results[index]!, onPaneResult);
           continue;
         }

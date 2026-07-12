@@ -3,6 +3,10 @@ import {
   APP_SESSION_STORAGE_KEY,
   getAppSessionPersistencePort,
 } from './appSessionPersistence.ts';
+import type { IamSession } from '@sdkwork/iam-service';
+
+type IamAppContext = NonNullable<IamSession['context']>;
+type IamUser = NonNullable<IamSession['user']>;
 
 export { APP_SESSION_CHANGE_EVENT_NAME } from './appSessionEvents.ts';
 export { APP_SESSION_STORAGE_KEY } from './appSessionPersistence.ts';
@@ -12,10 +16,12 @@ const EXPIRY_SKEW_SECONDS = 30;
 export interface StoredAppSessionToken {
   accessToken: string;
   authToken: string;
+  context?: IamAppContext;
   expiresAt?: number;
   refreshToken?: string;
   sessionId?: string;
   storedAt: number;
+  user?: IamUser;
 }
 
 /**
@@ -33,27 +39,61 @@ export interface StoredAppSessionToken {
 export interface PersistedAppSessionToken {
   accessToken: string;
   authToken: string;
+  context?: IamAppContext;
   expiresAt?: number;
   sessionId?: string;
   storedAt: number;
+  user?: IamUser;
+}
+
+export interface StoreAppSessionOptions {
+  preserveSessionMetadata?: boolean;
 }
 
 let memoryToken: StoredAppSessionToken | null = null;
 let storageLoaded = false;
+let sessionChangeNotificationPending = false;
+let sessionChangeNotificationTimer: ReturnType<typeof setTimeout> | null = null;
 
-export function storeAppSessionFromResult(result: unknown): StoredAppSessionToken {
+export function storeAppSessionFromResult(
+  result: unknown,
+  options: StoreAppSessionOptions = {},
+): StoredAppSessionToken {
   const previousToken = loadStoredAppSessionToken();
   const data = readAppSessionPayload(result);
   const accessToken = readString(data, 'accessToken');
   const authToken = readString(data, 'authToken');
-  const expiresAt = readOptionalExpiry(data, 'expiresAt');
+  const responseExpiresAt = readOptionalExpiry(data, 'expiresAt');
   const responseRefreshToken = readString(data, 'refreshToken');
   const responseSessionId = readString(data, 'sessionId');
-  const sameSession =
-    Boolean(previousToken) &&
-    (!responseSessionId || previousToken?.sessionId === responseSessionId);
-  const refreshToken = responseRefreshToken || (sameSession ? previousToken?.refreshToken ?? '' : '');
-  const sessionId = responseSessionId || (sameSession ? previousToken?.sessionId ?? '' : '');
+  const preserveSessionMetadata = options.preserveSessionMetadata
+    ?? Boolean(
+      previousToken
+      && (
+        (
+          previousToken.authToken === authToken
+          && previousToken.accessToken === accessToken
+        )
+        || (
+          responseSessionId
+          && previousToken.sessionId === responseSessionId
+        )
+      ),
+    );
+  const refreshToken = responseRefreshToken
+    || (preserveSessionMetadata ? previousToken?.refreshToken ?? '' : '');
+  const sessionId = responseSessionId
+    || (preserveSessionMetadata ? previousToken?.sessionId ?? '' : '');
+  const context = readOptionalSessionContext(
+    data,
+    preserveSessionMetadata ? previousToken?.context : undefined,
+  );
+  const user = readOptionalSessionUser(
+    data,
+    preserveSessionMetadata ? previousToken?.user : undefined,
+  );
+  const expiresAt = responseExpiresAt
+    ?? (preserveSessionMetadata ? previousToken?.expiresAt : undefined);
 
   if (!accessToken || !authToken) {
     throw new Error('App session response is missing valid SDKWork IAM token data.');
@@ -62,17 +102,46 @@ export function storeAppSessionFromResult(result: unknown): StoredAppSessionToke
   const stored: StoredAppSessionToken = {
     accessToken,
     authToken,
+    ...(context ? { context } : {}),
     ...(Number.isFinite(expiresAt) ? { expiresAt } : {}),
     ...(refreshToken ? { refreshToken } : {}),
     ...(sessionId ? { sessionId } : {}),
     storedAt: currentUnixSeconds(),
+    ...(user ? { user } : {}),
   };
+
+  const unchanged = isSameSessionToken(previousToken, stored);
 
   memoryToken = stored;
   storageLoaded = true;
-  writeSessionStorage(stored);
-  dispatchAppSessionChange();
+
+  if (!unchanged) {
+    writeSessionStorage(stored);
+    // The IAM runtime synchronizes its shared TokenManager immediately after
+    // tokenStore.set() resolves. Defer the event until that commit continuation
+    // has run so listeners never validate a newly stored session without auth
+    // headers.
+    scheduleAppSessionChange();
+  }
   return stored;
+}
+
+function isSameSessionToken(
+  previous: StoredAppSessionToken | null,
+  next: StoredAppSessionToken,
+): boolean {
+  if (!previous) {
+    return false;
+  }
+  return (
+    previous.authToken === next.authToken
+    && previous.accessToken === next.accessToken
+    && previous.expiresAt === next.expiresAt
+    && previous.refreshToken === next.refreshToken
+    && previous.sessionId === next.sessionId
+    && areJsonValuesEqual(previous.context, next.context)
+    && areJsonValuesEqual(previous.user, next.user)
+  );
 }
 
 export function getStoredAppSessionToken(now = currentUnixSeconds()): string | undefined {
@@ -159,9 +228,13 @@ export function loadStoredAppSessionToken(): StoredAppSessionToken | null {
       accessToken: parsed.accessToken,
       authToken: parsed.authToken,
       storedAt: parsed.storedAt,
-      ...(typeof parsed.expiresAt === 'number' ? { expiresAt: parsed.expiresAt } : {}),
+      ...(parsed.context ? { context: parsed.context } : {}),
+      ...(typeof parsed.expiresAt === 'number'
+        ? { expiresAt: normalizeEpochSeconds(parsed.expiresAt) }
+        : {}),
       ...(typeof parsed.sessionId === 'string' ? { sessionId: parsed.sessionId } : {}),
       ...(preservedRefreshToken ? { refreshToken: preservedRefreshToken } : {}),
+      ...(parsed.user ? { user: parsed.user } : {}),
     };
     memoryToken = merged;
     return merged;
@@ -172,10 +245,19 @@ export function loadStoredAppSessionToken(): StoredAppSessionToken | null {
 }
 
 export function clearStoredAppSessionToken(): void {
+  const hadSession = memoryToken !== null
+    || (!storageLoaded && readSessionStorage() !== null);
+  if (sessionChangeNotificationTimer !== null) {
+    globalThis.clearTimeout?.(sessionChangeNotificationTimer);
+    sessionChangeNotificationTimer = null;
+  }
+  sessionChangeNotificationPending = false;
   memoryToken = null;
   storageLoaded = true;
   removeSessionStorage();
-  dispatchAppSessionChange();
+  if (hadSession) {
+    dispatchAppSessionChange();
+  }
 }
 
 export function resetAppSessionTokenStorageCache(): void {
@@ -190,7 +272,14 @@ function readAppSessionPayload(result: unknown): Record<string, unknown> {
 
   const data = result.data;
   if (isRecord(data)) {
+    if (isRecord(data.item)) {
+      return data.item;
+    }
     return data;
+  }
+
+  if (isRecord(result.item)) {
+    return result.item;
   }
 
   return result;
@@ -219,7 +308,9 @@ function isStoredAppSessionToken(value: unknown): value is StoredAppSessionToken
     (value.refreshToken === undefined ||
       (typeof value.refreshToken === 'string' && value.refreshToken.trim().length > 0)) &&
     (value.sessionId === undefined ||
-      (typeof value.sessionId === 'string' && value.sessionId.trim().length > 0))
+      (typeof value.sessionId === 'string' && value.sessionId.trim().length > 0)) &&
+    (value.context === undefined || isRecord(value.context)) &&
+    (value.user === undefined || isRecord(value.user))
   );
 }
 
@@ -247,7 +338,7 @@ function readOptionalExpiry(record: Record<string, unknown>, key: string): numbe
 
   const parsedNumber = readNumber(record, key);
   if (Number.isFinite(parsedNumber)) {
-    return parsedNumber;
+    return normalizeEpochSeconds(parsedNumber);
   }
 
   if (typeof value === 'string') {
@@ -258,6 +349,44 @@ function readOptionalExpiry(record: Record<string, unknown>, key: string): numbe
   }
 
   return undefined;
+}
+
+function readOptionalSessionContext(
+  record: Record<string, unknown>,
+  fallback: IamAppContext | undefined,
+): IamAppContext | undefined {
+  if (Object.prototype.hasOwnProperty.call(record, 'context')) {
+    return isRecord(record.context) ? record.context as unknown as IamAppContext : undefined;
+  }
+  return fallback;
+}
+
+function readOptionalSessionUser(
+  record: Record<string, unknown>,
+  fallback: IamUser | undefined,
+): IamUser | undefined {
+  if (Object.prototype.hasOwnProperty.call(record, 'user')) {
+    return isRecord(record.user) ? record.user as unknown as IamUser : undefined;
+  }
+  return fallback;
+}
+
+function normalizeEpochSeconds(value: number): number {
+  if (!Number.isFinite(value)) {
+    return Number.NaN;
+  }
+  return Math.floor(value >= 10_000_000_000 ? value / 1_000 : value);
+}
+
+function areJsonValuesEqual(first: unknown, second: unknown): boolean {
+  if (first === second) {
+    return true;
+  }
+  try {
+    return JSON.stringify(first) === JSON.stringify(second);
+  } catch {
+    return false;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -297,6 +426,12 @@ function serializeForPersistence(token: StoredAppSessionToken): PersistedAppSess
   if (typeof token.sessionId === 'string' && token.sessionId.trim().length > 0) {
     persisted.sessionId = token.sessionId;
   }
+  if (token.context) {
+    persisted.context = token.context;
+  }
+  if (token.user) {
+    persisted.user = token.user;
+  }
   return persisted;
 }
 
@@ -310,4 +445,17 @@ function dispatchAppSessionChange(): void {
   } catch {
     // Session listeners are optional; storage state is already authoritative.
   }
+}
+
+function scheduleAppSessionChange(): void {
+  if (sessionChangeNotificationPending) {
+    return;
+  }
+
+  sessionChangeNotificationPending = true;
+  sessionChangeNotificationTimer = globalThis.setTimeout?.(() => {
+    sessionChangeNotificationPending = false;
+    sessionChangeNotificationTimer = null;
+    dispatchAppSessionChange();
+  }, 0);
 }

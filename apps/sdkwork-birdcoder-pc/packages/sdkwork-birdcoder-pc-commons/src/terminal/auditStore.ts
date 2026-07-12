@@ -1,5 +1,10 @@
 import { getStoredJson, setStoredJson } from '../storage/localStore.ts';
+import {
+  parseTerminalCommandGuardSetting,
+  type TerminalCommandGuardSetting,
+} from '../settings/appSettings.ts';
 import { getTerminalProfile, type TerminalProfileId } from './profiles.ts';
+import { sanitizeTerminalCommandForAudit } from './runtime.ts';
 import type {
   BirdcoderApprovalDecision,
   BirdcoderApprovalPolicy,
@@ -19,6 +24,7 @@ interface TerminalGovernanceAuditPersistedEntry {
   command?: string;
   reason?: string | null;
   approvalPolicy?: string;
+  sandboxSettings?: string;
   category?: string;
   engine?: string;
   tool?: string;
@@ -38,6 +44,7 @@ export interface TerminalGovernanceAuditRecord {
   command: string;
   reason: string | null;
   approvalPolicy: BirdcoderApprovalPolicy;
+  sandboxSettings: TerminalCommandGuardSetting | 'Unspecified';
   category: BirdcoderAuditEventCategory;
   engine: string;
   tool: string;
@@ -66,6 +73,7 @@ export interface TerminalGovernanceDiagnosticsBundleSummary {
   blockedRecords: number;
   riskLevels: BirdcoderRiskLevel[];
   approvalPolicies: BirdcoderApprovalPolicy[];
+  sandboxSettings: Array<TerminalCommandGuardSetting | 'Unspecified'>;
 }
 
 export interface TerminalGovernanceDiagnosticsBundle {
@@ -89,6 +97,9 @@ export interface BuildTerminalGovernanceReleaseNoteTemplateOptions {
   generatedAt?: number;
 }
 
+let terminalGovernanceAuditWriteQueue: Promise<TerminalGovernanceAuditRecord[]> =
+  Promise.resolve([]);
+
 function normalizeArtifactRefs(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
@@ -109,7 +120,7 @@ export function normalizeTerminalGovernanceAuditRecord(
 
   const traceId = value.traceId?.trim();
   const cwd = value.cwd?.trim();
-  const command = value.command?.trim();
+  const command = sanitizeTerminalCommandForAudit(value.command ?? '');
   const tool = value.tool?.trim();
   const engine = value.engine?.trim();
   const inputDigest = value.inputDigest?.trim();
@@ -137,6 +148,8 @@ export function normalizeTerminalGovernanceAuditRecord(
     value.approvalPolicy === 'ReleaseOnly'
       ? value.approvalPolicy
       : 'OnRequest';
+  const sandboxSettings =
+    parseTerminalCommandGuardSetting(value.sandboxSettings) ?? 'Unspecified';
   const category =
     value.category === 'tool.call' ||
     value.category === 'engine.switch' ||
@@ -169,6 +182,7 @@ export function normalizeTerminalGovernanceAuditRecord(
     command,
     reason: typeof value.reason === 'string' ? value.reason : null,
     approvalPolicy,
+    sandboxSettings,
     category,
     engine,
     tool,
@@ -232,6 +246,9 @@ export function buildTerminalGovernanceDiagnosticBundle(
     approvalPolicies: Array.from(
       new Set(normalizedRecords.map((record) => record.approvalPolicy)),
     ),
+    sandboxSettings: Array.from(
+      new Set(normalizedRecords.map((record) => record.sandboxSettings)),
+    ),
   };
 
   const payload = {
@@ -269,6 +286,7 @@ export function buildTerminalGovernanceReleaseNoteTemplate(
     `- Visible Records: ${summary.totalRecords}`,
     `- Blocked Records: ${summary.blockedRecords}`,
     `- Approval Policies: ${summary.approvalPolicies.join(', ') || 'none'}`,
+    `- Command Guards: ${summary.sandboxSettings.join(', ') || 'none'}`,
     `- Risk Levels: ${summary.riskLevels.join(', ') || 'none'}`,
     '',
     '## Verification',
@@ -304,24 +322,31 @@ export async function listStoredTerminalGovernanceAuditRecords(): Promise<
 export async function saveStoredTerminalGovernanceAuditRecord(
   record: TerminalGovernanceAuditRecord,
 ): Promise<TerminalGovernanceAuditRecord[]> {
-  const normalizedRecord = normalizeTerminalGovernanceAuditRecord(record);
-  if (!normalizedRecord) {
-    return [];
-  }
+  const writePromise = terminalGovernanceAuditWriteQueue
+    .catch(() => [])
+    .then(async () => {
+      const normalizedRecord = normalizeTerminalGovernanceAuditRecord(record);
+      if (!normalizedRecord) {
+        throw new Error('Invalid terminal governance audit record.');
+      }
 
-  const existingRecords = await listStoredTerminalGovernanceAuditRecords();
-  const nextRecords = [
-    normalizedRecord,
-    ...existingRecords.filter((entry) => entry.traceId !== normalizedRecord.traceId),
-  ]
-    .sort((left, right) => right.recordedAt - left.recordedAt)
-    .slice(0, MAX_STORED_TERMINAL_GOVERNANCE_AUDIT_RECORDS);
+      const existingRecords = await listStoredTerminalGovernanceAuditRecords();
+      const nextRecords = [
+        normalizedRecord,
+        ...existingRecords.filter((entry) => entry.traceId !== normalizedRecord.traceId),
+      ]
+        .sort((left, right) => right.recordedAt - left.recordedAt)
+        .slice(0, MAX_STORED_TERMINAL_GOVERNANCE_AUDIT_RECORDS);
 
-  await setStoredJson(
-    TERMINAL_GOVERNANCE_AUDIT_SCOPE,
-    TERMINAL_GOVERNANCE_AUDIT_KEY,
-    nextRecords,
-  );
+      await setStoredJson(
+        TERMINAL_GOVERNANCE_AUDIT_SCOPE,
+        TERMINAL_GOVERNANCE_AUDIT_KEY,
+        nextRecords,
+      );
 
-  return nextRecords;
+      return nextRecords;
+    });
+
+  terminalGovernanceAuditWriteQueue = writePromise;
+  return writePromise;
 }

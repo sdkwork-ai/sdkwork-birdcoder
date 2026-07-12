@@ -2,11 +2,15 @@ import 'package:sdkwork_birdcoder_app_sdk/app_client.dart';
 
 const _appApiPrefix = '/app/v3/api';
 
+typedef SdkTokenProvider = String? Function();
+
 class BirdCoderAppSdkConsumer {
   BirdCoderAppSdkConsumer({
     required this.apiBaseUrl,
     this.authToken,
     this.accessToken,
+    this.authTokenProvider,
+    this.accessTokenProvider,
   });
 
   static const bool pendingGeneratedSdk = false;
@@ -17,12 +21,15 @@ class BirdCoderAppSdkConsumer {
   final String apiBaseUrl;
   final String? authToken;
   final String? accessToken;
+  final SdkTokenProvider? authTokenProvider;
+  final SdkTokenProvider? accessTokenProvider;
 
   SdkworkAppClient createClient() {
     return SdkworkAppClient.withBaseUrl(
       baseUrl: resolveBirdCoderAppSdkBaseUrl(apiBaseUrl),
-      authToken: authToken,
-      accessToken: accessToken,
+      authToken: authTokenProvider == null ? authToken : authTokenProvider!(),
+      accessToken:
+          accessTokenProvider == null ? accessToken : accessTokenProvider!(),
     );
   }
 }
@@ -39,10 +46,14 @@ BirdCoderAppSdkConsumer createBirdCoderAppSdkConsumer({
   required String apiBaseUrl,
   String? authToken,
   String? accessToken,
+  SdkTokenProvider? authTokenProvider,
+  SdkTokenProvider? accessTokenProvider,
 }) {
   return BirdCoderAppSdkConsumer(
     apiBaseUrl: apiBaseUrl,
     authToken: authToken,
     accessToken: accessToken,
+    authTokenProvider: authTokenProvider,
+    accessTokenProvider: accessTokenProvider,
   );
 }

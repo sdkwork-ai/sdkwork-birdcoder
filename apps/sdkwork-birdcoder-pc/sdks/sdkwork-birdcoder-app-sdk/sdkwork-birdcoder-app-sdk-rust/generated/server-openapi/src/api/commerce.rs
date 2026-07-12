@@ -28,10 +28,10 @@ impl CommerceApi {
     }
 
     /// List SDKWork commerce orders
-    pub async fn orders_list(&self, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderCommerceOrderSummaryListEnvelope, SdkworkError> {
+    pub async fn orders_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderCommerceOrderSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/commerce/orders".to_string()), &query);
         self.client.get(&path, None, None).await
@@ -50,10 +50,10 @@ impl CommerceApi {
     }
 
     /// List SDKWork commerce invoices
-    pub async fn invoices_list(&self, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderCommerceInvoiceSummaryListEnvelope, SdkworkError> {
+    pub async fn invoices_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderCommerceInvoiceSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/commerce/invoices".to_string()), &query);
         self.client.get(&path, None, None).await
@@ -66,10 +66,10 @@ impl CommerceApi {
     }
 
     /// List SDKWork commerce payments
-    pub async fn payments_list(&self, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderCommercePaymentSummaryListEnvelope, SdkworkError> {
+    pub async fn payments_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderCommercePaymentSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/commerce/payments".to_string()), &query);
         self.client.get(&path, None, None).await

@@ -8,8 +8,8 @@ const commonsIndexPath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/index.ts',
   import.meta.url,
 );
-const tauriShellModulePath = new URL(
-  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/platform/tauriShell.ts',
+const tauriFileManagerModulePath = new URL(
+  '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/platform/tauriFileManager.ts',
   import.meta.url,
 );
 const sourcePaths = [
@@ -20,34 +20,34 @@ const sourcePaths = [
 const rootPackageJson = JSON.parse(fs.readFileSync(rootPackageJsonPath, 'utf8'));
 const workspaceLockSource = fs.readFileSync(workspaceLockPath, 'utf8');
 const commonsIndexSource = fs.readFileSync(commonsIndexPath, 'utf8');
-const tauriShellSource = fs.existsSync(tauriShellModulePath)
-  ? fs.readFileSync(tauriShellModulePath, 'utf8')
+const tauriFileManagerSource = fs.existsSync(tauriFileManagerModulePath)
+  ? fs.readFileSync(tauriFileManagerModulePath, 'utf8')
   : '';
 
 assert.equal(
   rootPackageJson.dependencies?.['@tauri-apps/plugin-shell'],
   undefined,
-  'The root package must not depend on @tauri-apps/plugin-shell once shell open uses the stable @tauri-apps/api/core invoke bridge directly.',
+  'The root package must not depend on @tauri-apps/plugin-shell once local path reveal uses a typed application command.',
 );
 assert.doesNotMatch(
   workspaceLockSource,
   /@tauri-apps\/plugin-shell/u,
-  'The lockfile must not retain @tauri-apps/plugin-shell after runtime code stops importing the package entry.',
+  'The lockfile must not retain the JavaScript plugin-shell package after local path reveal moves behind a typed command.',
 );
 assert.match(
   commonsIndexSource,
-  /export \* from '\.\/platform\/tauriShell\.ts';/u,
-  'Commons must export the shared Tauri shell-open helper so code, studio, and shell surfaces do not duplicate plugin invoke details.',
+  /export \* from '\.\/platform\/tauriFileManager\.ts';/u,
+  'Commons must export the shared Tauri file-manager helper.',
 );
 assert.match(
-  tauriShellSource,
-  /plugin:shell\|open/u,
-  'The shared shell-open helper must call the registered Tauri shell plugin command directly.',
+  tauriFileManagerSource,
+  /desktop_reveal_in_file_manager/u,
+  'The shared file-manager helper must call the typed BirdCoder reveal command.',
 );
-assert.match(
-  tauriShellSource,
-  /with:\s*openWith/u,
-  'The shared shell-open helper must preserve the official plugin-shell openWith payload field.',
+assert.doesNotMatch(
+  tauriFileManagerSource,
+  /plugin:shell\|open|openWith|\bwith:/u,
+  'The shared file-manager helper must not expose the generic shell-open command or an arbitrary application selector.',
 );
 
 for (const relativeSourcePath of sourcePaths) {
@@ -55,12 +55,12 @@ for (const relativeSourcePath of sourcePaths) {
   assert.doesNotMatch(
     source,
     /@tauri-apps\/plugin-shell/u,
-    `${relativeSourcePath} must not import @tauri-apps/plugin-shell because Vite statically resolves literal dynamic imports and broken local package contents block startup before runtime branching.`,
+    `${relativeSourcePath} must not import @tauri-apps/plugin-shell.`,
   );
-  assert.match(
+  assert.doesNotMatch(
     source,
-    /openTauriShellPath/u,
-    `${relativeSourcePath} must use the shared openTauriShellPath helper.`,
+    /(?:globalEventBus\.on\(['"]revealInExplorer['"]|revealTauriPathInFileManager|openTauriShellPath)/u,
+    `${relativeSourcePath} must not register a second reveal-in-file-manager owner.`,
   );
 }
 
@@ -68,17 +68,25 @@ const birdcoderAppShellSource = readBirdcoderAppShellSource();
 assert.doesNotMatch(
   birdcoderAppShellSource,
   /@tauri-apps\/plugin-shell/u,
-  'Birdcoder app shell must not import @tauri-apps/plugin-shell because Vite statically resolves literal dynamic imports and broken local package contents block startup before runtime branching.',
+  'BirdCoder app shell must not import @tauri-apps/plugin-shell.',
 );
 assert.match(
   birdcoderAppShellSource,
-  /openTauriShellPath/u,
-  'Birdcoder app shell must use the shared openTauriShellPath helper.',
+  /revealTauriPathInFileManager/u,
+  'BirdCoder app shell must use the shared typed file-manager helper.',
+);
+assert.equal(
+  (birdcoderAppShellSource.match(/globalEventBus\.on\(['"]revealInExplorer['"]/gu) ?? []).length,
+  1,
+  'BirdCoder app shell must be the single reveal-in-file-manager event owner.',
 );
 
 const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
 
-async function withWindow<T>(value: Window & typeof globalThis, operation: () => Promise<T>): Promise<T> {
+async function withWindow<T>(
+  value: Window & typeof globalThis,
+  operation: () => Promise<T>,
+): Promise<T> {
   Object.defineProperty(globalThis, 'window', {
     configurable: true,
     value,
@@ -95,7 +103,9 @@ async function withWindow<T>(value: Window & typeof globalThis, operation: () =>
   }
 }
 
-const { openTauriShellPath } = await import(`${tauriShellModulePath.href}?t=${Date.now()}`);
+const { revealTauriPathInFileManager } = await import(
+  `${tauriFileManagerModulePath.href}?t=${Date.now()}`
+);
 
 let emptyPathInvokeCalls = 0;
 await withWindow(
@@ -107,11 +117,7 @@ await withWindow(
     },
   } as unknown as Window & typeof globalThis,
   async () => {
-    assert.equal(
-      await openTauriShellPath('   '),
-      false,
-      'The shared shell-open helper must reject empty paths before invoking the Tauri shell plugin.',
-    );
+    assert.equal(await revealTauriPathInFileManager('   '), false);
     assert.equal(emptyPathInvokeCalls, 0);
   },
 );
@@ -122,26 +128,23 @@ await withWindow(
     __TAURI_INTERNALS__: {
       async invoke(command: string, payload: Record<string, unknown>) {
         invokeCalls += 1;
-        assert.equal(command, 'plugin:shell|open');
-        assert.deepEqual(payload, {
-          path: 'D:/workspace/project',
-          with: 'code',
-        });
+        assert.equal(command, 'desktop_reveal_in_file_manager');
+        assert.deepEqual(payload, { path: 'D:/workspace/project' });
       },
     },
   } as unknown as Window & typeof globalThis,
   async () => {
-    assert.equal(await openTauriShellPath('D:/workspace/project', 'code'), true);
+    assert.equal(await revealTauriPathInFileManager('D:/workspace/project'), true);
     assert.equal(invokeCalls, 1);
   },
 );
 
 await withWindow({} as Window & typeof globalThis, async () => {
   assert.equal(
-    await openTauriShellPath('D:/workspace/browser-project'),
+    await revealTauriPathInFileManager('D:/workspace/browser-project'),
     false,
-    'The shared shell-open helper must report false outside Tauri so callers can keep their browser fallback UX.',
+    'The helper must report false outside Tauri so callers can preserve browser fallback UX.',
   );
 });
 
-console.log('tauri shell open runtime contract passed.');
+console.log('typed Tauri file-manager reveal runtime contract passed.');

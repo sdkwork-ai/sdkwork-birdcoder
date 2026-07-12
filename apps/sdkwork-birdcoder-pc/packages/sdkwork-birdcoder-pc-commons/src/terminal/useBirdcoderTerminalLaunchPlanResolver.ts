@@ -8,6 +8,7 @@ import type { DesktopTerminalLaunchPlan } from './contracts/sdkworkTerminalShell
 export function useBirdcoderTerminalLaunchPlanResolver(
   workspaceId?: string | null,
   projectId?: string | null,
+  onLaunchBlocked?: (message: string) => void,
 ) {
   const { preferences } = useWorkbenchPreferences();
   const defaultWorkingDirectory = preferences.defaultWorkingDirectory?.trim() || '';
@@ -21,6 +22,7 @@ export function useBirdcoderTerminalLaunchPlanResolver(
       });
 
       if (resolution.blockedMessage) {
+        onLaunchBlocked?.(resolution.blockedMessage);
         throw new Error(resolution.blockedMessage);
       }
 
@@ -30,6 +32,6 @@ export function useBirdcoderTerminalLaunchPlanResolver(
 
       return resolution.plan;
     },
-    [defaultWorkingDirectory, projectId, workspaceId],
+    [defaultWorkingDirectory, onLaunchBlocked, projectId, workspaceId],
   );
 }

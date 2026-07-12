@@ -17,18 +17,20 @@ assert.doesNotMatch(kernelRuntimeSource, /officialSdkBridgeLoader/);
 for (const engine of listWorkbenchCliEngines()) {
   const runtime = createChatEngineById(engine.id);
   const integration = runtime.describeIntegration?.();
-  assert.equal(integration?.runtimeMode, 'sdk');
+  assert.equal(integration?.runtimeMode, 'headless');
   assert.equal(
     integration?.officialEntry.packageName,
     engine.descriptor.officialIntegration?.officialEntry.packageName,
   );
-  assert.match(runtime.name, /-kernel-sdk-adapter$/);
+  assert.match(runtime.name, /-kernel-cli-adapter$/);
 
   const accessPlan = engine.descriptor.accessPlan;
   assert.ok(accessPlan?.lanes.length, `${engine.id} must declare an access plan`);
   assert.ok(
-    accessPlan.lanes.some((lane) => lane.status === 'ready'),
-    `${engine.id} must expose at least one ready runtime lane in catalog metadata`,
+    accessPlan.lanes.some(
+      (lane) => lane.laneId === accessPlan.primaryLaneId && lane.status === 'ready',
+    ),
+    `${engine.id} must expose a ready primary CLI runtime lane in catalog metadata`,
   );
 }
 

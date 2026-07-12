@@ -25,8 +25,8 @@ BirdCoderFlutterSdkClients createBirdCoderFlutterSdkClients({
     apiBaseUrl: apiBaseUrl,
     appSdkConsumer: createBirdCoderAppSdkConsumer(
       apiBaseUrl: apiBaseUrl,
-      authToken: tokens.authToken ?? tokens.accessToken,
-      accessToken: tokens.accessToken,
+      authTokenProvider: () => tokens.authToken ?? tokens.accessToken,
+      accessTokenProvider: () => tokens.accessToken,
     ),
   );
 }

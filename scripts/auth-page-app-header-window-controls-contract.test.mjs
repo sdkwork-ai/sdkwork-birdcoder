@@ -18,6 +18,16 @@ const authPagePath = path.join(
 );
 const shellAppSource = readBirdcoderAppShellSource(rootDir);
 const authPageSource = fs.readFileSync(authPagePath, 'utf8');
+const authShellPath = path.join(
+  rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-auth',
+  'src',
+  'AuthShell.tsx',
+);
+const authShellSource = fs.readFileSync(authShellPath, 'utf8');
 
 assert.match(
   authPageSource,
@@ -47,6 +57,24 @@ assert.doesNotMatch(
   shellAppSource,
   /activeTab !== ['"]auth['"][\s\S]{0,240}<BirdcoderAppHeader/u,
   'BirdcoderAppHeader must not be gated away on the auth tab; only workbench menus may be hidden there.',
+);
+
+assert.match(
+  authShellSource,
+  /__TAURI_INTERNALS__\?\.invoke/u,
+  'AuthShell must support the current Tauri internals invoke bridge when the legacy global is unavailable.',
+);
+
+assert.match(
+  authShellSource,
+  /ignoreWindowControlFailure\(handleWindowControl\(action\)/u,
+  'AuthShell window control event handlers must consume rejected bridge promises.',
+);
+
+assert.match(
+  authShellSource,
+  /ignoreWindowControlFailure\(startAuthTitleBarDragging\(\)\)/u,
+  'AuthShell title-bar dragging must consume rejected bridge promises.',
 );
 
 console.log('auth page app header window controls contract passed.');

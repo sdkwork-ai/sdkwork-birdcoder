@@ -5,8 +5,8 @@ import type { BirdCoderAppTemplateSummary, PageInfo } from '../types';
 
 
 export interface TemplatesAppTemplatesListParams {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class TemplatesAppTemplatesApi {
@@ -20,8 +20,8 @@ export class TemplatesAppTemplatesApi {
 /** List app templates */
   async list(params?: TemplatesAppTemplatesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/app_templates`), query));
   }

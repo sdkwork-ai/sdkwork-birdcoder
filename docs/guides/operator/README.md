@@ -14,7 +14,7 @@ This guide is the production operator entrypoint for SDKWork BirdCoder. It repla
 | API server | Docker / Helm single replica + SQLite PVC | Helm overlay + PostgreSQL + Redis realtime |
 | PC web/desktop | Remote `coding-server` API | Same API with IAM session refresh |
 | Metrics | `/metrics` (Prometheus text) | ServiceMonitor scrape |
-| Health | `/health` (unauthenticated) | Same, plus DB probe |
+| Health | `/healthz` liveness and `/readyz` readiness (unauthenticated) | `/readyz` includes configured DB/IAM/Redis readiness checks |
 
 ## Quick links
 
@@ -28,7 +28,7 @@ This guide is the production operator entrypoint for SDKWork BirdCoder. It repla
 
 | Lane | Status | Evidence |
 | --- | --- | --- |
-| OpenAPI contract | **Complete** | 162 operations implemented, 0 deferred (`specs/coding-server-openapi-rust-defer-registry.json`) |
+| OpenAPI contract | **Complete** | HTTP OpenAPI 161 operations implemented, 0 deferred (`specs/coding-server-openapi-rust-defer-registry.json`); route catalog 162 entries including workspace realtime WebSocket |
 | PC private beta | **Ready** | Session auth redirect, structured HTTP 401, proactive IAM refresh, workspace WS reconnect, Universal chat + Drive |
 | Mobile chat | **API-backed** | H5 + Flutter persist through generated app SDK; Flutter Drive attachments deferred until Dart `drive-app-sdk` consumer |
 | Enterprise K8s | **Pending env smoke** | PostgreSQL HA overlay + AnyPool repositories wired; requires DSN-backed smoke in target cluster |
@@ -65,6 +65,6 @@ pnpm cap:android:assemble
 
 ## Support escalation
 
-1. Collect `/health`, `/metrics`, and application logs from the failing pod or host.
+1. Collect `/healthz`, `/readyz`, `/metrics`, and application logs from the failing pod or host.
 2. Run rollback using the release manifest `rollbackRunbookRef` when error budget is exhausted.
 3. File an incident record with request IDs from Problem JSON responses.

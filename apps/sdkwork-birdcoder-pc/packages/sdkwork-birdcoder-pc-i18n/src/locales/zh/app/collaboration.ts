@@ -6,6 +6,8 @@ export default defineLocaleModule('app/collaboration', {
     "accessLevel": "访问级别",
     "private": "私有",
     "publicLink": "公开链接",
+    "publicLinkUnavailable": "不可用",
+    "publicLinkUnavailableDesc": "当前项目尚未创建公开访问权限，仍保持私有；如需共享，请邀请协作者。",
     "inviteCollaborators": "邀请协作者",
     "emailPlaceholder": "电子邮件地址...",
     "invite": "邀请",

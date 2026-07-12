@@ -1,11 +1,9 @@
-import { registerBirdCoderBackendSdkTransportResolver } from '@sdkwork/birdcoder-pc-admin-core';
+import { registerBirdCoderBackendSdkTransportResolver } from '@sdkwork/birdcoder-pc-admin-core/sdk/backendGeneratedSdkClient';
 import {
   getBirdCoderGlobalTokenManager as getCoreBirdCoderGlobalTokenManager,
 } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
-import {
-  createBirdCoderHttpApiTransport,
-  getDefaultBirdCoderIdeServicesRuntimeConfig,
-} from '@sdkwork/birdcoder-pc-infrastructure';
+import { createBirdCoderHttpApiTransport } from '@sdkwork/birdcoder-pc-infrastructure/services/sdkTransportShared';
+import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-pc-infrastructure/services/defaultIdeServicesRuntime';
 
 function buildBirdCoderTokenManagerHeaders(
   tokenManager: ReturnType<typeof getCoreBirdCoderGlobalTokenManager> | undefined,
@@ -14,7 +12,6 @@ function buildBirdCoderTokenManagerHeaders(
   return {
     Authorization: tokens?.authToken ? `Bearer ${tokens.authToken}` : undefined,
     'Access-Token': tokens?.accessToken,
-    'Refresh-Token': tokens?.refreshToken,
   };
 }
 

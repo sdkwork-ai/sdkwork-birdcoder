@@ -3,7 +3,9 @@ import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-
 interface BirdCoderPublicRuntimeEnv {
   VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;
   VITE_BIRDCODER_API_BASE_URL?: string;
+  VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE?: string;
   VITE_SDKWORK_DEPLOYMENT_PROFILE?: string;
+  VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET?: string;
   VITE_SDKWORK_RUNTIME_TARGET?: string;
 }
 
@@ -20,12 +22,18 @@ export function resolveEnvironment() {
       runtimeConfig.apiBaseUrl
       ?? publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL
       ?? publicRuntimeEnv?.VITE_BIRDCODER_API_BASE_URL,
-    deploymentProfile: publicRuntimeEnv?.VITE_SDKWORK_DEPLOYMENT_PROFILE ?? 'cloud',
+    deploymentProfile:
+      publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE
+      ?? publicRuntimeEnv?.VITE_SDKWORK_DEPLOYMENT_PROFILE
+      ?? 'cloud',
     environment: mode,
     executionAuthorityMode: runtimeConfig.executionAuthorityMode ?? 'auto',
     isDevelopment: import.meta.env.DEV,
     isProduction: import.meta.env.PROD,
     mode,
-    runtimeTarget: publicRuntimeEnv?.VITE_SDKWORK_RUNTIME_TARGET ?? 'browser',
+    runtimeTarget:
+      publicRuntimeEnv?.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET
+      ?? publicRuntimeEnv?.VITE_SDKWORK_RUNTIME_TARGET
+      ?? 'browser',
   };
 }

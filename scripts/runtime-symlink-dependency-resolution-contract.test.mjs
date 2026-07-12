@@ -206,10 +206,6 @@ const packageDependencyExpectations = [
     dependencies: legacyReactMarkdownRuntimeDependencies,
   },
   {
-    packageName: '@sdkwork/birdcoder-pc-skills',
-    dependencies: legacyReactMarkdownRuntimeDependencies,
-  },
-  {
     packageName: '@sdkwork/birdcoder-pc-studio',
     dependencies: legacyReactMarkdownRuntimeDependencies,
   },
@@ -283,27 +279,6 @@ const runtimeResolutionChecks = [
   },
   {
     packageName: '@sdkwork/birdcoder-pc-code',
-    entryPath: ['node_modules', 'unist-util-visit-parents', 'lib', 'index.js'],
-    dependencies: ['unist-util-is'],
-  },
-  {
-    packageName: '@sdkwork/birdcoder-pc-skills',
-    entryPath: ['node_modules', 'react-markdown', 'lib', 'index.js'],
-    dependencies: ['devlop', 'hast-util-to-jsx-runtime', 'html-url-attributes', 'mdast-util-to-hast', 'remark-parse', 'remark-rehype', 'unified', 'unist-util-visit', 'vfile'],
-  },
-  {
-    packageName: '@sdkwork/birdcoder-pc-skills',
-    entryPath: ['node_modules', 'mdast-util-from-markdown', 'dev', 'lib', 'index.js'],
-    dependencies: [
-      'mdast-util-to-string',
-      'micromark',
-      'micromark-util-decode-numeric-character-reference',
-      'micromark-util-decode-string',
-      'micromark-util-normalize-identifier',
-    ],
-  },
-  {
-    packageName: '@sdkwork/birdcoder-pc-skills',
     entryPath: ['node_modules', 'unist-util-visit-parents', 'lib', 'index.js'],
     dependencies: ['unist-util-is'],
   },

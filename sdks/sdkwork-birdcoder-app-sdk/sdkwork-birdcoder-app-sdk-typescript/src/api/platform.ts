@@ -8,9 +8,9 @@ import type * as Types from '../types/index.ts';
 
 type BirdcoderSdkQueryValue = Types.BirdcoderSdkQueryValue;
 type PlatformDeploymentsListQuery = Types.PlatformDeploymentsListQuery;
+type PlatformProjectsCollaboratorsCreatePathParams = Types.PlatformProjectsCollaboratorsCreatePathParams;
 type PlatformProjectsCollaboratorsListPathParams = Types.PlatformProjectsCollaboratorsListPathParams;
 type PlatformProjectsCollaboratorsListQuery = Types.PlatformProjectsCollaboratorsListQuery;
-type PlatformProjectsCollaboratorsUpsertPathParams = Types.PlatformProjectsCollaboratorsUpsertPathParams;
 type PlatformProjectsDeletePathParams = Types.PlatformProjectsDeletePathParams;
 type PlatformProjectsDeploymentTargetsListPathParams = Types.PlatformProjectsDeploymentTargetsListPathParams;
 type PlatformProjectsDeploymentTargetsListQuery = Types.PlatformProjectsDeploymentTargetsListQuery;
@@ -23,13 +23,11 @@ type PlatformProjectsGitWorktreePruneCreatePathParams = Types.PlatformProjectsGi
 type PlatformProjectsGitWorktreeRemovalsCreatePathParams = Types.PlatformProjectsGitWorktreeRemovalsCreatePathParams;
 type PlatformProjectsGitWorktreesCreatePathParams = Types.PlatformProjectsGitWorktreesCreatePathParams;
 type PlatformProjectsListQuery = Types.PlatformProjectsListQuery;
-type PlatformProjectsPublishCreatePathParams = Types.PlatformProjectsPublishCreatePathParams;
+type PlatformProjectsPublishPublishPathParams = Types.PlatformProjectsPublishPublishPathParams;
 type PlatformProjectsRetrievePathParams = Types.PlatformProjectsRetrievePathParams;
 type PlatformProjectsUpdatePathParams = Types.PlatformProjectsUpdatePathParams;
 type PlatformWorkspacesDeletePathParams = Types.PlatformWorkspacesDeletePathParams;
 type PlatformWorkspacesListQuery = Types.PlatformWorkspacesListQuery;
-type PlatformWorkspacesRealtimeSubscribePathParams = Types.PlatformWorkspacesRealtimeSubscribePathParams;
-type PlatformWorkspacesRealtimeSubscribeQuery = Types.PlatformWorkspacesRealtimeSubscribeQuery;
 type PlatformWorkspacesRetrievePathParams = Types.PlatformWorkspacesRetrievePathParams;
 type PlatformWorkspacesUpdatePathParams = Types.PlatformWorkspacesUpdatePathParams;
 
@@ -39,11 +37,11 @@ export interface PlatformApi {
   };
   projects: {
     collaborators: {
+      create(pathParams: PlatformProjectsCollaboratorsCreatePathParams, body: Types.BirdCoderUpsertProjectCollaboratorRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectCollaboratorSummaryEnvelope>;
       list(pathParams: PlatformProjectsCollaboratorsListPathParams, query?: PlatformProjectsCollaboratorsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectCollaboratorSummaryListEnvelope>;
-      upsert(pathParams: PlatformProjectsCollaboratorsUpsertPathParams, body: Types.BirdCoderUpsertProjectCollaboratorRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectCollaboratorSummaryEnvelope>;
     };
     create(body: Types.BirdCoderCreateProjectRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectSummaryEnvelope>;
-    delete(pathParams: PlatformProjectsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeletedResourceEnvelope>;
+    delete(pathParams: PlatformProjectsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<void>;
     deploymentTargets: {
       list(pathParams: PlatformProjectsDeploymentTargetsListPathParams, query?: PlatformProjectsDeploymentTargetsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeploymentTargetSummaryListEnvelope>;
     };
@@ -75,18 +73,15 @@ export interface PlatformApi {
     };
     list(query?: PlatformProjectsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectSummaryListEnvelope>;
     publish: {
-      create(pathParams: PlatformProjectsPublishCreatePathParams, body: Types.BirdCoderPublishProjectRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectPublishResultEnvelope>;
+      publish(pathParams: PlatformProjectsPublishPublishPathParams, body: Types.BirdCoderPublishProjectRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectPublishResultEnvelope>;
     };
     retrieve(pathParams: PlatformProjectsRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectSummaryEnvelope>;
     update(pathParams: PlatformProjectsUpdatePathParams, body: Types.BirdCoderUpdateProjectRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectSummaryEnvelope>;
   };
   workspaces: {
     create(body: Types.BirdCoderCreateWorkspaceRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderWorkspaceSummaryEnvelope>;
-    delete(pathParams: PlatformWorkspacesDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeletedResourceEnvelope>;
+    delete(pathParams: PlatformWorkspacesDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<void>;
     list(query?: PlatformWorkspacesListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderWorkspaceSummaryListEnvelope>;
-    realtime: {
-      subscribe(pathParams: PlatformWorkspacesRealtimeSubscribePathParams, query?: PlatformWorkspacesRealtimeSubscribeQuery, options?: BirdcoderSdkRequestOptions): Promise<void>;
-    };
     retrieve(pathParams: PlatformWorkspacesRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderWorkspaceSummaryEnvelope>;
     update(pathParams: PlatformWorkspacesUpdatePathParams, body: Types.BirdCoderUpdateWorkspaceRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderWorkspaceSummaryEnvelope>;
   };
@@ -101,18 +96,18 @@ export function createPlatformApi(requestOperation: BirdcoderSdkRequestOperation
     },
     projects: {
       collaborators: {
+        create(pathParams: PlatformProjectsCollaboratorsCreatePathParams, body: Types.BirdCoderUpsertProjectCollaboratorRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderProjectCollaboratorSummaryEnvelope>("platform.projects.collaborators.create", { pathParams, body }, options);
+        },
         list(pathParams: PlatformProjectsCollaboratorsListPathParams, query: PlatformProjectsCollaboratorsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<Types.BirdCoderProjectCollaboratorSummaryListEnvelope>("platform.projects.collaborators.list", { pathParams, query }, options);
-        },
-        upsert(pathParams: PlatformProjectsCollaboratorsUpsertPathParams, body: Types.BirdCoderUpsertProjectCollaboratorRequest, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderProjectCollaboratorSummaryEnvelope>("platform.projects.collaborators.upsert", { pathParams, body }, options);
         }
       },
       create(body: Types.BirdCoderCreateProjectRequest, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderProjectSummaryEnvelope>("platform.projects.create", { body }, options);
       },
       delete(pathParams: PlatformProjectsDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderDeletedResourceEnvelope>("platform.projects.delete", { pathParams }, options);
+        return requestOperation<void>("platform.projects.delete", { pathParams }, options);
       },
       deploymentTargets: {
         list(pathParams: PlatformProjectsDeploymentTargetsListPathParams, query: PlatformProjectsDeploymentTargetsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
@@ -165,8 +160,8 @@ export function createPlatformApi(requestOperation: BirdcoderSdkRequestOperation
         return requestOperation<Types.BirdCoderProjectSummaryListEnvelope>("platform.projects.list", { query }, options);
       },
       publish: {
-        create(pathParams: PlatformProjectsPublishCreatePathParams, body: Types.BirdCoderPublishProjectRequest, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderProjectPublishResultEnvelope>("platform.projects.publish.create", { pathParams, body }, options);
+        publish(pathParams: PlatformProjectsPublishPublishPathParams, body: Types.BirdCoderPublishProjectRequest, options: BirdcoderSdkRequestOptions = {}) {
+          return requestOperation<Types.BirdCoderProjectPublishResultEnvelope>("platform.projects.publish.publish", { pathParams, body }, options);
         }
       },
       retrieve(pathParams: PlatformProjectsRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
@@ -181,15 +176,10 @@ export function createPlatformApi(requestOperation: BirdcoderSdkRequestOperation
         return requestOperation<Types.BirdCoderWorkspaceSummaryEnvelope>("platform.workspaces.create", { body }, options);
       },
       delete(pathParams: PlatformWorkspacesDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderDeletedResourceEnvelope>("platform.workspaces.delete", { pathParams }, options);
+        return requestOperation<void>("platform.workspaces.delete", { pathParams }, options);
       },
       list(query: PlatformWorkspacesListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderWorkspaceSummaryListEnvelope>("platform.workspaces.list", { query }, options);
-      },
-      realtime: {
-        subscribe(pathParams: PlatformWorkspacesRealtimeSubscribePathParams, query: PlatformWorkspacesRealtimeSubscribeQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<void>("platform.workspaces.realtime.subscribe", { pathParams, query }, options);
-        }
       },
       retrieve(pathParams: PlatformWorkspacesRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderWorkspaceSummaryEnvelope>("platform.workspaces.retrieve", { pathParams }, options);

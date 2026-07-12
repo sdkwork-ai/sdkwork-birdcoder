@@ -28,16 +28,16 @@ impl IamApi {
     }
 
     /// Upsert workspace member
-    pub async fn workspaces_members_upsert(&self, workspace_id: &str, body: &BirdCoderUpsertWorkspaceMemberRequest) -> Result<BirdCoderWorkspaceMemberSummaryEnvelope, SdkworkError> {
+    pub async fn workspaces_members_create(&self, workspace_id: &str, body: &BirdCoderUpsertWorkspaceMemberRequest) -> Result<BirdCoderWorkspaceMemberSummaryEnvelope, SdkworkError> {
         let path = app_path(&format!("/workspaces/{}/members", serialize_path_parameter(workspace_id, PathParameterSpec::new("workspaceId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List workspace members
-    pub async fn workspaces_members_list(&self, workspace_id: &str, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderWorkspaceMemberSummaryListEnvelope, SdkworkError> {
+    pub async fn workspaces_members_list(&self, workspace_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderWorkspaceMemberSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&format!("/workspaces/{}/members", serialize_path_parameter(workspace_id, PathParameterSpec::new("workspaceId", "simple", false)))), &query);
         self.client.get(&path, None, None).await

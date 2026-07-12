@@ -20,7 +20,7 @@ Prefer volume snapshots when your storage class supports consistent PVC snapshot
 1. Scale deployment to 0 replicas.
 2. Replace PVC data or restore snapshot into `/var/lib/sdkwork-birdcoder/data.sqlite3`.
 3. Scale back to 1 replica.
-4. Verify `GET /health` returns `"status":"healthy"`.
+4. Verify `GET /readyz` returns `"status":"ready"`.
 
 ## PostgreSQL (HA profile)
 

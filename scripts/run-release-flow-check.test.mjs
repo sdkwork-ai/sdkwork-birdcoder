@@ -77,6 +77,11 @@ assert.equal(
   'release-flow runner must execute the release checksum publication-view contract before release-note lanes',
 );
 assert.equal(
+  RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/write-package-sbom-evidence.test.mjs'),
+  true,
+  'release-flow runner must execute the package SBOM Provider runtime evidence contract',
+);
+assert.equal(
   RELEASE_FLOW_CHECK_COMMANDS.includes('node scripts/release/release-readiness-complete-matrix.test.mjs'),
   true,
   'release-flow runner must execute the complete release matrix readiness contract before finalized smoke lanes',
@@ -106,6 +111,24 @@ assert.equal(
   true,
   'release-flow runner must execute the coding-server OpenAPI snapshot drift contract before downstream codegen lanes',
 );
+{
+  const kernelBridgeBuildCommand = 'node scripts/run-cargo.mjs build -p sdkwork-birdcoder-kernel-bridge --bin birdcoder-kernel-turn';
+  const kernelBridgeBuildIndex = RELEASE_FLOW_CHECK_COMMANDS.indexOf(kernelBridgeBuildCommand);
+  const kernelRuntimeAdapterIndex = RELEASE_FLOW_CHECK_COMMANDS.indexOf(
+    'node --experimental-strip-types scripts/kernel-runtime-adapter-contract.test.ts',
+  );
+
+  assert.notEqual(
+    kernelBridgeBuildIndex,
+    -1,
+    'release-flow runner must build the BirdCoder kernel bridge binary before binary-backed runtime contracts.',
+  );
+  assert.equal(
+    kernelBridgeBuildIndex < kernelRuntimeAdapterIndex,
+    true,
+    'release-flow runner must build birdcoder-kernel-turn before kernel-runtime-adapter-contract runs.',
+  );
+}
 
 {
   const invocations = [];

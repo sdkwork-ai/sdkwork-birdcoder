@@ -4,18 +4,18 @@
 
 ## SDKWORK Soul
 
-Read `../../sdkwork-specs/SOUL.md` before executing tasks in this root. Follow specs before memory, dictionary before context, stop on ambiguity, and evidence before completion.
+Read `../../../sdkwork-specs/SOUL.md` before executing tasks in this root. Follow specs before memory, dictionary before context, stop on ambiguity, and evidence before completion.
 
 ## SDKWORK Standards
 
 Canonical SDKWORK specs path from this root:
 
-- `../../sdkwork-specs/README.md`
-- `../../sdkwork-specs/SOUL.md`
-- `../../sdkwork-specs/AGENTS_SPEC.md`
-- `../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md`
-- `../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md`
-- `../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md`
+- `../../../sdkwork-specs/README.md`
+- `../../../sdkwork-specs/SOUL.md`
+- `../../../sdkwork-specs/AGENTS_SPEC.md`
+- `../../../sdkwork-specs/APP_PC_ARCHITECTURE_SPEC.md`
+- `../../../sdkwork-specs/APP_PC_REACT_UI_SPEC.md`
+- `../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md`
 
 Do not copy root standard text into this application. If these relative paths do not resolve, stop and report the broken workspace layout.
 
@@ -46,7 +46,7 @@ Read `../../sdkwork.app.config.json` before changing application behavior.
 1. Read this `AGENTS.md` and any nearer component-level `AGENTS.md`.
 2. Read `../../sdkwork.app.config.json` when present.
 3. Read local `specs/README.md` and `specs/component.spec.json` when present.
-4. Read `../../sdkwork-specs/README.md` and the task-specific root specs.
+4. Read `../../../sdkwork-specs/README.md` and the task-specific root specs.
 5. Inspect implementation files only after the relevant dictionary entries are clear.
 
 ## Build, Test, and Development

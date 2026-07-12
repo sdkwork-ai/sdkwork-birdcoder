@@ -49,6 +49,7 @@ export class CurrentUserScopeResolver {
   private readonly currentUserProvider?: Pick<IAuthService, 'getCurrentUser'>;
   private inflight: Promise<CurrentUserScope> | null = null;
   private readonly now: () => number;
+  private requestGeneration = 0;
   private readonly onSessionChange = () => {
     this.clear();
   };
@@ -65,22 +66,36 @@ export class CurrentUserScopeResolver {
   }
 
   clear(): void {
+    this.requestGeneration += 1;
     this.cachedScope = null;
     this.inflight = null;
   }
 
-  async resolve(): Promise<CurrentUserScope> {
+    async resolve(): Promise<CurrentUserScope> {
     const now = this.now();
     if (this.cachedScope && this.cachedScope.expiresAt > now) {
       return this.cachedScope.scope;
     }
 
+    // Check if there's an inflight request for the current generation
     if (this.inflight) {
-      return this.inflight;
+      const requestGeneration = this.requestGeneration;
+      return this.inflight.then((scope) => {
+        // If generation changed while waiting, treat as unresolved
+        if (this.requestGeneration !== requestGeneration) {
+          return UNRESOLVED_USER_SCOPE;
+        }
+        return scope;
+      });
     }
 
+    const requestGeneration = this.requestGeneration;
     const request = this.load()
       .then((scope) => {
+        if (this.requestGeneration !== requestGeneration) {
+          return UNRESOLVED_USER_SCOPE;
+        }
+
         if (scope.cacheable && this.cacheTtlMs > 0) {
           this.cachedScope = {
             expiresAt: this.now() + this.cacheTtlMs,

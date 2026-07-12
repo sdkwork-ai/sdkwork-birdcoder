@@ -372,6 +372,38 @@ assert.deepEqual(
 );
 
 const webConfig = await loadConfigModule('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts');
+const webViteConfigSource = readFileSync(
+  path.resolve(
+    workspaceRootDir,
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/vite.config.ts',
+  ),
+  'utf8',
+);
+assert.match(
+  webViteConfigSource,
+  /path\.resolve\(__dirname, ['"]\.\.\/\.\.\/\.\.\/\.\.\/\.\.\/sdkwork-models['"]\)/u,
+  'SDKWork models middleware must resolve the sibling repository from the workspace root.',
+);
+assert.match(
+  webViteConfigSource,
+  /decodeURIComponent\(requestPath\)/u,
+  'SDKWork models middleware must validate URL-encoded traversal input after decoding.',
+);
+assert.match(
+  webViteConfigSource,
+  /path\.relative\(rootPath, candidatePath\)/u,
+  'SDKWork models middleware must use path-relative containment instead of a raw prefix check.',
+);
+assert.match(
+  webViteConfigSource,
+  /fs\.realpathSync\.native\(candidatePath\)/u,
+  'SDKWork models middleware must reject symlink/reparse-point escapes.',
+);
+assert.doesNotMatch(
+  webViteConfigSource,
+  /filePath\.startsWith\(sdkworkModelsRoot\)/u,
+  'SDKWork models middleware must not rely on an unsafe string prefix containment check.',
+);
 assert.equal(webConfig.esbuild, false);
 assertSharedCoreBrowserFacadeAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertXtermCssAlias(webConfig.resolve?.alias, 'Web Vite config');
@@ -455,6 +487,22 @@ assertLucideRollupWarningFilter(
 );
 const webManualChunks = webConfig.build?.rollupOptions?.output?.manualChunks;
 assert.equal(typeof webManualChunks, 'function', 'Web Vite config must expose manual chunk governance.');
+assert.notEqual(
+  webConfig.build?.rollupOptions?.output?.onlyExplicitManualChunks,
+  true,
+  'Web Vite config must allow Rollup to merge manual-chunk dependencies; forcing explicit-only chunks creates cross-chunk initialization cycles.',
+);
+for (const platformUtilsModuleId of [
+  '/repo/sdkwork-utils/packages/sdkwork-utils-typescript/dist/string.js',
+  '/repo/sdkwork-utils/packages/sdkwork-utils-typescript/src/pagination.ts',
+  '/repo/node_modules/@sdkwork/utils/id.js',
+]) {
+  assert.equal(
+    webManualChunks(platformUtilsModuleId),
+    'birdcoder-platform-utils',
+    `Web Vite config must keep shared SDKWork utilities in a stable foundation chunk for ${platformUtilsModuleId}.`,
+  );
+}
 for (const platformRuntimeModuleId of [
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-workbench-state/src/index.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/preferences.ts',
@@ -511,6 +559,7 @@ for (const providerRuntimeModuleId of [
   );
 }
 for (const serviceCoreModuleId of [
+  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-core/src/appSessionEvents.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeApiRetry.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionSelection.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionMessageProjection.ts',
@@ -673,20 +722,6 @@ for (const productSurfaceModule of [
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/index.ts',
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/pages/SettingsPage.tsx',
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/CodeEngineSettings.tsx',
-    ],
-  },
-  {
-    chunkName: 'birdcoder-skills-surface',
-    moduleIds: [
-      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills/src/index.ts',
-      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills/src/SkillsPage.tsx',
-    ],
-  },
-  {
-    chunkName: 'birdcoder-templates-surface',
-    moduleIds: [
-      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-templates/src/index.ts',
-      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-templates/src/TemplatesPage.tsx',
     ],
   },
 ]) {

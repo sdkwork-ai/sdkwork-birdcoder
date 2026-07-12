@@ -4,12 +4,8 @@
   "updatedAt": "2026-07-08",
   "summary": "Machine-readable alignment tracker for sdkwork-kernel SPI/provider bindings, sdkwork-agents business boundary, and BirdCoder product/tooling consumption rules.",
   "authorityDocs": [
-    "docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md",
-    "docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md",
-    "docs/architecture/tech/TECH-32-kernel-birdcoder.md",
-    "docs/architecture/tech/TECH-36-three-layer-agent-platform-standard.md",
-    "docs/product/prd/PRD-02-three-layer-agent-platform.md",
-    "docs/prompts/反复执行Kernel对齐指令.md"
+    "docs/architecture/tech/TECH_ARCHITECTURE.md",
+    "docs/product/prd/PRD.md"
   ],
   "siblingDependencies": [
     {
@@ -30,27 +26,27 @@
     {
       "id": "P1-boundary",
       "title": "职责边界冻结",
-      "doc": "docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md"
+      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
     },
     {
       "id": "P2-birdcoder-bridge",
       "title": "BirdCoder kernel-bridge 落地",
-      "doc": "docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md"
+      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
     },
     {
       "id": "P3-verification",
       "title": "契约与反复核对",
-      "doc": "docs/architecture/tech/TECH-32-kernel-birdcoder.md"
+      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
     },
     {
       "id": "P4-kernel-production",
       "title": "sdkwork-kernel 生产化",
-      "doc": "docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md#6-sdkwork-kernel-生产化路线"
+      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
     },
     {
       "id": "P5-evolution",
       "title": "扩展 provider 与 SPI 补齐",
-      "doc": "docs/architecture/tech/TECH-36-three-layer-agent-platform-standard.md"
+      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
     }
   ],
   "tasks": [
@@ -237,15 +233,12 @@
       "id": "KBA-DOC-01",
       "phase": "P3-verification",
       "owner": "birdcoder",
-      "title": "架构文档 30–32 + 对齐 spec + 反复执行指令",
+      "title": "Canonical architecture and alignment spec",
       "status": "done",
       "gate": true,
       "evidence": {
         "paths": [
-          "docs/architecture/tech/TECH-30-kernel-birdcoder-boundariesstandard.md",
-          "docs/architecture/tech/TECH-31-kernel-birdcoder-integrationimplementation.md",
-          "docs/architecture/tech/TECH-32-kernel-birdcoder.md",
-          "docs/prompts/反复执行Kernel对齐指令.md",
+          "docs/architecture/tech/TECH_ARCHITECTURE.md",
           "specs/kernel-birdcoder-alignment.spec.json"
         ]
       },

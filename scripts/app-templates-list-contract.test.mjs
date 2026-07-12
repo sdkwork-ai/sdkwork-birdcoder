@@ -5,8 +5,8 @@ const bundle = readCanonicalAppTemplatesBundle();
 
 assert.match(
   bundle,
-  /let \(offset, page_size\) = query\.normalized_pagination\(\);[\s\S]*app_template_service\s*\.\s*list_templates\(offset, page_size\)\s*\.await/u,
-  'list_app_templates must delegate a normalized paginated query to AppTemplateService instead of returning 501.',
+  /StrictOffsetListQuery\(pagination\): StrictOffsetListQuery[\s\S]*let offset = pagination\.offset as usize;[\s\S]*let page_size = pagination\.page_size as usize;[\s\S]*app_template_service\s*\.\s*list_templates\(offset, page_size\)\s*\.await/u,
+  'list_app_templates must delegate the strict offset pagination extractor to AppTemplateService instead of returning 501.',
 );
 assert.doesNotMatch(
   bundle,

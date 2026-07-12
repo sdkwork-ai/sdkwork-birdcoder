@@ -33,7 +33,7 @@ export interface IntelligenceApi {
       list(pathParams: IntelligenceCodingSessionsCheckpointsListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionCheckpointListEnvelope>;
     };
     create(body: Types.BirdCoderCreateCodingSessionRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryEnvelope>;
-    delete(pathParams: IntelligenceCodingSessionsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeletedResourceEnvelope>;
+    delete(pathParams: IntelligenceCodingSessionsDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<void>;
     events: {
       list(pathParams: IntelligenceCodingSessionsEventsListPathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionEventListEnvelope>;
     };
@@ -42,7 +42,7 @@ export interface IntelligenceApi {
     };
     list(query?: IntelligenceCodingSessionsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodingSessionSummaryListEnvelope>;
     messages: {
-      delete(pathParams: IntelligenceCodingSessionsMessagesDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderDeleteCodingSessionMessageResultEnvelope>;
+      delete(pathParams: IntelligenceCodingSessionsMessagesDeletePathParams, options?: BirdcoderSdkRequestOptions): Promise<void>;
       update(pathParams: IntelligenceCodingSessionsMessagesUpdatePathParams, body: Types.BirdCoderEditCodingSessionMessageRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderEditCodingSessionMessageResultEnvelope>;
     };
     questions: {
@@ -80,7 +80,7 @@ export function createIntelligenceApi(requestOperation: BirdcoderSdkRequestOpera
         return requestOperation<Types.BirdCoderCodingSessionSummaryEnvelope>("intelligence.codingSessions.create", { body }, options);
       },
       delete(pathParams: IntelligenceCodingSessionsDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderDeletedResourceEnvelope>("intelligence.codingSessions.delete", { pathParams }, options);
+        return requestOperation<void>("intelligence.codingSessions.delete", { pathParams }, options);
       },
       events: {
         list(pathParams: IntelligenceCodingSessionsEventsListPathParams, options: BirdcoderSdkRequestOptions = {}) {
@@ -97,7 +97,7 @@ export function createIntelligenceApi(requestOperation: BirdcoderSdkRequestOpera
       },
       messages: {
         delete(pathParams: IntelligenceCodingSessionsMessagesDeletePathParams, options: BirdcoderSdkRequestOptions = {}) {
-          return requestOperation<Types.BirdCoderDeleteCodingSessionMessageResultEnvelope>("intelligence.codingSessions.messages.delete", { pathParams }, options);
+          return requestOperation<void>("intelligence.codingSessions.messages.delete", { pathParams }, options);
         },
         update(pathParams: IntelligenceCodingSessionsMessagesUpdatePathParams, body: Types.BirdCoderEditCodingSessionMessageRequest, options: BirdcoderSdkRequestOptions = {}) {
           return requestOperation<Types.BirdCoderEditCodingSessionMessageResultEnvelope>("intelligence.codingSessions.messages.update", { pathParams, body }, options);

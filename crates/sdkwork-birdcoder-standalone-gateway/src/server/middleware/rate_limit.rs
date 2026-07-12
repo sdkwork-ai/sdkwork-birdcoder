@@ -4,15 +4,16 @@
 //! - Global per-IP limit (default 100 req/min)
 //! - Per-tenant limit (default 1000 req/min) — applied when a `RateLimitSubject`
 //!   is present in request extensions (populated by the API key auth middleware)
-//! - Per-API-key limit (default 600 req/min) — bucketed by the `bc_` bearer token
-//!   prefix extracted from the `Authorization` header, no database lookup required
+//! - Per-API-key limit (default 600 req/min) — bucketed by a SHA-256 hash of the
+//!   bearer token extracted from the `Authorization` header, no database lookup
+//!   required
 //!
 //! Store backend is abstracted through the [`RateLimitStore`] trait. The default
 //! implementation is [`InMemoryRateLimitStore`] (process-local fixed-window
 //! counter). When `BIRDCODER_RATE_LIMIT_REDIS_URL` is set, [`RedisRateLimitStore`]
 //! is used automatically so multi-replica HA deployments share counters.
 //!
-//! Excluded paths: `/health` and `/metrics` are never rate limited.
+//! Excluded paths: `/healthz`, `/readyz`, `/livez`, and `/metrics` are never rate limited.
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -24,9 +25,12 @@ use axum::extract::{ConnectInfo, Request, State};
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 
-use sdkwork_utils_rust::trusted_proxy::{extract_client_ip as resolve_trusted_client_ip, TrustedProxyConfig};
+use sdkwork_utils_rust::trusted_proxy::{
+    extract_client_ip as resolve_trusted_client_ip, TrustedProxyConfig,
+};
 
 use crate::bootstrap::config::BirdServerConfig;
 
@@ -354,11 +358,7 @@ impl RateLimitStore for RedisRateLimitStore {
 
 /// Helper for [`InMemoryRateLimitStore::evict_expired`]: retains only counters
 /// whose window start is still within the rate-limit window.
-async fn evict_map(
-    map: &Arc<Mutex<HashMap<String, Counter>>>,
-    now: Instant,
-    window: Duration,
-) {
+async fn evict_map(map: &Arc<Mutex<HashMap<String, Counter>>>, now: Instant, window: Duration) {
     let mut guard = map.lock().await;
     guard.retain(|_, counter| now.duration_since(counter.window_start) < window);
 }
@@ -426,7 +426,7 @@ impl RateLimitState {
 
 /// Returns true for paths that must never be rate limited.
 pub fn is_rate_limit_excluded(path: &str) -> bool {
-    matches!(path, "/health" | "/metrics") || path.starts_with("/health/")
+    matches!(path, "/healthz" | "/readyz" | "/livez" | "/metrics")
 }
 
 fn extract_client_ip(request: &Request) -> String {
@@ -436,31 +436,39 @@ fn extract_client_ip(request: &Request) -> String {
         .extensions()
         .get::<ConnectInfo<SocketAddr>>()
         .map(|info| info.0.ip());
-    let ip = resolve_trusted_client_ip(peer, |name| {
-        request
-            .headers()
-            .get(name)
-            .and_then(|value| value.to_str().ok())
-            .map(str::to_owned)
-    }, config);
+    let ip = resolve_trusted_client_ip(
+        peer,
+        |name| {
+            request
+                .headers()
+                .get(name)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned)
+        },
+        config,
+    );
     ip.to_string()
 }
 
-/// Extracts a stable API key bucket identifier from the `Authorization: Bearer bc_...`
+/// Extracts a stable API key bucket identifier from the `Authorization: Bearer ...`
 /// header without validating the key against the database. Returns `None` when no
-/// BirdCoder API key bearer token is present.
+/// bearer token is present.
+///
+/// The full token is hashed with SHA-256 and the first 16 bytes (128 bits) are
+/// used as the bucket key. This avoids storing any part of the secret in the
+/// rate limit store while keeping buckets stable and uniformly distributed.
 fn extract_api_key_bucket(request: &Request) -> Option<String> {
     let authorization = request.headers().get(header::AUTHORIZATION)?;
     let value = authorization.to_str().ok()?;
-    let token = value.strip_prefix("Bearer ").or_else(|| value.strip_prefix("bearer "))?;
+    let token = value
+        .strip_prefix("Bearer ")
+        .or_else(|| value.strip_prefix("bearer "))?;
     let token = token.trim();
     if token.is_empty() {
         return None;
     }
-    // Bucket by the `bc_` prefix plus the first 12 chars of the secret. This avoids
-    // storing the full secret in the rate limit store while keeping buckets stable.
-    let prefix = if token.len() >= 15 { &token[..15] } else { token };
-    Some(prefix.to_string())
+    let hash = Sha256::digest(token.as_bytes());
+    Some(hex::encode(&hash[..16]))
 }
 
 struct DimensionDecision {
@@ -492,7 +500,10 @@ pub async fn rate_limit_middleware(
     let ip = extract_client_ip(&request);
     let ip_decision = state
         .store
-        .check(RateLimitDimension::Ip(&ip), state.config.global_per_ip_per_min)
+        .check(
+            RateLimitDimension::Ip(&ip),
+            state.config.global_per_ip_per_min,
+        )
         .await;
     if !ip_decision.0 {
         return too_many_requests(ip_decision.1, ip_decision.2, ip_decision.3);
@@ -557,7 +568,12 @@ pub async fn rate_limit_middleware(
     response
 }
 
-fn insert_rate_limit_headers(response: &mut Response, limit: u32, remaining: u32, reset_in_secs: u64) {
+fn insert_rate_limit_headers(
+    response: &mut Response,
+    limit: u32,
+    remaining: u32,
+    reset_in_secs: u64,
+) {
     let headers = response.headers_mut();
     if let Ok(value) = HeaderValue::from_str(&limit.to_string()) {
         headers.insert(HEADER_RATE_LIMIT_LIMIT, value);
@@ -644,9 +660,12 @@ mod tests {
 
     #[test]
     fn excluded_paths_are_skipped() {
-        assert!(is_rate_limit_excluded("/health"));
+        assert!(is_rate_limit_excluded("/healthz"));
+        assert!(is_rate_limit_excluded("/readyz"));
+        assert!(is_rate_limit_excluded("/livez"));
         assert!(is_rate_limit_excluded("/metrics"));
-        assert!(is_rate_limit_excluded("/health/live"));
+        assert!(!is_rate_limit_excluded("/health"));
+        assert!(!is_rate_limit_excluded("/health/live"));
         assert!(!is_rate_limit_excluded("/api/v1/api-keys"));
     }
 
@@ -656,9 +675,28 @@ mod tests {
             .header(header::AUTHORIZATION, "Bearer bc_abcdefghijklmnop")
             .body(Body::empty())
             .unwrap();
+        // The bucket is a SHA-256 hash of the full token, not the token itself.
+        let bucket = extract_api_key_bucket(&request).expect("bucket should be extracted");
+        assert_eq!(bucket.len(), 32, "bucket should be 16 bytes hex-encoded");
+        // Same token must produce the same bucket.
+        let request2 = HttpRequest::builder()
+            .header(header::AUTHORIZATION, "Bearer bc_abcdefghijklmnop")
+            .body(Body::empty())
+            .unwrap();
         assert_eq!(
-            extract_api_key_bucket(&request).as_deref(),
-            Some("bc_abcdefghijkl")
+            extract_api_key_bucket(&request2).as_deref(),
+            Some(bucket.as_str()),
+            "same token must produce the same bucket"
+        );
+        // Different token must produce a different bucket.
+        let request3 = HttpRequest::builder()
+            .header(header::AUTHORIZATION, "Bearer bc_different_token")
+            .body(Body::empty())
+            .unwrap();
+        assert_ne!(
+            extract_api_key_bucket(&request3).as_deref(),
+            Some(bucket.as_str()),
+            "different token must produce a different bucket"
         );
     }
 
@@ -686,10 +724,7 @@ mod tests {
     fn too_many_requests_carries_headers() {
         let response = too_many_requests(100, 0, 30);
         assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
-        assert_eq!(
-            response.headers().get(HEADER_RETRY_AFTER).unwrap(),
-            "30"
-        );
+        assert_eq!(response.headers().get(HEADER_RETRY_AFTER).unwrap(), "30");
         assert_eq!(
             response.headers().get(HEADER_RATE_LIMIT_LIMIT).unwrap(),
             "100"
@@ -725,7 +760,11 @@ mod tests {
         struct StubStore;
         #[async_trait]
         impl RateLimitStore for StubStore {
-            async fn check(&self, _dimension: RateLimitDimension<'_>, limit: u32) -> RateLimitDecision {
+            async fn check(
+                &self,
+                _dimension: RateLimitDimension<'_>,
+                limit: u32,
+            ) -> RateLimitDecision {
                 (true, limit, limit, RATE_LIMIT_WINDOW_SECS)
             }
             async fn evict_expired(&self) {}

@@ -3,7 +3,9 @@ import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_
 
 import '../auth/auth_route.dart';
 import '../auth/auth_surface.dart';
+import '../auth_gate.dart';
 import '../routing/route_page_factory.dart';
+import '../shell/app_shell.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -23,7 +25,13 @@ class AppRouter {
     }
 
     return MaterialPageRoute(
-      builder: (_) => buildBirdCoderRoutePageForPath(routeName),
+      builder: (_) => AuthGate(
+        child: AppShell(
+          initialPath: routeName,
+          routePageBuilder: buildBirdCoderRoutePageForPath,
+          child: buildBirdCoderRoutePageForPath(routeName),
+        ),
+      ),
       settings: settings,
     );
   }

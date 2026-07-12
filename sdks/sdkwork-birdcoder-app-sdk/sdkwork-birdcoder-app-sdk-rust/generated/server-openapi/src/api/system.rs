@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
+use reqwest::Method;
+
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderApiRouteCatalogEntryListEnvelope, BirdCoderChatConversationSummaryEnvelope, BirdCoderChatConversationSummaryListEnvelope, BirdCoderChatMessageSummaryEnvelope, BirdCoderChatMessageSummaryListEnvelope, BirdCoderCodingServerDescriptorEnvelope, BirdCoderCoreHealthSummaryEnvelope, BirdCoderCoreRuntimeSummaryEnvelope, BirdCoderCreateChatConversationRequest, BirdCoderCreateChatMessageRequest, BirdCoderDeleteChatConversationEnvelope, BirdCoderIamRuntimeSettingsEnvelope, BirdCoderIamVerificationPolicyEnvelope, BirdCoderOperationDescriptorEnvelope};
+use crate::models::{BirdCoderApiRouteCatalogEntryListEnvelope, BirdCoderChatConversationSummaryEnvelope, BirdCoderChatConversationSummaryListEnvelope, BirdCoderChatMessageSummaryEnvelope, BirdCoderChatMessageSummaryListEnvelope, BirdCoderCodingServerDescriptorEnvelope, BirdCoderCoreHealthSummaryEnvelope, BirdCoderCoreRuntimeSummaryEnvelope, BirdCoderCreateChatConversationRequest, BirdCoderCreateChatMessageRequest, BirdCoderIamRuntimeSettingsEnvelope, BirdCoderIamVerificationPolicyEnvelope, BirdCoderOperationDescriptorEnvelope};
 
 #[derive(Clone)]
 pub struct SystemApi {
@@ -48,20 +50,20 @@ impl SystemApi {
     /// Get SDKWork IAM runtime metadata
     pub async fn iam_runtime_retrieve(&self) -> Result<BirdCoderIamRuntimeSettingsEnvelope, SdkworkError> {
         let path = app_path(&"/system/iam/runtime".to_string());
-        self.client.get(&path, None, None).await
+        self.client.request_method(Method::GET, &path, Option::<&serde_json::Value>::None, None, None, None, true).await
     }
 
     /// Get SDKWork IAM verification policy
     pub async fn iam_verification_policy_retrieve(&self) -> Result<BirdCoderIamVerificationPolicyEnvelope, SdkworkError> {
         let path = app_path(&"/system/iam/verification_policy".to_string());
-        self.client.get(&path, None, None).await
+        self.client.request_method(Method::GET, &path, Option::<&serde_json::Value>::None, None, None, None, true).await
     }
 
     /// List chat conversations
-    pub async fn chat_conversations_list(&self, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderChatConversationSummaryListEnvelope, SdkworkError> {
+    pub async fn chat_conversations_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderChatConversationSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/chat/conversations".to_string()), &query);
         self.client.get(&path, None, None).await
@@ -80,16 +82,16 @@ impl SystemApi {
     }
 
     /// Delete chat conversation
-    pub async fn chat_conversations_delete(&self, conversation_id: &str) -> Result<BirdCoderDeleteChatConversationEnvelope, SdkworkError> {
+    pub async fn chat_conversations_delete(&self, conversation_id: &str) -> Result<(), SdkworkError> {
         let path = app_path(&format!("/chat/conversations/{}", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
 
     /// List chat messages
-    pub async fn chat_conversations_messages_list(&self, conversation_id: &str, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderChatMessageSummaryListEnvelope, SdkworkError> {
+    pub async fn chat_conversations_messages_list(&self, conversation_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderChatMessageSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&format!("/chat/conversations/{}/messages", serialize_path_parameter(conversation_id, PathParameterSpec::new("conversationId", "simple", false)))), &query);
         self.client.get(&path, None, None).await

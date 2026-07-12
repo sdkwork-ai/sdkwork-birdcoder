@@ -1,6 +1,8 @@
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 
 export interface ProjectExplorerProps {
+  hasMoreProjects?: boolean;
+  isLoadingMoreProjects?: boolean;
   isVisible?: boolean;
   projects: BirdCoderProject[];
   selectedProjectId?: string | null;
@@ -12,6 +14,7 @@ export interface ProjectExplorerProps {
   onRenameProject: (id: string, newName?: string) => void;
   onDeleteProject: (id: string) => void;
   onNewProject: () => Promise<string | undefined>;
+  onLoadMoreProjects?: () => Promise<unknown> | void;
   onOpenFolder?: () => void;
   onNewCodingSessionInProject: (projectId: string, engineId?: string, modelId?: string) => void;
   onRefreshProjectSessions?: (id: string) => Promise<void> | void;

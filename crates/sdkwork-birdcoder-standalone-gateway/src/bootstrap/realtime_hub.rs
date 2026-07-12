@@ -49,9 +49,7 @@ impl RealtimeEventPublisher for HubRealtimeEventPublisher {
             "kind": "event",
             "event": event,
         });
-        self.hub
-            .publish(workspace_id, &message.to_string())
-            .await;
+        self.hub.publish(workspace_id, &message.to_string()).await;
         Ok(())
     }
 
@@ -100,9 +98,7 @@ impl HubWorkspaceEventPublisher {
                 "sourceSurface": "app",
             },
         });
-        self.hub
-            .publish(workspace_id, &message.to_string())
-            .await;
+        self.hub.publish(workspace_id, &message.to_string()).await;
         Ok(())
     }
 }
@@ -174,9 +170,7 @@ impl HubProjectEventPublisher {
                 "sourceSurface": "app",
             },
         });
-        self.hub
-            .publish(workspace_id, &message.to_string())
-            .await;
+        self.hub.publish(workspace_id, &message.to_string()).await;
         Ok(())
     }
 }
@@ -261,9 +255,7 @@ impl HubDeploymentEventPublisher {
                 "sourceSurface": "app",
             },
         });
-        self.hub
-            .publish(workspace_id, &message.to_string())
-            .await;
+        self.hub.publish(workspace_id, &message.to_string()).await;
         Ok(())
     }
 }
@@ -276,7 +268,8 @@ impl DeploymentEventPublisher for HubDeploymentEventPublisher {
         project_id: &str,
         _deployment_id: &str,
     ) -> Result<(), DeploymentError> {
-        self.publish_project_activity(workspace_id, project_id).await
+        self.publish_project_activity(workspace_id, project_id)
+            .await
     }
 
     async fn publish_deployment_status_changed(
@@ -286,7 +279,8 @@ impl DeploymentEventPublisher for HubDeploymentEventPublisher {
         _deployment_id: &str,
         _status: &str,
     ) -> Result<(), DeploymentError> {
-        self.publish_project_activity(workspace_id, project_id).await
+        self.publish_project_activity(workspace_id, project_id)
+            .await
     }
 
     async fn publish_release_created(
@@ -295,7 +289,8 @@ impl DeploymentEventPublisher for HubDeploymentEventPublisher {
         project_id: &str,
         _release_id: &str,
     ) -> Result<(), DeploymentError> {
-        self.publish_project_activity(workspace_id, project_id).await
+        self.publish_project_activity(workspace_id, project_id)
+            .await
     }
 
     async fn publish_audit_event(
@@ -306,7 +301,8 @@ impl DeploymentEventPublisher for HubDeploymentEventPublisher {
         _scope_id: &str,
         _event_type: &str,
     ) -> Result<(), DeploymentError> {
-        self.publish_project_activity(workspace_id, project_id).await
+        self.publish_project_activity(workspace_id, project_id)
+            .await
     }
 }
 

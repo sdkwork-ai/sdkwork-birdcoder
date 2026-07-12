@@ -78,8 +78,7 @@ pub fn sqlx_row_optional_data_scope_value(
         ));
     }
     if let Ok(Some(text)) = row.try_get::<Option<String>, _>(index) {
-        return normalize_data_scope(Some(text))
-            .map_err(|message| message.to_string());
+        return normalize_data_scope(Some(text)).map_err(|message| message.to_string());
     }
     Ok(None)
 }
@@ -111,7 +110,7 @@ pub fn sqlx_row_optional_project_type_value(
             .ok()
             .and_then(project_type_name_from_storage_value)
             .map(str::to_owned)
-            .or_else(|| Some(raw)));
+            .or(Some(raw)));
     }
 
     Err(format!(
@@ -133,7 +132,9 @@ pub fn sqlx_row_required_project_status_value(
         if value.fract() == 0.0 {
             return project_status_name_from_storage_value(value as i64)
                 .map(str::to_owned)
-                .ok_or_else(|| format!("sqlite column {column_name} has unsupported project status"));
+                .ok_or_else(|| {
+                    format!("sqlite column {column_name} has unsupported project status")
+                });
         }
     }
     if let Ok(Some(raw)) = row.try_get::<Option<String>, _>(index) {

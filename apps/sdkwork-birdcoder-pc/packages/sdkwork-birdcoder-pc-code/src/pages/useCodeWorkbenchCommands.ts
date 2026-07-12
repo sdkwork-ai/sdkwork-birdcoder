@@ -4,7 +4,6 @@ import {
   buildCodingSessionProjectScopedKey,
   emitOpenTerminalRequest,
   globalEventBus,
-  openTauriShellPath,
   type BirdCoderProjectCodingSessionIndex,
   type TerminalCommandRequest,
   type ToastType,
@@ -33,6 +32,7 @@ interface UseCodeWorkbenchCommandsOptions {
   setIsDebugConfigVisible: React.Dispatch<React.SetStateAction<boolean>>;
   setIsRunTaskVisible: React.Dispatch<React.SetStateAction<boolean>>;
   onRunWithoutDebugging?: () => void;
+  flushPendingAutosave: () => Promise<void>;
   addToast: (message: string, type?: ToastType) => void;
 }
 
@@ -54,6 +54,7 @@ export function useCodeWorkbenchCommands({
   setIsDebugConfigVisible,
   setIsRunTaskVisible,
   onRunWithoutDebugging,
+  flushPendingAutosave,
   addToast,
 }: UseCodeWorkbenchCommandsOptions) {
   const { t } = useTranslation();
@@ -65,6 +66,7 @@ export function useCodeWorkbenchCommands({
   const defaultWorkingDirectoryRef = useRef(defaultWorkingDirectory);
   const selectCodingSessionRef = useRef(selectCodingSession);
   const onRunWithoutDebuggingRef = useRef(onRunWithoutDebugging);
+  const flushPendingAutosaveRef = useRef(flushPendingAutosave);
 
   useEffect(() => {
     projectsRef.current = projects;
@@ -88,10 +90,12 @@ export function useCodeWorkbenchCommands({
     defaultWorkingDirectoryRef.current = defaultWorkingDirectory;
     selectCodingSessionRef.current = selectCodingSession;
     onRunWithoutDebuggingRef.current = onRunWithoutDebugging;
+    flushPendingAutosaveRef.current = flushPendingAutosave;
   }, [
     currentProjectPath,
     defaultWorkingDirectory,
     onRunWithoutDebugging,
+    flushPendingAutosave,
     selectCodingSession,
     selectedCodingSessionId,
     selectedProjectId,
@@ -165,12 +169,22 @@ export function useCodeWorkbenchCommands({
       }
     };
 
+    const savePendingFileChanges = (successMessage: string) => {
+      void flushPendingAutosaveRef.current()
+        .then(() => {
+          addToast(successMessage, 'success');
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to save pending code workbench changes', error);
+        });
+    };
+
     const handleSaveActiveFile = () => {
-      addToast(t('code.fileSaved'), 'success');
+      savePendingFileChanges(t('code.fileSaved'));
     };
 
     const handleSaveAllFiles = () => {
-      addToast(t('code.allFilesSaved'), 'success');
+      savePendingFileChanges(t('code.allFilesSaved'));
     };
 
     const handleStartDebugging = () => {
@@ -210,19 +224,6 @@ export function useCodeWorkbenchCommands({
       setIsTerminalOpen(true);
     };
 
-    const handleRevealInExplorer = async (targetPath: string) => {
-      try {
-        if (await openTauriShellPath(targetPath)) {
-          return;
-        }
-
-        addToast(t('code.revealedInExplorer', { path: targetPath }), 'info');
-      } catch (error) {
-        console.error('Failed to reveal in explorer', error);
-        addToast(t('code.revealedInExplorer', { path: targetPath }), 'info');
-      }
-    };
-
     const unsubscribers = [
       globalEventBus.on('closeTerminal', handleCloseTerminal),
       globalEventBus.on('openTerminal', handleOpenTerminal),
@@ -240,7 +241,6 @@ export function useCodeWorkbenchCommands({
       globalEventBus.on('addRunConfiguration', handleAddRunConfiguration),
       globalEventBus.on('runTask', handleRunTask),
       globalEventBus.on('terminalRequest', handleTerminalRequest),
-      globalEventBus.on('revealInExplorer', handleRevealInExplorer),
     ];
 
     return () => {

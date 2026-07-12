@@ -1,4 +1,4 @@
-import { Settings, User, Monitor, GitBranch, Terminal, Folder, Archive, ArrowLeft, Sun, LogOut, Zap, Cpu, Shield } from 'lucide-react';
+import { Settings, User, Monitor, GitBranch, Terminal, Folder, Archive, ArrowLeft, Sun, LogOut, Cpu, Shield } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export type SettingsTab =
@@ -12,7 +12,6 @@ export type SettingsTab =
   | 'environment'
   | 'worktree'
   | 'archived'
-  | 'skills'
   | 'legal';
 
 interface SettingsSidebarProps {
@@ -117,17 +116,9 @@ export function SettingsSidebar({ activeTab, setActiveTab, onBack, onLogout }: S
           <Archive size={16} />
           <span>{t('settings.sidebar.archivedSessions')}</span>
         </div>
-        <div 
-          className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'skills' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '500ms' }}
-          onClick={() => setActiveTab('skills')}
-        >
-          <Zap size={16} />
-          <span>{t('settings.sidebar.skills')}</span>
-        </div>
-        <div 
+        <div
           className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer transition-colors animate-in fade-in slide-in-from-left-4 fill-mode-both ${activeTab === 'legal' ? 'bg-white/10 text-white' : 'text-gray-300 hover:text-white hover:bg-white/5'}`}
-          style={{ animationDelay: '525ms' }}
+          style={{ animationDelay: '500ms' }}
           onClick={() => setActiveTab('legal')}
         >
           <Shield size={16} />

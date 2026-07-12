@@ -1,7 +1,17 @@
+use axum::extract::{Request, State};
+use axum::http::StatusCode;
+use axum::middleware::{from_fn_with_state, Next};
+use axum::response::Response;
 use axum::Router;
-use sdkwork_iam_web_adapter::{build_web_framework_layer, iam_web_request_context_resolver_from_env};
+use sdkwork_iam_web_adapter::{
+    allows_dev_authentication_fallback, build_web_framework_layer,
+    iam_web_request_context_resolver_from_env, IamAuthorizationPolicy,
+};
 use sdkwork_web_axum::with_web_request_context;
-use sdkwork_web_core::{CorsPolicy, HttpMetricsRegistry, RateLimitPolicy, SecurityPolicy};
+use sdkwork_web_core::{
+    AuthorizationPolicy, CorsPolicy, HttpMetricsRegistry, RateLimitPolicy, SecurityPolicy,
+    WebDeploymentMode, WebFrameworkError, WebRequestContext,
+};
 use std::sync::Arc;
 
 use crate::bootstrap::config::{
@@ -25,18 +35,82 @@ pub async fn build_protected_app_router(
         .validate_public_path_prefixes(&birdcoder_public_path_prefixes())
         .map_err(|error| format!("route manifest public prefix validation failed: {error}"))?;
 
-    let layer = build_web_framework_layer(
-        resolver,
-        manifest,
-        birdcoder_public_path_prefixes(),
-    )
-    .with_security_policy(build_security_policy(config))
-    .with_metrics(metrics);
+    let authorization_policy =
+        Arc::new(BirdCoderAuthorizationPolicy::new(IamAuthorizationPolicy::new(
+            manifest,
+        )));
+
+    let layer = build_web_framework_layer(resolver, manifest, birdcoder_public_path_prefixes())
+        .with_security_policy(build_security_policy(config))
+        .with_authorization_policy(authorization_policy)
+        .with_metrics(metrics);
 
     Ok(with_web_request_context(router, layer))
 }
 
-fn build_security_policy(config: &BirdServerConfig) -> SecurityPolicy {
+/// Gateway-wide CORS middleware.
+///
+/// Applies the BirdCoder CORS policy to every response and short-circuits
+/// OPTIONS preflight requests with `200 OK` so that browsers accept the
+/// preflight response. This is necessary because:
+///
+/// 1. IAM routes (`/app/v3/api/oauth/*`, `/app/v3/api/auth/*`) are wrapped by
+///    the IAM web framework layer whose CORS policy is derived from
+///    `SDKWORK_IM_ENVIRONMENT`. When that variable is unset (production
+///    default), the IAM layer rejects cross-origin requests from the BirdCoder
+///    dev server origins.
+/// 2. Axum returns `405 Method Not Allowed` for OPTIONS requests on routes
+///    that only register `POST`/`GET`/etc., causing browsers to fail the
+///    preflight with "It does not have HTTP ok status".
+///
+/// By applying the BirdCoder `build_cors_policy` at the gateway boundary and
+/// short-circuiting preflight, CORS is handled uniformly regardless of the
+/// inner router's security policy.
+pub(crate) fn with_gateway_cors<S>(router: Router<S>, config: &BirdServerConfig) -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    router.layer(from_fn_with_state(
+        Arc::new(build_cors_policy(config)),
+        gateway_cors_middleware,
+    ))
+}
+
+async fn gateway_cors_middleware(
+    State(cors): State<Arc<CorsPolicy>>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let origin = request
+        .headers()
+        .get("origin")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+
+    // Short-circuit CORS preflight (OPTIONS) requests with 200 OK so the
+    // browser accepts the preflight. Without this, axum returns 405 for
+    // routes that don't explicitly register an OPTIONS handler.
+    if request.method() == axum::http::Method::OPTIONS {
+        let mut response = Response::new(axum::body::Body::empty());
+        *response.status_mut() = StatusCode::OK;
+        SecurityPolicy::apply_cors_policy_headers_from_origin(
+            cors.as_ref(),
+            origin.as_deref(),
+            &mut response,
+        );
+        return response;
+    }
+
+    let mut response = next.run(request).await;
+    SecurityPolicy::apply_cors_policy_headers_from_origin(
+        cors.as_ref(),
+        origin.as_deref(),
+        &mut response,
+    );
+    response
+}
+
+pub(crate) fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
     let uses_wildcard = config.allowed_origins.iter().any(|origin| origin == "*");
     let explicit_origins: Vec<String> = config
         .allowed_origins
@@ -45,7 +119,7 @@ fn build_security_policy(config: &BirdServerConfig) -> SecurityPolicy {
         .cloned()
         .collect();
 
-    let cors = if uses_wildcard {
+    if uses_wildcard {
         tracing::warn!(
             "BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS contains '*' which is forbidden; falling back to explicit origins only."
         );
@@ -68,10 +142,12 @@ fn build_security_policy(config: &BirdServerConfig) -> SecurityPolicy {
             allowed_origins: explicit_origins,
             ..CorsPolicy::default()
         }
-    };
+    }
+}
 
+fn build_security_policy(config: &BirdServerConfig) -> SecurityPolicy {
     SecurityPolicy {
-        cors,
+        cors: build_cors_policy(config),
         rate_limit: RateLimitPolicy {
             enabled: config.rate_limit_enabled,
             max_requests_per_window: config.rate_limit_max_requests,
@@ -80,5 +156,78 @@ fn build_security_policy(config: &BirdServerConfig) -> SecurityPolicy {
             tenant_limit_after_auth: true,
         },
         ..SecurityPolicy::default()
+    }
+}
+
+/// BirdCoder authorization policy that adapts to the deployment mode.
+///
+/// In production, this delegates to the full `IamAuthorizationPolicy` which
+/// enforces manifest-declared permission codes (e.g.
+/// `birdcoder.platform-workspaces.read`).
+///
+/// In local development (SQLite, `SDKWORK_ENV=dev`/`development`), the IAM
+/// tenant-application bootstrap is skipped because the permission catalog is
+/// not provisioned. The JWT issued at login therefore carries an empty
+/// `permission_scope`. To keep the local dev loop functional, this policy
+/// still requires an authenticated principal but skips the manifest permission
+/// check when `allows_dev_authentication_fallback()` returns `true`.
+///
+/// A secondary runtime-state fallback covers cases where env-based detection
+/// fails (stale process, env vars not propagated, etc.): when the principal is
+/// authenticated but carries an empty `permission_scope` in a non-SaaS
+/// deployment, the permission catalog is not provisioned and manifest checks
+/// are skipped. This is safe because production SaaS always provisions
+/// permissions through the IAM tenant-application bootstrap.
+#[derive(Clone, Debug)]
+struct BirdCoderAuthorizationPolicy {
+    production_policy: IamAuthorizationPolicy,
+}
+
+impl BirdCoderAuthorizationPolicy {
+    fn new(production_policy: IamAuthorizationPolicy) -> Self {
+        Self { production_policy }
+    }
+
+    /// Secondary dev fallback: check the principal's runtime state directly.
+    ///
+    /// Returns `true` when the principal is authenticated but carries an empty
+    /// `permission_scope` in a non-SaaS deployment, indicating the IAM
+    /// permission catalog is not provisioned (local SQLite dev databases).
+    fn principal_has_empty_permission_scope_in_non_saas(
+        ctx: &WebRequestContext,
+    ) -> bool {
+        ctx.principal.as_ref().is_some_and(|principal| {
+            principal.scopes.permission_scope.is_empty()
+                && !matches!(
+                    principal.app.deployment_mode,
+                    WebDeploymentMode::Saas
+                )
+        })
+    }
+}
+
+impl AuthorizationPolicy for BirdCoderAuthorizationPolicy {
+    fn authorize(
+        &self,
+        ctx: &WebRequestContext,
+        operation_id: Option<&str>,
+    ) -> Result<(), WebFrameworkError> {
+        if allows_dev_authentication_fallback() {
+            // Development mode: require authentication but skip permission
+            // checks because the IAM permission catalog is not provisioned
+            // for SQLite local databases.
+            ctx.require_principal()?;
+            return Ok(());
+        }
+
+        // Secondary dev fallback: when env-based detection fails, inspect the
+        // principal's runtime state. An authenticated principal with an empty
+        // permission_scope in a non-SaaS deployment indicates the IAM
+        // permission catalog is not provisioned.
+        if Self::principal_has_empty_permission_scope_in_non_saas(ctx) {
+            return Ok(());
+        }
+
+        self.production_policy.authorize(ctx, operation_id)
     }
 }

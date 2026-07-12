@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_mobile_core.dart';
 import 'package:sdkwork_birdcoder_flutter_mobile_shell/sdkwork_birdcoder_flutter_mobile_shell.dart';
 
 import '../auth_gate.dart';
 
 class AppShell extends StatefulWidget {
-  final BirdCoderFlutterBootstrapState bootstrapState;
   final Widget child;
+  final String initialPath;
+  final Widget Function(String path)? routePageBuilder;
 
   const AppShell({
     super.key,
-    required this.bootstrapState,
     required this.child,
+    this.initialPath = '/',
+    this.routePageBuilder,
   });
 
   @override
@@ -21,26 +22,52 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   static const _tabPaths = ['/', '/settings'];
 
-  int _selectedIndex = 0;
+  late String _activePath;
+  late int _selectedIndex;
+  late final Map<String, Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _activePath = widget.initialPath;
+    _selectedIndex = _tabIndexForPath(_activePath);
+    _pages = <String, Widget>{_activePath: widget.child};
+  }
+
+  @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialPath != widget.initialPath) {
+      _activePath = widget.initialPath;
+      _selectedIndex = _tabIndexForPath(_activePath);
+      _pages[_activePath] ??= widget.child;
+    }
+  }
+
+  int _tabIndexForPath(String path) {
+    final index = _tabPaths.indexOf(path);
+    return index < 0 ? 0 : index;
+  }
 
   void _openTab(int index) {
     if (index < 0 || index >= _tabPaths.length) {
       return;
     }
 
-    setState(() => _selectedIndex = index);
-    Navigator.of(context).pushReplacementNamed(_tabPaths[index]);
+    final path = _tabPaths[index];
+    setState(() {
+      _selectedIndex = index;
+      _activePath = path;
+      _pages.putIfAbsent(
+        path,
+        () => widget.routePageBuilder?.call(path) ?? widget.child,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final shellConfig = ShellConfig.defaultConfig();
-    final routeName = ModalRoute.of(context)?.settings.name ?? '/';
-    final selectedIndex = _tabPaths.indexOf(routeName);
-    if (selectedIndex >= 0 && selectedIndex != _selectedIndex) {
-      _selectedIndex = selectedIndex;
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: Text(shellConfig.title),
@@ -52,7 +79,7 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
       ),
-      body: widget.child,
+      body: _pages[_activePath] ?? widget.child,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _openTab,

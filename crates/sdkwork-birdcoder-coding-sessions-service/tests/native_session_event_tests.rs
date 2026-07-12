@@ -1,4 +1,4 @@
-﻿use sdkwork_birdcoder_coding_sessions_service::event_payload::*;
+use sdkwork_birdcoder_coding_sessions_service::event_payload::*;
 use sdkwork_birdcoder_coding_sessions_service::native_session_types::*;
 
 #[test]
@@ -78,8 +78,7 @@ fn native_session_events_preserve_rich_message_payloads() {
         ],
     };
 
-    let events =
-        build_native_session_events_for_coding_session(&detail, "coding-session-rich", 0);
+    let events = build_native_session_events_for_coding_session(&detail, "coding-session-rich", 0);
     let assistant_event = events
         .iter()
         .find(|event| event_payload_role(&event.payload) == Some("assistant"))
@@ -136,4 +135,3 @@ fn native_session_events_preserve_rich_message_payloads() {
         Some("tool-run-tests")
     );
 }
-

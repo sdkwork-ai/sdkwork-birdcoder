@@ -1,6 +1,7 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 import { spawn, spawnSync } from 'node:child_process';
+import net from 'node:net';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -18,12 +19,13 @@ const __filename = fileURLToPath(import.meta.url);
 
 const DEFAULT_SERVER_READY_POLL_INTERVAL_MS = 350;
 const DEFAULT_SERVER_READY_REQUEST_TIMEOUT_MS = 800;
-const DEFAULT_SERVER_READY_TIMEOUT_MS = 30000;
+const DEFAULT_SERVER_READY_TIMEOUT_MS = 120000;
 const DEFAULT_SERVER_READY_PATHS = Object.freeze([
-  '/app/v3/api/system/health',
-  '/app/v3/api/system/iam/runtime',
+  '/readyz',
 ]);
 const DEFAULT_STACK_VITE_MODE = 'development';
+const CLIENT_LOOPBACK_PORT_FALLBACK_HOST = '127.0.0.1';
+const CLIENT_LOOPBACK_PORT_FALLBACK_MAX_ATTEMPTS = 20;
 const STACK_VITE_MODES = new Set(['development', 'test']);
 
 const STACK_SURFACE_CONFIGS = Object.freeze({
@@ -155,6 +157,114 @@ function appendPlanArgs(plan, extraArgs = []) {
   };
 }
 
+function hasCliOption(args = [], flag) {
+  return args.some((token) => {
+    const normalizedToken = String(token ?? '').trim();
+    return normalizedToken === flag || normalizedToken.startsWith(`${flag}=`);
+  });
+}
+
+function readLastCliOptionValue(args = [], flag) {
+  for (let index = args.length - 1; index >= 0; index -= 1) {
+    const token = String(args[index] ?? '').trim();
+    if (token.startsWith(`${flag}=`)) {
+      return token.slice(flag.length + 1);
+    }
+    if (token === flag) {
+      return String(args[index + 1] ?? '').trim() || undefined;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizePort(value) {
+  const port = Number.parseInt(String(value ?? '').trim(), 10);
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    return undefined;
+  }
+
+  return port;
+}
+
+function canBindLoopbackPort(port, host = CLIENT_LOOPBACK_PORT_FALLBACK_HOST) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+
+    server.once('error', () => {
+      resolve(false);
+    });
+    server.listen(port, host, () => {
+      server.close(() => {
+        resolve(true);
+      });
+    });
+  });
+}
+
+async function resolveAvailableLoopbackPort({
+  maxAttempts = CLIENT_LOOPBACK_PORT_FALLBACK_MAX_ATTEMPTS,
+  preferredPort,
+} = {}) {
+  const normalizedPreferredPort = normalizePort(preferredPort);
+  if (!normalizedPreferredPort) {
+    return undefined;
+  }
+
+  for (let offset = 0; offset < maxAttempts; offset += 1) {
+    const candidatePort = normalizedPreferredPort + offset;
+    if (candidatePort > 65535) {
+      return undefined;
+    }
+
+    if (await canBindLoopbackPort(candidatePort)) {
+      return candidatePort;
+    }
+  }
+
+  return undefined;
+}
+
+export async function applyClientLoopbackPortFallback({
+  clientArgs = [],
+  stackPlans,
+} = {}) {
+  if (!stackPlans?.clientPlan) {
+    return stackPlans;
+  }
+
+  if (hasCliOption(clientArgs, '--port') || hasCliOption(clientArgs, '--strictPort')) {
+    return stackPlans;
+  }
+
+  const preferredPort = normalizePort(
+    readLastCliOptionValue(stackPlans.clientPlan.args, '--port'),
+  );
+  if (!preferredPort) {
+    return stackPlans;
+  }
+
+  const availablePort = await resolveAvailableLoopbackPort({
+    preferredPort,
+  });
+  if (!availablePort || availablePort === preferredPort) {
+    return stackPlans;
+  }
+
+  return {
+    ...stackPlans,
+    clientPlan: appendPlanArgs(
+      stackPlans.clientPlan,
+      ['--port', String(availablePort)],
+    ),
+    clientPortFallback: {
+      host: CLIENT_LOOPBACK_PORT_FALLBACK_HOST,
+      preferredPort,
+      resolvedPort: availablePort,
+    },
+  };
+}
+
 function resolveStackPlans({
   clientArgs = [],
   env = process.env,
@@ -235,6 +345,7 @@ function resolveStackPlans({
 
 function printStackSummary({
   apiOriginUrl,
+  clientPortFallback,
   clientPlan,
   clientResolvedIam,
   sdkworkIamMode,
@@ -253,6 +364,11 @@ function printStackSummary({
     console.log(`[birdcoder-stack] server=${formatCommandPlan(serverPlan)}`);
   } else {
     console.log('[birdcoder-stack] server=embedded');
+  }
+  if (clientPortFallback) {
+    console.log(
+      `[birdcoder-stack] clientPortFallback=${clientPortFallback.preferredPort}->${clientPortFallback.resolvedPort} (${clientPortFallback.host})`,
+    );
   }
   console.log(`[birdcoder-stack] client=${formatCommandPlan(clientPlan)}`);
 
@@ -391,7 +507,7 @@ async function waitForServerReady({
       }
     } catch {
       // The native BirdCoder server can publish the base URL before the standardized
-      // health and auth-config routes are ready. Keep polling until both contracts respond.
+      // infrastructure readiness route is ready. Keep polling until it responds.
     }
 
     await sleep(normalizedPollIntervalMs);
@@ -416,13 +532,20 @@ export async function runBirdcoderDevStack({
   env = process.env,
 } = {}) {
   const options = parseArgs(argv);
-  const stackPlans = resolveStackPlans({
+  let stackPlans = resolveStackPlans({
     clientArgs: options.clientArgs,
     env,
     iamMode: options.iamMode,
     target: options.target,
     viteMode: options.viteMode,
   });
+
+  if (!options.dryRun) {
+    stackPlans = await applyClientLoopbackPortFallback({
+      clientArgs: options.clientArgs,
+      stackPlans,
+    });
+  }
 
   printStackSummary(stackPlans);
 

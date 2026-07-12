@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-router-context",
+    "displayName": "SDKWork BirdCoder Router Context",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-router-context",
+    "domain": "iam",
+    "declaredDomain": null,
+    "capability": "route-context",
+    "surface": "route-context",
+    "status": "ACTIVE",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable Rust module boundary rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated-code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate and route-context adapter rules."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Runtime configuration boundary rules."
+    },
+    {
+      "file": "DEPLOYMENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
+      "purpose": "Runtime deployment-boundary rules."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../../../../sdkwork-specs/API_SPEC.md",
+      "purpose": "Typed request and problem-detail contract rules."
+    },
+    {
+      "file": "WEB_FRAMEWORK_SPEC.md",
+      "path": "../../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
+      "purpose": "SDKWork web request-context integration rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Authenticated-context and secure error-boundary rules."
+    },
+    {
+      "file": "PAGINATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/PAGINATION_SPEC.md",
+      "purpose": "Strict list-query parsing and pagination boundary rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Component verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-provider",
+    "publicExports": [
+      ".",
+      "sdkwork_birdcoder_router_context::WebRequestContext",
+      "sdkwork_birdcoder_router_context::RequiredIamContext",
+      "sdkwork_birdcoder_router_context::StrictOffsetListQuery",
+      "sdkwork_birdcoder_router_context::strict_offset_list_params",
+      "sdkwork_birdcoder_router_context::coding_session_context",
+      "sdkwork_birdcoder_router_context::workspace_context",
+      "sdkwork_birdcoder_router_context::project_context",
+      "sdkwork_birdcoder_router_context::deployment_context"
+    ],
+    "providedPorts": [
+      {
+        "name": "authenticatedRouteContext",
+        "export": "sdkwork_birdcoder_router_context::RequiredIamContext"
+      },
+      {
+        "name": "strictOffsetListPagination",
+        "export": "sdkwork_birdcoder_router_context::StrictOffsetListQuery"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "iamWebRequestContext",
+        "export": "."
+      }
+    ],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "Provides typed request extractors and context translation for BirdCoder route crates; it does not own IAM authentication, permission policy, or route handlers.",
+    "crossDomainComposition": "Maps a verified IAM app context into typed product service contexts for intelligence, workspace, project, and deployment route adapters."
+  },
+  "verification": {
+    "commands": [
+      "cargo test --offline -p sdkwork-birdcoder-router-context --lib -- --nocapture"
+    ]
+  }
+}

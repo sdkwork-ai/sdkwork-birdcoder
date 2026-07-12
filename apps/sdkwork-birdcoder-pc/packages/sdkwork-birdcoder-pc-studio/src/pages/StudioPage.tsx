@@ -57,6 +57,7 @@ import { useStudioCodingSessionSync } from './useStudioCodingSessionSync';
 import { StudioSessionTranscriptLoadingState } from './StudioSessionTranscriptLoadingState';
 import { useStudioCollaboration } from './useStudioCollaboration';
 import { useStudioExecutionActions } from './useStudioExecutionActions';
+import { useStudioProjectInventoryReconciliation } from './useStudioProjectInventoryReconciliation';
 import { useStudioWorkbenchEventBindings } from './useStudioWorkbenchEventBindings';
 import {
   EMPTY_STUDIO_CHAT_MESSAGES,
@@ -83,7 +84,9 @@ function StudioPageComponent({
   }, []);
   const { preferences, updatePreferences } = useWorkbenchPreferences();
   const {
+    hasMore: hasMoreProjects,
     hasFetched: hasFetchedProjects,
+    isLoadingMore: isLoadingMoreProjects,
     projects,
     filteredProjects,
     searchQuery: projectSearchQuery,
@@ -94,8 +97,10 @@ function StudioPageComponent({
     updateProject,
     editCodingSessionMessage,
     deleteCodingSessionMessage,
+    loadMoreProjects,
   } = useProjects(workspaceId, {
     isActive: isVisible,
+    targetProjectId: projectId,
   });
   const { collaborationService, appRuntimeReadService, projectService } = useIDEServices();
   const { user } = useAuth();
@@ -311,25 +316,6 @@ function StudioPageComponent({
       createCodingSessionInProject: createStudioCodingSessionInProject,
     },
   );
-  useStudioWorkbenchEventBindings({
-    addToast,
-    isActive: isVisible,
-    currentProjectIdRef,
-    defaultWorkingDirectoryRef,
-    projectsRef,
-    runConfigurationsRef,
-    selectedCodingSessionIdRef,
-    selectCodingSessionRef,
-    setIsDebugConfigVisible,
-    setIsFindVisible,
-    setIsQuickOpenVisible,
-    setIsRunConfigVisible,
-    setIsRunTaskVisible,
-    setIsTerminalOpen,
-    setTerminalRequest,
-    setViewingDiff,
-    t,
-  });
   
   const [chatWidth, setChatWidth] = useState(720);
   const [deleteConfirmation, setDeleteConfirmation] = useState<StudioDeleteConfirmation | null>(null);
@@ -377,53 +363,22 @@ function StudioPageComponent({
     setSelectedCodingSessionProjectId: setSelectedSessionProjectId,
   });
 
-  useEffect(() => {
-    if (!isVisible || !hasFetchedProjects) {
-      return;
-    }
-
-    if (projects.length > 0) {
-      if (!menuActiveProjectId || !resolveProjectById(menuActiveProjectId)) {
-        setMenuActiveProjectId(projects[0].id);
-      }
-      if (currentProjectId && !resolveProjectById(currentProjectId)) {
-        notifyProjectChange('');
-        setSessionId('');
-        setSelectedSessionProjectId(null);
-      } else if (sessionId) {
-        const retainedProjectId =
-          selectedSessionProjectId?.trim() ||
-          projectId?.trim() ||
-          currentProjectId;
-        if (
-          !resolveCodingSessionLocation(sessionId, retainedProjectId) &&
-          (!retainedProjectId || !resolveProjectById(retainedProjectId))
-        ) {
-          setSessionId('');
-          setSelectedSessionProjectId(retainedProjectId || null);
-        }
-      }
-    } else {
-      setMenuActiveProjectId('');
-      if (currentProjectId) {
-        notifyProjectChange('');
-      }
-      setSessionId('');
-      setSelectedSessionProjectId(null);
-    }
-  }, [
+  useStudioProjectInventoryReconciliation({
     currentProjectId,
     hasFetchedProjects,
-    isVisible,
+    isActive: isVisible,
     menuActiveProjectId,
     notifyProjectChange,
     projectId,
     projects,
     resolveCodingSessionLocation,
     resolveProjectById,
-    sessionId,
     selectedSessionProjectId,
-  ]);
+    sessionId,
+    setMenuActiveProjectId,
+    setSelectedSessionProjectId,
+    setSessionId,
+  });
 
   const [isSubmittingTurn, setIsSubmittingTurn] = useState(false);
 
@@ -530,17 +485,13 @@ function StudioPageComponent({
     })();
   }, [notifyProjectChange, projectService, projects, selectCodingSession, user?.id, workspaceId]);
   const {
-    handleCopyPublicLink,
     handleInviteCollaborator,
     inviteEmail,
     isCollaboratorsLoading,
     isInvitePending,
     projectCollaborators,
-    publicShareUrl,
     setInviteEmail,
-    setShareAccess,
     setShowShareModal,
-    shareAccess,
     showShareModal,
   } = useStudioCollaboration({
     addToast,
@@ -550,7 +501,6 @@ function StudioPageComponent({
       failedToInvite: 'Failed to invite collaborator.',
       failedToLoad: 'Failed to load project collaborators.',
       invitationSent: t('studio.invitationSent'),
-      linkCopied: t('studio.linkCopied'),
       noProjectSelected: t('studio.pleaseSelectProject'),
     },
   });
@@ -578,6 +528,7 @@ function StudioPageComponent({
     openFiles,
     selectedFile,
     fileContent,
+    saveError,
     isSearchingFiles,
     mountRecoveryState,
     selectFile,
@@ -592,11 +543,35 @@ function StudioPageComponent({
     renameNode,
     searchFiles,
     mountFolder,
+    flushPendingAutosave,
   } = useFileSystem(currentProjectId, currentProject?.path, {
     isActive: isVisible,
     loadActive: isVisible && activeTab === 'code',
     realtimeActive: isVisible && activeTab === 'code',
   });
+
+  useStudioWorkbenchEventBindings({
+    addToast,
+    isActive: isVisible,
+    saveError,
+    currentProjectIdRef,
+    defaultWorkingDirectoryRef,
+    projectsRef,
+    runConfigurationsRef,
+    selectedCodingSessionIdRef,
+    selectCodingSessionRef,
+    flushPendingAutosave,
+    setIsDebugConfigVisible,
+    setIsFindVisible,
+    setIsQuickOpenVisible,
+    setIsRunConfigVisible,
+    setIsRunTaskVisible,
+    setIsTerminalOpen,
+    setTerminalRequest,
+    setViewingDiff,
+    t,
+  });
+
   const previousMountRecoveryStatusRef = useRef(mountRecoveryState.status);
 
   const selectFolderAndImportProject = useCallback(async (fallbackProjectName: string) => {
@@ -1233,7 +1208,9 @@ function StudioPageComponent({
   return (
     <div className="flex h-full w-full bg-[#0e0e11] text-gray-300">
       <StudioChatSidebar
+        hasMoreProjects={hasMoreProjects}
         isVisible={isVisible && isSidebarVisible}
+        isLoadingMoreProjects={isLoadingMoreProjects}
         width={chatWidth}
         projects={filteredProjects}
         currentProjectId={currentProjectId}
@@ -1259,6 +1236,7 @@ function StudioPageComponent({
         onSubmitUserQuestionAnswer={handleSubmitUserQuestionAnswer}
         onSelectCodingSession={handleSelectCodingSession}
         onCreateProject={handleCreateSidebarProject}
+        onLoadMoreProjects={loadMoreProjects}
         onOpenFolder={handleOpenSidebarFolder}
         onCreateCodingSession={createStudioCodingSessionInProject}
         onRefreshProjectSessions={handleRefreshProjectSessions}
@@ -1353,7 +1331,6 @@ function StudioPageComponent({
           currentProjectName: currentProject?.name,
           deleteConfirmation,
           handleConfirmDelete,
-          handleCopyPublicLink,
           handleInviteCollaborator,
           handleRunTaskExecution,
           handleSaveDebugConfiguration,
@@ -1365,7 +1342,6 @@ function StudioPageComponent({
           isInvitePending,
           isRunConfigVisible,
           isRunTaskVisible,
-          publicShareUrl,
           runConfigurationDraft,
           runConfigurations,
           setDeleteConfirmation,
@@ -1375,10 +1351,8 @@ function StudioPageComponent({
           setIsRunConfigVisible,
           setIsRunTaskVisible,
           setRunConfigurationDraft,
-          setShareAccess,
           setShowPublishModal,
           setShowShareModal,
-          shareAccess,
           showPublishModal,
           showShareModal,
         }}

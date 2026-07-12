@@ -9,8 +9,15 @@ import type {
 } from '@sdkwork/birdcoder-pc-types';
 import {
   getBirdCoderIamRuntime,
-  resetBirdCoderIamRuntime,
 } from '../iamRuntime.ts';
+import {
+  invalidateBirdCoderCurrentSession,
+  retrieveBirdCoderCurrentSession,
+} from '../iamCurrentSession.ts';
+import {
+  invalidateBirdCoderCurrentUser,
+  retrieveBirdCoderCurrentUser,
+} from '../iamCurrentUser.ts';
 import type { IAuthService } from '../interfaces/IAuthService.ts';
 
 export interface RuntimeAuthServiceOptions {
@@ -51,33 +58,6 @@ function mapIamUser(user: IamUser): User {
   };
 }
 
-async function readStoredIamSessionTokens(runtime: IamRuntime): Promise<boolean> {
-  const storedSession = await runtime.tokenStore.get();
-  return Boolean(
-    normalizeText(storedSession.authToken)
-      || normalizeText(storedSession.accessToken),
-  );
-}
-
-async function clearInvalidIamSession(runtime: IamRuntime): Promise<void> {
-  await runtime.tokenStore.clear();
-  await runtime.contextStore.clear();
-}
-
-async function validateStoredIamSession(runtime: IamRuntime): Promise<boolean> {
-  if (!(await readStoredIamSessionTokens(runtime))) {
-    return false;
-  }
-
-  try {
-    await runtime.service.auth.sessions.current.retrieve();
-    return true;
-  } catch {
-    await clearInvalidIamSession(runtime);
-    return false;
-  }
-}
-
 export function createBirdCoderRuntimeAuthService(
   options: RuntimeAuthServiceOptions = {},
 ): IAuthService {
@@ -86,25 +66,32 @@ export function createBirdCoderRuntimeAuthService(
   return {
     async getCurrentUser() {
       const runtime = readRuntime();
-      if (!(await validateStoredIamSession(runtime))) {
+      const session = await retrieveBirdCoderCurrentSession(runtime);
+      if (!session) {
         return null;
       }
 
-      return mapIamUser(await runtime.service.iam.users.current.retrieve());
+      if (session.user) {
+        return mapIamUser(session.user);
+      }
+
+      const currentIamUser = await retrieveBirdCoderCurrentUser(runtime, session);
+      return currentIamUser ? mapIamUser(currentIamUser) : null;
     },
 
     async hasStoredSession() {
-      return validateStoredIamSession(readRuntime());
+      return Boolean(await retrieveBirdCoderCurrentSession(readRuntime()));
     },
 
     async logout() {
       const runtime = readRuntime();
+      invalidateBirdCoderCurrentSession();
+      invalidateBirdCoderCurrentUser();
       try {
         await runtime.service.auth.sessions.current.delete();
       } finally {
         await runtime.tokenStore.clear();
         await runtime.contextStore.clear();
-        resetBirdCoderIamRuntime();
       }
     },
   };

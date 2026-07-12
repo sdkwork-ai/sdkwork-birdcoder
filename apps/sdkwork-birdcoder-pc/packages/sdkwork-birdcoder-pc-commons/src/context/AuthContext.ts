@@ -11,7 +11,6 @@ import type {
   User,
 } from '@sdkwork/birdcoder-pc-types';
 import { useIDEServices } from './IDEContext.ts';
-import { resolveFallbackAwareCurrentUser } from './authUserIdentity.ts';
 
 interface AuthContextType {
   isLoading: boolean;
@@ -31,38 +30,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const refreshCurrentUser = useCallback(async () => {
     const refreshAuthMutationVersion = authMutationVersionRef.current;
     try {
-      const [currentUser, sessionPresent] = await Promise.all([
-        authService.getCurrentUser(),
-        authService.hasStoredSession(),
-      ]);
+      const currentUser = await authService.getCurrentUser();
       if (authMutationVersionRef.current !== refreshAuthMutationVersion) {
         return null;
       }
 
-      setUser((previousUser) => {
-        if (currentUser !== null) {
-          return currentUser;
-        }
-
-        if (!sessionPresent) {
-          return null;
-        }
-
-        return resolveFallbackAwareCurrentUser(null, previousUser ?? undefined);
-      });
+      setUser(currentUser);
       return currentUser;
     } catch (error) {
-      if (authMutationVersionRef.current === refreshAuthMutationVersion) {
-        setUser(null);
-      }
       throw error;
     }
   }, [authService]);
 
   useEffect(() => {
     let isMounted = true;
+    let loadingInProgress = false;
+    let reloadRequested = false;
+    let scheduledReload: ReturnType<typeof setTimeout> | null = null;
+
+    function scheduleCurrentUserLoad(): void {
+      if (scheduledReload !== null) {
+        clearTimeout(scheduledReload);
+      }
+
+      // Session commits update token/context storage in more than one step.
+      // Defer the read to the next task so all synchronous commit listeners
+      // finish and multiple change events collapse into one validation.
+      scheduledReload = setTimeout(() => {
+        scheduledReload = null;
+        void loadCurrentUser();
+      }, 0);
+    }
 
     async function loadCurrentUser() {
+      if (loadingInProgress) {
+        reloadRequested = true;
+        return;
+      }
+
+      loadingInProgress = true;
       const currentAuthMutationVersion = authMutationVersionRef.current;
       setIsLoading(true);
       try {
@@ -78,10 +84,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         console.error('Failed to get current user', error);
-        setUser(null);
       } finally {
+        loadingInProgress = false;
         if (isMounted && authMutationVersionRef.current === currentAuthMutationVersion) {
           setIsLoading(false);
+        }
+        if (isMounted && reloadRequested) {
+          reloadRequested = false;
+          scheduleCurrentUserLoad();
         }
       }
     }
@@ -89,12 +99,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     void loadCurrentUser();
 
     const handleAppSessionChange = () => {
-      void loadCurrentUser();
+      // Invalidate any load that started under the previous token pair before
+      // scheduling the post-commit read.
+      authMutationVersionRef.current += 1;
+      scheduleCurrentUserLoad();
     };
     globalThis.addEventListener?.('sdkwork:birdcoder:app-session-change', handleAppSessionChange);
 
     return () => {
       isMounted = false;
+      if (scheduledReload !== null) {
+        clearTimeout(scheduledReload);
+        scheduledReload = null;
+      }
       globalThis.removeEventListener?.('sdkwork:birdcoder:app-session-change', handleAppSessionChange);
     };
   }, [authService]);

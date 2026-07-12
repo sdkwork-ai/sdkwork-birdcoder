@@ -14,11 +14,12 @@ Specs: `RELEASE_SPEC.md`, `SECURITY_SPEC.md`
 
 ## Triage checklist
 
-1. **Health**: `curl -fsS https://<host>/health`
-2. **Metrics**: scrape `/metrics` for error rate and health gauge
-3. **Auth**: confirm IAM app API reachable; check for mass 401 without refresh
-4. **Database**: SQLite file permissions or PostgreSQL connectivity
-5. **HA realtime**: Redis availability when `SDKWORK_BIRDCODER_REALTIME_BACKEND=redis`
+1. **Liveness**: `curl -fsS https://<host>/healthz`
+2. **Readiness**: `curl -fsS https://<host>/readyz`
+3. **Metrics**: scrape `/metrics` for error rate and health gauge
+4. **Auth**: confirm IAM app API reachable; check for mass 401 without refresh
+5. **Database**: SQLite file permissions or PostgreSQL connectivity
+6. **HA realtime**: Redis availability when `SDKWORK_BIRDCODER_REALTIME_BACKEND=redis`
 
 ## Common scenarios
 
@@ -50,6 +51,6 @@ Execute documented `rollbackCommand` or redeploy previous immutable image digest
 
 ## Post-incident
 
-- Update `docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md` only when readiness truth changes.
+- Update `docs/architecture/tech/TECH_ARCHITECTURE.md` only when readiness truth changes.
 - Add contract test if regression was preventable.
 - Attach verification commands run during recovery to the incident record.

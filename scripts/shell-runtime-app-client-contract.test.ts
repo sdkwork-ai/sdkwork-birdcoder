@@ -293,10 +293,15 @@ try {
     /bindDefaultBirdCoderIdeServicesRuntime\(options\);/u,
     'shell runtime bootstrap must bind the default IDE services runtime before consumers resolve app/core clients.',
   );
+  assert.doesNotMatch(
+    bootstrapImplSource,
+    /loadDefaultBirdCoderIdeService\('appRuntime(?:Read|Write)Service'\)/u,
+    'pre-auth shell runtime bootstrap must not load appRuntime services because model-config app-api synchronization requires an authenticated SDKWork session.',
+  );
   assert.match(
     bootstrapImplSource,
-    /const \[appRuntimeReadService, appRuntimeWriteService\] = await Promise\.all\(\[[\s\S]*loadDefaultBirdCoderIdeService\('appRuntimeReadService'\),[\s\S]*loadDefaultBirdCoderIdeService\('appRuntimeWriteService'\),[\s\S]*\]\);[\s\S]*await bootstrapShellUserState\(\{[\s\S]*appRuntimeReadService,[\s\S]*appRuntimeWriteService,[\s\S]*\}\);/u,
-    'shell runtime bootstrap must initialize persisted shell user state with bound app runtime services so model-config synchronization uses the same runtime authority.',
+    /await bootstrapShellUserState\(\);/u,
+    'pre-auth shell runtime bootstrap must initialize local persisted user state without appRuntime services; authenticated flows may still pass services explicitly.',
   );
 
   bindDefaultBirdCoderIdeServicesRuntime({
@@ -374,15 +379,15 @@ try {
     [
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/workspaces?limit=20',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/workspaces?page_size=20',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/projects?workspaceId=workspace-runtime-contract&limit=20',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/projects?workspaceId=workspace-runtime-contract&page_size=20',
       },
       {
         method: 'GET',
-        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/intelligence/coding_sessions?limit=20&workspaceId=workspace-runtime-contract',
+        url: 'https://cn.sdkwork.local/birdcoder/app/v3/api/intelligence/coding_sessions?page_size=20&workspaceId=workspace-runtime-contract',
       },
     ],
     'shell runtime defaults must normalize the host apiBaseUrl and route app/core authority HTTP transport without duplicating the /api prefix.',

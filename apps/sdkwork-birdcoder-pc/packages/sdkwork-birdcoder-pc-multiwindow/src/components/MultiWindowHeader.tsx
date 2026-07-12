@@ -31,7 +31,7 @@ function resolveDispatchTone(dispatchState: MultiWindowDispatchState): string {
   if (dispatchState === 'running') {
     return 'text-blue-300';
   }
-  if (dispatchState === 'cancelled') {
+  if (dispatchState === 'stopped') {
     return 'text-amber-300';
   }
   return 'text-gray-500';

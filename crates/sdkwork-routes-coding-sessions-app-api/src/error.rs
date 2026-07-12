@@ -19,6 +19,21 @@ pub struct AppError {
     pub body: ProblemDetailsPayload,
 }
 
+#[derive(Debug)]
+pub struct CodingSessionsRouteError(Box<AppError>);
+
+impl From<AppError> for CodingSessionsRouteError {
+    fn from(error: AppError) -> Self {
+        Self(Box::new(error))
+    }
+}
+
+impl IntoResponse for CodingSessionsRouteError {
+    fn into_response(self) -> Response {
+        self.0.into_response()
+    }
+}
+
 impl AppError {
     pub fn not_found(message: impl Into<String>) -> Self {
         Self {
@@ -45,6 +60,13 @@ impl AppError {
         Self {
             status: StatusCode::CONFLICT,
             body: platform_problem(SdkWorkResultCode::Conflict, message, None),
+        }
+    }
+
+    pub fn rate_limited(message: impl Into<String>) -> Self {
+        Self {
+            status: StatusCode::TOO_MANY_REQUESTS,
+            body: platform_problem(SdkWorkResultCode::RateLimitExceeded, message, None),
         }
     }
 
@@ -86,6 +108,7 @@ impl From<CodingSessionError> for AppError {
             CodingSessionError::NotFound(msg) => Self::not_found(msg),
             CodingSessionError::InvalidInput(msg) => Self::bad_request(msg),
             CodingSessionError::Conflict(msg) => Self::conflict(msg),
+            CodingSessionError::RateLimited(msg) => Self::rate_limited(msg),
             CodingSessionError::Repository(_) => Self {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: client_safe_data_access_problem(),
@@ -120,6 +143,61 @@ impl IntoResponse for AppError {
 pub fn trace_service_error<T>(
     result: Result<T, CodingSessionError>,
     trace_id: Option<&str>,
-) -> Result<T, AppError> {
-    result.map_err(|error| AppError::from(error).with_trace_id(trace_id))
+) -> Result<T, CodingSessionsRouteError> {
+    result.map_err(|error| AppError::from(error).with_trace_id(trace_id).into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trace_service_error_keeps_handler_result_errors_small() {
+        let error = trace_service_error::<()>(
+            Err(CodingSessionError::Internal("expected test error".into())),
+            Some("0195f2a0-7c44-7b2e-9f3a-2a6f5d8e91ab"),
+        )
+        .expect_err("the supplied service error must be mapped");
+
+        assert!(
+            std::mem::size_of_val(&error) <= 64,
+            "handler Result errors must not move a full Problem Details payload on the stack"
+        );
+    }
+
+    #[tokio::test]
+    async fn rate_limited_coding_session_error_maps_to_overload_problem_without_unproven_retry_after() {
+        let error = AppError::from(CodingSessionError::RateLimited(
+            "code-engine turn admission is saturated".into(),
+        ))
+        .with_trace_id(Some("0195f2a0-7c44-7b2e-9f3a-2a6f5d8e91ab"));
+
+        assert_eq!(error.status, StatusCode::TOO_MANY_REQUESTS);
+        assert_eq!(error.body.code, 42901);
+        assert_eq!(error.body.trace_id, "0195f2a0-7c44-7b2e-9f3a-2a6f5d8e91ab");
+
+        let response = error.into_response();
+        assert_eq!(
+            response
+                .headers()
+                .get(header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("application/problem+json")
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(header::RETRY_AFTER)
+                .and_then(|value| value.to_str().ok()),
+            None
+        );
+
+        let body = axum::body::to_bytes(response.into_body(), 16 * 1024)
+            .await
+            .expect("the bounded Problem Details body must be readable");
+        let body: serde_json::Value =
+            serde_json::from_slice(&body).expect("the Problem Details body must be JSON");
+        assert_eq!(body["code"], 42901);
+        assert_eq!(body["traceId"], "0195f2a0-7c44-7b2e-9f3a-2a6f5d8e91ab");
+    }
 }

@@ -1,19 +1,21 @@
 export interface BirdCoderApiTransportErrorOptions {
   businessCode?: string;
-  code?: string;
+  code?: number;
   detail?: string;
   httpStatus: number;
   method: string;
   path: string;
+  traceId?: string;
 }
 
 export class BirdCoderApiTransportError extends Error {
   readonly businessCode?: string;
-  readonly code?: string;
+  readonly code?: number;
   readonly detail?: string;
   readonly httpStatus: number;
   readonly method: string;
   readonly path: string;
+  readonly traceId?: string;
 
   constructor(options: BirdCoderApiTransportErrorOptions) {
     const detailSuffix = options.detail ? ` (${options.detail})` : '';
@@ -27,6 +29,7 @@ export class BirdCoderApiTransportError extends Error {
     this.detail = options.detail;
     this.code = options.code;
     this.businessCode = options.businessCode;
+    this.traceId = options.traceId;
   }
 }
 

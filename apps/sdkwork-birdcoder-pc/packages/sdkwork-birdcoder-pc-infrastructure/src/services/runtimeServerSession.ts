@@ -1,6 +1,5 @@
 import {
   clearStoredAppSessionToken,
-  getStoredAppSessionAuthToken,
   getStoredAppSessionId,
   loadStoredAppSessionToken,
   storeAppSessionFromResult,
@@ -9,6 +8,8 @@ import {
   getBirdCoderGlobalTokenManager,
   syncBirdCoderGlobalTokenManagerFromStorage,
 } from '@sdkwork/birdcoder-pc-core/appSessionTokenManager';
+import { invalidateBirdCoderCurrentSession } from './iamCurrentSession.ts';
+import { invalidateBirdCoderCurrentUser } from './iamCurrentUser.ts';
 
 export interface RuntimeServerTokenBundle {
   accessToken?: string;
@@ -52,16 +53,13 @@ function readCurrentTokenBundle(): RuntimeServerTokenBundle {
 function normalizeRuntimeServerTokenBundle(
   bundle: RuntimeServerTokenBundle,
 ): RuntimeServerTokenBundle {
-  const sessionToken =
-    normalizeOptionalTokenValue(bundle.sessionToken)
-    ?? normalizeOptionalTokenValue(bundle.authToken)
-    ?? normalizeOptionalTokenValue(bundle.accessToken);
-  const authToken = normalizeOptionalTokenValue(bundle.authToken) ?? sessionToken;
-  const accessToken = normalizeOptionalTokenValue(bundle.accessToken) ?? sessionToken;
+  const sessionToken = normalizeOptionalTokenValue(bundle.sessionToken);
+  const authToken = normalizeOptionalTokenValue(bundle.authToken);
+  const accessToken = normalizeOptionalTokenValue(bundle.accessToken);
   const refreshToken = normalizeOptionalTokenValue(bundle.refreshToken);
   const tokenType =
     normalizeOptionalTokenValue(bundle.tokenType)
-    ?? (authToken || accessToken || sessionToken ? RUNTIME_SERVER_DEFAULT_TOKEN_TYPE : undefined);
+    ?? (authToken || accessToken ? RUNTIME_SERVER_DEFAULT_TOKEN_TYPE : undefined);
 
   return {
     ...(accessToken ? { accessToken } : {}),
@@ -72,24 +70,22 @@ function normalizeRuntimeServerTokenBundle(
   };
 }
 
-function hasRuntimeServerTokenBundleValues(bundle: RuntimeServerTokenBundle): boolean {
-  return Boolean(
-    bundle.accessToken
-      || bundle.authToken
-      || bundle.refreshToken
-      || bundle.sessionToken,
-  );
+function hasCompleteRuntimeServerTokenBundle(bundle: RuntimeServerTokenBundle): boolean {
+  return Boolean(bundle.accessToken && bundle.authToken);
 }
 
 export function createRuntimeServerTokenStore(): RuntimeServerTokenStore {
   return {
     clearTokenBundle() {
+      invalidateBirdCoderCurrentSession();
+      invalidateBirdCoderCurrentUser();
+      getBirdCoderGlobalTokenManager().clearTokens();
       clearStoredAppSessionToken();
     },
 
     persistTokenBundle(bundle) {
       const normalizedBundle = normalizeRuntimeServerTokenBundle(bundle);
-      if (!hasRuntimeServerTokenBundleValues(normalizedBundle)) {
+      if (!hasCompleteRuntimeServerTokenBundle(normalizedBundle)) {
         return false;
       }
 
@@ -115,7 +111,7 @@ export function getRuntimeServerSessionHeaderName(): string {
 }
 
 export function readRuntimeServerSessionId(): string | null {
-  return getStoredAppSessionId() ?? getStoredAppSessionAuthToken() ?? null;
+  return getStoredAppSessionId() ?? null;
 }
 
 export function readRuntimeServerTokenBundle(): RuntimeServerTokenBundle {
@@ -129,10 +125,15 @@ export function writeRuntimeServerSessionId(sessionId: string): string {
   }
 
   const currentBundle = readCurrentTokenBundle();
-  runtimeServerTokenStore.persistTokenBundle({
+  const persisted = runtimeServerTokenStore.persistTokenBundle({
     ...currentBundle,
     sessionToken: normalizedSessionId,
   });
+  if (!persisted) {
+    throw new Error(
+      'Runtime server session id requires an authenticated SDKWork IAM token bundle.',
+    );
+  }
   return normalizedSessionId;
 }
 
@@ -150,13 +151,10 @@ export function clearRuntimeServerSessionId(): void {
 export function resolveRuntimeServerSessionHeaders(): Record<string, string | undefined> {
   syncBirdCoderGlobalTokenManagerFromStorage();
   const tokens = getBirdCoderGlobalTokenManager().getTokens();
-  const sessionId = getStoredAppSessionId();
 
   return {
     [RUNTIME_SERVER_ACCESS_TOKEN_HEADER_NAME]: tokens?.accessToken,
     [RUNTIME_SERVER_AUTHORIZATION_HEADER_NAME]:
       tokens?.authToken ? `${RUNTIME_SERVER_DEFAULT_TOKEN_TYPE} ${tokens.authToken}` : undefined,
-    [RUNTIME_SERVER_SESSION_HEADER_NAME]: sessionId,
-    'Refresh-Token': tokens?.refreshToken,
   };
 }

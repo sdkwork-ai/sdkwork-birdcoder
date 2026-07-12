@@ -1,7 +1,8 @@
-use serde::Serialize;
 use sdkwork_utils_rust::{
-    PageInfo, PageMode, SdkWorkApiResponse, SdkWorkPageData, SdkWorkResourceData,
+    offset_list_page_data, offset_list_page_params_from_values, SdkWorkApiResponse,
+    SdkWorkPageData, SdkWorkResourceData, DEFAULT_LIST_PAGE_SIZE, MAX_LIST_PAGE_SIZE,
 };
+use serde::Serialize;
 
 pub const BIRDCODER_CODING_SERVER_API_VERSION: &str = "v1";
 
@@ -23,24 +24,26 @@ pub struct ApiListMeta {
     pub version: &'static str,
 }
 
-fn offset_limit_to_page(offset: usize, page_size: usize) -> usize {
-    if page_size == 0 {
-        1
-    } else {
-        offset / page_size + 1
-    }
+fn normalize_offset_page_size(page_size: usize) -> i64 {
+    i64::try_from(page_size)
+        .ok()
+        .filter(|value| (1..=i64::from(MAX_LIST_PAGE_SIZE)).contains(value))
+        .unwrap_or(i64::from(DEFAULT_LIST_PAGE_SIZE))
 }
 
-fn build_page_info(offset: usize, page_size: usize, total: usize) -> PageInfo {
-    PageInfo {
-        mode: PageMode::Offset,
-        page: Some(offset_limit_to_page(offset, page_size) as i32),
-        page_size: Some(page_size as i32),
-        total_items: Some(total.to_string()),
-        total_pages: None,
-        next_cursor: None,
-        has_more: None,
-    }
+fn offset_page_params(offset: usize, page_size: usize) -> sdkwork_utils_rust::OffsetListPageParams {
+    let page_size = normalize_offset_page_size(page_size);
+    let offset = i64::try_from(offset).unwrap_or(i64::MAX);
+    let max_page = i64::MAX / page_size;
+    let page = offset
+        .saturating_div(page_size)
+        .saturating_add(1)
+        .min(max_page);
+    offset_list_page_params_from_values(page, page_size)
+}
+
+fn normalize_total_items(total: usize) -> i64 {
+    i64::try_from(total).unwrap_or(i64::MAX - i64::from(MAX_LIST_PAGE_SIZE))
 }
 
 pub fn build_data_envelope<T: Serialize>(data: T, trace_id: &str) -> ApiDataEnvelope<T> {
@@ -75,10 +78,11 @@ pub fn build_offset_list_envelope<T: Serialize>(
     trace_id: &str,
 ) -> ApiListEnvelope<T> {
     SdkWorkApiResponse::success(
-        SdkWorkPageData {
+        offset_list_page_data(
             items,
-            page_info: build_page_info(offset, page_size, total),
-        },
+            normalize_total_items(total),
+            offset_page_params(offset, page_size),
+        ),
         trace_id,
     )
 }
@@ -89,13 +93,8 @@ mod tests {
 
     #[test]
     fn list_envelope_uses_sdkwork_page_data() {
-        let envelope = build_offset_list_envelope(
-            vec!["alpha".to_owned()],
-            20,
-            20,
-            41,
-            "trace-list-envelope",
-        );
+        let envelope =
+            build_offset_list_envelope(vec!["alpha".to_owned()], 20, 20, 41, "trace-list-envelope");
         let json = serde_json::to_value(envelope).expect("serialize list envelope");
         assert_eq!(json["code"], 0);
         assert_eq!(json["traceId"], "trace-list-envelope");
@@ -104,11 +103,49 @@ mod tests {
         assert_eq!(json["data"]["pageInfo"]["page"], 2);
         assert_eq!(json["data"]["pageInfo"]["pageSize"], 20);
         assert_eq!(json["data"]["pageInfo"]["totalItems"], "41");
+        assert_eq!(json["data"]["pageInfo"]["totalPages"], 3);
+        assert_eq!(json["data"]["pageInfo"]["hasMore"], true);
+    }
+
+    #[test]
+    fn empty_offset_list_envelope_reports_zero_pages_and_no_next_page() {
+        let envelope =
+            build_offset_list_envelope::<String>(Vec::new(), 0, 20, 0, "trace-empty-list-envelope");
+        let json = serde_json::to_value(envelope).expect("serialize empty list envelope");
+
+        assert_eq!(json["data"]["pageInfo"]["mode"], "offset");
+        assert_eq!(json["data"]["pageInfo"]["page"], 1);
+        assert_eq!(json["data"]["pageInfo"]["pageSize"], 20);
+        assert_eq!(json["data"]["pageInfo"]["totalItems"], "0");
+        assert_eq!(json["data"]["pageInfo"]["totalPages"], 0);
+        assert_eq!(json["data"]["pageInfo"]["hasMore"], false);
+    }
+
+    #[test]
+    fn final_exact_offset_list_page_reports_no_next_page() {
+        let envelope = build_offset_list_envelope(
+            vec!["omega".to_owned()],
+            20,
+            20,
+            40,
+            "trace-final-list-envelope",
+        );
+        let json = serde_json::to_value(envelope).expect("serialize final list envelope");
+
+        assert_eq!(json["data"]["pageInfo"]["mode"], "offset");
+        assert_eq!(json["data"]["pageInfo"]["page"], 2);
+        assert_eq!(json["data"]["pageInfo"]["pageSize"], 20);
+        assert_eq!(json["data"]["pageInfo"]["totalItems"], "40");
+        assert_eq!(json["data"]["pageInfo"]["totalPages"], 2);
+        assert_eq!(json["data"]["pageInfo"]["hasMore"], false);
     }
 
     #[test]
     fn data_envelope_uses_sdkwork_resource_data() {
-        let envelope = build_data_envelope(serde_json::json!({ "id": "session-1" }), "trace-data-envelope");
+        let envelope = build_data_envelope(
+            serde_json::json!({ "id": "session-1" }),
+            "trace-data-envelope",
+        );
         let json = serde_json::to_value(envelope).expect("serialize data envelope");
         assert_eq!(json["code"], 0);
         assert_eq!(json["traceId"], "trace-data-envelope");

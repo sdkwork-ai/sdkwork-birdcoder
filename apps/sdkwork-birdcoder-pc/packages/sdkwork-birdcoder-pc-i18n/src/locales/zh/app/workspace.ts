@@ -35,8 +35,6 @@ export default defineLocaleModule('app/workspace', {
     code: '代码',
     studio: '工作室',
     terminal: '终端',
-    skills: '技能',
-    templates: '模板',
     userProfile: '用户资料',
     settings: '设置',
   },

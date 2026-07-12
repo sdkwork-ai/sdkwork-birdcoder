@@ -71,6 +71,18 @@ const expectedRootSdkDependencies = [
   driveAppSdkDependency,
   messagingAppSdkDependency,
 ];
+const credentialEntryOperationKeys = new Set([
+  'oauth.authorizationUrls.create',
+  'oauth.sessions.create',
+  'oauth.deviceAuthorizations.create',
+  'oauth.deviceAuthorizations.scans.create',
+  'oauth.deviceAuthorizations.passwordCompletions.create',
+  'oauth.deviceAuthorizations.sessionExchanges.create',
+  'auth.passwordResetRequests.create',
+  'auth.passwordResets.create',
+  'auth.registrations.create',
+  'auth.sessions.create',
+]);
 
 const expectedSurfaces = [
   {
@@ -129,6 +141,10 @@ function absolutePath(relativePath) {
   return path.join(baseDir, ...normalized.split('/'));
 }
 
+function absoluteRootPath(relativePath) {
+  return path.join(rootDir, ...normalizeRelativePath(relativePath).split('/'));
+}
+
 function assertExists(relativePath, label = 'required SDK family file') {
   assert.ok(
     fs.existsSync(absolutePath(relativePath)),
@@ -148,6 +164,16 @@ function readText(relativePath) {
 
 const canonicalCodingServerOpenApi = readJson(canonicalOpenApiPath);
 const syncBirdCoderSdkOpenApiSource = readText('scripts/sync-birdcoder-sdk-openapi.mjs');
+assert.match(
+  syncBirdCoderSdkOpenApiSource,
+  /import\s+\{\s*pathToFileURL\s*\}\s+from\s+'node:url';/u,
+  'SDK OpenAPI synchronization CLI entrypoint must use pathToFileURL so Windows script paths execute reliably.',
+);
+assert.match(
+  syncBirdCoderSdkOpenApiSource,
+  /import\.meta\.url\s*===\s*pathToFileURL\(process\.argv\[1\]\)\.href/u,
+  'SDK OpenAPI synchronization CLI entrypoint must compare import.meta.url with pathToFileURL(process.argv[1]).href.',
+);
 assert.doesNotMatch(
   syncBirdCoderSdkOpenApiSource,
   /teamGovernance/u,
@@ -378,8 +404,8 @@ function assertOperationMetadata(operationKey, operation, context) {
   );
   assert.match(
     String(operation['x-sdkwork-resource'] ?? ''),
-    /^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u,
-    `${context} must declare standard x-sdkwork-resource.`,
+    /^birdcoder\.[a-z][a-z0-9_-]*$/u,
+    `${context} must declare application-owned birdcoder x-sdkwork-resource.`,
   );
   assert.match(
     String(operation['x-sdkwork-tenant-scope'] ?? ''),
@@ -396,18 +422,40 @@ function assertOperationMetadata(operationKey, operation, context) {
   if (operation['x-sdkwork-public'] === true) {
     assert.equal(operation['x-sdkwork-public'], true, `${context} must declare x-sdkwork-public.`);
     assert.equal(
+      operation['x-sdkwork-auth-mode'],
+      'anonymous',
+      `${context} public SDK operation must materialize x-sdkwork-auth-mode: anonymous.`,
+    );
+    assert.equal(
       'x-sdkwork-permission' in operation,
       false,
       `${context} must not declare a permission when it is public.`,
     );
+    if (credentialEntryOperationKeys.has(operationKey)) {
+      assert.equal(
+        operation['x-sdkwork-forbid-credential-headers'],
+        true,
+        `${context} credential-entry SDK operation must materialize x-sdkwork-forbid-credential-headers: true.`,
+      );
+    }
     return;
   }
 
   assert.equal(operation['x-sdkwork-public'], false, `${context} must explicitly mark protected operations.`);
   assert.match(
+    String(operation['x-sdkwork-auth-mode'] ?? ''),
+    /^(?:user|admin)$/u,
+    `${context} protected SDK operation must declare user or admin x-sdkwork-auth-mode.`,
+  );
+  assert.match(
     String(operation['x-sdkwork-permission'] ?? ''),
-    /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*\.[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*\.(?:create|read|update|delete|write|execute|subscribe)$/u,
-    `${context} must declare standard x-sdkwork-permission.`,
+    /^birdcoder\.[a-z][a-z0-9_-]*\.(?:create|read|update|delete|write|execute|subscribe)$/u,
+    `${context} must declare application-owned standard x-sdkwork-permission.`,
+  );
+  assert.equal(
+    String(operation['x-sdkwork-permission']).startsWith(`${operation['x-sdkwork-resource']}.`),
+    true,
+    `${context} permission must use x-sdkwork-resource as its resource prefix.`,
   );
 }
 
@@ -730,8 +778,8 @@ function assertFamilyRootComponentSpec(expected) {
   assert.deepEqual(componentSpec.component?.languages, ['typescript', 'rust']);
   assert.deepEqual(
     componentSpec.component?.manifests,
-    ['.sdkwork-assembly.json'],
-    `${componentSpecPath} must declare the family assembly manifest.`,
+    ['sdk-manifest.json'],
+    `${componentSpecPath} must declare the family SDK manifest.`,
   );
   assertCanonicalSpecLinks(componentSpec.canonicalSpecs ?? [], `${expected.rootDir}/specs`);
   assert.equal(componentSpec.contracts?.apiAuthority?.name, expected.apiAuthority);
@@ -752,21 +800,38 @@ function assertFamilyRootComponentSpec(expected) {
   );
 }
 
-function assertFamilyRootAssembly(expected) {
+function assertFamilyRootManifest(expected) {
   const familyAssemblyPath = `${expected.rootDir}/.sdkwork-assembly.json`;
-  const familyAssembly = readJson(familyAssemblyPath);
-  assert.equal(familyAssembly.workspace, expected.sdkFamily);
-  assert.equal(familyAssembly.sdkOwner, expectedSdkOwner);
-  assert.equal(familyAssembly.apiAuthority, expected.apiAuthority);
-  assert.equal(familyAssembly.authoritySpec, `openapi/${expected.apiAuthority}.openapi.json`);
-  assert.equal(familyAssembly.generationInputSpec, `openapi/${expected.apiAuthority}.sdkgen.json`);
-  assert.equal(familyAssembly.discoverySurface?.sdkTarget, expected.surface);
-  assert.equal(familyAssembly.discoverySurface?.apiPrefix, expected.apiPrefix);
-  assert.deepEqual(familyAssembly.discoverySurface?.generatedProtocols, ['http-openapi']);
+  assert.equal(
+    fs.existsSync(absoluteRootPath(familyAssemblyPath)),
+    false,
+    `${familyAssemblyPath} is retired; family-root metadata must use sdk-manifest.json as SSOT.`,
+  );
+  assert.equal(
+    fs.existsSync(absolutePath(familyAssemblyPath)),
+    false,
+    `${familyAssemblyPath} PC mirror is retired; family-root metadata must use sdk-manifest.json as SSOT.`,
+  );
 
-  const languages = new Map((familyAssembly.languages ?? []).map((language) => [language.language, language]));
+  const familyManifestPath = `${expected.rootDir}/sdk-manifest.json`;
+  const familyManifest = readJson(familyManifestPath);
+  assert.equal(familyManifest.workspace, expected.sdkFamily);
+  assert.equal(familyManifest.sdkFamily, expected.sdkFamily);
+  assert.equal(familyManifest.sdkOwner, expectedSdkOwner);
+  assert.equal(familyManifest.apiAuthority, expected.apiAuthority);
+  assert.equal(familyManifest.authoritySpec, `openapi/${expected.apiAuthority}.openapi.json`);
+  assert.equal(familyManifest.generationInputSpec, `openapi/${expected.apiAuthority}.sdkgen.json`);
+  assert.equal(familyManifest.discoverySurface?.sdkTarget, expected.surface);
+  assert.equal(familyManifest.discoverySurface?.apiPrefix, expected.apiPrefix);
+  assert.deepEqual(familyManifest.discoverySurface?.generatedProtocols, ['http-openapi']);
+
+  const languages = new Map((familyManifest.languages ?? []).map((language) => [language.language, language]));
   assert.equal(languages.get('typescript')?.workspace, `${expected.sdkFamily}-typescript`);
-  assert.equal(languages.get('typescript')?.name, expected.packageName);
+  assert.equal(languages.get('typescript')?.consumerPackageName, expected.packageName);
+  assert.equal(
+    languages.get('typescript')?.transportPackageName,
+    `${expected.sdkFamily}-generated-typescript`,
+  );
   assert.equal(
     languages.get('typescript')?.generatedPath,
     `${expected.sdkFamily}-typescript/generated/server-openapi`,
@@ -786,9 +851,9 @@ function assertFamilyRootAssembly(expected) {
     'materialized',
   );
   assertSdkDependencies(
-    familyAssembly.sdkDependencies,
+    familyManifest.sdkDependencies,
     expected.sdkDependencies,
-    familyAssemblyPath,
+    familyManifestPath,
   );
 }
 
@@ -862,7 +927,7 @@ function assertGeneratedServerOpenApiOutput(expected) {
 
 function assertFamilyRootMetadata() {
   for (const expected of expectedSurfaces) {
-    assertFamilyRootAssembly(expected);
+    assertFamilyRootManifest(expected);
     assertFamilyRootComponentSpec(expected);
     assertFamilyRootOpenApiInputs(expected);
     assertGeneratedServerOpenApiOutput(expected);
@@ -1089,7 +1154,7 @@ function assertReadmesAndGeneratedOutputs() {
       );
       assert.match(
         tsTypesIndexSource,
-        /"key": "auth\.sessions\.create"[\s\S]*"domain": "iam"[\s\S]*"public": true[\s\S]*"resource": "iam\.sessions"[\s\S]*"tenantScope": "platform"/u,
+        /"key": "auth\.sessions\.create"[\s\S]*"domain": "iam"[\s\S]*"public": true[\s\S]*"resource": "birdcoder\.oauth-sessions"[\s\S]*"tenantScope": "platform"/u,
         'app SDK generated descriptors must preserve public IAM session metadata.',
       );
       assert.match(
@@ -1104,8 +1169,8 @@ function assertReadmesAndGeneratedOutputs() {
       );
       assert.match(
         tsTypesIndexSource,
-        /"key": "collaboration\.workspaceTeams\.list"[\s\S]*"domain": "collaboration"[\s\S]*"permission": "collaboration\.workspaceTeams\.read"[\s\S]*"resource": "collaboration\.workspaceTeams"/u,
-        'app SDK must expose workspace team catalog reads as a collaboration workspaceTeams resource.',
+        /"key": "collaboration\.workspaceTeams\.list"[\s\S]*"domain": "collaboration"[\s\S]*"permission": "birdcoder\.collaboration-workspace-teams\.read"[\s\S]*"resource": "birdcoder\.collaboration-workspace-teams"/u,
+        'app SDK must expose workspace team catalog reads as a BirdCoder-owned collaboration workspaceTeams resource.',
       );
       assert.match(
         tsTypesIndexSource,
@@ -1137,12 +1202,12 @@ function assertReadmesAndGeneratedOutputs() {
       );
       assert.match(
         tsTypesIndexSource,
-        /"key": "iam\.auditEvents\.list"[\s\S]*"domain": "iam"[\s\S]*"permission": "iam\.auditEvents\.read"[\s\S]*"resource": "iam\.auditEvents"[\s\S]*"tenantScope": "tenant"/u,
+        /"key": "iam\.auditEvents\.list"[\s\S]*"domain": "iam"[\s\S]*"permission": "birdcoder\.iam-audit-events\.read"[\s\S]*"resource": "birdcoder\.iam-audit-events"[\s\S]*"tenantScope": "tenant"/u,
         'backend SDK generated descriptors must preserve canonical audit permission metadata.',
       );
       assert.match(
         tsTypesIndexSource,
-        /"key": "iam\.users\.list"[\s\S]*"domain": "iam"[\s\S]*"permission": "iam\.users\.read"[\s\S]*"resource": "iam\.users"[\s\S]*"tenantScope": "tenant"/u,
+        /"key": "iam\.users\.list"[\s\S]*"domain": "iam"[\s\S]*"permission": "birdcoder\.iam-users\.read"[\s\S]*"resource": "birdcoder\.iam-users"[\s\S]*"tenantScope": "tenant"/u,
         'backend SDK generated descriptors must preserve standard IAM users metadata.',
       );
       assert.match(
@@ -1157,7 +1222,7 @@ function assertReadmesAndGeneratedOutputs() {
       );
       assert.match(
         tsTypesIndexSource,
-        /"key": "iam\.roleBindings\.create"[\s\S]*"domain": "iam"[\s\S]*"permission": "iam\.roleBindings\.create"[\s\S]*"resource": "iam\.roleBindings"/u,
+        /"key": "iam\.roleBindings\.create"[\s\S]*"domain": "iam"[\s\S]*"permission": "birdcoder\.iam-role-bindings\.create"[\s\S]*"resource": "birdcoder\.iam-role-bindings"/u,
         'backend SDK generated descriptors must preserve standard IAM role binding create metadata.',
       );
       assert.match(
@@ -1252,6 +1317,16 @@ function assertStandardSdkgenWrappers() {
   const standardWrapperSource = readText('scripts/generate-birdcoder-sdkgen-family.mjs');
   assert.match(standardWrapperSource, /@sdkwork\/sdk-generator/u);
   assert.match(standardWrapperSource, /\bsdkgen\b/u);
+  assert.match(
+    standardWrapperSource,
+    /sdk-manifest\.json/u,
+    'standard sdkgen wrapper must read family-root sdk-manifest.json as the per-family metadata SSOT.',
+  );
+  assert.doesNotMatch(
+    standardWrapperSource,
+    /familyAssembly/u,
+    'standard sdkgen wrapper must not read retired per-family .sdkwork-assembly.json metadata.',
+  );
   assert.match(standardWrapperSource, /sdkwork-sdk-generator[\\/]bin[\\/]sdkgen\.js/u);
   assert.match(standardWrapperSource, /--standard-profile/u);
   assert.match(standardWrapperSource, /--type/u);

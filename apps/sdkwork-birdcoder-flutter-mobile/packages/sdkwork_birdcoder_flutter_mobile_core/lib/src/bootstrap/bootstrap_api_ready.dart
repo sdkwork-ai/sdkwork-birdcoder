@@ -7,8 +7,7 @@ const _defaultApiReadyMaxAttempts = 30;
 const _defaultApiReadyRequestTimeoutMs = 800;
 const _defaultApiReadyRetryDelayMs = 150;
 const _defaultApiReadyPaths = [
-  '/app/v3/api/system/health',
-  '/app/v3/api/system/iam/runtime',
+  '/readyz',
 ];
 
 Future<void> waitForBirdCoderApiReady(

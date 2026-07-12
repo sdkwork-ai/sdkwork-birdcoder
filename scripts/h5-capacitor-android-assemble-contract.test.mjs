@@ -11,9 +11,6 @@ function read(relativePath) {
 const packageJson = JSON.parse(read('package.json'));
 const ciWorkflow = read('.github/workflows/ci.yml');
 const assembleScript = read('scripts/run-h5-capacitor-android-assemble.mjs');
-const commercialTruthDoc = read(
-  'docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md',
-);
 const appConfig = JSON.parse(read('sdkwork.app.config.json'));
 
 assert.equal(
@@ -47,17 +44,6 @@ assert.match(
   ciWorkflow,
   /setup-android/u,
   'CI mobile-surfaces job must provision the Android SDK before Gradle assemble.',
-);
-
-assert.match(
-  commercialTruthDoc,
-  /cap:android:assemble|Android headless assemble/u,
-  'Commercial truth doc must record Capacitor Android assemble CI closure.',
-);
-assert.doesNotMatch(
-  commercialTruthDoc,
-  /native assemble smoke pending/u,
-  'Commercial truth doc must not describe pending Android assemble smoke.',
 );
 
 assert.match(

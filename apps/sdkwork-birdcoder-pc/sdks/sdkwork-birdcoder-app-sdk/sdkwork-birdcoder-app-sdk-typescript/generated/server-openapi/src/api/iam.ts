@@ -63,8 +63,8 @@ export class IamOrganizationsApi {
 }
 
 export interface IamWorkspacesMembersListParams {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class IamWorkspacesMembersApi {
@@ -76,15 +76,15 @@ export class IamWorkspacesMembersApi {
 
 
 /** Upsert workspace member */
-  async upsert(workspaceId: string, body: BirdCoderUpsertWorkspaceMemberRequest): Promise<BirdCoderWorkspaceMemberSummary> {
+  async create(workspaceId: string, body: BirdCoderUpsertWorkspaceMemberRequest): Promise<BirdCoderWorkspaceMemberSummary> {
     return this.client.post<BirdCoderWorkspaceMemberSummary>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}/members`), body, undefined, undefined, 'application/json');
   }
 
 /** List workspace members */
   async list(workspaceId: string, params?: IamWorkspacesMembersListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}/members`), query));
   }

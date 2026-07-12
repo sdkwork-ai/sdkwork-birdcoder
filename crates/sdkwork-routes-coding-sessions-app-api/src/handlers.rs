@@ -2,7 +2,6 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 
-use sdkwork_birdcoder_coding_sessions_service::domain::models::CodingSessionListQuery;
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
     CodingSessionEventPayload, CodingSessionPayload, CodingSessionTurnPayload,
@@ -10,16 +9,18 @@ use sdkwork_birdcoder_coding_sessions_service::domain::results::{
 };
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_list_envelope, build_offset_list_envelope,
-    trace_id_from_request_id, ApiDataEnvelope, ApiListEnvelope,
+    build_data_envelope, build_offset_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    ApiListEnvelope,
 };
-use sdkwork_birdcoder_router_context::{coding_session_context, RequiredIamContext, WebRequestContext};
+use sdkwork_birdcoder_router_context::{
+    coding_session_context, RequiredIamContext, StrictOffsetListQuery, WebRequestContext,
+};
 
-use crate::error::{trace_service_error, AppError};
+use crate::error::{trace_service_error, AppError, CodingSessionsRouteError};
 use crate::mapper::request::{
     CreateCodingSessionRequest, CreateCodingSessionTurnRequest, EditCodingSessionMessageRequest,
-    ForkCodingSessionRequest, ListSessionsQuery, SessionChildListQuery,
-    SubmitApprovalDecisionRequest, SubmitUserQuestionAnswerRequest, UpdateCodingSessionRequest,
+    ForkCodingSessionRequest, ListSessionsQuery, SubmitApprovalDecisionRequest,
+    SubmitUserQuestionAnswerRequest, UpdateCodingSessionRequest,
 };
 use crate::mapper::response::DeleteResponse;
 
@@ -40,16 +41,13 @@ fn request_id(web: &WebRequestContext) -> &str {
 pub async fn list_sessions(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<CodingSessionsAppState>,
     Query(query): Query<ListSessionsQuery>,
-) -> Result<Json<ApiListEnvelope<CodingSessionPayload>>, AppError> {
-    // PAGINATION_SPEC.md §3: normalize at the route layer so both the SQL
-    // push-down (via CodingSessionListQuery) and the envelope's pageInfo
-    // report identical values. Previously the envelope echoed the raw
-    // request values while the SQL used clamped values, causing the values
-    // reported to clients to diverge from the actual query.
-    let (offset, page_size) = query.normalized_pagination();
-    let service_query: CodingSessionListQuery = query.into();
+) -> Result<Json<ApiListEnvelope<CodingSessionPayload>>, CodingSessionsRouteError> {
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
+    let service_query = query.into_service_query(offset, page_size);
     let ctx = coding_session_context(&iam);
     let page = trace_service_error(
         state.service.list_sessions(&ctx, &service_query).await,
@@ -68,11 +66,11 @@ pub async fn get_session(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(sessionId): Path<String>,
-) -> Result<Json<ApiDataEnvelope<CodingSessionPayload>>, AppError> {
+    Path(session_id): Path<String>,
+) -> Result<Json<ApiDataEnvelope<CodingSessionPayload>>, CodingSessionsRouteError> {
     let ctx = coding_session_context(&iam);
     let session = trace_service_error(
-        state.service.get_session(&ctx, &sessionId).await,
+        state.service.get_session(&ctx, &session_id).await,
         request_trace_id(&web),
     )?;
     Ok(Json(build_data_envelope(session, request_id(&web))))
@@ -93,7 +91,7 @@ pub async fn create_session(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
     Json(request): Json<CreateCodingSessionRequest>,
-) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionPayload>>), AppError> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionPayload>>), CodingSessionsRouteError> {
     let ctx = coding_session_context(&iam);
     let session = trace_service_error(
         state.service.create_session(&ctx, request.into()).await,
@@ -110,14 +108,14 @@ pub async fn update_session(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(sessionId): Path<String>,
+    Path(session_id): Path<String>,
     Json(request): Json<UpdateCodingSessionRequest>,
-) -> Result<Json<ApiDataEnvelope<CodingSessionPayload>>, AppError> {
+) -> Result<Json<ApiDataEnvelope<CodingSessionPayload>>, CodingSessionsRouteError> {
     let ctx = coding_session_context(&iam);
     let session = trace_service_error(
         state
             .service
-            .update_session(&ctx, &sessionId, request.into())
+            .update_session(&ctx, &session_id, request.into())
             .await,
         request_trace_id(&web),
     )?;
@@ -128,31 +126,28 @@ pub async fn delete_session(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(sessionId): Path<String>,
-) -> Result<Json<ApiDataEnvelope<DeleteResponse>>, AppError> {
+    Path(session_id): Path<String>,
+) -> Result<Json<ApiDataEnvelope<DeleteResponse>>, CodingSessionsRouteError> {
     let ctx = coding_session_context(&iam);
     let result = trace_service_error(
-        state.service.delete_session(&ctx, &sessionId).await,
+        state.service.delete_session(&ctx, &session_id).await,
         request_trace_id(&web),
     )?;
-    Ok(Json(build_data_envelope(
-        result.into(),
-        request_id(&web),
-    )))
+    Ok(Json(build_data_envelope(result.into(), request_id(&web))))
 }
 
 pub async fn fork_session(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(sessionId): Path<String>,
+    Path(session_id): Path<String>,
     Json(request): Json<ForkCodingSessionRequest>,
-) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionPayload>>), AppError> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionPayload>>), CodingSessionsRouteError> {
     let ctx = coding_session_context(&iam);
     let session = trace_service_error(
         state
             .service
-            .fork_session(&ctx, &sessionId, request.into())
+            .fork_session(&ctx, &session_id, request.into())
             .await,
         request_trace_id(&web),
     )?;
@@ -169,7 +164,7 @@ pub async fn fork_session(
         tenant_id = %iam.tenant_id,
         user_id = %iam.user_id,
         request_id = %web.request_id.0,
-        session_id = %sessionId,
+        session_id = %session_id,
         workspace_id = tracing::field::Empty,
     ),
 )]
@@ -177,9 +172,10 @@ pub async fn create_turn(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path(sessionId): Path<String>,
+    Path(session_id): Path<String>,
     Json(request): Json<CreateCodingSessionTurnRequest>,
-) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionTurnPayload>>), AppError> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<CodingSessionTurnPayload>>), CodingSessionsRouteError>
+{
     if let Some(pool) = &state.commerce_pool {
         let trace = request_trace_id(&web);
         let tenant_id = sdkwork_birdcoder_commerce_quota::parse_numeric_tenant_id(&iam.tenant_id)
@@ -199,7 +195,7 @@ pub async fn create_turn(
     let pending = trace_service_error(
         state
             .service
-            .create_turn(&ctx, &sessionId, request.into())
+            .create_turn(&ctx, &session_id, request.into())
             .await,
         request_trace_id(&web),
     )?;
@@ -233,16 +229,17 @@ pub async fn create_turn(
 pub async fn list_events(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<CodingSessionsAppState>,
-    Path(sessionId): Path<String>,
-    Query(query): Query<SessionChildListQuery>,
-) -> Result<Json<ApiListEnvelope<CodingSessionEventPayload>>, AppError> {
-    let (offset, page_size) = query.normalized_pagination();
+    Path(session_id): Path<String>,
+) -> Result<Json<ApiListEnvelope<CodingSessionEventPayload>>, CodingSessionsRouteError> {
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     let ctx = coding_session_context(&iam);
     let (events, total) = trace_service_error(
         state
             .service
-            .list_events(&ctx, &sessionId, offset, page_size)
+            .list_events(&ctx, &session_id, offset, page_size)
             .await,
         request_trace_id(&web),
     )?;
@@ -258,16 +255,17 @@ pub async fn list_events(
 pub async fn list_artifacts(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<CodingSessionsAppState>,
-    Path(sessionId): Path<String>,
-    Query(query): Query<SessionChildListQuery>,
-) -> Result<Json<ApiListEnvelope<CodingSessionArtifactPayload>>, AppError> {
-    let (offset, page_size) = query.normalized_pagination();
+    Path(session_id): Path<String>,
+) -> Result<Json<ApiListEnvelope<CodingSessionArtifactPayload>>, CodingSessionsRouteError> {
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     let ctx = coding_session_context(&iam);
     let (artifacts, total) = trace_service_error(
         state
             .service
-            .list_artifacts(&ctx, &sessionId, offset, page_size)
+            .list_artifacts(&ctx, &session_id, offset, page_size)
             .await,
         request_trace_id(&web),
     )?;
@@ -283,16 +281,17 @@ pub async fn list_artifacts(
 pub async fn list_checkpoints(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<CodingSessionsAppState>,
-    Path(sessionId): Path<String>,
-    Query(query): Query<SessionChildListQuery>,
-) -> Result<Json<ApiListEnvelope<CodingSessionCheckpointPayload>>, AppError> {
-    let (offset, page_size) = query.normalized_pagination();
+    Path(session_id): Path<String>,
+) -> Result<Json<ApiListEnvelope<CodingSessionCheckpointPayload>>, CodingSessionsRouteError> {
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     let ctx = coding_session_context(&iam);
     let (checkpoints, total) = trace_service_error(
         state
             .service
-            .list_checkpoints(&ctx, &sessionId, offset, page_size)
+            .list_checkpoints(&ctx, &session_id, offset, page_size)
             .await,
         request_trace_id(&web),
     )?;
@@ -309,14 +308,14 @@ pub async fn submit_approval_decision(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path((sessionId, checkpointId)): Path<(String, String)>,
+    Path((session_id, checkpoint_id)): Path<(String, String)>,
     Json(request): Json<SubmitApprovalDecisionRequest>,
-) -> Result<Json<ApiDataEnvelope<ApprovalDecisionPayload>>, AppError> {
+) -> Result<Json<ApiDataEnvelope<ApprovalDecisionPayload>>, CodingSessionsRouteError> {
     let ctx = coding_session_context(&iam);
     let approval = trace_service_error(
         state
             .service
-            .submit_approval_decision(&ctx, &sessionId, &checkpointId, request.into())
+            .submit_approval_decision(&ctx, &session_id, &checkpoint_id, request.into())
             .await,
         request_trace_id(&web),
     )?;
@@ -327,14 +326,14 @@ pub async fn submit_user_question_answer(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path((sessionId, questionId)): Path<(String, String)>,
+    Path((session_id, question_id)): Path<(String, String)>,
     Json(request): Json<SubmitUserQuestionAnswerRequest>,
-) -> Result<Json<ApiDataEnvelope<UserQuestionAnswerPayload>>, AppError> {
+) -> Result<Json<ApiDataEnvelope<UserQuestionAnswerPayload>>, CodingSessionsRouteError> {
     let ctx = coding_session_context(&iam);
     let answer = trace_service_error(
         state
             .service
-            .submit_user_question_answer(&ctx, &sessionId, &questionId, request.into())
+            .submit_user_question_answer(&ctx, &session_id, &question_id, request.into())
             .await,
         request_trace_id(&web),
     )?;
@@ -345,14 +344,14 @@ pub async fn edit_coding_session_message(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path((sessionId, messageId)): Path<(String, String)>,
+    Path((session_id, message_id)): Path<(String, String)>,
     Json(request): Json<EditCodingSessionMessageRequest>,
-) -> Result<Json<ApiDataEnvelope<EditCodingSessionMessagePayload>>, AppError> {
+) -> Result<Json<ApiDataEnvelope<EditCodingSessionMessagePayload>>, CodingSessionsRouteError> {
     let ctx = coding_session_context(&iam);
     let result = trace_service_error(
         state
             .service
-            .edit_coding_session_message(&ctx, &sessionId, &messageId, request.into())
+            .edit_coding_session_message(&ctx, &session_id, &message_id, request.into())
             .await,
         request_trace_id(&web),
     )?;
@@ -363,13 +362,13 @@ pub async fn delete_coding_session_message(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<CodingSessionsAppState>,
-    Path((sessionId, messageId)): Path<(String, String)>,
-) -> Result<Json<ApiDataEnvelope<DeleteCodingSessionMessagePayload>>, AppError> {
+    Path((session_id, message_id)): Path<(String, String)>,
+) -> Result<Json<ApiDataEnvelope<DeleteCodingSessionMessagePayload>>, CodingSessionsRouteError> {
     let ctx = coding_session_context(&iam);
     let result = trace_service_error(
         state
             .service
-            .delete_coding_session_message(&ctx, &sessionId, &messageId)
+            .delete_coding_session_message(&ctx, &session_id, &message_id)
             .await,
         request_trace_id(&web),
     )?;

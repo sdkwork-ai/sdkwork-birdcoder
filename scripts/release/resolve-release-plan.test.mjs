@@ -38,7 +38,7 @@ const parsed = parseArgs([
   '--monitoring-window-minutes',
   '45',
   '--rollback-runbook-ref',
-  'docs/step/13-发布就绪-github-flow-灰度回滚闭环.md',
+  'docs/guides/operator/incident-response.md',
   '--rollback-command',
   'gh workflow run rollback.yml --ref main',
   '--github-output',
@@ -49,7 +49,7 @@ assert.equal(parsed.gitRef, 'refs/heads/main');
 assert.equal(parsed.releaseKind, 'canary');
 assert.equal(parsed.rolloutStage, 'ring-1');
 assert.equal(parsed.monitoringWindowMinutes, 45);
-assert.equal(parsed.rollbackRunbookRef, 'docs/step/13-发布就绪-github-flow-灰度回滚闭环.md');
+assert.equal(parsed.rollbackRunbookRef, 'docs/guides/operator/incident-response.md');
 assert.equal(parsed.rollbackCommand, 'gh workflow run rollback.yml --ref main');
 assert.equal(parsed.githubOutput, true);
 
@@ -96,7 +96,7 @@ assert.deepEqual(plan.releaseControl, {
   releaseKind: 'formal',
   rolloutStage: 'general-availability',
   monitoringWindowMinutes: 120,
-  rollbackRunbookRef: 'docs/step/13-发布就绪-github-flow-灰度回滚闭环.md',
+  rollbackRunbookRef: 'docs/guides/operator/incident-response.md',
   rollbackCommand: '',
 });
 assert.ok(plan.desktopMatrix.length > 0);

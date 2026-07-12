@@ -21,7 +21,7 @@ export interface RuntimeApi {
   };
   modelConfig: {
     retrieve(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodeEngineModelConfigEnvelope>;
-    sync(body: Types.BirdCoderSyncCodeEngineModelConfigRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodeEngineModelConfigSyncResultEnvelope>;
+    update(body: Types.BirdCoderSyncCodeEngineModelConfigRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderCodeEngineModelConfigSyncResultEnvelope>;
   };
   models: {
     list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderModelCatalogEntryListEnvelope>;
@@ -51,8 +51,8 @@ export function createRuntimeApi(requestOperation: BirdcoderSdkRequestOperation)
       retrieve(options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderCodeEngineModelConfigEnvelope>("runtime.modelConfig.retrieve", {}, options);
       },
-      sync(body: Types.BirdCoderSyncCodeEngineModelConfigRequest, options: BirdcoderSdkRequestOptions = {}) {
-        return requestOperation<Types.BirdCoderCodeEngineModelConfigSyncResultEnvelope>("runtime.modelConfig.sync", { body }, options);
+      update(body: Types.BirdCoderSyncCodeEngineModelConfigRequest, options: BirdcoderSdkRequestOptions = {}) {
+        return requestOperation<Types.BirdCoderCodeEngineModelConfigSyncResultEnvelope>("runtime.modelConfig.update", { body }, options);
       }
     },
     models: {

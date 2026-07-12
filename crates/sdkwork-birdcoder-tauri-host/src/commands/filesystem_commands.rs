@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::collections::HashSet;
+use std::ffi::OsString;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -13,22 +14,28 @@ const USER_HOME_CONFIG_RELATIVE_ROOT: &str = ".sdkwork/birdcoder";
 #[derive(Debug)]
 pub enum FilesystemError {
     /// A resolved path escapes the allowed workspace root (path traversal).
-    PathTraversal(String),
+    PathTraversal,
     /// A symlink was encountered on the mutation path and blocked for safety.
-    SymlinkDetected(String),
+    SymlinkDetected,
+    /// A path could not be resolved safely enough to prove containment.
+    UnresolvablePath,
 }
 
 impl std::fmt::Display for FilesystemError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FilesystemError::PathTraversal(path) => write!(
-                f,
-                "path traversal detected: resolved target escapes the workspace root: {path}"
-            ),
-            FilesystemError::SymlinkDetected(path) => write!(
-                f,
-                "symlink detected within the workspace path and blocked for safety: {path}"
-            ),
+            FilesystemError::PathTraversal => {
+                write!(f, "resolved path escapes the allowed filesystem root")
+            }
+            FilesystemError::SymlinkDetected => {
+                write!(
+                    f,
+                    "link or reparse point is not allowed for this filesystem operation"
+                )
+            }
+            FilesystemError::UnresolvablePath => {
+                write!(f, "filesystem path could not be resolved safely")
+            }
         }
     }
 }
@@ -44,6 +51,9 @@ pub fn register_allowed_fs_root(path: PathBuf) -> Result<(), String> {
             path.display()
         )
     })?;
+    if !canonical.is_dir() {
+        return Err("filesystem root must be an existing directory".to_string());
+    }
     ALLOWED_FS_ROOTS
         .get_or_init(|| Mutex::new(HashSet::new()))
         .lock()
@@ -92,6 +102,7 @@ pub struct FileSystemNode {
 pub struct FileSystemSnapshotResponse {
     pub root_virtual_path: String,
     pub tree: FileSystemNode,
+    pub limit_reached: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -155,7 +166,7 @@ fn build_directory_entry_node(
     None
 }
 
-fn resolve_root_directory_path(root_path: &str) -> Result<PathBuf, String> {
+pub(crate) fn resolve_root_directory_path(root_path: &str) -> Result<PathBuf, String> {
     let normalized_root_path = root_path.trim();
     if normalized_root_path.is_empty() {
         return Err("root path must not be empty".to_string());
@@ -183,6 +194,26 @@ fn resolve_root_directory_path(root_path: &str) -> Result<PathBuf, String> {
         ));
     }
     Ok(canonical_root)
+}
+
+pub(crate) fn resolve_allowed_existing_path(path: &str) -> Result<PathBuf, String> {
+    let normalized_path = path.trim();
+    if normalized_path.is_empty() {
+        return Err("path must not be empty".to_string());
+    }
+
+    let target_path = PathBuf::from(normalized_path);
+    let canonical_path = target_path
+        .canonicalize()
+        .map_err(|_| "path does not exist or cannot be resolved".to_string())?;
+    if !canonical_path.is_file() && !canonical_path.is_dir() {
+        return Err("path must target an existing file or directory".to_string());
+    }
+    if !is_allowed_fs_root(&canonical_path) {
+        return Err("path is not registered for desktop filesystem access".to_string());
+    }
+
+    Ok(canonical_path)
 }
 
 fn resolve_root_directory_name(root_directory: &Path) -> String {
@@ -238,56 +269,83 @@ fn build_virtual_path_from_relative(root_virtual_path: &str, relative_path: &Pat
 fn resolve_scoped_path(root_path: &str, relative_path: &str) -> Result<PathBuf, String> {
     let root_directory = resolve_root_directory_path(root_path)?;
     let normalized_relative_path = normalize_relative_path(relative_path)?;
-    Ok(root_directory.join(normalized_relative_path))
+    let target_path = root_directory.join(normalized_relative_path);
+    resolve_path_within_root(&root_directory, &target_path).map_err(|error| error.to_string())
 }
 
-/// Validates that a target path stays within the allowed workspace root and
-/// does not traverse through symlinks. Uses `symlink_metadata` to detect
-/// symlinks on the target and `canonicalize` to resolve the real path before
-/// confirming containment within `root_canonical`.
-///
-/// Runs inside `spawn_blocking`, so `std::fs` is used as the sync equivalent
-/// of `tokio::fs::canonicalize` / `tokio::fs::symlink_metadata`.
+#[cfg(windows)]
+fn metadata_is_link_like(metadata: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+    metadata.file_type().is_symlink()
+        || metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+fn metadata_is_link_like(metadata: &fs::Metadata) -> bool {
+    metadata.file_type().is_symlink()
+}
+
+/// Canonicalizes the nearest existing ancestor and reattaches any missing
+/// path suffix only after proving the ancestor remains inside `root_canonical`.
+/// This keeps missing-file probes working while rejecting symlink/junction
+/// escapes for reads, listings, revisions, and mutations.
+fn resolve_path_within_root(
+    root_canonical: &Path,
+    target_path: &Path,
+) -> Result<PathBuf, FilesystemError> {
+    if !target_path.starts_with(root_canonical) {
+        return Err(FilesystemError::PathTraversal);
+    }
+
+    let mut candidate = target_path.to_path_buf();
+    let mut missing_suffix = Vec::<OsString>::new();
+    loop {
+        match fs::symlink_metadata(&candidate) {
+            Ok(_) => {
+                let mut resolved = candidate
+                    .canonicalize()
+                    .map_err(|_| FilesystemError::UnresolvablePath)?;
+                if !resolved.starts_with(root_canonical) {
+                    return Err(FilesystemError::PathTraversal);
+                }
+                for component in missing_suffix.iter().rev() {
+                    resolved.push(component);
+                }
+                if !resolved.starts_with(root_canonical) {
+                    return Err(FilesystemError::PathTraversal);
+                }
+                return Ok(resolved);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let file_name = candidate
+                    .file_name()
+                    .ok_or(FilesystemError::PathTraversal)?;
+                missing_suffix.push(file_name.to_os_string());
+                candidate = candidate
+                    .parent()
+                    .ok_or(FilesystemError::PathTraversal)?
+                    .to_path_buf();
+            }
+            Err(_) => return Err(FilesystemError::UnresolvablePath),
+        }
+    }
+}
+
+/// Validates that a mutation target stays within the allowed workspace root.
+/// Target symlinks and Windows reparse points are rejected because delete,
+/// rename, and truncate semantics must never act on an aliased entry.
 fn validate_mutation_path(
     root_canonical: &Path,
     target_path: &Path,
 ) -> Result<PathBuf, FilesystemError> {
-    // Reject if the target path itself is a symlink.
     if let Ok(metadata) = fs::symlink_metadata(target_path) {
-        if metadata.file_type().is_symlink() {
-            return Err(FilesystemError::SymlinkDetected(
-                target_path.display().to_string(),
-            ));
+        if metadata_is_link_like(&metadata) {
+            return Err(FilesystemError::SymlinkDetected);
         }
     }
-
-    // Canonicalize the target to resolve any symlinks in parent directories.
-    // If the target does not exist yet (e.g. a new file), canonicalize the
-    // parent directory and reattach the file name.
-    let canonical_target = match target_path.canonicalize() {
-        Ok(canonical) => canonical,
-        Err(_) => {
-            let parent = target_path.parent().ok_or_else(|| {
-                FilesystemError::PathTraversal(target_path.display().to_string())
-            })?;
-            let canonical_parent = parent.canonicalize().map_err(|_| {
-                FilesystemError::PathTraversal(target_path.display().to_string())
-            })?;
-            let file_name = target_path.file_name().ok_or_else(|| {
-                FilesystemError::PathTraversal(target_path.display().to_string())
-            })?;
-            canonical_parent.join(file_name)
-        }
-    };
-
-    // Ensure the canonical target is still within the workspace root.
-    if !canonical_target.starts_with(root_canonical) {
-        return Err(FilesystemError::PathTraversal(
-            target_path.display().to_string(),
-        ));
-    }
-
-    Ok(canonical_target)
+    resolve_path_within_root(root_canonical, target_path)
 }
 
 /// Resolves a scoped path and applies symlink / path-traversal validation
@@ -303,6 +361,14 @@ fn resolve_and_validate_mutation_path(
 }
 
 fn resolve_user_home_config_path(relative_path: &str) -> Result<PathBuf, String> {
+    let home_directory = std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .map(PathBuf::from)
+        .ok_or_else(|| "failed to resolve user home directory".to_string())?;
+    resolve_user_home_config_path_from_home(&home_directory, relative_path)
+}
+
+fn normalize_user_home_config_relative_path(relative_path: &str) -> Result<PathBuf, String> {
     let normalized_relative_path = normalize_relative_path(relative_path)?;
     if !normalized_relative_path.starts_with(USER_HOME_CONFIG_RELATIVE_ROOT) {
         return Err(format!(
@@ -314,11 +380,152 @@ fn resolve_user_home_config_path(relative_path: &str) -> Result<PathBuf, String>
             "user home config path must target a file under {USER_HOME_CONFIG_RELATIVE_ROOT}"
         ));
     }
-    let home_directory = std::env::var_os("USERPROFILE")
-        .or_else(|| std::env::var_os("HOME"))
-        .map(PathBuf::from)
-        .ok_or_else(|| "failed to resolve user home directory".to_string())?;
-    Ok(home_directory.join(normalized_relative_path))
+    Ok(normalized_relative_path)
+}
+
+fn validate_optional_directory_path(path: &Path) -> Result<(), String> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata_is_link_like(&metadata) => {
+            Err(FilesystemError::SymlinkDetected.to_string())
+        }
+        Ok(metadata) if metadata.is_dir() => Ok(()),
+        Ok(_) => Err("user config directory path is not a directory".to_string()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(_) => Err(FilesystemError::UnresolvablePath.to_string()),
+    }
+}
+
+fn validate_link_free_existing_path(root: &Path, relative_path: &Path) -> Result<(), String> {
+    let mut current_path = root.to_path_buf();
+    let components = relative_path.components().collect::<Vec<_>>();
+    for (index, component) in components.iter().enumerate() {
+        let Component::Normal(component) = component else {
+            return Err(FilesystemError::PathTraversal.to_string());
+        };
+        current_path.push(component);
+        match fs::symlink_metadata(&current_path) {
+            Ok(metadata) => {
+                if metadata_is_link_like(&metadata) {
+                    return Err(FilesystemError::SymlinkDetected.to_string());
+                }
+                if index + 1 < components.len() && !metadata.is_dir() {
+                    return Err("user config path has a non-directory parent".to_string());
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(_) => return Err(FilesystemError::UnresolvablePath.to_string()),
+        }
+    }
+    Ok(())
+}
+
+fn resolve_user_home_config_path_from_home(
+    home_directory: &Path,
+    relative_path: &str,
+) -> Result<PathBuf, String> {
+    let normalized_relative_path = normalize_user_home_config_relative_path(relative_path)?;
+    let canonical_home = home_directory
+        .canonicalize()
+        .map_err(|_| "failed to resolve user home directory safely".to_string())?;
+    let sdkwork_directory = canonical_home.join(".sdkwork");
+    let config_root = sdkwork_directory.join("birdcoder");
+    validate_optional_directory_path(&sdkwork_directory)?;
+    validate_optional_directory_path(&config_root)?;
+
+    let relative_config_path = normalized_relative_path
+        .strip_prefix(USER_HOME_CONFIG_RELATIVE_ROOT)
+        .map_err(|_| "user home config path is outside the BirdCoder config root".to_string())?;
+    if config_root.exists() {
+        let canonical_config_root = config_root
+            .canonicalize()
+            .map_err(|_| "failed to resolve BirdCoder user config directory safely".to_string())?;
+        if !canonical_config_root.starts_with(&canonical_home) {
+            return Err(FilesystemError::PathTraversal.to_string());
+        }
+        validate_link_free_existing_path(&canonical_config_root, relative_config_path)?;
+        return resolve_path_within_root(
+            &canonical_config_root,
+            &canonical_config_root.join(relative_config_path),
+        )
+        .map_err(|error| error.to_string());
+    }
+
+    validate_link_free_existing_path(&canonical_home, &normalized_relative_path)?;
+    resolve_path_within_root(
+        &canonical_home,
+        &canonical_home.join(normalized_relative_path),
+    )
+    .map_err(|error| error.to_string())
+}
+
+fn ensure_scoped_directory_chain(
+    root_canonical: &Path,
+    relative_path: &Path,
+) -> Result<PathBuf, String> {
+    let mut current_directory = root_canonical.to_path_buf();
+    for component in relative_path.components() {
+        let Component::Normal(component) = component else {
+            return Err(FilesystemError::PathTraversal.to_string());
+        };
+        current_directory.push(component);
+        match fs::symlink_metadata(&current_directory) {
+            Ok(metadata) => {
+                if metadata_is_link_like(&metadata) {
+                    return Err(FilesystemError::SymlinkDetected.to_string());
+                }
+                if !metadata.is_dir() {
+                    return Err("user config directory path is not a directory".to_string());
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                fs::create_dir(&current_directory)
+                    .map_err(|_| "failed to create user config directory".to_string())?;
+            }
+            Err(_) => return Err(FilesystemError::UnresolvablePath.to_string()),
+        }
+        let canonical_directory = current_directory
+            .canonicalize()
+            .map_err(|_| FilesystemError::UnresolvablePath.to_string())?;
+        if !canonical_directory.starts_with(root_canonical) {
+            return Err(FilesystemError::PathTraversal.to_string());
+        }
+        current_directory = canonical_directory;
+    }
+    Ok(current_directory)
+}
+
+fn prepare_user_home_config_write_path_from_home(
+    home_directory: &Path,
+    relative_path: &str,
+) -> Result<PathBuf, String> {
+    let normalized_relative_path = normalize_user_home_config_relative_path(relative_path)?;
+    let canonical_home = home_directory
+        .canonicalize()
+        .map_err(|_| "failed to resolve user home directory safely".to_string())?;
+    let canonical_config_root =
+        ensure_scoped_directory_chain(&canonical_home, Path::new(USER_HOME_CONFIG_RELATIVE_ROOT))?;
+    let relative_config_path = normalized_relative_path
+        .strip_prefix(USER_HOME_CONFIG_RELATIVE_ROOT)
+        .map_err(|_| "user home config path is outside the BirdCoder config root".to_string())?;
+    let file_name = relative_config_path
+        .file_name()
+        .ok_or_else(|| "user home config path must target a file".to_string())?;
+    let parent_relative_path = relative_config_path
+        .parent()
+        .unwrap_or_else(|| Path::new(""));
+    let parent_directory =
+        ensure_scoped_directory_chain(&canonical_config_root, parent_relative_path)?;
+    let target_path = parent_directory.join(file_name);
+    if let Ok(metadata) = fs::symlink_metadata(&target_path) {
+        if metadata_is_link_like(&metadata) {
+            return Err(FilesystemError::SymlinkDetected.to_string());
+        }
+        if !metadata.is_file() {
+            return Err("user home config path is not a file".to_string());
+        }
+    }
+    resolve_path_within_root(&canonical_config_root, &target_path)
+        .map_err(|error| error.to_string())
 }
 
 fn build_directory_listing(
@@ -365,11 +572,28 @@ fn build_directory_listing(
 /// Maximum recursion depth for directory snapshots. Prevents stack overflow
 /// from deeply nested directories or symlink loops.
 const MAX_DIRECTORY_SNAPSHOT_DEPTH: usize = 10;
+const DEFAULT_DIRECTORY_SNAPSHOT_MAX_NODES: usize = 20_000;
+const MAX_DIRECTORY_SNAPSHOT_MAX_NODES: usize = 100_000;
+
+struct DirectorySnapshotBudget {
+    limit_reached: bool,
+    max_nodes: usize,
+    visited_nodes: usize,
+}
+
+fn resolve_directory_snapshot_max_nodes(max_nodes: Option<usize>) -> Result<usize, String> {
+    match max_nodes {
+        Some(0) => Err("max_nodes must be greater than zero".to_string()),
+        Some(value) => Ok(value.min(MAX_DIRECTORY_SNAPSHOT_MAX_NODES)),
+        None => Ok(DEFAULT_DIRECTORY_SNAPSHOT_MAX_NODES),
+    }
+}
 
 fn build_directory_snapshot(
     directory_path: &Path,
     virtual_path: &str,
     depth: usize,
+    budget: &mut DirectorySnapshotBudget,
 ) -> Result<FileSystemNode, String> {
     let mut children = Vec::new();
     let entries = fs::read_dir(directory_path).map_err(|error| {
@@ -379,12 +603,18 @@ fn build_directory_snapshot(
         )
     })?;
     for entry in entries {
+        if budget.visited_nodes >= budget.max_nodes {
+            budget.limit_reached = true;
+            break;
+        }
+
         let entry = entry.map_err(|error| {
             format!(
                 "failed to inspect directory entry '{}': {error}",
                 directory_path.display()
             )
         })?;
+        budget.visited_nodes += 1;
         let entry_path = entry.path();
         let entry_name = entry.file_name().to_string_lossy().to_string();
         let entry_type = entry.file_type().map_err(|error| {
@@ -402,8 +632,10 @@ fn build_directory_snapshot(
                     &entry_path,
                     &child_virtual_path,
                     depth + 1,
+                    budget,
                 )?);
             } else {
+                budget.limit_reached = true;
                 children.push(FileSystemNode {
                     name: entry_name,
                     kind: "directory".to_string(),
@@ -418,6 +650,10 @@ fn build_directory_snapshot(
                 path: child_virtual_path,
                 children: None,
             });
+        }
+
+        if budget.limit_reached {
+            break;
         }
     }
     sort_file_system_nodes(&mut children);
@@ -436,10 +672,10 @@ fn read_mounted_file_to_string(
     max_bytes: Option<usize>,
 ) -> Result<String, String> {
     use std::io::Read;
-    let max_bytes = max_bytes
-        .filter(|value| *value > 0)
-        .unwrap_or(DEFAULT_FS_READ_FILE_MAX_BYTES);
-    if max_bytes > 0 {
+    if let Some(max_bytes) = max_bytes {
+        if max_bytes == 0 {
+            return Err("max_bytes must be greater than zero".to_string());
+        }
         let file = fs::File::open(file_path).map_err(|error| {
             format!(
                 "failed to open mounted file '{}': {error}",
@@ -457,7 +693,34 @@ fn read_mounted_file_to_string(
             })?;
         return Ok(String::from_utf8_lossy(&buffer).into_owned());
     }
-    Err("max_bytes must be greater than zero".to_string())
+
+    let metadata = fs::metadata(file_path).map_err(|error| {
+        format!(
+            "failed to inspect mounted file '{}': {error}",
+            file_path.display()
+        )
+    })?;
+    if metadata.len() > DEFAULT_FS_READ_FILE_MAX_BYTES as u64 {
+        return Err(format!(
+            "mounted file '{}' is {} bytes and exceeds the {} byte text editor limit",
+            file_path.display(),
+            metadata.len(),
+            DEFAULT_FS_READ_FILE_MAX_BYTES
+        ));
+    }
+
+    let bytes = fs::read(file_path).map_err(|error| {
+        format!(
+            "failed to read mounted file '{}': {error}",
+            file_path.display()
+        )
+    })?;
+    String::from_utf8(bytes).map_err(|_| {
+        format!(
+            "mounted file '{}' is not valid UTF-8 text and cannot be opened in the text editor",
+            file_path.display()
+        )
+    })
 }
 
 fn build_entry_revision(metadata: &fs::Metadata) -> Result<String, String> {
@@ -473,14 +736,21 @@ fn build_entry_revision(metadata: &fs::Metadata) -> Result<String, String> {
 #[tauri::command]
 pub async fn fs_snapshot_folder(
     root_path: String,
+    max_nodes: Option<usize>,
 ) -> Result<FileSystemSnapshotResponse, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let root_directory = resolve_root_directory_path(&root_path)?;
         let root_virtual_path = format!("/{}", resolve_root_directory_name(&root_directory));
-        let tree = build_directory_snapshot(&root_directory, &root_virtual_path, 0)?;
+        let mut budget = DirectorySnapshotBudget {
+            limit_reached: false,
+            max_nodes: resolve_directory_snapshot_max_nodes(max_nodes)?,
+            visited_nodes: 0,
+        };
+        let tree = build_directory_snapshot(&root_directory, &root_virtual_path, 0, &mut budget)?;
         Ok(FileSystemSnapshotResponse {
             root_virtual_path,
             tree,
+            limit_reached: budget.limit_reached,
         })
     })
     .await
@@ -502,7 +772,11 @@ pub async fn fs_list_directory(
             .map(normalize_relative_path)
             .transpose()?;
         let target_directory = if let Some(ref normalized_relative_path) = target_relative_path {
-            root_directory.join(normalized_relative_path)
+            resolve_path_within_root(
+                &root_directory,
+                &root_directory.join(normalized_relative_path),
+            )
+            .map_err(|error| error.to_string())?
         } else {
             root_directory.clone()
         };
@@ -735,18 +1009,12 @@ pub async fn fs_write_file(
 }
 
 #[tauri::command]
-pub async fn fs_create_file(
-    root_path: String,
-    relative_path: String,
-) -> Result<(), String> {
+pub async fn fs_create_file(root_path: String, relative_path: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let file_path = resolve_scoped_path(&root_path, &relative_path)?;
+        let file_path = resolve_and_validate_mutation_path(&root_path, &relative_path)?;
         if file_path.exists() {
-            if file_path.is_file() {
-                return Ok(());
-            }
             return Err(format!(
-                "cannot create file because a directory already exists at '{}'",
+                "cannot create file because an entry already exists at '{}'",
                 file_path.display()
             ));
         }
@@ -780,18 +1048,12 @@ pub async fn fs_create_file(
 }
 
 #[tauri::command]
-pub async fn fs_create_directory(
-    root_path: String,
-    relative_path: String,
-) -> Result<(), String> {
+pub async fn fs_create_directory(root_path: String, relative_path: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let directory_path = resolve_scoped_path(&root_path, &relative_path)?;
+        let directory_path = resolve_and_validate_mutation_path(&root_path, &relative_path)?;
         if directory_path.exists() {
-            if directory_path.is_dir() {
-                return Ok(());
-            }
             return Err(format!(
-                "cannot create directory because a file already exists at '{}'",
+                "cannot create directory because an entry already exists at '{}'",
                 directory_path.display()
             ));
         }
@@ -872,6 +1134,15 @@ pub async fn fs_rename_entry(
     tauri::async_runtime::spawn_blocking(move || {
         let old_path = resolve_and_validate_mutation_path(&root_path, &old_relative_path)?;
         let new_path = resolve_and_validate_mutation_path(&root_path, &new_relative_path)?;
+        if old_path == new_path {
+            return Ok(());
+        }
+        if new_path.exists() {
+            return Err(format!(
+                "cannot rename mounted entry because the destination already exists: {}",
+                new_path.display()
+            ));
+        }
         let new_parent_directory = new_path.parent().ok_or_else(|| {
             format!(
                 "cannot rename mounted entry without a destination parent directory: {}",
@@ -898,52 +1169,32 @@ pub async fn fs_rename_entry(
 }
 
 #[tauri::command]
-pub async fn user_home_config_read(
-    relative_path: String,
-) -> Result<Option<String>, String> {
+pub async fn user_home_config_read(relative_path: String) -> Result<Option<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let path = resolve_user_home_config_path(&relative_path)?;
         if !path.exists() {
             return Ok(None);
         }
         if !path.is_file() {
-            return Err(format!(
-                "user home config path is not a file: {}",
-                path.display()
-            ));
+            return Err("user home config path is not a file".to_string());
         }
-        fs::read_to_string(&path).map(Some).map_err(|error| {
-            format!(
-                "failed to read user home config {}: {error}",
-                path.display()
-            )
-        })
+        fs::read_to_string(&path)
+            .map(Some)
+            .map_err(|_| "failed to read user home config".to_string())
     })
     .await
     .map_err(|error| format!("failed to join user home config read task: {error}"))?
 }
 
 #[tauri::command]
-pub async fn user_home_config_write(
-    relative_path: String,
-    content: String,
-) -> Result<(), String> {
+pub async fn user_home_config_write(relative_path: String, content: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let path = resolve_user_home_config_path(&relative_path)?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|error| {
-                format!(
-                    "failed to create user home config directory {}: {error}",
-                    parent.display()
-                )
-            })?;
-        }
-        fs::write(&path, content).map_err(|error| {
-            format!(
-                "failed to write user home config {}: {error}",
-                path.display()
-            )
-        })
+        let home_directory = std::env::var_os("USERPROFILE")
+            .or_else(|| std::env::var_os("HOME"))
+            .map(PathBuf::from)
+            .ok_or_else(|| "failed to resolve user home directory".to_string())?;
+        let path = prepare_user_home_config_write_path_from_home(&home_directory, &relative_path)?;
+        fs::write(&path, content).map_err(|_| "failed to write user home config".to_string())
     })
     .await
     .map_err(|error| format!("failed to join user home config write task: {error}"))?
@@ -953,14 +1204,296 @@ pub async fn user_home_config_write(
 mod tests {
     use super::*;
 
+    fn create_filesystem_command_test_root(label: &str) -> PathBuf {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("test clock must be after the Unix epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "sdkwork-birdcoder-filesystem-{label}-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).expect("filesystem command test root must be created");
+        register_allowed_fs_root(root.clone())
+            .expect("filesystem command test root must be registered");
+        root
+    }
+
+    #[cfg(unix)]
+    fn try_create_directory_link(target: &Path, link: &Path) -> bool {
+        std::os::unix::fs::symlink(target, link).is_ok()
+    }
+
+    #[cfg(windows)]
+    fn try_create_directory_link(target: &Path, link: &Path) -> bool {
+        std::os::windows::fs::symlink_dir(target, link).is_ok()
+    }
+
+    #[cfg(unix)]
+    fn remove_directory_link(link: &Path) {
+        let _ = fs::remove_file(link);
+    }
+
+    #[cfg(windows)]
+    fn remove_directory_link(link: &Path) {
+        let _ = fs::remove_dir(link);
+    }
+
     #[test]
     fn user_home_config_path_is_scoped_to_birdcoder_config_root() {
-        let resolved_path = resolve_user_home_config_path(
-            ".sdkwork/birdcoder/code-engine-models.json",
-        )
-        .expect("canonical code-engine model config path should be allowed");
+        let resolved_path =
+            resolve_user_home_config_path(".sdkwork/birdcoder/code-engine-models.json")
+                .expect("canonical code-engine model config path should be allowed");
 
         assert!(resolved_path.ends_with(".sdkwork/birdcoder/code-engine-models.json"));
         assert!(resolve_user_home_config_path(".ssh/config").is_err());
+    }
+
+    #[tokio::test]
+    async fn mounted_commands_reject_symlink_or_junction_escape() {
+        let root = create_filesystem_command_test_root("scoped-link-root");
+        let outside = create_filesystem_command_test_root("scoped-link-outside");
+        fs::write(outside.join("secret.txt"), "outside").expect("outside fixture must be written");
+        let link = root.join("escape");
+        if !try_create_directory_link(&outside, &link) {
+            fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+            fs::remove_dir_all(outside).expect("outside fixture root must be removed");
+            return;
+        }
+
+        let root_path = root.to_string_lossy().into_owned();
+        for error in [
+            fs_read_file(root_path.clone(), "escape/secret.txt".to_string(), None)
+                .await
+                .expect_err("reads through an escaping link must fail"),
+            fs_get_file_revision(root_path.clone(), "escape/secret.txt".to_string())
+                .await
+                .expect_err("revision probes through an escaping link must fail"),
+            fs_list_directory(root_path.clone(), Some("escape".to_string()))
+                .await
+                .expect_err("directory listings through an escaping link must fail"),
+            fs_create_file(root_path.clone(), "escape/new.txt".to_string())
+                .await
+                .expect_err("file creation through an escaping link must fail"),
+            fs_create_directory(root_path, "escape/new-directory".to_string())
+                .await
+                .expect_err("directory creation through an escaping link must fail"),
+        ] {
+            assert!(
+                error.contains("escapes the allowed filesystem root"),
+                "unexpected scoped path error: {error}"
+            );
+        }
+
+        assert_eq!(
+            fs::read_to_string(outside.join("secret.txt"))
+                .expect("outside fixture must remain readable"),
+            "outside"
+        );
+        assert!(!outside.join("new.txt").exists());
+        assert!(!outside.join("new-directory").exists());
+        remove_directory_link(&link);
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+        fs::remove_dir_all(outside).expect("outside fixture root must be removed");
+    }
+
+    #[test]
+    fn user_home_config_rejects_linked_config_root() {
+        let home = create_filesystem_command_test_root("user-config-home");
+        let outside = create_filesystem_command_test_root("user-config-outside");
+        let sdkwork_directory = home.join(".sdkwork");
+        fs::create_dir(&sdkwork_directory).expect("sdkwork fixture directory must be created");
+        let config_link = sdkwork_directory.join("birdcoder");
+        if !try_create_directory_link(&outside, &config_link) {
+            fs::remove_dir_all(home).expect("user config home fixture must be removed");
+            fs::remove_dir_all(outside).expect("outside fixture root must be removed");
+            return;
+        }
+
+        let relative_path = ".sdkwork/birdcoder/code-engine-models.json";
+        let read_error = resolve_user_home_config_path_from_home(&home, relative_path)
+            .expect_err("linked user config roots must not be readable");
+        let write_error = prepare_user_home_config_write_path_from_home(&home, relative_path)
+            .expect_err("linked user config roots must not be writable");
+        assert!(read_error.contains("link or reparse point"));
+        assert!(write_error.contains("link or reparse point"));
+        assert!(!outside.join("code-engine-models.json").exists());
+
+        remove_directory_link(&config_link);
+        fs::remove_dir_all(home).expect("user config home fixture must be removed");
+        fs::remove_dir_all(outside).expect("outside fixture root must be removed");
+    }
+
+    #[test]
+    fn user_home_config_write_path_creates_only_scoped_directories() {
+        let home = create_filesystem_command_test_root("user-config-create");
+        let path = prepare_user_home_config_write_path_from_home(
+            &home,
+            ".sdkwork/birdcoder/nested/code-engine-models.json",
+        )
+        .expect("scoped user config directories should be created");
+
+        let canonical_home = home
+            .canonicalize()
+            .expect("user config home fixture must canonicalize");
+        assert!(path.starts_with(canonical_home.join(".sdkwork").join("birdcoder")));
+        assert!(path
+            .parent()
+            .expect("user config file must have a parent")
+            .is_dir());
+        fs::remove_dir_all(home).expect("user config home fixture must be removed");
+    }
+
+    #[tokio::test]
+    async fn create_file_rejects_an_existing_entry_without_truncating_it() {
+        let root = create_filesystem_command_test_root("create-file-conflict");
+        let existing_file = root.join("existing.txt");
+        fs::write(&existing_file, "keep-me").expect("existing file fixture must be written");
+
+        let error = fs_create_file(
+            root.to_string_lossy().into_owned(),
+            "existing.txt".to_string(),
+        )
+        .await
+        .expect_err("creating an existing file must fail");
+
+        assert!(error.contains("already exists"));
+        assert_eq!(
+            fs::read_to_string(&existing_file).expect("existing file must remain readable"),
+            "keep-me"
+        );
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn create_directory_rejects_an_existing_directory() {
+        let root = create_filesystem_command_test_root("create-directory-conflict");
+        fs::create_dir(root.join("existing")).expect("existing directory fixture must be created");
+
+        let error =
+            fs_create_directory(root.to_string_lossy().into_owned(), "existing".to_string())
+                .await
+                .expect_err("creating an existing directory must fail");
+
+        assert!(error.contains("already exists"));
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn rename_rejects_an_existing_destination_without_overwriting_it() {
+        let root = create_filesystem_command_test_root("rename-conflict");
+        let source_file = root.join("source.txt");
+        let destination_file = root.join("destination.txt");
+        fs::write(&source_file, "source").expect("source fixture must be written");
+        fs::write(&destination_file, "destination").expect("destination fixture must be written");
+
+        let error = fs_rename_entry(
+            root.to_string_lossy().into_owned(),
+            "source.txt".to_string(),
+            "destination.txt".to_string(),
+        )
+        .await
+        .expect_err("renaming over an existing destination must fail");
+
+        assert!(error.contains("destination already exists"));
+        assert_eq!(
+            fs::read_to_string(&source_file).expect("source file must remain readable"),
+            "source"
+        );
+        assert_eq!(
+            fs::read_to_string(&destination_file).expect("destination file must remain readable"),
+            "destination"
+        );
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn editor_read_rejects_files_larger_than_the_text_limit() {
+        let root = create_filesystem_command_test_root("large-editor-read");
+        let file_path = root.join("large.txt");
+        fs::write(&file_path, vec![b'a'; DEFAULT_FS_READ_FILE_MAX_BYTES + 1])
+            .expect("large text fixture must be written");
+
+        let error = fs_read_file(
+            root.to_string_lossy().into_owned(),
+            "large.txt".to_string(),
+            None,
+        )
+        .await
+        .expect_err("an oversized editor read must fail instead of returning a truncated file");
+
+        assert!(error.contains("exceeds the"));
+        assert!(error.contains("text editor limit"));
+        assert_eq!(
+            fs::metadata(&file_path)
+                .expect("large text fixture metadata must remain readable")
+                .len(),
+            (DEFAULT_FS_READ_FILE_MAX_BYTES + 1) as u64
+        );
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn editor_read_rejects_non_utf8_files_without_lossy_conversion() {
+        let root = create_filesystem_command_test_root("binary-editor-read");
+        let file_path = root.join("binary.dat");
+        fs::write(&file_path, [0xff, 0xfe, 0xfd]).expect("binary fixture must be written");
+
+        let error = fs_read_file(
+            root.to_string_lossy().into_owned(),
+            "binary.dat".to_string(),
+            None,
+        )
+        .await
+        .expect_err("a binary editor read must fail instead of replacing invalid bytes");
+
+        assert!(error.contains("not valid UTF-8 text"));
+        assert_eq!(
+            fs::read(&file_path).expect("binary fixture must remain readable"),
+            [0xff, 0xfe, 0xfd]
+        );
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn bounded_search_read_keeps_prefix_semantics() {
+        let root = create_filesystem_command_test_root("bounded-search-read");
+        fs::write(root.join("search.txt"), "prefix-suffix")
+            .expect("search text fixture must be written");
+
+        let content = fs_read_file(
+            root.to_string_lossy().into_owned(),
+            "search.txt".to_string(),
+            Some(6),
+        )
+        .await
+        .expect("an explicit bounded read must return the requested prefix");
+
+        assert_eq!(content, "prefix");
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
+    }
+
+    #[tokio::test]
+    async fn directory_snapshot_reports_when_the_node_budget_is_reached() {
+        let root = create_filesystem_command_test_root("snapshot-node-budget");
+        fs::write(root.join("a.txt"), "a").expect("first snapshot fixture must be written");
+        fs::write(root.join("b.txt"), "b").expect("second snapshot fixture must be written");
+        fs::write(root.join("c.txt"), "c").expect("third snapshot fixture must be written");
+
+        let snapshot = fs_snapshot_folder(root.to_string_lossy().into_owned(), Some(2))
+            .await
+            .expect("bounded directory snapshot must complete");
+
+        assert!(snapshot.limit_reached);
+        assert_eq!(
+            snapshot
+                .tree
+                .children
+                .as_ref()
+                .expect("snapshot root must expose children")
+                .len(),
+            2
+        );
+        fs::remove_dir_all(root).expect("filesystem command test root must be removed");
     }
 }

@@ -17,12 +17,11 @@ impl GitOperations for ProcessGitOperations {
         project_root_path: &str,
     ) -> Result<GitProjectOverview, GitMutationError> {
         let path = project_root_path.to_string();
-        let overview = tokio::task::spawn_blocking(move || {
-            birdcoder_git::inspect_project_git_overview(&path)
-        })
-        .await
-        .map_err(|error| GitMutationError::Mutate(error.to_string()))?
-        .map_err(map_inspection_error)?;
+        let overview =
+            tokio::task::spawn_blocking(move || birdcoder_git::inspect_project_git_overview(&path))
+                .await
+                .map_err(|error| GitMutationError::Mutate(error.to_string()))?
+                .map_err(map_inspection_error)?;
 
         Ok(map_git_overview(overview))
     }
@@ -144,7 +143,9 @@ fn map_inspection_error(error: birdcoder_git::GitInspectionError) -> GitMutation
 fn map_mutation_error(error: birdcoder_git::GitMutationError) -> GitMutationError {
     match error {
         birdcoder_git::GitMutationError::NotRepository => GitMutationError::NotRepository,
-        birdcoder_git::GitMutationError::Validation(message) => GitMutationError::Validation(message),
+        birdcoder_git::GitMutationError::Validation(message) => {
+            GitMutationError::Validation(message)
+        }
         birdcoder_git::GitMutationError::Mutate(message) => GitMutationError::Mutate(message),
     }
 }

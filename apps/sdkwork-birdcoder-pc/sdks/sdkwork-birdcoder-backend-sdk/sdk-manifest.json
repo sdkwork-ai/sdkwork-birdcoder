@@ -24,11 +24,9 @@
   "discoverySurface": {
     "sdkTarget": "backend",
     "apiPrefix": "/backend/v3/api",
-    "schemaUrl": "/backend/v3/openapi.json",
     "generatedProtocols": [
       "http-openapi"
-    ],
-    "manualTransports": []
+    ]
   },
   "sdkDependencies": [
     {
@@ -47,33 +45,37 @@
   ],
   "metadata": {
     "managedBy": "sdkwork-birdcoder-sdkwork-sdk-migration",
-    "standardVersion": "2026-06-06"
+    "standardVersion": "2026-06-06",
+    "providerStandard": {
+      "kind": "sdkwork.sdk.family.assembly"
+    }
   },
   "languages": [
     {
       "language": "typescript",
       "workspace": "sdkwork-birdcoder-backend-sdk-typescript",
+      "generatedPath": "sdkwork-birdcoder-backend-sdk-typescript/generated/server-openapi",
       "generationState": "materialized",
+      "version": "0.1.0",
       "releaseState": "not_published",
       "packagePath": "sdkwork-birdcoder-backend-sdk-typescript/generated/server-openapi",
       "manifestPath": "sdkwork-birdcoder-backend-sdk-typescript/generated/server-openapi/package.json",
-      "version": "0.1.0",
       "description": "Generator-owned TypeScript transport SDK for the SDKWork BirdCoder Backend API.",
-      "generatedPath": "sdkwork-birdcoder-backend-sdk-typescript/generated/server-openapi",
       "consumerPackageName": "@sdkwork/birdcoder-backend-sdk",
       "transportPackageName": "sdkwork-birdcoder-backend-sdk-generated-typescript"
     },
     {
       "language": "rust",
       "workspace": "sdkwork-birdcoder-backend-sdk-rust",
+      "name": "sdkwork-birdcoder-backend-sdk",
+      "generatedPath": "sdkwork-birdcoder-backend-sdk-rust/generated/server-openapi",
       "generationState": "materialized",
+      "version": "0.1.0",
       "releaseState": "not_published",
       "packagePath": "sdkwork-birdcoder-backend-sdk-rust/generated/server-openapi",
       "manifestPath": "sdkwork-birdcoder-backend-sdk-rust/generated/server-openapi/Cargo.toml",
-      "name": "sdkwork-birdcoder-backend-sdk",
-      "version": "0.1.0",
-      "description": "Generator-owned Rust transport SDK for the SDKWork BirdCoder Backend API.",
-      "generatedPath": "sdkwork-birdcoder-backend-sdk-rust/generated/server-openapi"
+      "description": "Generator-owned Rust transport SDK for the SDKWork BirdCoder Backend API."
     }
-  ]
+  ],
+  "standardProfile": "sdkwork-v3"
 }

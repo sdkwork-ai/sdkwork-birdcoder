@@ -11,6 +11,7 @@
   "dependencies": {
     "@sdkwork/birdcoder-pc-types": "workspace:*",
     "@sdkwork/iam-app-sdk": "workspace:*",
+    "@sdkwork/iam-service": "workspace:*",
     "@sdkwork/agents-app-sdk": "workspace:*",
     "@sdkwork/sdk-common": "workspace:*"
   },

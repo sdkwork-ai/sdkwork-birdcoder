@@ -319,12 +319,9 @@ assert.deepEqual(JSON.parse(createdProjectContent.configData ?? '{}'), {
   rootPath: 'D:\\repos\\birdcoder-plus',
 });
 
-const listedProjects = await queries.listProjects({
-  rootPath: 'D:/repos/birdcoder-plus',
-  workspaceId: createdWorkspace.id,
-});
-assert.equal(listedProjects[0]?.id, createdProject.id);
-assert.equal(listedProjects[0]?.rootPath, 'D:\\repos\\birdcoder-plus');
+const listedProject = await queries.getProject(createdProject.id);
+assert.equal(listedProject?.id, createdProject.id);
+assert.equal(listedProject?.rootPath, 'D:\\repos\\birdcoder-plus');
 
 const repeatedNameProjectA = await queries.createProject({
   workspaceId: createdWorkspace.id,
@@ -379,21 +376,9 @@ await repositories.projects.save({
   updatedAt: '2026-04-23T10:01:00.000Z',
 });
 assert.equal(
-  (
-    await queries.listProjects({
-      rootPath: 'D:/repos/shadow-only',
-      workspaceId: createdWorkspace.id,
-    })
-  ).length,
-  0,
+  await queries.getProject('project-shadow-only-root-path'),
+  null,
   'studio_project.rootPath shadow data must not make a project resolvable without studio_project_content configData rootPath.',
-);
-assert.equal(
-  (await queries.listProjects({ workspaceId: createdWorkspace.id })).some(
-    (project) => project.id === 'project-shadow-only-root-path',
-  ),
-  false,
-  'project listing must ignore projects whose only path authority is a studio_project.rootPath shadow.',
 );
 
 console.log('console plus standard contract passed.');

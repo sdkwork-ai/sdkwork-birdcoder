@@ -1328,48 +1328,6 @@ fn build_codex_summary(
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::{env, fs, path::PathBuf};
-
-    fn create_test_codex_session_file(file_name: &str) -> PathBuf {
-        let file_path = env::temp_dir().join(file_name);
-        fs::write(&file_path, b"{}\n").expect("write temp codex session file");
-        file_path
-    }
-
-    #[test]
-    fn build_codex_summary_falls_back_to_default_model_when_context_model_missing() {
-        let file_path = create_test_codex_session_file("codex-summary-missing-model.jsonl");
-        let context = SessionLineContext {
-            native_session_id: Some("019d54b7-f3da-79b1-bb78-10770953da2d".to_owned()),
-            latest_timestamp: Some("2026-04-20T10:00:00.000Z".to_owned()),
-            ..SessionLineContext::default()
-        };
-
-        let summary = build_codex_summary(&file_path, &BTreeMap::new(), &context)
-            .expect("build codex summary with default model");
-        let expected_default_model = find_codeengine_descriptor(CODEX_ENGINE_ID)
-            .expect("codex descriptor")
-            .default_model_id;
-
-        assert_eq!(summary.model_id, expected_default_model);
-
-        let _ = fs::remove_file(file_path);
-    }
-
-    #[test]
-    fn normalize_codex_prompt_content_extracts_user_request_from_contextual_prompt() {
-        let normalized = normalize_codex_prompt_content(
-            "IDE context:\n- Workspace ID: 100000000000000101\n- Project ID: project-demo\n- Session ID: coding-session-demo\n\nCurrent file path: /demo/package.json\nCurrent file language: json\n\nCurrent file content:\n```json\n{\"name\":\"demo\"}\n```\n\nUser request:\nExplain why the transcript is empty.",
-        )
-        .expect("normalize contextual codex prompt");
-
-        assert_eq!(normalized, "Explain why the transcript is empty.");
-    }
-}
-
 fn dedupe_transcript_entries(entries: &[TranscriptEntry]) -> Vec<TranscriptEntry> {
     let mut deduped = Vec::with_capacity(entries.len());
     let mut last_kept_timestamp_by_key = HashMap::<TranscriptEntryDedupeKey, i64>::new();
@@ -2090,5 +2048,47 @@ fn resolve_more_recent_timestamp(left: Option<String>, right: Option<String>) ->
         (Some(left), None) => Some(left),
         (None, Some(right)) => Some(right),
         (None, None) => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{env, fs, path::PathBuf};
+
+    fn create_test_codex_session_file(file_name: &str) -> PathBuf {
+        let file_path = env::temp_dir().join(file_name);
+        fs::write(&file_path, b"{}\n").expect("write temp codex session file");
+        file_path
+    }
+
+    #[test]
+    fn build_codex_summary_falls_back_to_default_model_when_context_model_missing() {
+        let file_path = create_test_codex_session_file("codex-summary-missing-model.jsonl");
+        let context = SessionLineContext {
+            native_session_id: Some("019d54b7-f3da-79b1-bb78-10770953da2d".to_owned()),
+            latest_timestamp: Some("2026-04-20T10:00:00.000Z".to_owned()),
+            ..SessionLineContext::default()
+        };
+
+        let summary = build_codex_summary(&file_path, &BTreeMap::new(), &context)
+            .expect("build codex summary with default model");
+        let expected_default_model = find_codeengine_descriptor(CODEX_ENGINE_ID)
+            .expect("codex descriptor")
+            .default_model_id;
+
+        assert_eq!(summary.model_id, expected_default_model);
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn normalize_codex_prompt_content_extracts_user_request_from_contextual_prompt() {
+        let normalized = normalize_codex_prompt_content(
+            "IDE context:\n- Workspace ID: 100000000000000101\n- Project ID: project-demo\n- Session ID: coding-session-demo\n\nCurrent file path: /demo/package.json\nCurrent file language: json\n\nCurrent file content:\n```json\n{\"name\":\"demo\"}\n```\n\nUser request:\nExplain why the transcript is empty.",
+        )
+        .expect("normalize contextual codex prompt");
+
+        assert_eq!(normalized, "Explain why the transcript is empty.");
     }
 }

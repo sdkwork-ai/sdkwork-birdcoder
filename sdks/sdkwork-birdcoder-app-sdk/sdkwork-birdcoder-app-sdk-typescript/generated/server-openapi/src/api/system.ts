@@ -1,12 +1,12 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderApiRouteCatalogEntry, BirdCoderChatConversationSummary, BirdCoderChatMessageSummary, BirdCoderCodingServerDescriptor, BirdCoderCoreHealthSummary, BirdCoderCoreRuntimeSummary, BirdCoderCreateChatConversationRequest, BirdCoderCreateChatMessageRequest, BirdCoderDeleteChatConversationResult, BirdCoderIamRuntimeSettingsSummary, BirdCoderIamVerificationPolicySummary, BirdCoderOperationDescriptor, PageInfo } from '../types';
+import type { BirdCoderApiRouteCatalogEntry, BirdCoderChatConversationSummary, BirdCoderChatMessageSummary, BirdCoderCodingServerDescriptor, BirdCoderCoreHealthSummary, BirdCoderCoreRuntimeSummary, BirdCoderCreateChatConversationRequest, BirdCoderCreateChatMessageRequest, BirdCoderIamRuntimeSettingsSummary, BirdCoderIamVerificationPolicySummary, BirdCoderOperationDescriptor, PageInfo } from '../types';
 
 
 export interface SystemChatConversationsMessagesListParams {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class SystemChatConversationsMessagesApi {
@@ -20,8 +20,8 @@ export class SystemChatConversationsMessagesApi {
 /** List chat messages */
   async list(conversationId: string, params?: SystemChatConversationsMessagesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}/messages`), query));
   }
@@ -33,8 +33,8 @@ export class SystemChatConversationsMessagesApi {
 }
 
 export interface SystemChatConversationsListParams {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class SystemChatConversationsApi {
@@ -50,8 +50,8 @@ export class SystemChatConversationsApi {
 /** List chat conversations */
   async list(params?: SystemChatConversationsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/chat/conversations`), query));
   }
@@ -67,8 +67,8 @@ export class SystemChatConversationsApi {
   }
 
 /** Delete chat conversation */
-  async delete(conversationId: string): Promise<BirdCoderDeleteChatConversationResult> {
-    return this.client.delete<BirdCoderDeleteChatConversationResult>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}`));
+  async delete(conversationId: string): Promise<void> {
+    return this.client.delete<void>(appApiPath(`/chat/conversations/${serializePathParameter(conversationId, { name: 'conversationId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -93,7 +93,7 @@ export class SystemIamVerificationPolicyApi {
 
 /** Get SDKWork IAM verification policy */
   async retrieve(): Promise<BirdCoderIamVerificationPolicySummary> {
-    return this.client.get<BirdCoderIamVerificationPolicySummary>(appApiPath(`/system/iam/verification_policy`));
+    return this.client.request<BirdCoderIamVerificationPolicySummary>(appApiPath(`/system/iam/verification_policy`), { method: 'GET' as any, skipAuth: true });
   }
 }
 
@@ -107,7 +107,7 @@ export class SystemIamRuntimeApi {
 
 /** Get SDKWork IAM runtime metadata */
   async retrieve(): Promise<BirdCoderIamRuntimeSettingsSummary> {
-    return this.client.get<BirdCoderIamRuntimeSettingsSummary>(appApiPath(`/system/iam/runtime`));
+    return this.client.request<BirdCoderIamRuntimeSettingsSummary>(appApiPath(`/system/iam/runtime`), { method: 'GET' as any, skipAuth: true });
   }
 }
 

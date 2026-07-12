@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-07-06",
+  "updatedAt": "2026-07-08",
   "openApiSnapshotPath": "deployments/server-windows/x64/openapi/coding-server-v1.json",
   "summary": {
-    "contractOperationCount": 162,
+    "contractOperationCount": 161,
     "rustProductManifestRouteCount": 80,
     "iamFederationManifestRouteCount": 198,
     "commerceGatewayRouteCount": 15,
     "hostManifestRouteCount": 293,
-    "implementedOperationCount": 162,
+    "implementedOperationCount": 161,
     "deferredOperationCount": 0
   },
   "federation": {
@@ -465,12 +465,6 @@
     },
     {
       "method": "GET",
-      "path": "/app/v3/api/workspaces/{workspaceId}/realtime",
-      "operationId": "workspaces.realtime.subscribe",
-      "surface": "app"
-    },
-    {
-      "method": "GET",
       "path": "/backend/v3/api/deployments",
       "operationId": "deploymentGovernance.list",
       "surface": "backend"
@@ -850,7 +844,7 @@
     {
       "method": "POST",
       "path": "/app/v3/api/projects/{projectId}/collaborators",
-      "operationId": "projects.collaborators.upsert",
+      "operationId": "projects.collaborators.create",
       "surface": "app"
     },
     {
@@ -898,7 +892,7 @@
     {
       "method": "POST",
       "path": "/app/v3/api/projects/{projectId}/publish",
-      "operationId": "projects.publish.create",
+      "operationId": "projects.publish.publish",
       "surface": "app"
     },
     {
@@ -916,7 +910,7 @@
     {
       "method": "POST",
       "path": "/app/v3/api/workspaces/{workspaceId}/members",
-      "operationId": "workspaces.members.upsert",
+      "operationId": "workspaces.members.create",
       "surface": "app"
     },
     {
@@ -988,7 +982,7 @@
     {
       "method": "PUT",
       "path": "/app/v3/api/model_config",
-      "operationId": "modelConfig.sync",
+      "operationId": "modelConfig.update",
       "surface": "app"
     }
   ],

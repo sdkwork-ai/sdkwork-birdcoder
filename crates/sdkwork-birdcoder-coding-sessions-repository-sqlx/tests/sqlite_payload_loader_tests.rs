@@ -1,6 +1,5 @@
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine, DeploymentMode};
 use sdkwork_database_sqlx::create_any_pool_from_config;
-use sqlx::AnyPool;
 
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::db::schema::PROVIDER_AUTHORITY_SCHEMA;
 use sdkwork_birdcoder_coding_sessions_repository_sqlx::repository::provider::constants::*;
@@ -118,7 +117,9 @@ async fn sqlite_provider_payload_loaders_normalize_integer_java_long_columns() {
     .bind(0_i64)
     .bind(201_i64)
     .bind("project-integer-uuid")
-    .bind(build_project_config_data(Some("D:/workspace/integer-project")))
+    .bind(build_project_config_data(Some(
+        "D:/workspace/integer-project",
+    )))
     .execute(&pool)
     .await
     .expect("insert integer project content row");

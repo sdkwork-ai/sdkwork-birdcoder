@@ -25,62 +25,62 @@
   "canonicalSpecs": [
     {
       "file": "APP_H5_ARCHITECTURE_SPEC.md",
-      "path": "../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_H5_ARCHITECTURE_SPEC.md",
       "purpose": "H5 mobile web application root architecture."
     },
     {
       "file": "APP_MOBILE_REACT_UI_SPEC.md",
-      "path": "../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_MOBILE_REACT_UI_SPEC.md",
       "purpose": "Mobile React UI package rules."
     },
     {
       "file": "APPLICATION_SPEC.md",
-      "path": "../../sdkwork-specs/APPLICATION_SPEC.md",
+      "path": "../../../sdkwork-specs/APPLICATION_SPEC.md",
       "purpose": "Application modularization, app shell boundaries, module composition."
     },
     {
       "file": "APP_SDK_INTEGRATION_SPEC.md",
-      "path": "../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_SDK_INTEGRATION_SPEC.md",
       "purpose": "SDK integration, dependency composition."
     },
     {
       "file": "IAM_LOGIN_INTEGRATION_SPEC.md",
-      "path": "../../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md",
+      "path": "../../../sdkwork-specs/IAM_LOGIN_INTEGRATION_SPEC.md",
       "purpose": "IAM login/session integration."
     },
     {
       "file": "CONFIG_SPEC.md",
-      "path": "../../sdkwork-specs/CONFIG_SPEC.md",
+      "path": "../../../sdkwork-specs/CONFIG_SPEC.md",
       "purpose": "Runtime configuration rules."
     },
     {
       "file": "SECURITY_SPEC.md",
-      "path": "../../sdkwork-specs/SECURITY_SPEC.md",
+      "path": "../../../sdkwork-specs/SECURITY_SPEC.md",
       "purpose": "Security and auth rules."
     },
     {
       "file": "TEST_SPEC.md",
-      "path": "../../sdkwork-specs/TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
       "purpose": "Verification rules."
     },
     {
       "file": "CODE_STYLE_SPEC.md",
-      "path": "../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "path": "../../../sdkwork-specs/CODE_STYLE_SPEC.md",
       "purpose": "Cross-language code organization, focused file boundaries, public exports."
     },
     {
       "file": "NAMING_SPEC.md",
-      "path": "../../sdkwork-specs/NAMING_SPEC.md",
+      "path": "../../../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "Canonical domain, capability, package, component, SDK family naming."
     },
     {
       "file": "TYPESCRIPT_CODE_SPEC.md",
-      "path": "../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/TYPESCRIPT_CODE_SPEC.md",
       "purpose": "TypeScript package structure, public exports, typed SDK ports."
     },
     {
       "file": "FRONTEND_CODE_SPEC.md",
-      "path": "../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/FRONTEND_CODE_SPEC.md",
       "purpose": "Frontend UI-service-SDK flow, React UI package organization."
     }
   ],

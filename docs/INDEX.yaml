@@ -4,45 +4,14 @@ repository: sdkwork-birdcoder
 canon:
   prd: docs/product/prd/PRD.md
   techArchitecture: docs/architecture/tech/TECH_ARCHITECTURE.md
-entries:
-  - id: commercial-readiness-alignment
-    title: Commercial readiness alignment (2026-06-24)
-    path: docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md
-    kind: tech
-  - id: operator-index
-    title: Operator guide index
-    path: docs/guides/operator/README.md
-    kind: guide
-  - id: first-governed-release
-    title: First governed release
-    path: docs/guides/operator/first-governed-release.md
-    kind: guide
-  - id: deployment-operations
-    title: Deployment operations
-    path: docs/guides/operator/deployment-operations.md
-    kind: guide
-  - id: backup-restore
-    title: Backup and restore
-    path: docs/guides/operator/backup-restore.md
-    kind: guide
-  - id: monitoring
-    title: Monitoring and health
-    path: docs/guides/operator/monitoring.md
-    kind: guide
-  - id: incident-response
-    title: Incident response
-    path: docs/guides/operator/incident-response.md
-    kind: guide
+entries: []
 domains:
   - id: product
     title: Product
-    paths:
-      - docs/product/
+    paths: [docs/product/]
   - id: architecture
     title: Architecture
-    paths:
-      - docs/architecture/
+    paths: [docs/architecture/]
   - id: operator
-    title: Operator runbooks
-    paths:
-      - docs/guides/operator/
+    title: Operator guides
+    paths: [docs/guides/operator/]

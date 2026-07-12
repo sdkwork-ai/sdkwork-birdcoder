@@ -56,7 +56,7 @@
     },
     {
       "path": "src/api/iam.ts",
-      "sha256": "e7a085a7656bbaa68516badcd29e9d60049c701f0e89cb69a3f2dcc7185c9eb5"
+      "sha256": "22c0e03be26c975a0ae864d3d164a9e3ba4bf321183d8e7271de42269b5ba5f6"
     },
     {
       "path": "src/api/index.ts",
@@ -68,7 +68,7 @@
     },
     {
       "path": "src/api/platform.ts",
-      "sha256": "0fcb18eae26e33df4c72459780ebe63d08ab9795201dff1332ed82bf7624bd58"
+      "sha256": "bd22a2f7bc293cb1a1f63598dd2b4f54a102949dbceedde7ea9cf66c692cbcab"
     },
     {
       "path": "src/auth/index.ts",
@@ -137,14 +137,6 @@
     {
       "path": "src/types/bird-coder-create-iam-user-role-request.ts",
       "sha256": "21671acc650993d28f27bb6aa897cb702bff2856e776c5b098499133743ea150"
-    },
-    {
-      "path": "src/types/bird-coder-deleted-resource-envelope.ts",
-      "sha256": "357e498a8a63f37d9323641065c20cf985e68a46b6f372551b069b9e79b58df0"
-    },
-    {
-      "path": "src/types/bird-coder-deleted-resource-result.ts",
-      "sha256": "4d97f1d1c6fb97b549c66f25d76bbe2508b601ea3079cb7d420d56bf3b94afca"
     },
     {
       "path": "src/types/bird-coder-deployment-record-summary-list-envelope.ts",
@@ -356,7 +348,7 @@
     },
     {
       "path": "src/types/index.ts",
-      "sha256": "590e02a960f36004bbbad8255da3d056c26ac417fb9a0f27f70b413f12b70a30"
+      "sha256": "0cd29f2bf761b5945270a0925431ea68e39d8addafe4e82ce0773302c5f60cfa"
     },
     {
       "path": "src/types/page-info.ts",

@@ -6,6 +6,8 @@ pub mod session {
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";
     pub const IS_DELETED: &str = "is_deleted";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const USER_ID: &str = "user_id";
     pub const WORKSPACE_ID: &str = "workspace_id";
     pub const PROJECT_ID: &str = "project_id";
     pub const TITLE: &str = "title";
@@ -72,6 +74,8 @@ pub mod turn {
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";
     pub const IS_DELETED: &str = "is_deleted";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const USER_ID: &str = "user_id";
     pub const CODING_SESSION_ID: &str = "coding_session_id";
     pub const RUNTIME_ID: &str = "runtime_id";
     pub const REQUEST_KIND: &str = "request_kind";
@@ -134,12 +138,27 @@ pub mod operation {
     pub const UPDATED_AT: &str = "updated_at";
     pub const VERSION: &str = "version";
     pub const IS_DELETED: &str = "is_deleted";
+    pub const TENANT_ID: &str = "tenant_id";
+    pub const USER_ID: &str = "user_id";
     pub const CODING_SESSION_ID: &str = "coding_session_id";
     pub const TURN_ID: &str = "turn_id";
     pub const STATUS: &str = "status";
     pub const STREAM_URL: &str = "stream_url";
     pub const STREAM_KIND: &str = "stream_kind";
     pub const ARTIFACT_REFS_JSON: &str = "artifact_refs_json";
+    pub const REQUEST_PAYLOAD_JSON: &str = "request_payload_json";
+    pub const REQUEST_FINGERPRINT: &str = "request_fingerprint";
+    pub const IDEMPOTENCY_KEY: &str = "idempotency_key";
+    pub const AVAILABLE_AT: &str = "available_at";
+    pub const ATTEMPT: &str = "attempt";
+    pub const MAX_ATTEMPT: &str = "max_attempt";
+    pub const LEASE_OWNER: &str = "lease_owner";
+    pub const LEASE_EXPIRES_AT: &str = "lease_expires_at";
+    pub const FENCING_TOKEN: &str = "fencing_token";
+    pub const RUNNER_ID: &str = "runner_id";
+    pub const STARTED_AT: &str = "started_at";
+    pub const COMPLETED_AT: &str = "completed_at";
+    pub const PROBLEM_JSON: &str = "problem_json";
 }
 
 pub mod prompt_entry {

@@ -45,48 +45,31 @@ export function createBirdCoderBootstrapWorkspaceRecord(
   };
 }
 
-async function ensureBootstrapWorkspace(
-  repositories: BirdCoderConsoleRepositories,
-  ownerUserId: string,
-): Promise<BirdCoderWorkspaceRecord> {
-  const existingWorkspaces = await repositories.workspaces.list();
-  const resolvedWorkspace =
-    existingWorkspaces.find((workspace) => workspace.id === BIRDCODER_DEFAULT_WORKSPACE_ID) ??
-    existingWorkspaces[0];
-  if (resolvedWorkspace) {
-    return resolvedWorkspace;
-  }
-
-  const persistedWorkspace = await repositories.workspaces.save(
-    createBirdCoderBootstrapWorkspaceRecord(ownerUserId),
-  );
-  return persistedWorkspace;
-}
-
-export interface EnsureBirdCoderBootstrapConsoleCatalogOptions {
+export interface EnsureBirdCoderBootstrapWorkspaceOptions {
   defaultOwnerUserId?: string;
   repositories: BirdCoderConsoleRepositories;
 }
 
-export interface BirdCoderBootstrapConsoleCatalog {
-  workspace: BirdCoderWorkspaceRecord;
-  projects: Awaited<ReturnType<BirdCoderConsoleRepositories['projects']['list']>>;
-  workspaces: BirdCoderWorkspaceRecord[];
-}
-
-export async function ensureBirdCoderBootstrapConsoleCatalog({
+export async function ensureBirdCoderBootstrapWorkspace({
   defaultOwnerUserId = BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID,
   repositories,
-}: EnsureBirdCoderBootstrapConsoleCatalogOptions): Promise<BirdCoderBootstrapConsoleCatalog> {
-  const workspace = await ensureBootstrapWorkspace(repositories, defaultOwnerUserId);
-  const [workspaces, projects] = await Promise.all([
-    repositories.workspaces.list(),
-    repositories.projects.list(),
-  ]);
+}: EnsureBirdCoderBootstrapWorkspaceOptions): Promise<BirdCoderWorkspaceRecord> {
+  const defaultWorkspace = await repositories.workspaces.findById(
+    BIRDCODER_DEFAULT_WORKSPACE_ID,
+  );
+  if (defaultWorkspace) {
+    return defaultWorkspace;
+  }
 
-  return {
-    projects,
-    workspace,
-    workspaces,
-  };
+  if ((await repositories.workspaces.count()) > 0) {
+    const firstWorkspacePage = await repositories.workspaces.listPage(0, 1);
+    const existingWorkspace = firstWorkspacePage.items[0];
+    if (existingWorkspace) {
+      return existingWorkspace;
+    }
+  }
+
+  return repositories.workspaces.save(
+    createBirdCoderBootstrapWorkspaceRecord(defaultOwnerUserId),
+  );
 }

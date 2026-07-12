@@ -6,4 +6,3 @@ pub use sdkwork_birdcoder_system_descriptor_service::domain::models::HealthPaylo
 pub use sdkwork_birdcoder_system_descriptor_service::domain::models::OperationPayload;
 pub use sdkwork_birdcoder_system_descriptor_service::domain::models::RouteCatalogEntryPayload;
 pub use sdkwork_birdcoder_system_descriptor_service::domain::models::RuntimePayload;
-

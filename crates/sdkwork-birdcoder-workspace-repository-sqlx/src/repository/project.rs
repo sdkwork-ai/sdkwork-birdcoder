@@ -6,7 +6,7 @@ use crate::db::columns::project as col;
 use crate::db::columns::project_collaborator as collab_col;
 use crate::db::rows::{ProjectCollaboratorRow, ProjectRow};
 use crate::mapper::row_mapper;
-use crate::repository::scope::project_scoped_tenant_id;
+use crate::repository::scope::{data_scope_to_i64, project_scoped_tenant_id};
 use sdkwork_birdcoder_project_service::domain::commands::{
     CreateProjectRequest, UpdateProjectRequest, UpsertProjectCollaboratorRequest,
 };
@@ -92,9 +92,9 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 
         // PAGINATION_SPEC.md §2/§5: push `LIMIT`/`OFFSET` and filter
         // predicates down to SQL — never collect-then-slice in process
-        // memory. Default page_size=20, max=200 is enforced at the route
-        // layer via `clamp_list_page_size`. `root_path` maps to the
-        // `site_path` column (see `update_project`).
+        // memory. The route strictly validates page/page_size before service
+        // access. `root_path` maps to the `site_path` column (see
+        // `update_project`).
         let mut sql = format!(
             "SELECT * FROM {} WHERE {} = ? AND {} AND {} = ?",
             col::TABLE,
@@ -182,12 +182,7 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .unwrap_or("0")
             .parse()
             .unwrap_or(0);
-        let data_scope: i64 = req
-            .data_scope
-            .as_deref()
-            .unwrap_or("1")
-            .parse()
-            .unwrap_or(1);
+        let data_scope: i64 = data_scope_to_i64(req.data_scope.as_deref());
         let workspace_id: i64 = req.workspace_id.parse().map_err(|_| {
             ProjectError::InvalidInput(format!("invalid workspace_id: {}", req.workspace_id))
         })?;
@@ -315,10 +310,9 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
                 }
             }
             if let Some(ref v) = req.data_scope {
-                if let Ok(n) = v.parse::<i64>() {
-                    sep.push(format!("{} = ", col::DATA_SCOPE));
-                    sep.push_bind_unseparated(n);
-                }
+                let n = data_scope_to_i64(Some(v.as_str()));
+                sep.push(format!("{} = ", col::DATA_SCOPE));
+                sep.push_bind_unseparated(n);
             }
             if let Some(ref v) = req.user_id {
                 if let Ok(n) = v.parse::<i64>() {

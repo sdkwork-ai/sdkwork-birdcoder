@@ -14,12 +14,24 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@sdkwork/birdcoder-h5-*": ["packages/sdkwork-birdcoder-h5-*/src"],
+      "@sdkwork/birdcoder-h5-*": ["packages/sdkwork-birdcoder-h5-*/src/index.ts"],
+      "@sdkwork/birdcoder-h5-chat/*": [
+        "packages/sdkwork-birdcoder-h5-chat/src/*"
+      ],
+      "@sdkwork/birdcoder-h5-core/*": [
+        "packages/sdkwork-birdcoder-h5-core/src/*"
+      ],
       "@sdkwork/birdcoder-chat-contracts": [
         "../sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/index.ts"
       ],
       "@sdkwork/birdcoder-chat-contracts/*": [
         "../sdkwork-birdcoder-common/packages/sdkwork-birdcoder-chat-contracts/src/*"
+      ],
+      "@sdkwork/iam-app-sdk": [
+        "../../../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts"
+      ],
+      "@sdkwork/messaging-app-sdk": [
+        "../../../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/src/index.ts"
       ]
     }
   },

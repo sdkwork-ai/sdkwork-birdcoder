@@ -8,37 +8,37 @@ pub const DEPLOYMENT_BACKEND_API_ROUTES: &[HttpRoute] = &[
         HttpMethod::Get,
         paths::ADMIN_PROJECT_DEPLOYMENT_TARGETS_PATH,
         "deploymentGovernance",
-        "projects.deploymentTargets.list",
+        "deploymentGovernance.targets.list",
     )
-    .with_required_permission("platform.projects.deploymentTargets.read"),
+    .with_required_permission("birdcoder.platform-deployment-governance-targets.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::ADMIN_RELEASES_PATH,
         "releases",
         "releases.list",
     )
-    .with_required_permission("platform.releases.read"),
+    .with_required_permission("birdcoder.platform-releases.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::ADMIN_DEPLOYMENTS_PATH,
         "deploymentGovernance",
         "deploymentGovernance.list",
     )
-    .with_required_permission("platform.deploymentGovernance.read"),
+    .with_required_permission("birdcoder.platform-deployment-governance.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::ADMIN_TEAMS_PATH,
         "teams",
         "teams.list",
     )
-    .with_required_permission("iam.teams.read"),
+    .with_required_permission("birdcoder.iam-teams.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::ADMIN_TEAM_MEMBERS_PATH,
         "teams",
         "teams.members.list",
     )
-    .with_required_permission("iam.teams.members.read"),
+    .with_required_permission("birdcoder.iam-teams-members.read"),
 ];
 
 pub fn deployment_backend_api_route_manifest() -> HttpRouteManifest {

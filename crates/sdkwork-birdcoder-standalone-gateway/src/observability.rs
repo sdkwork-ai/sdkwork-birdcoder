@@ -30,7 +30,7 @@ pub async fn metrics_handler(
 /// Records API request latency and totals into the business metrics registry.
 ///
 /// Applied as an axum middleware. Infra scrape/health paths (`/metrics`,
-/// `/health`, `/healthz`, `/ready`, `/readyz`, `/openapi.json`) are skipped to
+/// `/healthz`, `/livez`, `/readyz`, `/openapi.json`) are skipped to
 /// avoid self-reinforcing observation noise.
 pub async fn metrics_middleware(
     State(business): State<Arc<BusinessMetricsRegistry>>,
@@ -52,7 +52,7 @@ pub async fn metrics_middleware(
 
 /// Returns true when `path` is an infrastructure path that must not inflate
 /// business API request metrics. Mirrors `HttpMetricsRegistry::should_record_path`
-/// and additionally skips `/ready` and `/openapi.json`.
+/// and additionally skips `/openapi.json`.
 pub fn is_observability_infra_path(path: &str) -> bool {
     let normalized = path.trim();
     let normalized = if normalized.is_empty() {
@@ -62,7 +62,7 @@ pub fn is_observability_infra_path(path: &str) -> bool {
     };
     matches!(
         normalized,
-        "/health" | "/healthz" | "/ready" | "/readyz" | "/metrics" | "/openapi.json"
+        "/healthz" | "/livez" | "/readyz" | "/metrics" | "/openapi.json"
     )
 }
 
@@ -79,11 +79,16 @@ mod tests {
     #[test]
     fn infra_paths_are_skipped() {
         assert!(is_observability_infra_path("/metrics"));
-        assert!(is_observability_infra_path("/health"));
-        assert!(is_observability_infra_path("/ready"));
+        assert!(is_observability_infra_path("/healthz"));
+        assert!(is_observability_infra_path("/livez"));
         assert!(is_observability_infra_path("/readyz"));
         assert!(is_observability_infra_path("/openapi.json"));
-        assert!(!is_observability_infra_path("/app/v3/api/intelligence/coding_sessions"));
+        assert!(!is_observability_infra_path("/health"));
+        assert!(!is_observability_infra_path("/health/live"));
+        assert!(!is_observability_infra_path("/ready"));
+        assert!(!is_observability_infra_path(
+            "/app/v3/api/intelligence/coding_sessions"
+        ));
     }
 
     #[test]

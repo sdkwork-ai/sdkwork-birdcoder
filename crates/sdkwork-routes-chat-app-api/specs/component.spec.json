@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-routes-chat-app-api",
+    "displayName": "SDKWork BirdCoder Chat App API Routes",
+    "version": "0.1.0",
+    "type": "rust-route-crate",
+    "root": "sdkwork-birdcoder/crates/sdkwork-routes-chat-app-api",
+    "domain": "system",
+    "declaredDomain": null,
+    "capability": "chat",
+    "surface": "app-api",
+    "status": "ACTIVE",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated-code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust HTTP route-crate boundaries."
+    },
+    {
+      "file": "API_SPEC.md",
+      "path": "../../../../sdkwork-specs/API_SPEC.md",
+      "purpose": "App API operation, envelope, and problem-detail rules."
+    },
+    {
+      "file": "WEB_FRAMEWORK_SPEC.md",
+      "path": "../../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
+      "purpose": "SDKWork HTTP framework integration rules."
+    },
+    {
+      "file": "WEB_BACKEND_SPEC.md",
+      "path": "../../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "purpose": "Handler, service, and route-boundary rules."
+    },
+    {
+      "file": "SDK_WORKSPACE_GENERATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/SDK_WORKSPACE_GENERATION_SPEC.md",
+      "purpose": "Route manifest and owner API materialization rules."
+    },
+    {
+      "file": "SDK_SPEC.md",
+      "path": "../../../../sdkwork-specs/SDK_SPEC.md",
+      "purpose": "Application API and generated SDK boundary rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "Canonical domain ownership rules for the materialized chat operations."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Authenticated HTTP API security rules."
+    },
+    {
+      "file": "PAGINATION_SPEC.md",
+      "path": "../../../../sdkwork-specs/PAGINATION_SPEC.md",
+      "purpose": "List endpoint pagination contract rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Route and handler verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-route",
+    "publicExports": [
+      ".",
+      "sdkwork_routes_chat_app_api::ChatAppState",
+      "sdkwork_routes_chat_app_api::build_chat_app_router",
+      "sdkwork_routes_chat_app_api::chat_app_api_route_manifest"
+    ],
+    "providedPorts": [
+      {
+        "name": "chatAppApiRouter",
+        "export": "sdkwork_routes_chat_app_api::build_chat_app_router"
+      },
+      {
+        "name": "chatAppApiRouteManifest",
+        "export": "sdkwork_routes_chat_app_api::chat_app_api_route_manifest"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "chatApplicationState",
+        "export": "sdkwork_routes_chat_app_api::ChatAppState"
+      }
+    ],
+    "runtimeEntrypoints": [
+      "sdkwork_routes_chat_app_api::build_chat_app_router"
+    ],
+    "routeManifest": "src/manifest.rs#chat_app_api_route_manifest",
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "Adapts the chat service carried by ChatAppState to the BirdCoder app API router and route manifest. Gateway composition owns authentication, mounting, and state construction."
+  },
+  "verification": {
+    "commands": [
+      "cargo test --offline --locked -p sdkwork-routes-chat-app-api --lib -- --nocapture"
+    ]
+  }
+}
+

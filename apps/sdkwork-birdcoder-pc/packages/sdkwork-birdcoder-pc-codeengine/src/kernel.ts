@@ -82,10 +82,10 @@ const KERNEL_INPUTS: Record<
       sourceStatus: 'mirrored',
     },
     executionTopology: {
-      authorityPath: 'rust-native',
-      bridgeRequired: false,
+      authorityPath: 'rust-rpc-bridge',
+      bridgeRequired: true,
       officialSdkPackageName: '@openai/codex-sdk',
-      transportKind: 'sdk-stream',
+      transportKind: 'cli-jsonl',
     },
   },
   'claude-code': {
@@ -107,7 +107,7 @@ const KERNEL_INPUTS: Record<
       authorityPath: 'typescript-rpc-bridge',
       bridgeRequired: true,
       officialSdkPackageName: '@anthropic-ai/claude-agent-sdk',
-      transportKind: 'sdk-stream',
+      transportKind: 'cli-jsonl',
     },
   },
   gemini: {
@@ -129,7 +129,7 @@ const KERNEL_INPUTS: Record<
       authorityPath: 'typescript-rpc-bridge',
       bridgeRequired: true,
       officialSdkPackageName: '@google/gemini-cli-sdk',
-      transportKind: 'sdk-stream',
+      transportKind: 'cli-jsonl',
     },
   },
   opencode: {
@@ -151,7 +151,7 @@ const KERNEL_INPUTS: Record<
       authorityPath: 'rust-rpc-bridge',
       bridgeRequired: true,
       officialSdkPackageName: '@opencode-ai/sdk',
-      transportKind: 'sdk-stream',
+      transportKind: 'cli-jsonl',
     },
   },
 };

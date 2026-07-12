@@ -85,7 +85,11 @@ export const MultiWindowGrid = memo(function MultiWindowGrid({
             paneIndex={paneIndex}
             preferences={preferences}
             runtimeStatus={dispatchResultsByPaneId.get(pane.id)?.status ?? 'idle'}
-            runtimeStatusMessage={dispatchResultsByPaneId.get(pane.id)?.errorMessage}
+            runtimeStatusMessage={
+              dispatchResultsByPaneId.get(pane.id)?.status === 'not-submitted'
+                ? t('multiWindow.notSubmittedReason')
+                : dispatchResultsByPaneId.get(pane.id)?.errorMessage
+            }
             onChange={onPaneChange}
             onClose={() => onClosePane(pane.id)}
             onOpenSessionPicker={() => onOpenSessionPicker(pane.id)}

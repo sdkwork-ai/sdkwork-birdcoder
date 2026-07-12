@@ -1,4 +1,4 @@
-import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-pc-infrastructure';
+import { getDefaultBirdCoderIdeServicesRuntimeConfig } from '@sdkwork/birdcoder-pc-infrastructure/services/defaultIdeServicesRuntime';
 
 interface BirdCoderPublicRuntimeEnv {
   VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;

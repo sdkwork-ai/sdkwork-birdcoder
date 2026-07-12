@@ -91,8 +91,8 @@ const params = {
   workspaceId: 'workspaceId',
   projectId: 'projectId',
   engineId: 'codex',
-  limit: 4,
-  offset: 5,
+  page: 4,
+  page_size: 5,
 };
 const result = await client.intelligence.codingSessions.list(params);
 ```
@@ -157,8 +157,8 @@ const result = await client.iam.users.current.retrieve();
 ```typescript
 // List app templates
 const params = {
-  limit: 1,
-  offset: 2,
+  page: 1,
+  page_size: 2,
 };
 const result = await client.templates.appTemplates.list(params);
 ```
@@ -168,8 +168,8 @@ const result = await client.templates.appTemplates.list(params);
 ```typescript
 // List deployments
 const params = {
-  limit: 1,
-  offset: 2,
+  page: 1,
+  page_size: 2,
 };
 const result = await client.platform.deployments.list(params);
 ```
@@ -180,8 +180,8 @@ const result = await client.platform.deployments.list(params);
 // List project documents
 const params = {
   projectId: 'projectId',
-  limit: 2,
-  offset: 3,
+  page: 2,
+  page_size: 3,
 };
 const result = await client.content.documents.list(params);
 ```
@@ -193,8 +193,8 @@ const result = await client.content.documents.list(params);
 const params = {
   userId: 'userId',
   workspaceId: 'workspaceId',
-  limit: 3,
-  offset: 4,
+  page: 3,
+  page_size: 4,
 };
 const result = await client.skills.skillPackages.list(params);
 ```

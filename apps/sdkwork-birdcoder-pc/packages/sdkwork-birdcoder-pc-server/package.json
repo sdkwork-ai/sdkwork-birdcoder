@@ -21,7 +21,8 @@
     "@sdkwork/birdcoder-pc-host-core": "workspace:*",
     "@sdkwork/birdcoder-pc-infrastructure": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*",
-    "@sdkwork/iam-contracts": "workspace:*"
+    "@sdkwork/iam-contracts": "workspace:*",
+    "@sdkwork/utils": "workspace:*"
   },
   "devDependencies": {
     "typescript": "catalog:"

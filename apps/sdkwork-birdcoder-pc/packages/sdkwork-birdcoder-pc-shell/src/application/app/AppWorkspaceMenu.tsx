@@ -7,6 +7,7 @@ import {
   Edit,
   Folder,
   Globe,
+  Loader2,
   MoreHorizontal,
   Plus,
   Trash2,
@@ -31,8 +32,12 @@ interface AppWorkspaceMenuProps {
   effectiveProjectId: string;
   showWorkspaceMenu: boolean;
   workspaces: readonly IWorkspace[];
+  hasMoreWorkspaces: boolean;
+  isLoadingMoreWorkspaces: boolean;
   menuProjects: readonly BirdCoderProject[];
   menuProjectsHasFetched: boolean;
+  menuProjectsHasMore: boolean;
+  isMenuProjectsLoadingMore: boolean;
   shouldUseDistinctMenuProjectsStore: boolean;
   isWorkspacesLoading: boolean;
   hasActiveProjectsFetched: boolean;
@@ -52,12 +57,14 @@ interface AppWorkspaceMenuProps {
   onToggleMenu: () => void;
   onCloseMenuSurface: () => void;
   onPreviewWorkspaceSelection: (workspaceId: string) => void;
+  onLoadMoreWorkspaces: () => Promise<unknown>;
   onStartWorkspaceRename: (workspaceId: string, currentName: string) => void;
   onWorkspaceRenameValueChange: (value: string) => void;
   onFinishWorkspaceRename: () => void;
   onCommitWorkspaceRename: (workspaceId: string, nextName: string) => void | Promise<void>;
   onConfirmDeleteWorkspace: (event: MouseEvent<HTMLButtonElement>, workspaceId: string) => void;
   onSelectProject: (projectId: string) => void;
+  onLoadMoreMenuProjects: () => Promise<unknown>;
   onStartProjectRename: (projectId: string, currentName: string) => void;
   onProjectRenameValueChange: (value: string) => void;
   onFinishProjectRename: () => void;
@@ -98,8 +105,12 @@ export const AppWorkspaceMenu = memo(function AppWorkspaceMenu({
   effectiveProjectId,
   showWorkspaceMenu,
   workspaces,
+  hasMoreWorkspaces,
+  isLoadingMoreWorkspaces,
   menuProjects,
   menuProjectsHasFetched,
+  menuProjectsHasMore,
+  isMenuProjectsLoadingMore,
   shouldUseDistinctMenuProjectsStore,
   isWorkspacesLoading,
   hasActiveProjectsFetched,
@@ -119,12 +130,14 @@ export const AppWorkspaceMenu = memo(function AppWorkspaceMenu({
   onToggleMenu,
   onCloseMenuSurface,
   onPreviewWorkspaceSelection,
+  onLoadMoreWorkspaces,
   onStartWorkspaceRename,
   onWorkspaceRenameValueChange,
   onFinishWorkspaceRename,
   onCommitWorkspaceRename,
   onConfirmDeleteWorkspace,
   onSelectProject,
+  onLoadMoreMenuProjects,
   onStartProjectRename,
   onProjectRenameValueChange,
   onFinishProjectRename,
@@ -279,6 +292,27 @@ export const AppWorkspaceMenu = memo(function AppWorkspaceMenu({
                   </div>
                 );
               })}
+              {hasMoreWorkspaces ? (
+                <button
+                  type="button"
+                  className="mt-1 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-white/10 px-3 text-xs font-medium text-gray-400 transition-colors hover:border-white/15 hover:bg-white/5 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isLoadingMoreWorkspaces}
+                  onClick={() => {
+                    void onLoadMoreWorkspaces().catch(() => undefined);
+                  }}
+                >
+                  {isLoadingMoreWorkspaces ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <ChevronDown size={13} />
+                  )}
+                  <span>
+                    {isLoadingMoreWorkspaces
+                      ? t('code.loadingMoreWorkspaces')
+                      : t('code.loadMoreWorkspaces')}
+                  </span>
+                </button>
+              ) : null}
             </div>
 
             <div className="w-[55%] overflow-y-auto p-2 custom-scrollbar bg-[#0e0e11]/10 flex flex-col gap-1 relative">
@@ -426,6 +460,27 @@ export const AppWorkspaceMenu = memo(function AppWorkspaceMenu({
                   {t('app.noProjectsFound')}
                 </div>
               )}
+              {menuProjectsHasMore ? (
+                <button
+                  type="button"
+                  className="mt-1 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-white/10 px-3 text-xs font-medium text-gray-400 transition-colors hover:border-white/15 hover:bg-white/5 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={isMenuProjectsLoadingMore}
+                  onClick={() => {
+                    void onLoadMoreMenuProjects().catch(() => undefined);
+                  }}
+                >
+                  {isMenuProjectsLoadingMore ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <ChevronDown size={13} />
+                  )}
+                  <span>
+                    {isMenuProjectsLoadingMore
+                      ? t('code.loadingMoreProjects')
+                      : t('code.loadMoreProjects')}
+                  </span>
+                </button>
+              ) : null}
             </div>
           </div>
 

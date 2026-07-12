@@ -85,7 +85,7 @@ export function createBirdCoderBackendSdkApiClient({
       return readItems(await client.platform.deploymentGovernance.list());
     },
     async listDeploymentTargets(projectId) {
-      return readItems(await client.platform.projects.deploymentTargets.list({ projectId }));
+      return readItems(await client.platform.deploymentGovernance.targets.list({ projectId }));
     },
     async listGovernanceTeams(options = {}) {
       return readItems(await client.iam.teams.list(toGeneratedBackendTeamQuery(options)));

@@ -1,7 +1,7 @@
 import { backendApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderBooleanSuccessResult, BirdCoderCreateIamOrganizationMemberRequest, BirdCoderCreateIamOrganizationRequest, BirdCoderCreateIamPermissionRequest, BirdCoderCreateIamPolicyRequest, BirdCoderCreateIamRolePermissionRequest, BirdCoderCreateIamRoleRequest, BirdCoderCreateIamTenantMemberRequest, BirdCoderCreateIamTenantRequest, BirdCoderCreateIamUserRequest, BirdCoderCreateIamUserRoleRequest, BirdCoderDeletedResourceResult, BirdCoderIamApiKeySummary, BirdCoderIamAuditEventSummary, BirdCoderIamOrganizationMemberSummary, BirdCoderIamOrganizationSummary, BirdCoderIamPermissionSummary, BirdCoderIamPolicySummary, BirdCoderIamRolePermissionSummary, BirdCoderIamRoleSummary, BirdCoderIamSecurityEventSummary, BirdCoderIamTenantMemberSummary, BirdCoderIamTenantSummary, BirdCoderIamUserRoleSummary, BirdCoderIamUserSummary, BirdCoderTeamMemberSummary, BirdCoderTeamSummary, BirdCoderUpdateIamOrganizationMemberRequest, BirdCoderUpdateIamOrganizationRequest, BirdCoderUpdateIamPermissionRequest, BirdCoderUpdateIamPolicyRequest, BirdCoderUpdateIamRoleRequest, BirdCoderUpdateIamTenantMemberRequest, BirdCoderUpdateIamTenantRequest, BirdCoderUpdateIamUserRequest, PageInfo } from '../types';
+import type { BirdCoderBooleanSuccessResult, BirdCoderCreateIamOrganizationMemberRequest, BirdCoderCreateIamOrganizationRequest, BirdCoderCreateIamPermissionRequest, BirdCoderCreateIamPolicyRequest, BirdCoderCreateIamRolePermissionRequest, BirdCoderCreateIamRoleRequest, BirdCoderCreateIamTenantMemberRequest, BirdCoderCreateIamTenantRequest, BirdCoderCreateIamUserRequest, BirdCoderCreateIamUserRoleRequest, BirdCoderIamApiKeySummary, BirdCoderIamAuditEventSummary, BirdCoderIamOrganizationMemberSummary, BirdCoderIamOrganizationSummary, BirdCoderIamPermissionSummary, BirdCoderIamPolicySummary, BirdCoderIamRolePermissionSummary, BirdCoderIamRoleSummary, BirdCoderIamSecurityEventSummary, BirdCoderIamTenantMemberSummary, BirdCoderIamTenantSummary, BirdCoderIamUserRoleSummary, BirdCoderIamUserSummary, BirdCoderTeamMemberSummary, BirdCoderTeamSummary, BirdCoderUpdateIamOrganizationMemberRequest, BirdCoderUpdateIamOrganizationRequest, BirdCoderUpdateIamPermissionRequest, BirdCoderUpdateIamPolicyRequest, BirdCoderUpdateIamRoleRequest, BirdCoderUpdateIamTenantMemberRequest, BirdCoderUpdateIamTenantRequest, BirdCoderUpdateIamUserRequest, PageInfo } from '../types';
 
 
 export class IamTeamsMembersApi {
@@ -57,8 +57,8 @@ export class IamRoleBindingsApi {
   }
 
 /** Delete SDKWork IAM user role binding */
-  async delete(roleBindingId: string): Promise<BirdCoderBooleanSuccessResult> {
-    return this.client.delete<BirdCoderBooleanSuccessResult>(backendApiPath(`/iam/role_bindings/${serializePathParameter(roleBindingId, { name: 'roleBindingId', style: 'simple', explode: false })}`));
+  async delete(roleBindingId: string): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/iam/role_bindings/${serializePathParameter(roleBindingId, { name: 'roleBindingId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -91,8 +91,8 @@ export class IamUsersApi {
   }
 
 /** Delete SDKWork IAM user */
-  async delete(userId: string): Promise<BirdCoderDeletedResourceResult> {
-    return this.client.delete<BirdCoderDeletedResourceResult>(backendApiPath(`/iam/users/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
+  async delete(userId: string): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/iam/users/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -120,8 +120,8 @@ export class IamTenantsMembersApi {
   }
 
 /** Delete SDKWork IAM tenant member */
-  async delete(tenantId: string, userId: string): Promise<BirdCoderBooleanSuccessResult> {
-    return this.client.delete<BirdCoderBooleanSuccessResult>(backendApiPath(`/iam/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
+  async delete(tenantId: string, userId: string): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/iam/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}/members/${serializePathParameter(userId, { name: 'userId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -156,8 +156,8 @@ export class IamTenantsApi {
   }
 
 /** Delete SDKWork IAM tenant */
-  async delete(tenantId: string): Promise<BirdCoderDeletedResourceResult> {
-    return this.client.delete<BirdCoderDeletedResourceResult>(backendApiPath(`/iam/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`));
+  async delete(tenantId: string): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/iam/tenants/${serializePathParameter(tenantId, { name: 'tenantId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -194,8 +194,8 @@ export class IamRolesPermissionsApi {
   }
 
 /** Delete SDKWork IAM role permission */
-  async delete(roleId: string, permissionId: string): Promise<BirdCoderBooleanSuccessResult> {
-    return this.client.delete<BirdCoderBooleanSuccessResult>(backendApiPath(`/iam/roles/${serializePathParameter(roleId, { name: 'roleId', style: 'simple', explode: false })}/permissions/${serializePathParameter(permissionId, { name: 'permissionId', style: 'simple', explode: false })}`));
+  async delete(roleId: string, permissionId: string): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/iam/roles/${serializePathParameter(roleId, { name: 'roleId', style: 'simple', explode: false })}/permissions/${serializePathParameter(permissionId, { name: 'permissionId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -230,8 +230,8 @@ export class IamRolesApi {
   }
 
 /** Delete SDKWork IAM role */
-  async delete(roleId: string): Promise<BirdCoderDeletedResourceResult> {
-    return this.client.delete<BirdCoderDeletedResourceResult>(backendApiPath(`/iam/roles/${serializePathParameter(roleId, { name: 'roleId', style: 'simple', explode: false })}`));
+  async delete(roleId: string): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/iam/roles/${serializePathParameter(roleId, { name: 'roleId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -264,8 +264,8 @@ export class IamPoliciesApi {
   }
 
 /** Delete SDKWork IAM policy */
-  async delete(policyId: string): Promise<BirdCoderDeletedResourceResult> {
-    return this.client.delete<BirdCoderDeletedResourceResult>(backendApiPath(`/iam/policies/${serializePathParameter(policyId, { name: 'policyId', style: 'simple', explode: false })}`));
+  async delete(policyId: string): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/iam/policies/${serializePathParameter(policyId, { name: 'policyId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -298,8 +298,8 @@ export class IamPermissionsApi {
   }
 
 /** Delete SDKWork IAM permission */
-  async delete(permissionId: string): Promise<BirdCoderDeletedResourceResult> {
-    return this.client.delete<BirdCoderDeletedResourceResult>(backendApiPath(`/iam/permissions/${serializePathParameter(permissionId, { name: 'permissionId', style: 'simple', explode: false })}`));
+  async delete(permissionId: string): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/iam/permissions/${serializePathParameter(permissionId, { name: 'permissionId', style: 'simple', explode: false })}`));
   }
 }
 
@@ -341,8 +341,8 @@ export class IamOrganizationsApi {
   }
 
 /** Delete SDKWork IAM organization */
-  async delete(organizationId: string): Promise<BirdCoderDeletedResourceResult> {
-    return this.client.delete<BirdCoderDeletedResourceResult>(backendApiPath(`/iam/organizations/${serializePathParameter(organizationId, { name: 'organizationId', style: 'simple', explode: false })}`));
+  async delete(organizationId: string): Promise<void> {
+    return this.client.delete<void>(backendApiPath(`/iam/organizations/${serializePathParameter(organizationId, { name: 'organizationId', style: 'simple', explode: false })}`));
   }
 
 /** Create SDKWork IAM organization */

@@ -13,15 +13,25 @@ for (const consumerPath of [
   'apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_app_sdk_consumer',
   'apps/sdkwork-birdcoder-flutter-mobile/sdks/sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer',
 ]) {
-  const assembly = JSON.parse(read(`${consumerPath}/.sdkwork-assembly.json`));
-  assert.ok(assembly.generationInputSpec, `${consumerPath} must declare a canonical generation input spec.`);
+  assert.equal(
+    fs.existsSync(path.join(rootDir, consumerPath, '.sdkwork-assembly.json')),
+    false,
+    `${consumerPath} must not keep retired consumer .sdkwork-assembly.json metadata.`,
+  );
+  const manifest = JSON.parse(read(`${consumerPath}/sdk-manifest.json`));
+  assert.ok(manifest.generationInputSpec, `${consumerPath} must declare a canonical generation input spec.`);
   assert.match(
-    assembly.generationInputSpec,
+    manifest.generationInputSpec,
     /sdkwork-birdcoder-pc\/sdks/u,
     `${consumerPath} must consume PC OpenAPI authority instead of forking local specs.`,
   );
+  assert.equal(
+    manifest.standardProfile,
+    'sdkwork-v3',
+    `${consumerPath} must use the SDKWork v3 generator profile.`,
+  );
   assert.match(
-    assembly.generationScript ?? '',
+    manifest.metadata?.providerStandard?.generationScript ?? '',
     /generate-birdcoder-flutter-mobile-sdk-family\.mjs/u,
     `${consumerPath} must reference the Flutter mobile SDK generation script.`,
   );

@@ -11,6 +11,10 @@ function read(relativePath) {
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
+function readJson(relativePath) {
+  return JSON.parse(read(relativePath));
+}
+
 function fail(message) {
   failures.push(message);
 }
@@ -97,13 +101,15 @@ if (!iamEnvScript.includes('SDKWORK_BIRDCODER_DATABASE_URL')) {
 }
 
 const canonicalOpenApi = read('deployments/server-windows/x64/openapi/coding-server-v1.json');
-if (canonicalOpenApi.includes('/app/v3/api/coding_sessions')) {
+const canonicalOpenApiDocument = readJson('deployments/server-windows/x64/openapi/coding-server-v1.json');
+const canonicalOpenApiPathKeys = Object.keys(canonicalOpenApiDocument.paths ?? {});
+if (canonicalOpenApiPathKeys.some((routePath) => routePath === '/app/v3/api/coding_sessions' || routePath.startsWith('/app/v3/api/coding_sessions/'))) {
   fail('canonical coding-server OpenAPI must not keep legacy /app/v3/api/coding_sessions paths');
 }
-if (!canonicalOpenApi.includes('/app/v3/api/intelligence/coding_sessions')) {
+if (!canonicalOpenApiPathKeys.includes('/app/v3/api/intelligence/coding_sessions')) {
   fail('canonical coding-server OpenAPI must declare intelligence coding_sessions routes');
 }
-if (canonicalOpenApi.includes('coding-sessions')) {
+if (canonicalOpenApiPathKeys.some((routePath) => routePath.includes('coding-sessions'))) {
   fail('canonical coding-server OpenAPI must use lower_snake_case coding_sessions path segments');
 }
 

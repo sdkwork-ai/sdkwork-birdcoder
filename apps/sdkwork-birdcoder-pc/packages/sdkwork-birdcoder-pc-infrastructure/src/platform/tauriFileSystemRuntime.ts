@@ -11,6 +11,7 @@ type TauriListen = <TPayload>(
 ) => Promise<() => void>;
 
 export interface BirdCoderTauriFolderSnapshot {
+  limitReached?: boolean;
   rootVirtualPath: string;
   tree: IFileNode;
 }
@@ -99,7 +100,10 @@ export interface BirdCoderTauriFileSystemRuntime {
     rootSystemPath: string,
     listener: (event: BirdCoderTauriFileSystemWatchEvent) => void,
   ): Promise<() => Promise<void>>;
-  snapshotFolder(rootSystemPath: string): Promise<BirdCoderTauriFolderSnapshot>;
+  snapshotFolder(
+    rootSystemPath: string,
+    maxNodes?: number,
+  ): Promise<BirdCoderTauriFolderSnapshot>;
   writeFile(
     rootSystemPath: string,
     rootVirtualPath: string,
@@ -265,6 +269,14 @@ function normalizeTauriReadFileMaxBytes(maxBytes: number | undefined): number | 
   return Math.floor(maxBytes);
 }
 
+function normalizeTauriSnapshotMaxNodes(maxNodes: number | undefined): number | undefined {
+  if (typeof maxNodes !== 'number' || !Number.isFinite(maxNodes) || maxNodes <= 0) {
+    return undefined;
+  }
+
+  return Math.floor(maxNodes);
+}
+
 export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSystemRuntime {
   return {
     async listDirectory(rootSystemPath, rootVirtualPath, mountedPath) {
@@ -273,8 +285,10 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
         relativePath: toOptionalMountedRelativePath(rootVirtualPath, mountedPath),
       });
     },
-    async snapshotFolder(rootSystemPath) {
+    async snapshotFolder(rootSystemPath, maxNodes) {
+      const normalizedMaxNodes = normalizeTauriSnapshotMaxNodes(maxNodes);
       return invokeTauriFileSystemCommand<BirdCoderTauriFolderSnapshot>('fs_snapshot_folder', {
+        ...(normalizedMaxNodes === undefined ? {} : { maxNodes: normalizedMaxNodes }),
         rootPath: rootSystemPath,
       });
     },

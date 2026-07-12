@@ -22,10 +22,10 @@ impl PlatformApi {
     }
 
     /// List deployment targets
-    pub async fn projects_deployment_targets_list(&self, project_id: &str, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderDeploymentTargetSummaryListEnvelope, SdkworkError> {
+    pub async fn deployment_governance_targets_list(&self, project_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderDeploymentTargetSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(backend_path(&format!("/projects/{}/deployment_targets", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)))), &query);
         self.client.get(&path, None, None).await

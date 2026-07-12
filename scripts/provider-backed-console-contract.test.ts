@@ -176,7 +176,12 @@ try {
   });
 
   const workspaces = await queries.listWorkspaces();
-  const projects = await queries.listProjects({ workspaceId: 'workspace-console-contract' });
+  const projectPage = await queries.listProjectPage({
+    page: 1,
+    pageSize: 20,
+    workspaceId: 'workspace-console-contract',
+  });
+  const projects = projectPage.items;
   const documents = await queries.listDocuments();
   const deployments = await queries.listDeployments();
   const targets = await queries.listDeploymentTargets({ projectId: 'project-console-contract' });

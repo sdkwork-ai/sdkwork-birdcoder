@@ -33,7 +33,7 @@ export * from './legalLinks.ts';
 export * from './utils/EventBus.ts';
 export * from './components/ErrorBoundary.tsx';
 export * from './platform/fileSystem.ts';
-export * from './platform/tauriShell.ts';
+export * from './platform/tauriFileManager.ts';
 export * from './storage/dataKernel.ts';
 export * from './storage/localStore.ts';
 export * from './chat/draftStore.ts';
@@ -86,7 +86,7 @@ export {
   buildDriveMediaResourceContentBlock,
   resolveChatAttachmentUploadProfile,
   uploadBirdCoderChatAttachmentToDrive,
-} from '@sdkwork/birdcoder-pc-infrastructure';
+} from '@sdkwork/birdcoder-pc-infrastructure/services/birdcoderDriveUpload';
 export { default as i18n } from '@sdkwork/birdcoder-pc-i18n';
 export {
   createBootstrapGateMessages,

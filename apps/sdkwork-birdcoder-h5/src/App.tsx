@@ -3,6 +3,9 @@ import {
   ShellRuntimeProviders,
 } from '@sdkwork/birdcoder-h5-shell';
 import { AppProvider } from '@sdkwork/birdcoder-h5-commons';
+import {
+  BirdCoderSettingsProvider,
+} from '@sdkwork/birdcoder-h5-chat';
 import { BirdCoderH5AppRoutes } from './routes';
 
 export default function App() {
@@ -10,7 +13,9 @@ export default function App() {
     <ShellRuntimeProviders>
       <BirdCoderAuthGate>
         <AppProvider>
-          <BirdCoderH5AppRoutes />
+          <BirdCoderSettingsProvider>
+            <BirdCoderH5AppRoutes />
+          </BirdCoderSettingsProvider>
         </AppProvider>
       </BirdCoderAuthGate>
     </ShellRuntimeProviders>

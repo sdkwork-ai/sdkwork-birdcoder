@@ -23,9 +23,7 @@ const requiredPackages = [
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings', '@sdkwork/birdcoder-pc-settings'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell', '@sdkwork/birdcoder-pc-shell'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell-runtime', '@sdkwork/birdcoder-pc-shell-runtime'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills', '@sdkwork/birdcoder-pc-skills'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio', '@sdkwork/birdcoder-pc-studio'],
-  ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-templates', '@sdkwork/birdcoder-pc-templates'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types', '@sdkwork/birdcoder-pc-types'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui', '@sdkwork/birdcoder-pc-ui'],
   ['apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell', '@sdkwork/birdcoder-pc-ui-shell'],
@@ -278,6 +276,34 @@ function assertRootPackageScriptTargetsExist(rootPackageJson) {
   }
 }
 
+function collectWorkspacePackageGlobs(workspaceConfigSource) {
+  const lines = workspaceConfigSource.split(/\r?\n/u);
+  const packageGlobs = [];
+  let inPackagesSection = false;
+
+  for (const line of lines) {
+    if (line.startsWith('packages:')) {
+      inPackagesSection = true;
+      continue;
+    }
+
+    if (line.startsWith('catalog:')) {
+      break;
+    }
+
+    if (!inPackagesSection || !line.startsWith('  - ')) {
+      continue;
+    }
+
+    const match = line.match(/^  - ['"]([^'"]+)['"]\s*$/u);
+    if (match) {
+      packageGlobs.push(match[1]);
+    }
+  }
+
+  return packageGlobs;
+}
+
 function scanForLegacyReferences(absolutePath) {
   if (!fs.existsSync(absolutePath)) {
     return;
@@ -323,18 +349,19 @@ function assertWorkspaceTargetsBirdCoderPackages() {
   }
 
   const source = fs.readFileSync(workspaceConfigPath, 'utf8');
-  const pcGlob = source.match(/'apps\/sdkwork-birdcoder-pc\/packages\/sdkwork-birdcoder-pc-\*'/g) ?? [];
-  const h5Glob = source.match(/'apps\/sdkwork-birdcoder-h5\/packages\/sdkwork-birdcoder-h5-\*'/g) ?? [];
+  const workspacePackageGlobs = collectWorkspacePackageGlobs(source);
+  const pcGlobCount = workspacePackageGlobs.filter((entry) => entry === 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*').length;
+  const h5GlobCount = workspacePackageGlobs.filter((entry) => entry === 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*').length;
 
-  if (pcGlob.length !== 1) {
+  if (pcGlobCount !== 1) {
     errors.push("pnpm-workspace.yaml must include exactly one 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*' workspace glob.");
   }
 
-  if (h5Glob.length !== 1) {
+  if (h5GlobCount !== 1) {
     errors.push("pnpm-workspace.yaml must include exactly one 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*' workspace glob.");
   }
 
-  if (source.includes("'packages/*'") || source.includes("'packages/sdkwork-birdcoder-*'")) {
+  if (workspacePackageGlobs.includes('packages/*') || workspacePackageGlobs.includes('packages/sdkwork-birdcoder-*')) {
     errors.push('pnpm-workspace.yaml must not include retired root packages/* or packages/sdkwork-birdcoder-* workspace globs.');
   }
 

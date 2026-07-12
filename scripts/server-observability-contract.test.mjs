@@ -9,6 +9,8 @@ function readText(relativePath) {
 }
 
 const routerSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/routers.rs');
+const bootstrapSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/mod.rs');
+const healthSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/health.rs');
 const mainSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/main.rs');
 const authSource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/auth.rs');
 const observabilitySource = readText('crates/sdkwork-birdcoder-standalone-gateway/src/observability.rs');
@@ -57,6 +59,21 @@ assert.match(
   'Metrics handler must render Prometheus text from HttpMetricsRegistry.',
 );
 assert.match(
+  healthSource,
+  /installed_iam_database_host/u,
+  'Readiness must reuse the installed IAM database host instead of opening a second pool.',
+);
+assert.doesNotMatch(
+  healthSource,
+  /create_pool_from_env\(IAM_SERVICE_NAME\)/u,
+  'Readiness must not create an independent IAM database pool from process environment.',
+);
+assert.match(
+  bootstrapSource,
+  /routers::build_router\(state, config\)\.await\?;\s*crate::health::init_iam_pool\(\)\.await;/su,
+  'Readiness must initialize IAM pool state only after the IAM router completes bootstrap.',
+);
+assert.match(
   smokeSource,
   /\/metrics/u,
   'API server bootstrap smoke tests must cover the /metrics endpoint.',
@@ -68,8 +85,13 @@ assert.match(
 );
 assert.match(
   valuesSource,
-  /path: \/health/u,
-  'Kubernetes probes must use the unauthenticated /health endpoint.',
+  /path: \/healthz/u,
+  'Kubernetes liveness probes must use the unauthenticated /healthz endpoint.',
+);
+assert.match(
+  valuesSource,
+  /path: \/readyz/u,
+  'Kubernetes readiness probes must use the unauthenticated /readyz endpoint.',
 );
 assert.match(
   valuesSource,

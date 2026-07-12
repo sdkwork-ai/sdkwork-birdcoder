@@ -71,6 +71,10 @@ export function publishBirdCoderEmbeddedSdkRuntimeEnv(apiBaseUrl: string): void 
     VITE_SDKWORK_BACKEND_API_BASE_URL: apiBaseUrl,
     VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL: apiBaseUrl,
     VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL: apiBaseUrl,
+    VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
+    VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET: 'desktop',
+    VITE_SDKWORK_DEPLOYMENT_PROFILE: 'standalone',
+    VITE_SDKWORK_RUNTIME_TARGET: 'desktop',
   });
 }
 

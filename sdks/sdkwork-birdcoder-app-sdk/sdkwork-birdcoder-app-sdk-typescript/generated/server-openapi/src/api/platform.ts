@@ -1,12 +1,12 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderCommitProjectGitChangesRequest, BirdCoderCreateProjectGitBranchRequest, BirdCoderCreateProjectGitWorktreeRequest, BirdCoderCreateProjectRequest, BirdCoderCreateWorkspaceRequest, BirdCoderDeletedResourceResult, BirdCoderDeploymentRecordSummary, BirdCoderDeploymentTargetSummary, BirdCoderProjectCollaboratorSummary, BirdCoderProjectGitOverview, BirdCoderProjectPublishResult, BirdCoderProjectSummary, BirdCoderPublishProjectRequest, BirdCoderPushProjectGitBranchRequest, BirdCoderRemoveProjectGitWorktreeRequest, BirdCoderSwitchProjectGitBranchRequest, BirdCoderUpdateProjectRequest, BirdCoderUpdateWorkspaceRequest, BirdCoderUpsertProjectCollaboratorRequest, BirdCoderWorkspaceSummary, PageInfo, ProblemDetail } from '../types';
+import type { BirdCoderCommitProjectGitChangesRequest, BirdCoderCreateProjectGitBranchRequest, BirdCoderCreateProjectGitWorktreeRequest, BirdCoderCreateProjectRequest, BirdCoderCreateWorkspaceRequest, BirdCoderDeploymentRecordSummary, BirdCoderDeploymentTargetSummary, BirdCoderProjectCollaboratorSummary, BirdCoderProjectGitOverview, BirdCoderProjectPublishResult, BirdCoderProjectSummary, BirdCoderPublishProjectRequest, BirdCoderPushProjectGitBranchRequest, BirdCoderRemoveProjectGitWorktreeRequest, BirdCoderSwitchProjectGitBranchRequest, BirdCoderUpdateProjectRequest, BirdCoderUpdateWorkspaceRequest, BirdCoderUpsertProjectCollaboratorRequest, BirdCoderWorkspaceSummary, PageInfo } from '../types';
 
 
 export interface PlatformDeploymentsListParams {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class PlatformDeploymentsApi {
@@ -20,47 +20,24 @@ export class PlatformDeploymentsApi {
 /** List deployments */
   async list(params?: PlatformDeploymentsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/deployments`), query));
   }
 }
 
-export interface PlatformWorkspacesRealtimeSubscribeParams {
-  sessionId?: string;
-}
-
-export class PlatformWorkspacesRealtimeApi {
-  private client: HttpClient;
-
-  constructor(client: HttpClient) {
-    this.client = client;
-  }
-
-
-/** Subscribe to workspace realtime invalidation events */
-  async subscribe(workspaceId: string, params?: PlatformWorkspacesRealtimeSubscribeParams): Promise<ProblemDetail> {
-    const query = buildQueryString([
-      { name: 'sessionId', value: params?.sessionId, style: 'form', explode: true, allowReserved: false },
-    ]);
-    return this.client.get<ProblemDetail>(appendQueryString(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}/realtime`), query));
-  }
-}
-
 export interface PlatformWorkspacesListParams {
   userId?: string;
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class PlatformWorkspacesApi {
   private client: HttpClient;
-  public readonly realtime: PlatformWorkspacesRealtimeApi;
 
   constructor(client: HttpClient) {
     this.client = client;
-    this.realtime = new PlatformWorkspacesRealtimeApi(client);
   }
 
 
@@ -73,15 +50,15 @@ export class PlatformWorkspacesApi {
   async list(params?: PlatformWorkspacesListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
       { name: 'userId', value: params?.userId, style: 'form', explode: true, allowReserved: false },
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/workspaces`), query));
   }
 
 /** Delete workspace */
-  async delete(workspaceId: string): Promise<BirdCoderDeletedResourceResult> {
-    return this.client.delete<BirdCoderDeletedResourceResult>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}`));
+  async delete(workspaceId: string): Promise<void> {
+    return this.client.delete<void>(appApiPath(`/workspaces/${serializePathParameter(workspaceId, { name: 'workspaceId', style: 'simple', explode: false })}`));
   }
 
 /** Get workspace */
@@ -104,7 +81,7 @@ export class PlatformProjectsPublishApi {
 
 
 /** Publish project release flow */
-  async create(projectId: string, body?: BirdCoderPublishProjectRequest): Promise<BirdCoderProjectPublishResult> {
+  async publish(projectId: string, body?: BirdCoderPublishProjectRequest): Promise<BirdCoderProjectPublishResult> {
     return this.client.post<BirdCoderProjectPublishResult>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/publish`), body, undefined, undefined, 'application/json');
   }
 }
@@ -247,8 +224,8 @@ export class PlatformProjectsGitApi {
 }
 
 export interface PlatformProjectsDeploymentTargetsListParams {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class PlatformProjectsDeploymentTargetsApi {
@@ -262,16 +239,16 @@ export class PlatformProjectsDeploymentTargetsApi {
 /** List project deployment targets */
   async list(projectId: string, params?: PlatformProjectsDeploymentTargetsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/deployment_targets`), query));
   }
 }
 
 export interface PlatformProjectsCollaboratorsListParams {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class PlatformProjectsCollaboratorsApi {
@@ -283,15 +260,15 @@ export class PlatformProjectsCollaboratorsApi {
 
 
 /** Upsert project collaborator */
-  async upsert(projectId: string, body: BirdCoderUpsertProjectCollaboratorRequest): Promise<BirdCoderProjectCollaboratorSummary> {
+  async create(projectId: string, body: BirdCoderUpsertProjectCollaboratorRequest): Promise<BirdCoderProjectCollaboratorSummary> {
     return this.client.post<BirdCoderProjectCollaboratorSummary>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/collaborators`), body, undefined, undefined, 'application/json');
   }
 
 /** List project collaborators */
   async list(projectId: string, params?: PlatformProjectsCollaboratorsListParams): Promise<Record<string, unknown>> {
     const query = buildQueryString([
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/collaborators`), query));
   }
@@ -301,8 +278,8 @@ export interface PlatformProjectsListParams {
   userId?: string;
   workspaceId?: string;
   rootPath?: string;
-  limit?: number;
-  offset?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export class PlatformProjectsApi {
@@ -332,15 +309,15 @@ export class PlatformProjectsApi {
       { name: 'userId', value: params?.userId, style: 'form', explode: true, allowReserved: false },
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
       { name: 'rootPath', value: params?.rootPath, style: 'form', explode: true, allowReserved: false },
-      { name: 'limit', value: params?.limit, style: 'form', explode: true, allowReserved: false },
-      { name: 'offset', value: params?.offset, style: 'form', explode: true, allowReserved: false },
+      { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
+      { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);
     return this.client.get<Record<string, unknown>>(appendQueryString(appApiPath(`/projects`), query));
   }
 
 /** Delete project */
-  async delete(projectId: string): Promise<BirdCoderDeletedResourceResult> {
-    return this.client.delete<BirdCoderDeletedResourceResult>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}`));
+  async delete(projectId: string): Promise<void> {
+    return this.client.delete<void>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}`));
   }
 
 /** Get project */

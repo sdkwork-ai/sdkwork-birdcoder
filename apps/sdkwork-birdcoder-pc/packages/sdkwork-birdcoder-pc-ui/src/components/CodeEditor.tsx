@@ -10,6 +10,11 @@ import {
   observeBirdCoderMonacoLayout,
 } from './monacoRuntime';
 import { cn } from '@sdkwork/birdcoder-pc-ui-shell';
+import {
+  claimEditorCommandTarget,
+  ownsEditorCommandTarget,
+  releaseEditorCommandTarget,
+} from './editorCommandFocus';
 
 export interface CodeEditorProps {
   className?: string;
@@ -20,7 +25,9 @@ export interface CodeEditorProps {
   language: string;
   loadingLabel?: string;
   onChange?: (value: string | undefined) => void;
+  path?: string;
   readOnly?: boolean;
+  retainedModelPaths?: readonly string[];
   showLanguageBadge?: boolean;
   showToolbar?: boolean;
   themeDefinition?: Record<string, unknown>;
@@ -79,7 +86,9 @@ export function CodeEditor({
   language,
   loadingLabel = 'Initializing Editor...',
   onChange,
+  path,
   readOnly = false,
+  retainedModelPaths,
   showLanguageBadge = true,
   showToolbar = true,
   themeDefinition = DEFAULT_CODE_EDITOR_THEME_DEFINITION,
@@ -88,6 +97,8 @@ export function CodeEditor({
 }: CodeEditorProps) {
   const monaco = useMonaco();
   const editorRef = useRef<any>(null);
+  const ownedModelPathsRef = useRef(new Set<string>());
+  const editorCommandTargetRef = useRef<object>({});
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const overflowWidgetsDomNode = useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
   const [wordWrap, setWordWrap] = useState<'on' | 'off'>(defaultWordWrap);
@@ -109,15 +120,30 @@ export function CodeEditor({
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
     setMountedEditor(editor);
+    if (editor.hasTextFocus?.()) {
+      claimEditorCommandTarget(editorCommandTargetRef.current);
+    }
   };
 
-  const handleFormat = () => {
-    if (!editorRef.current) {
+  const handleFormat = async () => {
+    const editor = editorRef.current;
+    if (!editor) {
       return;
     }
 
-    editorRef.current.getAction('editor.action.formatDocument').run();
-    addToast('Document formatted', 'success');
+    const formatAction = editor.getAction?.('editor.action.formatDocument');
+    if (!formatAction?.run) {
+      addToast('Formatting is unavailable for this document', 'error');
+      return;
+    }
+
+    try {
+      await formatAction.run();
+      addToast('Document formatted', 'success');
+    } catch (error) {
+      console.error('Failed to format document', error);
+      addToast('Unable to format document', 'error');
+    }
   };
 
   const handleCopy = async () => {
@@ -147,6 +173,9 @@ export function CodeEditor({
       }
 
       const editor = editorRef.current;
+      if (!ownsEditorCommandTarget(editorCommandTargetRef.current)) {
+        return;
+      }
       switch (command) {
         case 'undo':
           editor.trigger('keyboard', 'undo', null);
@@ -181,6 +210,11 @@ export function CodeEditor({
     };
   }, []);
 
+  useEffect(
+    () => () => releaseEditorCommandTarget(editorCommandTargetRef.current),
+    [],
+  );
+
   useEffect(() => {
     if (!monaco) {
       return;
@@ -189,6 +223,41 @@ export function CodeEditor({
     configureBirdCoderMonacoTypeScriptDefaults(monaco as never);
     applyBirdCoderMonacoTheme(monaco as never, themeId, themeDefinition);
   }, [monaco, themeDefinition, themeId]);
+
+  useEffect(() => {
+    if (!monaco || !path) {
+      return;
+    }
+
+    ownedModelPathsRef.current.add(path);
+    const retainedPaths = new Set(retainedModelPaths ?? [path]);
+    retainedPaths.add(path);
+    for (const ownedPath of ownedModelPathsRef.current) {
+      if (retainedPaths.has(ownedPath)) {
+        continue;
+      }
+
+      monaco.editor.getModel(monaco.Uri.parse(ownedPath))?.dispose();
+      ownedModelPathsRef.current.delete(ownedPath);
+    }
+  }, [monaco, path, retainedModelPaths]);
+
+  useEffect(() => {
+    if (!monaco) {
+      return undefined;
+    }
+
+    return () => {
+      const activeModel = editorRef.current?.getModel?.();
+      for (const ownedPath of ownedModelPathsRef.current) {
+        const model = monaco.editor.getModel(monaco.Uri.parse(ownedPath));
+        if (model && model !== activeModel) {
+          model.dispose();
+        }
+      }
+      ownedModelPathsRef.current.clear();
+    };
+  }, [monaco]);
 
   useEffect(() => {
     const container = editorContainerRef.current;
@@ -230,6 +299,7 @@ export function CodeEditor({
   return (
     <div
       ref={editorContainerRef}
+      onFocusCapture={() => claimEditorCommandTarget(editorCommandTargetRef.current)}
       className={cn(
         'relative h-full w-full flex-1 animate-in fade-in duration-500 fill-mode-both group',
         className,
@@ -297,6 +367,8 @@ export function CodeEditor({
         loading={loadingComponent}
         onChange={onChange}
         onMount={handleEditorDidMount}
+        path={path}
+        saveViewState={Boolean(path)}
         options={{
           overflowWidgetsDomNode: overflowWidgetsDomNode,
           fixedOverflowWidgets: true,

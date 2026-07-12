@@ -7,12 +7,13 @@ import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/s
 const root = path.resolve(import.meta.dirname, '..');
 
 for (const engine of listWorkbenchCliEngines()) {
-  const cliFallbackLane = engine.descriptor.accessPlan?.lanes.find(
-    (lane) => lane.transportKind === 'cli-jsonl',
-  );
+    const cliLane = engine.descriptor.accessPlan?.lanes.find(
+      (lane) => lane.transportKind === 'cli-jsonl',
+    );
   if (engine.executionTopology.bridgeRequired) {
-    assert.ok(cliFallbackLane, `${engine.id} must declare a CLI JSONL fallback lane in catalog metadata`);
-    assert.equal(cliFallbackLane?.status, 'ready');
+    assert.ok(cliLane, `${engine.id} must declare a CLI JSONL lane in catalog metadata`);
+    assert.equal(cliLane?.status, 'ready');
+    assert.equal(engine.descriptor.accessPlan?.primaryLaneId, cliLane?.laneId);
   }
 }
 
@@ -20,6 +21,11 @@ const kernelBridgeSource = readFileSync(
   path.join(root, 'crates/sdkwork-birdcoder-kernel-bridge/src/engine_registry.rs'),
   'utf8',
 );
-assert.match(kernelBridgeSource, /sdkwork-agent-adapter/);
+assert.match(kernelBridgeSource, /sdkwork_agents_runtime_facade/);
+assert.doesNotMatch(
+  kernelBridgeSource,
+  /sdkwork-agent-adapter/,
+  'BirdCoder must reach Provider transport through the agents runtime facade instead of a direct adapter dependency.',
+);
 
 console.log('provider cli fallback contract passed.');

@@ -1,10 +1,10 @@
 import { type ReactNode, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAuth } from '@sdkwork/birdcoder-pc-commons';
+import { useAuth } from '@sdkwork/birdcoder-pc-commons/context/AuthContext';
 import {
   AUTH_SURFACE_DEFAULT_ROUTE,
   replaceAuthSurfaceHashPath,
-} from '@sdkwork/birdcoder-pc-auth';
+} from '@sdkwork/birdcoder-pc-auth/authSurface';
 
 interface BirdCoderH5ProtectedRouteProps {
   children: ReactNode;

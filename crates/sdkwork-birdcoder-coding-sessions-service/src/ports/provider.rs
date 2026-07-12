@@ -1,12 +1,6 @@
 use crate::context::CodingSessionContext;
-use crate::domain::commands::{
-    SubmitApprovalDecisionInput,
-    SubmitUserQuestionAnswerInput,
-};
-use crate::domain::results::{
-    FinalizedProjectionTurnExecution,
-    PendingProjectionTurnExecution,
-};
+use crate::domain::commands::{SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput};
+use crate::domain::results::{FinalizedProjectionTurnExecution, PendingProjectionTurnExecution};
 use crate::error::CodingSessionError;
 
 #[async_trait::async_trait]

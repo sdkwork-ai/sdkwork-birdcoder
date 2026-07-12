@@ -8,6 +8,11 @@ import {
   configureBirdCoderMonacoTypeScriptDefaults,
   observeBirdCoderMonacoLayout,
 } from './monacoRuntime';
+import {
+  claimEditorCommandTarget,
+  ownsEditorCommandTarget,
+  releaseEditorCommandTarget,
+} from './editorCommandFocus';
 
 export interface DiffEditorProps {
   language: string;
@@ -24,6 +29,9 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
   const { addToast } = useToast();
 
   const editorRef = useRef<any>(null);
+  const editorCommandTargetRef = useRef<object>({});
+  const focusedDiffEditorRef = useRef<any>(null);
+  const focusDisposablesRef = useRef<Array<{ dispose(): void }>>([]);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const overflowWidgetsDomNode = useMemo(() => resolveMonacoOverflowWidgetsDomNode(), []);
   const [mountedEditor, setMountedEditor] = useState<any | null>(null);
@@ -71,6 +79,26 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
   const handleEditorDidMount = (editor: any) => {
     editorRef.current = editor;
     setMountedEditor(editor);
+    const modifiedEditor = editor.getModifiedEditor?.();
+    const originalEditor = editor.getOriginalEditor?.();
+    focusDisposablesRef.current.forEach((disposable) => disposable.dispose());
+    focusDisposablesRef.current = [modifiedEditor, originalEditor].flatMap((candidate) =>
+      candidate?.onDidFocusEditorText
+        ? [candidate.onDidFocusEditorText(() => {
+            focusedDiffEditorRef.current = candidate;
+            claimEditorCommandTarget(editorCommandTargetRef.current);
+          })]
+        : [],
+    );
+    const focusedEditor = modifiedEditor?.hasTextFocus?.()
+      ? modifiedEditor
+      : originalEditor?.hasTextFocus?.()
+        ? originalEditor
+        : null;
+    if (focusedEditor) {
+      focusedDiffEditorRef.current = focusedEditor;
+      claimEditorCommandTarget(editorCommandTargetRef.current);
+    }
   };
 
   useEffect(() => {
@@ -80,7 +108,8 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
   useEffect(() => {
     const handleEditorCommand = (command: string) => {
       if (!editorRef.current) return;
-      const editor = editorRef.current.getModifiedEditor();
+      if (!ownsEditorCommandTarget(editorCommandTargetRef.current)) return;
+      const editor = focusedDiffEditorRef.current ?? editorRef.current.getModifiedEditor();
       if (!editor) return;
       switch (command) {
         case 'undo': editor.trigger('keyboard', 'undo', null); break;
@@ -99,6 +128,15 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
       globalEventBus.off('editorCommand', handleEditorCommand);
     };
   }, []);
+
+  useEffect(
+    () => () => {
+      focusDisposablesRef.current.forEach((disposable) => disposable.dispose());
+      focusDisposablesRef.current = [];
+      releaseEditorCommandTarget(editorCommandTargetRef.current);
+    },
+    [],
+  );
 
   const toggleWordWrap = () => {
     setWordWrap(prev => {
@@ -170,6 +208,7 @@ export function DiffEditor({ language, original, modified, readOnly = false, ren
   return (
     <div
       ref={editorContainerRef}
+      onFocusCapture={() => claimEditorCommandTarget(editorCommandTargetRef.current)}
       className="flex-1 h-full w-full animate-in fade-in duration-500 fill-mode-both relative group"
     >
       {/* Floating Toolbar */}

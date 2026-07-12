@@ -13,10 +13,10 @@
     "archiveFormat":  "tar.gz",
     "archiveRelativePath":  "server/win32/x64/sdkwork-birdcoder-server-release-local.tar.gz",
     "artifacts":  [
-                      {
-                          "relativePath":  "server/win32/x64/openapi/coding-server-v1.json",
-                          "size":  481337
-                      },
+                          {
+                              "relativePath":  "server/win32/x64/openapi/coding-server-v1.json",
+                          "size":  600434
+                          },
                       {
                           "relativePath":  "server/win32/x64/sdkwork-birdcoder-server-release-local.tar.gz",
                           "size":  235986474

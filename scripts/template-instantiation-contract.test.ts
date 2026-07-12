@@ -1,10 +1,4 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import path from 'node:path';
-
-const rootDir = process.cwd();
-const { buildCanonicalDocPathIndex, readCanonicalDoc } = await import('./lib/canonical-doc-paths.mjs');
-const canonicalDocIndex = buildCanonicalDocPathIndex(rootDir);
 const typesEntryModulePath = new URL(
   '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-types/src/index.ts',
   import.meta.url,
@@ -48,41 +42,5 @@ assert.equal(
   BIRDCODER_APP_TEMPLATE_STORAGE_BINDINGS.every((binding) => binding.storageMode === 'table'),
   true,
 );
-
-const architectureSource = readCanonicalDoc(
-  rootDir,
-  'docs/架构/13-规则-技能-MCP-知识系统标准.md',
-  canonicalDocIndex,
-).source;
-const runtimeSource = readCanonicalDoc(
-  rootDir,
-  'docs/架构/19-统一会话运行时-Prompt-SkillHub-AppTemplate标准.md',
-  canonicalDocIndex,
-).source;
-const stepSource = readCanonicalDoc(
-  rootDir,
-  'docs/step/16-Prompt-SkillHub-AppTemplate-项目模板体系.md',
-  canonicalDocIndex,
-).source;
-const promptSource = fs.readFileSync(
-  path.join(rootDir, 'docs/prompts/反复执行Step指令.md'),
-  'utf8',
-);
-
-for (const token of [
-  'web',
-  'desktop',
-  'server',
-  'fullstack',
-  'plugin',
-  'agent-tooling',
-  'app_template_instantiation',
-]) {
-  assert.match(architectureSource, new RegExp(token));
-  assert.match(runtimeSource, new RegExp(token));
-}
-
-assert.match(stepSource, /test:template-instantiation-contract/);
-assert.match(promptSource, /test:template-instantiation-contract/);
 
 console.log('template instantiation contract passed.');

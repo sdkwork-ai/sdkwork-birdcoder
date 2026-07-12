@@ -51,49 +51,82 @@ const BIRDCODER_VITE_DEV_WATCH_IGNORED = [
 ];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_KEY = '__SDKWORK_PC_REACT_ENV__';
 const BIRDCODER_CREDENTIAL_ENTRY_ENV_KEY = '__SDKWORK_IAM_CREDENTIAL_ENTRY_ENV__';
-const BIRDCODER_PUBLIC_RUNTIME_ENV_PREFIXES = ['SDKWORK_', 'VITE_'];
 const BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS = ['DEV', 'MODE', 'NODE_ENV', 'PROD'];
-const BIRDCODER_PUBLIC_RUNTIME_ENV_DENYLIST = new Set([
-  'SDKWORK_ACCESS_TOKEN',
-  'SDKWORK_AUTH_TOKEN',
-  'SDKWORK_REFRESH_TOKEN',
-  'SDKWORK_API_KEY',
+const BIRDCODER_PUBLIC_RUNTIME_ENV_ALLOWED_KEYS = new Set([
+  ...BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS,
+  'SDKWORK_RUNTIME_TARGET',
+  'SDKWORK_VITE_MODE',
+  'SDKWORK_BIRDCODER_APP_API_BASE_URL',
+  'SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
+  'SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
+  'SDKWORK_BIRDCODER_RUNTIME_TARGET',
+  'VITE_BIRDCODER_API_BASE_URL',
+  'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE',
+  'VITE_BIRDCODER_APP_API_BASE_URL',
+  'VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT',
+  'VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL',
+  'VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE',
+  'VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD',
+  'VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED',
+  'VITE_BIRDCODER_AUTH_DEV_VERIFICATION_CODE',
+  'VITE_BIRDCODER_AUTH_DEV_VERIFICATION_CODE_ENABLED',
+  'VITE_BIRDCODER_AUTH_DEV_VERIFICATION_CODE_PREFILL_ENABLED',
+  'VITE_BIRDCODER_OFFICIAL_WEBSITE_URL',
+  'VITE_BIRDCODER_PRIVACY_POLICY_URL',
+  'VITE_BIRDCODER_SUPPORT_URL',
+  'VITE_BIRDCODER_TERMS_OF_SERVICE_URL',
+  'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
+  'VITE_SDKWORK_APP_API_BASE_URL',
+  'VITE_SDKWORK_BIRDCODER_API_BASE_URL',
+  'VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL',
+  'VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
+  'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
+  'VITE_SDKWORK_BIRDCODER_IAM_DEPLOYMENT_MODE',
+  'VITE_SDKWORK_BIRDCODER_OFFICIAL_WEBSITE_URL',
+  'VITE_SDKWORK_BIRDCODER_PRIVACY_POLICY_URL',
+  'VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET',
+  'VITE_SDKWORK_BIRDCODER_SUPPORT_URL',
+  'VITE_SDKWORK_BIRDCODER_TERMS_OF_SERVICE_URL',
+  'VITE_SDKWORK_DEPLOYMENT_MODE',
+  'VITE_SDKWORK_DEPLOYMENT_PROFILE',
+  'VITE_SDKWORK_DRIVE_APP_API_BASE_URL',
+  'VITE_SDKWORK_ENVIRONMENT',
+  'VITE_SDKWORK_IAM_APP_API_BASE_URL',
+  'VITE_SDKWORK_MESSAGING_APP_API_BASE_URL',
+  'VITE_SDKWORK_RUNTIME_TARGET',
+  'VITE_SDKWORK_AUTH_DEV_DEFAULT_ACCOUNT',
+  'VITE_SDKWORK_AUTH_DEV_DEFAULT_EMAIL',
+  'VITE_SDKWORK_AUTH_DEV_DEFAULT_PHONE',
+  'VITE_SDKWORK_AUTH_DEV_DEFAULT_LOGIN_METHOD',
+  'VITE_SDKWORK_AUTH_DEV_PREFILL_ENABLED',
+  'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE',
+  'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE_ENABLED',
+  'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE_PREFILL_ENABLED',
 ]);
-const BIRDCODER_PUBLIC_RUNTIME_ENV_DENY_SUFFIXES = [
-  '_SECRET',
-  '_PASSWORD',
-  '_DATABASE_URL',
-  '_DATABASE_PASSWORD',
-  '_REDIS_PASSWORD',
-  '_REDIS_URL',
-];
-const BIRDCODER_PUBLIC_RUNTIME_ENV_DENY_SUBSTRINGS = [
-  '_AUTH_DEV_DEFAULT_PASSWORD',
-  '_DEV_DEFAULT_PASSWORD',
-];
+const BIRDCODER_PUBLIC_RUNTIME_ENV_DEV_ONLY_KEYS = new Set([
+  'VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT',
+  'VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL',
+  'VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE',
+  'VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD',
+  'VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED',
+  'VITE_BIRDCODER_AUTH_DEV_VERIFICATION_CODE',
+  'VITE_BIRDCODER_AUTH_DEV_VERIFICATION_CODE_ENABLED',
+  'VITE_BIRDCODER_AUTH_DEV_VERIFICATION_CODE_PREFILL_ENABLED',
+  'VITE_SDKWORK_AUTH_DEV_DEFAULT_ACCOUNT',
+  'VITE_SDKWORK_AUTH_DEV_DEFAULT_EMAIL',
+  'VITE_SDKWORK_AUTH_DEV_DEFAULT_PHONE',
+  'VITE_SDKWORK_AUTH_DEV_DEFAULT_LOGIN_METHOD',
+  'VITE_SDKWORK_AUTH_DEV_PREFILL_ENABLED',
+  'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE',
+  'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE_ENABLED',
+  'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE_PREFILL_ENABLED',
+]);
 
 export function isBirdcoderPublicRuntimeEnvKey(key) {
   if (typeof key !== 'string' || key.length === 0) {
     return false;
   }
-
-  if (BIRDCODER_PUBLIC_RUNTIME_ENV_DENYLIST.has(key)) {
-    return false;
-  }
-
-  if (BIRDCODER_PUBLIC_RUNTIME_ENV_DENY_SUFFIXES.some((suffix) => key.endsWith(suffix))) {
-    return false;
-  }
-
-  if (BIRDCODER_PUBLIC_RUNTIME_ENV_DENY_SUBSTRINGS.some((fragment) => key.includes(fragment))) {
-    return false;
-  }
-
-  if (BIRDCODER_PUBLIC_RUNTIME_ENV_EXACT_KEYS.includes(key)) {
-    return true;
-  }
-
-  return BIRDCODER_PUBLIC_RUNTIME_ENV_PREFIXES.some((prefix) => key.startsWith(prefix));
+  return BIRDCODER_PUBLIC_RUNTIME_ENV_ALLOWED_KEYS.has(key);
 }
 
 export function resolveBirdcoderProductionMinify(mode) {
@@ -303,11 +336,11 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: '@sdkwork/iam-app-sdk',
-      replacement: resolveDependencyPath('sdkwork-iam', 'sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts'),
+      replacement: resolveDependencyPath('sdkwork-iam', 'sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts'),
     },
     {
       find: '@sdkwork/iam-backend-sdk',
-      replacement: resolveDependencyPath('sdkwork-iam', 'sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi/src/index.ts'),
+      replacement: resolveDependencyPath('sdkwork-iam', 'sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/src/index.ts'),
     },
     {
       find: /^@sdkwork\/auth-runtime-pc-react\/(.+)$/u,
@@ -344,6 +377,111 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     {
       find: '@sdkwork/wallet-pc-react',
       replacement: resolveDependencyPath('sdkwork-appbase', 'packages/pc-react/commerce/sdkwork-wallet-pc-react/src/index.ts'),
+    },
+    // --- sdkwork-membership (membership + subscription PC packages) ---
+    {
+      find: /^@sdkwork\/membership-pc-membership\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership/src/$1'),
+    },
+    {
+      find: '@sdkwork/membership-pc-membership',
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership/src/index.ts'),
+    },
+    {
+      find: /^@sdkwork\/membership-pc-subscription\/catalog$/u,
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src/catalog.ts'),
+    },
+    {
+      find: /^@sdkwork\/membership-pc-subscription\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src/$1'),
+    },
+    {
+      find: '@sdkwork/membership-pc-subscription',
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription/src/index.ts'),
+    },
+    // --- sdkwork-promotion (promotion PC coupon + service + core) ---
+    {
+      find: /^@sdkwork\/promotion-pc-coupon\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon/src/$1'),
+    },
+    {
+      find: '@sdkwork/promotion-pc-coupon',
+      replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon/src/index.ts'),
+    },
+    {
+      find: /^@sdkwork\/promotion-pc-core\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-core/src/$1'),
+    },
+    {
+      find: '@sdkwork/promotion-pc-core',
+      replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-core/src/index.ts'),
+    },
+    {
+      find: /^@sdkwork\/promotion-service\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-common/packages/sdkwork-promotion-service/src/$1'),
+    },
+    {
+      find: '@sdkwork/promotion-service',
+      replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-common/packages/sdkwork-promotion-service/src/index.ts'),
+    },
+    {
+      find: /^@sdkwork\/promotion-contracts\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-common/packages/sdkwork-promotion-contracts/src/$1'),
+    },
+    {
+      find: '@sdkwork/promotion-contracts',
+      replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-common/packages/sdkwork-promotion-contracts/src/index.ts'),
+    },
+    {
+      find: /^@sdkwork\/promotion-sdk-ports\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-common/packages/sdkwork-promotion-sdk-ports/src/$1'),
+    },
+    {
+      find: '@sdkwork/promotion-sdk-ports',
+      replacement: resolveDependencyPath('sdkwork-promotion', 'apps/sdkwork-promotion-common/packages/sdkwork-promotion-sdk-ports/src/index.ts'),
+    },
+    // --- sdkwork-membership-service (membership service layer) ---
+    {
+      find: /^@sdkwork\/membership-service\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-service/src/$1'),
+    },
+    {
+      find: '@sdkwork/membership-service',
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-service/src/index.ts'),
+    },
+    {
+      find: /^@sdkwork\/membership-sdk-ports\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-sdk-ports/src/$1'),
+    },
+    {
+      find: '@sdkwork/membership-sdk-ports',
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-sdk-ports/src/index.ts'),
+    },
+    {
+      find: /^@sdkwork\/membership-contracts\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-contracts/src/$1'),
+    },
+    {
+      find: '@sdkwork/membership-contracts',
+      replacement: resolveDependencyPath('sdkwork-membership', 'apps/sdkwork-membership-common/packages/sdkwork-membership-contracts/src/index.ts'),
+    },
+    // --- sdkwork-order (order app SDK, dependency of membership-service) ---
+    {
+      find: /^@sdkwork\/order-app-sdk\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-order', 'sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/$1'),
+    },
+    {
+      find: '@sdkwork/order-app-sdk',
+      replacement: resolveDependencyPath('sdkwork-order', 'sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript/src/index.ts'),
+    },
+    // --- sdkwork-membership SDK (membership app SDK, dependency of membership-service) ---
+    {
+      find: /^@sdkwork\/membership-app-sdk\/(.+)$/u,
+      replacement: resolveDependencyPath('sdkwork-membership', 'sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/$1'),
+    },
+    {
+      find: '@sdkwork/membership-app-sdk',
+      replacement: resolveDependencyPath('sdkwork-membership', 'sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript/src/index.ts'),
     },
     {
       find: /^@sdkwork\/search-pc-react\/(.+)$/u,
@@ -403,7 +541,7 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
     },
     {
       find: '@sdkwork/messaging-app-sdk',
-      replacement: resolveDependencyPath('sdkwork-messaging', 'sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts'),
+      replacement: resolveDependencyPath('sdkwork-messaging', 'sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/src/index.ts'),
     },
     {
       find: '@sdkwork/agents-app-sdk',
@@ -464,6 +602,9 @@ function createBirdcoderWorkspaceFsAllowList(appRootDir = defaultBirdcoderAppRoo
     resolveDependencyRootDir('sdkwork-search'),
     resolveDependencyRootDir('sdkwork-ui'),
     resolveDependencyRootDir('sdkwork-terminal'),
+    resolveDependencyRootDir('sdkwork-membership'),
+    resolveDependencyRootDir('sdkwork-promotion'),
+    resolveDependencyRootDir('sdkwork-order'),
   ];
 }
 
@@ -661,7 +802,9 @@ function resolveBirdcoderPublicRuntimeEnv(runtimeEnvSource = {}, mode = 'develop
         return false;
       }
 
-      return isBirdcoderPublicRuntimeEnvKey(key);
+      return isBirdcoderPublicRuntimeEnvKey(key)
+        && ((mode === 'development' || mode === 'test')
+          || !BIRDCODER_PUBLIC_RUNTIME_ENV_DEV_ONLY_KEYS.has(key));
     }),
   );
 
@@ -1407,7 +1550,10 @@ function createBirdcoderSharedRouterCompatPlugin({
   return plugin;
 }
 
-function resolveBirdcoderCredentialEntryBootstrapAccessToken(runtimeEnvSource = {}) {
+function resolveBirdcoderCredentialEntryBootstrapAccessToken(runtimeEnvSource = {}, mode = 'development') {
+  if (mode !== 'development' && mode !== 'test') {
+    return undefined;
+  }
   const token = String(runtimeEnvSource.SDKWORK_ACCESS_TOKEN ?? '').trim();
   return token || undefined;
 }
@@ -1440,9 +1586,10 @@ function isCredentialEntryBootstrapTokenModule(id) {
 
 function createBirdcoderCredentialEntryBootstrapPlugin({
   runtimeEnvSource = process.env,
+  mode = 'development',
   namespace = defaultBirdcoderNamespace,
 } = {}) {
-  const bootstrapAccessToken = resolveBirdcoderCredentialEntryBootstrapAccessToken(runtimeEnvSource);
+  const bootstrapAccessToken = resolveBirdcoderCredentialEntryBootstrapAccessToken(runtimeEnvSource, mode);
 
   /** @type {BirdcoderOpaqueVitePlugin} */
   const plugin = {
@@ -1553,6 +1700,7 @@ function createBirdcoderVitePlugins({
     }),
     createBirdcoderCredentialEntryBootstrapPlugin({
       runtimeEnvSource,
+      mode,
       namespace,
     }),
     createBirdcoderSharedRouterCompatPlugin({

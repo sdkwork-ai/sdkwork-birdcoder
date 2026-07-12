@@ -17,7 +17,7 @@
     "generated": true,
     "private": true,
     "manifests": [
-      ".sdkwork-assembly.json"
+      "sdk-manifest.json"
     ]
   },
   "canonicalSpecs": [
@@ -97,7 +97,7 @@
       "sdkwork_birdcoder_app_sdk"
     ],
     "runtimeEntrypoints": [
-      ".sdkwork-assembly.json"
+      "sdk-manifest.json"
     ],
     "sdkDependencies": [
       {
@@ -145,7 +145,7 @@
     ],
     "events": [],
     "configKeys": [
-      ".sdkwork-assembly.json",
+      "sdk-manifest.json",
       "openapi/sdkwork-birdcoder-app-api.sdkgen.json"
     ],
     "routeManifest": null

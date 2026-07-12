@@ -11,8 +11,14 @@ const persistedStateSource = fs.readFileSync(persistedStatePath, 'utf8');
 
 assert.match(
   persistedStateSource,
-  /useEffect\(\(\) => \{\s*if \(!isHydrated \|\| Object\.is\(lastPersistedStateRef\.current, state\)\)/m,
+  /useEffect\(\(\) => \{\s*if \(!isHydrated \|\| !hydratedRef\.current\)/m,
   'usePersistedState must persist after commit, outside the state updater hot path.',
+);
+
+assert.match(
+  persistedStateSource,
+  /!storageMayBeDirtyRef\.current[\s\S]*Object\.is\(lastPersistedStateRef\.current, state\)/m,
+  'usePersistedState must keep storage dirty when an asynchronous write is still pending or failed.',
 );
 
 assert.doesNotMatch(
@@ -23,8 +29,20 @@ assert.doesNotMatch(
 
 assert.match(
   persistedStateSource,
-  /void setStoredJson\(scope, key, state\)\.catch\(\(\) => \{\s*\}\);/m,
+  /void queuePersistedStateWrite\(\{[\s\S]*?key,[\s\S]*?rawValue,[\s\S]*?scope,[\s\S]*?sourceId:[\s\S]*?\}\)[\s\S]*?\.catch\(\(error\) => \{[\s\S]*?console\.warn\(/m,
   'usePersistedState must explicitly swallow persistence failures so quota or native storage errors never create unhandled rejections.',
+);
+
+assert.match(
+  persistedStateSource,
+  /MAX_PERSIST_RETRIES\s*=\s*3[\s\S]*PERSIST_RETRY_DELAYS_MS/m,
+  'usePersistedState must retry transient persistence failures without an unbounded timer loop.',
+);
+
+assert.match(
+  persistedStateSource,
+  /try \{\s*rawValue = serializeStoredValue\(state\);\s*\} catch \(error\) \{[\s\S]*?console\.warn\([\s\S]*?return;/m,
+  'usePersistedState must keep serialization failures non-fatal before scheduling persistence.',
 );
 
 assert.doesNotMatch(

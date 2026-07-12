@@ -90,6 +90,7 @@ pub struct NativeSessionQuery {
     pub workspace_id: Option<String>,
     pub project_id: Option<String>,
     pub engine_id: Option<String>,
+    pub offset: Option<usize>,
     pub limit: Option<usize>,
 }
 
@@ -107,7 +108,7 @@ pub trait NativeSessionRepository: Send + Sync {
     fn list_sessions(
         &self,
         query: &NativeSessionQuery,
-    ) -> Result<Vec<NativeSessionSummaryPayload>, String>;
+    ) -> Result<(Vec<NativeSessionSummaryPayload>, usize), String>;
 
     fn get_session(
         &self,
@@ -135,7 +136,7 @@ impl<R: NativeSessionRepository> NativeSessionService<R> {
     pub fn list_sessions(
         &self,
         query: &NativeSessionQuery,
-    ) -> Result<Vec<NativeSessionSummaryPayload>, NativeSessionError> {
+    ) -> Result<(Vec<NativeSessionSummaryPayload>, usize), NativeSessionError> {
         self.repository
             .list_sessions(query)
             .map_err(NativeSessionError::Repository)

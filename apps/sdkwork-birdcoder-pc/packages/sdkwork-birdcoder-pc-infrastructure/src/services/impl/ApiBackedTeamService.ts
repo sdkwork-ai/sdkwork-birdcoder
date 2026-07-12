@@ -49,8 +49,9 @@ export class ApiBackedTeamService implements ITeamService {
   }
 
   async getTeams(workspaceId?: string): Promise<BirdCoderTeam[]> {
+    // The server resolves the authenticated user from the IAM context; the
+    // client must not supply `userId` as a query parameter.
     const teams = await this.appClient.listTeams({
-      userId: await this.resolveCurrentUserId(),
       workspaceId,
     });
     return teams.map(mapTeamSummaryToTeam);

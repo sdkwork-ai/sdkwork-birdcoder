@@ -9,10 +9,12 @@ use std::{
     ffi::OsString,
     io::{BufRead, BufReader, Read, Write},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::{Child, ChildStderr, Command, ExitStatus, Stdio},
     sync::atomic::{AtomicBool, Ordering},
+    sync::mpsc::{self, RecvTimeoutError, Sender},
     sync::Arc,
     thread,
+    thread::JoinHandle,
     time::Duration,
 };
 
@@ -29,6 +31,152 @@ const CODEX_ENGINE_ID: &str = "codex";
 
 /// Default CLI execution timeout in seconds (5 minutes).
 const DEFAULT_CLI_TIMEOUT_SECS: u64 = 300;
+
+/// Maximum stdout bytes before the CLI output is truncated to prevent OOM (10 MB).
+const MAX_STDOUT_BYTES: usize = 10 * 1024 * 1024;
+
+/// Maximum stderr bytes before the CLI output is truncated to prevent OOM (1 MB).
+const MAX_STDERR_BYTES: usize = 1024 * 1024;
+
+struct CodexCliWatchdog {
+    completion_sender: Option<Sender<()>>,
+    handle: Option<JoinHandle<()>>,
+    killed: Arc<AtomicBool>,
+}
+
+impl CodexCliWatchdog {
+    fn start(child_id: u32, timeout: Duration) -> Self {
+        let (completion_sender, completion_receiver) = mpsc::channel();
+        let killed = Arc::new(AtomicBool::new(false));
+        let killed_flag = Arc::clone(&killed);
+        let handle = thread::spawn(move || {
+            match completion_receiver.recv_timeout(timeout) {
+                Ok(()) | Err(RecvTimeoutError::Disconnected) => return,
+                Err(RecvTimeoutError::Timeout) => {}
+            }
+
+            killed_flag.store(true, Ordering::SeqCst);
+            terminate_process_tree(child_id);
+        });
+
+        Self {
+            completion_sender: Some(completion_sender),
+            handle: Some(handle),
+            killed,
+        }
+    }
+
+    fn stop(&mut self) {
+        if let Some(sender) = self.completion_sender.take() {
+            let _ = sender.send(());
+        }
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+    }
+
+    fn killed_process(&self) -> bool {
+        self.killed.load(Ordering::SeqCst)
+    }
+}
+
+impl Drop for CodexCliWatchdog {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+struct CodexCliProcess {
+    child: Child,
+    stderr_reader: Option<JoinHandle<String>>,
+    watchdog: CodexCliWatchdog,
+    waited: bool,
+}
+
+impl CodexCliProcess {
+    fn new(child: Child, timeout: Duration) -> Self {
+        let watchdog = CodexCliWatchdog::start(child.id(), timeout);
+        Self {
+            child,
+            stderr_reader: None,
+            watchdog,
+            waited: false,
+        }
+    }
+
+    fn start_stderr_reader(&mut self, stderr_pipe: ChildStderr) {
+        self.stderr_reader = Some(thread::spawn(move || {
+            let mut stderr = String::new();
+            let mut reader = BufReader::new(stderr_pipe).take(MAX_STDERR_BYTES as u64);
+            let _ = reader.read_to_string(&mut stderr);
+            if stderr.len() >= MAX_STDERR_BYTES {
+                stderr.push_str("\n[truncated: stderr exceeded limit]");
+            }
+            stderr
+        }));
+    }
+
+    fn wait(&mut self) -> Result<ExitStatus, String> {
+        let status = self
+            .child
+            .wait()
+            .map_err(|error| format!("wait for codex cli failed: {error}"))?;
+        self.waited = true;
+        self.watchdog.stop();
+        Ok(status)
+    }
+
+    fn was_killed_by_watchdog(&self) -> bool {
+        self.watchdog.killed_process()
+    }
+
+    fn take_stderr_output(&mut self) -> String {
+        self.stderr_reader
+            .take()
+            .map(|reader| {
+                reader
+                    .join()
+                    .unwrap_or_else(|_| "Codex CLI stderr reader panicked.".to_owned())
+            })
+            .unwrap_or_default()
+    }
+}
+
+impl Drop for CodexCliProcess {
+    fn drop(&mut self) {
+        self.watchdog.stop();
+        if !self.waited {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+            self.waited = true;
+        }
+        if let Some(reader) = self.stderr_reader.take() {
+            let _ = reader.join();
+        }
+    }
+}
+
+fn terminate_process_tree(child_id: u32) {
+    if child_id == 0 {
+        return;
+    }
+
+    #[cfg(unix)]
+    {
+        // SAFETY: child_id comes directly from Child::id().
+        unsafe {
+            libc::kill(child_id as i32, libc::SIGTERM);
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/PID", &child_id.to_string(), "/F", "/T"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct CodexCliTurnRequest {
@@ -91,71 +239,43 @@ fn execute_codex_cli_turn_inner(
         command.current_dir(directory);
     }
 
-    let mut child = command
+    let child = command
         .spawn()
         .map_err(|error| format!("spawn codex cli failed: {error}"))?;
-
-    // Watchdog: kill the child process if it exceeds the timeout.
     let timeout_secs = request.timeout_secs.unwrap_or(DEFAULT_CLI_TIMEOUT_SECS);
-    let completed = Arc::new(AtomicBool::new(false));
-    let watchdog_completed = completed.clone();
-    let watchdog_killed = Arc::new(AtomicBool::new(false));
-    let watchdog_killed_flag = watchdog_killed.clone();
-    let watchdog_child_id = child.id();
-    let watchdog = thread::spawn(move || {
-        thread::sleep(Duration::from_secs(timeout_secs));
-        // If the main thread has already finished, do nothing.
-        if watchdog_completed.load(Ordering::SeqCst) {
-            return;
-        }
-        // Mark that the watchdog is killing the child.
-        watchdog_killed_flag.store(true, Ordering::SeqCst);
-        if watchdog_child_id != 0 {
-            #[cfg(unix)]
-            {
-                // SAFETY: pid is a valid process ID from child.id(). SIGTERM
-                // is the standard signal for graceful process termination.
-                unsafe {
-                    libc::kill(watchdog_child_id as i32, libc::SIGTERM);
-                }
-            }
-            #[cfg(not(unix))]
-            {
-                let _ = Command::new("taskkill")
-                    .args(["/PID", &watchdog_child_id.to_string(), "/F", "/T"])
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null())
-                    .status();
-            }
-        }
-    });
+    let mut process = CodexCliProcess::new(child, Duration::from_secs(timeout_secs));
 
-    let stdout_pipe = child
+    let stdout_pipe = process
+        .child
         .stdout
         .take()
         .ok_or_else(|| "Codex CLI stdout pipe was not available.".to_owned())?;
-    let stderr_pipe = child
+    let stderr_pipe = process
+        .child
         .stderr
         .take()
         .ok_or_else(|| "Codex CLI stderr pipe was not available.".to_owned())?;
-    let stderr_reader = thread::spawn(move || {
-        let mut stderr = String::new();
-        let _ = BufReader::new(stderr_pipe).read_to_string(&mut stderr);
-        stderr
-    });
+    process.start_stderr_reader(stderr_pipe);
 
-    if let Some(mut stdin) = child.stdin.take() {
+    if let Some(mut stdin) = process.child.stdin.take() {
         stdin
             .write_all(request.prompt_text.as_bytes())
             .map_err(|error| format!("write codex cli prompt failed: {error}"))?;
     }
 
     let mut stdout = String::new();
+    let mut stdout_bytes = 0usize;
     let mut streamed_assistant_content = String::new();
     let mut streamed_native_session_id = native_session_id.clone();
     let stdout_reader = BufReader::new(stdout_pipe);
     for line in stdout_reader.lines() {
         let line = line.map_err(|error| format!("read codex cli stdout failed: {error}"))?;
+        stdout_bytes = stdout_bytes.saturating_add(line.len().saturating_add(1));
+        if stdout_bytes > MAX_STDOUT_BYTES {
+            return Err(format!(
+                "codex cli stdout exceeded {MAX_STDOUT_BYTES} bytes and was terminated to prevent OOM"
+            ));
+        }
         stdout.push_str(line.as_str());
         stdout.push('\n');
         if let Some(callback) = on_event.as_deref_mut() {
@@ -168,24 +288,15 @@ fn execute_codex_cli_turn_inner(
         }
     }
 
-    let status = child
-        .wait()
-        .map_err(|error| format!("wait for codex cli failed: {error}"))?;
+    let status = process.wait()?;
 
-    // Signal the watchdog that the child has exited.
-    completed.store(true, Ordering::SeqCst);
-    let _ = watchdog.join();
-
-    // Check if the CLI was killed by the watchdog timeout.
-    if watchdog_killed.load(Ordering::SeqCst) {
+    if process.was_killed_by_watchdog() {
         return Err(format!(
             "codex cli timed out after {timeout_secs} seconds and was terminated"
         ));
     }
 
-    let stderr = stderr_reader
-        .join()
-        .unwrap_or_else(|_| "Codex CLI stderr reader panicked.".to_owned());
+    let stderr = process.take_stderr_output();
 
     let parsed_turn = parse_codex_cli_turn_output(stdout.as_str(), native_session_id.clone())?;
 
@@ -917,11 +1028,35 @@ fn normalize_value_string(value: Option<&Value>) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        process::{Child, Command},
+        time::{Duration, Instant},
+    };
+
     use super::{
         build_codex_cli_turn_args, emit_codex_cli_stream_delta_from_line,
-        parse_codex_cli_turn_output, CodexCliTurnRequest,
+        parse_codex_cli_turn_output, CodexCliProcess, CodexCliTurnRequest,
     };
     use crate::CodeEngineTurnStreamEventRecord;
+
+    fn spawn_successful_test_child() -> Child {
+        #[cfg(windows)]
+        let mut command = {
+            let mut command = Command::new("cmd");
+            command.args(["/C", "exit", "0"]);
+            command
+        };
+        #[cfg(not(windows))]
+        let mut command = {
+            let mut command = Command::new("sh");
+            command.args(["-c", "exit 0"]);
+            command
+        };
+
+        command
+            .spawn()
+            .expect("spawn successful watchdog test child")
+    }
 
     fn collect_codex_stream_events(lines: &[&str]) -> Vec<CodeEngineTurnStreamEventRecord> {
         let mut streamed_assistant_content = String::new();
@@ -990,6 +1125,37 @@ mod tests {
                 "thread-1",
                 "-",
             ]
+        );
+    }
+
+    #[test]
+    fn codex_watchdog_stops_immediately_after_process_exit() {
+        let child = spawn_successful_test_child();
+        let mut process = CodexCliProcess::new(child, Duration::from_secs(30));
+        let started_at = Instant::now();
+
+        let status = process.wait().expect("wait for watchdog test child");
+
+        assert!(status.success());
+        assert!(!process.was_killed_by_watchdog());
+        assert!(
+            started_at.elapsed() < Duration::from_secs(2),
+            "completed Codex CLI processes must interrupt the watchdog timeout wait"
+        );
+    }
+
+    #[test]
+    fn codex_process_drop_interrupts_watchdog_on_early_return() {
+        let started_at = Instant::now();
+
+        drop(CodexCliProcess::new(
+            spawn_successful_test_child(),
+            Duration::from_secs(30),
+        ));
+
+        assert!(
+            started_at.elapsed() < Duration::from_secs(2),
+            "early-return cleanup must not wait for the watchdog timeout"
         );
     }
 

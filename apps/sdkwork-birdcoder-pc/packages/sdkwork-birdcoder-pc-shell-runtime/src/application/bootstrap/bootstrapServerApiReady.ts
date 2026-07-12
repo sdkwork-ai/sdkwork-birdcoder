@@ -1,10 +1,7 @@
 const DEFAULT_API_READY_MAX_ATTEMPTS = 30;
 const DEFAULT_API_READY_REQUEST_TIMEOUT_MS = 800;
 const DEFAULT_API_READY_RETRY_DELAY_MS = 150;
-const DEFAULT_API_READY_PATHS = [
-  '/app/v3/api/system/health',
-  '/app/v3/api/system/iam/runtime',
-] as const;
+const DEFAULT_API_READY_PATHS = ['/readyz'] as const;
 const LOCAL_RUNTIME_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '[::1]', 'tauri.localhost']);
 
 export interface WaitForBirdCoderApiReadyOptions {

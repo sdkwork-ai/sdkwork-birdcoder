@@ -72,9 +72,7 @@ pub fn desktop_configure_window_controls_bridge(
         ("close", config.close.as_ref()),
     ] {
         let rect = rect.ok_or_else(|| {
-            format!(
-                "active native window controls bridge config requires a {role} rectangle"
-            )
+            format!("active native window controls bridge config requires a {role} rectangle")
         })?;
         if rect.width <= 0 || rect.height <= 0 {
             return Err(format!(

@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '@sdkwork/birdcoder-pc-commons';
+import { useAuth } from '@sdkwork/birdcoder-pc-commons/context/AuthContext';
 import {
   buildProtectedRouteLoginPath,
   requiresAuthenticatedProductAccess,
@@ -101,10 +101,6 @@ export function AuthGate({ children, getRuntime }: AuthGateProps) {
 
   if (!user && (onAuthSurface || productAccessRequiresAuth)) {
     return <AuthGateAuthSurface getRuntime={getRuntime} />;
-  }
-
-  if (user && onAuthSurface) {
-    return <AuthGateLoadingState />;
   }
 
   return <>{children}</>;

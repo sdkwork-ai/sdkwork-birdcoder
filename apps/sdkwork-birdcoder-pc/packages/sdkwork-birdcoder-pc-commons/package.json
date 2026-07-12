@@ -15,6 +15,10 @@
       "import": "./src/context/*.ts",
       "types": "./src/context/*.ts"
     },
+    "./bootstrap/createBootstrapGateMessages": {
+      "import": "./src/bootstrap/createBootstrapGateMessages.ts",
+      "types": "./src/bootstrap/createBootstrapGateMessages.ts"
+    },
     "./hooks/*": {
       "import": "./src/hooks/*.ts",
       "types": "./src/hooks/*.ts"
@@ -46,6 +50,10 @@
     "./storage/localStore": {
       "import": "./src/storage/localStore.ts",
       "types": "./src/storage/localStore.ts"
+    },
+    "./settings/appSettings": {
+      "import": "./src/settings/appSettings.ts",
+      "types": "./src/settings/appSettings.ts"
     }
   },
   "scripts": {

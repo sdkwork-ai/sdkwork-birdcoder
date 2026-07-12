@@ -343,13 +343,13 @@ assert.match(
 );
 assert.equal(
   tauriConfig.plugins?.shell?.open,
-  '((mailto:\\\\w+)|(tel:\\\\w+)|(https?://\\\\w+).+|(file://.+)|([A-Za-z]:\\\\\\\\.+)|(\\\\\\\\\\\\\\\\.+))',
-  'Desktop Tauri config must configure the shell open scope so BirdCoder can reveal local desktop paths as well as standard external URLs.',
+  undefined,
+  'Desktop Tauri config must not expose a generic shell open scope for local paths.',
 );
 assert.equal(
   tauriTestConfig.plugins?.shell?.open,
-  '((mailto:\\\\w+)|(tel:\\\\w+)|(https?://\\\\w+).+|(file://.+)|([A-Za-z]:\\\\\\\\.+)|(\\\\\\\\\\\\\\\\.+))',
-  'Desktop Tauri test config must use the same shell open scope as development mode so local-path opener behavior stays aligned.',
+  undefined,
+  'Desktop Tauri test config must not expose a generic shell open scope for local paths.',
 );
 
 assert.match(
@@ -642,10 +642,10 @@ assert.match(
   /^rfd\s*=\s*"0\.16"$/m,
   'Desktop Cargo manifest must use rfd directly for the BirdCoder desktop folder picker instead of registering the Tauri dialog plugin.',
 );
-assert.match(
+assert.doesNotMatch(
   desktopCargoTomlSource,
   /^tauri-plugin-shell\s*=\s*"2"$/m,
-  'Desktop Cargo manifest must include the Tauri shell plugin crate so window reveal and git shell commands are backed by a registered Rust plugin.',
+  'Desktop Cargo manifest must not include the generic Tauri shell plugin after local path reveal moves behind a typed application command.',
 );
 assert.match(
   desktopCargoTomlSource,
@@ -657,10 +657,20 @@ assert.doesNotMatch(
   /\.plugin\(tauri_plugin_dialog::init\(\)\)/,
   'Desktop runtime must not register the Tauri dialog plugin because it generates retired dialog permission aliases.',
 );
-assert.match(
+assert.doesNotMatch(
   desktopLibRsSource,
   /\.plugin\(tauri_plugin_shell::init\(\)\)/,
-  'Desktop runtime must register the shell plugin so frontend open and command execution calls can cross the Tauri boundary.',
+  'Desktop runtime must not register the generic shell plugin because local path reveal and command execution use typed application bridges.',
+);
+assert.equal(
+  tauriConfig.plugins?.shell,
+  undefined,
+  'Desktop production config must not expose a generic shell-open scope for local paths.',
+);
+assert.equal(
+  tauriTestConfig.plugins?.shell,
+  undefined,
+  'Desktop test config must not expose a generic shell-open scope for local paths.',
 );
 assert.match(
   desktopLibRsSource,
@@ -689,8 +699,6 @@ assert.match(
 );
 for (const permission of [
   'core:default',
-  'default',
-  'shell:allow-open',
   'core:window:allow-start-dragging',
   'core:window:allow-minimize',
   'core:window:allow-toggle-maximize',
@@ -701,6 +709,14 @@ for (const permission of [
     `Desktop main-window capability must include ${permission}.`,
   );
 }
+assert.ok(
+  desktopCapabilitySource.includes('"allow-desktop-reveal-in-file-manager"'),
+  'Desktop main-window capability must expose only the typed file-manager reveal command.',
+);
+assert.ok(
+  !desktopCapabilitySource.includes('"shell:allow-open"'),
+  'Desktop main-window capability must not expose generic shell-open after typed reveal is available.',
+);
 assert.ok(
   !desktopCapabilitySource.includes('"dialog:allow-open"'),
   'Desktop main-window capability must not include dialog:allow-open after folder-open moves behind the BirdCoder desktop picker command.',
@@ -739,6 +755,8 @@ for (const command of [
   'local_store_list',
   'local_sql_execute_plan',
   'terminal_cli_profile_detect',
+  'desktop_pick_working_directory',
+  'desktop_reveal_in_file_manager',
   'desktop_session_index',
   'desktop_session_replay_slice',
   'desktop_session_attach',

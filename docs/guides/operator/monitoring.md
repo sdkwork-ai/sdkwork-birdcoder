@@ -7,7 +7,8 @@ Specs: `OBSERVABILITY_SPEC.md`, `PERFORMANCE_SPEC.md`
 
 | Endpoint | Auth | Purpose |
 | --- | --- | --- |
-| `/health` | No | Liveness/readiness; application DB `SELECT 1`, IAM DB `SELECT 1` when configured, realtime backend |
+| `/healthz` | No | Liveness; process is alive and serving HTTP |
+| `/readyz` | No | Readiness; configured application DB, IAM DB, and realtime backend checks |
 | `/metrics` | No | Prometheus text exposition |
 | `/app/v3/api/system/*` | Yes | Product health/descriptor (authenticated) |
 
@@ -20,8 +21,8 @@ Helm values enable ServiceMonitor scraping of `/metrics` when `serviceMonitor.en
 | BirdCoderHealthDegraded | `sdkwork_health_status != 1` for 5m | critical |
 | BirdCoderHigh5xxRate | rate of 5xx / total > 1% for 10m | warning |
 | BirdCoderAuth401Spike | rate of 401 on protected routes > baseline 3x | warning |
-| BirdCoderDBProbeFailed | health JSON `checks.database.ok == false` | critical |
-| BirdCoderIamDBProbeFailed | health JSON `checks.iam_database.ok == false` while `configured == true` | critical |
+| BirdCoderDBProbeFailed | `/readyz` fails while database-backed profiles are expected to serve traffic | critical |
+| BirdCoderIamDBProbeFailed | `/readyz` fails while `SDKWORK_IAM_DATABASE_URL` is configured | critical |
 | BirdCoderRedisRealtimeDown | HA profile + redis unreachable at bootstrap | critical |
 
 ## SLO starting points

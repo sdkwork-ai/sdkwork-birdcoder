@@ -87,11 +87,7 @@ pub async fn local_store_set(
 }
 
 #[tauri::command]
-pub async fn local_store_delete(
-    app: AppHandle,
-    scope: String,
-    key: String,
-) -> Result<(), String> {
+pub async fn local_store_delete(app: AppHandle, scope: String, key: String) -> Result<(), String> {
     if local_store_key_targets_authority_tables(&key) {
         return Err(format!(
             "local store key '{}' is reserved for direct authority tables and cannot be deleted via kv_store",

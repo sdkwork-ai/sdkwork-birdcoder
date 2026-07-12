@@ -16,9 +16,6 @@ function read(relativePath) {
 const packageJson = JSON.parse(read('package.json'));
 const operatorReadme = read('docs/guides/operator/README.md');
 const publishRunbook = read('docs/guides/operator/first-governed-release.md');
-const commercialTruthDoc = read(
-  'docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md',
-);
 const preLaunchContract = read('scripts/app-manifest-pre-launch-contract.test.mjs');
 
 for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {
@@ -64,12 +61,6 @@ assert.match(
   operatorReadme,
   /first-governed-release\.md/u,
   'Operator README must link the first governed release checklist.',
-);
-
-assert.match(
-  commercialTruthDoc,
-  /first-governed-release|first \*\*real\*\* governed release/u,
-  'Commercial truth doc must reference the real-release publish gate.',
 );
 
 assert.equal(

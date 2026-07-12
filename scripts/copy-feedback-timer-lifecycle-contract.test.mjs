@@ -9,10 +9,6 @@ const chatCodeBlockSource = readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatCodeBlock.tsx', import.meta.url),
   'utf8',
 );
-const skillsPageSource = readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills/src/SkillsPage.tsx', import.meta.url),
-  'utf8',
-);
 const packageJson = JSON.parse(
   readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
 );
@@ -48,31 +44,6 @@ for (const [name, source] of [
   );
 }
 
-assert.match(
-  skillsPageSource,
-  /const copiedCommandTimeoutRef = useRef<number \| null>\(null\);/,
-  'SkillsPage must track the install-command copy feedback timeout so route changes do not leave pending state updates.',
-);
-assert.match(
-  skillsPageSource,
-  /const clearCopiedCommandTimeout = useCallback\(\(\) => \{[\s\S]*window\.clearTimeout\(copiedCommandTimeoutRef\.current\);[\s\S]*copiedCommandTimeoutRef\.current = null;/,
-  'SkillsPage must expose a stable copied-command timeout cleanup callback.',
-);
-assert.match(
-  skillsPageSource,
-  /clearCopiedCommandTimeout\(\);[\s\S]*copiedCommandTimeoutRef\.current = window\.setTimeout\(\(\) => \{[\s\S]*setCopiedCommand\(null\);[\s\S]*copiedCommandTimeoutRef\.current = null;/,
-  'SkillsPage must cancel any previous copied-command timeout before scheduling a new one.',
-);
-assert.match(
-  skillsPageSource,
-  /useEffect\(\(\) => \(\) => \{[\s\S]*clearCopiedCommandTimeout\(\);[\s\S]*\}, \[clearCopiedCommandTimeout\]\);/,
-  'SkillsPage must cancel pending copied-command feedback timeouts when unmounted.',
-);
-assert.doesNotMatch(
-  skillsPageSource,
-  /window\.setTimeout\(\(\) => setCopiedCommand\(null\)/,
-  'SkillsPage must not use untracked copied-command feedback timers.',
-);
 assert.match(
   packageJson.scripts['check:workbench-activity-performance'] ?? '',
   /copy-feedback-timer-lifecycle-contract\.test\.mjs/,

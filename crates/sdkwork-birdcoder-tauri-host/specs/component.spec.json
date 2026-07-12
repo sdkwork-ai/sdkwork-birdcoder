@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-tauri-host",
+    "displayName": "SDKWork BirdCoder Tauri Host",
+    "version": "0.1.0",
+    "type": "tauri-host",
+    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-tauri-host",
+    "domain": "device",
+    "declaredDomain": null,
+    "capability": "tauri-host",
+    "surface": "native-host",
+    "status": "ACTIVE",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust crate and module rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable module and package boundary rules."
+    },
+    {
+      "file": "DESKTOP_APP_ARCHITECTURE_SPEC.md",
+      "path": "../../../../sdkwork-specs/DESKTOP_APP_ARCHITECTURE_SPEC.md",
+      "purpose": "Desktop and Tauri host architecture rules."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Runtime configuration and SDK bootstrap rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Native host security, filesystem access, and credential rules."
+    },
+    {
+      "file": "DATABASE_SPEC.md",
+      "path": "../../../../sdkwork-specs/DATABASE_SPEC.md",
+      "purpose": "Local SQLite lifecycle and data access rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Host, runtime, and contract verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "runtime-native-host",
+    "publicExports": [
+      ".",
+      "setup_tauri_host",
+      "start_embedded_coding_server",
+      "ensure_desktop_runtime_config",
+      "spawn_embedded_coding_server_startup",
+      "request_embedded_api_shutdown"
+    ],
+    "providedPorts": [
+      {
+        "name": "tauriHostSetup",
+        "export": "setup_tauri_host"
+      },
+      {
+        "name": "embeddedGatewayRuntime",
+        "export": "start_embedded_coding_server"
+      },
+      {
+        "name": "desktopRuntimeConfig",
+        "export": "ensure_desktop_runtime_config"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "standaloneGatewayAppBuilder",
+        "export": "."
+      }
+    ],
+    "runtimeEntrypoints": [
+      "src/lib.rs#setup_tauri_host",
+      "src/host/state.rs#start_embedded_coding_server",
+      "src/host/state.rs#ensure_desktop_runtime_config",
+      "src/host/state.rs#spawn_embedded_coding_server_startup",
+      "src/commands/mod.rs",
+      "Cargo.toml"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [
+      {
+        "workspace": "sdkwork-birdcoder",
+        "sdkFamily": "sdkwork-birdcoder-app-sdk",
+        "apiAuthority": "sdkwork-birdcoder-app-api",
+        "surface": "app-api",
+        "apiPrefix": "/app/v3/api",
+        "runtimeMode": "same-origin-embedded",
+        "cargoDependency": "sdkwork-birdcoder-standalone-gateway",
+        "embeddedExecutableExport": "start_embedded_coding_server",
+        "coverageEvidence": [
+          "src/host/state.rs#start_embedded_coding_server",
+          "src/host/state.rs#ensure_desktop_runtime_config"
+        ]
+      }
+    ],
+    "events": [],
+    "configKeys": [
+      "VITE_BIRDCODER_API_BASE_URL",
+      "BIRDCODER_API_BASE_URL",
+      "BIRDCODER_CODING_SERVER_SQLITE_FILE",
+      "BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT"
+    ]
+  },
+  "integration": {
+    "authority": "The Tauri host owns native commands, local filesystem boundaries, local SQLite key-value storage, and embedded gateway startup only.",
+    "gatewayPolicy": "Business HTTP and agent workflows are executed through the embedded sdkwork-birdcoder-standalone-gateway and sdkwork-agents routes.",
+    "securityPolicy": "Filesystem roots and native commands must remain explicitly registered and must not create raw unaudited host access paths."
+  },
+  "verification": {
+    "commands": [
+      "cargo test -p sdkwork-birdcoder-tauri-host",
+      "node ../../../../sdkwork-specs/tools/check-component-port-bindings.mjs --root .",
+      "node scripts/desktop-embedded-coding-server-contract.test.mjs"
+    ]
+  }
+}

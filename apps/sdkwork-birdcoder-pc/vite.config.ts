@@ -49,6 +49,12 @@ export default defineConfig(({ mode }) => {
       fs: {
         allow: createBirdcoderWorkspaceFsAllowList(rootHostAppRootDir),
       },
+      proxy: {
+        '/app': {
+          target: process.env.BIRDCODER_DEV_PROXY_TARGET ?? 'http://127.0.0.1:10240',
+          changeOrigin: true,
+        },
+      },
     },
   };
 });

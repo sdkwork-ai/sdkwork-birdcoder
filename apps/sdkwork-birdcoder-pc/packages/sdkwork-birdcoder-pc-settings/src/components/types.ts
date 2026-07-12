@@ -8,11 +8,14 @@ export type UpdateSetting = <K extends keyof AppSettings>(
   value: AppSettings[K],
 ) => void;
 
+export type UpdateSettings = (value: Partial<AppSettings>) => void;
+
 export interface SettingsProps {
   currentProjectId?: string;
   currentProjectName?: string;
   settings: AppSettings;
   updateSetting: UpdateSetting;
+  updateSettings: UpdateSettings;
   bootServerBaseUrlOverride?: string;
   currentServerBaseUrl?: string;
   workbenchPreferences?: WorkbenchPreferences;

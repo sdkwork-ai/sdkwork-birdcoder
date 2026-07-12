@@ -1,4 +1,4 @@
-use axum::extract::{Path, Query, State};
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use sqlx::AnyPool;
@@ -10,16 +10,16 @@ use sdkwork_birdcoder_commerce_service::domain::models::{
 };
 use sdkwork_birdcoder_commerce_service::service::commerce_service::CommerceService;
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_offset_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
-    ApiListEnvelope,
+    build_data_envelope, build_offset_list_envelope, checked_list_total_items,
+    trace_id_from_request_id, ApiDataEnvelope, ApiListEnvelope,
 };
-use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
+use sdkwork_birdcoder_router_context::{
+    RequiredIamContext, StrictOffsetListQuery, WebRequestContext,
+};
 use sdkwork_iam_context_service::IamAppContext;
 
 use crate::error;
-use crate::mapper::request::{
-    CommerceListQueryParams, ConfirmPaymentBody, CreateOrderBody, CreatePaymentBody,
-};
+use crate::mapper::request::{ConfirmPaymentBody, CreateOrderBody, CreatePaymentBody};
 
 fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
     trace_id_from_request_id(web.request_id.0.as_str())
@@ -52,19 +52,23 @@ impl CommerceAppState {
 pub async fn list_orders(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<CommerceAppState>,
-    Query(query): Query<CommerceListQueryParams>,
 ) -> Result<Json<ApiListEnvelope<CommerceOrderPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = commerce_context(&iam);
-    let (offset, page_size) = query.normalized_pagination();
-    let list_query: CommerceListQuery = query.into();
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
+    let list_query = CommerceListQuery {
+        offset: pagination.offset,
+        limit: pagination.page_size,
+    };
     match state.service.list_orders(&ctx, list_query).await {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
             page_size,
-            usize::try_from(total).unwrap_or(0),
+            checked_list_total_items(total, trace_id)?,
             request_id(&web),
         ))),
         Err(service_error) => Err(error::map_service_error(service_error, trace_id)),
@@ -105,19 +109,23 @@ pub async fn get_order(
 pub async fn list_invoices(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<CommerceAppState>,
-    Query(query): Query<CommerceListQueryParams>,
 ) -> Result<Json<ApiListEnvelope<CommerceInvoicePayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = commerce_context(&iam);
-    let (offset, page_size) = query.normalized_pagination();
-    let list_query: CommerceListQuery = query.into();
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
+    let list_query = CommerceListQuery {
+        offset: pagination.offset,
+        limit: pagination.page_size,
+    };
     match state.service.list_invoices(&ctx, list_query).await {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
             page_size,
-            usize::try_from(total).unwrap_or(0),
+            checked_list_total_items(total, trace_id)?,
             request_id(&web),
         ))),
         Err(service_error) => Err(error::map_service_error(service_error, trace_id)),
@@ -132,11 +140,7 @@ pub async fn get_invoice(
 ) -> Result<Json<ApiDataEnvelope<CommerceInvoicePayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = commerce_context(&iam);
-    match state
-        .service
-        .get_invoice(&ctx, invoice_id.as_str())
-        .await
-    {
+    match state.service.get_invoice(&ctx, invoice_id.as_str()).await {
         Ok(item) => Ok(Json(build_data_envelope(item, request_id(&web)))),
         Err(service_error) => Err(error::map_service_error(service_error, trace_id)),
     }
@@ -145,19 +149,23 @@ pub async fn get_invoice(
 pub async fn list_payments(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<CommerceAppState>,
-    Query(query): Query<CommerceListQueryParams>,
 ) -> Result<Json<ApiListEnvelope<CommercePaymentPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = commerce_context(&iam);
-    let (offset, page_size) = query.normalized_pagination();
-    let list_query: CommerceListQuery = query.into();
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
+    let list_query = CommerceListQuery {
+        offset: pagination.offset,
+        limit: pagination.page_size,
+    };
     match state.service.list_payments(&ctx, list_query).await {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
             page_size,
-            usize::try_from(total).unwrap_or(0),
+            checked_list_total_items(total, trace_id)?,
             request_id(&web),
         ))),
         Err(service_error) => Err(error::map_service_error(service_error, trace_id)),
@@ -189,11 +197,7 @@ pub async fn get_payment(
 ) -> Result<Json<ApiDataEnvelope<CommercePaymentPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = commerce_context(&iam);
-    match state
-        .service
-        .get_payment(&ctx, payment_id.as_str())
-        .await
-    {
+    match state.service.get_payment(&ctx, payment_id.as_str()).await {
         Ok(item) => Ok(Json(build_data_envelope(item, request_id(&web)))),
         Err(service_error) => Err(error::map_service_error(service_error, trace_id)),
     }

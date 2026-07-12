@@ -4,11 +4,8 @@
   "updatedAt": "2026-07-08",
   "summary": "Machine-readable alignment tracker for sdkwork-agents business layer and BirdCoder product integration.",
   "authorityDocs": [
-    "docs/architecture/tech/TECH-33-agents-birdcoder-boundariesstandard.md",
-    "docs/architecture/tech/TECH-34-agents-birdcoder-integrationimplementation.md",
-    "docs/architecture/tech/TECH-35-agents-birdcoder-alignment.md",
-    "docs/architecture/tech/TECH-36-three-layer-agent-platform-standard.md",
-    "docs/product/prd/PRD-02-three-layer-agent-platform.md",
+    "docs/architecture/tech/TECH_ARCHITECTURE.md",
+    "docs/product/prd/PRD.md",
     "../sdkwork-agents/docs/architecture/AGENTS_LAYERING.md"
   ],
   "siblingDependencies": [
@@ -27,12 +24,12 @@
     {
       "id": "P1-boundary",
       "title": "Agents application-layer boundary freeze",
-      "doc": "docs/architecture/tech/TECH-33-agents-birdcoder-boundariesstandard.md"
+      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
     },
     {
       "id": "P2-facade",
       "title": "runtime-facade extension for BirdCoder",
-      "doc": "docs/architecture/tech/TECH-34-agents-birdcoder-integrationimplementation.md"
+      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
     },
     {
       "id": "P3-agents-service",
@@ -42,12 +39,12 @@
     {
       "id": "P4-verification",
       "title": "Contract verification and alignment loop",
-      "doc": "docs/architecture/tech/TECH-35-agents-birdcoder-alignment.md"
+      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
     },
     {
       "id": "P5-evolution",
       "title": "Platformization and commercial-readiness evolution",
-      "doc": "docs/architecture/tech/TECH-36-three-layer-agent-platform-standard.md"
+      "doc": "docs/architecture/tech/TECH_ARCHITECTURE.md"
     }
   ],
   "tasks": [

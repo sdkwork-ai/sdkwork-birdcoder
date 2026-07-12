@@ -1,17 +1,32 @@
-export interface CreateSdkworkAppCapabilityManifestOptions {
-  capabilities?: readonly string[];
-  packageName?: string;
-  sourcePackageName?: string;
-  title?: string;
+export type SdkworkShellThemeColor = "zinc" | "lobster" | "green-tech" | "tech-blue" | "violet" | "rose";
+export type SdkworkShellThemeSelection = "light" | "dark" | "system";
+export type SdkworkPcReactHost = "browser" | "server" | "tauri";
+
+export interface SdkworkAppCapabilityThemePreset {
+  color: SdkworkShellThemeColor;
+  preset: "sdkwork";
+  selection: SdkworkShellThemeSelection;
 }
 
 export interface SdkworkAppCapabilityManifest {
-  capabilities: readonly string[];
-  packageName?: string;
-  sourcePackageName?: string;
-  title?: string;
+  architecture: "pc-react";
+  description?: string;
+  host: SdkworkPcReactHost;
+  id: string;
+  packageNames: string[];
+  theme: SdkworkAppCapabilityThemePreset;
+  title: string;
+}
+
+export interface CreateSdkworkAppCapabilityManifestOptions {
+  description?: string;
+  host?: SdkworkPcReactHost;
+  id: string;
+  packageNames?: string[];
+  theme?: Partial<SdkworkAppCapabilityThemePreset>;
+  title: string;
 }
 
 export declare function createSdkworkAppCapabilityManifest(
-  options?: CreateSdkworkAppCapabilityManifestOptions,
+  options: CreateSdkworkAppCapabilityManifestOptions,
 ): SdkworkAppCapabilityManifest;

@@ -24,11 +24,9 @@
   "discoverySurface": {
     "sdkTarget": "app",
     "apiPrefix": "/app/v3/api",
-    "schemaUrl": "/app/v3/openapi.json",
     "generatedProtocols": [
       "http-openapi"
-    ],
-    "manualTransports": []
+    ]
   },
   "sdkDependencies": [
     {
@@ -72,33 +70,37 @@
   ],
   "metadata": {
     "managedBy": "sdkwork-birdcoder-sdkwork-sdk-migration",
-    "standardVersion": "2026-06-06"
+    "standardVersion": "2026-06-06",
+    "providerStandard": {
+      "kind": "sdkwork.sdk.family.assembly"
+    }
   },
   "languages": [
     {
       "language": "typescript",
       "workspace": "sdkwork-birdcoder-app-sdk-typescript",
+      "generatedPath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi",
       "generationState": "materialized",
+      "version": "0.1.0",
       "releaseState": "not_published",
       "packagePath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi",
       "manifestPath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi/package.json",
-      "version": "0.1.0",
       "description": "Generator-owned TypeScript transport SDK for the SDKWork BirdCoder App API.",
-      "generatedPath": "sdkwork-birdcoder-app-sdk-typescript/generated/server-openapi",
       "consumerPackageName": "@sdkwork/birdcoder-app-sdk",
       "transportPackageName": "sdkwork-birdcoder-app-sdk-generated-typescript"
     },
     {
       "language": "rust",
       "workspace": "sdkwork-birdcoder-app-sdk-rust",
+      "name": "sdkwork-birdcoder-app-sdk",
+      "generatedPath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi",
       "generationState": "materialized",
+      "version": "0.1.0",
       "releaseState": "not_published",
       "packagePath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi",
       "manifestPath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi/Cargo.toml",
-      "name": "sdkwork-birdcoder-app-sdk",
-      "version": "0.1.0",
-      "description": "Generator-owned Rust transport SDK for the SDKWork BirdCoder App API.",
-      "generatedPath": "sdkwork-birdcoder-app-sdk-rust/generated/server-openapi"
+      "description": "Generator-owned Rust transport SDK for the SDKWork BirdCoder App API."
     }
-  ]
+  ],
+  "standardProfile": "sdkwork-v3"
 }

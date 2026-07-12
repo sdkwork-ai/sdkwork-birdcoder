@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::backend_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderBooleanSuccessEnvelope, BirdCoderCreateIamOrganizationMemberRequest, BirdCoderCreateIamOrganizationRequest, BirdCoderCreateIamPermissionRequest, BirdCoderCreateIamPolicyRequest, BirdCoderCreateIamRolePermissionRequest, BirdCoderCreateIamRoleRequest, BirdCoderCreateIamTenantMemberRequest, BirdCoderCreateIamTenantRequest, BirdCoderCreateIamUserRequest, BirdCoderCreateIamUserRoleRequest, BirdCoderDeletedResourceEnvelope, BirdCoderIamApiKeySummaryListEnvelope, BirdCoderIamAuditEventSummaryListEnvelope, BirdCoderIamOrganizationMemberSummaryEnvelope, BirdCoderIamOrganizationSummaryEnvelope, BirdCoderIamPermissionSummaryEnvelope, BirdCoderIamPermissionSummaryListEnvelope, BirdCoderIamPolicySummaryEnvelope, BirdCoderIamPolicySummaryListEnvelope, BirdCoderIamRolePermissionSummaryEnvelope, BirdCoderIamRolePermissionSummaryListEnvelope, BirdCoderIamRoleSummaryEnvelope, BirdCoderIamRoleSummaryListEnvelope, BirdCoderIamSecurityEventSummaryListEnvelope, BirdCoderIamTenantMemberSummaryEnvelope, BirdCoderIamTenantMemberSummaryListEnvelope, BirdCoderIamTenantSummaryEnvelope, BirdCoderIamTenantSummaryListEnvelope, BirdCoderIamUserRoleSummaryEnvelope, BirdCoderIamUserSummaryEnvelope, BirdCoderIamUserSummaryListEnvelope, BirdCoderTeamMemberSummaryListEnvelope, BirdCoderTeamSummaryListEnvelope, BirdCoderUpdateIamOrganizationMemberRequest, BirdCoderUpdateIamOrganizationRequest, BirdCoderUpdateIamPermissionRequest, BirdCoderUpdateIamPolicyRequest, BirdCoderUpdateIamRoleRequest, BirdCoderUpdateIamTenantMemberRequest, BirdCoderUpdateIamTenantRequest, BirdCoderUpdateIamUserRequest};
+use crate::models::{BirdCoderBooleanSuccessEnvelope, BirdCoderCreateIamOrganizationMemberRequest, BirdCoderCreateIamOrganizationRequest, BirdCoderCreateIamPermissionRequest, BirdCoderCreateIamPolicyRequest, BirdCoderCreateIamRolePermissionRequest, BirdCoderCreateIamRoleRequest, BirdCoderCreateIamTenantMemberRequest, BirdCoderCreateIamTenantRequest, BirdCoderCreateIamUserRequest, BirdCoderCreateIamUserRoleRequest, BirdCoderIamApiKeySummaryListEnvelope, BirdCoderIamAuditEventSummaryListEnvelope, BirdCoderIamOrganizationMemberSummaryEnvelope, BirdCoderIamOrganizationSummaryEnvelope, BirdCoderIamPermissionSummaryEnvelope, BirdCoderIamPermissionSummaryListEnvelope, BirdCoderIamPolicySummaryEnvelope, BirdCoderIamPolicySummaryListEnvelope, BirdCoderIamRolePermissionSummaryEnvelope, BirdCoderIamRolePermissionSummaryListEnvelope, BirdCoderIamRoleSummaryEnvelope, BirdCoderIamRoleSummaryListEnvelope, BirdCoderIamSecurityEventSummaryListEnvelope, BirdCoderIamTenantMemberSummaryEnvelope, BirdCoderIamTenantMemberSummaryListEnvelope, BirdCoderIamTenantSummaryEnvelope, BirdCoderIamTenantSummaryListEnvelope, BirdCoderIamUserRoleSummaryEnvelope, BirdCoderIamUserSummaryEnvelope, BirdCoderIamUserSummaryListEnvelope, BirdCoderTeamMemberSummaryListEnvelope, BirdCoderTeamSummaryListEnvelope, BirdCoderUpdateIamOrganizationMemberRequest, BirdCoderUpdateIamOrganizationRequest, BirdCoderUpdateIamPermissionRequest, BirdCoderUpdateIamPolicyRequest, BirdCoderUpdateIamRoleRequest, BirdCoderUpdateIamTenantMemberRequest, BirdCoderUpdateIamTenantRequest, BirdCoderUpdateIamUserRequest};
 
 #[derive(Clone)]
 pub struct IamApi {
@@ -46,7 +46,7 @@ impl IamApi {
     }
 
     /// Delete SDKWork IAM organization
-    pub async fn organizations_delete(&self, organization_id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
+    pub async fn organizations_delete(&self, organization_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/iam/organizations/{}", serialize_path_parameter(organization_id, PathParameterSpec::new("organizationId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -94,7 +94,7 @@ impl IamApi {
     }
 
     /// Delete SDKWork IAM permission
-    pub async fn permissions_delete(&self, permission_id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
+    pub async fn permissions_delete(&self, permission_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/iam/permissions/{}", serialize_path_parameter(permission_id, PathParameterSpec::new("permissionId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -124,7 +124,7 @@ impl IamApi {
     }
 
     /// Delete SDKWork IAM policy
-    pub async fn policies_delete(&self, policy_id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
+    pub async fn policies_delete(&self, policy_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/iam/policies/{}", serialize_path_parameter(policy_id, PathParameterSpec::new("policyId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -154,7 +154,7 @@ impl IamApi {
     }
 
     /// Delete SDKWork IAM role
-    pub async fn roles_delete(&self, role_id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
+    pub async fn roles_delete(&self, role_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/iam/roles/{}", serialize_path_parameter(role_id, PathParameterSpec::new("roleId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -172,7 +172,7 @@ impl IamApi {
     }
 
     /// Delete SDKWork IAM role permission
-    pub async fn roles_permissions_delete(&self, role_id: &str, permission_id: &str) -> Result<BirdCoderBooleanSuccessEnvelope, SdkworkError> {
+    pub async fn roles_permissions_delete(&self, role_id: &str, permission_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/iam/roles/{}/permissions/{}", serialize_path_parameter(role_id, PathParameterSpec::new("roleId", "simple", false)), serialize_path_parameter(permission_id, PathParameterSpec::new("permissionId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -208,7 +208,7 @@ impl IamApi {
     }
 
     /// Delete SDKWork IAM tenant
-    pub async fn tenants_delete(&self, tenant_id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
+    pub async fn tenants_delete(&self, tenant_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/iam/tenants/{}", serialize_path_parameter(tenant_id, PathParameterSpec::new("tenantId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -232,7 +232,7 @@ impl IamApi {
     }
 
     /// Delete SDKWork IAM tenant member
-    pub async fn tenants_members_delete(&self, tenant_id: &str, user_id: &str) -> Result<BirdCoderBooleanSuccessEnvelope, SdkworkError> {
+    pub async fn tenants_members_delete(&self, tenant_id: &str, user_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/iam/tenants/{}/members/{}", serialize_path_parameter(tenant_id, PathParameterSpec::new("tenantId", "simple", false)), serialize_path_parameter(user_id, PathParameterSpec::new("userId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -262,7 +262,7 @@ impl IamApi {
     }
 
     /// Delete SDKWork IAM user
-    pub async fn users_delete(&self, user_id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
+    pub async fn users_delete(&self, user_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/iam/users/{}", serialize_path_parameter(user_id, PathParameterSpec::new("userId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -274,7 +274,7 @@ impl IamApi {
     }
 
     /// Delete SDKWork IAM user role binding
-    pub async fn role_bindings_delete(&self, role_binding_id: &str) -> Result<BirdCoderBooleanSuccessEnvelope, SdkworkError> {
+    pub async fn role_bindings_delete(&self, role_binding_id: &str) -> Result<(), SdkworkError> {
         let path = backend_path(&format!("/iam/role_bindings/{}", serialize_path_parameter(role_binding_id, PathParameterSpec::new("roleBindingId", "simple", false))));
         self.client.delete(&path, None, None).await
     }

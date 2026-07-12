@@ -48,7 +48,10 @@ struct LabeledHistogram {
 impl LabeledHistogram {
     fn observe(&self, labels: &str, value_seconds: f64) {
         let mut stats = self.stats.lock().expect("business metrics histogram mutex");
-        stats.entry(labels.to_owned()).or_default().observe(value_seconds);
+        stats
+            .entry(labels.to_owned())
+            .or_default()
+            .observe(value_seconds);
     }
 
     fn render(&self, name: &str, help: &str) -> String {
@@ -56,9 +59,7 @@ impl LabeledHistogram {
         if stats.is_empty() {
             return String::new();
         }
-        let mut output = format!(
-            "# HELP {name} {help}\n# TYPE {name} histogram\n"
-        );
+        let mut output = format!("# HELP {name} {help}\n# TYPE {name} histogram\n");
         for (labels, stat) in stats.iter() {
             let count = stat.count;
             let sum = stat.sum;
@@ -68,9 +69,7 @@ impl LabeledHistogram {
                     stat.buckets.get(index).copied().unwrap_or(0)
                 ));
             }
-            output.push_str(&format!(
-                "{name}_bucket{{{labels},le=\"+Inf\"}} {count}\n"
-            ));
+            output.push_str(&format!("{name}_bucket{{{labels},le=\"+Inf\"}} {count}\n"));
             output.push_str(&format!("{name}_count{{{labels}}} {count}\n"));
             output.push_str(&format!("{name}_sum{{{labels}}} {sum}\n"));
         }
@@ -198,13 +197,7 @@ impl BusinessMetricsRegistry {
 
     /// Records an API request: total counter plus latency histogram, keyed by
     /// `method`, `path`, and `status`.
-    pub fn record_api_request(
-        &self,
-        method: &str,
-        path: &str,
-        status: u16,
-        duration: Duration,
-    ) {
+    pub fn record_api_request(&self, method: &str, path: &str, status: u16, duration: Duration) {
         let labels = MetricLabels::api_request(method, path, status);
         self.api_request_total.inc(&labels);
         self.api_request_duration_seconds
@@ -280,7 +273,9 @@ mod tests {
         // Rust f64 Display formats 1.0 as "1" (no trailing ".0"); aligned with
         // the prometheus crate's standard rendering (le="1", not le="1.0").
         assert!(rendered.contains("birdcoder_coding_session_duration_seconds_bucket{,le=\"1\"} 1"));
-        assert!(rendered.contains("birdcoder_coding_session_duration_seconds_bucket{,le=\"+Inf\"} 1"));
+        assert!(
+            rendered.contains("birdcoder_coding_session_duration_seconds_bucket{,le=\"+Inf\"} 1")
+        );
     }
 
     #[test]
@@ -291,7 +286,8 @@ mod tests {
         let rendered = registry.render_prometheus();
         assert!(rendered.contains("birdcoder_coding_session_turn_total{engine=\"opencode\"} 2"));
         assert!(rendered.contains("birdcoder_turn_duration_seconds_count{engine=\"opencode\"} 2"));
-        assert!(rendered.contains("birdcoder_turn_duration_seconds_bucket{engine=\"opencode\",le=\"0.25\"} 2"));
+        assert!(rendered
+            .contains("birdcoder_turn_duration_seconds_bucket{engine=\"opencode\",le=\"0.25\"} 2"));
     }
 
     #[test]
@@ -301,15 +297,29 @@ mod tests {
         registry.record_token_usage("codex", "input", 300);
         registry.record_token_usage("codex", "output", 450);
         let rendered = registry.render_prometheus();
-        assert!(rendered.contains("birdcoder_token_usage_total{engine=\"codex\",type=\"input\"} 1500"));
-        assert!(rendered.contains("birdcoder_token_usage_total{engine=\"codex\",type=\"output\"} 450"));
+        assert!(
+            rendered.contains("birdcoder_token_usage_total{engine=\"codex\",type=\"input\"} 1500")
+        );
+        assert!(
+            rendered.contains("birdcoder_token_usage_total{engine=\"codex\",type=\"output\"} 450")
+        );
     }
 
     #[test]
     fn api_request_records_counter_and_histogram() {
         let registry = BusinessMetricsRegistry::default();
-        registry.record_api_request("GET", "/app/v3/api/intelligence/coding_sessions", 200, Duration::from_millis(40));
-        registry.record_api_request("POST", "/app/v3/api/intelligence/coding_sessions", 500, Duration::from_millis(3000));
+        registry.record_api_request(
+            "GET",
+            "/app/v3/api/intelligence/coding_sessions",
+            200,
+            Duration::from_millis(40),
+        );
+        registry.record_api_request(
+            "POST",
+            "/app/v3/api/intelligence/coding_sessions",
+            500,
+            Duration::from_millis(3000),
+        );
         let rendered = registry.render_prometheus();
         assert!(rendered.contains("birdcoder_api_request_total{method=\"GET\",path=\"/app/v3/api/intelligence/coding_sessions\",status=\"200\"} 1"));
         assert!(rendered.contains("birdcoder_api_request_duration_seconds_count{method=\"POST\",path=\"/app/v3/api/intelligence/coding_sessions\",status=\"500\"} 1"));

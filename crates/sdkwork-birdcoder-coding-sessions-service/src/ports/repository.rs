@@ -1,26 +1,19 @@
 use crate::context::CodingSessionContext;
 use crate::domain::commands::{
-    CreateCodingSessionInput,
-    CreateCodingSessionTurnInput,
-    EditCodingSessionMessageInput,
-    ForkCodingSessionInput,
-    SubmitApprovalDecisionInput,
-    SubmitUserQuestionAnswerInput,
+    CreateCodingSessionInput, CreateCodingSessionTurnInput, EditCodingSessionMessageInput,
+    ForkCodingSessionInput, SubmitApprovalDecisionInput, SubmitUserQuestionAnswerInput,
     UpdateCodingSessionInput,
 };
-use crate::domain::models::CodingSessionListQuery;
+use crate::domain::models::{
+    ClaimCodingSessionOperationInput, CodingSessionListQuery, CompleteCodingSessionOperationInput,
+    DurableCodingSessionOperation, EnqueueCodingSessionOperationInput,
+    FailCodingSessionOperationInput, RenewCodingSessionOperationLeaseInput,
+};
 use crate::domain::results::{
-    ApprovalDecisionPayload,
-    CodingSessionArtifactPayload,
-    CodingSessionCheckpointPayload,
-    CodingSessionEventPayload,
-    CodingSessionPayload,
-    CodingSessionListPage,
-    CodingSessionTurnPayload,
-    DeleteCodingSessionMessagePayload,
-    EditCodingSessionMessagePayload,
-    OperationPayload,
-    UserQuestionAnswerPayload,
+    ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
+    CodingSessionEventPayload, CodingSessionListPage, CodingSessionPayload,
+    CodingSessionTurnPayload, DeleteCodingSessionMessagePayload, EditCodingSessionMessagePayload,
+    OperationPayload, UserQuestionAnswerPayload,
 };
 use crate::error::CodingSessionError;
 
@@ -37,6 +30,12 @@ pub trait CodingSessionRepository: Send + Sync {
         ctx: &CodingSessionContext,
         session_id: &str,
     ) -> Result<CodingSessionPayload, CodingSessionError>;
+
+    async fn resolve_project_working_directory(
+        &self,
+        ctx: &CodingSessionContext,
+        project_id: &str,
+    ) -> Result<Option<String>, CodingSessionError>;
 
     async fn create_session(
         &self,
@@ -78,7 +77,9 @@ pub trait CodingSessionRepository: Send + Sync {
         &self,
         ctx: &CodingSessionContext,
         session_id: &str,
-    ) -> Result<Vec<CodingSessionTurnPayload>, CodingSessionError>;
+        offset: usize,
+        limit: usize,
+    ) -> Result<(Vec<CodingSessionTurnPayload>, usize), CodingSessionError>;
 
     async fn get_turn(
         &self,
@@ -155,6 +156,41 @@ pub trait CodingSessionRepository: Send + Sync {
         session_id: &str,
         operation_id: &str,
     ) -> Result<OperationPayload, CodingSessionError>;
+
+    async fn get_durable_operation(
+        &self,
+        ctx: &CodingSessionContext,
+        session_id: &str,
+        operation_id: &str,
+    ) -> Result<DurableCodingSessionOperation, CodingSessionError>;
+
+    async fn enqueue_operation(
+        &self,
+        ctx: &CodingSessionContext,
+        input: &EnqueueCodingSessionOperationInput,
+    ) -> Result<DurableCodingSessionOperation, CodingSessionError>;
+
+    /// Claims the next eligible operation across all owners. This internal
+    /// worker boundary intentionally has no end-user request context.
+    async fn claim_operation(
+        &self,
+        input: &ClaimCodingSessionOperationInput,
+    ) -> Result<Option<DurableCodingSessionOperation>, CodingSessionError>;
+
+    async fn renew_operation_lease(
+        &self,
+        input: &RenewCodingSessionOperationLeaseInput,
+    ) -> Result<DurableCodingSessionOperation, CodingSessionError>;
+
+    async fn complete_operation(
+        &self,
+        input: &CompleteCodingSessionOperationInput,
+    ) -> Result<DurableCodingSessionOperation, CodingSessionError>;
+
+    async fn fail_operation(
+        &self,
+        input: &FailCodingSessionOperationInput,
+    ) -> Result<DurableCodingSessionOperation, CodingSessionError>;
 
     async fn finalize_turn_execution(
         &self,

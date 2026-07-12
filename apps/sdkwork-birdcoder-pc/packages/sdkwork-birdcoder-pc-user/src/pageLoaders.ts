@@ -7,3 +7,8 @@ export async function loadVipPage() {
   const module = await import('./pages/VipPage.tsx');
   return { default: module.VipPage };
 }
+
+export async function loadTokenPlanPage() {
+  const module = await import('./pages/VipPage.tsx');
+  return { default: module.BirdCoderTokenPlanPage };
+}

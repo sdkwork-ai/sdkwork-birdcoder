@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -38,6 +38,22 @@ const BIRDCODER_IAM_DEPLOYMENT_MODE_ENV =
 const VITE_BIRDCODER_IAM_DEPLOYMENT_MODE_ENV =
   'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE';
 const VITE_SDKWORK_DEPLOYMENT_MODE_ENV = 'VITE_SDKWORK_DEPLOYMENT_MODE';
+const SDKWORK_DEPLOYMENT_MODE_ENV = 'SDKWORK_DEPLOYMENT_MODE';
+const SDKWORK_IM_ENVIRONMENT_ENV = 'SDKWORK_IM_ENVIRONMENT';
+const SDKWORK_ENV_ENV = 'SDKWORK_ENV';
+const SDKWORK_ENVIRONMENT_ENV = 'SDKWORK_ENVIRONMENT';
+const SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE_ENV =
+  'SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE';
+const VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE_ENV =
+  'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE';
+const VITE_SDKWORK_DEPLOYMENT_PROFILE_ENV =
+  'VITE_SDKWORK_DEPLOYMENT_PROFILE';
+const SDKWORK_BIRDCODER_RUNTIME_TARGET_ENV =
+  'SDKWORK_BIRDCODER_RUNTIME_TARGET';
+const VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET_ENV =
+  'VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET';
+const SDKWORK_RUNTIME_TARGET_ENV = 'SDKWORK_RUNTIME_TARGET';
+const VITE_SDKWORK_RUNTIME_TARGET_ENV = 'VITE_SDKWORK_RUNTIME_TARGET';
 const SDKWORK_IAM_MODE_ENV = 'SDKWORK_IAM_MODE';
 const SDKWORK_IAM_APP_API_BASE_URL_ENV = 'SDKWORK_IAM_APP_API_BASE_URL';
 const SDKWORK_IAM_APP_API_OAUTH_PROVIDERS_ENV =
@@ -246,6 +262,55 @@ function resolvePublicDeploymentMode(iamDeploymentMode) {
   }
 
   return 'local';
+}
+
+function resolveSdkworkDeploymentProfile(iamDeploymentMode) {
+  return iamDeploymentMode === 'cloud-saas' ? 'cloud' : 'standalone';
+}
+
+function resolveSdkworkRuntimeTarget(target) {
+  if (target === 'desktop-build' || target === 'desktop-dev') {
+    return 'desktop';
+  }
+
+  if (target === 'web-build' || target === 'web-dev') {
+    return 'browser';
+  }
+
+  if (target === 'server-build' || target === 'server-dev') {
+    return 'server';
+  }
+
+  return undefined;
+}
+
+function applySdkworkRuntimeConfigEnv({
+  env,
+  iamMode,
+  target,
+}) {
+  const deploymentProfile = resolveSdkworkDeploymentProfile(iamMode);
+  const runtimeTarget = resolveSdkworkRuntimeTarget(target);
+
+  setEnvValue(env, SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE_ENV, deploymentProfile);
+  setEnvValue(env, VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE_ENV, deploymentProfile);
+  setEnvValue(env, VITE_SDKWORK_DEPLOYMENT_PROFILE_ENV, deploymentProfile);
+
+  if (!runtimeTarget) {
+    clearEnvValues(
+      env,
+      SDKWORK_BIRDCODER_RUNTIME_TARGET_ENV,
+      VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET_ENV,
+      SDKWORK_RUNTIME_TARGET_ENV,
+      VITE_SDKWORK_RUNTIME_TARGET_ENV,
+    );
+    return;
+  }
+
+  setEnvValue(env, SDKWORK_BIRDCODER_RUNTIME_TARGET_ENV, runtimeTarget);
+  setEnvValue(env, VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET_ENV, runtimeTarget);
+  setEnvValue(env, SDKWORK_RUNTIME_TARGET_ENV, runtimeTarget);
+  setEnvValue(env, VITE_SDKWORK_RUNTIME_TARGET_ENV, runtimeTarget);
 }
 
 export function normalizeBirdcoderIamDeploymentMode(
@@ -683,6 +748,31 @@ function applyAuthSurfaceDefaults({
   setEnvDefault(env, VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE_ENV, 'qr-only');
 }
 
+function applyIamDevEnvironmentDefaults({
+  env,
+  viteMode,
+  iamMode,
+}) {
+  const isDevelopmentLike = viteMode === 'development' || viteMode === 'test';
+  if (!isDevelopmentLike) {
+    return;
+  }
+
+  // Set IAM development environment markers so the Rust server's
+  // allows_dev_authentication_fallback() returns true, skipping manifest
+  // permission checks when the IAM permission catalog is not provisioned
+  // (e.g. SQLite local databases). See sdkwork-iam-web-adapter
+  // dev_runtime.rs and production_runtime.rs for the detection logic.
+  setEnvDefault(env, SDKWORK_IM_ENVIRONMENT_ENV, 'dev');
+  setEnvDefault(env, SDKWORK_ENV_ENV, 'dev');
+  setEnvDefault(env, SDKWORK_ENVIRONMENT_ENV, 'development');
+
+  // SDKWORK_DEPLOYMENT_MODE is already set from resolvePublicDeploymentMode,
+  // but ensure it is present for the Rust server (non-VITE variant).
+  const publicDeploymentMode = resolvePublicDeploymentMode(iamMode);
+  setEnvDefault(env, SDKWORK_DEPLOYMENT_MODE_ENV, publicDeploymentMode);
+}
+
 function applyLocalVerifyCodeDefaults({
   env,
   iamMode,
@@ -811,12 +901,28 @@ export function resolveBirdcoderIamCommandEnv({
     VITE_BIRDCODER_IAM_DEPLOYMENT_MODE_ENV,
     resolvedIamMode,
   );
+    const publicDeploymentMode = resolvePublicDeploymentMode(resolvedIamMode);
   setEnvValue(
     nextEnv,
     VITE_SDKWORK_DEPLOYMENT_MODE_ENV,
-    resolvePublicDeploymentMode(resolvedIamMode),
+    publicDeploymentMode,
   );
+  setEnvValue(
+    nextEnv,
+    SDKWORK_DEPLOYMENT_MODE_ENV,
+    publicDeploymentMode,
+  );
+  applyIamDevEnvironmentDefaults({
+    env: nextEnv,
+    viteMode: resolvedViteMode,
+    iamMode: resolvedIamMode,
+  });
   setEnvValue(nextEnv, SDKWORK_IAM_MODE_ENV, sdkworkIamMode);
+  applySdkworkRuntimeConfigEnv({
+    env: nextEnv,
+    iamMode: resolvedIamMode,
+    target,
+  });
 
   applyIamModeDefaults({
     env: nextEnv,

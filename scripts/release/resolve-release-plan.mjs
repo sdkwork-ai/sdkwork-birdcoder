@@ -15,7 +15,7 @@ import {
 } from './release-profiles.mjs';
 
 export const DEFAULT_RELEASE_KIND = 'formal';
-export const DEFAULT_ROLLBACK_RUNBOOK_REF = 'docs/step/13-发布就绪-github-flow-灰度回滚闭环.md';
+export const DEFAULT_ROLLBACK_RUNBOOK_REF = 'docs/guides/operator/incident-response.md';
 
 const RELEASE_KIND_DEFAULTS = Object.freeze({
   formal: Object.freeze({

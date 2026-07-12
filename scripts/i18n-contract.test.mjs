@@ -98,7 +98,6 @@ collectSourceFiles(path.join(rootDir, 'apps', 'sdkwork-birdcoder-h5', 'src'), so
 const forbiddenProductUiLiterals = [
   'Validating SDKWork session',
   'Application Error',
-  'Search skills and packages',
   'Search templates',
   'Search files...',
   'Search files by name...',
@@ -106,7 +105,6 @@ const forbiddenProductUiLiterals = [
   'An unexpected error occurred. Please reload the application.',
   'Starting SDKWork BirdCoder',
   'Project folder path is unavailable',
-  'No matching skills',
   'Sign in to create a project from a template.',
   'Select a workspace before creating a project from a template.',
   'Project not found',
@@ -118,11 +116,6 @@ const forbiddenProductUiLiterals = [
   'Rendering table preview...',
   'Rendering code preview...',
   'The Rust debugger host API is not wired yet',
-  'Loading skill catalog...',
-  'Failed to load skills',
-  'Official Registry',
-  'Alibaba Cloud Mirror',
-  'Tencent Cloud Mirror',
 ];
 
 for (const filePath of sourceFiles) {

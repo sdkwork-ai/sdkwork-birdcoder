@@ -55,7 +55,7 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /useProjects\((?:workspaceId|effectiveWorkspaceId),\s*\{\s*isActive:\s*isVisible,\s*\}\)/s,
+  /useProjects\(\s*(?:workspaceId|effectiveWorkspaceId),\s*\{[\s\S]*?isActive:\s*isVisible,[\s\S]*?\}\s*\)/s,
   'CodePage must gate project-store subscriptions behind page visibility so the hidden code workbench stops replaying project inventory updates.',
 );
 
@@ -91,7 +91,7 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /useProjects\(workspaceId,\s*\{\s*isActive:\s*isVisible,\s*\}\)/s,
+  /useProjects\(\s*workspaceId,\s*\{[\s\S]*?isActive:\s*isVisible,[\s\S]*?\}\s*\)/s,
   'StudioPage must gate project-store subscriptions behind page visibility so the hidden studio workbench stops replaying project inventory updates.',
 );
 

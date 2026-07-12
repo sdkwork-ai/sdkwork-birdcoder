@@ -1,9 +1,6 @@
 use serde::Deserialize;
 
-use super::models::{
-    CodingSessionTurnIdeContextPayload,
-    CodingSessionTurnOptionsPayload,
-};
+use super::models::{CodingSessionTurnIdeContextPayload, CodingSessionTurnOptionsPayload};
 
 // ── Create coding session ────────────────────────────────────────────
 

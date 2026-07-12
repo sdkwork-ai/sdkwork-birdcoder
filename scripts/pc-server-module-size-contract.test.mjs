@@ -51,14 +51,4 @@ for (const moduleName of splitModules) {
   );
 }
 
-const commercialTruthDoc = fs.readFileSync(
-  path.join(rootDir, 'docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md'),
-  'utf8',
-);
-assert.match(
-  commercialTruthDoc,
-  /pc-server|module.*ownership|oversized/u,
-  'Commercial truth doc must track pc-server module ownership as an open or in-progress closure.',
-);
-
 console.log(`pc-server module size contract passed (${lineCount}/${MAX_INDEX_LINES} lines).`);

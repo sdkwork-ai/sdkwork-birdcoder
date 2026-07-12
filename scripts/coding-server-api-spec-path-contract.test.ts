@@ -35,6 +35,18 @@ const FORBIDDEN_PREFIXES = [
 const FORBIDDEN_RUNTIME_RESOURCE_PATHS = [
   '/app/v3/api/ai_coding_session',
 ] as const;
+const CREDENTIAL_ENTRY_OPERATION_IDS = new Set([
+  'oauth.authorizationUrls.create',
+  'oauth.sessions.create',
+  'oauth.deviceAuthorizations.create',
+  'oauth.deviceAuthorizations.scans.create',
+  'oauth.deviceAuthorizations.passwordCompletions.create',
+  'oauth.deviceAuthorizations.sessionExchanges.create',
+  'passwordResetRequests.create',
+  'passwordResets.create',
+  'registrations.create',
+  'sessions.create',
+]);
 const FORBIDDEN_ACTIVE_DOC_TOKENS = [
   '/api/core/v1',
   '/api/app/v1',
@@ -255,6 +267,7 @@ function assertStandardOpenApiGovernanceExtensions(
     'x-sdkwork-data-scope'?: unknown;
     'x-sdkwork-deployment'?: unknown;
     'x-sdkwork-domain'?: unknown;
+    'x-sdkwork-forbid-credential-headers'?: unknown;
     'x-sdkwork-permission'?: unknown;
     'x-sdkwork-public'?: unknown;
     'x-sdkwork-resource'?: unknown;
@@ -279,8 +292,8 @@ function assertStandardOpenApiGovernanceExtensions(
   assert.equal(typeof resource, 'string', `${context} must declare x-sdkwork-resource.`);
   assert.match(
     String(resource),
-    /^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u,
-    `${context} x-sdkwork-resource must be a canonical lowerCamel resource path.`,
+    /^birdcoder\.[a-z][a-z0-9_-]*$/u,
+    `${context} x-sdkwork-resource must be an application-owned BirdCoder resource code.`,
   );
   assert.equal(typeof isPublic, 'boolean', `${context} must declare boolean x-sdkwork-public.`);
   assert.equal(typeof tenantScope, 'string', `${context} must declare x-sdkwork-tenant-scope.`);
@@ -300,10 +313,22 @@ function assertStandardOpenApiGovernanceExtensions(
   if (isPublic) {
     assert.deepEqual(operation.security, [], `${context} public operation must explicitly set security: [].`);
     assert.equal(
+      operation['x-sdkwork-auth-mode'],
+      'anonymous',
+      `${context} public operation must materialize x-sdkwork-auth-mode: anonymous.`,
+    );
+    assert.equal(
       permission,
       undefined,
       `${context} public operation must not declare x-sdkwork-permission.`,
     );
+    if (CREDENTIAL_ENTRY_OPERATION_IDS.has(operation.operationId)) {
+      assert.equal(
+        operation['x-sdkwork-forbid-credential-headers'],
+        true,
+        `${context} credential-entry operation must materialize x-sdkwork-forbid-credential-headers: true.`,
+      );
+    }
     return;
   }
 
@@ -312,11 +337,21 @@ function assertStandardOpenApiGovernanceExtensions(
     [{ bearerAuth: [], sdkworkAccessToken: [] }],
     `${context} protected operation must use dual-token security.`,
   );
+  assert.match(
+    String(operation['x-sdkwork-auth-mode'] ?? ''),
+    /^(?:user|admin)$/u,
+    `${context} protected operation must declare user or admin x-sdkwork-auth-mode.`,
+  );
   assert.equal(typeof permission, 'string', `${context} protected operation must declare x-sdkwork-permission.`);
   assert.match(
     String(permission),
-    /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*\.[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*\.(?:create|read|update|delete|write|execute|subscribe)$/u,
-    `${context} x-sdkwork-permission must be a stable SDKWork permission code.`,
+    /^birdcoder\.[a-z][a-z0-9_-]*\.(?:create|read|update|delete|write|execute|subscribe)$/u,
+    `${context} x-sdkwork-permission must be a stable BirdCoder application-owned permission code.`,
+  );
+  assert.equal(
+    String(permission).startsWith(`${resource}.`),
+    true,
+    `${context} x-sdkwork-permission must use x-sdkwork-resource as its resource prefix.`,
   );
 }
 

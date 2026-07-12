@@ -48,7 +48,7 @@
     },
     {
       "path": "src/api/iam.rs",
-      "sha256": "f1b1f40ade134b3cb634f2de8d15ec13f35ef4c7b14afcb229ab376c5aa5a382"
+      "sha256": "9a1012c235ea7ed27469e390d15f985476c9f8cfb611d0e95212b1003de0024a"
     },
     {
       "path": "src/api/mod.rs",
@@ -60,7 +60,7 @@
     },
     {
       "path": "src/api/platform.rs",
-      "sha256": "76985ccc0aa8bf12a684d4a9cb30ae1ff7d1a1bd3f8110260dc1d47750c5fc69"
+      "sha256": "2629dd56d62ce75413af0e31ca9d79628ec13897f8ead6372e7f63bbcd2395b1"
     },
     {
       "path": "src/client.rs",
@@ -125,14 +125,6 @@
     {
       "path": "src/models/bird_coder_create_iam_user_role_request.rs",
       "sha256": "3edc68ca32a192350785e3ccc8a966b5e750547d4e7ec6af57b623be440b47d5"
-    },
-    {
-      "path": "src/models/bird_coder_deleted_resource_envelope.rs",
-      "sha256": "ba984c2f0635b30d268536a5247a5c7e2632a391361f2a611a73431375099d1e"
-    },
-    {
-      "path": "src/models/bird_coder_deleted_resource_result.rs",
-      "sha256": "c23f647f0f8865862345604f3b53d24502ab0ff8447a5c86c082100ea3e21d02"
     },
     {
       "path": "src/models/bird_coder_deployment_record_summary_list_envelope.rs",
@@ -344,7 +336,7 @@
     },
     {
       "path": "src/models/mod.rs",
-      "sha256": "47249b9180f4fb1e68a19121151608d4141c88251792640c6dfa182be0282075"
+      "sha256": "42ae6ca515866c73d1c10d2576b202ff7f9dcf6b8aca74e66d4575668afe2c75"
     },
     {
       "path": "src/models/page_info.rs",

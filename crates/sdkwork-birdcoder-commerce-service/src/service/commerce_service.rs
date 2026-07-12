@@ -22,6 +22,17 @@ const ORDER_NO_PREFIX: &str = "BCO-";
 const PAYMENT_NO_PREFIX: &str = "BCP-";
 const INVOICE_NO_PREFIX: &str = "BCI-";
 
+#[derive(Clone, Copy)]
+pub struct FinalizePendingPaymentInput<'a> {
+    pub tenant_id: i64,
+    pub user_id: i64,
+    pub payment_id: i64,
+    pub channel_transaction_id: &'a str,
+    pub invoice: &'a CommerceInvoicePayload,
+    pub order_id: i64,
+    pub paid_at: &'a str,
+}
+
 #[async_trait::async_trait]
 pub trait CommerceRepository: Send + Sync {
     async fn list_orders(
@@ -93,13 +104,7 @@ pub trait CommerceRepository: Send + Sync {
 
     async fn finalize_pending_payment(
         &self,
-        tenant_id: i64,
-        user_id: i64,
-        payment_id: i64,
-        channel_transaction_id: &str,
-        invoice: &CommerceInvoicePayload,
-        order_id: i64,
-        paid_at: &str,
+        input: FinalizePendingPaymentInput<'_>,
     ) -> Result<CommercePaymentPayload, String>;
 }
 
@@ -137,9 +142,7 @@ impl<R: CommerceRepository> CommerceService<R> {
             .find_order(tenant_id, user_id, normalized_id)
             .await
             .map_err(CommerceError::Repository)?
-            .ok_or_else(|| {
-                CommerceError::NotFound(format!("Order \"{order_id}\" was not found."))
-            })
+            .ok_or_else(|| CommerceError::NotFound(format!("Order \"{order_id}\" was not found.")))
     }
 
     pub async fn create_order(
@@ -366,9 +369,10 @@ impl<R: CommerceRepository> CommerceService<R> {
         command: ConfirmPaymentCommand,
     ) -> Result<CommercePaymentPayload, CommerceError> {
         let (tenant_id, user_id) = resolve_scope(ctx)?;
-        let channel_transaction_id = normalize_required(&command.channel_transaction_id).ok_or_else(|| {
-            CommerceError::InvalidInput("channelTransactionId is required.".to_string())
-        })?;
+        let channel_transaction_id = normalize_required(&command.channel_transaction_id)
+            .ok_or_else(|| {
+                CommerceError::InvalidInput("channelTransactionId is required.".to_string())
+            })?;
         let payment_id_num = parse_resource_id(payment_id, "paymentId")?;
         let payment = self
             .repository
@@ -424,15 +428,15 @@ impl<R: CommerceRepository> CommerceService<R> {
             updated_at: now.clone(),
         };
         self.repository
-            .finalize_pending_payment(
+            .finalize_pending_payment(FinalizePendingPaymentInput {
                 tenant_id,
                 user_id,
-                payment_id_num,
-                channel_transaction_id.as_str(),
-                &invoice,
+                payment_id: payment_id_num,
+                channel_transaction_id: channel_transaction_id.as_str(),
+                invoice: &invoice,
                 order_id,
-                &now,
-            )
+                paid_at: &now,
+            })
             .await
             .map_err(CommerceError::Repository)
     }
@@ -442,9 +446,8 @@ fn resolve_scope(ctx: &CommerceContext) -> Result<(i64, i64), CommerceError> {
     let tenant_id = parse_numeric_tenant_id(&ctx.tenant_id).map_err(|_| {
         CommerceError::InvalidInput("a valid tenant scope is required.".to_string())
     })?;
-    let user_id = parse_numeric_user_id(&ctx.user_id).map_err(|_| {
-        CommerceError::InvalidInput("a valid user scope is required.".to_string())
-    })?;
+    let user_id = parse_numeric_user_id(&ctx.user_id)
+        .map_err(|_| CommerceError::InvalidInput("a valid user scope is required.".to_string()))?;
     Ok((tenant_id, user_id))
 }
 
@@ -526,7 +529,11 @@ mod tests {
             let start = usize::try_from(query.offset).unwrap_or(0);
             let end = start.saturating_add(usize::try_from(query.limit).unwrap_or(50));
             Ok((
-                items.into_iter().skip(start).take(end.saturating_sub(start)).collect(),
+                items
+                    .into_iter()
+                    .skip(start)
+                    .take(end.saturating_sub(start))
+                    .collect(),
                 total,
             ))
         }
@@ -542,7 +549,9 @@ mod tests {
                 .lock()
                 .await
                 .iter()
-                .find(|order| order.id == order_id.to_string() && order.user_id == user_id.to_string())
+                .find(|order| {
+                    order.id == order_id.to_string() && order.user_id == user_id.to_string()
+                })
                 .cloned())
         }
 
@@ -575,7 +584,11 @@ mod tests {
             let start = usize::try_from(query.offset).unwrap_or(0);
             let end = start.saturating_add(usize::try_from(query.limit).unwrap_or(50));
             Ok((
-                items.into_iter().skip(start).take(end.saturating_sub(start)).collect(),
+                items
+                    .into_iter()
+                    .skip(start)
+                    .take(end.saturating_sub(start))
+                    .collect(),
                 total,
             ))
         }
@@ -613,7 +626,11 @@ mod tests {
             let start = usize::try_from(query.offset).unwrap_or(0);
             let end = start.saturating_add(usize::try_from(query.limit).unwrap_or(50));
             Ok((
-                items.into_iter().skip(start).take(end.saturating_sub(start)).collect(),
+                items
+                    .into_iter()
+                    .skip(start)
+                    .take(end.saturating_sub(start))
+                    .collect(),
                 total,
             ))
         }
@@ -682,14 +699,17 @@ mod tests {
 
         async fn finalize_pending_payment(
             &self,
-            _tenant_id: i64,
-            user_id: i64,
-            payment_id: i64,
-            channel_transaction_id: &str,
-            invoice: &CommerceInvoicePayload,
-            order_id: i64,
-            paid_at: &str,
+            input: FinalizePendingPaymentInput<'_>,
         ) -> Result<CommercePaymentPayload, String> {
+            let FinalizePendingPaymentInput {
+                tenant_id: _,
+                user_id,
+                payment_id,
+                channel_transaction_id,
+                invoice,
+                order_id,
+                paid_at,
+            } = input;
             let mut payments = self.payments.lock().await;
             let payment = payments
                 .iter_mut()

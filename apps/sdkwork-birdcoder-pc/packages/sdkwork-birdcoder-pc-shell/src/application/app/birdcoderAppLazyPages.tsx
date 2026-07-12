@@ -44,13 +44,3 @@ export const VipPage = lazy(async () => {
   const { loadVipPage } = await import('./pageLoaders.ts');
   return loadVipPage();
 });
-
-export const SkillsPage = lazy(async () => {
-  const { loadSkillsPage } = await import('./pageLoaders.ts');
-  return loadSkillsPage();
-});
-
-export const TemplatesPage = lazy(async () => {
-  const { loadTemplatesPage } = await import('./pageLoaders.ts');
-  return loadTemplatesPage();
-});

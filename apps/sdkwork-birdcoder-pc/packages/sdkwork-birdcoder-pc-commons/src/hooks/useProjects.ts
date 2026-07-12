@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { randomString } from '@sdkwork/utils/id';
 import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import type {
@@ -43,8 +43,8 @@ import {
   isWorkspaceRealtimeEventSatisfiedByProjects,
 } from '../stores/workspaceRealtime.ts';
 import type {
-  BirdCoderProjectMirrorSnapshot,
-  BirdCoderServiceListPagination,
+  BirdCoderServiceListPage,
+  BirdCoderServicePageRequest,
   CreateCodingSessionOptions,
   CreateProjectOptions,
   UpdateCodingSessionOptions,
@@ -110,6 +110,7 @@ const WORKSPACE_REALTIME_EVENT_DEDUP_LIMIT = 256;
 const EMPTY_PROJECT_INVENTORY_MESSAGES: BirdCoderChatMessage[] = [];
 const EMPTY_FILTERED_PROJECT_CODING_SESSIONS: BirdCoderCodingSession[] = [];
 const PROJECTS_FETCH_TIMEOUT_MS = 30_000;
+const MAX_TARGET_PROJECT_RESOLUTION_PAGES = 20;
 
 interface ProjectsFetchTimeoutBoundary {
   clear: () => void;
@@ -273,26 +274,6 @@ function searchProjectsInventory(
   }
 
   return scoredProjects.map((candidate) => candidate.project);
-}
-
-function materializeProjectInventoryFromMirrorSnapshot(
-  projectSnapshot: BirdCoderProjectMirrorSnapshot,
-): BirdCoderProject {
-  const { codingSessions, ...project } = projectSnapshot;
-  return {
-    ...project,
-    codingSessions: codingSessions.map((codingSessionSnapshot) => {
-      const {
-        messageCount: _messageCount,
-        nativeTranscriptUpdatedAt: _nativeTranscriptUpdatedAt,
-        ...codingSession
-      } = codingSessionSnapshot;
-      return {
-        ...codingSession,
-        messages: EMPTY_PROJECT_INVENTORY_MESSAGES,
-      };
-    }),
-  };
 }
 
 function normalizeProjectsForInventoryStore(
@@ -535,31 +516,23 @@ function clearProjectsStorePendingRefresh(store: ProjectsStore): void {
   store.pendingRefreshTimer = null;
 }
 
-async function readProjectInventoryForWorkspace(
+function readProjectInventoryPageForWorkspace(
   workspaceId: string,
   projectService: ReturnType<typeof useIDEServices>['projectService'],
-  pagination?: BirdCoderServiceListPagination,
-): Promise<BirdCoderProject[]> {
-  const projectMirrorReader = projectService.getProjectMirrorSnapshots?.bind(projectService);
-  if (projectMirrorReader) {
-    const projectSnapshots = await projectMirrorReader(workspaceId);
-    if (Array.isArray(projectSnapshots)) {
-      return projectSnapshots.map(materializeProjectInventoryFromMirrorSnapshot);
-    }
-  }
-
-  return projectService.getProjects(workspaceId, pagination);
+  request: BirdCoderServicePageRequest,
+): Promise<BirdCoderServiceListPage<BirdCoderProject>> {
+  return projectService.getProjectsPage(workspaceId, request);
 }
 
-function readProjectInventoryForWorkspaceWithTimeout(
+function readProjectInventoryPageForWorkspaceWithTimeout(
   workspaceId: string,
   projectService: ReturnType<typeof useIDEServices>['projectService'],
+  request: BirdCoderServicePageRequest,
   timeoutMs: number = PROJECTS_FETCH_TIMEOUT_MS,
-  pagination?: BirdCoderServiceListPagination,
-): Promise<BirdCoderProject[]> {
+): Promise<BirdCoderServiceListPage<BirdCoderProject>> {
   const timeoutBoundary = createProjectsFetchTimeoutPromise(timeoutMs);
   return Promise.race([
-    readProjectInventoryForWorkspace(workspaceId, projectService, pagination),
+    readProjectInventoryPageForWorkspace(workspaceId, projectService, request),
     timeoutBoundary.promise,
   ]).finally(() => {
     timeoutBoundary.clear();
@@ -570,10 +543,17 @@ async function fetchProjectsForWorkspace(
   store: ProjectsStore,
   workspaceId: string,
   projectService: ReturnType<typeof useIDEServices>['projectService'],
-  pagination?: BirdCoderServiceListPagination,
+  pageRequest: BirdCoderServicePageRequest,
+  mode: 'append' | 'replace' = 'replace',
 ): Promise<BirdCoderProject[]> {
+  const requestKey = `${mode}:${pageRequest.page}:${pageRequest.pageSize}`;
   if (store.inflight) {
-    return store.inflight;
+    if (store.inflightKey === requestKey) {
+      return store.inflight;
+    }
+
+    await store.inflight.catch(() => undefined);
+    return fetchProjectsForWorkspace(store, workspaceId, projectService, pageRequest, mode);
   }
 
   updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
@@ -582,23 +562,53 @@ async function fetchProjectsForWorkspace(
     isLoading: true,
   }));
 
-  const request = readProjectInventoryForWorkspaceWithTimeout(workspaceId, projectService, PROJECTS_FETCH_TIMEOUT_MS, pagination)
-    .then((projects) => {
+  const requestInventoryVersion = store.inventoryVersion;
+  const request = readProjectInventoryPageForWorkspaceWithTimeout(
+    workspaceId,
+    projectService,
+    pageRequest,
+    PROJECTS_FETCH_TIMEOUT_MS,
+  )
+    .then((page) => {
+      if (store.inventoryVersion !== requestInventoryVersion) {
+        updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
+          ...previousSnapshot,
+          isLoading: false,
+          pageInfo: null,
+        }));
+        return store.snapshot.projects;
+      }
+
+      const incomingProjects = normalizeProjectsForInventoryStore(page.items.filter(Boolean));
+      const nextProjects = mergeProjectsForStore(
+        store.snapshot.projects,
+        mode === 'append'
+          ? [...store.snapshot.projects, ...incomingProjects]
+          : incomingProjects,
+      );
       updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
         error: null,
         hasFetched: true,
         isLoading: false,
-        // Project inventory is authoritative from the database/server. Preserve
-        // object identity for unchanged project records, but do not keep
-        // projects that are absent from the latest authoritative result.
+        pageInfo: page.pageInfo,
         projects: mergeProjectsForStore(
           previousSnapshot.projects,
-          normalizeProjectsForInventoryStore(projects.filter(Boolean)),
+          mode === 'append'
+            ? [...previousSnapshot.projects, ...incomingProjects]
+            : incomingProjects,
         ),
       }));
-      return projects;
+      return nextProjects;
     })
     .catch((error: unknown) => {
+      // A mutation or realtime event may have invalidated this request while it
+      // was in flight. In that case the failure belongs to the old inventory
+      // generation and must not replace the current store error or loading
+      // state. Keep propagating it so the request owner can observe failure.
+      if (store.inventoryVersion !== requestInventoryVersion) {
+        throw error;
+      }
+
       const message =
         error instanceof Error && error.message.trim()
           ? error.message
@@ -609,10 +619,12 @@ async function fetchProjectsForWorkspace(
     .finally(() => {
       if (store.inflight === request) {
         store.inflight = null;
+        store.inflightKey = null;
       }
     });
 
   store.inflight = request;
+  store.inflightKey = requestKey;
   return request;
 }
 
@@ -635,7 +647,15 @@ function scheduleProjectsRefresh(
   clearProjectsStorePendingRefresh(store);
   store.pendingRefreshTimer = setTimeout(() => {
     store.pendingRefreshTimer = null;
-    void fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService).catch(() => {
+    void fetchProjectsForWorkspace(
+      store,
+      normalizedWorkspaceId,
+      projectService,
+      {
+        page: 1,
+        pageSize: store.snapshot.pageInfo?.pageSize ?? DEFAULT_LIST_PAGE_SIZE,
+      },
+    ).catch(() => {
       // Error state is already propagated through the shared store snapshot.
     });
   }, trigger === 'realtime' ? 120 : 0);
@@ -730,13 +750,15 @@ function createProjectsStoreRealtimeBinding(
           event,
         );
         if (nextProjects !== null) {
-          if (nextProjects !== store.snapshot.projects) {
-            updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
-              ...previousSnapshot,
-              error: null,
-              hasFetched: true,
-              projects: nextProjects,
-            }));
+        if (nextProjects !== store.snapshot.projects) {
+          store.inventoryVersion += 1;
+          updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
+            ...previousSnapshot,
+            error: null,
+            hasFetched: true,
+            pageInfo: null,
+            projects: nextProjects,
+          }));
           }
           return;
         }
@@ -805,6 +827,7 @@ export interface UseProjectsOptions {
   isActive?: boolean;
   limit?: number;
   offset?: number;
+  targetProjectId?: string | null;
 }
 
 export function useProjects(workspaceId?: string, options?: UseProjectsOptions) {
@@ -815,16 +838,31 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
   const shouldEnableRealtime = options?.enableRealtime ?? true;
   const shouldFetchOnMount = options?.fetchOnMount ?? true;
   const isActive = options?.isActive ?? true;
-  const pagination = useMemo<BirdCoderServiceListPagination>(
-    () => ({
-      limit: options?.limit ?? DEFAULT_LIST_PAGE_SIZE,
-      offset: options?.offset ?? 0,
-    }),
+  const pageRequest = useMemo<BirdCoderServicePageRequest>(
+    () => {
+      const pageSize = options?.limit ?? DEFAULT_LIST_PAGE_SIZE;
+      const offset = options?.offset ?? 0;
+      if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 200) {
+        throw new Error('Project page size must be an integer between 1 and 200.');
+      }
+      if (!Number.isSafeInteger(offset) || offset < 0 || offset % pageSize !== 0) {
+        throw new Error('Project offset must be a non-negative multiple of page size.');
+      }
+      return {
+        page: offset / pageSize + 1,
+        pageSize,
+      };
+    },
     [options?.limit, options?.offset],
   );
-  const storeScopeKey = normalizedWorkspaceId
+  const baseStoreScopeKey = normalizedWorkspaceId
     ? buildProjectsStoreScopeKey(normalizedUserScope, normalizedWorkspaceId)
     : '';
+  const isDefaultPagination =
+    pageRequest.pageSize === DEFAULT_LIST_PAGE_SIZE && pageRequest.page === 1;
+  const storeScopeKey = baseStoreScopeKey && !isDefaultPagination
+    ? `${baseStoreScopeKey}::page:${pageRequest.pageSize}:${pageRequest.page}`
+    : baseStoreScopeKey;
   const [storeSnapshot, setStoreSnapshot] = useState<ProjectsStoreSnapshot>(() =>
     storeScopeKey
       ? getProjectsStore(storeScopeKey).snapshot
@@ -865,7 +903,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         (!!store.snapshot.error && store.snapshot.projects.length === 0 && !hadActiveListeners)) &&
       !store.inflight
     ) {
-      void fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService, pagination).catch(() => {
+      void fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService, pageRequest).catch(() => {
         // Error state is already propagated through the shared store snapshot.
       });
     }
@@ -881,7 +919,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     shouldFetchOnMount,
     isActive,
     storeScopeKey,
-    pagination,
+    pageRequest,
   ]);
 
   const refreshProjects = useCallback(async () => {
@@ -895,8 +933,197 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     await projectService.invalidateProjectReadCache?.({
       workspaceId: normalizedWorkspaceId,
     });
-    return fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService, pagination);
-  }, [normalizedWorkspaceId, projectService, storeScopeKey, pagination]);
+    return fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService, pageRequest);
+  }, [normalizedWorkspaceId, projectService, storeScopeKey, pageRequest]);
+
+  const loadMoreProjects = useCallback(async () => {
+    if (!normalizedWorkspaceId || !storeScopeKey) {
+      return [];
+    }
+
+    const store = getProjectsStore(storeScopeKey);
+    const pageInfo = store.snapshot.pageInfo;
+    if (!pageInfo?.hasMore) {
+      return store.snapshot.projects;
+    }
+
+    return fetchProjectsForWorkspace(
+      store,
+      normalizedWorkspaceId,
+      projectService,
+      {
+        page: pageInfo.page + 1,
+        pageSize: pageInfo.pageSize,
+      },
+      'append',
+    );
+  }, [normalizedWorkspaceId, projectService, storeScopeKey]);
+
+  useEffect(() => {
+    if (
+      !isActive ||
+      !normalizedWorkspaceId ||
+      !storeScopeKey ||
+      !storeSnapshot.hasFetched ||
+      storeSnapshot.isLoading ||
+      storeSnapshot.error ||
+      storeSnapshot.pageInfo !== null
+    ) {
+      return;
+    }
+
+    void fetchProjectsForWorkspace(
+      getProjectsStore(storeScopeKey),
+      normalizedWorkspaceId,
+      projectService,
+      {
+        page: 1,
+        pageSize: pageRequest.pageSize,
+      },
+    ).catch(() => {
+      // Error state is already propagated through the shared store snapshot.
+    });
+  }, [
+    isActive,
+    normalizedWorkspaceId,
+    pageRequest.pageSize,
+    projectService,
+    storeScopeKey,
+    storeSnapshot.error,
+    storeSnapshot.hasFetched,
+    storeSnapshot.isLoading,
+    storeSnapshot.pageInfo,
+  ]);
+
+  const normalizedTargetProjectId = options?.targetProjectId?.trim() ?? '';
+  const [targetResolutionRevision, setTargetResolutionRevision] = useState(0);
+  const targetResolutionStateRef = useRef({
+    key: '',
+    pagesRequested: 0,
+    lookupStatus: 'idle' as 'idle' | 'pending' | 'found' | 'missing' | 'failed',
+  });
+  const targetResolutionKey = `${normalizedUserScope}\u0001${normalizedWorkspaceId}\u0001${normalizedTargetProjectId}`;
+  if (targetResolutionStateRef.current.key !== targetResolutionKey) {
+    targetResolutionStateRef.current = {
+      key: targetResolutionKey,
+      pagesRequested: 0,
+      lookupStatus: 'idle',
+    };
+  }
+  const targetResolutionBudgetExhausted =
+    targetResolutionStateRef.current.pagesRequested >= MAX_TARGET_PROJECT_RESOLUTION_PAGES;
+  const hasTargetProject = normalizedTargetProjectId
+    ? storeSnapshot.projects.some((project) => project.id === normalizedTargetProjectId)
+    : true;
+  const isResolvingTargetProject = Boolean(
+    normalizedTargetProjectId &&
+      !hasTargetProject &&
+      !storeSnapshot.error &&
+      (
+        targetResolutionStateRef.current.lookupStatus === 'idle' ||
+        targetResolutionStateRef.current.lookupStatus === 'pending' ||
+        (
+          targetResolutionStateRef.current.lookupStatus === 'failed' &&
+          !targetResolutionBudgetExhausted &&
+          (
+            !storeSnapshot.hasFetched ||
+            storeSnapshot.pageInfo === null ||
+            storeSnapshot.pageInfo.hasMore
+          )
+        )
+      ),
+  );
+
+  useEffect(() => {
+    const resolutionState = targetResolutionStateRef.current;
+    if (
+      !isActive ||
+      !normalizedWorkspaceId ||
+      !storeScopeKey ||
+      !normalizedTargetProjectId ||
+      !storeSnapshot.hasFetched ||
+      storeSnapshot.error ||
+      hasTargetProject ||
+      resolutionState.lookupStatus !== 'idle'
+    ) {
+      return;
+    }
+
+    resolutionState.lookupStatus = 'pending';
+    void projectService
+      .getProjectById(normalizedTargetProjectId)
+      .then((project) => {
+        const currentState = targetResolutionStateRef.current;
+        if (currentState.key !== targetResolutionKey) {
+          return;
+        }
+
+        if (!project || project.workspaceId !== normalizedWorkspaceId) {
+          currentState.lookupStatus = 'missing';
+          setTargetResolutionRevision((revision) => revision + 1);
+          return;
+        }
+
+        currentState.lookupStatus = 'found';
+        const store = getProjectsStore(storeScopeKey);
+        updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
+          ...previousSnapshot,
+          projects: mergeProjectsForStore(
+            previousSnapshot.projects,
+            upsertProjectIntoCollection(previousSnapshot.projects, project),
+          ),
+        }));
+        setTargetResolutionRevision((revision) => revision + 1);
+      })
+      .catch(() => {
+        const currentState = targetResolutionStateRef.current;
+        if (currentState.key !== targetResolutionKey) {
+          return;
+        }
+
+        currentState.lookupStatus = 'failed';
+        setTargetResolutionRevision((revision) => revision + 1);
+      });
+  }, [
+    hasTargetProject,
+    isActive,
+    normalizedTargetProjectId,
+    normalizedWorkspaceId,
+    projectService,
+    storeScopeKey,
+    storeSnapshot.error,
+    storeSnapshot.hasFetched,
+    targetResolutionKey,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isActive ||
+      !storeSnapshot.hasFetched ||
+      storeSnapshot.isLoading ||
+      storeSnapshot.error ||
+      !isResolvingTargetProject ||
+      targetResolutionStateRef.current.lookupStatus !== 'failed' ||
+      !storeSnapshot.pageInfo?.hasMore
+    ) {
+      return;
+    }
+
+    targetResolutionStateRef.current.pagesRequested += 1;
+    void loadMoreProjects().catch(() => {
+      // Error state is already propagated through the shared store snapshot.
+    });
+  }, [
+    isActive,
+    isResolvingTargetProject,
+    loadMoreProjects,
+    storeSnapshot.hasFetched,
+    storeSnapshot.isLoading,
+    storeSnapshot.error,
+    storeSnapshot.pageInfo?.hasMore,
+    targetResolutionRevision,
+    targetResolutionBudgetExhausted,
+  ]);
 
   const projectSearchInventory = useMemo(() => buildProjectSearchInventory(storeSnapshot.projects), [storeSnapshot.projects]);
   const normalizedSearchQuery = useMemo(
@@ -926,6 +1153,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       const newProject = await projectService.createProject(normalizedWorkspaceId, name, options);
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
         upsertProjectIntoCollection(projects, newProject),
+        { invalidatePagination: true },
       );
       return newProject;
     } catch (error: unknown) {
@@ -983,6 +1211,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       await projectService.renameProject(projectId, name);
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
         updateProjectInCollection(projects, projectId, { name }),
+        { invalidatePagination: true },
       );
     } catch (error: unknown) {
       const message =
@@ -1001,6 +1230,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       await projectService.updateProject(projectId, updates);
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
         updateProjectInCollection(projects, projectId, updates),
+        { invalidatePagination: true },
       );
     } catch (error: unknown) {
       const message =
@@ -1019,6 +1249,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
       await projectService.deleteProject(projectId);
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
         removeProjectFromCollection(projects, projectId),
+        { invalidatePagination: true },
       );
     } catch (error: unknown) {
       const message =
@@ -1445,9 +1676,15 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
 
   return {
     filteredProjects,
-    hasFetched: storeSnapshot.hasFetched,
+    hasFetched:
+      storeSnapshot.hasFetched &&
+      storeSnapshot.pageInfo !== null &&
+      !isResolvingTargetProject,
+    hasMore: storeSnapshot.pageInfo?.hasMore ?? false,
     projects: storeSnapshot.projects,
     isLoading: storeSnapshot.isLoading,
+    isLoadingMore: storeSnapshot.isLoading && storeSnapshot.hasFetched,
+    pageInfo: storeSnapshot.pageInfo,
     error: storeSnapshot.error,
     searchQuery,
     setSearchQuery,
@@ -1464,7 +1701,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     editCodingSessionMessage,
     deleteCodingSessionMessage,
     sendMessage,
+    loadMoreProjects,
     refreshProjects,
   };
 }
-

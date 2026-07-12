@@ -568,47 +568,62 @@ function writePackageSignatureEvidenceCommand(target, env = process.env) {
 function writePackageSbomEvidenceCommand(target, env = process.env) {
   const packageId = nonEmpty(env.SDKWORK_PACKAGE_ID, currentTargetId(env));
   const sbomPath = path.posix.join(SBOM_EVIDENCE_DIR, `${packageId}.sbom.json`);
-  return nodeCommand([
-    '-e',
-    [
-      'const fs = require("node:fs");',
-      'const path = require("node:path");',
-      `const sbomPath = ${JSON.stringify(sbomPath)};`,
-      'fs.mkdirSync(path.dirname(sbomPath), { recursive: true });',
-      'const env = process.env;',
-      'const rootPackage = JSON.parse(fs.readFileSync("package.json", "utf8"));',
-      'const rootVersion = String(rootPackage.version || env.SDKWORK_PACKAGE_VERSION || env.SDKWORK_RELEASE_TAG || "release-local");',
-      'const components = Object.entries(rootPackage.dependencies ?? {}).map(([name, version]) => ({',
-      '  type: "library",',
-      '  name,',
-      '  version: String(version).startsWith("workspace:") ? rootVersion : String(version),',
-      '  "bom-ref": `${name}@${String(version)}`,',
-      '}));',
-      'const sbom = {',
-      '  bomFormat: "CycloneDX",',
-      '  specVersion: "1.6",',
-      '  version: 1,',
-      '  metadata: {',
-      '    timestamp: new Date().toISOString(),',
-      '    tools: [{ vendor: "SDKWork", name: "sdkwork-birdcoder-release-lifecycle", version: "1.0.0" }],',
-      '    component: {',
-      '      type: "application",',
-      '      name: env.SDKWORK_APP_ID || "sdkwork-birdcoder",',
-      '      version: env.SDKWORK_PACKAGE_VERSION || env.SDKWORK_RELEASE_TAG || "release-local",',
-      '      "bom-ref": env.SDKWORK_PACKAGE_ID || "sdkwork-birdcoder-package"',
-      '    },',
-      '    properties: [',
-      `      { name: "sdkwork:packageId", value: ${JSON.stringify(packageId)} },`,
-      `      { name: "sdkwork:targetId", value: ${JSON.stringify(currentTargetId(env))} },`,
-      `      { name: "sdkwork:runtimeTarget", value: ${JSON.stringify(nonEmpty(env.SDKWORK_RUNTIME_TARGET, target.family))} },`,
-      `      { name: "sdkwork:deploymentProfile", value: ${JSON.stringify(nonEmpty(env.SDKWORK_DEPLOYMENT_PROFILE, target.family === 'container' || target.family === 'kubernetes' ? 'cloud' : 'standalone'))} }`,
-      '    ]',
-      '  },',
-      '  components,',
-      '};',
-      'fs.writeFileSync(sbomPath, `${JSON.stringify(sbom, null, 2)}\\n`);',
-    ].join('\n'),
-  ]);
+  const args = [
+    'scripts/release/write-package-sbom-evidence.mjs',
+    '--output',
+    sbomPath,
+    '--app-id',
+    nonEmpty(env.SDKWORK_APP_ID, 'sdkwork-birdcoder'),
+    '--package-id',
+    packageId,
+    '--target-id',
+    currentTargetId(env),
+    '--target-family',
+    target.family,
+    '--target-platform',
+    target.platform || 'web',
+    '--target-architecture',
+    target.arch || 'universal',
+    '--runtime-target',
+    nonEmpty(env.SDKWORK_RUNTIME_TARGET, target.family),
+    '--deployment-profile',
+    nonEmpty(
+      env.SDKWORK_DEPLOYMENT_PROFILE,
+      target.family === 'container' || target.family === 'kubernetes' ? 'cloud' : 'standalone',
+    ),
+    '--release-tag',
+    normalizeReleaseTag(env),
+  ];
+  if (nonEmpty(env.SDKWORK_PACKAGE_VERSION)) {
+    args.push('--package-version', nonEmpty(env.SDKWORK_PACKAGE_VERSION));
+  }
+  if (target.family === 'desktop' || target.family === 'server') {
+    args.push(
+      '--provider-runtime-manifest',
+      path.posix.join(
+        RELEASE_ASSETS_DIR,
+        target.family,
+        target.platform,
+        target.arch,
+        'provider-runtime',
+        'runtime-manifest.json',
+      ),
+    );
+  } else if (target.family === 'container') {
+    args.push(
+      '--provider-runtime-manifest',
+      path.posix.join(
+        RELEASE_ASSETS_DIR,
+        target.family,
+        target.platform,
+        target.arch,
+        target.accelerator || 'cpu',
+        'provider-runtime',
+        'runtime-manifest.json',
+      ),
+    );
+  }
+  return nodeCommand(args);
 }
 
 function buildSignCommands(target, env = process.env) {

@@ -3,6 +3,7 @@ import 'package:sdkwork_birdcoder_flutter_mobile_core/sdkwork_birdcoder_flutter_
 import 'package:sdkwork_birdcoder_flutter_mobile_shell/sdkwork_birdcoder_flutter_mobile_shell.dart';
 
 import 'auth_gate.dart';
+import 'l10n/l10n.dart';
 import 'providers/app_provider.dart';
 import 'providers/theme_controller.dart';
 import 'routes/app_router.dart';
@@ -51,10 +52,13 @@ class _BirdcoderAppState extends State<BirdcoderApp> {
             theme: _buildLightTheme(),
             darkTheme: _buildDarkTheme(),
             themeMode: _themeController.themeMode,
+            localizationsDelegates: AppL10n.localizationsDelegates,
+            supportedLocales: AppL10n.supportedLocales,
             onGenerateRoute: AppRouter.generateRoute,
             home: AuthGate(
               child: AppShell(
-                bootstrapState: widget.bootstrapState,
+                initialPath: '/',
+                routePageBuilder: buildBirdCoderRoutePageForPath,
                 child: buildBirdCoderRoutePageForPath('/'),
               ),
             ),

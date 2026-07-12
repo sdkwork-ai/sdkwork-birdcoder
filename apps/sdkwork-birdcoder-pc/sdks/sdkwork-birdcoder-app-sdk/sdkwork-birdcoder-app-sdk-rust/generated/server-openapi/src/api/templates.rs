@@ -16,10 +16,10 @@ impl TemplatesApi {
     }
 
     /// List app templates
-    pub async fn app_templates_list(&self, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderAppTemplateSummaryListEnvelope, SdkworkError> {
+    pub async fn app_templates_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderAppTemplateSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/app_templates".to_string()), &query);
         self.client.get(&path, None, None).await

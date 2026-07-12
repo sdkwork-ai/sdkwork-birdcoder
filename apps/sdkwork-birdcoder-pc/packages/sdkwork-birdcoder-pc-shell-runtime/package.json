@@ -20,6 +20,22 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./bootstrap/BootstrapGate": {
+      "import": "./src/application/bootstrap/BootstrapGate.tsx",
+      "types": "./src/application/bootstrap/BootstrapGate.tsx"
+    },
+    "./bootstrap/bootstrapShellRuntime": {
+      "import": "./src/application/bootstrap/bootstrapShellRuntime.ts",
+      "types": "./src/application/bootstrap/bootstrapShellRuntime.ts"
+    },
+    "./bootstrap/bootstrapServerBaseUrl": {
+      "import": "./src/application/bootstrap/bootstrapServerBaseUrl.ts",
+      "types": "./src/application/bootstrap/bootstrapServerBaseUrl.ts"
+    },
+    "./bootstrap/bootstrapServerApiReady": {
+      "import": "./src/application/bootstrap/bootstrapServerApiReady.ts",
+      "types": "./src/application/bootstrap/bootstrapServerApiReady.ts"
     }
   }
 }

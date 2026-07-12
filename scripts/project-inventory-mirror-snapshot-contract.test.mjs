@@ -8,20 +8,20 @@ const useProjectsSource = fs.readFileSync(
 
 assert.match(
   useProjectsSource,
-  /function materializeProjectInventoryFromMirrorSnapshot\(/,
-  'useProjects must materialize project inventory from mirror snapshots so list reads avoid full transcript payload hydration.',
+  /function readProjectInventoryPageForWorkspace\(/,
+  'useProjects must read project inventory through the bounded page adapter.',
 );
 
 assert.match(
+  useProjectsSource,
+  /return projectService\.getProjectsPage\(workspaceId, request\);/,
+  'useProjects must delegate bounded project inventory reads to the paginated project service.',
+);
+
+assert.doesNotMatch(
   useProjectsSource,
   /getProjectMirrorSnapshots\?\.bind\(projectService\)/,
-  'useProjects must prefer project mirror snapshots when the project service exposes lightweight inventory reads.',
-);
-
-assert.match(
-  useProjectsSource,
-  /return projectService\.getProjects\(workspaceId, pagination\);/,
-  'useProjects must keep a paginated getProjects fallback when a project mirror snapshot reader is unavailable.',
+  'bounded project inventory reads must not materialize the broad mirror snapshot API.',
 );
 
 console.log('project inventory mirror snapshot contract passed.');

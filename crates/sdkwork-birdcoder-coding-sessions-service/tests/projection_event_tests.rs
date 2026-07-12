@@ -1,4 +1,4 @@
-﻿use sdkwork_birdcoder_coding_sessions_service::event_payload::*;
+use sdkwork_birdcoder_coding_sessions_service::event_payload::*;
 use sdkwork_birdcoder_coding_sessions_service::native_session_types::*;
 
 #[test]
@@ -104,8 +104,7 @@ fn build_projection_session_events_with_native_detail_preserves_projection_user_
     let user_messages = events
         .iter()
         .filter(|event| {
-            event.kind == "message.completed"
-                && event_payload_role(&event.payload) == Some("user")
+            event.kind == "message.completed" && event_payload_role(&event.payload) == Some("user")
         })
         .collect::<Vec<_>>();
     let assistant_messages = events
@@ -375,4 +374,3 @@ fn build_projection_session_events_with_native_detail_dedupes_native_final_again
         "native final assistant message must not be appended when projection deltas already represent the same reply"
     );
 }
-

@@ -35,8 +35,6 @@ export default defineLocaleModule('app/workspace', {
     "code": "Code",
     "studio": "Studio",
     "terminal": "Terminal",
-    "skills": "Skills",
-    "templates": "Templates",
     "userProfile": "User Profile",
     "settings": "Settings"
   }

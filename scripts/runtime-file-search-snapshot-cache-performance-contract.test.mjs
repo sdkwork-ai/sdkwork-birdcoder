@@ -10,11 +10,68 @@ const runtimeFileSystemServiceSource = fs.readFileSync(
   ),
   'utf8',
 );
+const hostFilesystemSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'crates/sdkwork-birdcoder-tauri-host/src/commands/filesystem_commands.rs',
+  ),
+  'utf8',
+);
+const desktopLibSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-desktop/src-tauri/src/lib.rs',
+  ),
+  'utf8',
+);
+const tauriRuntimeSource = fs.readFileSync(
+  path.join(
+    rootDir,
+    'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/platform/tauriFileSystemRuntime.ts',
+  ),
+  'utf8',
+);
 
 assert.match(
   runtimeFileSystemServiceSource,
   /interface BrowserMountState \{[\s\S]*cachedSearchTree\?: IFileNode\[\];/s,
   'Browser-mounted search must keep a cached recursive search tree so repeated searches do not rescan the full folder.',
+);
+
+assert.match(
+  hostFilesystemSource,
+  /pub struct FileSystemSnapshotResponse \{[\s\S]*pub limit_reached: bool,[\s\S]*\}/s,
+  'Rust folder snapshots must report whether depth or node budgets truncated the tree.',
+);
+
+assert.match(
+  hostFilesystemSource,
+  /const DEFAULT_DIRECTORY_SNAPSHOT_MAX_NODES: usize = [\d_]+;[\s\S]*const MAX_DIRECTORY_SNAPSHOT_MAX_NODES: usize = [\d_]+;/s,
+  'Rust folder snapshots must define bounded default and absolute node budgets.',
+);
+
+assert.match(
+  hostFilesystemSource,
+  /pub async fn fs_snapshot_folder\(\s*root_path: String,\s*max_nodes: Option<usize>,[\s\S]*DirectorySnapshotBudget/s,
+  'Rust fs_snapshot_folder must accept a caller budget and apply it through shared traversal state.',
+);
+
+assert.match(
+  desktopLibSource,
+  /async fn fs_snapshot_folder\(\s*root_path: String,\s*max_nodes: Option<usize>,[\s\S]*host::fs_snapshot_folder\(root_path, max_nodes\)\.await/s,
+  'The desktop shell command must forward the search snapshot node budget into the shared Rust host.',
+);
+
+assert.match(
+  tauriRuntimeSource,
+  /snapshotFolder\(\s*rootSystemPath: string,\s*maxNodes\?: number,[\s\S]*Promise<BirdCoderTauriFolderSnapshot>/s,
+  'The typed Tauri filesystem adapter must expose an optional snapshot node budget.',
+);
+
+assert.match(
+  tauriRuntimeSource,
+  /maxNodes: normalizedMaxNodes/,
+  'The typed Tauri filesystem adapter must forward the normalized snapshot node budget.',
 );
 
 assert.match(
@@ -41,8 +98,14 @@ assert.doesNotMatch(
 
 assert.match(
   runtimeFileSystemServiceSource,
-  /private async getSearchFileTree\(\s*projectId: string,\s*signal\?: AbortSignal,\s*\): Promise<IFileNode\[\]> \{[\s\S]*browserMount\.cachedSearchTree[\s\S]*tauriMount\.cachedSearchTree/s,
+  /private async getSearchFileTree\(\s*projectId: string,\s*signal\?: AbortSignal,\s*\): Promise<SearchFileTreeSnapshot> \{[\s\S]*browserMount\.cachedSearchTree[\s\S]*tauriMount\.cachedSearchTree/s,
   'RuntimeFileSystemService must centralize cached browser and desktop search tree creation while accepting AbortSignal for first-snapshot cancellation.',
+);
+
+assert.match(
+  runtimeFileSystemServiceSource,
+  /const MAX_RUNTIME_FILE_SEARCH_TREE_NODES = [\d_]+;/,
+  'RuntimeFileSystemService must cap recursive search snapshots before very large dependency trees monopolize memory and I/O.',
 );
 
 assert.match(
@@ -59,8 +122,14 @@ assert.match(
 
 assert.match(
   runtimeFileSystemServiceSource,
-  /interface SearchTreeSnapshotContext \{[\s\S]*signal\?: AbortSignal;[\s\S]*visitedNodeCount: number;[\s\S]*\}/s,
-  'Browser search tree snapshot traversal must share cancellation and yield accounting across recursive calls.',
+  /interface SearchTreeSnapshotContext \{[\s\S]*limitReached: boolean;[\s\S]*maxNodeCount: number;[\s\S]*signal\?: AbortSignal;[\s\S]*totalVisitedNodeCount: number;[\s\S]*visitedNodeCount: number;[\s\S]*\}/s,
+  'Browser search tree snapshot traversal must share cancellation, node-budget, and yield accounting across recursive calls.',
+);
+
+assert.match(
+  runtimeFileSystemServiceSource,
+  /context\.totalVisitedNodeCount >= context\.maxNodeCount[\s\S]*context\.limitReached = true;[\s\S]*return false;/s,
+  'Browser search tree snapshots must stop enumeration and mark the result incomplete when the node budget is reached.',
 );
 
 assert.match(
@@ -89,14 +158,20 @@ assert.match(
 
 assert.match(
   runtimeFileSystemServiceSource,
-  /const tauriSearchTreeSnapshot = await this\.tauriRuntime\.snapshotFolder\(\s*tauriMount\.rootSystemPath,\s*\);[\s\S]*throwIfSearchTreeSnapshotAborted\(signal\);[\s\S]*tauriMount\.cachedSearchTree = createReadonlyMountedTree\(\s*tauriSearchTreeSnapshot\.tree,\s*\);/s,
-  'Desktop search snapshots must check cancellation before caching a completed full snapshot.',
+  /const tauriSearchTreeSnapshot = await this\.tauriRuntime\.snapshotFolder\(\s*tauriMount\.rootSystemPath,\s*MAX_RUNTIME_FILE_SEARCH_TREE_NODES,\s*\);[\s\S]*throwIfSearchTreeSnapshotAborted\(signal\);[\s\S]*tauriMount\.cachedSearchTree = createReadonlyMountedTree\(\s*tauriSearchTreeSnapshot\.tree,\s*\);[\s\S]*tauriMount\.cachedSearchTreeLimitReached =\s*tauriSearchTreeSnapshot\.limitReached === true;/s,
+  'Desktop search snapshots must forward the node budget and cache whether the Rust snapshot was truncated.',
 );
 
 assert.match(
   runtimeFileSystemServiceSource,
-  /private invalidateProjectSearchTree\(projectId: string\): void \{[\s\S]*browserMount\.cachedSearchTree = undefined;[\s\S]*tauriMount\.cachedSearchTree = undefined;/s,
+  /private invalidateProjectSearchTree\(projectId: string\): void \{[\s\S]*browserMount\.cachedSearchTree = undefined;[\s\S]*browserMount\.cachedSearchTreeLimitReached = undefined;[\s\S]*tauriMount\.cachedSearchTree = undefined;[\s\S]*tauriMount\.cachedSearchTreeLimitReached = undefined;/s,
   'RuntimeFileSystemService must invalidate cached search trees when mounted file trees change.',
+);
+
+assert.match(
+  runtimeFileSystemServiceSource,
+  /limitReached: searchResult\.limitReached \|\| searchTreeSnapshot\.limitReached/,
+  'Find-in-files must surface an incomplete tree snapshot through the existing limitReached result.',
 );
 
 assert.match(

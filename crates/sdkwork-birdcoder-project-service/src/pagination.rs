@@ -7,29 +7,24 @@
 //! accept `offset`/`limit` parameters and push them down to SQL
 //! `LIMIT ? OFFSET ?` (or keyset pagination for high-volume tables).
 //!
-//! Route handlers normalize `page`/`page_size` (or `cursor`/`page_size`)
-//! into `offset`/`limit` via `clamp_list_page_size` and pass them to the
-//! service/repository layer.
+//! HTTP route handlers must strictly validate standard `page`/`page_size`
+//! parameters before calling services. `clamp_list_page_size` is retained only
+//! as a defensive bound for internal repository inputs; it is not an HTTP
+//! parser and must not turn invalid client input into a successful request.
 
 pub const DEFAULT_LIST_PAGE_SIZE: usize = 20;
 pub const MAX_LIST_PAGE_SIZE: usize = 200;
 
-/// Clamp `page_size` to the SDKWORK bounds (`1..=MAX_LIST_PAGE_SIZE`) with
-/// default fallback when `None` or zero. Returns the normalized
-/// `(offset, limit)` pair suitable for SQL `LIMIT ? OFFSET ?`.
+/// Defensively bounds internal repository pagination arguments.
 ///
-/// Aligns with `PAGINATION_SPEC.md` §3 and `API_SPEC.md` §16.2 — default
-/// `page_size = 20`, max `200`, `page_size > 200` is rejected with
-/// `40003 INVALID_PARAMETER` at the route layer.
-pub fn clamp_list_page_size(
-    offset: Option<usize>,
-    limit: Option<usize>,
-) -> (usize, usize) {
+/// HTTP callers must reject invalid pagination before reaching this helper.
+/// The returned `(offset, limit)` pair is suitable for bounded SQL
+/// `LIMIT ? OFFSET ?` execution.
+pub fn clamp_list_page_size(offset: Option<usize>, limit: Option<usize>) -> (usize, usize) {
     let normalized_offset = offset.unwrap_or(0).min(MAX_LIST_PAGE_SIZE * 1_000);
     let page_size = limit
         .filter(|value| *value > 0)
         .unwrap_or(DEFAULT_LIST_PAGE_SIZE)
-        .min(MAX_LIST_PAGE_SIZE)
-        .max(1);
+        .clamp(1, MAX_LIST_PAGE_SIZE);
     (normalized_offset, page_size)
 }

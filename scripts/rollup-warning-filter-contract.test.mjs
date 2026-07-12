@@ -92,7 +92,7 @@ assert.throws(
   () =>
     onBirdcoderRollupWarning(
       {
-        code: 'CYCLIC_CROSS_CHUNK_REEXPORT',
+        code: 'CIRCULAR_CHUNK',
         message:
           'Circular chunk: birdcoder-platform-transport -> birdcoder-platform-provider -> birdcoder-platform-runtime -> birdcoder-platform-transport. Please adjust the manual chunk logic for these chunks.',
       },

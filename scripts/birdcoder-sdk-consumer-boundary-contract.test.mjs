@@ -42,6 +42,8 @@ const infrastructurePackageJson = JSON.parse(
 );
 const tsconfig = JSON.parse(read('tsconfig.json'));
 const runtimeTsconfig = JSON.parse(read('tsconfig.runtime.json'));
+const pcTsconfig = JSON.parse(read('apps/sdkwork-birdcoder-pc/tsconfig.json'));
+const pcRuntimeTsconfig = JSON.parse(read('apps/sdkwork-birdcoder-pc/tsconfig.runtime.json'));
 
 assertNotExists(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appAdminApiClient.ts',
@@ -69,8 +71,8 @@ assert.match(
 );
 assert.match(
   sdkClientsSource,
-  /from ['"]@sdkwork\/birdcoder-backend-sdk['"]/u,
-  'sdkClients.ts must import the generated BirdCoder backend SDK package.',
+  /from ['"]@sdkwork\/birdcoder-pc-admin-core['"]/u,
+  'sdkClients.ts must delegate backend SDK integration to the backend-admin package.',
 );
 assert.match(
   sdkClientsSource,
@@ -79,8 +81,21 @@ assert.match(
 );
 assert.match(
   sdkClientsSource,
+  /\bregisterBirdCoderBackendSdkTransportResolver\b/u,
+  'sdkClients.ts must register the backend-admin transport resolver at the infrastructure boundary.',
+);
+const adminCoreBackendSdkSource = read(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-admin-core/src/sdk/backendSdkApiClient.ts',
+);
+assert.match(
+  adminCoreBackendSdkSource,
+  /from ['"]@sdkwork\/birdcoder-backend-sdk['"]/u,
+  'backend-admin core must consume the composed BirdCoder backend SDK package.',
+);
+assert.match(
+  adminCoreBackendSdkSource,
   /\bcreateBirdcoderBackendSdkClient\b/u,
-  'sdkClients.ts must construct the generated backend SDK client.',
+  'backend-admin core must construct the composed BirdCoder backend SDK client.',
 );
 assert.doesNotMatch(
   sdkClientsSource,
@@ -152,12 +167,12 @@ assert.doesNotMatch(
 );
 
 assert.equal(
-  infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-pc-app-sdk'],
+  infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-app-sdk'],
   'workspace:*',
   'infrastructure package must depend on the generated app SDK workspace package.',
 );
 assert.equal(
-  infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-pc-backend-sdk'],
+  infrastructurePackageJson.dependencies?.['@sdkwork/birdcoder-backend-sdk'],
   'workspace:*',
   'infrastructure package must depend on the generated backend SDK workspace package.',
 );
@@ -176,48 +191,51 @@ for (const dependencyName of [
   );
 }
 
-for (const [label, config] of [
-  ['tsconfig.json', tsconfig],
-  ['tsconfig.runtime.json', runtimeTsconfig],
+for (const [label, config, rootPrefix] of [
+  ['tsconfig.json', tsconfig, 'apps/sdkwork-birdcoder-pc/'],
+  ['tsconfig.runtime.json', runtimeTsconfig, 'apps/sdkwork-birdcoder-pc/'],
+  ['apps/sdkwork-birdcoder-pc/tsconfig.json', pcTsconfig, './'],
+  ['apps/sdkwork-birdcoder-pc/tsconfig.runtime.json', pcRuntimeTsconfig, './'],
 ]) {
   assert.deepEqual(
-    config.compilerOptions?.paths?.['@sdkwork/birdcoder-pc-app-sdk'],
-    ['sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts'],
-    `${label} must resolve @sdkwork/birdcoder-pc-app-sdk to generated source.`,
+    config.compilerOptions?.paths?.['@sdkwork/birdcoder-app-sdk'],
+    [`${rootPrefix}sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript/src/index.ts`],
+    `${label} must resolve @sdkwork/birdcoder-app-sdk to its composed facade.`,
   );
   assert.deepEqual(
-    config.compilerOptions?.paths?.['@sdkwork/birdcoder-pc-backend-sdk'],
-    ['sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts'],
-    `${label} must resolve @sdkwork/birdcoder-pc-backend-sdk to generated source.`,
+    config.compilerOptions?.paths?.['@sdkwork/birdcoder-backend-sdk'],
+    [`${rootPrefix}sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript/src/index.ts`],
+    `${label} must resolve @sdkwork/birdcoder-backend-sdk to its composed facade.`,
   );
+  const dependencyRootPrefix = rootPrefix === './' ? '../../../' : '../';
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/iam-app-sdk'],
-    ['../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/generated/server-openapi/src/index.ts'],
-    `${label} must resolve @sdkwork/iam-app-sdk to the dependency generated app SDK package entry.`,
+    [`${dependencyRootPrefix}sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript/src/index.ts`],
+    `${label} must resolve @sdkwork/iam-app-sdk to the dependency composed facade.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/iam-backend-sdk'],
-    ['../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/generated/server-openapi/src/index.ts'],
-    `${label} must resolve @sdkwork/iam-backend-sdk to the dependency generated backend SDK package entry.`,
+    [`${dependencyRootPrefix}sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript/src/index.ts`],
+    `${label} must resolve @sdkwork/iam-backend-sdk to the dependency composed facade.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/auth-runtime-pc-react'],
-    ['../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/index.ts'],
+    [`${dependencyRootPrefix}sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react/src/index.ts`],
     `${label} must resolve @sdkwork/auth-runtime-pc-react to the high-level appbase auth runtime package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/drive-app-sdk'],
-    ['../sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts'],
+    [`${dependencyRootPrefix}sdkwork-drive/sdks/sdkwork-drive-app-sdk/sdkwork-drive-app-sdk-typescript/src/index.ts`],
     `${label} must resolve @sdkwork/drive-app-sdk to the dependency app SDK package entry.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/messaging-app-sdk'],
-    ['../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/generated/server-openapi/src/index.ts'],
-    `${label} must resolve @sdkwork/messaging-app-sdk to the dependency app SDK package entry.`,
+    [`${dependencyRootPrefix}sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript/src/index.ts`],
+    `${label} must resolve @sdkwork/messaging-app-sdk to the dependency composed facade.`,
   );
   assert.deepEqual(
     config.compilerOptions?.paths?.['@sdkwork/sdk-common'],
-    ['../sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts'],
+    [`${dependencyRootPrefix}sdkwork-sdk-commons/sdkwork-sdk-common-typescript/src/index.ts`],
     `${label} must resolve @sdkwork/sdk-common to the shared SDK common package entry.`,
   );
 }
@@ -248,12 +266,12 @@ assert.match(
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-iam\/sdks\/sdkwork-iam-app-sdk\/sdkwork-iam-app-sdk-typescript\/generated\/server-openapi/u,
+  /\.\.\/sdkwork-iam\/sdks\/sdkwork-iam-app-sdk\/sdkwork-iam-app-sdk-typescript/u,
   'pnpm workspace must include the IAM app SDK dependency package.',
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-iam\/sdks\/sdkwork-iam-backend-sdk\/sdkwork-iam-backend-sdk-typescript\/generated\/server-openapi/u,
+  /\.\.\/sdkwork-iam\/sdks\/sdkwork-iam-backend-sdk\/sdkwork-iam-backend-sdk-typescript/u,
   'pnpm workspace must include the IAM backend SDK dependency package.',
 );
 assert.match(
@@ -268,7 +286,7 @@ assert.match(
 );
 assert.match(
   workspace,
-  /\.\.\/sdkwork-messaging\/sdks\/sdkwork-messaging-app-sdk\/sdkwork-messaging-app-sdk-typescript\/generated\/server-openapi/u,
+  /\.\.\/sdkwork-messaging\/sdks\/sdkwork-messaging-app-sdk\/sdkwork-messaging-app-sdk-typescript/u,
   'pnpm workspace must include the Messaging app SDK dependency package.',
 );
 assert.match(
@@ -292,5 +310,25 @@ for (const dependencySpecifier of [
     `BirdCoder Vite aliases must resolve ${dependencySpecifier}.`,
   );
 }
+assert.match(
+  vitePluginSource,
+  /resolveDependencyPath\('sdkwork-iam', 'sdks\/sdkwork-iam-app-sdk\/sdkwork-iam-app-sdk-typescript\/src\/index\.ts'\)/u,
+  'BirdCoder Vite aliases must resolve the IAM app SDK through its composed facade.',
+);
+assert.match(
+  vitePluginSource,
+  /resolveDependencyPath\('sdkwork-iam', 'sdks\/sdkwork-iam-backend-sdk\/sdkwork-iam-backend-sdk-typescript\/src\/index\.ts'\)/u,
+  'BirdCoder Vite aliases must resolve the IAM backend SDK through its composed facade.',
+);
+assert.match(
+  vitePluginSource,
+  /resolveDependencyPath\('sdkwork-messaging', 'sdks\/sdkwork-messaging-app-sdk\/sdkwork-messaging-app-sdk-typescript\/src\/index\.ts'\)/u,
+  'BirdCoder Vite aliases must resolve the messaging app SDK through its composed facade.',
+);
+assert.doesNotMatch(
+  vitePluginSource,
+  /sdkwork-(?:iam|messaging)-[^']*generated\/server-openapi\/src\/index\.ts/u,
+  'BirdCoder Vite aliases must not bypass composed SDK facades through generated transport source.',
+);
 
 console.log('birdcoder SDK consumer boundary contract passed.');

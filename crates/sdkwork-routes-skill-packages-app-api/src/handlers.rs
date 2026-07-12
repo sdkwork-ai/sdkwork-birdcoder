@@ -3,20 +3,21 @@ use sqlx::AnyPool;
 use sdkwork_birdcoder_app_templates_repository_sqlx::SqliteAppTemplateRepository;
 use sdkwork_birdcoder_app_templates_service::domain::models::AppTemplatePayload;
 use sdkwork_birdcoder_app_templates_service::service::app_template_service::AppTemplateService;
+use sdkwork_birdcoder_errors::{
+    build_data_envelope, build_offset_list_envelope, checked_list_total_items,
+    trace_id_from_request_id, ApiDataEnvelope, ApiListEnvelope,
+};
+use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
+use sdkwork_birdcoder_router_context::{
+    project_context, workspace_context, RequiredIamContext, StrictOffsetListQuery,
+    WebRequestContext,
+};
 use sdkwork_birdcoder_skill_packages_repository_sqlx::SqliteSkillPackageRepository;
 use sdkwork_birdcoder_skill_packages_service::domain::commands::InstallSkillPackageInput;
 use sdkwork_birdcoder_skill_packages_service::domain::models::{
     SkillInstallationPayload, SkillPackagePayload,
 };
 use sdkwork_birdcoder_skill_packages_service::service::skill_package_service::SkillPackageService;
-use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_offset_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
-    ApiListEnvelope,
-};
-use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
-use sdkwork_birdcoder_router_context::{
-    project_context, workspace_context, RequiredIamContext, WebRequestContext,
-};
 use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService;
 
 use axum::extract::{Path, Query, State};
@@ -24,7 +25,7 @@ use axum::Json;
 
 use crate::error;
 use crate::mapper::request::{
-    AppTemplateListQuery, InstallSkillPackageBody, SkillPackageListQuery, SkillPackagePathParams,
+    InstallSkillPackageBody, SkillPackageListQuery, SkillPackagePathParams,
 };
 
 fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
@@ -116,18 +117,16 @@ async fn ensure_skill_scope_access(
 pub async fn list_skill_packages(
     web: WebRequestContext,
     iam: RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<SkillPackagesAppState>,
     Query(query): Query<SkillPackageListQuery>,
-) -> Result<
-    Json<ApiListEnvelope<SkillPackagePayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiListEnvelope<SkillPackagePayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     if let Some(workspace_id) = query.workspace_id.as_deref() {
         ensure_skill_scope_access(&state, &iam, "workspace", workspace_id, trace_id).await?;
     }
-    let (offset, page_size) = query.normalized_pagination();
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .service
         .list_packages(query.workspace_id.as_deref(), offset, page_size)
@@ -137,7 +136,7 @@ pub async fn list_skill_packages(
             items,
             offset,
             page_size,
-            usize::try_from(total).unwrap_or(0),
+            checked_list_total_items(total, trace_id)?,
             request_id(&web),
         ))),
         Err(e) => Err(error::map_skill_package_error(e, trace_id)),
@@ -150,11 +149,7 @@ pub async fn install_skill_package(
     State(state): State<SkillPackagesAppState>,
     Path(params): Path<SkillPackagePathParams>,
     Json(body): Json<InstallSkillPackageBody>,
-) -> Result<
-    Json<ApiDataEnvelope<SkillInstallationPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiDataEnvelope<SkillInstallationPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let input = InstallSkillPackageInput {
         scope_id: body.scope_id.clone(),
@@ -182,15 +177,12 @@ pub async fn install_skill_package(
 pub async fn list_app_templates(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<SkillPackagesAppState>,
-    Query(query): Query<AppTemplateListQuery>,
-) -> Result<
-    Json<ApiListEnvelope<AppTemplatePayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiListEnvelope<AppTemplatePayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
-    let (offset, page_size) = query.normalized_pagination();
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .app_template_service
         .list_templates(offset, page_size)
@@ -200,7 +192,7 @@ pub async fn list_app_templates(
             items,
             offset,
             page_size,
-            usize::try_from(total).unwrap_or(0),
+            checked_list_total_items(total, trace_id)?,
             request_id(&web),
         ))),
         Err(error) => Err(error::map_app_template_error(error, trace_id)),

@@ -27,6 +27,7 @@ import {
   SDKWORK_IAM_HEADERS,
   SDKWORK_IAM_OPERATION_IDS,
 } from '@sdkwork/iam-contracts';
+import { kebabCase } from '@sdkwork/utils/string';
 import type {
   BirdCoderApiEnvelope,
   BirdCoderApiGatewaySummary,
@@ -313,15 +314,28 @@ export function getSurfaceBasePath(surface: BirdCoderApiSurface): string {
   throw new Error(`Unexpected BirdCoder API surface: ${String(surface)}`);
 }
 
-export function buildOpenApiOperationDescription(route: BirdCoderApiRouteDefinition): string {
+export function buildOpenApiOperationDescription(
+  route: BirdCoderApiRouteDefinition,
+  operationId: string,
+): string {
+  const authMode = buildOpenApiOperationAuthMode(route, operationId);
   const authDescription =
-    route.authMode === 'host'
-      ? 'No user session is required; this route is available on the host runtime surface.'
-      : route.authMode === 'user'
-        ? 'Requires an authenticated BirdCoder user session.'
-        : 'Requires an authenticated BirdCoder admin session.';
+    authMode === 'anonymous'
+      ? 'No user session is required; this route is available as an anonymous public operation.'
+      : authMode === 'host'
+        ? 'No user session is required; this route is available on the host runtime surface.'
+        : authMode === 'user'
+          ? 'Requires an authenticated BirdCoder user session.'
+          : 'Requires an authenticated BirdCoder admin session.';
 
   return `${route.summary}. ${authDescription}`;
+}
+
+export function buildOpenApiOperationAuthMode(
+  route: BirdCoderApiRouteDefinition,
+  operationId: string,
+): 'anonymous' | BirdCoderApiRouteDefinition['authMode'] {
+  return isPublicOpenApiOperation(route, operationId) ? 'anonymous' : route.authMode;
 }
 
 export function buildOpenApiOperationSecurity(
@@ -347,6 +361,12 @@ export function isPublicOpenApiOperation(
   }
 
   return /^(?:oauth\.(?:authorizationUrls\.create|sessions\.create|deviceAuthorizations\.(?:create|retrieve|scans\.create|passwordCompletions\.create|sessionExchanges\.create))|registrations\.create|sessions\.(?:create|refresh)|passwordResetRequests\.create|passwordResets\.create|iam\.(?:runtime|verificationPolicy)\.retrieve)$/u.test(
+    operationId,
+  );
+}
+
+export function isCredentialEntryOpenApiOperation(operationId: string): boolean {
+  return /^(?:oauth\.(?:authorizationUrls\.create|sessions\.create|deviceAuthorizations\.(?:create|scans\.create|passwordCompletions\.create|sessionExchanges\.create))|registrations\.create|sessions\.create|passwordResetRequests\.create|passwordResets\.create)$/u.test(
     operationId,
   );
 }
@@ -386,7 +406,13 @@ export function getOpenApiDomainForOperationId(operationId: string): BirdCoderOp
   }
 }
 
-export function getOpenApiResourceForOperationId(
+const BIRDCODER_PERMISSION_DOMAIN = 'birdcoder';
+
+function toBirdCoderPermissionResourceToken(value: string): string {
+  return kebabCase(value).replace(/_{2,}/gu, '_') || 'operations';
+}
+
+function getOpenApiResourceContextForOperationId(
   operationId: string,
   domain: BirdCoderOpenApiDomain,
 ): string {
@@ -395,9 +421,26 @@ export function getOpenApiResourceForOperationId(
   const normalizedResource =
     resourceParts.length > 0 ? resourceParts.join('.') : operationParts[0] ?? 'operations';
 
+  if (/^oauth\./u.test(operationId)) {
+    return normalizedResource;
+  }
+
+  if (/^sessions\./u.test(operationId)) {
+    return `oauth.${normalizedResource}`;
+  }
+
   return normalizedResource.startsWith(`${domain}.`)
     ? normalizedResource
     : `${domain}.${normalizedResource}`;
+}
+
+export function getOpenApiResourceForOperationId(
+  operationId: string,
+  domain: BirdCoderOpenApiDomain,
+): string {
+  return `${BIRDCODER_PERMISSION_DOMAIN}.${toBirdCoderPermissionResourceToken(
+    getOpenApiResourceContextForOperationId(operationId, domain),
+  )}`;
 }
 
 export function getOpenApiActionForOperation(
@@ -418,6 +461,11 @@ export function getOpenApiActionForOperation(
     case 'sync':
     case 'update':
       return 'update';
+    case 'confirm':
+    case 'publish':
+    case 'refresh':
+    case 'revoke':
+      return 'execute';
   }
 
   switch (route.method) {
@@ -516,7 +564,7 @@ export function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): stri
     ['GET /app/v3/api/engines/:engineKey/capabilities', 'engines.capabilities.retrieve'],
     ['GET /app/v3/api/models', 'models.list'],
     ['GET /app/v3/api/model_config', 'modelConfig.retrieve'],
-    ['PUT /app/v3/api/model_config', 'modelConfig.sync'],
+    ['PUT /app/v3/api/model_config', 'modelConfig.update'],
     ['GET /app/v3/api/system/runtime', 'runtime.retrieve'],
     ['GET /app/v3/api/system/health', 'health.retrieve'],
     ['GET /app/v3/api/intelligence/coding_sessions', 'codingSessions.list'],
@@ -578,7 +626,7 @@ export function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): stri
     ['POST /app/v3/api/projects/:projectId/git/worktree_removals', 'projects.git.worktreeRemovals.create'],
     ['POST /app/v3/api/projects/:projectId/git/worktree_prune', 'projects.git.worktreePrune.create'],
     ['GET /app/v3/api/projects/:projectId/collaborators', 'projects.collaborators.list'],
-    ['POST /app/v3/api/projects/:projectId/collaborators', 'projects.collaborators.upsert'],
+    ['POST /app/v3/api/projects/:projectId/collaborators', 'projects.collaborators.create'],
     ['POST /app/v3/api/projects', 'projects.create'],
     ['PATCH /app/v3/api/projects/:projectId', 'projects.update'],
     ['DELETE /app/v3/api/projects/:projectId', 'projects.delete'],
@@ -600,15 +648,18 @@ export function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): stri
     ],
     ['GET /app/v3/api/teams', 'workspaceTeams.list'],
     ['GET /app/v3/api/workspaces/:workspaceId/members', 'workspaces.members.list'],
-    ['POST /app/v3/api/workspaces/:workspaceId/members', 'workspaces.members.upsert'],
-    ['POST /app/v3/api/projects/:projectId/publish', 'projects.publish.create'],
+    ['POST /app/v3/api/workspaces/:workspaceId/members', 'workspaces.members.create'],
+    ['POST /app/v3/api/projects/:projectId/publish', 'projects.publish.publish'],
     ['GET /app/v3/api/projects/:projectId/deployment_targets', 'projects.deploymentTargets.list'],
     ['GET /app/v3/api/deployments', 'deployments.list'],
     ['GET /backend/v3/api/iam/audit_events', 'auditEvents.list'],
     ['GET /backend/v3/api/iam/policies', 'policies.list'],
     ['GET /backend/v3/api/iam/teams', 'teams.list'],
     ['GET /backend/v3/api/iam/teams/:teamId/members', 'teams.members.list'],
-    ['GET /backend/v3/api/projects/:projectId/deployment_targets', 'projects.deploymentTargets.list'],
+    [
+      'GET /backend/v3/api/projects/:projectId/deployment_targets',
+      'deploymentGovernance.targets.list',
+    ],
     ['GET /backend/v3/api/releases', 'releases.list'],
     ['GET /backend/v3/api/deployments', 'deploymentGovernance.list'],
   ]);

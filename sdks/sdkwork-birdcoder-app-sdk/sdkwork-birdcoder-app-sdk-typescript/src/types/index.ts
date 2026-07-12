@@ -490,6 +490,10 @@ export interface BirdCoderCommitProjectGitChangesRequest {
   message: string;
 }
 
+export interface BirdCoderConfirmCommercePaymentRequest {
+  channelTransactionId: string;
+}
+
 export interface BirdCoderCoreHealthSummary {
   status: string;
 }
@@ -572,7 +576,7 @@ export interface BirdCoderCreateProjectRequest {
   workspaceUuid?: string;
   tenantId?: string;
   organizationId?: string;
-  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
+  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
   userId?: string;
   parentId?: string;
   parentUuid?: string;
@@ -605,7 +609,7 @@ export interface BirdCoderCreateWorkspaceRequest {
   name: string;
   tenantId?: string;
   organizationId?: string;
-  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
+  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
   code?: string;
   title?: string;
   ownerId?: string;
@@ -624,37 +628,6 @@ export interface BirdCoderCreateWorkspaceRequest {
   settings?: Record<string, unknown>;
   isPublic?: boolean;
   isTemplate?: boolean;
-}
-
-export interface BirdCoderDeleteChatConversationEnvelope {
-  code: 0;
-  data: Record<string, unknown>;
-  traceId: string;
-}
-
-export interface BirdCoderDeleteChatConversationResult {
-  id: string;
-}
-
-export interface BirdCoderDeleteCodingSessionMessageResult {
-  id: string;
-  codingSessionId: string;
-}
-
-export interface BirdCoderDeleteCodingSessionMessageResultEnvelope {
-  code: 0;
-  data: Record<string, unknown>;
-  traceId: string;
-}
-
-export interface BirdCoderDeletedResourceEnvelope {
-  code: 0;
-  data: Record<string, unknown>;
-  traceId: string;
-}
-
-export interface BirdCoderDeletedResourceResult {
-  id: string;
 }
 
 export interface BirdCoderDeploymentRecordSummary {
@@ -1272,7 +1245,7 @@ export interface BirdCoderProjectSummary {
   uuid?: string;
   tenantId?: string;
   organizationId?: string;
-  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
+  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
   workspaceId: string;
   workspaceUuid?: string;
   userId?: string;
@@ -1482,7 +1455,7 @@ export interface BirdCoderUpdateCurrentUserProfileRequest {
 
 export interface BirdCoderUpdateProjectRequest {
   description?: string;
-  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
+  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
   userId?: string;
   parentId?: string;
   parentUuid?: string;
@@ -1510,7 +1483,7 @@ export interface BirdCoderUpdateProjectRequest {
 
 export interface BirdCoderUpdateWorkspaceRequest {
   description?: string;
-  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
+  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
   code?: string;
   title?: string;
   name?: string;
@@ -1608,7 +1581,7 @@ export interface BirdCoderWorkspaceSummary {
   uuid?: string;
   tenantId?: string;
   organizationId?: string;
-  dataScope?: "workspace" | "project" | "user" | "team" | "organization";
+  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
   code?: string;
   title?: string;
   name: string;
@@ -1677,8 +1650,8 @@ export interface CollaborationWorkspaceTeamsListQuery extends Record<string, Bir
 }
 
 export interface CommerceInvoicesListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface CommerceInvoicesRetrievePathParams {
@@ -1686,17 +1659,21 @@ export interface CommerceInvoicesRetrievePathParams {
 }
 
 export interface CommerceOrdersListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface CommerceOrdersRetrievePathParams {
   orderId: string;
 }
 
+export interface CommercePaymentsConfirmPathParams {
+  paymentId: string;
+}
+
 export interface CommercePaymentsListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface CommercePaymentsRetrievePathParams {
@@ -1705,8 +1682,12 @@ export interface CommercePaymentsRetrievePathParams {
 
 export interface ContentDocumentsListQuery extends Record<string, BirdcoderSdkQueryValue> {
   projectId?: string;
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
+}
+
+export interface IamWorkspacesMembersCreatePathParams {
+  workspaceId: string;
 }
 
 export interface IamWorkspacesMembersListPathParams {
@@ -1714,12 +1695,8 @@ export interface IamWorkspacesMembersListPathParams {
 }
 
 export interface IamWorkspacesMembersListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
-}
-
-export interface IamWorkspacesMembersUpsertPathParams {
-  workspaceId: string;
+  page?: number;
+  page_size?: number;
 }
 
 export interface IntelligenceCodingSessionsArtifactsListPathParams {
@@ -1751,8 +1728,8 @@ export interface IntelligenceCodingSessionsListQuery extends Record<string, Bird
   workspaceId?: string;
   projectId?: string;
   engineId?: "codex" | "claude-code" | "gemini" | "opencode";
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface IntelligenceCodingSessionsMessagesDeletePathParams {
@@ -1799,8 +1776,12 @@ export interface OauthDeviceAuthorizationsSessionExchangesCreatePathParams {
 }
 
 export interface PlatformDeploymentsListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
+}
+
+export interface PlatformProjectsCollaboratorsCreatePathParams {
+  projectId: string;
 }
 
 export interface PlatformProjectsCollaboratorsListPathParams {
@@ -1808,12 +1789,8 @@ export interface PlatformProjectsCollaboratorsListPathParams {
 }
 
 export interface PlatformProjectsCollaboratorsListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
-}
-
-export interface PlatformProjectsCollaboratorsUpsertPathParams {
-  projectId: string;
+  page?: number;
+  page_size?: number;
 }
 
 export interface PlatformProjectsDeletePathParams {
@@ -1825,8 +1802,8 @@ export interface PlatformProjectsDeploymentTargetsListPathParams {
 }
 
 export interface PlatformProjectsDeploymentTargetsListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface PlatformProjectsGitBranchesCreatePathParams {
@@ -1865,11 +1842,11 @@ export interface PlatformProjectsListQuery extends Record<string, BirdcoderSdkQu
   userId?: string;
   workspaceId?: string;
   rootPath?: string;
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
-export interface PlatformProjectsPublishCreatePathParams {
+export interface PlatformProjectsPublishPublishPathParams {
   projectId: string;
 }
 
@@ -1887,16 +1864,8 @@ export interface PlatformWorkspacesDeletePathParams {
 
 export interface PlatformWorkspacesListQuery extends Record<string, BirdcoderSdkQueryValue> {
   userId?: string;
-  limit?: number;
-  offset?: number;
-}
-
-export interface PlatformWorkspacesRealtimeSubscribePathParams {
-  workspaceId: string;
-}
-
-export interface PlatformWorkspacesRealtimeSubscribeQuery extends Record<string, BirdcoderSdkQueryValue> {
-  sessionId?: string;
+  page?: number;
+  page_size?: number;
 }
 
 export interface PlatformWorkspacesRetrievePathParams {
@@ -1915,8 +1884,8 @@ export interface RuntimeNativeSessionsListQuery extends Record<string, Birdcoder
   workspaceId?: string;
   projectId?: string;
   engineId?: "codex" | "claude-code" | "gemini" | "opencode";
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface RuntimeNativeSessionsRetrievePathParams {
@@ -1936,8 +1905,8 @@ export interface SkillsSkillPackagesInstallationsCreatePathParams {
 export interface SkillsSkillPackagesListQuery extends Record<string, BirdcoderSdkQueryValue> {
   userId?: string;
   workspaceId?: string;
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface SystemChatConversationsDeletePathParams {
@@ -1945,8 +1914,8 @@ export interface SystemChatConversationsDeletePathParams {
 }
 
 export interface SystemChatConversationsListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface SystemChatConversationsMessagesCreatePathParams {
@@ -1958,8 +1927,8 @@ export interface SystemChatConversationsMessagesListPathParams {
 }
 
 export interface SystemChatConversationsMessagesListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export interface SystemChatConversationsRetrievePathParams {
@@ -1971,8 +1940,8 @@ export interface SystemOperationsRetrievePathParams {
 }
 
 export interface TemplatesAppTemplatesListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
 }
 
 export const BIRDCODER_APP_SDK_OPERATIONS = [
@@ -1986,7 +1955,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "iam",
     "public": true,
-    "resource": "iam.passwordResetRequests",
+    "resource": "birdcoder.iam-password-reset-requests",
     "summary": "Create SDKWork IAM password reset request",
     "tag": "auth",
     "tenantScope": "platform"
@@ -2001,7 +1970,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "iam",
     "public": true,
-    "resource": "iam.passwordResets",
+    "resource": "birdcoder.iam-password-resets",
     "summary": "Reset SDKWork IAM password",
     "tag": "auth",
     "tenantScope": "platform"
@@ -2016,7 +1985,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "iam",
     "public": true,
-    "resource": "iam.registrations",
+    "resource": "birdcoder.iam-registrations",
     "summary": "Register SDKWork IAM user",
     "tag": "auth",
     "tenantScope": "platform"
@@ -2031,7 +2000,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "iam",
     "public": true,
-    "resource": "iam.sessions",
+    "resource": "birdcoder.oauth-sessions",
     "summary": "Create SDKWork IAM session",
     "tag": "auth",
     "tenantScope": "platform"
@@ -2045,9 +2014,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.sessions.current.delete",
+    "permission": "birdcoder.oauth-sessions-current.delete",
     "public": false,
-    "resource": "iam.sessions.current",
+    "resource": "birdcoder.oauth-sessions-current",
     "summary": "Delete current SDKWork IAM session",
     "tag": "auth",
     "tenantScope": "tenant"
@@ -2061,9 +2030,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.sessions.current.read",
+    "permission": "birdcoder.oauth-sessions-current.read",
     "public": false,
-    "resource": "iam.sessions.current",
+    "resource": "birdcoder.oauth-sessions-current",
     "summary": "Get current SDKWork IAM session",
     "tag": "auth",
     "tenantScope": "tenant"
@@ -2077,9 +2046,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.sessions.current.update",
+    "permission": "birdcoder.oauth-sessions-current.update",
     "public": false,
-    "resource": "iam.sessions.current",
+    "resource": "birdcoder.oauth-sessions-current",
     "summary": "Update current SDKWork IAM session",
     "tag": "auth",
     "tenantScope": "tenant"
@@ -2094,7 +2063,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "iam",
     "public": true,
-    "resource": "iam.sessions",
+    "resource": "birdcoder.oauth-sessions",
     "summary": "Refresh SDKWork IAM session",
     "tag": "auth",
     "tenantScope": "platform"
@@ -2108,9 +2077,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "collaboration",
-    "permission": "collaboration.workspaceTeams.read",
+    "permission": "birdcoder.collaboration-workspace-teams.read",
     "public": false,
-    "resource": "collaboration.workspaceTeams",
+    "resource": "birdcoder.collaboration-workspace-teams",
     "summary": "List workspace teams",
     "tag": "collaboration",
     "tenantScope": "tenant"
@@ -2124,9 +2093,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "commerce",
-    "permission": "commerce.invoices.read",
+    "permission": "birdcoder.commerce-invoices.read",
     "public": false,
-    "resource": "commerce.invoices",
+    "resource": "birdcoder.commerce-invoices",
     "summary": "List SDKWork commerce invoices",
     "tag": "commerce",
     "tenantScope": "tenant"
@@ -2142,9 +2111,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "commerce",
-    "permission": "commerce.invoices.read",
+    "permission": "birdcoder.commerce-invoices.read",
     "public": false,
-    "resource": "commerce.invoices",
+    "resource": "birdcoder.commerce-invoices",
     "summary": "Get SDKWork commerce invoice",
     "tag": "commerce",
     "tenantScope": "tenant"
@@ -2158,9 +2127,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "commerce",
-    "permission": "commerce.orders.create",
+    "permission": "birdcoder.commerce-orders.create",
     "public": false,
-    "resource": "commerce.orders",
+    "resource": "birdcoder.commerce-orders",
     "summary": "Create SDKWork commerce order",
     "tag": "commerce",
     "tenantScope": "tenant"
@@ -2174,9 +2143,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "commerce",
-    "permission": "commerce.orders.read",
+    "permission": "birdcoder.commerce-orders.read",
     "public": false,
-    "resource": "commerce.orders",
+    "resource": "birdcoder.commerce-orders",
     "summary": "List SDKWork commerce orders",
     "tag": "commerce",
     "tenantScope": "tenant"
@@ -2192,10 +2161,28 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "commerce",
-    "permission": "commerce.orders.read",
+    "permission": "birdcoder.commerce-orders.read",
     "public": false,
-    "resource": "commerce.orders",
+    "resource": "birdcoder.commerce-orders",
     "summary": "Get SDKWork commerce order",
+    "tag": "commerce",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "commerce.payments.confirm",
+    "method": "POST",
+    "operationId": "commerce.payments.confirm",
+    "path": "/app/v3/api/commerce/payments/{paymentId}/confirm",
+    "pathParamNames": [
+      "paymentId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "commerce",
+    "permission": "birdcoder.commerce-payments.execute",
+    "public": false,
+    "resource": "birdcoder.commerce-payments",
+    "summary": "Confirm SDKWork commerce payment after gateway callback",
     "tag": "commerce",
     "tenantScope": "tenant"
   },
@@ -2208,9 +2195,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "commerce",
-    "permission": "commerce.payments.create",
+    "permission": "birdcoder.commerce-payments.create",
     "public": false,
-    "resource": "commerce.payments",
+    "resource": "birdcoder.commerce-payments",
     "summary": "Create SDKWork commerce payment",
     "tag": "commerce",
     "tenantScope": "tenant"
@@ -2224,9 +2211,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "commerce",
-    "permission": "commerce.payments.read",
+    "permission": "birdcoder.commerce-payments.read",
     "public": false,
-    "resource": "commerce.payments",
+    "resource": "birdcoder.commerce-payments",
     "summary": "List SDKWork commerce payments",
     "tag": "commerce",
     "tenantScope": "tenant"
@@ -2242,9 +2229,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "commerce",
-    "permission": "commerce.payments.read",
+    "permission": "birdcoder.commerce-payments.read",
     "public": false,
-    "resource": "commerce.payments",
+    "resource": "birdcoder.commerce-payments",
     "summary": "Get SDKWork commerce payment",
     "tag": "commerce",
     "tenantScope": "tenant"
@@ -2258,9 +2245,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "commerce",
-    "permission": "commerce.memberships.current.read",
+    "permission": "birdcoder.commerce-memberships-current.read",
     "public": false,
-    "resource": "commerce.memberships.current",
+    "resource": "birdcoder.commerce-memberships-current",
     "summary": "Get current SDKWork commerce membership",
     "tag": "commerce",
     "tenantScope": "tenant"
@@ -2274,9 +2261,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "commerce",
-    "permission": "commerce.memberships.packageGroups.read",
+    "permission": "birdcoder.commerce-memberships-package-groups.read",
     "public": false,
-    "resource": "commerce.memberships.packageGroups",
+    "resource": "birdcoder.commerce-memberships-package-groups",
     "summary": "List SDKWork commerce membership package groups",
     "tag": "commerce",
     "tenantScope": "tenant"
@@ -2290,9 +2277,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "content",
-    "permission": "content.documents.read",
+    "permission": "birdcoder.content-documents.read",
     "public": false,
-    "resource": "content.documents",
+    "resource": "birdcoder.content-documents",
     "summary": "List project documents",
     "tag": "content",
     "tenantScope": "tenant"
@@ -2306,9 +2293,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.organizationMemberships.read",
+    "permission": "birdcoder.iam-organization-memberships.read",
     "public": false,
-    "resource": "iam.organizationMemberships",
+    "resource": "birdcoder.iam-organization-memberships",
     "summary": "List SDKWork IAM organization memberships",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -2322,9 +2309,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.organizations.read",
+    "permission": "birdcoder.iam-organizations.read",
     "public": false,
-    "resource": "iam.organizations",
+    "resource": "birdcoder.iam-organizations",
     "summary": "List SDKWork IAM organizations",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -2338,9 +2325,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.organizations.tree.read",
+    "permission": "birdcoder.iam-organizations-tree.read",
     "public": false,
-    "resource": "iam.organizations.tree",
+    "resource": "birdcoder.iam-organizations-tree",
     "summary": "Get SDKWork IAM organization tree",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -2354,9 +2341,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.roleBindings.read",
+    "permission": "birdcoder.iam-role-bindings.read",
     "public": false,
-    "resource": "iam.roleBindings",
+    "resource": "birdcoder.iam-role-bindings",
     "summary": "List SDKWork IAM user role bindings",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -2370,9 +2357,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.users.current.read",
+    "permission": "birdcoder.iam-users-current.read",
     "public": false,
-    "resource": "iam.users.current",
+    "resource": "birdcoder.iam-users-current",
     "summary": "Get current SDKWork IAM user",
     "tag": "iam",
     "tenantScope": "tenant"
@@ -2386,10 +2373,28 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.users.current.update",
+    "permission": "birdcoder.iam-users-current.update",
     "public": false,
-    "resource": "iam.users.current",
+    "resource": "birdcoder.iam-users-current",
     "summary": "Update current SDKWork IAM user profile",
+    "tag": "iam",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "iam.workspaces.members.create",
+    "method": "POST",
+    "operationId": "workspaces.members.create",
+    "path": "/app/v3/api/workspaces/{workspaceId}/members",
+    "pathParamNames": [
+      "workspaceId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "iam",
+    "permission": "birdcoder.iam-workspaces-members.create",
+    "public": false,
+    "resource": "birdcoder.iam-workspaces-members",
+    "summary": "Upsert workspace member",
     "tag": "iam",
     "tenantScope": "tenant"
   },
@@ -2404,28 +2409,10 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "iam",
-    "permission": "iam.workspaces.members.read",
+    "permission": "birdcoder.iam-workspaces-members.read",
     "public": false,
-    "resource": "iam.workspaces.members",
+    "resource": "birdcoder.iam-workspaces-members",
     "summary": "List workspace members",
-    "tag": "iam",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "iam.workspaces.members.upsert",
-    "method": "POST",
-    "operationId": "workspaces.members.upsert",
-    "path": "/app/v3/api/workspaces/{workspaceId}/members",
-    "pathParamNames": [
-      "workspaceId"
-    ],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "iam",
-    "permission": "iam.workspaces.members.create",
-    "public": false,
-    "resource": "iam.workspaces.members",
-    "summary": "Upsert workspace member",
     "tag": "iam",
     "tenantScope": "tenant"
   },
@@ -2440,9 +2427,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.artifacts.read",
+    "permission": "birdcoder.intelligence-coding-sessions-artifacts.read",
     "public": false,
-    "resource": "intelligence.codingSessions.artifacts",
+    "resource": "birdcoder.intelligence-coding-sessions-artifacts",
     "summary": "List coding session artifacts",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2459,9 +2446,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.checkpoints.approval.create",
+    "permission": "birdcoder.intelligence-coding-sessions-checkpoints-approval.create",
     "public": false,
-    "resource": "intelligence.codingSessions.checkpoints.approval",
+    "resource": "birdcoder.intelligence-coding-sessions-checkpoints-approval",
     "summary": "Submit approval decision",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2477,9 +2464,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.checkpoints.read",
+    "permission": "birdcoder.intelligence-coding-sessions-checkpoints.read",
     "public": false,
-    "resource": "intelligence.codingSessions.checkpoints",
+    "resource": "birdcoder.intelligence-coding-sessions-checkpoints",
     "summary": "List coding session checkpoints",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2493,9 +2480,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.create",
+    "permission": "birdcoder.intelligence-coding-sessions.create",
     "public": false,
-    "resource": "intelligence.codingSessions",
+    "resource": "birdcoder.intelligence-coding-sessions",
     "summary": "Create coding session",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2511,9 +2498,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.delete",
+    "permission": "birdcoder.intelligence-coding-sessions.delete",
     "public": false,
-    "resource": "intelligence.codingSessions",
+    "resource": "birdcoder.intelligence-coding-sessions",
     "summary": "Delete coding session",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2529,9 +2516,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.events.read",
+    "permission": "birdcoder.intelligence-coding-sessions-events.read",
     "public": false,
-    "resource": "intelligence.codingSessions.events",
+    "resource": "birdcoder.intelligence-coding-sessions-events",
     "summary": "Replay or subscribe to coding session events",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2547,9 +2534,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.forks.create",
+    "permission": "birdcoder.intelligence-coding-sessions-forks.create",
     "public": false,
-    "resource": "intelligence.codingSessions.forks",
+    "resource": "birdcoder.intelligence-coding-sessions-forks",
     "summary": "Fork coding session",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2563,9 +2550,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.read",
+    "permission": "birdcoder.intelligence-coding-sessions.read",
     "public": false,
-    "resource": "intelligence.codingSessions",
+    "resource": "birdcoder.intelligence-coding-sessions",
     "summary": "List coding sessions",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2582,9 +2569,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.messages.delete",
+    "permission": "birdcoder.intelligence-coding-sessions-messages.delete",
     "public": false,
-    "resource": "intelligence.codingSessions.messages",
+    "resource": "birdcoder.intelligence-coding-sessions-messages",
     "summary": "Delete coding session message",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2601,9 +2588,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.messages.update",
+    "permission": "birdcoder.intelligence-coding-sessions-messages.update",
     "public": false,
-    "resource": "intelligence.codingSessions.messages",
+    "resource": "birdcoder.intelligence-coding-sessions-messages",
     "summary": "Edit coding session message",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2620,9 +2607,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.questions.answers.create",
+    "permission": "birdcoder.intelligence-coding-sessions-questions-answers.create",
     "public": false,
-    "resource": "intelligence.codingSessions.questions.answers",
+    "resource": "birdcoder.intelligence-coding-sessions-questions-answers",
     "summary": "Submit user-question answer",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2638,9 +2625,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.read",
+    "permission": "birdcoder.intelligence-coding-sessions.read",
     "public": false,
-    "resource": "intelligence.codingSessions",
+    "resource": "birdcoder.intelligence-coding-sessions",
     "summary": "Get coding session",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2656,9 +2643,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.turns.create",
+    "permission": "birdcoder.intelligence-coding-sessions-turns.create",
     "public": false,
-    "resource": "intelligence.codingSessions.turns",
+    "resource": "birdcoder.intelligence-coding-sessions-turns",
     "summary": "Create coding session turn",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2674,9 +2661,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "intelligence",
-    "permission": "intelligence.codingSessions.update",
+    "permission": "birdcoder.intelligence-coding-sessions.update",
     "public": false,
-    "resource": "intelligence.codingSessions",
+    "resource": "birdcoder.intelligence-coding-sessions",
     "summary": "Update coding session",
     "tag": "intelligence",
     "tenantScope": "tenant"
@@ -2691,7 +2678,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "system",
     "public": true,
-    "resource": "system.oauth.authorizationUrls",
+    "resource": "birdcoder.oauth-authorization-urls",
     "summary": "Resolve OAuth authorization URL for SDKWork IAM sign-in",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2706,7 +2693,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "system",
     "public": true,
-    "resource": "system.oauth.deviceAuthorizations",
+    "resource": "birdcoder.oauth-device-authorizations",
     "summary": "Create SDKWork IAM OAuth device authorization",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2723,7 +2710,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "system",
     "public": true,
-    "resource": "system.oauth.deviceAuthorizations.passwordCompletions",
+    "resource": "birdcoder.oauth-device-authorizations-password-completions",
     "summary": "Complete SDKWork IAM OAuth device authorization with password",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2740,7 +2727,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "system",
     "public": true,
-    "resource": "system.oauth.deviceAuthorizations",
+    "resource": "birdcoder.oauth-device-authorizations",
     "summary": "Get SDKWork IAM OAuth device authorization",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2757,7 +2744,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "system",
     "public": true,
-    "resource": "system.oauth.deviceAuthorizations.scans",
+    "resource": "birdcoder.oauth-device-authorizations-scans",
     "summary": "Create SDKWork IAM OAuth device authorization scan",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2774,7 +2761,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "system",
     "public": true,
-    "resource": "system.oauth.deviceAuthorizations.sessionExchanges",
+    "resource": "birdcoder.oauth-device-authorizations-session-exchanges",
     "summary": "Exchange SDKWork IAM OAuth device authorization for a session",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2789,7 +2776,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "system",
     "public": true,
-    "resource": "system.oauth.sessions",
+    "resource": "birdcoder.oauth-sessions",
     "summary": "Create SDKWork IAM session with OAuth authorization code",
     "tag": "oauth",
     "tenantScope": "platform"
@@ -2803,10 +2790,28 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.deployments.read",
+    "permission": "birdcoder.platform-deployments.read",
     "public": false,
-    "resource": "platform.deployments",
+    "resource": "birdcoder.platform-deployments",
     "summary": "List deployments",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.collaborators.create",
+    "method": "POST",
+    "operationId": "projects.collaborators.create",
+    "path": "/app/v3/api/projects/{projectId}/collaborators",
+    "pathParamNames": [
+      "projectId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-collaborators.create",
+    "public": false,
+    "resource": "birdcoder.platform-projects-collaborators",
+    "summary": "Upsert project collaborator",
     "tag": "platform",
     "tenantScope": "tenant"
   },
@@ -2821,28 +2826,10 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.collaborators.read",
+    "permission": "birdcoder.platform-projects-collaborators.read",
     "public": false,
-    "resource": "platform.projects.collaborators",
+    "resource": "birdcoder.platform-projects-collaborators",
     "summary": "List project collaborators",
-    "tag": "platform",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "platform.projects.collaborators.upsert",
-    "method": "POST",
-    "operationId": "projects.collaborators.upsert",
-    "path": "/app/v3/api/projects/{projectId}/collaborators",
-    "pathParamNames": [
-      "projectId"
-    ],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "platform",
-    "permission": "platform.projects.collaborators.create",
-    "public": false,
-    "resource": "platform.projects.collaborators",
-    "summary": "Upsert project collaborator",
     "tag": "platform",
     "tenantScope": "tenant"
   },
@@ -2855,9 +2842,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.create",
+    "permission": "birdcoder.platform-projects.create",
     "public": false,
-    "resource": "platform.projects",
+    "resource": "birdcoder.platform-projects",
     "summary": "Create project",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -2873,9 +2860,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.delete",
+    "permission": "birdcoder.platform-projects.delete",
     "public": false,
-    "resource": "platform.projects",
+    "resource": "birdcoder.platform-projects",
     "summary": "Delete project",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -2891,9 +2878,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.deploymentTargets.read",
+    "permission": "birdcoder.platform-projects-deployment-targets.read",
     "public": false,
-    "resource": "platform.projects.deploymentTargets",
+    "resource": "birdcoder.platform-projects-deployment-targets",
     "summary": "List project deployment targets",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -2909,9 +2896,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.git.branches.create",
+    "permission": "birdcoder.platform-projects-git-branches.create",
     "public": false,
-    "resource": "platform.projects.git.branches",
+    "resource": "birdcoder.platform-projects-git-branches",
     "summary": "Create project Git branch",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -2927,9 +2914,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.git.branchSwitch.create",
+    "permission": "birdcoder.platform-projects-git-branch-switch.create",
     "public": false,
-    "resource": "platform.projects.git.branchSwitch",
+    "resource": "birdcoder.platform-projects-git-branch-switch",
     "summary": "Switch project Git branch",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -2945,9 +2932,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.git.commits.create",
+    "permission": "birdcoder.platform-projects-git-commits.create",
     "public": false,
-    "resource": "platform.projects.git.commits",
+    "resource": "birdcoder.platform-projects-git-commits",
     "summary": "Commit project Git changes",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -2963,9 +2950,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.git.overview.read",
+    "permission": "birdcoder.platform-projects-git-overview.read",
     "public": false,
-    "resource": "platform.projects.git.overview",
+    "resource": "birdcoder.platform-projects-git-overview",
     "summary": "Get project Git overview",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -2981,9 +2968,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.git.pushes.create",
+    "permission": "birdcoder.platform-projects-git-pushes.create",
     "public": false,
-    "resource": "platform.projects.git.pushes",
+    "resource": "birdcoder.platform-projects-git-pushes",
     "summary": "Push project Git branch",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -2999,9 +2986,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.git.worktreePrune.create",
+    "permission": "birdcoder.platform-projects-git-worktree-prune.create",
     "public": false,
-    "resource": "platform.projects.git.worktreePrune",
+    "resource": "birdcoder.platform-projects-git-worktree-prune",
     "summary": "Prune project Git worktrees",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -3017,9 +3004,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.git.worktreeRemovals.create",
+    "permission": "birdcoder.platform-projects-git-worktree-removals.create",
     "public": false,
-    "resource": "platform.projects.git.worktreeRemovals",
+    "resource": "birdcoder.platform-projects-git-worktree-removals",
     "summary": "Remove project Git worktree",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -3035,9 +3022,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.git.worktrees.create",
+    "permission": "birdcoder.platform-projects-git-worktrees.create",
     "public": false,
-    "resource": "platform.projects.git.worktrees",
+    "resource": "birdcoder.platform-projects-git-worktrees",
     "summary": "Create project Git worktree",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -3051,17 +3038,17 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.read",
+    "permission": "birdcoder.platform-projects.read",
     "public": false,
-    "resource": "platform.projects",
+    "resource": "birdcoder.platform-projects",
     "summary": "List projects",
     "tag": "platform",
     "tenantScope": "tenant"
   },
   {
-    "key": "platform.projects.publish.create",
+    "key": "platform.projects.publish.publish",
     "method": "POST",
-    "operationId": "projects.publish.create",
+    "operationId": "projects.publish.publish",
     "path": "/app/v3/api/projects/{projectId}/publish",
     "pathParamNames": [
       "projectId"
@@ -3069,9 +3056,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.publish.create",
+    "permission": "birdcoder.platform-projects-publish.execute",
     "public": false,
-    "resource": "platform.projects.publish",
+    "resource": "birdcoder.platform-projects-publish",
     "summary": "Publish project release flow",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -3087,9 +3074,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.read",
+    "permission": "birdcoder.platform-projects.read",
     "public": false,
-    "resource": "platform.projects",
+    "resource": "birdcoder.platform-projects",
     "summary": "Get project",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -3105,9 +3092,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.projects.update",
+    "permission": "birdcoder.platform-projects.update",
     "public": false,
-    "resource": "platform.projects",
+    "resource": "birdcoder.platform-projects",
     "summary": "Update project",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -3121,9 +3108,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.workspaces.create",
+    "permission": "birdcoder.platform-workspaces.create",
     "public": false,
-    "resource": "platform.workspaces",
+    "resource": "birdcoder.platform-workspaces",
     "summary": "Create workspace",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -3139,9 +3126,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.workspaces.delete",
+    "permission": "birdcoder.platform-workspaces.delete",
     "public": false,
-    "resource": "platform.workspaces",
+    "resource": "birdcoder.platform-workspaces",
     "summary": "Delete workspace",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -3155,28 +3142,10 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.workspaces.read",
+    "permission": "birdcoder.platform-workspaces.read",
     "public": false,
-    "resource": "platform.workspaces",
+    "resource": "birdcoder.platform-workspaces",
     "summary": "List workspaces",
-    "tag": "platform",
-    "tenantScope": "tenant"
-  },
-  {
-    "key": "platform.workspaces.realtime.subscribe",
-    "method": "GET",
-    "operationId": "workspaces.realtime.subscribe",
-    "path": "/app/v3/api/workspaces/{workspaceId}/realtime",
-    "pathParamNames": [
-      "workspaceId"
-    ],
-    "dataScope": "organization",
-    "deployment": "all",
-    "domain": "platform",
-    "permission": "platform.workspaces.realtime.subscribe",
-    "public": false,
-    "resource": "platform.workspaces.realtime",
-    "summary": "Subscribe to workspace realtime invalidation events",
     "tag": "platform",
     "tenantScope": "tenant"
   },
@@ -3191,9 +3160,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.workspaces.read",
+    "permission": "birdcoder.platform-workspaces.read",
     "public": false,
-    "resource": "platform.workspaces",
+    "resource": "birdcoder.platform-workspaces",
     "summary": "Get workspace",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -3209,9 +3178,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "platform",
-    "permission": "platform.workspaces.update",
+    "permission": "birdcoder.platform-workspaces.update",
     "public": false,
-    "resource": "platform.workspaces",
+    "resource": "birdcoder.platform-workspaces",
     "summary": "Update workspace",
     "tag": "platform",
     "tenantScope": "tenant"
@@ -3227,9 +3196,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "platform",
     "deployment": "all",
     "domain": "runtime",
-    "permission": "runtime.engines.capabilities.read",
+    "permission": "birdcoder.runtime-engines-capabilities.read",
     "public": false,
-    "resource": "runtime.engines.capabilities",
+    "resource": "birdcoder.runtime-engines-capabilities",
     "summary": "Get runtime capabilities for one engine",
     "tag": "runtime",
     "tenantScope": "tenant"
@@ -3243,9 +3212,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "platform",
     "deployment": "all",
     "domain": "runtime",
-    "permission": "runtime.engines.read",
+    "permission": "birdcoder.runtime-engines.read",
     "public": false,
-    "resource": "runtime.engines",
+    "resource": "birdcoder.runtime-engines",
     "summary": "List available engines",
     "tag": "runtime",
     "tenantScope": "tenant"
@@ -3259,25 +3228,25 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "platform",
     "deployment": "all",
     "domain": "runtime",
-    "permission": "runtime.modelConfig.read",
+    "permission": "birdcoder.runtime-model-config.read",
     "public": false,
-    "resource": "runtime.modelConfig",
+    "resource": "birdcoder.runtime-model-config",
     "summary": "Get code engine model configuration",
     "tag": "runtime",
     "tenantScope": "tenant"
   },
   {
-    "key": "runtime.modelConfig.sync",
+    "key": "runtime.modelConfig.update",
     "method": "PUT",
-    "operationId": "modelConfig.sync",
+    "operationId": "modelConfig.update",
     "path": "/app/v3/api/model_config",
     "pathParamNames": [],
     "dataScope": "platform",
     "deployment": "all",
     "domain": "runtime",
-    "permission": "runtime.modelConfig.update",
+    "permission": "birdcoder.runtime-model-config.update",
     "public": false,
-    "resource": "runtime.modelConfig",
+    "resource": "birdcoder.runtime-model-config",
     "summary": "Sync code engine model configuration",
     "tag": "runtime",
     "tenantScope": "tenant"
@@ -3291,9 +3260,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "platform",
     "deployment": "all",
     "domain": "runtime",
-    "permission": "runtime.models.read",
+    "permission": "birdcoder.runtime-models.read",
     "public": false,
-    "resource": "runtime.models",
+    "resource": "birdcoder.runtime-models",
     "summary": "List model catalog",
     "tag": "runtime",
     "tenantScope": "tenant"
@@ -3307,9 +3276,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "platform",
     "deployment": "all",
     "domain": "runtime",
-    "permission": "runtime.nativeSessionProviders.read",
+    "permission": "birdcoder.runtime-native-session-providers.read",
     "public": false,
-    "resource": "runtime.nativeSessionProviders",
+    "resource": "birdcoder.runtime-native-session-providers",
     "summary": "List registered native engine session providers",
     "tag": "runtime",
     "tenantScope": "tenant"
@@ -3323,9 +3292,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "runtime",
-    "permission": "runtime.nativeSessions.read",
+    "permission": "birdcoder.runtime-native-sessions.read",
     "public": false,
-    "resource": "runtime.nativeSessions",
+    "resource": "birdcoder.runtime-native-sessions",
     "summary": "List discovered native engine sessions",
     "tag": "runtime",
     "tenantScope": "tenant"
@@ -3341,9 +3310,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "runtime",
-    "permission": "runtime.nativeSessions.read",
+    "permission": "birdcoder.runtime-native-sessions.read",
     "public": false,
-    "resource": "runtime.nativeSessions",
+    "resource": "birdcoder.runtime-native-sessions",
     "summary": "Get discovered native engine session detail",
     "tag": "runtime",
     "tenantScope": "tenant"
@@ -3359,9 +3328,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "ecosystem",
-    "permission": "ecosystem.skillPackages.installations.create",
+    "permission": "birdcoder.ecosystem-skill-packages-installations.create",
     "public": false,
-    "resource": "ecosystem.skillPackages.installations",
+    "resource": "birdcoder.ecosystem-skill-packages-installations",
     "summary": "Install skill package for a scope",
     "tag": "skills",
     "tenantScope": "tenant"
@@ -3375,9 +3344,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "ecosystem",
-    "permission": "ecosystem.skillPackages.read",
+    "permission": "birdcoder.ecosystem-skill-packages.read",
     "public": false,
-    "resource": "ecosystem.skillPackages",
+    "resource": "birdcoder.ecosystem-skill-packages",
     "summary": "List skill packages",
     "tag": "skills",
     "tenantScope": "tenant"
@@ -3391,9 +3360,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.chat.conversations.create",
+    "permission": "birdcoder.system-chat-conversations.create",
     "public": false,
-    "resource": "system.chat.conversations",
+    "resource": "birdcoder.system-chat-conversations",
     "summary": "Create chat conversation",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3409,9 +3378,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.chat.conversations.delete",
+    "permission": "birdcoder.system-chat-conversations.delete",
     "public": false,
-    "resource": "system.chat.conversations",
+    "resource": "birdcoder.system-chat-conversations",
     "summary": "Delete chat conversation",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3425,9 +3394,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.chat.conversations.read",
+    "permission": "birdcoder.system-chat-conversations.read",
     "public": false,
-    "resource": "system.chat.conversations",
+    "resource": "birdcoder.system-chat-conversations",
     "summary": "List chat conversations",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3443,9 +3412,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.chat.conversations.messages.create",
+    "permission": "birdcoder.system-chat-conversations-messages.create",
     "public": false,
-    "resource": "system.chat.conversations.messages",
+    "resource": "birdcoder.system-chat-conversations-messages",
     "summary": "Create chat message",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3461,9 +3430,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.chat.conversations.messages.read",
+    "permission": "birdcoder.system-chat-conversations-messages.read",
     "public": false,
-    "resource": "system.chat.conversations.messages",
+    "resource": "birdcoder.system-chat-conversations-messages",
     "summary": "List chat messages",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3479,9 +3448,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.chat.conversations.read",
+    "permission": "birdcoder.system-chat-conversations.read",
     "public": false,
-    "resource": "system.chat.conversations",
+    "resource": "birdcoder.system-chat-conversations",
     "summary": "Get chat conversation",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3495,9 +3464,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "platform",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.descriptor.read",
+    "permission": "birdcoder.system-descriptor.read",
     "public": false,
-    "resource": "system.descriptor",
+    "resource": "birdcoder.system-descriptor",
     "summary": "Get coding-server descriptor",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3511,9 +3480,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "platform",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.health.read",
+    "permission": "birdcoder.system-health.read",
     "public": false,
-    "resource": "system.health",
+    "resource": "birdcoder.system-health",
     "summary": "Get coding-server health",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3528,7 +3497,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "iam",
     "public": true,
-    "resource": "iam.runtime",
+    "resource": "birdcoder.iam-runtime",
     "summary": "Get SDKWork IAM runtime metadata",
     "tag": "system",
     "tenantScope": "platform"
@@ -3543,7 +3512,7 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "deployment": "all",
     "domain": "iam",
     "public": true,
-    "resource": "iam.verificationPolicy",
+    "resource": "birdcoder.iam-verification-policy",
     "summary": "Get SDKWork IAM verification policy",
     "tag": "system",
     "tenantScope": "platform"
@@ -3559,9 +3528,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "user",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.operations.read",
+    "permission": "birdcoder.system-operations.read",
     "public": false,
-    "resource": "system.operations",
+    "resource": "birdcoder.system-operations",
     "summary": "Get operation status",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3575,9 +3544,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "platform",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.routes.read",
+    "permission": "birdcoder.system-routes.read",
     "public": false,
-    "resource": "system.routes",
+    "resource": "birdcoder.system-routes",
     "summary": "List unified API routes",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3591,9 +3560,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "platform",
     "deployment": "all",
     "domain": "system",
-    "permission": "system.runtime.read",
+    "permission": "birdcoder.system-runtime.read",
     "public": false,
-    "resource": "system.runtime",
+    "resource": "birdcoder.system-runtime",
     "summary": "Get runtime metadata",
     "tag": "system",
     "tenantScope": "tenant"
@@ -3607,9 +3576,9 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "dataScope": "organization",
     "deployment": "all",
     "domain": "ecosystem",
-    "permission": "ecosystem.appTemplates.read",
+    "permission": "birdcoder.ecosystem-app-templates.read",
     "public": false,
-    "resource": "ecosystem.appTemplates",
+    "resource": "birdcoder.ecosystem-app-templates",
     "summary": "List app templates",
     "tag": "templates",
     "tenantScope": "tenant"

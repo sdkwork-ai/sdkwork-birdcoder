@@ -19,12 +19,14 @@ import { createProblemResponse } from './openApiBuilders.ts';
 import { buildBirdCoderCodingServerOpenApiSchemas } from './openApiSchemas.ts';
 import { buildBirdCoderOpenApiOperationDefinitions } from './openApiOperationDefinitions.ts';
 import {
+  buildOpenApiOperationAuthMode,
   buildOpenApiOperationDescription,
   buildOpenApiOperationSecurity,
   buildOpenApiGovernanceMetadata,
   getOpenApiTagDescription,
   getOpenApiTagForOperationId,
   getOperationIdForRoute,
+  isCredentialEntryOpenApiOperation,
   toOpenApiPathTemplate,
 } from './serverRuntime.ts';
 import {
@@ -60,12 +62,15 @@ export function buildBirdCoderCodingServerOpenApiDocument(
     const security = buildOpenApiOperationSecurity(route, operationId);
     const governanceMetadata = buildOpenApiGovernanceMetadata(route, operationId);
     const operationDefinition = operationDefinitions[operationId];
+    if (operationDefinition?.streamKind) {
+      continue;
+    }
     paths[openApiPath] = {
       ...(paths[openApiPath] ?? {}),
       [method]: {
         operationId,
         summary: route.summary,
-        description: buildOpenApiOperationDescription(route),
+        description: buildOpenApiOperationDescription(route, operationId),
         tags: [getOpenApiTagForOperationId(operationId)],
         ...(operationDefinition?.parameters ? { parameters: operationDefinition.parameters } : {}),
         ...(operationDefinition?.requestBody
@@ -73,10 +78,13 @@ export function buildBirdCoderCodingServerOpenApiDocument(
           : {}),
         responses: operationDefinition?.responses ?? buildOpenApiDefaultResponses(),
         security,
-        'x-sdkwork-auth-mode': route.authMode,
+        'x-sdkwork-auth-mode': buildOpenApiOperationAuthMode(route, operationId),
         'x-sdkwork-data-scope': governanceMetadata.dataScope,
         'x-sdkwork-deployment': governanceMetadata.deployment,
         'x-sdkwork-domain': governanceMetadata.domain,
+        ...(isCredentialEntryOpenApiOperation(operationId)
+          ? { 'x-sdkwork-forbid-credential-headers': true }
+          : {}),
         ...(governanceMetadata.permission
           ? { 'x-sdkwork-permission': governanceMetadata.permission }
           : {}),

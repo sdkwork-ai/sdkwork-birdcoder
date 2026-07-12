@@ -78,11 +78,13 @@ try {
     'console queries must bootstrap a default workspace when storage is empty.',
   );
 
-  const bootstrappedProjects = await queries.listProjects({
+  const bootstrappedProjects = await queries.listProjectPage({
+    page: 1,
+    pageSize: 20,
     workspaceId: BIRDCODER_DEFAULT_WORKSPACE_ID,
   });
   assert.deepEqual(
-    bootstrappedProjects.map((project) => project.id),
+    bootstrappedProjects.items.map((project) => project.id),
     [],
     'console queries must not invent a starter project when storage is empty.',
   );

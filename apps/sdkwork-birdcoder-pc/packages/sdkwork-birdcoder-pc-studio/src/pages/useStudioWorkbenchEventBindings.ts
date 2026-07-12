@@ -13,7 +13,6 @@ import {
   emitOpenTerminalRequest,
   getDefaultRunConfigurations,
   globalEventBus,
-  openTauriShellPath,
   resolveRunConfigurationTerminalLaunch,
   type BirdCoderProjectCodingSessionIndex,
   type RunConfigurationRecord,
@@ -25,6 +24,7 @@ type ToastVariant = 'success' | 'info' | 'error';
 
 interface UseStudioWorkbenchEventBindingsOptions {
   addToast: (message: string, variant: ToastVariant) => void;
+  saveError?: string | null;
   isActive?: boolean;
   currentProjectIdRef: MutableRefObject<string>;
   defaultWorkingDirectoryRef: MutableRefObject<string>;
@@ -34,6 +34,7 @@ interface UseStudioWorkbenchEventBindingsOptions {
   selectCodingSessionRef: MutableRefObject<
     (nextCodingSessionId: string, options?: { projectId?: string }) => void
   >;
+  flushPendingAutosave: () => Promise<void>;
   setIsDebugConfigVisible: Dispatch<SetStateAction<boolean>>;
   setIsFindVisible: Dispatch<SetStateAction<boolean>>;
   setIsQuickOpenVisible: Dispatch<SetStateAction<boolean>>;
@@ -47,6 +48,7 @@ interface UseStudioWorkbenchEventBindingsOptions {
 
 export function useStudioWorkbenchEventBindings({
   addToast,
+  saveError,
   isActive = true,
   currentProjectIdRef,
   defaultWorkingDirectoryRef,
@@ -54,6 +56,7 @@ export function useStudioWorkbenchEventBindings({
   runConfigurationsRef,
   selectedCodingSessionIdRef,
   selectCodingSessionRef,
+  flushPendingAutosave,
   setIsDebugConfigVisible,
   setIsFindVisible,
   setIsQuickOpenVisible,
@@ -66,6 +69,17 @@ export function useStudioWorkbenchEventBindings({
 }: UseStudioWorkbenchEventBindingsOptions) {
   const projectCodingSessionIndexProjectsRef = useRef(projectsRef.current);
   const projectCodingSessionIndexRef = useRef<BirdCoderProjectCodingSessionIndex | null>(null);
+  const flushPendingAutosaveRef = useRef(flushPendingAutosave);
+
+  useEffect(() => {
+    if (saveError) {
+      addToast(saveError, 'error');
+    }
+  }, [addToast, saveError]);
+
+  useEffect(() => {
+    flushPendingAutosaveRef.current = flushPendingAutosave;
+  }, [flushPendingAutosave]);
 
   const resolveProjectCodingSessionIndex = useCallback(() => {
     if (
@@ -101,11 +115,20 @@ export function useStudioWorkbenchEventBindings({
       setTerminalRequest(request);
       setIsTerminalOpen(true);
     };
+    const savePendingFileChanges = (successMessage: string) => {
+      void flushPendingAutosaveRef.current()
+        .then(() => {
+          addToast(successMessage, 'success');
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to save pending studio workbench changes', error);
+        });
+    };
     const handleSaveActiveFile = () => {
-      addToast(t('studio.fileSaved'), 'success');
+      savePendingFileChanges(t('studio.fileSaved'));
     };
     const handleSaveAllFiles = () => {
-      addToast(t('studio.allFilesSaved'), 'success');
+      savePendingFileChanges(t('studio.allFilesSaved'));
     };
     const handlePreviousCodingSession = () => {
       const activeCodingSessionId = selectedCodingSessionIdRef.current;
@@ -143,18 +166,6 @@ export function useStudioWorkbenchEventBindings({
         selectCodingSessionRef.current(nextCodingSessionReference.codingSessionId, {
           projectId: nextCodingSessionReference.projectId,
         });
-      }
-    };
-    const handleRevealInExplorer = async (targetPath: string) => {
-      try {
-        if (await openTauriShellPath(targetPath)) {
-          return;
-        }
-
-        addToast(t('studio.revealedInExplorer', { path: targetPath }), 'info');
-      } catch (error) {
-        console.error('Failed to reveal in explorer', error);
-        addToast(t('studio.revealedInExplorer', { path: targetPath }), 'info');
       }
     };
     const handleRunTask = () => {
@@ -228,7 +239,6 @@ export function useStudioWorkbenchEventBindings({
     globalEventBus.on('saveAllFiles', handleSaveAllFiles);
     globalEventBus.on('previousCodingSession', handlePreviousCodingSession);
     globalEventBus.on('nextCodingSession', handleNextCodingSession);
-    globalEventBus.on('revealInExplorer', handleRevealInExplorer);
     globalEventBus.on('runTask', handleRunTask);
     globalEventBus.on('startDebugging', handleStartDebugging);
     globalEventBus.on('runWithoutDebugging', handleRunWithoutDebugging);
@@ -246,7 +256,6 @@ export function useStudioWorkbenchEventBindings({
       globalEventBus.off('saveAllFiles', handleSaveAllFiles);
       globalEventBus.off('previousCodingSession', handlePreviousCodingSession);
       globalEventBus.off('nextCodingSession', handleNextCodingSession);
-      globalEventBus.off('revealInExplorer', handleRevealInExplorer);
       globalEventBus.off('runTask', handleRunTask);
       globalEventBus.off('startDebugging', handleStartDebugging);
       globalEventBus.off('runWithoutDebugging', handleRunWithoutDebugging);

@@ -1,39 +1,30 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, FileJson, ShieldAlert } from 'lucide-react';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import { useToast } from '@sdkwork/birdcoder-pc-commons';
+import {
+  normalizeTerminalApprovalPolicySetting,
+  normalizeTerminalCommandGuardSetting,
+  useToast,
+} from '@sdkwork/birdcoder-pc-commons';
 import { useTranslation } from 'react-i18next';
-import { SettingsProps } from './types';
-
-function normalizeServerBaseUrl(value?: string | null): string | undefined {
-  const trimmedValue = value?.trim();
-  if (!trimmedValue) {
-    return undefined;
-  }
-
-  try {
-    const parsedUrl = new URL(trimmedValue);
-    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      return undefined;
-    }
-
-    const normalizedPathname = parsedUrl.pathname.replace(/\/+$/, '');
-    const pathname = normalizedPathname === '/' ? '' : normalizedPathname;
-    return `${parsedUrl.origin}${pathname}`;
-  } catch {
-    return undefined;
-  }
-}
+import {
+  AppSettingsImportError,
+  normalizeServerBaseUrl,
+  parseAppSettingsImport,
+} from './appSettingsImport';
+import type { SettingsProps } from './types';
 
 export function ConfigSettings({
   bootServerBaseUrlOverride,
   settings,
   updateSetting,
+  updateSettings,
   currentServerBaseUrl: runtimeServerBaseUrl,
 }: SettingsProps) {
   const { t } = useTranslation();
   const { addToast } = useToast();
   const [serverBaseUrlDraft, setServerBaseUrlDraft] = useState(settings.serverBaseUrl ?? '');
+  const [isImportingConfiguration, setIsImportingConfiguration] = useState(false);
 
   useEffect(() => {
     setServerBaseUrlDraft(settings.serverBaseUrl ?? '');
@@ -83,54 +74,98 @@ export function ConfigSettings({
     addToast(t('settings.config.serverBaseUrlReset'), 'success');
   };
 
+  const handleImportConfiguration = async (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file || isImportingConfiguration) {
+      return;
+    }
+
+    setIsImportingConfiguration(true);
+    try {
+      const imported = await parseAppSettingsImport(file);
+      updateSettings(imported.settings);
+      addToast(
+        t('settings.config.configurationImported', {
+          count: imported.importedKeys.length,
+        }),
+        'success',
+      );
+    } catch (error) {
+      const errorKey =
+        error instanceof AppSettingsImportError
+          ? `settings.config.configurationImportError.${error.code}`
+          : 'settings.config.configurationImportError.unknown';
+      addToast(t(errorKey), 'error');
+    } finally {
+      input.value = '';
+      setIsImportingConfiguration(false);
+    }
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto p-12 bg-[#0e0e11]">
+    <div className="flex-1 overflow-y-auto bg-[#0e0e11] p-6 lg:p-12">
       <div
         className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 fill-mode-both"
         style={{ animationDelay: '0ms' }}
       >
         <h1 className="text-2xl font-semibold text-white mb-2">{t('settings.config.title')}</h1>
-        <div className="text-sm text-gray-400 mb-8">
-          {t('settings.config.description')}{' '}
-          <a href="#" className="text-blue-400 hover:underline">
-            {t('settings.config.learnMore')}
-          </a>
+        <div className="text-sm text-gray-400 mb-6">{t('settings.config.description')}</div>
+
+        <div
+          className="mb-6 flex items-start gap-3 border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-sm text-amber-100"
+          role="note"
+        >
+          <ShieldAlert size={18} className="mt-0.5 shrink-0 text-amber-300" />
+          <div>
+            <div className="font-medium">{t('settings.config.governanceScopeTitle')}</div>
+            <div className="mt-1 text-amber-100/70">
+              {t('settings.config.governanceScopeDescription')}
+            </div>
+          </div>
         </div>
 
         <div className="bg-[#18181b] rounded-xl border border-white/10 overflow-hidden mb-8">
-          <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
-            <div className="relative flex-1 max-w-[200px]">
-              <select className="appearance-none bg-transparent text-sm text-white outline-none cursor-pointer w-full font-medium">
-                <option>{t('settings.config.userConfig')}</option>
-              </select>
-              <ChevronDown
-                size={16}
-                className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
+          <div className="flex flex-col gap-3 border-b border-white/10 bg-white/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm font-medium text-white">
+              {t('settings.config.userConfig')}
             </div>
-            <Button
-              variant="link"
-              className="h-auto p-0 text-gray-300 hover:text-white"
-              onClick={() => addToast('Opening config.toml in editor...', 'info')}
-            >
-              {t('settings.config.openConfigToml')} <span className="text-xs ml-1">-&gt;</span>
-            </Button>
+            <div className="text-right">
+              <Button
+                variant="link"
+                className="h-auto p-0 text-gray-500"
+                disabled
+              >
+                {t('settings.config.openConfigToml')}{' '}
+                <span className="text-xs ml-1">-&gt;</span>
+              </Button>
+              <div className="mt-1 text-xs text-gray-500">
+                {t('settings.config.configFileUnavailable')}
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between p-4 border-b border-white/10">
-            <div>
+          <div className="flex flex-col gap-4 border-b border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <div className="text-white font-medium">{t('settings.config.approvalPolicy')}</div>
               <div className="text-sm text-gray-500">{t('settings.config.approvalPolicyDesc')}</div>
             </div>
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <select
                 value={settings.approvalPolicy}
-                onChange={(e) => updateSetting('approvalPolicy', e.target.value)}
-                className="appearance-none bg-[#0e0e11] border border-white/10 rounded-lg px-4 py-2 pr-10 text-sm text-white outline-none hover:border-gray-500 cursor-pointer w-64"
+                onChange={(event) =>
+                  updateSetting(
+                    'approvalPolicy',
+                    normalizeTerminalApprovalPolicySetting(event.target.value),
+                  )
+                }
+                aria-label={t('settings.config.approvalPolicy')}
+                className="w-full appearance-none rounded-lg border border-white/10 bg-[#0e0e11] px-4 py-2 pr-10 text-sm text-white outline-none hover:border-gray-500 sm:w-64"
               >
-                <option>On request</option>
-                <option>Always</option>
-                <option>Never</option>
+                <option value="AutoAllow">{t('settings.config.approvalAutoAllow')}</option>
+                <option value="OnRequest">{t('settings.config.approvalOnRequest')}</option>
+                <option value="Restricted">{t('settings.config.approvalRestricted')}</option>
+                <option value="ReleaseOnly">{t('settings.config.approvalReleaseOnly')}</option>
               </select>
               <ChevronDown
                 size={16}
@@ -140,7 +175,7 @@ export function ConfigSettings({
           </div>
 
           <div className="p-4 border-b border-white/10">
-            <div className="flex items-start justify-between gap-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex-1">
                 <div className="text-white font-medium">{t('settings.config.serverBaseUrl')}</div>
                 <div className="text-sm text-gray-500 mt-1">{t('settings.config.serverBaseUrlDesc')}</div>
@@ -157,7 +192,7 @@ export function ConfigSettings({
           </div>
 
           <div className="p-4 border-b border-white/10">
-            <div className="flex items-start justify-between gap-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex-1">
                 <div className="text-white font-medium">{t('settings.config.savedServerBaseUrl')}</div>
                 <div className="text-sm text-gray-500 mt-1">{t('settings.config.savedServerBaseUrlDesc')}</div>
@@ -166,6 +201,7 @@ export function ConfigSettings({
                 <input
                   value={serverBaseUrlDraft}
                   onChange={(event) => setServerBaseUrlDraft(event.target.value)}
+                  aria-label={t('settings.config.savedServerBaseUrl')}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       handleSaveServerBaseUrl();
@@ -203,20 +239,26 @@ export function ConfigSettings({
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-4">
-            <div>
+          <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <div className="text-white font-medium">{t('settings.config.sandboxSettings')}</div>
               <div className="text-sm text-gray-500">{t('settings.config.sandboxSettingsDesc')}</div>
             </div>
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <select
                 value={settings.sandboxSettings}
-                onChange={(e) => updateSetting('sandboxSettings', e.target.value)}
-                className="appearance-none bg-[#0e0e11] border border-white/10 rounded-lg px-4 py-2 pr-10 text-sm text-white outline-none hover:border-gray-500 cursor-pointer w-64"
+                onChange={(event) =>
+                  updateSetting(
+                    'sandboxSettings',
+                    normalizeTerminalCommandGuardSetting(event.target.value),
+                  )
+                }
+                aria-label={t('settings.config.sandboxSettings')}
+                className="w-full appearance-none rounded-lg border border-white/10 bg-[#0e0e11] px-4 py-2 pr-10 text-sm text-white outline-none hover:border-gray-500 sm:w-64"
               >
-                <option>Read only</option>
-                <option>Read and write</option>
-                <option>Full access</option>
+                <option value="ReadOnly">{t('settings.config.commandGuardReadOnly')}</option>
+                <option value="ReadWrite">{t('settings.config.commandGuardReadWrite')}</option>
+                <option value="FullAccess">{t('settings.config.commandGuardFullAccess')}</option>
               </select>
               <ChevronDown
                 size={16}
@@ -231,23 +273,24 @@ export function ConfigSettings({
           {t('settings.config.importExternalAgentConfigDesc')}
         </div>
 
-        <div className="bg-[#18181b] rounded-xl border border-white/10 p-4 flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#18181b] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
             <div className="text-white font-medium">{t('settings.config.importConfiguration')}</div>
             <div className="text-sm text-gray-500">{t('settings.config.importConfigurationDesc')}</div>
           </div>
-          <div className="relative">
+          <div className="relative self-start sm:self-auto">
             <input
               type="file"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              accept=".json"
-              onChange={(e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  addToast(t('settings.config.configurationImported'), 'success');
-                }
-              }}
+              accept=".json,application/json"
+              aria-label={t('settings.config.importConfiguration')}
+              disabled={isImportingConfiguration}
+              onChange={handleImportConfiguration}
             />
-            <Button variant="outline">{t('common.selectFile')}</Button>
+            <Button variant="outline" disabled={isImportingConfiguration}>
+              <FileJson size={15} />
+              {isImportingConfiguration ? t('common.loading') : t('common.selectFile')}
+            </Button>
           </div>
         </div>
       </div>

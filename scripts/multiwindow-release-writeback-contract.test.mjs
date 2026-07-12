@@ -61,8 +61,8 @@ for (const requiredTruth of [
   'MultiWindowDispatchBatchSummary',
   'maxObservedConcurrency',
   'retry failed panes',
-  'cancelled multi-window batches',
-  'manual cancel current batch',
+  'stopped multi-window batches',
+  'stop-remaining-windows',
   'manual window add and close',
   'quota-safe workspace persistence',
 ]) {

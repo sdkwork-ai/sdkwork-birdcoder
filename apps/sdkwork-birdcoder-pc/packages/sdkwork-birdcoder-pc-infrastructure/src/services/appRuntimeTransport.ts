@@ -71,6 +71,8 @@ import {
   clampListPageSize,
   DEFAULT_LIST_PAGE_SIZE,
   MAX_LIST_PAGE_SIZE,
+  normalizeOffsetListQuery,
+  offsetFromPage,
   paginateItems,
 } from '@sdkwork/utils/pagination';
 import { createListEnvelope } from './sdkTransportShared.ts';
@@ -214,7 +216,7 @@ function readInProcessCodingSessionTurnModelSelection(
   };
 }
 
-function normalizeLimit(value: BirdCoderApiQueryValue): number | undefined {
+function normalizePositiveIntegerQueryValue(value: BirdCoderApiQueryValue): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
     return Math.floor(value);
   }
@@ -225,15 +227,17 @@ function normalizeLimit(value: BirdCoderApiQueryValue): number | undefined {
   return undefined;
 }
 
-function normalizeOffset(value: BirdCoderApiQueryValue): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
-    return Math.floor(value);
-  }
-  if (typeof value === 'string' && value.trim()) {
-    const parsedValue = Number.parseInt(value.trim(), 10);
-    return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : undefined;
-  }
-  return undefined;
+function readOffsetListPageParams(
+  query: BirdCoderApiTransportRequest['query'],
+): { offset: number; pageSize: number } {
+  const normalized = normalizeOffsetListQuery({
+    page: normalizePositiveIntegerQueryValue(query?.page),
+    page_size: normalizePositiveIntegerQueryValue(query?.page_size),
+  });
+  return {
+    offset: offsetFromPage(normalized.page, normalized.page_size),
+    pageSize: normalized.page_size,
+  };
 }
 
 function readTextQueryValue(value: BirdCoderApiQueryValue): string | undefined {
@@ -804,9 +808,24 @@ async function listCodingSessionsFromProjectInventory(
   }
 
   return {
-    items: items.slice(offset, offset + pageSize),
+    items: readSortedWindowPage(items, offset, pageSize),
     total,
   };
+}
+
+function readSortedWindowPage<TItem>(
+  sortedWindow: readonly TItem[],
+  offset: number,
+  pageSize: number,
+): TItem[] {
+  const pageItems: TItem[] = [];
+  for (let index = offset; index < sortedWindow.length && pageItems.length < pageSize; index += 1) {
+    const item = sortedWindow[index];
+    if (item !== undefined) {
+      pageItems.push(item);
+    }
+  }
+  return pageItems;
 }
 
 async function listCodingSessionsForRuntime(
@@ -1042,7 +1061,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           return createListEnvelope(listBirdCoderCodeEngineModels()) as TResponse;
         case 'modelConfig.retrieve':
           return createEnvelope(serverModelConfig) as TResponse;
-        case 'modelConfig.sync': {
+        case 'modelConfig.update': {
           const syncPlan = createBirdCoderCodeEngineModelConfigSyncPlan({
             localConfig:
               request.body && typeof request.body === 'object' && 'localConfig' in request.body
@@ -1070,10 +1089,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           return createEnvelope(descriptor.capabilityMatrix) as TResponse;
         }
         case 'codingSessions.list': {
-          const { offset, pageSize } = clampListPageSize(
-            normalizeOffset(request.query?.offset),
-            normalizeLimit(request.query?.limit),
-          );
+          const { offset, pageSize } = readOffsetListPageParams(request.query);
           const page = await listCodingSessionsForRuntime(projectService, {
             engineId: readTextQueryValue(request.query?.engineId) as
               | BirdCoderListCodingSessionsRequest['engineId']
@@ -1109,10 +1125,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           return createEnvelope(toCodingSessionSummary(codingSession)) as TResponse;
         }
         case 'nativeSessions.list': {
-          const { offset, pageSize } = clampListPageSize(
-            normalizeOffset(request.query?.offset),
-            normalizeLimit(request.query?.limit),
-          );
+          const { offset, pageSize } = readOffsetListPageParams(request.query);
           const page = await listCodingSessionsForRuntime(projectService, {
             engineId: readTextQueryValue(request.query?.engineId) as
               | BirdCoderListCodingSessionsRequest['engineId']
@@ -1153,15 +1166,14 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           }) as TResponse;
         }
         case 'codingSessions.events.list': {
-          const limit = normalizeLimit(request.query?.limit);
-          const offset = normalizeOffset(request.query?.offset);
+          const { offset, pageSize } = readOffsetListPageParams(request.query);
           const codingSession = await getCodingSessionTranscriptById(
             projectService,
             codingSessionProjectIndex,
             knownWorkspaceIds,
             resolveCodingSessionPathParam(resolvedOperation.pathParams),
           );
-          const page = paginateItems(buildProjectionEvents(codingSession), { limit, offset });
+          const page = paginateItems(buildProjectionEvents(codingSession), { limit: pageSize, offset });
           return createListEnvelope(page.items, {
             offset: page.offset,
             pageSize: page.pageSize,
@@ -1169,15 +1181,14 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           }) as TResponse;
         }
         case 'codingSessions.artifacts.list': {
-          const limit = normalizeLimit(request.query?.limit);
-          const offset = normalizeOffset(request.query?.offset);
+          const { offset, pageSize } = readOffsetListPageParams(request.query);
           const codingSession = await getCodingSessionTranscriptById(
             projectService,
             codingSessionProjectIndex,
             knownWorkspaceIds,
             resolveCodingSessionPathParam(resolvedOperation.pathParams),
           );
-          const page = paginateItems(buildProjectionArtifacts(codingSession), { limit, offset });
+          const page = paginateItems(buildProjectionArtifacts(codingSession), { limit: pageSize, offset });
           return createListEnvelope(page.items, {
             offset: page.offset,
             pageSize: page.pageSize,
@@ -1185,15 +1196,14 @@ export function createBirdCoderInProcessAppRuntimeTransport({
           }) as TResponse;
         }
         case 'codingSessions.checkpoints.list': {
-          const limit = normalizeLimit(request.query?.limit);
-          const offset = normalizeOffset(request.query?.offset);
+          const { offset, pageSize } = readOffsetListPageParams(request.query);
           const codingSession = await getCodingSessionTranscriptById(
             projectService,
             codingSessionProjectIndex,
             knownWorkspaceIds,
             resolveCodingSessionPathParam(resolvedOperation.pathParams),
           );
-          const page = paginateItems(buildProjectionCheckpoints(codingSession), { limit, offset });
+          const page = paginateItems(buildProjectionCheckpoints(codingSession), { limit: pageSize, offset });
           return createListEnvelope(page.items, {
             offset: page.offset,
             pageSize: page.pageSize,

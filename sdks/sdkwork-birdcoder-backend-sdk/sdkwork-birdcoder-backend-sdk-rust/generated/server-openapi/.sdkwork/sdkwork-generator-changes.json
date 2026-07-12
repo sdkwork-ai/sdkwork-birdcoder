@@ -9,10 +9,13 @@
     "protocol": "http",
     "packageName": "@sdkwork/birdcoder-backend-sdk"
   },
-  "changeFingerprint": "04c7462c7e366ec44156e5ae14bd45650832014cf06e11941e966ddc53f7d924",
+  "changeFingerprint": "a9d4ba8cfdefb2954ea5b4b0fd649b3c5d9bc23cf421da942f1004e9ed28cfd5",
   "changes": {
     "createdGeneratedFiles": [],
-    "updatedGeneratedFiles": [],
+    "updatedGeneratedFiles": [
+      "sdkwork-sdk.json",
+      "src/api/platform.rs"
+    ],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
       "bin/publish.ps1",
@@ -21,12 +24,10 @@
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
-      "sdkwork-sdk.json",
       "src/api/base.rs",
       "src/api/iam.rs",
       "src/api/mod.rs",
       "src/api/paths.rs",
-      "src/api/platform.rs",
       "src/client.rs",
       "src/http/client.rs",
       "src/http/mod.rs",
@@ -43,8 +44,6 @@
       "src/models/bird_coder_create_iam_tenant_request.rs",
       "src/models/bird_coder_create_iam_user_request.rs",
       "src/models/bird_coder_create_iam_user_role_request.rs",
-      "src/models/bird_coder_deleted_resource_envelope.rs",
-      "src/models/bird_coder_deleted_resource_result.rs",
       "src/models/bird_coder_deployment_record_summary_list_envelope.rs",
       "src/models/bird_coder_deployment_record_summary.rs",
       "src/models/bird_coder_deployment_target_summary_list_envelope.rs",
@@ -107,30 +106,87 @@
     "preservedScaffoldFiles": [
       "custom/README.md"
     ],
-    "backedUpFiles": []
+    "backedUpFiles": [
+      "sdkwork-sdk.json"
+    ]
   },
   "impact": {
     "schemaVersion": 1,
-    "areas": [],
-    "details": [],
-    "requiresVerification": false,
-    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
+    "areas": [
+      "api-surface",
+      "build-metadata"
+    ],
+    "details": [
+      {
+        "area": "api-surface",
+        "paths": [
+          "src/api/platform.rs"
+        ]
+      },
+      {
+        "area": "build-metadata",
+        "paths": [
+          "sdkwork-sdk.json"
+        ]
+      }
+    ],
+    "requiresVerification": true,
+    "summary": "Detected impact areas: api-surface, build-metadata. Verification is required."
   },
   "verificationPlan": {
-    "shouldRun": false,
-    "runPhase": "skip",
-    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
-    "steps": []
+    "shouldRun": true,
+    "runPhase": "now",
+    "summary": "Detected impact areas: api-surface, build-metadata. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "steps": [
+      {
+        "id": "check",
+        "title": "Unified package check",
+        "required": true,
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "rust",
+          "--project-dir",
+          ".",
+          "--action",
+          "check"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action check"
+      },
+      {
+        "id": "build",
+        "title": "Unified package build",
+        "required": true,
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, build-metadata.",
+        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
+        "command": "node",
+        "args": [
+          "./bin/publish-core.mjs",
+          "--language",
+          "rust",
+          "--project-dir",
+          ".",
+          "--action",
+          "build"
+        ],
+        "displayCommand": "node ./bin/publish-core.mjs --language rust --project-dir . --action build"
+      }
+    ]
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "low",
-    "nextAction": "skip",
+    "riskLevel": "high",
+    "nextAction": "verify",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "No actionable changes were detected. No apply or verification step is required.",
+    "summary": "Changes have been applied. Run the required verification plan now.",
     "reasons": [
-      "no-actionable-changes"
+      "backed-up-generated-files",
+      "manual-review-required",
+      "verification-required"
     ]
   },
   "preservedLegacyFiles": false

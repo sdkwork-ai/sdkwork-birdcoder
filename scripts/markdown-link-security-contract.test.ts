@@ -10,10 +10,6 @@ const universalChatMarkdownSource = fs.readFileSync(
   new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChatMarkdown.tsx', import.meta.url),
   'utf8',
 );
-const skillsPageSource = fs.readFileSync(
-  new URL('../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills/src/SkillsPage.tsx', import.meta.url),
-  'utf8',
-);
 
 assert.equal(resolveSafeMarkdownHref('https://sdkwork.com/docs'), 'https://sdkwork.com/docs');
 assert.equal(resolveSafeMarkdownHref('http://localhost:3000'), 'http://localhost:3000');
@@ -65,16 +61,6 @@ assert.doesNotMatch(
   universalChatMarkdownSource,
   /<a\s*\{\.\.\.props\}/,
   'UniversalChatMarkdown must not blindly spread markdown link props into an anchor before URL validation.',
-);
-assert.match(
-  skillsPageSource,
-  /resolveSafeMarkdownHref\(href\)/,
-  'SkillsPage must explicitly filter catalog README markdown links before rendering anchors.',
-);
-assert.doesNotMatch(
-  skillsPageSource,
-  /<ReactMarkdown>\s*\{\s*selectedSkill\.readme\s*\}\s*<\/ReactMarkdown>/,
-  'SkillsPage must not render catalog README markdown through a bare ReactMarkdown instance.',
 );
 
 console.log('markdown link security contract passed.');

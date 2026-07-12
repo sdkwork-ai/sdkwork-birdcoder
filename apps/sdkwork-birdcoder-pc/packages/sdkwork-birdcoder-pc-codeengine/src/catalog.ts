@@ -80,17 +80,17 @@ const CODEX_CAPABILITY_MATRIX = capabilityMatrix({
 });
 
 const CLAUDE_CAPABILITY_MATRIX = capabilityMatrix({
-  remoteBridge: true,
+  remoteBridge: false,
 });
 
 const GEMINI_CAPABILITY_MATRIX = capabilityMatrix({
-  remoteBridge: true,
+  remoteBridge: false,
   ptyArtifacts: false,
 });
 
 const OPENCODE_CAPABILITY_MATRIX = capabilityMatrix({
   structuredOutput: false,
-  remoteBridge: true,
+  remoteBridge: false,
 });
 
 export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescriptor[] = [
@@ -99,16 +99,16 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
     engineKey: 'codex',
     displayName: 'Codex',
     vendor: 'OpenAI',
-    installationKind: 'embedded-sdk',
+    installationKind: 'external-cli',
     defaultModelId: 'gpt-5.4',
     homepage: 'https://openai.com/codex',
     supportedHostModes: ['web', 'desktop', 'server'],
-    transportKinds: ['sdk-stream', 'cli-jsonl'],
+    transportKinds: ['cli-jsonl', 'sdk-stream'],
     capabilityMatrix: CODEX_CAPABILITY_MATRIX,
     status: 'active',
     accessPlan: {
-      primaryLaneId: 'codex-sdk-stream',
-      fallbackLaneIds: ['codex-cli-jsonl'],
+      primaryLaneId: 'codex-cli-jsonl',
+      fallbackLaneIds: ['codex-sdk-stream'],
       lanes: [
         {
           laneId: 'codex-sdk-stream',
@@ -117,10 +117,10 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
           runtimeOwner: 'rust-server',
           bridgeProtocol: 'direct',
           transportKind: 'sdk-stream',
-          status: 'ready',
-          enabledByDefault: true,
+          status: 'planned',
+          enabledByDefault: false,
           hostModes: ['desktop', 'server'],
-          description: 'OpenAI Codex official SDK streaming lane.',
+          description: 'OpenAI Codex official SDK lane; runtime promotion is pending live SDK conformance.',
         },
         {
           laneId: 'codex-cli-jsonl',
@@ -130,15 +130,15 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
           bridgeProtocol: 'stdio',
           transportKind: 'cli-jsonl',
           status: 'ready',
-          enabledByDefault: false,
+          enabledByDefault: true,
           hostModes: ['desktop', 'server'],
-          description: 'OpenAI Codex CLI JSONL fallback lane.',
+          description: 'OpenAI Codex CLI JSONL execution lane used by the local kernel runtime.',
         },
       ],
     },
     officialIntegration: {
-      integrationClass: 'official-sdk',
-      runtimeMode: 'sdk',
+      integrationClass: 'official-protocol',
+      runtimeMode: 'headless',
       officialEntry: officialEntry({
         packageName: '@openai/codex-sdk',
         sdkPath: 'external/codex/sdk/typescript',
@@ -156,12 +156,12 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
     defaultModelId: 'claude-sonnet-4-6',
     homepage: 'https://www.anthropic.com/claude-code',
     supportedHostModes: ['web', 'desktop', 'server'],
-    transportKinds: ['sdk-stream', 'cli-jsonl', 'remote-control-http'],
+    transportKinds: ['cli-jsonl', 'sdk-stream', 'remote-control-http'],
     capabilityMatrix: CLAUDE_CAPABILITY_MATRIX,
     status: 'active',
     accessPlan: {
-      primaryLaneId: 'claude-code-sdk-stream',
-      fallbackLaneIds: ['claude-code-cli-print', 'claude-code-remote-control'],
+      primaryLaneId: 'claude-code-cli-print',
+      fallbackLaneIds: ['claude-code-sdk-stream', 'claude-code-remote-control'],
       lanes: [
         {
           laneId: 'claude-code-sdk-stream',
@@ -170,10 +170,10 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
           runtimeOwner: 'typescript-bridge',
           bridgeProtocol: 'grpc',
           transportKind: 'sdk-stream',
-          status: 'ready',
-          enabledByDefault: true,
+          status: 'planned',
+          enabledByDefault: false,
           hostModes: ['desktop', 'server'],
-          description: 'Anthropic Claude Agent SDK streaming lane.',
+          description: 'Anthropic Claude Agent SDK lane; runtime promotion is pending live SDK conformance.',
         },
         {
           laneId: 'claude-code-cli-print',
@@ -183,9 +183,9 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
           bridgeProtocol: 'stdio',
           transportKind: 'cli-jsonl',
           status: 'ready',
-          enabledByDefault: false,
+          enabledByDefault: true,
           hostModes: ['desktop', 'server'],
-          description: 'Claude Code CLI fallback lane.',
+          description: 'Claude Code CLI print execution lane used by the local kernel runtime.',
         },
         {
           laneId: 'claude-code-remote-control',
@@ -194,16 +194,16 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
           runtimeOwner: 'typescript-bridge',
           bridgeProtocol: 'http',
           transportKind: 'remote-control-http',
-          status: 'ready',
+          status: 'planned',
           enabledByDefault: false,
           hostModes: ['web', 'desktop', 'server'],
-          description: 'Claude Code remote-control lane.',
+          description: 'Claude Code remote-control lane; cloud transport is not implemented yet.',
         },
       ],
     },
     officialIntegration: {
-      integrationClass: 'official-sdk',
-      runtimeMode: 'sdk',
+      integrationClass: 'official-protocol',
+      runtimeMode: 'headless',
       officialEntry: officialEntry({
         packageName: '@anthropic-ai/claude-agent-sdk',
         sdkPath: null,
@@ -222,12 +222,12 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
     defaultModelId: 'auto-gemini-3',
     homepage: 'https://github.com/google-gemini/gemini-cli',
     supportedHostModes: ['web', 'desktop', 'server'],
-    transportKinds: ['sdk-stream', 'cli-jsonl'],
+    transportKinds: ['cli-jsonl', 'sdk-stream'],
     capabilityMatrix: GEMINI_CAPABILITY_MATRIX,
     status: 'active',
     accessPlan: {
-      primaryLaneId: 'gemini-sdk-stream',
-      fallbackLaneIds: ['gemini-cli-jsonl'],
+      primaryLaneId: 'gemini-cli-jsonl',
+      fallbackLaneIds: ['gemini-sdk-stream'],
       lanes: [
         {
           laneId: 'gemini-sdk-stream',
@@ -236,10 +236,10 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
           runtimeOwner: 'typescript-bridge',
           bridgeProtocol: 'grpc',
           transportKind: 'sdk-stream',
-          status: 'ready',
-          enabledByDefault: true,
+          status: 'planned',
+          enabledByDefault: false,
           hostModes: ['desktop', 'server'],
-          description: 'Google Gemini CLI SDK streaming lane.',
+          description: 'Google Gemini CLI SDK lane; runtime promotion is pending live SDK conformance.',
         },
         {
           laneId: 'gemini-cli-jsonl',
@@ -249,15 +249,15 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
           bridgeProtocol: 'stdio',
           transportKind: 'cli-jsonl',
           status: 'ready',
-          enabledByDefault: false,
+          enabledByDefault: true,
           hostModes: ['desktop', 'server'],
-          description: 'Gemini CLI fallback lane.',
+          description: 'Gemini CLI JSONL execution lane used by the local kernel runtime.',
         },
       ],
     },
     officialIntegration: {
-      integrationClass: 'official-sdk',
-      runtimeMode: 'sdk',
+      integrationClass: 'official-protocol',
+      runtimeMode: 'headless',
       officialEntry: officialEntry({
         packageName: '@google/gemini-cli-sdk',
         sdkPath: 'external/gemini/packages/sdk',
@@ -275,12 +275,12 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
     defaultModelId: 'opencode/big-pickle',
     homepage: 'https://opencode.ai',
     supportedHostModes: ['web', 'desktop', 'server'],
-    transportKinds: ['sdk-stream', 'openapi-http', 'cli-jsonl'],
+    transportKinds: ['cli-jsonl', 'sdk-stream', 'openapi-http'],
     capabilityMatrix: OPENCODE_CAPABILITY_MATRIX,
     status: 'active',
     accessPlan: {
-      primaryLaneId: 'opencode-sdk-stream',
-      fallbackLaneIds: ['opencode-openapi-http', 'opencode-cli-jsonl'],
+      primaryLaneId: 'opencode-cli-jsonl',
+      fallbackLaneIds: ['opencode-sdk-stream', 'opencode-openapi-http'],
       lanes: [
         {
           laneId: 'opencode-sdk-stream',
@@ -289,10 +289,10 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
           runtimeOwner: 'rust-server',
           bridgeProtocol: 'grpc',
           transportKind: 'sdk-stream',
-          status: 'ready',
-          enabledByDefault: true,
+          status: 'planned',
+          enabledByDefault: false,
           hostModes: ['desktop', 'server'],
-          description: 'OpenCode SDK streaming lane.',
+          description: 'OpenCode SDK lane; runtime promotion is pending live SDK conformance.',
         },
         {
           laneId: 'opencode-openapi-http',
@@ -301,10 +301,10 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
           runtimeOwner: 'rust-server',
           bridgeProtocol: 'http',
           transportKind: 'openapi-http',
-          status: 'ready',
+          status: 'planned',
           enabledByDefault: false,
           hostModes: ['web', 'desktop', 'server'],
-          description: 'OpenCode OpenAPI fallback lane.',
+          description: 'OpenCode OpenAPI lane; remote HTTP transport is not implemented yet.',
         },
         {
           laneId: 'opencode-cli-jsonl',
@@ -314,15 +314,15 @@ export const BIRDCODER_CODE_ENGINE_DESCRIPTORS: readonly BirdCoderEngineDescript
           bridgeProtocol: 'stdio',
           transportKind: 'cli-jsonl',
           status: 'ready',
-          enabledByDefault: false,
+          enabledByDefault: true,
           hostModes: ['desktop', 'server'],
-          description: 'OpenCode CLI fallback lane.',
+          description: 'OpenCode CLI JSON execution lane used by the local kernel runtime.',
         },
       ],
     },
     officialIntegration: {
-      integrationClass: 'official-sdk',
-      runtimeMode: 'sdk',
+      integrationClass: 'official-protocol',
+      runtimeMode: 'headless',
       officialEntry: officialEntry({
         packageName: '@opencode-ai/sdk',
         sdkPath: 'external/opencode/packages/sdk/js',
@@ -502,7 +502,7 @@ export const BIRDCODER_CODE_ENGINE_NATIVE_SESSION_PROVIDERS: readonly BirdCoderC
       displayName: 'Codex',
       prefix: 'codex-native:',
       nativeSessionIdPrefix: 'codex-native:',
-      transportKinds: ['sdk-stream', 'cli-jsonl'],
+      transportKinds: ['cli-jsonl', 'sdk-stream'],
       discoveryMode: 'passive-global',
       rawIdKind: 'uuid',
       description: 'Codex provider-native session id.',
@@ -513,7 +513,7 @@ export const BIRDCODER_CODE_ENGINE_NATIVE_SESSION_PROVIDERS: readonly BirdCoderC
       displayName: 'Claude Code',
       prefix: 'claude-code-native:',
       nativeSessionIdPrefix: 'claude-code-native:',
-      transportKinds: ['sdk-stream', 'cli-jsonl', 'remote-control-http'],
+      transportKinds: ['cli-jsonl', 'sdk-stream', 'remote-control-http'],
       discoveryMode: 'passive-global',
       rawIdKind: 'string',
       description: 'Claude Code provider-native session id.',
@@ -524,7 +524,7 @@ export const BIRDCODER_CODE_ENGINE_NATIVE_SESSION_PROVIDERS: readonly BirdCoderC
       displayName: 'Gemini',
       prefix: 'gemini-native:',
       nativeSessionIdPrefix: 'gemini-native:',
-      transportKinds: ['sdk-stream', 'cli-jsonl'],
+      transportKinds: ['cli-jsonl', 'sdk-stream'],
       discoveryMode: 'passive-global',
       rawIdKind: 'string',
       description: 'Gemini provider-native session id.',
@@ -535,7 +535,7 @@ export const BIRDCODER_CODE_ENGINE_NATIVE_SESSION_PROVIDERS: readonly BirdCoderC
       displayName: 'OpenCode',
       prefix: 'opencode-native:',
       nativeSessionIdPrefix: 'opencode-native:',
-      transportKinds: ['sdk-stream', 'openapi-http', 'cli-jsonl'],
+      transportKinds: ['cli-jsonl', 'sdk-stream', 'openapi-http'],
       discoveryMode: 'passive-global',
       rawIdKind: 'string',
       description: 'OpenCode provider-native session id.',

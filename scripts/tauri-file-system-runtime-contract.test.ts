@@ -38,9 +38,11 @@ await withWindow(
           'desktop file-system runtime must use the Tauri host bridge for mounted folder snapshots.',
         );
         assert.deepEqual(payload, {
+          maxNodes: 12_345,
           rootPath: 'D:/workspace/sample-app',
         });
         return {
+          limitReached: true,
           rootVirtualPath: '/sample-app',
           tree: {
             name: 'sample-app',
@@ -54,7 +56,8 @@ await withWindow(
   } as unknown as Window & typeof globalThis,
   async () => {
     const runtime = createBirdCoderTauriFileSystemRuntime();
-    assert.deepEqual(await runtime.snapshotFolder('D:/workspace/sample-app'), {
+    assert.deepEqual(await runtime.snapshotFolder('D:/workspace/sample-app', 12_345), {
+      limitReached: true,
       rootVirtualPath: '/sample-app',
       tree: {
         name: 'sample-app',

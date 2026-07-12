@@ -1,30 +1,42 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DEFAULT_LIST_PAGE_SIZE } from '@sdkwork/utils/pagination';
 import {
   stringifyBirdCoderApiJson,
   type IWorkspace,
 } from '@sdkwork/birdcoder-pc-types';
 import { useAuth } from '../context/AuthContext.ts';
 import { useIDEServices } from '../context/IDEContext.ts';
-import type { BirdCoderServiceListPagination } from '../services/interfaces/IProjectService.ts';
+import type {
+  BirdCoderServiceListPage,
+  BirdCoderServiceOffsetPageInfo,
+  BirdCoderServicePageRequest,
+} from '../services/interfaces/IProjectService.ts';
 
 const WORKSPACES_FETCH_TIMEOUT_MS = 30_000;
+const MAX_TARGET_WORKSPACE_RESOLUTION_PAGES = 20;
 
 interface WorkspacesStoreSnapshot {
+  error: string | null;
   hasFetched: boolean;
   isLoading: boolean;
+  pageInfo: BirdCoderServiceOffsetPageInfo | null;
   workspaces: IWorkspace[];
 }
 
 interface WorkspacesStore {
+  inventoryVersion: number;
   inflight: Promise<IWorkspace[]> | null;
+  inflightKey: string | null;
   listeners: Set<(snapshot: WorkspacesStoreSnapshot) => void>;
   snapshot: WorkspacesStoreSnapshot;
 }
 
 function createWorkspacesStoreSnapshot(): WorkspacesStoreSnapshot {
   return {
+    error: null,
     hasFetched: false,
     isLoading: false,
+    pageInfo: null,
     workspaces: [],
   };
 }
@@ -34,8 +46,10 @@ function areWorkspacesStoreSnapshotsEqual(
   right: WorkspacesStoreSnapshot,
 ): boolean {
   return (
+    left.error === right.error &&
     left.hasFetched === right.hasFetched &&
     left.isLoading === right.isLoading &&
+    left.pageInfo === right.pageInfo &&
     left.workspaces === right.workspaces
   );
 }
@@ -176,12 +190,12 @@ function createWorkspaceFetchTimeoutPromise(timeoutMs: number): WorkspaceFetchTi
 
 function runWorkspaceFetchWithTimeout(
   workspaceService: ReturnType<typeof useIDEServices>['workspaceService'],
+  request: BirdCoderServicePageRequest,
   timeoutMs: number = WORKSPACES_FETCH_TIMEOUT_MS,
-  pagination?: BirdCoderServiceListPagination,
-): Promise<IWorkspace[]> {
+): Promise<BirdCoderServiceListPage<IWorkspace>> {
   const timeoutBoundary = createWorkspaceFetchTimeoutPromise(timeoutMs);
   return Promise.race([
-    workspaceService.getWorkspaces(pagination),
+    workspaceService.getWorkspacesPage(request),
     timeoutBoundary.promise,
   ]).finally(() => {
     timeoutBoundary.clear();
@@ -198,7 +212,9 @@ function getWorkspacesStore(userScope: string): WorkspacesStore {
   let store = workspacesStoresByScopeKey.get(normalizedUserScope);
   if (!store) {
     store = {
+      inventoryVersion: 0,
       inflight: null,
+      inflightKey: null,
       listeners: new Set(),
       snapshot: createWorkspacesStoreSnapshot(),
     };
@@ -231,46 +247,90 @@ function updateWorkspacesStoreSnapshot(
 async function fetchWorkspaces(
   store: WorkspacesStore,
   workspaceService: ReturnType<typeof useIDEServices>['workspaceService'],
-  pagination?: BirdCoderServiceListPagination,
+  pageRequest: BirdCoderServicePageRequest,
+  mode: 'append' | 'replace' = 'replace',
 ): Promise<IWorkspace[]> {
+  const requestKey = `${mode}:${pageRequest.page}:${pageRequest.pageSize}`;
   if (store.inflight) {
-    return store.inflight;
+    if (store.inflightKey === requestKey) {
+      return store.inflight;
+    }
+
+    await store.inflight.catch(() => undefined);
+    return fetchWorkspaces(store, workspaceService, pageRequest, mode);
   }
 
   updateWorkspacesStoreSnapshot(store, (previousSnapshot) => ({
     ...previousSnapshot,
+    error: null,
     isLoading: true,
   }));
 
-  const request = runWorkspaceFetchWithTimeout(workspaceService, WORKSPACES_FETCH_TIMEOUT_MS, pagination)
-    .then((workspaces) => {
-      const nextWorkspaces = mergeWorkspacesForStore(store.snapshot.workspaces, workspaces);
+  const requestInventoryVersion = store.inventoryVersion;
+  const request = runWorkspaceFetchWithTimeout(
+    workspaceService,
+    pageRequest,
+    WORKSPACES_FETCH_TIMEOUT_MS,
+  )
+    .then((page) => {
+      if (store.inventoryVersion !== requestInventoryVersion) {
+        updateWorkspacesStoreSnapshot(store, (previousSnapshot) => ({
+          ...previousSnapshot,
+          isLoading: false,
+          pageInfo: null,
+        }));
+        return store.snapshot.workspaces;
+      }
+
+      const nextWorkspaces = mergeWorkspacesForStore(
+        store.snapshot.workspaces,
+        mode === 'append'
+          ? [...store.snapshot.workspaces, ...page.items]
+          : page.items,
+      );
       updateWorkspacesStoreSnapshot(store, (previousSnapshot) => ({
+        error: null,
         hasFetched: true,
         isLoading: false,
-        workspaces: reuseWorkspaceCollectionIfUnchanged(
+        pageInfo: page.pageInfo,
+        workspaces: mergeWorkspacesForStore(
           previousSnapshot.workspaces,
-          nextWorkspaces,
+          mode === 'append'
+            ? [...previousSnapshot.workspaces, ...page.items]
+            : page.items,
         ),
       }));
       return nextWorkspaces;
     })
     .catch((error) => {
+      // Do not let a stale page request overwrite state produced by a newer
+      // local mutation or realtime inventory update.
+      if (store.inventoryVersion !== requestInventoryVersion) {
+        throw error;
+      }
+
       console.error('Failed to load workspaces', error);
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Failed to load workspaces';
       updateWorkspacesStoreSnapshot(store, (previousSnapshot) => ({
         ...previousSnapshot,
+        error: message,
         hasFetched: true,
         isLoading: false,
       }));
-      return store.snapshot.workspaces;
+      throw error;
     })
     .finally(() => {
       if (store.inflight === request) {
         store.inflight = null;
+        store.inflightKey = null;
       }
     });
 
   store.inflight = request;
+  store.inflightKey = requestKey;
   return request;
 }
 
@@ -294,9 +354,13 @@ function mutateWorkspacesStore(
       return previousSnapshot;
     }
 
+    store.inventoryVersion += 1;
+
     return {
+      error: null,
       hasFetched: true,
       isLoading: previousSnapshot.isLoading,
+      pageInfo: null,
       workspaces: reuseWorkspaceCollectionIfUnchanged(
         previousSnapshot.workspaces,
         nextWorkspaces,
@@ -309,6 +373,7 @@ export interface UseWorkspacesOptions {
   isActive?: boolean;
   limit?: number;
   offset?: number;
+  targetWorkspaceId?: string | null;
 }
 
 export function useWorkspaces(options: UseWorkspacesOptions = {}) {
@@ -316,15 +381,30 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   const { user } = useAuth();
   const isActive = options.isActive ?? true;
   const normalizedUserScope = normalizeWorkspacesStoreUserScope(user?.id);
-  const pagination = useMemo<BirdCoderServiceListPagination | undefined>(
-    () =>
-      options?.limit !== undefined || options?.offset !== undefined
-        ? { limit: options?.limit, offset: options?.offset }
-        : undefined,
+  const pageRequest = useMemo<BirdCoderServicePageRequest>(
+    () => {
+      const pageSize = options.limit ?? DEFAULT_LIST_PAGE_SIZE;
+      const offset = options.offset ?? 0;
+      if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 200) {
+        throw new Error('Workspace page size must be an integer between 1 and 200.');
+      }
+      if (!Number.isSafeInteger(offset) || offset < 0 || offset % pageSize !== 0) {
+        throw new Error('Workspace offset must be a non-negative multiple of page size.');
+      }
+      return {
+        page: offset / pageSize + 1,
+        pageSize,
+      };
+    },
     [options?.limit, options?.offset],
   );
+  const isDefaultPagination =
+    pageRequest.page === 1 && pageRequest.pageSize === DEFAULT_LIST_PAGE_SIZE;
+  const storeScopeKey = isDefaultPagination
+    ? normalizedUserScope
+    : `${normalizedUserScope}::page:${pageRequest.pageSize}:${pageRequest.page}`;
   const [storeSnapshot, setStoreSnapshot] = useState<WorkspacesStoreSnapshot>(
-    () => getWorkspacesStore(normalizedUserScope).snapshot,
+    () => getWorkspacesStore(storeScopeKey).snapshot,
   );
 
   useEffect(() => {
@@ -333,7 +413,7 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
       return;
     }
 
-    const store = getWorkspacesStore(normalizedUserScope);
+    const store = getWorkspacesStore(storeScopeKey);
     setStoreSnapshot(store.snapshot);
 
     const handleStoreChange = (nextSnapshot: WorkspacesStoreSnapshot) => {
@@ -342,20 +422,128 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
 
     store.listeners.add(handleStoreChange);
     if (!store.snapshot.hasFetched && !store.inflight) {
-      void fetchWorkspaces(store, workspaceService, pagination);
+      void fetchWorkspaces(store, workspaceService, pageRequest).catch(() => {
+        // Error state is already propagated through the shared store snapshot.
+      });
     }
 
     return () => {
       store.listeners.delete(handleStoreChange);
-      if (store.listeners.size === 0 && !store.inflight) {
-        workspacesStoresByScopeKey.delete(normalizedUserScope);
+      if (store.listeners.size === 0) {
+        workspacesStoresByScopeKey.delete(storeScopeKey);
       }
     };
-  }, [isActive, normalizedUserScope, workspaceService, pagination]);
+  }, [isActive, pageRequest, storeScopeKey, workspaceService]);
 
   const refreshWorkspaces = useCallback(async () => {
-    return fetchWorkspaces(getWorkspacesStore(normalizedUserScope), workspaceService, pagination);
-  }, [normalizedUserScope, workspaceService, pagination]);
+    return fetchWorkspaces(getWorkspacesStore(storeScopeKey), workspaceService, pageRequest);
+  }, [pageRequest, storeScopeKey, workspaceService]);
+
+  const loadMoreWorkspaces = useCallback(async () => {
+    const store = getWorkspacesStore(storeScopeKey);
+    const pageInfo = store.snapshot.pageInfo;
+    if (!pageInfo?.hasMore) {
+      return store.snapshot.workspaces;
+    }
+
+    return fetchWorkspaces(
+      store,
+      workspaceService,
+      {
+        page: pageInfo.page + 1,
+        pageSize: pageInfo.pageSize,
+      },
+      'append',
+    );
+  }, [storeScopeKey, workspaceService]);
+
+  useEffect(() => {
+    if (
+      !isActive ||
+      !storeSnapshot.hasFetched ||
+      storeSnapshot.isLoading ||
+      storeSnapshot.error ||
+      storeSnapshot.pageInfo !== null
+    ) {
+      return;
+    }
+
+    void fetchWorkspaces(
+      getWorkspacesStore(storeScopeKey),
+      workspaceService,
+      {
+        page: 1,
+        pageSize: pageRequest.pageSize,
+      },
+    ).catch(() => {
+      // Error state is already propagated through the shared store snapshot.
+    });
+  }, [
+    isActive,
+    pageRequest.pageSize,
+    storeScopeKey,
+    storeSnapshot.error,
+    storeSnapshot.hasFetched,
+    storeSnapshot.isLoading,
+    storeSnapshot.pageInfo,
+    workspaceService,
+  ]);
+
+  const normalizedTargetWorkspaceId = options.targetWorkspaceId?.trim() ?? '';
+  const targetResolutionStateRef = useRef({
+    key: '',
+    pagesRequested: 0,
+  });
+  const targetResolutionKey = `${normalizedUserScope}\u0001${normalizedTargetWorkspaceId}`;
+  if (targetResolutionStateRef.current.key !== targetResolutionKey) {
+    targetResolutionStateRef.current = {
+      key: targetResolutionKey,
+      pagesRequested: 0,
+    };
+  }
+  const targetResolutionBudgetExhausted =
+    targetResolutionStateRef.current.pagesRequested >= MAX_TARGET_WORKSPACE_RESOLUTION_PAGES;
+  const hasTargetWorkspace = normalizedTargetWorkspaceId
+    ? storeSnapshot.workspaces.some((workspace) => workspace.id === normalizedTargetWorkspaceId)
+    : true;
+  const isResolvingTargetWorkspace = Boolean(
+    normalizedTargetWorkspaceId &&
+      !hasTargetWorkspace &&
+      !storeSnapshot.error &&
+      !targetResolutionBudgetExhausted &&
+      (
+        !storeSnapshot.hasFetched ||
+        storeSnapshot.pageInfo === null ||
+        storeSnapshot.pageInfo.hasMore
+      ),
+  );
+
+  useEffect(() => {
+    if (
+      !isActive ||
+      !storeSnapshot.hasFetched ||
+      storeSnapshot.isLoading ||
+      storeSnapshot.error ||
+      !isResolvingTargetWorkspace ||
+      !storeSnapshot.pageInfo?.hasMore
+    ) {
+      return;
+    }
+
+    targetResolutionStateRef.current.pagesRequested += 1;
+    void loadMoreWorkspaces().catch(() => {
+      // Error state is already propagated through the shared store snapshot.
+    });
+  }, [
+    isActive,
+    isResolvingTargetWorkspace,
+    loadMoreWorkspaces,
+    storeSnapshot.hasFetched,
+    storeSnapshot.isLoading,
+    storeSnapshot.error,
+    storeSnapshot.pageInfo?.hasMore,
+    targetResolutionBudgetExhausted,
+  ]);
 
   const createWorkspace = useCallback(
     async (name: string, description?: string) => {
@@ -393,12 +581,20 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
   );
 
   return {
-    hasFetched: storeSnapshot.hasFetched,
+    error: storeSnapshot.error,
+    hasFetched:
+      storeSnapshot.hasFetched &&
+      storeSnapshot.pageInfo !== null &&
+      !isResolvingTargetWorkspace,
+    hasMore: storeSnapshot.pageInfo?.hasMore ?? false,
     workspaces: storeSnapshot.workspaces,
     isLoading: storeSnapshot.isLoading,
+    isLoadingMore: storeSnapshot.isLoading && storeSnapshot.hasFetched,
+    pageInfo: storeSnapshot.pageInfo,
     createWorkspace,
     updateWorkspace,
     deleteWorkspace,
+    loadMoreWorkspaces,
     refreshWorkspaces,
   };
 }

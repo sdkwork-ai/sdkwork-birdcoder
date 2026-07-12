@@ -18,26 +18,91 @@ const __dirname = path.dirname(__filename);
 
 // 自定义插件：为 /data/sdkwork-models/ 提供静态文件服务
 function sdkworkModelsDataPlugin(): Plugin {
-  const sdkworkModelsRoot = path.resolve(__dirname, '../../../../../../sdkwork-models');
+  // Five parents reach the workspace root; sdkwork-models is its sibling.
+  const sdkworkModelsRoot = path.resolve(__dirname, '../../../../../sdkwork-models');
   const DATA_URL_PREFIX = '/data/sdkwork-models/';
+
+  const isPathInside = (rootPath: string, candidatePath: string): boolean => {
+    const relativePath = path.relative(rootPath, candidatePath);
+    return (
+      relativePath.length > 0 &&
+      relativePath !== '..' &&
+      !relativePath.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relativePath)
+    );
+  };
+
+  const resolveModelFile = (requestPath: string): string | null => {
+    let decodedPath: string;
+    try {
+      decodedPath = decodeURIComponent(requestPath);
+    } catch {
+      return null;
+    }
+
+    if (!decodedPath || decodedPath.includes('\0') || path.isAbsolute(decodedPath)) {
+      return null;
+    }
+
+    const rootPath = path.resolve(sdkworkModelsRoot);
+    const candidatePath = path.resolve(rootPath, decodedPath);
+    if (!isPathInside(rootPath, candidatePath)) {
+      return null;
+    }
+
+    // Resolve symlinks/reparse points before serving so lexical containment
+    // cannot be bypassed by a link inside the root.
+    try {
+      const canonicalRootPath = fs.realpathSync.native(rootPath);
+      const canonicalCandidatePath = fs.realpathSync.native(candidatePath);
+      return isPathInside(canonicalRootPath, canonicalCandidatePath)
+        ? canonicalCandidatePath
+        : null;
+    } catch {
+      return null;
+    }
+  };
 
   return {
     name: 'sdkwork-models-data',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        if (req.url?.startsWith(DATA_URL_PREFIX)) {
-          const relativePath = req.url.slice(DATA_URL_PREFIX.length);
-          const filePath = path.join(sdkworkModelsRoot, relativePath);
+        const requestUrl = req.url;
+        let pathname = '';
+        try {
+          pathname = requestUrl
+            ? new URL(requestUrl, 'http://birdcoder.local').pathname
+            : '';
+        } catch {
+          res.statusCode = 400;
+          res.end('Bad Request');
+          return;
+        }
+
+        if (!pathname.startsWith(DATA_URL_PREFIX)) {
+          next();
+          return;
+        }
+
+        const filePath = resolveModelFile(pathname.slice(DATA_URL_PREFIX.length));
+        if (!filePath) {
+          res.statusCode = 403;
+          res.end('Forbidden');
+          return;
+        }
 
           // 安全检查：确保路径在 sdkwork-models 目录内
-          if (!filePath.startsWith(sdkworkModelsRoot)) {
-            res.statusCode = 403;
-            res.end('Forbidden');
-            return;
-          }
-
           // 使用 sirv 或直接发送文件
-          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+        let fileStat: fs.Stats;
+        try {
+          fileStat = fs.statSync(filePath);
+        } catch {
+          res.statusCode = 404;
+          res.end('Not Found');
+          return;
+        }
+
+        if (fileStat.isFile()) {
             const ext = path.extname(filePath).toLowerCase();
             const mimeTypes: Record<string, string> = {
               '.json': 'application/json',
@@ -46,24 +111,21 @@ function sdkworkModelsDataPlugin(): Plugin {
               '.css': 'text/css',
               '.html': 'text/html',
             };
-            const contentType = mimeTypes[ext] || 'application/octet-stream';
-
-            res.setHeader('Content-Type', contentType);
+            res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
             const stream = fs.createReadStream(filePath);
-            stream.pipe(res);
             stream.on('error', (error: Error) => {
               console.error('[sdkwork-models-data] Error reading file:', error);
-              res.statusCode = 500;
+              if (!res.headersSent) {
+                res.statusCode = 500;
+              }
               res.end('Internal Server Error');
             });
+            stream.pipe(res);
             return;
-          } else {
-            res.statusCode = 404;
-            res.end('Not Found');
-            return;
-          }
         }
-        next();
+
+        res.statusCode = 404;
+        res.end('Not Found');
       });
     },
   };
@@ -104,7 +166,7 @@ export default defineConfig(({ mode }) => {
 
           return deps.filter(
             (dependency) =>
-              !/^assets\/(?:birdcoder-iam-surface|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code-surface|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-skills-surface|birdcoder-templates-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
+              !/^assets\/(?:birdcoder-iam-surface|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code-surface|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
                 dependency,
               ),
           );
@@ -178,6 +240,16 @@ export default defineConfig(({ mode }) => {
 
           if (id.includes('/node_modules/qrcode/')) {
             return 'vendor-qrcode';
+          }
+
+          if (
+            isAnySourcePath([
+              '/sdkwork-utils/packages/sdkwork-utils-typescript/dist/',
+              '/sdkwork-utils/packages/sdkwork-utils-typescript/src/',
+              '/node_modules/@sdkwork/utils/',
+            ])
+          ) {
+            return 'birdcoder-platform-utils';
           }
 
           if (isSourcePath(sdkCommonSourceRoot)) {
@@ -489,14 +561,6 @@ export default defineConfig(({ mode }) => {
             return 'birdcoder-settings-surface';
           }
 
-          if (isSourcePath('/packages/sdkwork-birdcoder-pc-skills/src/')) {
-            return 'birdcoder-skills-surface';
-          }
-
-          if (isSourcePath('/packages/sdkwork-birdcoder-pc-templates/src/')) {
-            return 'birdcoder-templates-surface';
-          }
-
           if (
             isAnySourcePath([
               '/packages/sdkwork-birdcoder-pc-shell-runtime/src/application/bootstrap/bootstrapShellRuntimeImpl.ts',
@@ -727,6 +791,7 @@ export default defineConfig(({ mode }) => {
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/localServerRequestId.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/localUuid.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/apiJson.ts',
+              '/packages/sdkwork-birdcoder-pc-core/src/appSessionEvents.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/appSessionEvents.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionMessageProjection.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionSelection.ts',

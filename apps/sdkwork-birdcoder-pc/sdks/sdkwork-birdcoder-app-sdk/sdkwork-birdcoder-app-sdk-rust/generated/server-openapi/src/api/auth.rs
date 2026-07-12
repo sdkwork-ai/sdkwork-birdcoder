@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use reqwest::Method;
+
 use crate::api::paths::app_path;
 use crate::http::{SdkworkError, SdkworkHttpClient};
 use crate::models::{BirdCoderBooleanSuccessEnvelope, BirdCoderIamCreateSessionRequest, BirdCoderIamPasswordResetCreateRequest, BirdCoderIamPasswordResetRequestCreateRequest, BirdCoderIamRefreshSessionRequest, BirdCoderIamRegistrationCreateRequest, BirdCoderIamSessionEnvelope, BirdCoderIamUpdateCurrentSessionRequest};
@@ -17,25 +19,25 @@ impl AuthApi {
     /// Create SDKWork IAM password reset request
     pub async fn password_reset_requests_create(&self, body: &BirdCoderIamPasswordResetRequestCreateRequest) -> Result<BirdCoderBooleanSuccessEnvelope, SdkworkError> {
         let path = app_path(&"/auth/password_reset_requests".to_string());
-        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+        self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }
 
     /// Reset SDKWork IAM password
     pub async fn password_resets_create(&self, body: &BirdCoderIamPasswordResetCreateRequest) -> Result<BirdCoderBooleanSuccessEnvelope, SdkworkError> {
         let path = app_path(&"/auth/password_resets".to_string());
-        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+        self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }
 
     /// Register SDKWork IAM user
     pub async fn registrations_create(&self, body: &BirdCoderIamRegistrationCreateRequest) -> Result<BirdCoderIamSessionEnvelope, SdkworkError> {
         let path = app_path(&"/auth/registrations".to_string());
-        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+        self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }
 
     /// Create SDKWork IAM session
     pub async fn sessions_create(&self, body: &BirdCoderIamCreateSessionRequest) -> Result<BirdCoderIamSessionEnvelope, SdkworkError> {
         let path = app_path(&"/auth/sessions".to_string());
-        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+        self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }
 
     /// Get current SDKWork IAM session
@@ -51,7 +53,7 @@ impl AuthApi {
     }
 
     /// Delete current SDKWork IAM session
-    pub async fn sessions_current_delete(&self) -> Result<BirdCoderBooleanSuccessEnvelope, SdkworkError> {
+    pub async fn sessions_current_delete(&self) -> Result<(), SdkworkError> {
         let path = app_path(&"/auth/sessions/current".to_string());
         self.client.delete(&path, None, None).await
     }
@@ -59,7 +61,7 @@ impl AuthApi {
     /// Refresh SDKWork IAM session
     pub async fn sessions_refresh(&self, body: &BirdCoderIamRefreshSessionRequest) -> Result<BirdCoderIamSessionEnvelope, SdkworkError> {
         let path = app_path(&"/auth/sessions/refresh".to_string());
-        self.client.post(&path, Some(body), None, None, Some("application/json")).await
+        self.client.request_method(Method::POST, &path, Some(body), None, None, Some("application/json"), true).await
     }
 
 }

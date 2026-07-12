@@ -22,21 +22,25 @@ use time::format_description::well_known::Rfc3339;
 #[cfg(test)]
 use time::OffsetDateTime;
 
-use sdkwork_birdcoder_errors::{build_data_envelope, build_unbounded_list_envelope, ApiDataEnvelope, ApiListEnvelope};
+use sdkwork_birdcoder_errors::{
+    build_data_envelope, build_offset_list_envelope, checked_list_total_items, ApiDataEnvelope,
+    ApiListEnvelope,
+};
 
 use sdkwork_birdcoder_commerce_quota::{
-    self, current_month_bounds, months_ago_start, quota_limit_for_metric,
-    tenant_metric_total, QuotaError, METRIC_TOKEN_INPUT, QUOTA_WARNING_THRESHOLD,
+    self, current_month_bounds, months_ago_start, quota_limit_for_metric, tenant_metric_total,
+    QuotaError, METRIC_TOKEN_INPUT, QUOTA_WARNING_THRESHOLD,
 };
 #[cfg(test)]
 use sdkwork_birdcoder_commerce_quota::{
-    period_bounds_for, DEFAULT_FS_OPERATIONS_QUOTA_PER_MONTH,
-    DEFAULT_TOKEN_QUOTA_PER_MONTH, METRIC_API_REQUESTS, METRIC_FS_OPERATIONS,
-    METRIC_TOKEN_OUTPUT,
+    period_bounds_for, METRIC_API_REQUESTS, METRIC_FS_OPERATIONS, METRIC_TOKEN_OUTPUT,
 };
+use sdkwork_birdcoder_router_context::StrictOffsetListQuery;
 
 use crate::routes::api_keys::now_rfc3339;
-use crate::routes::{problem_with, CommerceAppState, CommercePrincipal, CommerceRequestContext, ProblemJsonBody};
+use crate::routes::{
+    problem_with, CommerceAppState, CommercePrincipal, CommerceRequestContext, ProblemJsonBody,
+};
 
 const TABLE: &str = "commerce_usage_metering";
 
@@ -83,8 +87,26 @@ impl UsageRow {
 /// floating-point representation, and converts without precision loss when the
 /// value fits in `f64`'s 53-bit mantissa.
 fn decode_metric_value(row: &sqlx::any::AnyRow) -> Result<i64, sqlx::Error> {
-    row.try_get::<i64, _>("metric_value")
-        .or_else(|_| row.try_get::<f64, _>("metric_value").map(|value| value as i64))
+    decode_exact_i64(row, "metric_value")
+}
+
+fn decode_exact_i64(row: &sqlx::any::AnyRow, column: &str) -> Result<i64, sqlx::Error> {
+    if let Ok(value) = row.try_get::<i64, _>(column) {
+        return Ok(value);
+    }
+
+    const MAX_EXACT_F64_INTEGER: f64 = 9_007_199_254_740_991.0;
+    let value = row.try_get::<f64, _>(column)?;
+    if !value.is_finite()
+        || value.fract() != 0.0
+        || !(-MAX_EXACT_F64_INTEGER..=MAX_EXACT_F64_INTEGER).contains(&value)
+    {
+        return Err(sqlx::Error::Decode(Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("usage column {column} is not an exact signed integer"),
+        ))));
+    }
+    Ok(value as i64)
 }
 
 // ---------------------------------------------------------------------------
@@ -118,29 +140,82 @@ async fn user_metric_totals(
 }
 
 /// Returns monthly history of per-metric totals for a user, covering the last
-/// `months` calendar months.
+/// 24 calendar months with SQL-backed offset pagination.
+fn usage_history_month_expression(backend_name: &str) -> Result<&'static str, sqlx::Error> {
+    match backend_name {
+        "SQLite" => Ok("substr(period_start, 1, 7)"),
+        "PostgreSQL" => Ok("to_char(period_start AT TIME ZONE 'UTC', 'YYYY-MM')"),
+        unsupported => Err(sqlx::Error::Configuration(
+            format!("unsupported usage history database backend {unsupported}").into(),
+        )),
+    }
+}
+
+fn usage_history_cutoff_expression(backend_name: &str) -> Result<&'static str, sqlx::Error> {
+    match backend_name {
+        "SQLite" => Ok("?3"),
+        "PostgreSQL" => Ok("CAST(?3 AS TIMESTAMPTZ)"),
+        unsupported => Err(sqlx::Error::Configuration(
+            format!("unsupported usage history database backend {unsupported}").into(),
+        )),
+    }
+}
+
 async fn user_history(
     pool: &sqlx::AnyPool,
     tenant_id: i64,
     user_id: i64,
-    months: u32,
-) -> Result<Vec<HistoryBucket>, sqlx::Error> {
-    let cutoff = months_ago_start(months.saturating_sub(1));
-    let sql = format!(
-        "SELECT substr(period_start, 1, 7) AS period, metric_type, \
-         COALESCE(SUM(metric_value), 0) AS total FROM {TABLE} \
+    offset: usize,
+    page_size: usize,
+) -> Result<(Vec<HistoryBucket>, i64), sqlx::Error> {
+    const HISTORY_MONTH_WINDOW: u32 = 24;
+
+    let cutoff = months_ago_start(HISTORY_MONTH_WINDOW.saturating_sub(1));
+    let mut connection = pool.acquire().await?;
+    let backend_name = connection.backend_name();
+    let month_expression = usage_history_month_expression(backend_name)?;
+    let cutoff_expression = usage_history_cutoff_expression(backend_name)?;
+    let count_sql = format!(
+        "SELECT COUNT(*) AS total FROM ( \
+         SELECT {month_expression} AS period, metric_type FROM {TABLE} \
          WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL \
-         AND period_start >= ?3 \
-         GROUP BY substr(period_start, 1, 7), metric_type \
-         ORDER BY period DESC, metric_type ASC"
+         AND period_start >= {cutoff_expression} \
+         GROUP BY {month_expression}, metric_type \
+         ) AS usage_history"
+    );
+    let total_row = sqlx::query(&count_sql)
+        .bind(tenant_id)
+        .bind(user_id)
+        .bind(&cutoff)
+        .fetch_one(&mut *connection)
+        .await?;
+    let total = decode_total_count(&total_row)?;
+    let sql = format!(
+        "SELECT {month_expression} AS period, metric_type, \
+         CAST(COALESCE(SUM(metric_value), 0) AS BIGINT) AS total FROM {TABLE} \
+         WHERE tenant_id = ?1 AND user_id = ?2 AND deleted_at IS NULL \
+         AND period_start >= {cutoff_expression} \
+         GROUP BY {month_expression}, metric_type \
+         ORDER BY period DESC, metric_type ASC \
+         LIMIT ?4 OFFSET ?5"
     );
     let rows = sqlx::query(&sql)
         .bind(tenant_id)
         .bind(user_id)
         .bind(&cutoff)
-        .fetch_all(pool)
+        .bind(i64::try_from(page_size).unwrap_or(20))
+        .bind(i64::try_from(offset).unwrap_or(0))
+        .fetch_all(&mut *connection)
         .await?;
-    rows.iter().map(HistoryBucket::from_row).collect()
+    let buckets = rows
+        .iter()
+        .map(HistoryBucket::from_row)
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok((buckets, total))
+}
+
+fn decode_total_count(row: &sqlx::any::AnyRow) -> Result<i64, sqlx::Error> {
+    decode_exact_i64(row, "total")
 }
 
 /// Records a usage event. After inserting, checks whether the tenant has crossed
@@ -178,7 +253,9 @@ pub async fn record_usage(
         .await?;
 
     // Best-effort quota warning: emit when usage crosses 80% of the limit.
-    if let Err(error) = maybe_emit_quota_warning(pool, tenant_id, workspace_id, user_id, metric_type).await {
+    if let Err(error) =
+        maybe_emit_quota_warning(pool, tenant_id, workspace_id, user_id, metric_type).await
+    {
         tracing::warn!(%error, "failed to emit quota warning notification");
     }
     Ok(())
@@ -201,7 +278,8 @@ async fn maybe_emit_quota_warning(
     }
     let threshold = (limit as f64 * QUOTA_WARNING_THRESHOLD).ceil() as i64;
     let (period_start, period_end) = current_month_bounds();
-    let used = tenant_metric_total(pool, tenant_id, metric_type, &period_start, &period_end).await?;
+    let used =
+        tenant_metric_total(pool, tenant_id, metric_type, &period_start, &period_end).await?;
     if used < threshold {
         return Ok(());
     }
@@ -220,15 +298,18 @@ async fn maybe_emit_quota_warning(
     .to_string();
     crate::routes::notifications::create_notification(
         pool,
-        tenant_id,
-        workspace_id,
-        user_id,
-        crate::routes::notifications::NOTIFICATION_TYPE_QUOTA_WARNING,
-        &title,
-        &content,
-        Some(&metadata),
+        crate::routes::notifications::CreateNotificationInput {
+            tenant_id,
+            workspace_id,
+            user_id,
+            notification_type: crate::routes::notifications::NOTIFICATION_TYPE_QUOTA_WARNING,
+            title: &title,
+            content: &content,
+            metadata: Some(&metadata),
+        },
     )
     .await
+    .map(|_| ())
 }
 
 /// Checks whether the tenant has remaining quota for a metric. Returns
@@ -290,9 +371,7 @@ impl MetricTotal {
     pub fn from_row(row: &sqlx::any::AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             metric_type: row.try_get("metric_type")?,
-            total: row
-                .try_get::<i64, _>("total")
-                .or_else(|_| row.try_get::<f64, _>("total").map(|value| value as i64))?,
+            total: decode_exact_i64(row, "total")?,
         })
     }
 }
@@ -309,9 +388,7 @@ impl HistoryBucket {
         Ok(Self {
             period: row.try_get("period")?,
             metric_type: row.try_get("metric_type")?,
-            total: row
-                .try_get::<i64, _>("total")
-                .or_else(|_| row.try_get::<f64, _>("total").map(|value| value as i64))?,
+            total: decode_exact_i64(row, "total")?,
         })
     }
 }
@@ -332,6 +409,7 @@ pub struct CurrentPeriodUsageResponse {
 #[serde(rename_all = "camelCase")]
 pub struct MetricTotalDto {
     pub metric_type: String,
+    #[serde(with = "sdkwork_utils_rust::serde_int64")]
     pub total: i64,
 }
 
@@ -340,6 +418,7 @@ pub struct MetricTotalDto {
 pub struct HistoryBucketDto {
     pub period: String,
     pub metric_type: String,
+    #[serde(with = "sdkwork_utils_rust::serde_int64")]
     pub total: i64,
 }
 
@@ -355,8 +434,11 @@ pub struct BreakdownResponse {
 #[serde(rename_all = "camelCase")]
 pub struct QuotaStatusResponse {
     pub metric_type: String,
+    #[serde(with = "sdkwork_utils_rust::serde_int64")]
     pub used: i64,
+    #[serde(with = "sdkwork_utils_rust::serde_int64")]
     pub limit: i64,
+    #[serde(with = "sdkwork_utils_rust::serde_int64")]
     pub remaining: i64,
     pub percentage: f64,
     pub period_start: String,
@@ -368,6 +450,7 @@ pub struct QuotaStatusResponse {
 pub struct RecordUsageResponse {
     pub recorded: bool,
     pub metric_type: String,
+    #[serde(with = "sdkwork_utils_rust::serde_int64")]
     pub metric_value: i64,
 }
 
@@ -375,6 +458,7 @@ pub struct RecordUsageResponse {
 #[serde(rename_all = "camelCase")]
 pub struct RecordUsageRequest {
     pub metric_type: String,
+    #[serde(with = "sdkwork_utils_rust::serde_int64")]
     pub metric_value: i64,
     pub workspace_id: Option<String>,
     pub metadata: Option<serde_json::Value>,
@@ -384,7 +468,6 @@ pub struct RecordUsageRequest {
 #[serde(rename_all = "camelCase")]
 pub struct HistoryQuery {
     pub period: Option<String>,
-    pub limit: Option<u32>,
 }
 
 #[derive(Deserialize)]
@@ -506,6 +589,7 @@ pub async fn current_period(
 pub async fn history(
     principal: CommercePrincipal,
     ctx: CommerceRequestContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<CommerceAppState>,
     Query(query): Query<HistoryQuery>,
 ) -> Result<Json<ApiListEnvelope<HistoryBucketDto>>, ProblemJsonBody> {
@@ -519,10 +603,20 @@ pub async fn history(
         ));
     }
     let (tenant_id, user_id) = parse_principal_ids(&principal, ctx.trace_id_opt())?;
-    // `period` is accepted for forward compatibility; monthly is the only
-    // supported granularity today.
-    let months = query.limit.unwrap_or(12).clamp(1, 24);
-    let buckets = user_history(&state.pool, tenant_id, user_id, months)
+    if query
+        .period
+        .as_deref()
+        .is_some_and(|period| period != "monthly")
+    {
+        return Err(sdkwork_birdcoder_errors::traced_platform_problem(
+            sdkwork_utils_rust::SdkWorkResultCode::InvalidParameter,
+            "Usage history period must be monthly.",
+            ctx.trace_id_opt(),
+        ));
+    }
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
+    let (buckets, total) = user_history(&state.pool, tenant_id, user_id, offset, page_size)
         .await
         .map_err(|error| {
             tracing::warn!(%error, "failed to fetch usage history");
@@ -542,8 +636,14 @@ pub async fn history(
             total: bucket.total,
         })
         .collect();
-    let total = items.len();
-    Ok(Json(build_unbounded_list_envelope(items, &ctx.request_id)))
+    let total_items = checked_list_total_items(total, ctx.trace_id_opt())?;
+    Ok(Json(build_offset_list_envelope(
+        items,
+        offset,
+        page_size,
+        total_items,
+        &ctx.request_id,
+    )))
 }
 
 pub async fn breakdown(
@@ -625,7 +725,9 @@ pub async fn quota(
         ));
     }
     let (tenant_id, _user_id) = parse_principal_ids(&principal, ctx.trace_id_opt())?;
-    let metric = query.metric.unwrap_or_else(|| METRIC_TOKEN_INPUT.to_string());
+    let metric = query
+        .metric
+        .unwrap_or_else(|| METRIC_TOKEN_INPUT.to_string());
     let limit = quota_limit_for_metric(&metric);
     let (period_start, period_end) = current_month_bounds();
     let used = tenant_metric_total(&state.pool, tenant_id, &metric, &period_start, &period_end)
@@ -699,7 +801,200 @@ pub fn build_usage_router() -> Router<CommerceAppState> {
 
 #[cfg(test)]
 mod tests {
+    use axum::body::{to_bytes, Body};
+    use axum::http::{header::CONTENT_TYPE, Request};
+    use axum::Extension;
+    use sqlx::any::AnyPoolOptions;
+    use tower::ServiceExt;
+
     use super::*;
+
+    const MAX_TEST_RESPONSE_BYTES: usize = 64 * 1024;
+
+    #[test]
+    fn history_month_expression_is_backend_specific_and_utc_safe() {
+        assert_eq!(
+            usage_history_month_expression("SQLite").expect("SQLite usage month expression"),
+            "substr(period_start, 1, 7)"
+        );
+        assert_eq!(
+            usage_history_month_expression("PostgreSQL")
+                .expect("PostgreSQL usage month expression"),
+            "to_char(period_start AT TIME ZONE 'UTC', 'YYYY-MM')"
+        );
+        assert!(usage_history_month_expression("MySQL").is_err());
+    }
+
+    #[tokio::test]
+    async fn usage_integer_decoders_reject_fractional_driver_values() {
+        sqlx::any::install_default_drivers();
+        let pool = AnyPoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("open usage integer decoding database");
+
+        let metric_row = sqlx::query("SELECT CAST(1.5 AS REAL) AS metric_value")
+            .fetch_one(&pool)
+            .await
+            .expect("query fractional metric value");
+        assert!(decode_metric_value(&metric_row).is_err());
+
+        let total_row =
+            sqlx::query("SELECT 'token_input' AS metric_type, CAST(1.5 AS REAL) AS total")
+                .fetch_one(&pool)
+                .await
+                .expect("query fractional metric total");
+        assert!(MetricTotal::from_row(&total_row).is_err());
+
+        let history_row = sqlx::query(
+            "SELECT '2026-07' AS period, 'token_input' AS metric_type, \
+             CAST(1.5 AS REAL) AS total",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("query fractional history total");
+        assert!(HistoryBucket::from_row(&history_row).is_err());
+    }
+
+    #[tokio::test]
+    async fn history_queries_sqlite_with_store_level_pagination() {
+        sqlx::any::install_default_drivers();
+        let pool = AnyPoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("open usage history SQLite database");
+        sqlx::query(
+            "CREATE TABLE commerce_usage_metering (\
+                 tenant_id INTEGER NOT NULL, \
+                 user_id INTEGER NOT NULL, \
+                 metric_type TEXT NOT NULL, \
+                 metric_value INTEGER NOT NULL, \
+                 period_start TEXT NOT NULL, \
+                 deleted_at TEXT NULL\
+             )",
+        )
+        .execute(&pool)
+        .await
+        .expect("create usage history table");
+        for (metric_type, metric_value) in [("api_requests", 3_i64), ("token_input", 7_i64)] {
+            sqlx::query(
+                "INSERT INTO commerce_usage_metering \
+                 (tenant_id, user_id, metric_type, metric_value, period_start, deleted_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, NULL)",
+            )
+            .bind(7_i64)
+            .bind(42_i64)
+            .bind(metric_type)
+            .bind(metric_value)
+            .bind("2026-07-01T00:00:00Z")
+            .execute(&pool)
+            .await
+            .expect("insert usage history row");
+        }
+
+        let (first_page, first_total) = user_history(&pool, 7, 42, 0, 1)
+            .await
+            .expect("query first usage history page");
+        let (second_page, second_total) = user_history(&pool, 7, 42, 1, 1)
+            .await
+            .expect("query second usage history page");
+
+        assert_eq!(first_total, 2);
+        assert_eq!(second_total, 2);
+        assert_eq!(first_page.len(), 1);
+        assert_eq!(second_page.len(), 1);
+        assert_ne!(first_page[0].metric_type, second_page[0].metric_type);
+    }
+
+    #[tokio::test]
+    async fn history_rejects_over_max_page_size_before_accessing_the_repository() {
+        sqlx::any::install_default_drivers();
+        let pool = AnyPoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("open usage pagination test database");
+        let principal = CommercePrincipal {
+            user_id: "42".to_owned(),
+            tenant_id: "7".to_owned(),
+            api_key_id: "test-api-key".to_owned(),
+            scopes: vec!["read".to_owned()],
+        };
+        let app = build_usage_router()
+            .with_state(CommerceAppState::new(pool))
+            .layer(Extension(principal));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/usage/history?page_size=201")
+                    .body(Body::empty())
+                    .expect("build invalid usage-history request"),
+            )
+            .await
+            .expect("serve invalid usage-history request");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("application/problem+json")
+        );
+        let body = to_bytes(response.into_body(), MAX_TEST_RESPONSE_BYTES)
+            .await
+            .expect("read bounded invalid pagination response");
+        let problem: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse invalid pagination problem");
+        assert_eq!(problem["code"], 40003);
+    }
+
+    #[tokio::test]
+    async fn history_rejects_unsupported_period_before_accessing_the_repository() {
+        sqlx::any::install_default_drivers();
+        let pool = AnyPoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("open usage period test database");
+        let principal = CommercePrincipal {
+            user_id: "42".to_owned(),
+            tenant_id: "7".to_owned(),
+            api_key_id: "test-api-key".to_owned(),
+            scopes: vec!["read".to_owned()],
+        };
+        let app = build_usage_router()
+            .with_state(CommerceAppState::new(pool))
+            .layer(Extension(principal));
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/v1/usage/history?period=weekly")
+                    .body(Body::empty())
+                    .expect("build unsupported usage-history period request"),
+            )
+            .await
+            .expect("serve unsupported usage-history period request");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("application/problem+json")
+        );
+        let body = to_bytes(response.into_body(), MAX_TEST_RESPONSE_BYTES)
+            .await
+            .expect("read bounded unsupported period response");
+        let problem: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse unsupported period problem");
+        assert_eq!(problem["code"], 40003);
+    }
 
     #[test]
     fn current_month_bounds_are_well_formed_rfc3339() {
@@ -744,8 +1039,8 @@ mod tests {
         let reference = OffsetDateTime::parse("2025-06-15T12:00:00Z", &Rfc3339).unwrap();
         let now_month = u8::from(reference.month());
         let _ = now_month; // sanity: 6
-        // We can't assert the exact string since months_ago_start uses now_utc,
-        // but we can assert the format is correct.
+                           // We can't assert the exact string since months_ago_start uses now_utc,
+                           // but we can assert the format is correct.
         let cutoff = months_ago_start(2);
         assert!(OffsetDateTime::parse(&cutoff, &Rfc3339).is_ok());
         let parsed = OffsetDateTime::parse(&cutoff, &Rfc3339).unwrap();
@@ -779,5 +1074,64 @@ mod tests {
                 assert_ne!(metrics[i], metrics[j], "metric types must be distinct");
             }
         }
+    }
+
+    #[test]
+    fn record_usage_request_deserializes_metric_value_from_decimal_string() {
+        let request: RecordUsageRequest = serde_json::from_str(
+            r#"{"metricType":"token_input","metricValue":"9223372036854775807"}"#,
+        )
+        .expect("deserialize usage record request");
+
+        assert_eq!(request.metric_value, i64::MAX);
+    }
+
+    #[test]
+    fn record_usage_request_rejects_metric_value_number() {
+        let result: Result<RecordUsageRequest, _> = serde_json::from_str(
+            r#"{"metricType":"token_input","metricValue":9223372036854775807}"#,
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn usage_responses_serialize_int64_values_as_strings() {
+        let record = serde_json::to_value(RecordUsageResponse {
+            recorded: true,
+            metric_type: METRIC_TOKEN_INPUT.to_owned(),
+            metric_value: i64::MAX,
+        })
+        .expect("serialize usage record response");
+        assert_eq!(record["metricValue"], i64::MAX.to_string());
+
+        let metric = serde_json::to_value(MetricTotalDto {
+            metric_type: METRIC_TOKEN_OUTPUT.to_owned(),
+            total: i64::MAX,
+        })
+        .expect("serialize metric total response");
+        assert_eq!(metric["total"], i64::MAX.to_string());
+
+        let bucket = serde_json::to_value(HistoryBucketDto {
+            period: "2026-07".to_owned(),
+            metric_type: METRIC_API_REQUESTS.to_owned(),
+            total: i64::MAX,
+        })
+        .expect("serialize usage history bucket response");
+        assert_eq!(bucket["total"], i64::MAX.to_string());
+
+        let quota = serde_json::to_value(QuotaStatusResponse {
+            metric_type: METRIC_TOKEN_INPUT.to_owned(),
+            used: i64::MAX,
+            limit: i64::MAX,
+            remaining: 0,
+            percentage: 100.0,
+            period_start: "2026-07-01T00:00:00Z".to_owned(),
+            period_end: "2026-08-01T00:00:00Z".to_owned(),
+        })
+        .expect("serialize quota status response");
+        assert_eq!(quota["used"], i64::MAX.to_string());
+        assert_eq!(quota["limit"], i64::MAX.to_string());
+        assert_eq!(quota["remaining"], "0");
     }
 }

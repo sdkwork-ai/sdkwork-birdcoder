@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { BirdCoderProjectCollaboratorSummary } from '@sdkwork/birdcoder-pc-types';
-import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui';
 
 type ToastFn = (message: string, type?: 'success' | 'error' | 'info') => void;
 
@@ -21,7 +20,6 @@ interface UseStudioCollaborationMessages {
   failedToInvite: string;
   failedToLoad: string;
   invitationSent: string;
-  linkCopied: string;
   noProjectSelected: string;
 }
 
@@ -39,15 +37,12 @@ export function useStudioCollaboration({
   messages,
 }: UseStudioCollaborationOptions) {
   const [showShareModal, setShowShareModal] = useState(false);
-  const [shareAccess, setShareAccess] = useState<'private' | 'public'>('private');
   const [inviteEmail, setInviteEmail] = useState('');
   const [projectCollaborators, setProjectCollaborators] = useState<
     BirdCoderProjectCollaboratorSummary[]
   >([]);
   const [isCollaboratorsLoading, setIsCollaboratorsLoading] = useState(false);
   const [isInvitePending, setIsInvitePending] = useState(false);
-
-  const publicShareUrl = `https://ide.sdkwork.com/p/${currentProjectId || 'demo'}`;
 
   const loadProjectCollaborators = useCallback(async () => {
     const normalizedProjectId = currentProjectId.trim();
@@ -74,27 +69,18 @@ export function useStudioCollaboration({
   }, [addToast, collaborationService, currentProjectId, messages.failedToLoad]);
 
   useEffect(() => {
-    if (!showShareModal || shareAccess !== 'private') {
+    if (!showShareModal) {
       return;
     }
 
     void loadProjectCollaborators();
-  }, [loadProjectCollaborators, shareAccess, showShareModal]);
+  }, [loadProjectCollaborators, showShareModal]);
 
   useEffect(() => {
     if (!showShareModal) {
       setInviteEmail('');
     }
   }, [showShareModal]);
-
-  const handleCopyPublicLink = useCallback(() => {
-    void copyTextToClipboard(publicShareUrl).then((didCopy) => {
-      addToast(
-        didCopy ? messages.linkCopied : 'Unable to copy public link',
-        didCopy ? 'success' : 'error',
-      );
-    });
-  }, [addToast, messages.linkCopied, publicShareUrl]);
 
   const handleInviteCollaborator = useCallback(async () => {
     const normalizedProjectId = currentProjectId.trim();
@@ -141,17 +127,13 @@ export function useStudioCollaboration({
   ]);
 
   return {
-    handleCopyPublicLink,
     handleInviteCollaborator,
     inviteEmail,
     isCollaboratorsLoading,
     isInvitePending,
     projectCollaborators,
-    publicShareUrl,
     setInviteEmail,
-    setShareAccess,
     setShowShareModal,
-    shareAccess,
     showShareModal,
   } as const;
 }

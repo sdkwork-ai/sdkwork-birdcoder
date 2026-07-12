@@ -156,22 +156,23 @@ function createGenerationPlans(rootDir, options) {
     .filter((surface) => !options.surface || surface.surface === options.surface)
     .flatMap((surface) => {
       const familyRoot = resolveFamilyRoot(surface);
-      const familyAssemblyPath = path.join(rootDir, ...familyRoot.split('/'), '.sdkwork-assembly.json');
-      const familyAssembly = readJson(familyAssemblyPath);
-      assert.equal(familyAssembly.sdkOwner, 'sdkwork-birdcoder');
-      assert.equal(familyAssembly.workspace, surface.sdkFamily);
-      assert.equal(familyAssembly.apiAuthority, surface.apiAuthority);
-      assert.equal(familyAssembly.generationInputSpec, `openapi/${surface.apiAuthority}.sdkgen.json`);
+      const familyManifestPath = path.join(rootDir, ...familyRoot.split('/'), 'sdk-manifest.json');
+      const familyManifest = readJson(familyManifestPath);
+      assert.equal(familyManifest.sdkOwner, 'sdkwork-birdcoder');
+      assert.equal(familyManifest.workspace, surface.sdkFamily);
+      assert.equal(familyManifest.sdkFamily, surface.sdkFamily);
+      assert.equal(familyManifest.apiAuthority, surface.apiAuthority);
+      assert.equal(familyManifest.generationInputSpec, `openapi/${surface.apiAuthority}.sdkgen.json`);
 
-      const languages = new Map((familyAssembly.languages ?? []).map((entry) => [entry.language, entry]));
+      const languages = new Map((familyManifest.languages ?? []).map((entry) => [entry.language, entry]));
       return [...requestedLanguages].map((language) => {
         const languageEntry = languages.get(language);
-        assert.ok(languageEntry, `${surface.sdkFamily} must declare ${language} in .sdkwork-assembly.json.`);
+        assert.ok(languageEntry, `${surface.sdkFamily} must declare ${language} in sdk-manifest.json.`);
         const names = resolveSurfacePackageNames(surface);
         return {
           apiPrefix: surface.apiPrefix,
-          fixedSdkVersion: String(languageEntry.version ?? familyAssembly.apiVersion ?? surface.version ?? '0.1.0'),
-          input: path.join(rootDir, ...familyRoot.split('/'), familyAssembly.generationInputSpec),
+          fixedSdkVersion: String(languageEntry.version ?? familyManifest.apiVersion ?? surface.version ?? '0.1.0'),
+          input: path.join(rootDir, ...familyRoot.split('/'), familyManifest.generationInputSpec),
           language,
           output: path.join(rootDir, ...resolveLanguageOutput(familyRoot, surface.sdkFamily, language).split('/')),
           packageName: names.consumerPackageName,

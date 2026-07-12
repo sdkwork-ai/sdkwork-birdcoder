@@ -10,7 +10,6 @@ const appSource = readBirdcoderAppShellSource();
 const sidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx');
 const topBarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx');
 const universalChatSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx');
-const skillsPageSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-skills/src/SkillsPage.tsx');
 const fileExplorerSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx');
 const studioChatSidebarSource = read('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioChatSidebar.tsx');
 
@@ -60,12 +59,6 @@ assert.match(
   universalChatSource,
   /if \(!hasOpenFloatingMenu\) \{\s*return;\s*\}[\s\S]*document\.addEventListener\('mousedown', handleFloatingMenuClickOutside\);/s,
   'UniversalChat must only subscribe to outside clicks while the model or attachment menu is open.',
-);
-
-assert.match(
-  skillsPageSource,
-  /if \(!showRegistryMenu\) \{\s*return;\s*\}[\s\S]*document\.addEventListener\('mousedown', handleRegistryMenuClickOutside\);/s,
-  'SkillsPage must only subscribe to outside clicks while the registry menu is open.',
 );
 
 assert.match(

@@ -23,6 +23,10 @@
       "import": "./src/services/defaultIdeServicesRuntime.ts",
       "types": "./src/services/defaultIdeServicesRuntime.ts"
     },
+    "./services/defaultIdeServicesShared": {
+      "import": "./src/services/defaultIdeServicesShared.ts",
+      "types": "./src/services/defaultIdeServicesShared.ts"
+    },
     "./services/workspaceRealtimeClient": {
       "import": "./src/services/workspaceRealtimeClient.ts",
       "types": "./src/services/workspaceRealtimeClient.ts"
@@ -63,6 +67,18 @@
       "import": "./src/services/interfaces/IPromptService.ts",
       "types": "./src/services/interfaces/IPromptService.ts"
     },
+    "./services/interfaces/IAuthService": {
+      "import": "./src/services/interfaces/IAuthService.ts",
+      "types": "./src/services/interfaces/IAuthService.ts"
+    },
+    "./services/interfaces/ICatalogService": {
+      "import": "./src/services/interfaces/ICatalogService.ts",
+      "types": "./src/services/interfaces/ICatalogService.ts"
+    },
+    "./services/interfaces/ICollaborationService": {
+      "import": "./src/services/interfaces/ICollaborationService.ts",
+      "types": "./src/services/interfaces/ICollaborationService.ts"
+    },
     "./services/interfaces/IDeploymentService": {
       "import": "./src/services/interfaces/IDeploymentService.ts",
       "types": "./src/services/interfaces/IDeploymentService.ts"
@@ -70,6 +86,14 @@
     "./services/interfaces/IDocumentService": {
       "import": "./src/services/interfaces/IDocumentService.ts",
       "types": "./src/services/interfaces/IDocumentService.ts"
+    },
+    "./services/interfaces/IFileSystemService": {
+      "import": "./src/services/interfaces/IFileSystemService.ts",
+      "types": "./src/services/interfaces/IFileSystemService.ts"
+    },
+    "./services/interfaces/IGitService": {
+      "import": "./src/services/interfaces/IGitService.ts",
+      "types": "./src/services/interfaces/IGitService.ts"
     },
     "./services/interfaces/IAppRuntimeReadService": {
       "import": "./src/services/interfaces/IAppRuntimeReadService.ts",
@@ -79,13 +103,53 @@
       "import": "./src/services/interfaces/IAppRuntimeWriteService.ts",
       "types": "./src/services/interfaces/IAppRuntimeWriteService.ts"
     },
+    "./services/interfaces/IProjectService": {
+      "import": "./src/services/interfaces/IProjectService.ts",
+      "types": "./src/services/interfaces/IProjectService.ts"
+    },
+    "./services/interfaces/IReleaseService": {
+      "import": "./src/services/interfaces/IReleaseService.ts",
+      "types": "./src/services/interfaces/IReleaseService.ts"
+    },
+    "./services/interfaces/ITeamService": {
+      "import": "./src/services/interfaces/ITeamService.ts",
+      "types": "./src/services/interfaces/ITeamService.ts"
+    },
+    "./services/interfaces/IVipMembershipService": {
+      "import": "./src/services/interfaces/IVipMembershipService.ts",
+      "types": "./src/services/interfaces/IVipMembershipService.ts"
+    },
+    "./services/interfaces/IWorkspaceService": {
+      "import": "./src/services/interfaces/IWorkspaceService.ts",
+      "types": "./src/services/interfaces/IWorkspaceService.ts"
+    },
     "./services/sdkClients": {
       "import": "./src/services/sdkClients.ts",
       "types": "./src/services/sdkClients.ts"
     },
+    "./services/iamRuntime": {
+      "import": "./src/services/iamRuntime.ts",
+      "types": "./src/services/iamRuntime.ts"
+    },
+    "./services/birdcoderMobileChatApi": {
+      "import": "./src/services/birdcoderMobileChatApi.ts",
+      "types": "./src/services/birdcoderMobileChatApi.ts"
+    },
+    "./services/birdcoderDriveUpload": {
+      "import": "./src/services/birdcoderDriveUpload.ts",
+      "types": "./src/services/birdcoderDriveUpload.ts"
+    },
+    "./services/sdkTransportShared": {
+      "import": "./src/services/sdkTransportShared.ts",
+      "types": "./src/services/sdkTransportShared.ts"
+    },
     "./services/lazyDefaultIdeServices": {
       "import": "./src/services/lazyDefaultIdeServices.ts",
       "types": "./src/services/lazyDefaultIdeServices.ts"
+    },
+    "./services/membershipSdkBootstrap": {
+      "import": "./src/services/membershipSdkBootstrap.ts",
+      "types": "./src/services/membershipSdkBootstrap.ts"
     },
     "./bootstrap/appSessionPersistenceBinding": {
       "import": "./src/bootstrap/appSessionPersistenceBinding.ts",
@@ -110,6 +174,7 @@
     "@sdkwork/messaging-app-sdk": "workspace:*",
     "@sdkwork/sdk-common": "workspace:*",
     "@sdkwork/utils": "workspace:*",
+    "@sdkwork/membership-service": "workspace:*",
     "@tauri-apps/api": "catalog:"
   }
 }

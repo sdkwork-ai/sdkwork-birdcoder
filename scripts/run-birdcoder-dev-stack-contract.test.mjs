@@ -1,9 +1,113 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import net from 'node:net';
 
-const { runBirdcoderDevStack } = await import('./run-birdcoder-dev-stack.mjs');
+const {
+  applyClientLoopbackPortFallback,
+  runBirdcoderDevStack,
+} = await import('./run-birdcoder-dev-stack.mjs');
 
 const originalLog = console.log;
 const originalError = console.error;
+
+function readDefaultServerReadyPaths() {
+  const source = fs.readFileSync(new URL('./run-birdcoder-dev-stack.mjs', import.meta.url), 'utf8');
+  const match = /const DEFAULT_SERVER_READY_PATHS = Object\.freeze\(\[(?<body>[\s\S]*?)\]\);/u.exec(source);
+  assert.ok(match?.groups?.body, 'run-birdcoder-dev-stack must declare DEFAULT_SERVER_READY_PATHS.');
+
+  return [...match.groups.body.matchAll(/'(?<path>\/[^']+)'/gu)].map((item) => item.groups.path);
+}
+
+function readDefaultServerReadyTimeoutMs() {
+  const source = fs.readFileSync(new URL('./run-birdcoder-dev-stack.mjs', import.meta.url), 'utf8');
+  const match = /const DEFAULT_SERVER_READY_TIMEOUT_MS = (?<timeoutMs>\d+);/u.exec(source);
+  assert.ok(match?.groups?.timeoutMs, 'run-birdcoder-dev-stack must declare DEFAULT_SERVER_READY_TIMEOUT_MS.');
+
+  return Number.parseInt(match.groups.timeoutMs, 10);
+}
+
+assert.deepEqual(
+  readDefaultServerReadyPaths(),
+  ['/readyz'],
+  'dev stack readiness must use the anonymous SDKWork infrastructure readiness probe by default. Business app-api routes may require login or bootstrap tenant isolation and must not gate pre-auth server startup.',
+);
+
+assert.ok(
+  readDefaultServerReadyTimeoutMs() >= 120000,
+  'dev stack readiness must allow a first cargo run compile before declaring the server unavailable.',
+);
+
+function listen(server, { host, port }) {
+  return new Promise((resolve, reject) => {
+    const onError = (error) => {
+      server.off('listening', onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off('error', onError);
+      resolve();
+    };
+
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(port, host);
+  });
+}
+
+function close(server) {
+  return new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+function readPlanPort(plan) {
+  const portFlagIndex = plan.args.lastIndexOf('--port');
+  assert.notEqual(portFlagIndex, -1, 'test plan must include a Vite --port option.');
+  return Number.parseInt(plan.args[portFlagIndex + 1], 10);
+}
+
+{
+  const blockingServer = net.createServer();
+  await listen(blockingServer, {
+    host: '127.0.0.1',
+    port: 0,
+  });
+
+  const occupiedPort = blockingServer.address().port;
+  try {
+    const adjustedStackPlans = await applyClientLoopbackPortFallback({
+      clientArgs: [],
+      stackPlans: {
+        clientPlan: {
+          args: [
+            '../../../../scripts/run-vite-host.mjs',
+            'serve',
+            '--host',
+            '0.0.0.0',
+            '--port',
+            String(occupiedPort),
+            '--mode',
+            'development',
+          ],
+        },
+      },
+    });
+
+    assert.notEqual(
+      readPlanPort(adjustedStackPlans.clientPlan),
+      occupiedPort,
+      'dev stack must select a free client port when the default loopback port is already serving another app.',
+    );
+  } finally {
+    await close(blockingServer);
+  }
+}
 
 async function captureRunBirdcoderDevStack(argv) {
   const logs = [];

@@ -1,5 +1,6 @@
 import { memo, useDeferredValue, useMemo } from 'react';
 import {
+  buildBirdCoderEditorModelPath,
   ContentWorkbench,
   DeferredDiffEditor,
   FileExplorer,
@@ -25,11 +26,11 @@ interface StudioCodeWorkspacePanelProps {
   onSelectFile: (path: string) => void;
   onExpandDirectory: (path: string) => void | Promise<void>;
   onCloseFile: (path: string) => void;
-  onCreateFile: (path: string) => void;
-  onCreateFolder: (path: string) => void;
+  onCreateFile: (path: string) => void | Promise<void>;
+  onCreateFolder: (path: string) => void | Promise<void>;
   onDeleteFile: (path: string) => void;
   onDeleteFolder: (path: string) => void;
-  onRenameNode: (path: string, nextPath: string) => void;
+  onRenameNode: (path: string, nextPath: string) => void | Promise<void>;
   onAcceptDiff: () => void | Promise<void>;
   onRejectDiff: () => void;
   onFileDraftChange: (value: string) => void;
@@ -118,6 +119,24 @@ export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
     () =>
       previewDescriptor?.shouldDefaultToSplit ? 'split' : 'edit',
     [previewDescriptor],
+  );
+  const editorModelPath = useMemo(
+    () => buildBirdCoderEditorModelPath('studio', currentProjectId, selectedFile),
+    [currentProjectId, selectedFile],
+  );
+  const retainedModelPaths = useMemo(
+    () =>
+      openFiles
+        .map((path) => buildBirdCoderEditorModelPath('studio', currentProjectId, path))
+        .filter((path): path is string => Boolean(path)),
+    [currentProjectId, openFiles],
+  );
+  const editorProps = useMemo(
+    () => ({
+      path: editorModelPath,
+      retainedModelPaths,
+    }),
+    [editorModelPath, retainedModelPaths],
   );
 
   return (
@@ -218,8 +237,8 @@ export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
                 })}
               </div>
               <ContentWorkbench
-                key={selectedFile}
                 defaultMode={defaultWorkbenchMode}
+                editorProps={editorProps}
                 language={selectedFileLanguage}
                 path={selectedFile}
                 previewDescriptor={previewDescriptor ?? undefined}

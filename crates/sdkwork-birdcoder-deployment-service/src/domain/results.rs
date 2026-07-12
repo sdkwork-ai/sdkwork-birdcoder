@@ -125,7 +125,9 @@ pub struct PublishProjectResultPayload {
 
 pub fn current_timestamp() -> String {
     let now = time::OffsetDateTime::now_utc();
-    let format = time::format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z")
-        .expect("valid format description");
+    let format = time::format_description::parse_borrowed::<2>(
+        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z",
+    )
+    .expect("valid format description");
     now.format(&format).unwrap_or_else(|_| now.to_string())
 }

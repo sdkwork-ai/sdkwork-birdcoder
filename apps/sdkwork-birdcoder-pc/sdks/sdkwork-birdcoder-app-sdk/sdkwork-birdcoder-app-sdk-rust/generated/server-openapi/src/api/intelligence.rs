@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderApprovalDecisionResultEnvelope, BirdCoderCodingSessionArtifactListEnvelope, BirdCoderCodingSessionCheckpointListEnvelope, BirdCoderCodingSessionEventListEnvelope, BirdCoderCodingSessionSummaryEnvelope, BirdCoderCodingSessionSummaryListEnvelope, BirdCoderCodingSessionTurnEnvelope, BirdCoderCreateCodingSessionRequest, BirdCoderCreateCodingSessionTurnRequest, BirdCoderDeleteCodingSessionMessageResultEnvelope, BirdCoderDeletedResourceEnvelope, BirdCoderEditCodingSessionMessageRequest, BirdCoderEditCodingSessionMessageResultEnvelope, BirdCoderForkCodingSessionRequest, BirdCoderSubmitApprovalDecisionRequest, BirdCoderSubmitUserQuestionAnswerRequest, BirdCoderUpdateCodingSessionRequest, BirdCoderUserQuestionAnswerResultEnvelope};
+use crate::models::{BirdCoderApprovalDecisionResultEnvelope, BirdCoderCodingSessionArtifactListEnvelope, BirdCoderCodingSessionCheckpointListEnvelope, BirdCoderCodingSessionEventListEnvelope, BirdCoderCodingSessionSummaryEnvelope, BirdCoderCodingSessionSummaryListEnvelope, BirdCoderCodingSessionTurnEnvelope, BirdCoderCreateCodingSessionRequest, BirdCoderCreateCodingSessionTurnRequest, BirdCoderEditCodingSessionMessageRequest, BirdCoderEditCodingSessionMessageResultEnvelope, BirdCoderForkCodingSessionRequest, BirdCoderSubmitApprovalDecisionRequest, BirdCoderSubmitUserQuestionAnswerRequest, BirdCoderUpdateCodingSessionRequest, BirdCoderUserQuestionAnswerResultEnvelope};
 
 #[derive(Clone)]
 pub struct IntelligenceApi {
@@ -22,7 +22,7 @@ impl IntelligenceApi {
     }
 
     /// Delete coding session
-    pub async fn coding_sessions_delete(&self, session_id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
+    pub async fn coding_sessions_delete(&self, session_id: &str) -> Result<(), SdkworkError> {
         let path = app_path(&format!("/intelligence/coding_sessions/{}", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -34,13 +34,13 @@ impl IntelligenceApi {
     }
 
     /// List coding sessions
-    pub async fn coding_sessions_list(&self, workspace_id: Option<&str>, project_id: Option<&str>, engine_id: Option<&str>, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderCodingSessionSummaryListEnvelope, SdkworkError> {
+    pub async fn coding_sessions_list(&self, workspace_id: Option<&str>, project_id: Option<&str>, engine_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderCodingSessionSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
             QueryParameterSpec::new("projectId", project_id, "form", true, false, None),
             QueryParameterSpec::new("engineId", engine_id, "form", true, false, None),
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/intelligence/coding_sessions".to_string()), &query);
         self.client.get(&path, None, None).await
@@ -101,7 +101,7 @@ impl IntelligenceApi {
     }
 
     /// Delete coding session message
-    pub async fn coding_sessions_messages_delete(&self, session_id: &str, message_id: &str) -> Result<BirdCoderDeleteCodingSessionMessageResultEnvelope, SdkworkError> {
+    pub async fn coding_sessions_messages_delete(&self, session_id: &str, message_id: &str) -> Result<(), SdkworkError> {
         let path = app_path(&format!("/intelligence/coding_sessions/{}/messages/{}", serialize_path_parameter(session_id, PathParameterSpec::new("sessionId", "simple", false)), serialize_path_parameter(message_id, PathParameterSpec::new("messageId", "simple", false))));
         self.client.delete(&path, None, None).await
     }

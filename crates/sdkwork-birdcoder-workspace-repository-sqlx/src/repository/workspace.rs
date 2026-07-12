@@ -5,6 +5,7 @@ use crate::db::columns::workspace as col;
 use crate::db::columns::workspace_member as member_col;
 use crate::db::rows::{WorkspaceMemberRow, WorkspaceRow};
 use crate::mapper::row_mapper;
+use crate::repository::scope;
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_birdcoder_workspace_service::domain::commands::{
     CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest,
@@ -121,10 +122,9 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         };
 
         // PAGINATION_SPEC.md §2/§5: push `LIMIT`/`OFFSET` down to SQL — never
-        // collect-then-slice in process memory. Default page_size=20, max=200
-        // is enforced by `ListPagination::normalize` (called at the route
-        // layer via `clamp_list_page_size`); the repository trusts the
-        // bounded values passed through `WorkspaceScopedQuery.pagination`.
+        // collect-then-slice in process memory. The HTTP route strictly
+        // validates page/page_size; `ListPagination::normalize` remains a
+        // defensive internal bound before SQL execution.
         let (offset, limit) = query.pagination.normalize(
             sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE as i64,
             sdkwork_birdcoder_project_service::pagination::MAX_LIST_PAGE_SIZE as i64,
@@ -215,12 +215,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             .unwrap_or("0")
             .parse()
             .unwrap_or(0);
-        let data_scope: i64 = req
-            .data_scope
-            .as_deref()
-            .unwrap_or("1")
-            .parse()
-            .unwrap_or(1);
+        let data_scope: i64 = scope::data_scope_to_i64(req.data_scope.as_deref());
         let settings_json = req
             .settings
             .as_ref()
@@ -230,8 +225,8 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             .created_by_user_id
             .as_deref()
             .and_then(|s| s.parse::<i64>().ok());
-        let is_public = req.is_public.map(|b| if b { 1i64 } else { 0 });
-        let is_template = req.is_template.map(|b| if b { 1i64 } else { 0 });
+        let is_public = req.is_public.map(|b| if b { 1i64 } else { 0 }).unwrap_or(0);
+        let is_template = req.is_template.map(|b| if b { 1i64 } else { 0 }).unwrap_or(0);
 
         let id_row = sqlx::query(&format!(
             "INSERT INTO {t} (uuid, tenant_id, organization_id, data_scope, created_at, updated_at, version, is_deleted, name, code, title, description, owner_id, leader_id, created_by_user_id, icon, color, type, start_time, end_time, max_members, settings_json, is_public, is_template, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
@@ -348,10 +343,9 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
                 }
             }
             if let Some(ref v) = req.data_scope {
-                if let Ok(n) = v.parse::<i64>() {
-                    sep.push(format!("{} = ", col::DATA_SCOPE));
-                    sep.push_bind_unseparated(n);
-                }
+                let n = scope::data_scope_to_i64(Some(v.as_str()));
+                sep.push(format!("{} = ", col::DATA_SCOPE));
+                sep.push_bind_unseparated(n);
             }
             if let Some(ref v) = req.owner_id {
                 if let Ok(n) = v.parse::<i64>() {

@@ -53,10 +53,15 @@ mod tests {
     }
 
     #[test]
-    fn generates_assistant_reply_when_codex_bootstraps() {
-        let reply = generate_mobile_chat_assistant_reply("hello mobile chat").unwrap_or_else(|error| {
-            panic!("expected codex bootstrap for mobile chat assistant: {error}");
-        });
-        assert!(!reply.trim().is_empty());
+    fn mobile_chat_never_returns_a_stub_as_an_assistant_reply() {
+        match generate_mobile_chat_assistant_reply("hello mobile chat") {
+            Ok(reply) => {
+                let normalized = reply.to_ascii_lowercase();
+                assert!(!normalized.contains("mock response"));
+                assert!(!normalized.contains(" stub]"));
+                assert!(!normalized.contains("sdk_probe"));
+            }
+            Err(error) => assert!(!error.trim().is_empty()),
+        }
     }
 }

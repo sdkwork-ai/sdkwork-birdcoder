@@ -70,15 +70,16 @@ assert.deepEqual(
 assert.equal(codexKernel.source.externalPath, 'external/codex');
 assert.equal(codexKernel.source.sdkPath, 'external/codex/sdk/typescript');
 assert.equal(codexKernel.source.sourceStatus, 'mirrored');
-assert.equal(createChatEngineById(codexKernel.id).name, 'codex-kernel-sdk-adapter');
+assert.equal(createChatEngineById(codexKernel.id).name, 'codex-kernel-cli-adapter');
 assert.equal(codexKernel.descriptor.engineKey, 'codex');
 assert.equal(
   codexKernel.descriptor.officialIntegration?.officialEntry.packageName,
   '@openai/codex-sdk',
 );
-assert.equal(codexKernel.executionTopology.authorityPath, 'rust-native');
-assert.equal(codexKernel.executionTopology.bridgeRequired, false);
+assert.equal(codexKernel.executionTopology.authorityPath, 'rust-rpc-bridge');
+assert.equal(codexKernel.executionTopology.bridgeRequired, true);
 assert.equal(codexKernel.executionTopology.officialSdkPackageName, '@openai/codex-sdk');
+assert.equal(codexKernel.executionTopology.transportKind, 'cli-jsonl');
 assert.ok(codexKernel.descriptor.transportKinds.includes('sdk-stream'));
 assert.ok(codexKernel.descriptor.transportKinds.includes('cli-jsonl'));
 assert.equal(
@@ -121,7 +122,7 @@ assert.equal(claudeKernel.source.externalPath, 'external/claude-code');
 assert.equal(claudeKernel.source.sdkPath, null);
 assert.equal(claudeKernel.source.sourceStatus, 'mirrored');
 assert.equal(claudeKernel.source.sourceKind, 'repository');
-assert.equal(createChatEngineById(claudeKernel.id).name, 'claude-code-kernel-sdk-adapter');
+assert.equal(createChatEngineById(claudeKernel.id).name, 'claude-code-kernel-cli-adapter');
 assert.equal(claudeKernel.descriptor.engineKey, 'claude-code');
 assert.equal(
   claudeKernel.descriptor.officialIntegration?.officialEntry.packageName,
@@ -145,7 +146,7 @@ assert.equal(
   'ready',
   'Claude Code CLI fallback is implemented by the TypeScript bridge and must not remain cataloged as planned.',
 );
-assert.equal(claudeKernel.descriptor.capabilityMatrix.remoteBridge, true);
+assert.equal(claudeKernel.descriptor.capabilityMatrix.remoteBridge, false);
 assert.equal(claudeKernel.modelCatalog[0]?.engineKey, 'claude-code');
 assert.equal(
   createChatEngineById(claudeKernel.id).describeIntegration?.()?.officialEntry.packageName,
@@ -163,7 +164,7 @@ assert.deepEqual(
 assert.equal(geminiKernel.source.externalPath, 'external/gemini');
 assert.equal(geminiKernel.source.sdkPath, 'external/gemini/packages/sdk');
 assert.equal(geminiKernel.source.sourceStatus, 'mirrored');
-assert.equal(createChatEngineById(geminiKernel.id).name, 'gemini-cli-kernel-sdk-adapter');
+assert.equal(createChatEngineById(geminiKernel.id).name, 'gemini-cli-kernel-cli-adapter');
 assert.equal(
   geminiKernel.descriptor.officialIntegration?.officialEntry.packageName,
   '@google/gemini-cli-sdk',
@@ -186,7 +187,7 @@ assert.equal(opencodeKernel.source.externalPath, 'external/opencode');
 assert.equal(opencodeKernel.source.sdkPath, 'external/opencode/packages/sdk/js');
 assert.equal(opencodeKernel.source.sourceStatus, 'mirrored');
 assert.equal(opencodeKernel.source.sourceKind, 'repository');
-assert.equal(createChatEngineById(opencodeKernel.id).name, 'opencode-kernel-sdk-adapter');
+assert.equal(createChatEngineById(opencodeKernel.id).name, 'opencode-kernel-cli-adapter');
 assert.equal(
   opencodeKernel.descriptor.officialIntegration?.officialEntry.packageName,
   '@opencode-ai/sdk',

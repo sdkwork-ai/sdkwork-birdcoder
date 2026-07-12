@@ -23,11 +23,6 @@
       }
     ]
   },
-  "plugins": {
-    "shell": {
-      "open": "((mailto:\\\\w+)|(tel:\\\\w+)|(https?://\\\\w+).+|(file://.+)|([A-Za-z]:\\\\\\\\.+)|(\\\\\\\\\\\\\\\\.+))"
-    }
-  },
   "bundle": {
     "active": true,
     "targets": "all",
@@ -36,6 +31,9 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "../../../../../artifacts/provider-runtime/": "provider-runtime/"
+    }
   }
 }

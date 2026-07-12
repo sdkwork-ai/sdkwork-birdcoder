@@ -36,6 +36,7 @@ import {
   resetSdkworkSessionAuthRedirectState,
 } from '@sdkwork/auth-runtime-pc-react/handleSdkworkSessionAuthUnauthorizedError';
 import { isSdkworkSdkSessionAuthError } from '@sdkwork/auth-runtime-pc-react/sdkSessionAuthError';
+import { isBlank } from '@sdkwork/utils/string';
 import {
   getBirdCoderGlobalTokenManager as getCoreBirdCoderGlobalTokenManager,
   setBirdCoderGlobalTokenManager,
@@ -82,6 +83,7 @@ import type {
   BirdCoderNativeSessionProviderSummary,
   BirdCoderNativeSessionSummary,
   BirdCoderOperationDescriptor,
+  BirdCoderPageInfo,
   BirdCoderProjectDocumentSummary,
   BirdCoderProjectCollaboratorSummary,
   BirdCoderProjectGitOverview,
@@ -108,6 +110,7 @@ import type {
   BirdCoderWorkspaceMemberSummary,
   BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-pc-types';
+import { BIRDCODER_DATA_SCOPES } from '@sdkwork/birdcoder-pc-types';
 import { clearStoredAppSessionToken } from './appSessionToken.ts';
 import {
   buildBirdCoderProtectedLoginBrowserUrl,
@@ -115,6 +118,8 @@ import {
 } from '@sdkwork/birdcoder-pc-core/appSessionAuthRedirect';
 import { readBirdCoderApiTransportErrorHttpStatus, BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-core/birdCoderApiTransportError';
 import { getDefaultBirdCoderIdeServicesRuntimeConfig } from './defaultIdeServicesRuntime.ts';
+import { invalidateBirdCoderCurrentSession } from './iamCurrentSession.ts';
+import { invalidateBirdCoderCurrentUser } from './iamCurrentUser.ts';
 import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
 
 export interface BirdCoderWorkspaceScopedListRequest {
@@ -126,6 +131,29 @@ export interface BirdCoderWorkspaceScopedListRequest {
 
 export interface BirdCoderProjectListRequest extends BirdCoderWorkspaceScopedListRequest {
   rootPath?: string;
+}
+
+export interface BirdCoderProjectPageRequest {
+  page: number;
+  pageSize: number;
+  workspaceId?: string;
+}
+
+export interface BirdCoderWorkspacePageRequest {
+  page: number;
+  pageSize: number;
+  userId?: string;
+}
+
+export interface BirdCoderOffsetPageInfo extends Required<
+  Pick<BirdCoderPageInfo, 'hasMore' | 'page' | 'pageSize' | 'totalItems' | 'totalPages'>
+> {
+  mode: 'offset';
+}
+
+export interface BirdCoderPage<TItem> {
+  items: TItem[];
+  pageInfo: BirdCoderOffsetPageInfo;
 }
 
 export interface BirdCoderAppSdkApiClient {
@@ -206,6 +234,9 @@ export interface BirdCoderAppSdkApiClient {
     projectId: string,
     options?: BirdCoderWorkspaceScopedListRequest,
   ): Promise<BirdCoderProjectCollaboratorSummary[]>;
+  listProjectPage(
+    input: BirdCoderProjectPageRequest,
+  ): Promise<BirdCoderPage<BirdCoderProjectSummary>>;
   listProjects(options?: BirdCoderProjectListRequest): Promise<BirdCoderProjectSummary[]>;
   listRoutes(): Promise<BirdCoderApiRouteCatalogEntry[]>;
   listSkillPackages(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderSkillPackageSummary[]>;
@@ -214,6 +245,9 @@ export interface BirdCoderAppSdkApiClient {
     workspaceId: string,
     options?: BirdCoderWorkspaceScopedListRequest,
   ): Promise<BirdCoderWorkspaceMemberSummary[]>;
+  listWorkspacePage(
+    input: BirdCoderWorkspacePageRequest,
+  ): Promise<BirdCoderPage<BirdCoderWorkspaceSummary>>;
   listWorkspaces(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderWorkspaceSummary[]>;
   publishProject(
     projectId: string,
@@ -391,44 +425,108 @@ function readCanonicalItems<TItem>(payload: unknown): TItem[] {
   return readItems<TItem>(payload);
 }
 
-const DEFAULT_SDK_LIST_LIMIT = 20;
+function readCanonicalOffsetPage<TItem>(
+  payload: unknown,
+  resourceName: string,
+): BirdCoderPage<TItem> {
+  const data = isRecord(payload) && isRecord(payload.data) ? payload.data : payload;
+  if (!isRecord(data) || !Array.isArray(data.items) || !isRecord(data.pageInfo)) {
+    throw new Error(`${resourceName} list response must include data.items and data.pageInfo.`);
+  }
 
-function withDefaultListLimit<T extends { limit?: number }>(query: T): T {
-  return typeof query.limit === 'number' ? query : { ...query, limit: DEFAULT_SDK_LIST_LIMIT };
+  const pageInfo = data.pageInfo;
+  const page = pageInfo.page;
+  const pageSize = pageInfo.pageSize;
+  const totalItems = pageInfo.totalItems;
+  const totalPages = pageInfo.totalPages;
+  const hasMore = pageInfo.hasMore;
+  if (
+    pageInfo.mode !== 'offset' ||
+    !isPositiveSafeInteger(page) ||
+    !isValidPageSize(pageSize) ||
+    !isNonNegativeSafeInteger(totalPages) ||
+    typeof totalItems !== 'string' ||
+    !/^[0-9]+$/u.test(totalItems) ||
+    typeof hasMore !== 'boolean'
+  ) {
+    throw new Error(`${resourceName} list response contains an invalid offset pageInfo payload.`);
+  }
+
+  return {
+    items: data.items as TItem[],
+    pageInfo: {
+      hasMore,
+      mode: 'offset',
+      page,
+      pageSize,
+      totalItems,
+      totalPages,
+    },
+  };
 }
 
-function toGeneratedOffsetLimitQuery(
+const DEFAULT_SDK_PAGE_SIZE = 20;
+
+function isPositiveSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isValidPageSize(value: unknown): value is number {
+  return isPositiveSafeInteger(value) && value <= 200;
+}
+
+type GeneratedPageQuery = {
+  page?: number;
+  page_size?: number;
+};
+
+function withDefaultPageSize<T extends { limit?: number }>(query: T): T & { limit: number } {
+  if (query.limit === undefined) {
+    return { ...query, limit: DEFAULT_SDK_PAGE_SIZE };
+  }
+  if (isValidPageSize(query.limit)) {
+    return query as T & { limit: number };
+  }
+  throw new Error('Pagination limit must be an integer between 1 and 200.');
+}
+
+function toGeneratedPageQuery(
   options: BirdCoderWorkspaceScopedListRequest = {},
-): { limit?: number; offset?: number } {
-  const scoped = withDefaultListLimit(options);
+): GeneratedPageQuery {
+  const scoped = withDefaultPageSize(options);
+  const pageSize = scoped.limit;
+  if (scoped.offset !== undefined && !isNonNegativeSafeInteger(scoped.offset)) {
+    throw new Error('Pagination offset must be a non-negative safe integer.');
+  }
+  if (scoped.offset !== undefined && scoped.offset % pageSize !== 0) {
+    throw new Error(`Pagination offset must be aligned to page size ${pageSize}.`);
+  }
+  const page = scoped.offset === undefined ? undefined : scoped.offset / pageSize + 1;
+  if (page !== undefined && !isPositiveSafeInteger(page)) {
+    throw new Error('Pagination offset produces an unsafe page number.');
+  }
   return {
-    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
-    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+    ...(page === undefined ? {} : { page }),
+    page_size: pageSize,
   };
 }
 
 function toGeneratedDocumentsQuery(
   options: { projectId?: string; limit?: number; offset?: number } = {},
 ): ContentDocumentsListQuery {
-  const scoped = withDefaultListLimit(options);
   return {
     ...(options.projectId ? { projectId: options.projectId } : {}),
-    limit: scoped.limit,
-    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+    ...toGeneratedPageQuery(options),
   };
 }
 
 function toGeneratedCodeEngineKey(value: string | undefined): GeneratedCodeEngineKey | undefined {
   return value ? (value as GeneratedCodeEngineKey) : undefined;
 }
-
-const LEGACY_DATA_SCOPE_TO_GENERATED: Record<string, GeneratedDataScope> = {
-  DEFAULT: 'workspace',
-  PRIVATE: 'user',
-  ORGANIZATION: 'organization',
-  TENANT: 'workspace',
-  PUBLIC: 'workspace',
-};
 
 function toGeneratedDataScope(
   dataScope: string | undefined,
@@ -437,17 +535,12 @@ function toGeneratedDataScope(
     return undefined;
   }
 
-  if (
-    dataScope === 'workspace' ||
-    dataScope === 'project' ||
-    dataScope === 'user' ||
-    dataScope === 'team' ||
-    dataScope === 'organization'
-  ) {
-    return dataScope;
+  const normalizedDataScope = dataScope.trim().toUpperCase();
+  if (BIRDCODER_DATA_SCOPES.includes(normalizedDataScope as GeneratedDataScope)) {
+    return normalizedDataScope as GeneratedDataScope;
   }
 
-  return LEGACY_DATA_SCOPE_TO_GENERATED[dataScope];
+  throw new Error(`Unsupported BirdCoder dataScope value: ${dataScope}`);
 }
 
 function toGeneratedCreateWorkspaceRequest(
@@ -489,47 +582,91 @@ function toGeneratedUpdateProjectRequest(
 function toGeneratedWorkspaceQuery(
   options: BirdCoderWorkspaceScopedListRequest,
 ): PlatformWorkspacesListQuery {
-  const scoped = withDefaultListLimit(options);
+  const scoped = withDefaultPageSize(options);
+  // The server resolves the authenticated user from the IAM context; the
+  // client must not supply `userId` as a query parameter.
   return {
-    ...(scoped.userId ? { userId: scoped.userId } : {}),
-    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
-    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+    ...toGeneratedPageQuery(scoped),
   };
 }
 
 function toGeneratedProjectQuery(
   options: BirdCoderProjectListRequest,
 ): PlatformProjectsListQuery {
-  const scoped = withDefaultListLimit(options);
+  const scoped = withDefaultPageSize(options);
+  // The server resolves the authenticated user from the IAM context; the
+  // client must not supply `userId` as a query parameter.
   return {
     ...(scoped.rootPath ? { rootPath: scoped.rootPath } : {}),
-    ...(scoped.userId ? { userId: scoped.userId } : {}),
     ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
-    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
-    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+    ...toGeneratedPageQuery(scoped),
+  };
+}
+
+function toGeneratedProjectPageQuery(
+  input: BirdCoderProjectPageRequest,
+): PlatformProjectsListQuery {
+  if (!isPositiveSafeInteger(input.page)) {
+    throw new Error('Project page must be a positive integer.');
+  }
+  if (!isValidPageSize(input.pageSize)) {
+    throw new Error('Project pageSize must be an integer between 1 and 200.');
+  }
+  const offset = (input.page - 1) * input.pageSize;
+  if (!Number.isSafeInteger(offset) || offset > 200_000) {
+    throw new Error('Project page exceeds the supported offset range.');
+  }
+  if (input.workspaceId !== undefined && isBlank(input.workspaceId)) {
+    throw new Error('Project workspaceId must not be blank when provided.');
+  }
+
+  return {
+    ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+    page: input.page,
+    page_size: input.pageSize,
+  };
+}
+
+function toGeneratedWorkspacePageQuery(
+  input: BirdCoderWorkspacePageRequest,
+): PlatformWorkspacesListQuery {
+  if (!isPositiveSafeInteger(input.page)) {
+    throw new Error('Workspace page must be a positive integer.');
+  }
+  if (!isValidPageSize(input.pageSize)) {
+    throw new Error('Workspace pageSize must be an integer between 1 and 200.');
+  }
+  const offset = (input.page - 1) * input.pageSize;
+  if (!Number.isSafeInteger(offset) || offset > 200_000) {
+    throw new Error('Workspace page exceeds the supported offset range.');
+  }
+  // The server resolves the authenticated user from the IAM context; the
+  // client must not supply `userId` as a query parameter.
+  return {
+    page: input.page,
+    page_size: input.pageSize,
   };
 }
 
 function toGeneratedWorkspaceTeamQuery(
   options: BirdCoderWorkspaceScopedListRequest,
 ): CollaborationWorkspaceTeamsListQuery {
-  const scoped = withDefaultListLimit(options);
+  const scoped = withDefaultPageSize(options);
+  // The server resolves the authenticated user from the IAM context; the
+  // client must not supply `userId` as a query parameter.
   return {
-    ...(scoped.userId ? { userId: scoped.userId } : {}),
     ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
-    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
-    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+    ...toGeneratedPageQuery(scoped),
   };
 }
 
 function toGeneratedCodingSessionQuery(
   request: BirdCoderListCodingSessionsRequest,
 ): IntelligenceCodingSessionsListQuery {
-  const scoped = withDefaultListLimit(request);
+  const scoped = withDefaultPageSize(request);
   return {
     ...(scoped.engineId ? { engineId: toGeneratedCodeEngineKey(scoped.engineId) } : {}),
-    limit: scoped.limit,
-    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+    ...toGeneratedPageQuery(scoped),
     ...(scoped.projectId ? { projectId: scoped.projectId } : {}),
     ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
   };
@@ -538,11 +675,10 @@ function toGeneratedCodingSessionQuery(
 function toGeneratedNativeSessionListQuery(
   request: BirdCoderListNativeSessionsRequest,
 ): RuntimeNativeSessionsListQuery {
-  const scoped = withDefaultListLimit(request);
+  const scoped = withDefaultPageSize(request);
   return {
     ...(scoped.engineId ? { engineId: toGeneratedCodeEngineKey(scoped.engineId) } : {}),
-    limit: scoped.limit,
-    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+    ...toGeneratedPageQuery(scoped),
     ...(scoped.projectId ? { projectId: scoped.projectId } : {}),
     ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
   };
@@ -561,12 +697,12 @@ function toGeneratedNativeSessionRetrieveQuery(
 function toGeneratedSkillPackageQuery(
   options: BirdCoderWorkspaceScopedListRequest,
 ): SkillsSkillPackagesListQuery {
-  const scoped = withDefaultListLimit(options);
+  const scoped = withDefaultPageSize(options);
+  // The server resolves the authenticated user from the IAM context; the
+  // client must not supply `userId` as a query parameter.
   return {
-    ...(scoped.userId ? { userId: scoped.userId } : {}),
     ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
-    ...(typeof scoped.limit === 'number' ? { limit: scoped.limit } : {}),
-    ...(typeof scoped.offset === 'number' ? { offset: scoped.offset } : {}),
+    ...toGeneratedPageQuery(scoped),
   };
 }
 
@@ -636,6 +772,12 @@ export function isBirdCoderSdkSessionAuthError(error: unknown): boolean {
 export function handleBirdCoderSdkSessionAuthError(error: unknown): boolean {
   return handleSdkworkSessionAuthUnauthorizedError(error, {
     clearSession: () => {
+      // Keep the shared token manager in sync with the durable session store.
+      // This path is also used by SDK clients that do not go through the IAM
+      // runtime's clearSession hook.
+      getCoreBirdCoderGlobalTokenManager().clearTokens();
+      invalidateBirdCoderCurrentSession();
+      invalidateBirdCoderCurrentUser();
       clearStoredAppSessionToken();
     },
     redirectToLogin: () => {
@@ -656,8 +798,8 @@ function resolveBirdCoderGeneratedSdkTransport(
   }
 
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
-  const baseUrl = options.apiBaseUrl ?? runtimeConfig.apiBaseUrl;
-  if (baseUrl) {
+  const baseUrl = options.apiBaseUrl ?? runtimeConfig.apiBaseUrl ?? '';
+  if (baseUrl || typeof window !== 'undefined') {
     return createBirdCoderHttpApiTransport({
       baseUrl,
       resolveHeaders: () => buildBirdCoderTokenManagerHeaders(tokenManagerRef.current),
@@ -724,7 +866,6 @@ function buildBirdCoderTokenManagerHeaders(
   return {
     Authorization: tokens?.authToken ? `Bearer ${tokens.authToken}` : undefined,
     'Access-Token': tokens?.accessToken,
-    'Refresh-Token': tokens?.refreshToken,
   };
 }
 
@@ -751,7 +892,7 @@ function hasGeneratedSdkRuntimeOverrides(
 
 function readBirdCoderSdkErrorCode(error: unknown): string {
   if (error instanceof BirdCoderApiTransportError && error.code) {
-    return error.code;
+    return String(error.code);
   }
   const value = readBirdCoderSdkErrorField(error, 'code');
   return normalizeBirdCoderSdkErrorCode(value);
@@ -856,7 +997,7 @@ export function createBirdCoderAppSdkApiClient({
     },
     async syncModelConfig(request) {
       return readCanonicalData<BirdCoderCodeEngineModelConfigSyncResult>(
-        await client.runtime.modelConfig.sync(
+        await client.runtime.modelConfig.update(
           request as unknown as GeneratedBirdCoderSyncCodeEngineModelConfigRequest,
         ),
       );
@@ -989,6 +1130,12 @@ export function createBirdCoderAppSdkApiClient({
     async listWorkspaces(options = {}) {
       return readItems(await client.platform.workspaces.list(toGeneratedWorkspaceQuery(options)));
     },
+    async listWorkspacePage(input) {
+      return readCanonicalOffsetPage<BirdCoderWorkspaceSummary>(
+        await client.platform.workspaces.list(toGeneratedWorkspacePageQuery(input)),
+        'Workspace',
+      );
+    },
     async createProject(request) {
       return readData(await client.platform.projects.create(toGeneratedCreateProjectRequest(request)));
     },
@@ -1005,6 +1152,12 @@ export function createBirdCoderAppSdkApiClient({
     },
     async listProjects(options = {}) {
       return readItems(await client.platform.projects.list(toGeneratedProjectQuery(options)));
+    },
+    async listProjectPage(input) {
+      return readCanonicalOffsetPage<BirdCoderProjectSummary>(
+        await client.platform.projects.list(toGeneratedProjectPageQuery(input)),
+        'Project',
+      );
     },
     async getProject(projectId) {
       return readData(await client.platform.projects.retrieve({ projectId }));
@@ -1039,7 +1192,7 @@ export function createBirdCoderAppSdkApiClient({
     async listDeployments(options = {}) {
       return readItems(
         await client.platform.deployments.list(
-          toGeneratedOffsetLimitQuery(options) as PlatformDeploymentsListQuery,
+          toGeneratedPageQuery(options) as PlatformDeploymentsListQuery,
         ),
       );
     },
@@ -1047,12 +1200,12 @@ export function createBirdCoderAppSdkApiClient({
       return readItems(
         await client.platform.projects.deploymentTargets.list(
           { projectId },
-          toGeneratedOffsetLimitQuery(options) as PlatformProjectsDeploymentTargetsListQuery,
+          toGeneratedPageQuery(options) as PlatformProjectsDeploymentTargetsListQuery,
         ),
       );
     },
     async publishProject(projectId, request) {
-      return readData(await client.platform.projects.publish.create({ projectId }, request));
+      return readData(await client.platform.projects.publish.publish({ projectId }, request));
     },
     async listTeams(options = {}) {
       return readItems(await client.collaboration.workspaceTeams.list(toGeneratedWorkspaceTeamQuery(options)));
@@ -1061,23 +1214,23 @@ export function createBirdCoderAppSdkApiClient({
       return readItems(
         await client.iam.workspaces.members.list(
           { workspaceId },
-          toGeneratedOffsetLimitQuery(options) as IamWorkspacesMembersListQuery,
+          toGeneratedPageQuery(options) as IamWorkspacesMembersListQuery,
         ),
       );
     },
     async upsertWorkspaceMember(workspaceId, request) {
-      return readData(await client.iam.workspaces.members.upsert({ workspaceId }, request));
+      return readData(await client.iam.workspaces.members.create({ workspaceId }, request));
     },
     async listProjectCollaborators(projectId, options = {}) {
       return readItems(
         await client.platform.projects.collaborators.list(
           { projectId },
-          toGeneratedOffsetLimitQuery(options) as PlatformProjectsCollaboratorsListQuery,
+          toGeneratedPageQuery(options) as PlatformProjectsCollaboratorsListQuery,
         ),
       );
     },
     async upsertProjectCollaborator(projectId, request) {
-      return readData(await client.platform.projects.collaborators.upsert({ projectId }, request));
+      return readData(await client.platform.projects.collaborators.create({ projectId }, request));
     },
     async listSkillPackages(options = {}) {
       return readItems(await client.skills.skillPackages.list(toGeneratedSkillPackageQuery(options)));
@@ -1088,7 +1241,7 @@ export function createBirdCoderAppSdkApiClient({
     async listAppTemplates(options = {}) {
       return readItems(
         await client.templates.appTemplates.list(
-          toGeneratedOffsetLimitQuery(options) as TemplatesAppTemplatesListQuery,
+          toGeneratedPageQuery(options) as TemplatesAppTemplatesListQuery,
         ),
       );
     },

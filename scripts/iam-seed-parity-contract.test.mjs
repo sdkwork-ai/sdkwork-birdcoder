@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -86,8 +86,13 @@ assert.match(
 );
 assert.match(
   apiServerIamBootstrapSource,
-  /bootstrap_iam_database_from_env/u,
-  'BirdCoder standalone-gateway IAM bootstrap must bootstrap IAM schema before tenant application provisioning.',
+  /sdkwork_iam_database_host::bootstrap_iam_database_from_env\(\)/u,
+  'BirdCoder standalone-gateway IAM bootstrap must delegate IAM lifecycle bootstrap to the platform database host before tenant application provisioning.',
+);
+assert.doesNotMatch(
+  apiServerIamBootstrapSource,
+  /bootstrap_iam_database_from_birdcoder_profile/u,
+  'BirdCoder standalone-gateway IAM bootstrap must not recreate platform IAM database lifecycle in an app-local profile helper.',
 );
 assert.match(
   apiServerIamBootstrapSource,
@@ -96,8 +101,13 @@ assert.match(
 );
 assert.match(
   apiServerIamBootstrapSource,
-  /ensure_tenant_application_from_app_root_with_env_and_fallback/u,
-  'BirdCoder standalone-gateway IAM bootstrap must delegate to the shared embedded bootstrap crate.',
+  /ensure_tenant_application_from_app_root\(\s*bootstrap\.app_root\.as_path\(\)/su,
+  'BirdCoder standalone-gateway IAM bootstrap must delegate the selected BirdCoder root to the shared embedded bootstrap crate.',
+);
+assert.doesNotMatch(
+  apiServerIamBootstrapSource,
+  /resolve_application_app_root_with_fallback/u,
+  'BirdCoder must not let the generic embedded bootstrap resolver select SDKWORK_IAM_APP_ROOT as its application root.',
 );
 assert.match(
   apiServerIamBootstrapSource,

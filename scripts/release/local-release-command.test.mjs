@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { prepareProviderRuntimeAssets } from '../prepare-provider-runtime-assets.mjs';
 import { parseArgs, runLocalReleaseCommand } from './local-release-command.mjs';
 import {
   PC_WEB_DIST_REL,
@@ -137,7 +138,7 @@ const finalizeWithRepository = parseArgs([
   '--monitoring-window-minutes',
   '45',
   '--rollback-runbook-ref',
-  'docs/step/13-发布就绪-github-flow-灰度回滚闭环.md',
+  'docs/guides/operator/incident-response.md',
   '--rollback-command',
   'gh workflow run rollback.yml --ref main',
   '--repository',
@@ -149,7 +150,7 @@ assert.equal(finalizeWithRepository.repository, 'Sdkwork-Cloud/sdkwork-birdcoder
 assert.equal(finalizeWithRepository.releaseKind, 'canary');
 assert.equal(finalizeWithRepository.rolloutStage, 'ring-1');
 assert.equal(finalizeWithRepository.monitoringWindowMinutes, 45);
-assert.equal(finalizeWithRepository.rollbackRunbookRef, 'docs/step/13-发布就绪-github-flow-灰度回滚闭环.md');
+assert.equal(finalizeWithRepository.rollbackRunbookRef, 'docs/guides/operator/incident-response.md');
 assert.equal(finalizeWithRepository.rollbackCommand, 'gh workflow run rollback.yml --ref main');
 assert.equal(
   finalizeWithRepository.qualityExecutionReportPath,
@@ -188,6 +189,38 @@ try {
       },
     }, null, 2) + '\n',
   );
+
+  const providerKernelRoot = path.join(fixtureRoot, 'sdkwork-kernel');
+  const providerWorkerRoot = path.join(
+    providerKernelRoot,
+    'scripts',
+    'provider-transport-workers',
+  );
+  fs.mkdirSync(providerWorkerRoot, { recursive: true });
+  for (const workerFile of [
+    'generic-ts-sdk-worker.mjs',
+    'engine-sdk-live.mjs',
+    'codex-cli-live.mjs',
+    'provider-cli-live.mjs',
+  ]) {
+    fs.writeFileSync(
+      path.join(providerWorkerRoot, workerFile),
+      `export const worker = '${workerFile}';\n`,
+    );
+  }
+  const providerNodeBinary = path.join(
+    fixtureRoot,
+    process.platform === 'win32' ? 'provider-node.exe' : 'provider-node',
+  );
+  fs.writeFileSync(providerNodeBinary, 'portable-node-binary\n');
+  prepareProviderRuntimeAssets({
+    rootDir: fixtureRoot,
+    kernelRoot: providerKernelRoot,
+    nodeBinary: providerNodeBinary,
+    nodeVersion: '22.20.0-test',
+    targetPlatform: process.platform,
+    targetArchitecture: process.arch,
+  });
 
   process.chdir(fixtureRoot);
 

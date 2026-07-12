@@ -20,7 +20,10 @@ function createAgentsAppClientReturning(payload: unknown): AgentsAppSdkClient {
   } as unknown as AgentsAppSdkClient;
 }
 
-function assertCatalogEntry(entry: BirdCoderCodeEngineCatalogEntry): void {
+function assertCatalogEntry(
+  entry: BirdCoderCodeEngineCatalogEntry,
+  expectedHealthy: boolean,
+): void {
   assert.deepEqual(
     entry,
     {
@@ -28,7 +31,7 @@ function assertCatalogEntry(entry: BirdCoderCodeEngineCatalogEntry): void {
       displayName: 'Codex 1',
       providerId: 'provider.codex',
       bindingId: 'binding.agent-provider.codex',
-      healthy: true,
+      healthy: expectedHealthy,
       tier: 'p0',
     },
     'agents code engine catalog must preserve generated SDK catalog fields',
@@ -67,7 +70,7 @@ assert.equal(
   1,
   'agents app SDK default unwrapped SdkWorkResourceData response must populate code engine catalog',
 );
-assertCatalogEntry(unwrappedCatalog[0]!);
+assertCatalogEntry(unwrappedCatalog[0]!, false);
 
 const rawEnvelopeCatalog = await listBirdCoderCodeEngineCatalog(
   createAgentsAppClientReturning({
@@ -81,6 +84,20 @@ assert.equal(
   1,
   'agents app SDK raw envelope response must remain parseable for diagnostic callers',
 );
-assertCatalogEntry(rawEnvelopeCatalog[0]!);
+assertCatalogEntry(rawEnvelopeCatalog[0]!, false);
+
+const explicitlyHealthyCatalog = await listBirdCoderCodeEngineCatalog(
+  createAgentsAppClientReturning({
+    item: {
+      engines: [
+        {
+          ...generatedUnwrappedResourcePayload.item.engines[0],
+          healthy: true,
+        },
+      ],
+    },
+  }),
+);
+assertCatalogEntry(explicitlyHealthyCatalog[0]!, true);
 
 console.log('agents catalog SDK unwrapped response contract passed.');

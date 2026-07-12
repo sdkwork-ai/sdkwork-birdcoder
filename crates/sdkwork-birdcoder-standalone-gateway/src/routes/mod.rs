@@ -18,7 +18,7 @@ pub mod notifications;
 pub mod usage;
 
 use axum::extract::{FromRequestParts, Request, State};
-use axum::http::{StatusCode, request::Parts};
+use axum::http::{request::Parts, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use sqlx::AnyPool;
@@ -95,27 +95,19 @@ fn traced_problem_for_code(
 ) -> ProblemJsonBody {
     match code {
         "not_found" => traced_platform_problem(SdkWorkResultCode::NotFound, message, trace_id),
-        "invalid_input" => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            message,
-            trace_id,
-        ),
-        "forbidden" => traced_platform_problem(
-            SdkWorkResultCode::PermissionRequired,
-            message,
-            trace_id,
-        ),
-        "unauthorized" => traced_platform_problem(
-            SdkWorkResultCode::AuthenticationRequired,
-            message,
-            trace_id,
-        ),
+        "invalid_input" => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, message, trace_id)
+        }
+        "forbidden" => {
+            traced_platform_problem(SdkWorkResultCode::PermissionRequired, message, trace_id)
+        }
+        "unauthorized" => {
+            traced_platform_problem(SdkWorkResultCode::AuthenticationRequired, message, trace_id)
+        }
         "conflict" => traced_platform_problem(SdkWorkResultCode::Conflict, message, trace_id),
-        "rate_limited" => traced_platform_problem(
-            SdkWorkResultCode::RateLimitExceeded,
-            message,
-            trace_id,
-        ),
+        "rate_limited" => {
+            traced_platform_problem(SdkWorkResultCode::RateLimitExceeded, message, trace_id)
+        }
         _ => traced_legacy_problem(code, message, trace_id),
     }
 }
@@ -230,12 +222,13 @@ where
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
         let web = parts.extensions.get::<WebRequestContext>();
-        let request_id = web
-            .map(|ctx| ctx.request_id.0.clone())
-            .unwrap_or_default();
+        let request_id = web.map(|ctx| ctx.request_id.0.clone()).unwrap_or_default();
         let trace_id = web
             .and_then(|ctx| trace_id_from_request_id(ctx.request_id.0.as_str()))
             .map(|s| s.to_string());
-        Ok(Self { request_id, trace_id })
+        Ok(Self {
+            request_id,
+            trace_id,
+        })
     }
 }

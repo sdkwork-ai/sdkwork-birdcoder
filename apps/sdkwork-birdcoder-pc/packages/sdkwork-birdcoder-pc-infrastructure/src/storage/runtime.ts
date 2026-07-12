@@ -367,34 +367,53 @@ export async function listStoredRawValues(scope: string): Promise<BirdCoderStore
   return listBrowserStoredRawValues(scope);
 }
 
-export async function setStoredRawValue(scope: string, key: string, value: string): Promise<void> {
+/**
+ * Attempts to persist a raw value and reports whether the value was accepted
+ * by either the native store or the browser fallback.
+ *
+ * The legacy `setStoredRawValue` API intentionally remains non-throwing for
+ * startup and recovery callers. Consumers that need to retain a dirty marker
+ * (for example, user settings) should use this result-bearing variant.
+ */
+export async function trySetStoredRawValue(
+  scope: string,
+  key: string,
+  value: string,
+): Promise<boolean> {
   const invoke = await resolveTauriInvoke();
   if (invoke) {
     try {
       await invoke('local_store_set', { scope, key, value });
+      return true;
     } catch {
       if (!isReservedAuthorityLocalStoreKey(key)) {
-        setBrowserStoredRawValue(scope, key, value);
+        return setBrowserStoredRawValue(scope, key, value);
       }
+      return false;
     }
-    return;
   }
 
-  setBrowserStoredRawValue(scope, key, value);
+  return setBrowserStoredRawValue(scope, key, value);
 }
 
-function setBrowserStoredRawValue(scope: string, key: string, value: string): void {
+export async function setStoredRawValue(scope: string, key: string, value: string): Promise<void> {
+  await trySetStoredRawValue(scope, key, value);
+}
+
+function setBrowserStoredRawValue(scope: string, key: string, value: string): boolean {
   if (typeof window === 'undefined') {
     inMemoryStorageFallback.set(buildLocalStoreKey(scope, key), value);
-    return;
+    return true;
   }
 
   try {
     window.localStorage.setItem(buildLocalStoreKey(scope, key), value);
     addBrowserLocalStoreKeyIndexEntry(scope, key);
+    return true;
   } catch (error) {
     // Ignore browser storage failures and keep callers non-fatal.
     console.warn('[BirdCoder Storage] Browser storage operation failed:', error);
+    return false;
   }
 }
 

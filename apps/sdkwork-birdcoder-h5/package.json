@@ -6,6 +6,7 @@
   "dependencies": {
     "@sdkwork/birdcoder-h5-admin-core": "workspace:*",
     "@sdkwork/birdcoder-h5-capacitor": "workspace:*",
+    "@sdkwork/birdcoder-h5-chat": "workspace:*",
     "@sdkwork/birdcoder-h5-commons": "workspace:*",
     "@sdkwork/birdcoder-h5-core": "workspace:*",
     "@sdkwork/birdcoder-h5-shell": "workspace:*",

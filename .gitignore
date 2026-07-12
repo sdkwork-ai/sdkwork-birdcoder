@@ -8,6 +8,7 @@ dist/
 coverage/
 artifacts/
 target/
+target-*/
 .pnpm-store/
 .npm-cache/
 external/*-backup-*/
@@ -42,6 +43,13 @@ NUL
 # SDKWork environment templates (keep only the root .env.example tracked)
 !.env.example
 !.env.postgres.example
+
+# SDKWork topology configs (non-sensitive deployment profiles, safe to track)
+!configs/topology/*.env
+
+# Temporary install output and backup files
+pnpm_install_output.txt
+*.bak
 
 # SDKWork local environment and runtime config overrides
 .env.local

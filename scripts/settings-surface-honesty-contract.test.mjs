@@ -17,6 +17,24 @@ const environmentSettingsSource = readText(
 const archivedSettingsSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/ArchivedSettings.tsx',
 );
+const configSettingsSource = readText(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/ConfigSettings.tsx',
+);
+const configSettingsImportSource = readText(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-settings/src/components/appSettingsImport.ts',
+);
+const terminalLaunchSource = readText(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/sdkworkTerminalLaunch.ts',
+);
+const codeTerminalPanelSource = readText(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeTerminalIntegrationPanel.tsx',
+);
+const studioTerminalPanelSource = readText(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioTerminalIntegrationPanel.tsx',
+);
+const appMainBodySource = readText(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-shell/src/application/app/birdcoderAppMainBody.tsx',
+);
 const dockerDefaultEnv = readText('deployments/docker/profiles/default.env');
 
 assert.doesNotMatch(
@@ -33,6 +51,16 @@ assert.match(
   mcpSettingsSource,
   /settings\.mcp\.notConnected/u,
   'MCP settings must disclose honest disconnected state until runtime health checks exist.',
+);
+assert.match(
+  mcpSettingsSource,
+  /function createMcpServerId\(\): string[\s\S]*globalThis\.crypto\?\.randomUUID[\s\S]*Math\.random\(\)/u,
+  'MCP settings must remain usable in older WebViews that do not expose crypto.randomUUID.',
+);
+assert.doesNotMatch(
+  mcpSettingsSource,
+  /�|锟/u,
+  'MCP settings must not render corrupted encoding artifacts in server status text.',
 );
 assert.match(
   readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-studio/src/pages/StudioPageDialogs.tsx'),
@@ -69,6 +97,47 @@ assert.match(
   /settings\.archived\.runtimeUnavailable/u,
   'Archived settings must disclose runtime wiring is pending.',
 );
+assert.doesNotMatch(
+  configSettingsSource,
+  /Opening config\.toml|configurationImported'\), 'success'|href="#"/u,
+  'Config settings must not report fake config-file opening/import success or render placeholder links.',
+);
+assert.match(
+  configSettingsSource,
+  /disabled[\s\S]*settings\.config\.configFileUnavailable/u,
+  'Config settings must disable config.toml editing and disclose that runtime support is unavailable.',
+);
+assert.match(
+  configSettingsSource,
+  /settings\.config\.governanceScopeDescription/u,
+  'Config settings must disclose that command governance does not intercept interactive PTY input.',
+);
+assert.match(
+  configSettingsSource,
+  /parseAppSettingsImport\(file\)[\s\S]*updateSettings\(imported\.settings\)/u,
+  'Config import must parse and atomically apply validated settings before reporting success.',
+);
+assert.match(
+  configSettingsImportSource,
+  /MAX_APP_SETTINGS_IMPORT_BYTES[\s\S]*JSON\.parse[\s\S]*normalizeImportedValue/u,
+  'Config import must enforce a size budget, parse JSON, and validate recognized setting values.',
+);
+assert.match(
+  terminalLaunchSource,
+  /evaluateCommand\(normalizedCommand\)[\s\S]*saveAuditRecord\([\s\S]*if \(!decision\.allowed\)/u,
+  'IDE-launched terminal commands must be evaluated and audited before a process launch plan is returned.',
+);
+for (const [surface, source] of [
+  ['code', codeTerminalPanelSource],
+  ['studio', studioTerminalPanelSource],
+  ['app', appMainBodySource],
+]) {
+  assert.match(
+    source,
+    /useToast[\s\S]*onLaunchBlocked|handle(?:Terminal)?LaunchBlocked[\s\S]*addToast/u,
+    `${surface} terminal surface must surface blocked command feedback instead of failing silently.`,
+  );
+}
 assert.match(
   dockerDefaultEnv,
   /SDKWORK_BIRDCODER_REALTIME_BACKEND=memory/u,

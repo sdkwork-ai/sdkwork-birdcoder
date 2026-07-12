@@ -69,12 +69,6 @@ export type { BirdCoderCreateProjectGitBranchRequest } from './bird-coder-create
 export type { BirdCoderCreateProjectGitWorktreeRequest } from './bird-coder-create-project-git-worktree-request';
 export type { BirdCoderCreateProjectRequest } from './bird-coder-create-project-request';
 export type { BirdCoderCreateWorkspaceRequest } from './bird-coder-create-workspace-request';
-export type { BirdCoderDeleteChatConversationEnvelope } from './bird-coder-delete-chat-conversation-envelope';
-export type { BirdCoderDeleteChatConversationResult } from './bird-coder-delete-chat-conversation-result';
-export type { BirdCoderDeleteCodingSessionMessageResult } from './bird-coder-delete-coding-session-message-result';
-export type { BirdCoderDeleteCodingSessionMessageResultEnvelope } from './bird-coder-delete-coding-session-message-result-envelope';
-export type { BirdCoderDeletedResourceEnvelope } from './bird-coder-deleted-resource-envelope';
-export type { BirdCoderDeletedResourceResult } from './bird-coder-deleted-resource-result';
 export type { BirdCoderDeploymentRecordSummary } from './bird-coder-deployment-record-summary';
 export type { BirdCoderDeploymentRecordSummaryListEnvelope } from './bird-coder-deployment-record-summary-list-envelope';
 export type { BirdCoderDeploymentTargetSummary } from './bird-coder-deployment-target-summary';

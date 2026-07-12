@@ -11,8 +11,6 @@ export type { BirdCoderCreateIamTenantMemberRequest } from './bird-coder-create-
 export type { BirdCoderCreateIamTenantRequest } from './bird-coder-create-iam-tenant-request';
 export type { BirdCoderCreateIamUserRequest } from './bird-coder-create-iam-user-request';
 export type { BirdCoderCreateIamUserRoleRequest } from './bird-coder-create-iam-user-role-request';
-export type { BirdCoderDeletedResourceEnvelope } from './bird-coder-deleted-resource-envelope';
-export type { BirdCoderDeletedResourceResult } from './bird-coder-deleted-resource-result';
 export type { BirdCoderDeploymentRecordSummary } from './bird-coder-deployment-record-summary';
 export type { BirdCoderDeploymentRecordSummaryListEnvelope } from './bird-coder-deployment-record-summary-list-envelope';
 export type { BirdCoderDeploymentTargetSummary } from './bird-coder-deployment-target-summary';

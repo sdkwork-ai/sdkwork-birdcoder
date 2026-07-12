@@ -57,7 +57,7 @@ impl DocumentRepository for SqliteDocumentRepository {
         query: &DocumentListQuery,
     ) -> Result<sdkwork_birdcoder_document_service::service::document_service::DocumentListPage, String> {
         let tenant_id = Self::require_tenant_id(tenant_id)?;
-        let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+        let (offset, limit) = clamp_list_page_size(query.offset, query.page_size);
         let filter_sql = format!(
             " WHERE (?1 IS NULL OR project_id = ?1) AND {IS_NOT_DELETED} AND tenant_id = ?2"
         );

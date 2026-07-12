@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-kernel-bridge",
+    "displayName": "SDKWork BirdCoder Kernel Bridge",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-kernel-bridge",
+    "domain": "intelligence",
+    "declaredDomain": null,
+    "capability": "kernel-bridge",
+    "surface": "native-runtime",
+    "status": "ACTIVE",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable Rust module boundary rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated-code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust library and process-entrypoint rules."
+    },
+    {
+      "file": "CONFIG_SPEC.md",
+      "path": "../../../../sdkwork-specs/CONFIG_SPEC.md",
+      "purpose": "Runtime configuration boundary rules."
+    },
+    {
+      "file": "DEPLOYMENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/DEPLOYMENT_SPEC.md",
+      "purpose": "Runtime deployment-boundary rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Runtime-provider and process-boundary security rules."
+    },
+    {
+      "file": "PERFORMANCE_SPEC.md",
+      "path": "../../../../sdkwork-specs/PERFORMANCE_SPEC.md",
+      "purpose": "Bounded request and response resource-budget rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Runtime bridge verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-provider",
+    "publicExports": [
+      ".",
+      "sdkwork_birdcoder_kernel_bridge::BirdcoderKernelHost",
+      "sdkwork_birdcoder_kernel_bridge::execute_kernel_turn",
+      "sdkwork_birdcoder_kernel_bridge::read_bounded_turn_request",
+      "sdkwork_birdcoder_kernel_bridge::serialize_bounded_turn_result"
+    ],
+    "providedPorts": [
+      {
+        "name": "birdcoderKernelHost",
+        "export": "sdkwork_birdcoder_kernel_bridge::BirdcoderKernelHost"
+      },
+      {
+        "name": "boundedKernelTurnTransport",
+        "export": "sdkwork_birdcoder_kernel_bridge::read_bounded_turn_request"
+      }
+    ],
+    "requiredPorts": [
+      {
+        "name": "agentsRuntimeFacade",
+        "export": "."
+      },
+      {
+        "name": "codeEngineAdapter",
+        "export": "."
+      }
+    ],
+    "runtimeEntrypoints": [
+      "Cargo.toml[[bin]].birdcoder-kernel-turn"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "Owns the BirdCoder adapter to sdkwork-agents-runtime-facade, canonical engine exposure, and the bounded kernel-turn process boundary. It does not own generic agents HTTP APIs or provider-management policy."
+  },
+  "verification": {
+    "commands": [
+      "cargo test --offline -p sdkwork-birdcoder-kernel-bridge --lib -- --nocapture"
+    ]
+  }
+}

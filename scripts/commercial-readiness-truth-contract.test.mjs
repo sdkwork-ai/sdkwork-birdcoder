@@ -36,22 +36,22 @@ for (const docPath of requiredOperatorDocs) {
 }
 
 const commercialTruthDoc = readText(
-  'docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md',
+  'docs/architecture/tech/TECH_ARCHITECTURE.md',
 );
 assert.match(
   commercialTruthDoc,
-  /BirdCoderApiTransportError/u,
-  'Commercial truth doc must record structured HTTP auth errors.',
+  /## 2\. Current Implementation Truth/u,
+  'Technical architecture must expose current implementation truth.',
 );
 assert.match(
   commercialTruthDoc,
-  /\/openapi\.json/u,
-  'Commercial truth doc must record live OpenAPI route.',
+  /## 6\. Runtime Packaging And Readiness/u,
+  'Technical architecture must define runtime packaging readiness.',
 );
 assert.match(
   commercialTruthDoc,
-  /check:governance-regression/u,
-  'Commercial truth doc must record PR CI governance regression.',
+  /Cloud execution \| Blocked/u,
+  'Technical architecture must not claim the cloud runner is complete.',
 );
 assert.doesNotMatch(
   commercialTruthDoc,
@@ -72,8 +72,8 @@ assert.match(
 );
 assert.match(
   operatorReadme,
-  /162 operations|162 of 162/u,
-  'Operator README must record OpenAPI 162-operation completeness.',
+  /HTTP OpenAPI 161 operations[\s\S]*route catalog 162/u,
+  'Operator README must record HTTP OpenAPI 161-operation completeness and 162-entry route catalog truth.',
 );
 assert.match(
   operatorReadme,
@@ -123,13 +123,13 @@ assert.match(
 const deferRegistry = JSON.parse(readText('specs/coding-server-openapi-rust-defer-registry.json'));
 assert.equal(
   deferRegistry.summary.contractOperationCount,
-  162,
-  'Defer registry must track the full OpenAPI contract including chat and commerce lanes.',
+  161,
+  'Defer registry must track the full HTTP OpenAPI contract including chat and commerce lanes.',
 );
 assert.equal(
   deferRegistry.summary.implementedOperationCount,
-  162,
-  'Defer registry must record full product, federated IAM, commerce gateway, and chat coverage.',
+  161,
+  'Defer registry must record full product, federated IAM, commerce gateway, and chat HTTP coverage.',
 );
 assert.equal(
   deferRegistry.summary.deferredOperationCount,
@@ -138,8 +138,8 @@ assert.equal(
 );
 assert.match(
   commercialTruthDoc,
-  /162 of 162 implemented|162 operations.*0 deferred|deferredOperationCount.*0/u,
-  'Commercial truth doc must record full OpenAPI implementation with zero deferred operations.',
+  /synthetic smoke fixtures are contract evidence only/u,
+  'Technical architecture must distinguish contract evidence from installed runtime evidence.',
 );
 assert.doesNotMatch(
   commercialTruthDoc,
@@ -180,17 +180,6 @@ assert.match(
   releaseRehearsalContract,
   /release:fixture:ready/u,
   'Release rehearsal contract must guard readiness fixture entrypoint.',
-);
-
-assert.match(
-  commercialTruthDoc,
-  /first-governed-release|first \*\*real\*\* governed release/u,
-  'Commercial truth doc must reference the governed real-release publish checklist.',
-);
-assert.match(
-  commercialTruthDoc,
-  /surface-manifest-parity/u,
-  'Commercial truth doc must reference surface manifest parity contract.',
 );
 
 for (const manifestPath of listSdkworkAppManifestPaths(rootDir)) {

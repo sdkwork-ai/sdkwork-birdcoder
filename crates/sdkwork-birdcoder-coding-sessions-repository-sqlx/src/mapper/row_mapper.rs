@@ -1,24 +1,16 @@
 use std::collections::BTreeMap;
 
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
-    CodingSessionArtifactPayload,
-    CodingSessionCheckpointPayload,
-    CodingSessionEventPayload,
-    CodingSessionPayload,
-    CodingSessionTurnPayload,
-    OperationPayload,
+    CodingSessionArtifactPayload, CodingSessionCheckpointPayload, CodingSessionEventPayload,
+    CodingSessionPayload, CodingSessionTurnPayload, OperationPayload,
 };
 
-use crate::db::rows::{
-    ArtifactRow,
-    CheckpointRow,
-    EventRow,
-    OperationRow,
-    SessionRow,
-    TurnRow,
-};
+use crate::db::rows::{ArtifactRow, CheckpointRow, EventRow, OperationRow, SessionRow, TurnRow};
 
-pub fn session_row_to_payload(row: SessionRow, runtime_status: Option<String>) -> CodingSessionPayload {
+pub fn session_row_to_payload(
+    row: SessionRow,
+    runtime_status: Option<String>,
+) -> CodingSessionPayload {
     CodingSessionPayload {
         id: row.id,
         workspace_id: row.workspace_id,
@@ -91,8 +83,8 @@ pub fn checkpoint_row_to_payload(row: CheckpointRow) -> CodingSessionCheckpointP
 }
 
 pub fn operation_row_to_payload(row: OperationRow) -> OperationPayload {
-    let artifact_refs: Vec<String> = serde_json::from_str(&row.artifact_refs_json)
-        .unwrap_or_default();
+    let artifact_refs: Vec<String> =
+        serde_json::from_str(&row.artifact_refs_json).unwrap_or_default();
     OperationPayload {
         operation_id: row.id,
         status: row.status,
@@ -109,4 +101,3 @@ fn parse_json_btree_map(json: &str) -> BTreeMap<String, serde_json::Value> {
 fn parse_string_btree_map(json: &str) -> BTreeMap<String, String> {
     serde_json::from_str(json).unwrap_or_default()
 }
-

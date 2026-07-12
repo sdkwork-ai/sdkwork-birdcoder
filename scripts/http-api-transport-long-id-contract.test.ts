@@ -79,12 +79,12 @@ const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
   });
 
   const body = path.endsWith('/turns') ? unsafeTurnEnvelope : unsafeSessionEnvelope;
-  return {
-    ok: true,
+  return new Response(body, {
     status: 200,
-    text: async () => body,
-    json: async () => JSON.parse(body),
-  } as Response;
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 }) as typeof fetch;
 
 const transport = createBirdCoderHttpApiTransport({

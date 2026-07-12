@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   useAuth,
@@ -29,11 +29,6 @@ interface SettingsPageProps {
   currentProjectName?: string;
   onBack?: () => void;
 }
-
-const LazySkillsPage = lazy(async () => {
-  const module = await import('@sdkwork/birdcoder-pc-skills');
-  return { default: module.SkillsPage };
-});
 
 export function SettingsPage({
   currentProjectId,
@@ -68,6 +63,7 @@ export function SettingsPage({
       currentProjectName,
       settings,
       updateSetting,
+      updateSettings,
       currentServerBaseUrl,
       bootServerBaseUrlOverride:
         bootServerBaseUrlOverrideRef.current ?? (areSettingsHydrated ? settings.serverBaseUrl : undefined),
@@ -95,20 +91,6 @@ export function SettingsPage({
         return <WorktreeSettings {...props} />;
       case 'archived':
         return <ArchivedSettings />;
-      case 'skills':
-        return (
-          <div className="flex-1 bg-[#0e0e11] overflow-hidden relative">
-            <Suspense
-              fallback={
-                <div className="flex h-full w-full items-center justify-center text-sm text-gray-500">
-                  {t('common.loading', 'Loading...')}
-                </div>
-              }
-            >
-              <LazySkillsPage />
-            </Suspense>
-          </div>
-        );
       case 'legal':
         return <LegalComplianceSettings />;
       default:

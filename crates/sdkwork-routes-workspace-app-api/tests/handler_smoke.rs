@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use async_trait::async_trait;
 use sdkwork_birdcoder_deployment_service::error::DeploymentError;
 use sdkwork_birdcoder_deployment_service::service::deployment_service::DeploymentService;
 use sdkwork_birdcoder_project_service::error::ProjectError;
 use sdkwork_birdcoder_project_service::ports::events::ProjectEventPublisher;
-use sdkwork_birdcoder_project_service::ports::git::{GitMutationError, GitOperations, GitProjectOverview};
+use sdkwork_birdcoder_project_service::ports::git::{
+    GitMutationError, GitOperations, GitProjectOverview,
+};
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 use sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::deployment::SqliteDeploymentRepository;
@@ -20,8 +22,12 @@ use sdkwork_birdcoder_workspace_service::service::team_service::TeamService;
 use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService;
 use sdkwork_database_config::{DatabaseConfig, DatabaseEngine, DeploymentMode};
 use sdkwork_database_sqlx::create_any_pool_from_config;
-use sdkwork_iam_context_service::{AuthLevel, DeploymentMode as IamDeploymentMode, Environment, IamAppContext};
-use sdkwork_routes_workspace_app_api::{build_workspace_app_router, WorkspaceAppState, WorkspaceRealtimeHub};
+use sdkwork_iam_context_service::{
+    AuthLevel, DeploymentMode as IamDeploymentMode, Environment, IamAppContext,
+};
+use sdkwork_routes_workspace_app_api::{
+    build_workspace_app_router, WorkspaceAppState, WorkspaceRealtimeHub,
+};
 use sdkwork_web_core::{
     ServerRequestId, WebApiSurface, WebAuthMode, WebRequestContext, WebTransportFacts,
 };
@@ -162,7 +168,9 @@ impl GitOperations for UnavailableGitOperations {
         &self,
         _project_root_path: &str,
     ) -> Result<GitProjectOverview, GitMutationError> {
-        Err(GitMutationError::Mutate("git unavailable in handler smoke".into()))
+        Err(GitMutationError::Mutate(
+            "git unavailable in handler smoke".into(),
+        ))
     }
 
     async fn create_branch(
@@ -170,7 +178,9 @@ impl GitOperations for UnavailableGitOperations {
         _project_root_path: &str,
         _branch_name: &str,
     ) -> Result<GitProjectOverview, GitMutationError> {
-        Err(GitMutationError::Mutate("git unavailable in handler smoke".into()))
+        Err(GitMutationError::Mutate(
+            "git unavailable in handler smoke".into(),
+        ))
     }
 
     async fn switch_branch(
@@ -178,7 +188,9 @@ impl GitOperations for UnavailableGitOperations {
         _project_root_path: &str,
         _branch_name: &str,
     ) -> Result<GitProjectOverview, GitMutationError> {
-        Err(GitMutationError::Mutate("git unavailable in handler smoke".into()))
+        Err(GitMutationError::Mutate(
+            "git unavailable in handler smoke".into(),
+        ))
     }
 
     async fn commit_changes(
@@ -186,7 +198,9 @@ impl GitOperations for UnavailableGitOperations {
         _project_root_path: &str,
         _message: &str,
     ) -> Result<GitProjectOverview, GitMutationError> {
-        Err(GitMutationError::Mutate("git unavailable in handler smoke".into()))
+        Err(GitMutationError::Mutate(
+            "git unavailable in handler smoke".into(),
+        ))
     }
 
     async fn push_branch(
@@ -195,7 +209,9 @@ impl GitOperations for UnavailableGitOperations {
         _branch_name: Option<&str>,
         _remote_name: Option<&str>,
     ) -> Result<GitProjectOverview, GitMutationError> {
-        Err(GitMutationError::Mutate("git unavailable in handler smoke".into()))
+        Err(GitMutationError::Mutate(
+            "git unavailable in handler smoke".into(),
+        ))
     }
 
     async fn create_worktree(
@@ -204,7 +220,9 @@ impl GitOperations for UnavailableGitOperations {
         _branch_name: &str,
         _worktree_path: &str,
     ) -> Result<GitProjectOverview, GitMutationError> {
-        Err(GitMutationError::Mutate("git unavailable in handler smoke".into()))
+        Err(GitMutationError::Mutate(
+            "git unavailable in handler smoke".into(),
+        ))
     }
 
     async fn remove_worktree(
@@ -213,14 +231,18 @@ impl GitOperations for UnavailableGitOperations {
         _worktree_path: &str,
         _force: bool,
     ) -> Result<GitProjectOverview, GitMutationError> {
-        Err(GitMutationError::Mutate("git unavailable in handler smoke".into()))
+        Err(GitMutationError::Mutate(
+            "git unavailable in handler smoke".into(),
+        ))
     }
 
     async fn prune_worktrees(
         &self,
         _project_root_path: &str,
     ) -> Result<GitProjectOverview, GitMutationError> {
-        Err(GitMutationError::Mutate("git unavailable in handler smoke".into()))
+        Err(GitMutationError::Mutate(
+            "git unavailable in handler smoke".into(),
+        ))
     }
 }
 
@@ -240,7 +262,11 @@ fn test_iam_context() -> IamAppContext {
 }
 
 async fn execute_sql_batch(pool: &AnyPool, sql: &str) -> Result<(), sqlx::Error> {
-    for statement in sql.split(';').map(str::trim).filter(|part| !part.is_empty()) {
+    for statement in sql
+        .split(';')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+    {
         sqlx::query(statement).execute(pool).await?;
     }
     Ok(())
@@ -362,7 +388,8 @@ async fn list_workspaces_returns_ok_with_empty_inventory() {
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .expect("read list workspaces body");
-    let json: serde_json::Value = serde_json::from_slice(&body).expect("parse list workspaces JSON");
+    let json: serde_json::Value =
+        serde_json::from_slice(&body).expect("parse list workspaces JSON");
     assert_eq!(json["code"], 0);
     assert_eq!(json["traceId"], "handler-smoke-request");
     assert_eq!(json["data"]["items"].as_array().map(Vec::len), Some(0));
@@ -370,6 +397,37 @@ async fn list_workspaces_returns_ok_with_empty_inventory() {
     assert_eq!(json["data"]["pageInfo"]["pageSize"], 20);
     assert_eq!(json["data"]["pageInfo"]["page"], 1);
     assert_eq!(json["data"]["pageInfo"]["totalItems"], "0");
+}
+
+#[tokio::test]
+async fn list_workspaces_rejects_over_max_page_size_before_repository_access() {
+    let response = build_workspace_app_router()
+        .with_state(test_state().await)
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri("/app/v3/api/workspaces?page_size=201")
+                .body(Body::empty())
+                .expect("build invalid list workspaces request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve invalid list workspaces request");
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        response
+            .headers()
+            .get("content-type")
+            .and_then(|value| value.to_str().ok()),
+        Some("application/problem+json")
+    );
+    let body = axum::body::to_bytes(response.into_body(), 64 * 1024)
+        .await
+        .expect("read bounded invalid pagination response");
+    let problem: serde_json::Value =
+        serde_json::from_slice(&body).expect("parse invalid pagination problem");
+    assert_eq!(problem["code"], 40003);
+    assert_eq!(problem["traceId"], "handler-smoke-request");
 }
 
 #[tokio::test]

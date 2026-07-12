@@ -6,9 +6,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, State};
 
-use crate::adapters::filesystem::{
-    build_virtual_path_from_relative, resolve_root_directory_name, resolve_root_directory_path,
-};
+use crate::adapters::filesystem::{build_virtual_path_from_relative, resolve_root_directory_name};
+use crate::commands::filesystem_commands::resolve_root_directory_path;
 
 const FILE_SYSTEM_WATCH_EVENT_NAME: &str = "birdcoder:file-system-watch";
 
@@ -62,7 +61,10 @@ fn build_virtual_path_for_absolute_path(
         return Some(root_virtual_path.to_string());
     }
 
-    Some(build_virtual_path_from_relative(root_virtual_path, relative_path))
+    Some(build_virtual_path_from_relative(
+        root_virtual_path,
+        relative_path,
+    ))
 }
 
 fn build_watch_event_payload(
@@ -178,4 +180,80 @@ pub fn fs_watch_stop(
         .remove(normalized_watch_id);
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::filesystem_commands::register_allowed_fs_root;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn create_watch_test_directory(label: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("test clock must be after the Unix epoch")
+            .as_nanos();
+        let directory = std::env::temp_dir().join(format!(
+            "sdkwork-birdcoder-watch-{label}-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&directory).expect("watch test directory must be created");
+        directory
+    }
+
+    #[cfg(unix)]
+    fn try_create_directory_link(target: &Path, link: &Path) -> bool {
+        std::os::unix::fs::symlink(target, link).is_ok()
+    }
+
+    #[cfg(windows)]
+    fn try_create_directory_link(target: &Path, link: &Path) -> bool {
+        std::os::windows::fs::symlink_dir(target, link).is_ok()
+    }
+
+    #[cfg(unix)]
+    fn remove_directory_link(link: &Path) {
+        let _ = fs::remove_file(link);
+    }
+
+    #[cfg(windows)]
+    fn remove_directory_link(link: &Path) {
+        let _ = fs::remove_dir(link);
+    }
+
+    #[test]
+    fn watch_root_rejects_an_unregistered_directory() {
+        let unregistered = create_watch_test_directory("unregistered");
+
+        let error = resolve_root_directory_path(&unregistered.to_string_lossy())
+            .expect_err("watch roots must be explicitly registered");
+
+        assert!(error.contains("not registered for desktop filesystem access"));
+        fs::remove_dir_all(unregistered).expect("watch test directory must be removed");
+    }
+
+    #[test]
+    fn watch_root_rejects_a_link_that_escapes_a_registered_root() {
+        let registered_root = create_watch_test_directory("registered-root");
+        let outside = create_watch_test_directory("outside");
+        register_allowed_fs_root(registered_root.clone())
+            .expect("watch test root must be registered");
+        let link = registered_root.join("escape");
+        if !try_create_directory_link(&outside, &link) {
+            fs::remove_dir_all(registered_root)
+                .expect("registered watch test directory must be removed");
+            fs::remove_dir_all(outside).expect("outside watch test directory must be removed");
+            return;
+        }
+
+        let error = resolve_root_directory_path(&link.to_string_lossy())
+            .expect_err("watch roots must not escape through a link");
+
+        assert!(error.contains("not registered for desktop filesystem access"));
+        remove_directory_link(&link);
+        fs::remove_dir_all(registered_root)
+            .expect("registered watch test directory must be removed");
+        fs::remove_dir_all(outside).expect("outside watch test directory must be removed");
+    }
 }

@@ -82,7 +82,7 @@ mod tests {
         assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
         assert_eq!(
             body.detail.as_deref(),
-            Some("An internal error occurred while accessing data.")
+            Some("An internal error occurred")
         );
     }
 }

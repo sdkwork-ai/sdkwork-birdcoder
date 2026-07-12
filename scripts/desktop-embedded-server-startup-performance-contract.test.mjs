@@ -21,8 +21,14 @@ const desktopLibSource = fs.readFileSync(
 
 assert.match(
   hostStateSource,
-  /static EMBEDDED_RUNTIME_STARTUP:\s*OnceLock<\s*tokio::sync::OnceCell<Result<DesktopRuntimeConfig,\s*String>>\s*,?\s*>/s,
+  /static EMBEDDED_RUNTIME_STARTUP:\s*OnceLock<\s*tokio::sync::OnceCell<DesktopRuntimeConfig>\s*,?\s*>/s,
   'Desktop runtime startup must have a shared async OnceCell so setup and desktop_runtime_config do not race or duplicate embedded server startup.',
+);
+
+assert.match(
+  hostStateSource,
+  /embedded_runtime_startup\(\)[\s\S]*?\.get_or_try_init\(\|\| async move \{/s,
+  'Desktop runtime startup must use get_or_try_init so a transient startup failure is not cached permanently and a later request can retry.',
 );
 
 assert.match(

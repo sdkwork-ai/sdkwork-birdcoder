@@ -12,6 +12,7 @@ sqlx = { workspace = true }
 sdkwork-birdcoder-commerce-service = { workspace = true }
 sdkwork-birdcoder-commerce-repository-sqlx = { workspace = true }
 sdkwork-birdcoder-errors = { workspace = true }
+sdkwork-birdcoder-project-service = { workspace = true }
 sdkwork-birdcoder-router-context = { workspace = true }
 sdkwork_iam_context_service.workspace = true
 sdkwork-utils-rust.workspace = true
@@ -20,3 +21,4 @@ sdkwork-web-core = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+serde_json = { workspace = true }

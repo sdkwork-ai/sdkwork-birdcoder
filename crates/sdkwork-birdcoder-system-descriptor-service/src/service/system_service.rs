@@ -27,8 +27,14 @@ impl RouteCatalogProvider for ManifestRouteCatalogProvider {
     }
 }
 
+#[async_trait::async_trait]
 pub trait OperationProvider: Send + Sync {
-    fn find_operation(&self, operation_id: &str) -> Option<OperationPayload>;
+    async fn find_operation(
+        &self,
+        tenant_id: &str,
+        user_id: &str,
+        operation_id: &str,
+    ) -> Result<Option<OperationPayload>, SystemDescriptorError>;
 }
 
 pub struct SystemService<R: RouteCatalogProvider, O: OperationProvider> {
@@ -83,7 +89,8 @@ impl<R: RouteCatalogProvider, O: OperationProvider> SystemService<R, O> {
                     GatewaySurfaceDescriptorPayload {
                         auth_mode: "admin".to_string(),
                         base_path: "/backend/v3/api".to_string(),
-                        description: "Backend API surface for administrative operations".to_string(),
+                        description: "Backend API surface for administrative operations"
+                            .to_string(),
                         name: "backend".to_string(),
                         route_count: backend_route_count,
                     },
@@ -128,7 +135,8 @@ impl<R: RouteCatalogProvider, O: OperationProvider> SystemService<R, O> {
                     GatewaySurfaceDescriptorPayload {
                         auth_mode: "admin".to_string(),
                         base_path: "/api/backend".to_string(),
-                        description: "Backend API surface for administrative operations".to_string(),
+                        description: "Backend API surface for administrative operations"
+                            .to_string(),
                         name: "backend".to_string(),
                         route_count: backend_route_count,
                     },
@@ -145,12 +153,7 @@ impl<R: RouteCatalogProvider, O: OperationProvider> SystemService<R, O> {
         self.route_catalog_provider.list_route_specs()
     }
 
-    pub fn runtime(
-        &self,
-        host: &str,
-        port: u16,
-        config_file_name: &str,
-    ) -> RuntimePayload {
+    pub fn runtime(&self, host: &str, port: u16, config_file_name: &str) -> RuntimePayload {
         RuntimePayload {
             host: host.to_string(),
             port,
@@ -158,8 +161,10 @@ impl<R: RouteCatalogProvider, O: OperationProvider> SystemService<R, O> {
         }
     }
 
-    pub fn get_operation(
+    pub async fn get_operation(
         &self,
+        tenant_id: &str,
+        user_id: &str,
         operation_id: &str,
     ) -> Result<OperationPayload, SystemDescriptorError> {
         let normalized_id = normalize_required(operation_id).ok_or_else(|| {
@@ -167,7 +172,8 @@ impl<R: RouteCatalogProvider, O: OperationProvider> SystemService<R, O> {
         })?;
 
         self.operation_provider
-            .find_operation(&normalized_id)
+            .find_operation(tenant_id, user_id, &normalized_id)
+            .await?
             .ok_or_else(|| {
                 SystemDescriptorError::NotFound(format!(
                     "Operation \"{normalized_id}\" was not found."

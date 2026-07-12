@@ -6,6 +6,8 @@ export default defineLocaleModule('app/collaboration', {
     "accessLevel": "Access Level",
     "private": "Private",
     "publicLink": "Public Link",
+    "publicLinkUnavailable": "Unavailable",
+    "publicLinkUnavailableDesc": "No public access has been created for this project. It remains private; invite collaborators to grant access.",
     "inviteCollaborators": "Invite Collaborators",
     "emailPlaceholder": "Email address...",
     "invite": "Invite",

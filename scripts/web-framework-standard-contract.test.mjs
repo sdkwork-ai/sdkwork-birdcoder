@@ -11,6 +11,10 @@ function read(relativePath) {
   return fs.readFileSync(absolutePath, 'utf8');
 }
 
+function readJson(relativePath) {
+  return JSON.parse(read(relativePath));
+}
+
 function fail(message) {
   failures.push(message);
 }
@@ -66,7 +70,8 @@ if (!routeManifestBootstrap.includes('birdcoder_product_app_api_route_manifest')
   fail('standalone-gateway must compose product HttpRouteManifest from route crates');
 }
 
-const appOpenApi = read('sdks/specs/openapi/birdcoder-app-v3.openapi.json');
+const appOpenApiDocument = readJson('sdks/specs/openapi/birdcoder-app-v3.openapi.json');
+const appOpenApiPathKeys = Object.keys(appOpenApiDocument.paths ?? {});
 const requiredOpenApiPaths = [
   '/app/v3/api/intelligence/coding_sessions',
   '/app/v3/api/intelligence/coding_sessions/{sessionId}',
@@ -75,14 +80,14 @@ const requiredOpenApiPaths = [
   '/app/v3/api/intelligence/coding_sessions/{sessionId}/questions/{questionId}/answer',
 ];
 for (const routePath of requiredOpenApiPaths) {
-  if (!appOpenApi.includes(routePath)) {
+  if (!appOpenApiPathKeys.includes(routePath)) {
     fail(`birdcoder-app-v3.openapi.json must declare route path ${routePath}`);
   }
 }
-if (appOpenApi.includes('/app/v3/api/coding_sessions')) {
+if (appOpenApiPathKeys.some((routePath) => routePath === '/app/v3/api/coding_sessions' || routePath.startsWith('/app/v3/api/coding_sessions/'))) {
   fail('birdcoder-app-v3.openapi.json must not keep legacy /app/v3/api/coding_sessions paths');
 }
-if (appOpenApi.includes('coding-sessions')) {
+if (appOpenApiPathKeys.some((routePath) => routePath.includes('coding-sessions'))) {
   fail('birdcoder-app-v3.openapi.json must use lower_snake_case coding_sessions path segments');
 }
 
@@ -112,8 +117,16 @@ const routerContext = read('crates/sdkwork-birdcoder-router-context/src/lib.rs')
 if (!routerContext.includes('WebRequestContext')) {
   fail('sdkwork-birdcoder-router-context must resolve IAM from WebRequestContext');
 }
-if (!routerContext.includes('ProblemDetailsPayload')) {
-  fail('sdkwork-birdcoder-router-context must reject missing IAM context with ProblemDetailsPayload');
+const requiredIamContextExtractor = routerContext.match(
+  /impl<S>\s+FromRequestParts<S>\s+for\s+RequiredIamContext\b[\s\S]*?^\}/mu,
+)?.[0];
+if (!requiredIamContextExtractor) {
+  fail('sdkwork-birdcoder-router-context must implement FromRequestParts for RequiredIamContext');
+} else if (!/^\s*type\s+Rejection\s*=\s*ProblemJsonBody\s*;\s*$/mu.test(requiredIamContextExtractor)) {
+  fail('RequiredIamContext must reject missing IAM context with ProblemJsonBody');
+}
+if (routerContext.includes('ProblemDetailsPayload')) {
+  fail('sdkwork-birdcoder-router-context must not reintroduce retired ProblemDetailsPayload');
 }
 
 const handlerFiles = [

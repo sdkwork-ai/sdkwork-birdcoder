@@ -25,6 +25,7 @@ export type {
   ContentWorkbenchLabels,
   ContentWorkbenchProps,
 } from './components/ContentWorkbench';
+export { buildBirdCoderEditorModelPath } from './components/editorModelPath';
 
 export { DeferredDiffEditor } from './components/DeferredDiffEditor';
 export { DeferredRunConfigurationDialog, DeferredRunTaskDialog } from './components/DeferredRunDialogs';

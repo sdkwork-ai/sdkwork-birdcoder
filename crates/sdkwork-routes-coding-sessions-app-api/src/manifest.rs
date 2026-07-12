@@ -10,98 +10,98 @@ pub const CODING_SESSIONS_APP_API_ROUTES: &[HttpRoute] = &[
         "intelligence",
         "codingSessions.list",
     )
-    .with_required_permission("intelligence.codingSessions.read"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::SESSIONS,
         "intelligence",
         "codingSessions.create",
     )
-    .with_required_permission("intelligence.codingSessions.create"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions.create"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SESSION,
         "intelligence",
         "codingSessions.retrieve",
     )
-    .with_required_permission("intelligence.codingSessions.read"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions.read"),
     HttpRoute::dual_token(
         HttpMethod::Patch,
         paths::SESSION,
         "intelligence",
         "codingSessions.update",
     )
-    .with_required_permission("intelligence.codingSessions.update"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions.update"),
     HttpRoute::dual_token(
         HttpMethod::Delete,
         paths::SESSION,
         "intelligence",
         "codingSessions.delete",
     )
-    .with_required_permission("intelligence.codingSessions.delete"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions.delete"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::SESSION_FORK,
         "intelligence",
         "codingSessions.forks.create",
     )
-    .with_required_permission("intelligence.codingSessions.forks.create"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions-forks.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::SESSION_TURNS,
         "intelligence",
         "codingSessions.turns.create",
     )
-    .with_required_permission("intelligence.codingSessions.turns.create"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions-turns.create"),
     HttpRoute::dual_token(
         HttpMethod::Patch,
         paths::SESSION_MESSAGE,
         "intelligence",
         "codingSessions.messages.update",
     )
-    .with_required_permission("intelligence.codingSessions.messages.update"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions-messages.update"),
     HttpRoute::dual_token(
         HttpMethod::Delete,
         paths::SESSION_MESSAGE,
         "intelligence",
         "codingSessions.messages.delete",
     )
-    .with_required_permission("intelligence.codingSessions.messages.delete"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions-messages.delete"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SESSION_EVENTS,
         "intelligence",
         "codingSessions.events.list",
     )
-    .with_required_permission("intelligence.codingSessions.events.read"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions-events.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SESSION_ARTIFACTS,
         "intelligence",
         "codingSessions.artifacts.list",
     )
-    .with_required_permission("intelligence.codingSessions.artifacts.read"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions-artifacts.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::SESSION_CHECKPOINTS,
         "intelligence",
         "codingSessions.checkpoints.list",
     )
-    .with_required_permission("intelligence.codingSessions.checkpoints.read"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions-checkpoints.read"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::APPROVAL_DECISION,
         "intelligence",
         "codingSessions.checkpoints.approval.create",
     )
-    .with_required_permission("intelligence.codingSessions.checkpoints.approval.create"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions-checkpoints-approval.create"),
     HttpRoute::dual_token(
         HttpMethod::Post,
         paths::USER_QUESTION_ANSWER,
         "intelligence",
         "codingSessions.questions.answers.create",
     )
-    .with_required_permission("intelligence.codingSessions.questions.answers.create"),
+    .with_required_permission("birdcoder.intelligence-coding-sessions-questions-answers.create"),
 ];
 
 pub fn coding_sessions_app_api_route_manifest() -> HttpRouteManifest {

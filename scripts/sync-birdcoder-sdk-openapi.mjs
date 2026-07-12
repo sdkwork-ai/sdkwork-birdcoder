@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 
 import { applyWebFrameworkOpenApiExtensions } from './web-framework-openapi-extensions.mjs';
 
@@ -64,6 +65,24 @@ function writeJsonFile(filePath, value, { check, mismatches }) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, nextContent, 'utf8');
   mirrorAppSdkOpenApiIfNeeded(path.relative(rootDir, filePath).replace(/\\/gu, '/'), nextContent);
+}
+
+function writeJsonFileAndMirrorToPcSdk(relativePath, value, { check, mismatches }) {
+  const normalizedRelativePath = normalizeRelativePath(relativePath);
+  const outputPath = path.join(rootDir, ...normalizedRelativePath.split('/'));
+  writeJsonFile(outputPath, value, { check, mismatches });
+
+  if (!normalizedRelativePath.startsWith('sdks/')) {
+    return;
+  }
+
+  const pcMirrorPath = path.join(
+    rootDir,
+    'apps',
+    'sdkwork-birdcoder-pc',
+    ...normalizedRelativePath.split('/'),
+  );
+  writeJsonFile(pcMirrorPath, value, { check, mismatches });
 }
 
 function normalizeSecurityRequirement(requirement) {
@@ -201,6 +220,109 @@ function resolveSurfaceOpenApiOutputPaths(surface) {
   ];
 }
 
+function assertSurfaceSdkFamily(surface) {
+  const sdkFamily = String(surface.sdkFamily ?? '').trim();
+  assert.ok(
+    sdkFamily,
+    `SDK assembly surface ${surface.id ?? surface.surface} must declare sdkFamily for family assembly output.`,
+  );
+  return sdkFamily;
+}
+
+function readJsonFileIfExists(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return {};
+  }
+  return readJson(filePath);
+}
+
+function resolveTransportPackageName(sdkFamily) {
+  return `${sdkFamily}-generated-typescript`;
+}
+
+function normalizeTypeScriptLanguageEntry(entry, surface, sdkFamily, version) {
+  const { name: _name, ...rest } = entry && typeof entry === 'object' ? entry : {};
+  return {
+    ...rest,
+    language: 'typescript',
+    workspace: `${sdkFamily}-typescript`,
+    generatedPath: `${sdkFamily}-typescript/generated/server-openapi`,
+    generationState: 'materialized',
+    version: String(rest.version ?? version),
+    consumerPackageName: surface.packageName,
+    transportPackageName: resolveTransportPackageName(sdkFamily),
+  };
+}
+
+function normalizeRustLanguageEntry(entry, sdkFamily, version) {
+  const rest = entry && typeof entry === 'object' ? entry : {};
+  return {
+    ...rest,
+    language: 'rust',
+    workspace: `${sdkFamily}-rust`,
+    name: sdkFamily,
+    generatedPath: `${sdkFamily}-rust/generated/server-openapi`,
+    generationState: 'materialized',
+    version: String(rest.version ?? version),
+  };
+}
+
+function normalizeFamilyManifestLanguages(currentLanguages, surface, sdkFamily, version) {
+  const languages = new Map(
+    (Array.isArray(currentLanguages) ? currentLanguages : [])
+      .map((entry) => [entry.language, entry]),
+  );
+
+  return [
+    normalizeTypeScriptLanguageEntry(languages.get('typescript'), surface, sdkFamily, version),
+    normalizeRustLanguageEntry(languages.get('rust'), sdkFamily, version),
+  ];
+}
+
+function createFamilyManifest(surface, currentManifest = {}) {
+  const sdkFamily = assertSurfaceSdkFamily(surface);
+  const authority = resolveSurfaceApiAuthority(surface);
+  const version = String(surface.version ?? '0.1.0');
+
+  return {
+    ...currentManifest,
+    schemaVersion: 1,
+    workspace: sdkFamily,
+    sdkFamily,
+    sdkName: currentManifest.sdkName ?? sdkFamily,
+    packageName: surface.packageName,
+    transportPackageName: currentManifest.transportPackageName ?? resolveTransportPackageName(sdkFamily),
+    sdkOwner: SDK_OWNER,
+    apiAuthority: authority,
+    apiVersion: version,
+    standardProfile: surface.standardProfile ?? 'sdkwork-v3',
+    authoritySpec: `openapi/${authority}.openapi.json`,
+    generationInputSpec: `openapi/${authority}.sdkgen.json`,
+    derivedSpecs: {
+      ...(currentManifest.derivedSpecs ?? {}),
+      default: `openapi/${authority}.sdkgen.json`,
+    },
+    discoverySurface: {
+      ...(currentManifest.discoverySurface ?? {}),
+      sdkTarget: surface.surface,
+      apiPrefix: surface.apiPrefix,
+      generatedProtocols: ['http-openapi'],
+    },
+    sdkDependencies: surface.sdkDependencies ?? [],
+    languages: normalizeFamilyManifestLanguages(currentManifest.languages, surface, sdkFamily, version),
+  };
+}
+
+function syncFamilyManifest(surface, { check, mismatches }) {
+  const familyRoot = resolveSurfaceFamilyRoot(surface);
+  const manifestPath = path.join(rootDir, ...familyRoot.split('/'), 'sdk-manifest.json');
+  writeJsonFileAndMirrorToPcSdk(
+    `${familyRoot}/sdk-manifest.json`,
+    createFamilyManifest(surface, readJsonFileIfExists(manifestPath)),
+    { check, mismatches },
+  );
+}
+
 function addComponentRef(ref, neededComponents, queue) {
   const match = /^#\/components\/(?<componentType>[A-Za-z0-9_-]+)\/(?<componentName>[A-Za-z0-9_.-]+)$/u.exec(
     String(ref ?? ''),
@@ -332,6 +454,7 @@ export function syncBirdcoderSdkOpenApi({ check = false } = {}) {
       const outputPath = path.join(rootDir, ...outputSpecPath.split('/'));
       writeJsonFile(outputPath, surfaceDocument, { check, mismatches });
     }
+    syncFamilyManifest(surface, { check, mismatches });
   }
 
   if (mismatches.length > 0) {
@@ -345,7 +468,7 @@ function parseArgs(argv) {
   };
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1].replace(/\\/gu, '/')}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     syncBirdcoderSdkOpenApi(parseArgs(process.argv.slice(2)));
     console.log('birdcoder SDK OpenAPI sync passed.');

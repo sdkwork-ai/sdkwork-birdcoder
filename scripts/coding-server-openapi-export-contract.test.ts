@@ -104,7 +104,7 @@ try {
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/model_config']?.put?.operationId,
-    'modelConfig.sync',
+    'modelConfig.update',
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/intelligence/coding_sessions/{sessionId}']?.patch?.operationId,
@@ -172,7 +172,7 @@ try {
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/projects/{projectId}/publish']?.post?.operationId,
-    'projects.publish.create',
+    'projects.publish.publish',
   );
   assert.equal(
     writtenDocument.paths['/app/v3/api/auth/sessions']?.post?.operationId,
@@ -382,8 +382,9 @@ try {
     '#/components/schemas/BirdCoderIamSessionEnvelope',
   );
   assert.equal(
-    writtenDocument.paths['/app/v3/api/workspaces/{workspaceId}/realtime']?.get?.operationId,
-    'workspaces.realtime.subscribe',
+    writtenDocument.paths['/app/v3/api/workspaces/{workspaceId}/realtime'],
+    undefined,
+    'WebSocket realtime subscribe remains in the route catalog and must not be emitted as an HTTP OpenAPI operation.',
   );
   assert.match(fs.readFileSync(explicitOutputPath, 'utf8'), /\n$/);
 } finally {

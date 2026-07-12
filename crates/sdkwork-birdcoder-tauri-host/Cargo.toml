@@ -9,9 +9,14 @@ authors.workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }
 tauri = { version = "~2.11.0", features = [] }
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { workspace = true, features = ["hooks"] }
 tokio = { workspace = true }
 axum = { workspace = true }
 notify = "8"
 rfd = "0.16"
 sdkwork-birdcoder-standalone-gateway = { workspace = true }
+sdkwork-terminal-control-plane = { workspace = true }
+sdkwork-terminal-pty-runtime = { workspace = true }
+sdkwork-terminal-protocol = { workspace = true }
+sdkwork-terminal-replay-store = { workspace = true }
+sdkwork-terminal-session-runtime = { workspace = true }

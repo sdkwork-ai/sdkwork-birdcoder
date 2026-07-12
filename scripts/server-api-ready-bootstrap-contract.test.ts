@@ -7,8 +7,37 @@ const modulePath = new URL(
 
 const { waitForBirdCoderApiReady } = await import(`${modulePath.href}?t=${Date.now()}`);
 
+const observedDefaultReadinessUrls: string[] = [];
 const observedReadinessUrls: string[] = [];
 const originalFetch = globalThis.fetch;
+
+globalThis.fetch = (async (input: RequestInfo | URL) => {
+  observedDefaultReadinessUrls.push(String(input));
+  return {
+    ok: true,
+    status: 200,
+  } as Response;
+}) as typeof fetch;
+
+try {
+  await waitForBirdCoderApiReady('http://127.0.0.1:10240/birdcoder-gateway', {
+    maxAttempts: 1,
+    requestTimeoutMs: 10,
+    retryDelayMs: 1,
+  });
+} finally {
+  if (originalFetch) {
+    globalThis.fetch = originalFetch;
+  } else {
+    Reflect.deleteProperty(globalThis, 'fetch');
+  }
+}
+
+assert.deepEqual(
+  observedDefaultReadinessUrls.map((url) => new URL(url).pathname),
+  ['/birdcoder-gateway/readyz'],
+  'Startup API readiness must use the anonymous infrastructure readiness probe by default. Business app-api health routes require login credentials and must not be used as pre-auth server readiness probes.',
+);
 
 globalThis.fetch = (async (input: RequestInfo | URL) => {
   observedReadinessUrls.push(String(input));

@@ -36,11 +36,11 @@ export interface CodeEditorWorkspacePanelProps {
   onSelectFile: (path: string) => void;
   onExpandDirectory: (path: string) => void | Promise<void>;
   onCloseFile: (path: string) => void;
-  onCreateFile: (path: string) => void;
-  onCreateFolder: (path: string) => void;
+  onCreateFile: (path: string) => void | Promise<void>;
+  onCreateFolder: (path: string) => void | Promise<void>;
   onDeleteFile: (path: string) => void;
   onDeleteFolder: (path: string) => void;
-  onRenameNode: (path: string, nextPath: string) => void;
+  onRenameNode: (path: string, nextPath: string) => void | Promise<void>;
   onAcceptDiff: () => void | Promise<void>;
   onRejectDiff: () => void;
   onFileDraftChange: (value: string) => void;

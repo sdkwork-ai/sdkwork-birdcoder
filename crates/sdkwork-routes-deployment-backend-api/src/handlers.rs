@@ -8,16 +8,15 @@ use sdkwork_birdcoder_deployment_service::service::deployment_service::Deploymen
 use sdkwork_birdcoder_errors::{
     build_offset_list_envelope, trace_id_from_request_id, ApiListEnvelope,
 };
-use sdkwork_birdcoder_project_service::pagination::clamp_list_page_size;
-use sdkwork_birdcoder_router_context::{deployment_context, workspace_context, RequiredIamContext, WebRequestContext};
+use sdkwork_birdcoder_router_context::{
+    deployment_context, workspace_context, RequiredIamContext, StrictOffsetListQuery,
+    WebRequestContext,
+};
 use sdkwork_birdcoder_workspace_service::domain::results::{TeamMemberPayload, TeamPayload};
 use sdkwork_birdcoder_workspace_service::service::team_service::TeamService;
 
 use crate::error;
-use crate::mapper::request::{
-    DeploymentListQuery, DeploymentTargetListQuery, ProjectIdPathParams, ReleaseListQuery,
-    TeamIdPathParams, TeamListQuery, TeamMemberListQuery,
-};
+use crate::mapper::request::{ProjectIdPathParams, TeamIdPathParams, TeamListQuery};
 
 fn request_trace_id(web: &WebRequestContext) -> Option<&str> {
     trace_id_from_request_id(web.request_id.0.as_str())
@@ -36,27 +35,25 @@ pub struct DeploymentBackendAppState {
 pub async fn admin_deployment_targets(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<DeploymentBackendAppState>,
     Path(params): Path<ProjectIdPathParams>,
-    Query(query): Query<DeploymentTargetListQuery>,
-) -> Result<
-    Json<ApiListEnvelope<DeploymentTargetPayload>>,
-    sdkwork_birdcoder_errors::ProblemJsonBody,
->
+) -> Result<Json<ApiListEnvelope<DeploymentTargetPayload>>, sdkwork_birdcoder_errors::ProblemJsonBody>
 {
     let trace_id = request_trace_id(&web);
     let ctx = deployment_context(&iam);
     // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .service
-        .list_deployment_targets_by_project(&ctx, &params.project_id, offset, limit)
+        .list_deployment_targets_by_project(&ctx, &params.project_id, offset, page_size)
         .await
     {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),
@@ -67,22 +64,19 @@ pub async fn admin_deployment_targets(
 pub async fn admin_releases(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<DeploymentBackendAppState>,
-    Query(query): Query<ReleaseListQuery>,
-) -> Result<
-    Json<ApiListEnvelope<ReleasePayload>>,
-    sdkwork_birdcoder_errors::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiListEnvelope<ReleasePayload>>, sdkwork_birdcoder_errors::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = deployment_context(&iam);
     // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
-    match state.service.list_releases(&ctx, offset, limit).await {
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
+    match state.service.list_releases(&ctx, offset, page_size).await {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),
@@ -93,22 +87,23 @@ pub async fn admin_releases(
 pub async fn admin_deployments(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<DeploymentBackendAppState>,
-    Query(query): Query<DeploymentListQuery>,
-) -> Result<
-    Json<ApiListEnvelope<DeploymentPayload>>,
-    sdkwork_birdcoder_errors::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiListEnvelope<DeploymentPayload>>, sdkwork_birdcoder_errors::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = deployment_context(&iam);
     // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
-    match state.service.list_deployments(&ctx, offset, limit).await {
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
+    match state
+        .service
+        .list_deployments(&ctx, offset, page_size)
+        .await
+    {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),
@@ -119,13 +114,15 @@ pub async fn admin_deployments(
 pub async fn admin_teams(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<DeploymentBackendAppState>,
     Query(query): Query<TeamListQuery>,
 ) -> Result<Json<ApiListEnvelope<TeamPayload>>, sdkwork_birdcoder_errors::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = workspace_context(&iam);
     // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .team_service
         .list_teams(
@@ -133,14 +130,14 @@ pub async fn admin_teams(
             query.workspace_id.as_deref(),
             query.user_id.as_deref(),
             offset,
-            limit,
+            page_size,
         )
         .await
     {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),
@@ -151,26 +148,24 @@ pub async fn admin_teams(
 pub async fn admin_team_members(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<DeploymentBackendAppState>,
     Path(params): Path<TeamIdPathParams>,
-    Query(query): Query<TeamMemberListQuery>,
-) -> Result<
-    Json<ApiListEnvelope<TeamMemberPayload>>,
-    sdkwork_birdcoder_errors::ProblemJsonBody,
-> {
+) -> Result<Json<ApiListEnvelope<TeamMemberPayload>>, sdkwork_birdcoder_errors::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = workspace_context(&iam);
     // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .team_service
-        .list_team_members(&ctx, &params.team_id, offset, limit)
+        .list_team_members(&ctx, &params.team_id, offset, page_size)
         .await
     {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),

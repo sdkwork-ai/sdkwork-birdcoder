@@ -93,7 +93,6 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-commons',
     '@sdkwork/birdcoder-pc-infrastructure-runtime',
-    '@sdkwork/birdcoder-pc-skills',
     '@sdkwork/birdcoder-pc-ui',
     '@sdkwork/birdcoder-pc-ui-shell',
   ])],
@@ -104,9 +103,7 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-iam',
     '@sdkwork/birdcoder-pc-multiwindow',
     '@sdkwork/birdcoder-pc-settings',
-    '@sdkwork/birdcoder-pc-skills',
     '@sdkwork/birdcoder-pc-studio',
-    '@sdkwork/birdcoder-pc-templates',
     '@sdkwork/birdcoder-pc-types',
     '@sdkwork/birdcoder-pc-ui-shell',
     '@sdkwork/birdcoder-pc-user',
@@ -119,20 +116,12 @@ const allowedInternalDependencies = new Map([
     '@sdkwork/birdcoder-pc-workbench-state',
     '@sdkwork/birdcoder-pc-workbench-storage',
   ])],
-  ['@sdkwork/birdcoder-pc-skills', new Set([
-    '@sdkwork/birdcoder-pc-types',
-    '@sdkwork/birdcoder-pc-ui',
-  ])],
   ['@sdkwork/birdcoder-pc-studio', new Set([
     '@sdkwork/birdcoder-pc-codeengine',
     '@sdkwork/birdcoder-pc-commons',
     '@sdkwork/birdcoder-pc-host-studio',
     '@sdkwork/birdcoder-pc-ui',
     '@sdkwork/birdcoder-pc-ui-shell',
-  ])],
-  ['@sdkwork/birdcoder-pc-templates', new Set([
-    '@sdkwork/birdcoder-pc-types',
-    '@sdkwork/birdcoder-pc-ui',
   ])],
   ['@sdkwork/birdcoder-pc-types', new Set([
     '@sdkwork/birdcoder-chat-contracts',

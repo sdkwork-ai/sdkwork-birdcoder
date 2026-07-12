@@ -582,13 +582,15 @@ fn project_opencode_tool_part_event(
     Some(build_opencode_tool_stream_event(
         session_id,
         state,
-        tool_name,
-        tool_call_id,
-        tool_arguments,
-        status,
-        runtime_status.to_owned(),
-        interaction_state.requires_approval,
-        interaction_state.requires_reply,
+        OpencodeToolStreamEventInput {
+            tool_name,
+            tool_call_id,
+            tool_arguments,
+            status,
+            runtime_status: runtime_status.to_owned(),
+            requires_approval: interaction_state.requires_approval,
+            requires_reply: interaction_state.requires_reply,
+        },
     ))
 }
 
@@ -616,13 +618,15 @@ fn project_opencode_permission_asked_events(
     let event = build_opencode_tool_stream_event(
         session_id,
         state,
-        "permission_request".to_owned(),
-        permission_id,
-        Value::Object(payload),
-        "running".to_owned(),
-        "awaiting_approval".to_owned(),
-        true,
-        false,
+        OpencodeToolStreamEventInput {
+            tool_name: "permission_request".to_owned(),
+            tool_call_id: permission_id,
+            tool_arguments: Value::Object(payload),
+            status: "running".to_owned(),
+            runtime_status: "awaiting_approval".to_owned(),
+            requires_approval: true,
+            requires_reply: false,
+        },
     );
     let mut approval_event = event.clone();
     approval_event.kind = "approval.required".to_owned();
@@ -666,13 +670,15 @@ fn project_opencode_permission_updated_events(
     vec![build_opencode_tool_stream_event(
         session_id,
         state,
-        "permission_request".to_owned(),
-        permission_id,
-        Value::Object(payload),
-        status,
-        runtime_status.to_owned(),
-        false,
-        false,
+        OpencodeToolStreamEventInput {
+            tool_name: "permission_request".to_owned(),
+            tool_call_id: permission_id,
+            tool_arguments: Value::Object(payload),
+            status,
+            runtime_status: runtime_status.to_owned(),
+            requires_approval: false,
+            requires_reply: false,
+        },
     )]
 }
 
@@ -696,13 +702,15 @@ fn project_opencode_question_asked_events(
     vec![build_opencode_tool_stream_event(
         session_id,
         state,
-        "user_question".to_owned(),
-        request_id,
-        Value::Object(payload),
-        "running".to_owned(),
-        "awaiting_user".to_owned(),
-        false,
-        true,
+        OpencodeToolStreamEventInput {
+            tool_name: "user_question".to_owned(),
+            tool_call_id: request_id,
+            tool_arguments: Value::Object(payload),
+            status: "running".to_owned(),
+            runtime_status: "awaiting_user".to_owned(),
+            requires_approval: false,
+            requires_reply: true,
+        },
     )]
 }
 
@@ -731,13 +739,15 @@ fn project_opencode_question_replied_events(
     vec![build_opencode_tool_stream_event(
         session_id,
         state,
-        "user_question".to_owned(),
-        request_id,
-        Value::Object(payload),
-        "success".to_owned(),
-        "awaiting_tool".to_owned(),
-        false,
-        false,
+        OpencodeToolStreamEventInput {
+            tool_name: "user_question".to_owned(),
+            tool_call_id: request_id,
+            tool_arguments: Value::Object(payload),
+            status: "success".to_owned(),
+            runtime_status: "awaiting_tool".to_owned(),
+            requires_approval: false,
+            requires_reply: false,
+        },
     )]
 }
 
@@ -760,19 +770,19 @@ fn project_opencode_question_rejected_events(
     vec![build_opencode_tool_stream_event(
         session_id,
         state,
-        "user_question".to_owned(),
-        request_id,
-        Value::Object(payload),
-        "error".to_owned(),
-        "failed".to_owned(),
-        false,
-        false,
+        OpencodeToolStreamEventInput {
+            tool_name: "user_question".to_owned(),
+            tool_call_id: request_id,
+            tool_arguments: Value::Object(payload),
+            status: "error".to_owned(),
+            runtime_status: "failed".to_owned(),
+            requires_approval: false,
+            requires_reply: false,
+        },
     )]
 }
 
-fn build_opencode_tool_stream_event(
-    session_id: &str,
-    state: &mut OpencodeStreamProjectionState,
+struct OpencodeToolStreamEventInput {
     tool_name: String,
     tool_call_id: String,
     tool_arguments: Value,
@@ -780,7 +790,23 @@ fn build_opencode_tool_stream_event(
     runtime_status: String,
     requires_approval: bool,
     requires_reply: bool,
+}
+
+fn build_opencode_tool_stream_event(
+    session_id: &str,
+    state: &mut OpencodeStreamProjectionState,
+    input: OpencodeToolStreamEventInput,
 ) -> CodeEngineTurnStreamEventRecord {
+    let OpencodeToolStreamEventInput {
+        tool_name,
+        tool_call_id,
+        tool_arguments,
+        status,
+        runtime_status,
+        requires_approval,
+        requires_reply,
+    } = input;
+
     let is_terminal = status == "success"
         || status == "error"
         || matches!(
@@ -983,9 +1009,7 @@ fn map_opencode_permission_reply(decision: &str) -> Result<String, String> {
             Ok("always".to_owned())
         }
         "denied" | "deny" | "blocked" | "reject" | "rejected" => Ok("reject".to_owned()),
-        value if value.is_empty() => {
-            Err("OpenCode permission reply requires a decision.".to_owned())
-        }
+        "" => Err("OpenCode permission reply requires a decision.".to_owned()),
         value => Err(format!(
             "OpenCode permission reply does not support decision \"{value}\"."
         )),

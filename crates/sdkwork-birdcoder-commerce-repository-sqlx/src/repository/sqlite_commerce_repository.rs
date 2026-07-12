@@ -3,8 +3,10 @@ use sqlx::{AnyPool, Row};
 use sdkwork_birdcoder_commerce_service::domain::models::{
     CommerceInvoicePayload, CommerceListQuery, CommerceOrderPayload, CommercePaymentPayload,
 };
-use sdkwork_birdcoder_commerce_service::service::commerce_service::CommerceRepository;
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{any_sql, inserted_row_id};
+use sdkwork_birdcoder_commerce_service::service::commerce_service::{
+    CommerceRepository, FinalizePendingPaymentInput,
+};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::inserted_row_id;
 
 #[derive(Clone)]
 pub struct SqliteCommerceRepository {
@@ -429,14 +431,17 @@ impl CommerceRepository for SqliteCommerceRepository {
 
     async fn finalize_pending_payment(
         &self,
-        tenant_id: i64,
-        user_id: i64,
-        payment_id: i64,
-        channel_transaction_id: &str,
-        invoice: &CommerceInvoicePayload,
-        order_id: i64,
-        paid_at: &str,
+        input: FinalizePendingPaymentInput<'_>,
     ) -> Result<CommercePaymentPayload, String> {
+        let FinalizePendingPaymentInput {
+            tenant_id,
+            user_id,
+            payment_id,
+            channel_transaction_id,
+            invoice,
+            order_id,
+            paid_at,
+        } = input;
         let mut tx = self.pool.begin().await.map_err(|e| e.to_string())?;
 
         let updated = sqlx::query(

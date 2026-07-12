@@ -20,7 +20,7 @@ export default defineConfig({
   webServer: [
     {
       command: 'node ../../scripts/pc-e2e-mock-api-server.mjs',
-      url: `${mockApiBaseUrl}/app/v3/api/system/health`,
+      url: `${mockApiBaseUrl}/readyz`,
       reuseExistingServer: reuse,
       timeout: 30_000,
       env: {

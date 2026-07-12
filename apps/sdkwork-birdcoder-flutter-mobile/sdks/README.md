@@ -4,7 +4,7 @@ This directory contains SDK family workspaces and generation manifests for the F
 
 ## SDK Families
 
-Consumer SDK assembly is declared in `.sdkwork-assembly.json`. Dart consumer packages live under `sdks/sdkwork_birdcoder_flutter_mobile_*_sdk_consumer/` until OpenAPI Dart generation replaces the explicit pending markers.
+Surface composition is declared in the root `.sdkwork-assembly.json`. Each Dart consumer SDK family declares its generation metadata in its own `sdk-manifest.json` under `sdks/sdkwork_birdcoder_flutter_mobile_*_sdk_consumer/`.
 
 ## Expected Structure
 
@@ -16,10 +16,14 @@ sdks/
     component.spec.json
     domain-catalog.json
     openapi/
-  sdkwork_birdcoder_flutter_mobile_app_sdk/
-    sdkwork_birdcoder_flutter_mobile_app_sdk_dart/
-  sdkwork_birdcoder_flutter_mobile_backend_sdk/
-    sdkwork_birdcoder_flutter_mobile_backend_sdk_dart/
+  sdkwork_birdcoder_flutter_mobile_app_sdk_consumer/
+    sdk-manifest.json
+    generated/server-openapi/
+    lib/
+  sdkwork_birdcoder_flutter_mobile_backend_sdk_consumer/
+    sdk-manifest.json
+    generated/server-openapi/
+    lib/
 ```
 
 ## Generation

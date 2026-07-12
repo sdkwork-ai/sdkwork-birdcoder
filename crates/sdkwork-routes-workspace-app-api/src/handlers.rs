@@ -1,17 +1,18 @@
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_offset_list_envelope, trace_id_from_request_id,
-    ApiDataEnvelope, ApiListEnvelope,
+    build_data_envelope, build_offset_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
+    ApiListEnvelope,
 };
-use sdkwork_birdcoder_project_service::pagination::clamp_list_page_size;
 use sdkwork_birdcoder_router_context::{
-    deployment_context, project_context, workspace_context, RequiredIamContext, WebRequestContext,
+    deployment_context, project_context, workspace_context, RequiredIamContext,
+    StrictOffsetListQuery, WebRequestContext,
 };
 use sdkwork_birdcoder_workspace_service::domain::commands::{
     CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest,
@@ -25,10 +26,9 @@ use sdkwork_birdcoder_workspace_service::service::team_service::TeamService;
 use sdkwork_birdcoder_workspace_service::service::workspace_service::WorkspaceService;
 
 use sdkwork_birdcoder_project_service::domain::commands::{
-    CreateProjectRequest, UpdateProjectRequest, UpsertProjectCollaboratorRequest,
-    CreateProjectGitBranchRequest, SwitchProjectGitBranchRequest,
-    CommitProjectGitChangesRequest, PushProjectGitBranchRequest,
-    CreateProjectGitWorktreeRequest, RemoveProjectGitWorktreeRequest,
+    CommitProjectGitChangesRequest, CreateProjectGitBranchRequest, CreateProjectGitWorktreeRequest,
+    CreateProjectRequest, PushProjectGitBranchRequest, RemoveProjectGitWorktreeRequest,
+    SwitchProjectGitBranchRequest, UpdateProjectRequest, UpsertProjectCollaboratorRequest,
 };
 use sdkwork_birdcoder_project_service::domain::results::{
     DeleteEntityPayload, ProjectCollaboratorPayload, ProjectPayload,
@@ -45,12 +45,11 @@ use sdkwork_birdcoder_deployment_service::service::deployment_service::Deploymen
 
 use crate::error;
 use crate::mapper::request::{
-    CreateGitBranchBody, CreateGitWorktreeBody, CreateProjectBody, CreateWorkspaceBody,
-    CommitGitChangesBody, DeploymentListQuery, DeploymentTargetListQuery, MemberListQuery,
-    ProjectCollaboratorListQuery, ProjectListQuery, ProjectPathParams, PublishProjectBody,
+    CommitGitChangesBody, CreateGitBranchBody, CreateGitWorktreeBody, CreateProjectBody,
+    CreateWorkspaceBody, ProjectListQuery, ProjectPathParams, PublishProjectBody,
     PushGitBranchBody, RemoveGitWorktreeBody, SwitchGitBranchBody, TeamListQuery,
-    UpdateProjectBody, UpdateWorkspaceBody, UpsertProjectCollaboratorBody, UpsertWorkspaceMemberBody,
-    WorkspaceListQuery, WorkspacePathParams,
+    UpdateProjectBody, UpdateWorkspaceBody, UpsertProjectCollaboratorBody,
+    UpsertWorkspaceMemberBody, WorkspaceListQuery, WorkspacePathParams,
 };
 use crate::realtime_hub::{
     build_workspace_ready_message, RealtimeSubscriberLimitExceeded, WorkspaceRealtimeHub,
@@ -84,6 +83,7 @@ pub(crate) struct WorkspaceRealtimeQuery {
 pub async fn list_workspaces(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<WorkspaceAppState>,
     Query(query): Query<WorkspaceListQuery>,
 ) -> Result<Json<ApiListEnvelope<WorkspacePayload>>, error::ProblemJsonBody> {
@@ -96,16 +96,15 @@ pub async fn list_workspaces(
             ));
         }
     }
-    // PAGINATION_SPEC.md §3: normalize page_size at the route layer;
-    // repository pushes LIMIT/OFFSET down to SQL (§2/§5).
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     let scoped = WorkspaceScopedQuery {
         root_path: None,
         user_id: Some(iam.user_id.clone()),
         workspace_id: None,
         pagination: sdkwork_birdcoder_workspace_service::domain::models::ListPagination {
-            offset: Some(offset as i64),
-            limit: Some(limit as i64),
+            offset: Some(pagination.offset),
+            page_size: Some(pagination.page_size),
         },
     };
     let trace_id = request_trace_id(&web);
@@ -113,7 +112,7 @@ pub async fn list_workspaces(
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),
@@ -128,7 +127,11 @@ pub async fn get_workspace(
     Path(params): Path<WorkspacePathParams>,
 ) -> Result<Json<ApiDataEnvelope<WorkspacePayload>>, error::ProblemJsonBody> {
     let ctx = workspace_context(&iam);
-    match state.workspace_service.get_workspace(&ctx, &params.workspace_id).await {
+    match state
+        .workspace_service
+        .get_workspace(&ctx, &params.workspace_id)
+        .await
+    {
         Ok(workspace) => Ok(Json(build_data_envelope(workspace, request_id(&web)))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
@@ -144,29 +147,33 @@ pub async fn create_workspace(
     let request = CreateWorkspaceRequest {
         name: body.name,
         description: body.description,
-        tenant_id: None,
-        organization_id: None,
-        data_scope: None,
-        code: None,
-        title: None,
-        owner_id: None,
-        leader_id: None,
-        created_by_user_id: None,
-        icon: None,
-        color: None,
-        entity_type: None,
-        start_time: None,
-        end_time: None,
-        max_members: None,
-        current_members: None,
-        member_count: None,
-        max_storage: None,
-        used_storage: None,
-        settings: None,
-        is_public: None,
-        is_template: None,
+        tenant_id: body.tenant_id,
+        organization_id: body.organization_id,
+        data_scope: body.data_scope,
+        code: body.code,
+        title: body.title,
+        owner_id: body.owner_id,
+        leader_id: body.leader_id,
+        created_by_user_id: body.created_by_user_id,
+        icon: body.icon,
+        color: body.color,
+        entity_type: body.entity_type,
+        start_time: body.start_time,
+        end_time: body.end_time,
+        max_members: body.max_members,
+        current_members: body.current_members,
+        member_count: body.member_count,
+        max_storage: body.max_storage,
+        used_storage: body.used_storage,
+        settings: body.settings,
+        is_public: body.is_public,
+        is_template: body.is_template,
     };
-    match state.workspace_service.create_workspace(&ctx, &request).await {
+    match state
+        .workspace_service
+        .create_workspace(&ctx, &request)
+        .await
+    {
         Ok(workspace) => Ok(Json(build_data_envelope(workspace, request_id(&web)))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
@@ -183,27 +190,31 @@ pub async fn update_workspace(
     let request = UpdateWorkspaceRequest {
         name: body.name,
         description: body.description,
-        data_scope: None,
-        code: None,
-        title: None,
-        owner_id: None,
-        leader_id: None,
-        icon: None,
-        color: None,
-        entity_type: None,
-        start_time: None,
-        end_time: None,
-        max_members: None,
-        current_members: None,
-        member_count: None,
-        max_storage: None,
-        used_storage: None,
-        settings: None,
-        is_public: None,
-        is_template: None,
-        status: None,
+        data_scope: body.data_scope,
+        code: body.code,
+        title: body.title,
+        owner_id: body.owner_id,
+        leader_id: body.leader_id,
+        icon: body.icon,
+        color: body.color,
+        entity_type: body.entity_type,
+        start_time: body.start_time,
+        end_time: body.end_time,
+        max_members: body.max_members,
+        current_members: body.current_members,
+        member_count: body.member_count,
+        max_storage: body.max_storage,
+        used_storage: body.used_storage,
+        settings: body.settings,
+        is_public: body.is_public,
+        is_template: body.is_template,
+        status: body.status,
     };
-    match state.workspace_service.update_workspace(&ctx, &params.workspace_id, &request).await {
+    match state
+        .workspace_service
+        .update_workspace(&ctx, &params.workspace_id, &request)
+        .await
+    {
         Ok(workspace) => Ok(Json(build_data_envelope(workspace, request_id(&web)))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
@@ -216,7 +227,11 @@ pub async fn delete_workspace(
     Path(params): Path<WorkspacePathParams>,
 ) -> Result<Json<ApiDataEnvelope<WorkspaceDeleteEntityPayload>>, error::ProblemJsonBody> {
     let ctx = workspace_context(&iam);
-    match state.workspace_service.delete_workspace(&ctx, &params.workspace_id).await {
+    match state
+        .workspace_service
+        .delete_workspace(&ctx, &params.workspace_id)
+        .await
+    {
         Ok(result) => Ok(Json(build_data_envelope(result, request_id(&web)))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
@@ -319,21 +334,22 @@ async fn handle_workspace_realtime(
 pub async fn list_workspace_members(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<WorkspacePathParams>,
-    Query(query): Query<MemberListQuery>,
 ) -> Result<Json<ApiListEnvelope<WorkspaceMemberPayload>>, error::ProblemJsonBody> {
     let ctx = workspace_context(&iam);
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .workspace_service
-        .list_workspace_members(&ctx, &params.workspace_id, offset, limit)
+        .list_workspace_members(&ctx, &params.workspace_id, offset, page_size)
         .await
     {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),
@@ -354,11 +370,15 @@ pub async fn upsert_workspace_member(
         email: body.email,
         team_id: body.team_id,
         role: body.role,
-        status: None,
-        created_by_user_id: None,
-        granted_by_user_id: None,
+        status: body.status,
+        created_by_user_id: body.created_by_user_id,
+        granted_by_user_id: body.granted_by_user_id,
     };
-    match state.workspace_service.upsert_workspace_member(&ctx, &params.workspace_id, &request).await {
+    match state
+        .workspace_service
+        .upsert_workspace_member(&ctx, &params.workspace_id, &request)
+        .await
+    {
         Ok(member) => Ok(Json(build_data_envelope(member, request_id(&web)))),
         Err(e) => Err(error::map_workspace_error(e, request_trace_id(&web))),
     }
@@ -369,17 +389,19 @@ pub async fn upsert_workspace_member(
 pub async fn list_projects(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<WorkspaceAppState>,
     Query(query): Query<ProjectListQuery>,
 ) -> Result<Json<ApiListEnvelope<ProjectPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     let ctx = project_context(&iam);
-    let workspace_id = query.workspace_id.as_deref().filter(|value| !sdkwork_utils_rust::is_blank(Some(value))).ok_or_else(|| {
-        error::map_validation_error(
-            "workspaceId is required to list projects.",
-            trace_id,
-        )
-    })?;
+    let workspace_id = query
+        .workspace_id
+        .as_deref()
+        .filter(|value| !sdkwork_utils_rust::is_blank(Some(value)))
+        .ok_or_else(|| {
+            error::map_validation_error("workspaceId is required to list projects.", trace_id)
+        })?;
     let workspace_ctx = workspace_context(&iam);
     state
         .workspace_service
@@ -398,7 +420,8 @@ pub async fn list_projects(
             ));
         }
     }
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .project_service
         .list_projects(
@@ -407,14 +430,14 @@ pub async fn list_projects(
             query.root_path.as_deref(),
             query.user_id.as_deref(),
             offset,
-            limit,
+            page_size,
         )
         .await
     {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),
@@ -429,7 +452,11 @@ pub async fn get_project(
     Path(params): Path<ProjectPathParams>,
 ) -> Result<Json<ApiDataEnvelope<ProjectPayload>>, error::ProblemJsonBody> {
     let ctx = project_context(&iam);
-    match state.project_service.get_project(&ctx, &params.project_id).await {
+    match state
+        .project_service
+        .get_project(&ctx, &params.project_id)
+        .await
+    {
         Ok(project) => Ok(Json(build_data_envelope(project, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
@@ -446,34 +473,34 @@ pub async fn create_project(
         workspace_id: body.workspace_id,
         name: body.name,
         description: body.description,
-        workspace_uuid: None,
-        tenant_id: None,
-        organization_id: None,
-        data_scope: None,
-        user_id: None,
-        parent_id: None,
-        parent_uuid: None,
-        parent_metadata: None,
-        code: None,
-        title: None,
-        owner_id: None,
-        leader_id: None,
-        created_by_user_id: None,
-        author: None,
-        entity_type: None,
-        root_path: None,
-        site_path: None,
-        domain_prefix: None,
-        file_id: None,
-        conversation_id: None,
-        start_time: None,
-        end_time: None,
-        budget_amount: None,
-        cover_image: None,
-        is_template: None,
+        workspace_uuid: body.workspace_uuid,
+        tenant_id: body.tenant_id,
+        organization_id: body.organization_id,
+        data_scope: body.data_scope,
+        user_id: body.user_id,
+        parent_id: body.parent_id,
+        parent_uuid: body.parent_uuid,
+        parent_metadata: body.parent_metadata,
+        code: body.code,
+        title: body.title,
+        owner_id: body.owner_id,
+        leader_id: body.leader_id,
+        created_by_user_id: body.created_by_user_id,
+        author: body.author,
+        entity_type: body.entity_type,
+        root_path: body.root_path,
+        site_path: body.site_path,
+        domain_prefix: body.domain_prefix,
+        file_id: body.file_id,
+        conversation_id: body.conversation_id,
+        start_time: body.start_time,
+        end_time: body.end_time,
+        budget_amount: body.budget_amount,
+        cover_image: body.cover_image,
+        is_template: body.is_template,
         app_template_version_id: None,
         template_preset_key: None,
-        status: None,
+        status: body.status,
     };
     match state.project_service.create_project(&ctx, &request).await {
         Ok(project) => Ok(Json(build_data_envelope(project, request_id(&web)))),
@@ -492,30 +519,34 @@ pub async fn update_project(
     let request = UpdateProjectRequest {
         name: body.name,
         description: body.description,
-        data_scope: None,
-        user_id: None,
-        parent_id: None,
-        parent_uuid: None,
-        parent_metadata: None,
-        code: None,
-        title: None,
-        owner_id: None,
-        leader_id: None,
-        author: None,
-        entity_type: None,
-        root_path: None,
-        site_path: None,
-        domain_prefix: None,
-        file_id: None,
-        conversation_id: None,
-        start_time: None,
-        end_time: None,
-        budget_amount: None,
-        cover_image: None,
-        is_template: None,
-        status: None,
+        data_scope: body.data_scope,
+        user_id: body.user_id,
+        parent_id: body.parent_id,
+        parent_uuid: body.parent_uuid,
+        parent_metadata: body.parent_metadata,
+        code: body.code,
+        title: body.title,
+        owner_id: body.owner_id,
+        leader_id: body.leader_id,
+        author: body.author,
+        entity_type: body.entity_type,
+        root_path: body.root_path,
+        site_path: body.site_path,
+        domain_prefix: body.domain_prefix,
+        file_id: body.file_id,
+        conversation_id: body.conversation_id,
+        start_time: body.start_time,
+        end_time: body.end_time,
+        budget_amount: body.budget_amount,
+        cover_image: body.cover_image,
+        is_template: body.is_template,
+        status: body.status,
     };
-    match state.project_service.update_project(&ctx, &params.project_id, &request).await {
+    match state
+        .project_service
+        .update_project(&ctx, &params.project_id, &request)
+        .await
+    {
         Ok(project) => Ok(Json(build_data_envelope(project, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
@@ -528,7 +559,11 @@ pub async fn delete_project(
     Path(params): Path<ProjectPathParams>,
 ) -> Result<Json<ApiDataEnvelope<DeleteEntityPayload>>, error::ProblemJsonBody> {
     let ctx = project_context(&iam);
-    match state.project_service.delete_project(&ctx, &params.project_id).await {
+    match state
+        .project_service
+        .delete_project(&ctx, &params.project_id)
+        .await
+    {
         Ok(result) => Ok(Json(build_data_envelope(result, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
@@ -543,7 +578,11 @@ pub async fn get_project_git_overview(
     Path(params): Path<ProjectPathParams>,
 ) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, error::ProblemJsonBody> {
     let ctx = project_context(&iam);
-    match state.project_service.get_project_git_overview(&ctx, &params.project_id).await {
+    match state
+        .project_service
+        .get_project_git_overview(&ctx, &params.project_id)
+        .await
+    {
         Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
@@ -555,13 +594,20 @@ pub async fn create_project_git_branch(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<CreateGitBranchBody>,
-) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, error::ProblemJsonBody> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<GitProjectOverview>>), error::ProblemJsonBody> {
     let ctx = project_context(&iam);
     let request = CreateProjectGitBranchRequest {
         branch_name: body.branch_name,
     };
-    match state.project_service.create_project_git_branch(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
+    match state
+        .project_service
+        .create_project_git_branch(&ctx, &params.project_id, &request)
+        .await
+    {
+        Ok(overview) => Ok((
+            StatusCode::CREATED,
+            Json(build_data_envelope(overview, request_id(&web))),
+        )),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -572,13 +618,20 @@ pub async fn switch_project_git_branch(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<SwitchGitBranchBody>,
-) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, error::ProblemJsonBody> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<GitProjectOverview>>), error::ProblemJsonBody> {
     let ctx = project_context(&iam);
     let request = SwitchProjectGitBranchRequest {
         branch_name: body.branch_name,
     };
-    match state.project_service.switch_project_git_branch(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
+    match state
+        .project_service
+        .switch_project_git_branch(&ctx, &params.project_id, &request)
+        .await
+    {
+        Ok(overview) => Ok((
+            StatusCode::CREATED,
+            Json(build_data_envelope(overview, request_id(&web))),
+        )),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -589,13 +642,20 @@ pub async fn commit_project_git_changes(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<CommitGitChangesBody>,
-) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, error::ProblemJsonBody> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<GitProjectOverview>>), error::ProblemJsonBody> {
     let ctx = project_context(&iam);
     let request = CommitProjectGitChangesRequest {
         message: body.message,
     };
-    match state.project_service.commit_project_git_changes(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
+    match state
+        .project_service
+        .commit_project_git_changes(&ctx, &params.project_id, &request)
+        .await
+    {
+        Ok(overview) => Ok((
+            StatusCode::CREATED,
+            Json(build_data_envelope(overview, request_id(&web))),
+        )),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -606,14 +666,21 @@ pub async fn push_project_git_branch(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<PushGitBranchBody>,
-) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, error::ProblemJsonBody> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<GitProjectOverview>>), error::ProblemJsonBody> {
     let ctx = project_context(&iam);
     let request = PushProjectGitBranchRequest {
         branch_name: body.branch_name,
         remote_name: body.remote_name,
     };
-    match state.project_service.push_project_git_branch(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
+    match state
+        .project_service
+        .push_project_git_branch(&ctx, &params.project_id, &request)
+        .await
+    {
+        Ok(overview) => Ok((
+            StatusCode::CREATED,
+            Json(build_data_envelope(overview, request_id(&web))),
+        )),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -624,14 +691,21 @@ pub async fn create_project_git_worktree(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<CreateGitWorktreeBody>,
-) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, error::ProblemJsonBody> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<GitProjectOverview>>), error::ProblemJsonBody> {
     let ctx = project_context(&iam);
     let request = CreateProjectGitWorktreeRequest {
         branch_name: body.branch_name,
         path: body.path,
     };
-    match state.project_service.create_project_git_worktree(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
+    match state
+        .project_service
+        .create_project_git_worktree(&ctx, &params.project_id, &request)
+        .await
+    {
+        Ok(overview) => Ok((
+            StatusCode::CREATED,
+            Json(build_data_envelope(overview, request_id(&web))),
+        )),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -642,14 +716,21 @@ pub async fn remove_project_git_worktree(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<RemoveGitWorktreeBody>,
-) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, error::ProblemJsonBody> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<GitProjectOverview>>), error::ProblemJsonBody> {
     let ctx = project_context(&iam);
     let request = RemoveProjectGitWorktreeRequest {
         path: body.path,
         force: body.force,
     };
-    match state.project_service.remove_project_git_worktree(&ctx, &params.project_id, &request).await {
-        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
+    match state
+        .project_service
+        .remove_project_git_worktree(&ctx, &params.project_id, &request)
+        .await
+    {
+        Ok(overview) => Ok((
+            StatusCode::CREATED,
+            Json(build_data_envelope(overview, request_id(&web))),
+        )),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -659,10 +740,17 @@ pub async fn prune_project_git_worktrees(
     RequiredIamContext(iam): RequiredIamContext,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
-) -> Result<Json<ApiDataEnvelope<GitProjectOverview>>, error::ProblemJsonBody> {
+) -> Result<(StatusCode, Json<ApiDataEnvelope<GitProjectOverview>>), error::ProblemJsonBody> {
     let ctx = project_context(&iam);
-    match state.project_service.prune_project_git_worktrees(&ctx, &params.project_id).await {
-        Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
+    match state
+        .project_service
+        .prune_project_git_worktrees(&ctx, &params.project_id)
+        .await
+    {
+        Ok(overview) => Ok((
+            StatusCode::CREATED,
+            Json(build_data_envelope(overview, request_id(&web))),
+        )),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }
@@ -672,26 +760,24 @@ pub async fn prune_project_git_worktrees(
 pub async fn list_project_collaborators(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
-    Query(query): Query<ProjectCollaboratorListQuery>,
-) -> Result<
-    Json<ApiListEnvelope<ProjectCollaboratorPayload>>,
-    error::ProblemJsonBody,
-> {
+) -> Result<Json<ApiListEnvelope<ProjectCollaboratorPayload>>, error::ProblemJsonBody> {
     let ctx = project_context(&iam);
     let trace_id = request_trace_id(&web);
     // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .project_service
-        .list_project_collaborators(&ctx, &params.project_id, offset, limit)
+        .list_project_collaborators(&ctx, &params.project_id, offset, page_size)
         .await
     {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),
@@ -705,21 +791,22 @@ pub async fn upsert_project_collaborator(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<UpsertProjectCollaboratorBody>,
-) -> Result<
-    Json<ApiDataEnvelope<ProjectCollaboratorPayload>>,
-    error::ProblemJsonBody,
-> {
+) -> Result<Json<ApiDataEnvelope<ProjectCollaboratorPayload>>, error::ProblemJsonBody> {
     let ctx = project_context(&iam);
     let request = UpsertProjectCollaboratorRequest {
         user_id: body.user_id,
         email: body.email,
         team_id: body.team_id,
         role: body.role,
-        status: None,
-        created_by_user_id: None,
-        granted_by_user_id: None,
+        status: body.status,
+        created_by_user_id: body.created_by_user_id,
+        granted_by_user_id: body.granted_by_user_id,
     };
-    match state.project_service.upsert_project_collaborator(&ctx, &params.project_id, &request).await {
+    match state
+        .project_service
+        .upsert_project_collaborator(&ctx, &params.project_id, &request)
+        .await
+    {
         Ok(collaborator) => Ok(Json(build_data_envelope(collaborator, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
@@ -730,25 +817,23 @@ pub async fn upsert_project_collaborator(
 pub async fn list_deployments(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<WorkspaceAppState>,
-    Query(query): Query<DeploymentListQuery>,
-) -> Result<
-    Json<ApiListEnvelope<DeploymentPayload>>,
-    error::ProblemJsonBody,
-> {
+) -> Result<Json<ApiListEnvelope<DeploymentPayload>>, error::ProblemJsonBody> {
     let ctx = deployment_context(&iam);
     let trace_id = request_trace_id(&web);
     // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .deployment_service
-        .list_deployments(&ctx, offset, limit)
+        .list_deployments(&ctx, offset, page_size)
         .await
     {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),
@@ -759,26 +844,24 @@ pub async fn list_deployments(
 pub async fn list_project_deployment_targets(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
-    Query(query): Query<DeploymentTargetListQuery>,
-) -> Result<
-    Json<ApiListEnvelope<DeploymentTargetPayload>>,
-    error::ProblemJsonBody,
-> {
+) -> Result<Json<ApiListEnvelope<DeploymentTargetPayload>>, error::ProblemJsonBody> {
     let ctx = deployment_context(&iam);
     let trace_id = request_trace_id(&web);
     // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .deployment_service
-        .list_deployment_targets_by_project(&ctx, &params.project_id, offset, limit)
+        .list_deployment_targets_by_project(&ctx, &params.project_id, offset, page_size)
         .await
     {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),
@@ -792,13 +875,14 @@ pub async fn publish_project(
     State(state): State<WorkspaceAppState>,
     Path(params): Path<ProjectPathParams>,
     Json(body): Json<PublishProjectBody>,
-) -> Result<
-    Json<ApiDataEnvelope<PublishProjectResultPayload>>,
-    error::ProblemJsonBody,
-> {
+) -> Result<Json<ApiDataEnvelope<PublishProjectResultPayload>>, error::ProblemJsonBody> {
     let project_ctx = project_context(&iam);
     let deployment_ctx = deployment_context(&iam);
-    let project = match state.project_service.get_project(&project_ctx, &params.project_id).await {
+    let project = match state
+        .project_service
+        .get_project(&project_ctx, &params.project_id)
+        .await
+    {
         Ok(project) => project,
         Err(error) => return Err(error::map_project_error(error, request_trace_id(&web))),
     };
@@ -835,6 +919,7 @@ pub async fn publish_project(
 pub async fn list_teams(
     web: WebRequestContext,
     RequiredIamContext(iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<WorkspaceAppState>,
     Query(query): Query<TeamListQuery>,
 ) -> Result<Json<ApiListEnvelope<TeamPayload>>, error::ProblemJsonBody> {
@@ -850,7 +935,8 @@ pub async fn list_teams(
     let ctx = workspace_context(&iam);
     let trace_id = request_trace_id(&web);
     // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
-    let (offset, limit) = clamp_list_page_size(query.offset, query.limit);
+    let offset = pagination.offset as usize;
+    let page_size = pagination.page_size as usize;
     match state
         .team_service
         .list_teams(
@@ -858,14 +944,14 @@ pub async fn list_teams(
             query.workspace_id.as_deref(),
             query.user_id.as_deref(),
             offset,
-            limit,
+            page_size,
         )
         .await
     {
         Ok((items, total)) => Ok(Json(build_offset_list_envelope(
             items,
             offset,
-            limit,
+            page_size,
             total,
             request_id(&web),
         ))),

@@ -21,7 +21,7 @@ export interface WorkbenchServerEngineSupportState {
   supported: boolean;
   serverImplemented: boolean;
   isServerImplemented: boolean;
-  status: 'ready' | 'unsupported';
+  status: 'implemented' | 'unsupported';
   descriptor: BirdCoderEngineDescriptor | null;
 }
 
@@ -94,7 +94,7 @@ export function resolveWorkbenchServerEngineSupportState(
     supported,
     serverImplemented: supported,
     isServerImplemented: supported,
-    status: supported ? 'ready' : 'unsupported',
+    status: supported ? 'implemented' : 'unsupported',
     descriptor: kernel?.descriptor ?? null,
   };
 }

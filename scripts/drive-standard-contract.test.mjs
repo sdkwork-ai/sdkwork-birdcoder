@@ -100,10 +100,6 @@ if (flutterChatPage.includes('uploadBirdCoderChatAttachmentToDrive')) {
   fail('Flutter ChatPage must not call Drive upload until a governed Dart drive-app-sdk consumer exists');
 }
 
-const commercialTruthDoc = read('docs/architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md');
-if (!/Flutter Drive attachments.*defer|defer until.*drive-app-sdk/u.test(commercialTruthDoc)) {
-  fail('Commercial truth doc must explicitly defer Flutter Drive attachments until Dart drive-app-sdk exists');
-}
 if (universalChat.includes('readFileAsDataUrl')) {
   fail('UniversalChat must not embed chat image attachments as inline data URLs');
 }

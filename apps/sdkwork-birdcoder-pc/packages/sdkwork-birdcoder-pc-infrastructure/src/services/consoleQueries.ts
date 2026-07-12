@@ -18,6 +18,7 @@ import type {
   BirdCoderRepresentativeDeploymentRecord,
   BirdCoderRepresentativeDeploymentTargetRecord,
   BirdCoderRepresentativePolicyRecord,
+  BirdCoderProjectListPage,
   BirdCoderRepresentativeProjectDocumentRecord,
   BirdCoderRepresentativeProjectRecord,
   BirdCoderRepresentativeReleaseRecord,
@@ -29,7 +30,7 @@ import {
   BIRDCODER_DEFAULT_LOCAL_ORGANIZATION_ID,
   BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID,
   BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
-  ensureBirdCoderBootstrapConsoleCatalog,
+  ensureBirdCoderBootstrapWorkspace,
 } from '../storage/bootstrapConsoleCatalog.ts';
 import {
   buildBirdCoderProjectContentConfigData,
@@ -59,10 +60,11 @@ export interface BirdCoderConsoleQueries {
   listDocuments(): Promise<BirdCoderRepresentativeProjectDocumentRecord[]>;
   listPolicies(): Promise<BirdCoderRepresentativePolicyRecord[]>;
   getProject(projectId: string): Promise<BirdCoderRepresentativeProjectRecord | null>;
-  listProjects(options?: {
-    rootPath?: string;
+  listProjectPage(options: {
+    page: number;
+    pageSize: number;
     workspaceId?: string;
-  }): Promise<BirdCoderRepresentativeProjectRecord[]>;
+  }): Promise<BirdCoderProjectListPage>;
   listReleases(): Promise<BirdCoderRepresentativeReleaseRecord[]>;
   listTeamMembers(options?: {
     teamId?: string;
@@ -70,6 +72,13 @@ export interface BirdCoderConsoleQueries {
   listTeams(options?: {
     workspaceId?: string;
   }): Promise<BirdCoderRepresentativeTeamRecord[]>;
+  listWorkspacePage(options: {
+    page: number;
+    pageSize: number;
+  }): Promise<{
+    items: BirdCoderWorkspaceRecord[];
+    total: number;
+  }>;
   listWorkspaces(): Promise<BirdCoderWorkspaceRecord[]>;
   updateProject(
     projectId: string,
@@ -132,41 +141,46 @@ function createUuid(): string {
   return createBirdCoderLocalBusinessUuid();
 }
 
+const MAX_PROJECT_LIST_OFFSET = 200_000;
+
+function resolveProjectPageOffset(page: number, pageSize: number): number {
+  if (!Number.isSafeInteger(page) || page < 1) {
+    throw new Error('Project list page must be a positive integer.');
+  }
+  if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > MAX_LIST_PAGE_SIZE) {
+    throw new Error(`Project list pageSize must be between 1 and ${MAX_LIST_PAGE_SIZE}.`);
+  }
+
+  const offset = (page - 1) * pageSize;
+  if (!Number.isSafeInteger(offset) || offset > MAX_PROJECT_LIST_OFFSET) {
+    throw new Error('Project list page exceeds the supported offset range.');
+  }
+  return offset;
+}
+
 async function loadRepresentativeProjectsPage(
   repositories: BirdCoderConsoleRepositories,
-  workspaceId?: string,
-): Promise<BirdCoderRepresentativeProjectRecord[]> {
+  workspaceId: string | undefined,
+  offset: number,
+  pageSize: number,
+): Promise<BirdCoderProjectListPage> {
   const normalizedWorkspaceId = workspaceId?.trim();
-  const collected: BirdCoderRepresentativeProjectRecord[] = [];
 
-  if (normalizedWorkspaceId && repositories.projects.listProjectsByWorkspaceIds) {
-    let offset = 0;
-    while (true) {
-      const page = await repositories.projects.listProjectsByWorkspaceIds(
-        [normalizedWorkspaceId],
-        { offset, limit: MAX_LIST_PAGE_SIZE },
+  if (normalizedWorkspaceId) {
+    if (!repositories.projects.listProjectsByWorkspaceIds) {
+      throw new Error(
+        'Workspace-scoped project listing requires a repository that pushes the workspace predicate into storage.',
       );
-      collected.push(...page.items);
-      if (page.items.length < MAX_LIST_PAGE_SIZE || collected.length >= page.total) {
-        return collected;
-      }
-      offset += MAX_LIST_PAGE_SIZE;
     }
+
+    return repositories.projects.listProjectsByWorkspaceIds(
+      [normalizedWorkspaceId],
+      { offset, limit: pageSize },
+    );
   }
 
   if (repositories.projects.listProjectRecordsPage) {
-    let offset = 0;
-    while (true) {
-      const page = await repositories.projects.listProjectRecordsPage({
-        offset,
-        limit: MAX_LIST_PAGE_SIZE,
-      });
-      collected.push(...page.items);
-      if (page.items.length < MAX_LIST_PAGE_SIZE || collected.length >= page.total) {
-        return collected;
-      }
-      offset += MAX_LIST_PAGE_SIZE;
-    }
+    return repositories.projects.listProjectRecordsPage({ offset, limit: pageSize });
   }
 
   throw new Error(
@@ -442,7 +456,7 @@ export function createBirdCoderConsoleQueries({
     async createWorkspace(
       request: BirdCoderCreateWorkspaceRequest,
     ): Promise<BirdCoderWorkspaceRecord> {
-      await ensureBirdCoderBootstrapConsoleCatalog({ repositories });
+      await ensureBirdCoderBootstrapWorkspace({ repositories });
       const name = normalizeRequiredText(request.name, 'name');
       const ownerId =
         normalizeOptionalText(request.ownerId) ?? BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID;
@@ -625,7 +639,15 @@ export function createBirdCoderConsoleQueries({
       };
     },
     async listWorkspaces(): Promise<BirdCoderWorkspaceRecord[]> {
-      return (await ensureBirdCoderBootstrapConsoleCatalog({ repositories })).workspaces;
+      await ensureBirdCoderBootstrapWorkspace({ repositories });
+      return repositories.workspaces.list();
+    },
+    async listWorkspacePage({ page, pageSize }) {
+      await ensureBirdCoderBootstrapWorkspace({ repositories });
+      return repositories.workspaces.listPage(
+        resolveProjectPageOffset(page, pageSize),
+        pageSize,
+      );
     },
     async listAuditEvents(): Promise<BirdCoderRepresentativeAuditRecord[]> {
       return repositories.audits.list();
@@ -645,7 +667,7 @@ export function createBirdCoderConsoleQueries({
       return repositories.policies.list();
     },
     async getProject(projectId: string): Promise<BirdCoderRepresentativeProjectRecord | null> {
-      await ensureBirdCoderBootstrapConsoleCatalog({ repositories });
+      await ensureBirdCoderBootstrapWorkspace({ repositories });
       const normalizedProjectId = normalizeRequiredText(projectId, 'projectId');
       const project = await repositories.projects.findById(normalizedProjectId);
       if (!project) {
@@ -660,33 +682,24 @@ export function createBirdCoderConsoleQueries({
         ? hydratedProject
         : null;
     },
-    async listProjects(options = {}): Promise<BirdCoderRepresentativeProjectRecord[]> {
-      await ensureBirdCoderBootstrapConsoleCatalog({ repositories });
-      const projects = filterByWorkspaceId(
-        (
-          await hydrateProjectRootPaths(
-            repositories,
-            await loadRepresentativeProjectsPage(repositories, options.workspaceId),
-          )
-        ).filter((project) => {
-          const rootPath = project.rootPath?.trim();
-          return Boolean(rootPath && isAbsoluteProjectPath(rootPath));
-        }),
-        options.workspaceId,
+    async listProjectPage({ page, pageSize, workspaceId }): Promise<BirdCoderProjectListPage> {
+      await ensureBirdCoderBootstrapWorkspace({ repositories });
+      const storagePage = await loadRepresentativeProjectsPage(
+        repositories,
+        workspaceId,
+        resolveProjectPageOffset(page, pageSize),
+        pageSize,
       );
-      const normalizedRootPath = normalizeProjectRootPathForComparison(options.rootPath);
-      if (!normalizedRootPath) {
-        return projects;
-      }
 
-      return projects.filter((project) => {
-        return normalizeProjectRootPathForComparison(project.rootPath) === normalizedRootPath;
-      });
+      return {
+        items: await hydrateProjectRootPaths(repositories, storagePage.items),
+        total: storagePage.total,
+      };
     },
     async createProject(
       request: BirdCoderCreateProjectRequest,
     ): Promise<BirdCoderRepresentativeProjectRecord> {
-      await ensureBirdCoderBootstrapConsoleCatalog({ repositories });
+      await ensureBirdCoderBootstrapWorkspace({ repositories });
       const workspaceId = normalizeRequiredText(request.workspaceId, 'workspaceId');
       const workspaceRecord = await repositories.workspaces.findById(workspaceId);
       if (!workspaceRecord) {

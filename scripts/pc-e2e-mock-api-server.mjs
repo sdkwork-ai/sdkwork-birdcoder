@@ -55,6 +55,18 @@ function handleRoute(method, pathname, request, body) {
     return { statusCode: 204, payload: null };
   }
 
+  if (pathname === '/healthz') {
+    return { statusCode: 200, payload: { status: 'ok' } };
+  }
+
+  if (pathname === '/readyz') {
+    return { statusCode: 200, payload: { status: 'ready' } };
+  }
+
+  if (pathname === '/livez') {
+    return { statusCode: 200, payload: { status: 'ok' } };
+  }
+
   if (pathname === '/app/v3/api/system/health') {
     return { statusCode: 200, payload: createBirdCoderDataEnvelope({ status: 'ok' }) };
   }

@@ -141,13 +141,8 @@ assert.match(
 
 assert.match(
   guestSpec,
-  /Project Templates/u,
-  'PC guest-home e2e must assert the guest templates surface.',
-);
-assert.match(
-  guestSpec,
-  /E2E Starter/u,
-  'PC guest-home e2e must assert the mock catalog fixture.',
+  /Sign in/u,
+  'PC guest-home e2e must redirect unauthenticated visitors to the auth surface.',
 );
 
 assert.match(

@@ -1,12 +1,11 @@
-use sdkwork_web_contract::{infer_api_surface_from_path, ApiSurface, HttpMethod, HttpRoute, RouteAuth};
+use sdkwork_web_contract::{
+    infer_api_surface_from_path, ApiSurface, HttpMethod, HttpRoute, RouteAuth,
+};
 
 use crate::domain::models::RouteCatalogEntryPayload;
 
 pub fn build_route_catalog_entries(routes: &[HttpRoute]) -> Vec<RouteCatalogEntryPayload> {
-    routes
-        .iter()
-        .map(build_route_catalog_entry)
-        .collect()
+    routes.iter().map(build_route_catalog_entry).collect()
 }
 
 pub fn count_route_catalog_entries_by_surface(routes: &[HttpRoute]) -> (usize, usize) {

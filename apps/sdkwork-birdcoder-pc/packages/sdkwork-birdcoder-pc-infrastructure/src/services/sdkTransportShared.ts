@@ -18,7 +18,13 @@ import {
   type BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-pc-types';
 import { BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-core/birdCoderApiTransportError';
+import {
+  clampListPageSize,
+  DEFAULT_LIST_PAGE_SIZE,
+  MAX_LIST_PAGE_SIZE,
+} from '@sdkwork/utils/pagination';
 import { BIRDCODER_DEFAULT_LOCAL_TENANT_ID } from '../storage/bootstrapConsoleCatalog.ts';
+import type { BirdCoderRepresentativeProjectRecord } from '../storage/appConsoleRepository.ts';
 import {
   normalizeBirdCoderApiQueryValue,
   parseBirdCoderApiJson,
@@ -51,49 +57,103 @@ const MAX_RESPONSE_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
  * misconfigured gateway returning an HTML error page or a streaming dump.
  */
 const MAX_ERROR_BODY_BYTES = 1 * 1024 * 1024; // 1 MB
+const MAX_OFFSET_LIST_OFFSET = 200_000;
+const LEGACY_OFFSET_PAGINATION_QUERY_KEYS = [
+  'pageSize',
+  'limit',
+  'offset',
+  'page_no',
+  'pageNo',
+  'per_page',
+  'size',
+] as const;
 
-/**
- * Checks the `Content-Length` response header against `maxBytes` and throws a
- * descriptive error when the declared size exceeds the cap. This prevents
- * loading oversized response bodies into memory.
- */
-function assertContentLengthWithinLimit(response: Response, maxBytes: number, label: string): void {
-  const contentLengthHeader = response.headers.get('content-length');
-  if (contentLengthHeader === null || contentLengthHeader === '') {
-    return;
+function createResponseBodyLimitError(
+  label: string,
+  maxBytes: number,
+  detail: string,
+): Error {
+  return new Error(
+    `BirdCoder API ${label} body exceeds maximum size of ${maxBytes} bytes (${detail}). Use a paginated API endpoint instead.`,
+  );
+}
+
+function readDeclaredContentLength(response: Response, label: string): bigint | null {
+  const headers = response.headers;
+  if (!headers || typeof headers.get !== 'function') {
+    throw new Error(`BirdCoder API ${label} response is missing standard Headers support.`);
   }
-  const declaredLength = Number(contentLengthHeader);
-  if (!Number.isFinite(declaredLength) || declaredLength < 0) {
-    return;
+
+  const contentLengthHeader = headers.get('content-length')?.trim();
+  if (!contentLengthHeader || !/^\d+$/u.test(contentLengthHeader)) {
+    return null;
   }
-  if (declaredLength > maxBytes) {
-    throw new Error(
-      `BirdCoder API ${label} body exceeds maximum size of ${maxBytes} bytes (declared Content-Length: ${declaredLength}). Use a paginated API endpoint instead.`,
-    );
+
+  try {
+    return BigInt(contentLengthHeader);
+  } catch {
+    return null;
   }
 }
 
-/**
- * Reads the response body as text after verifying the declared `Content-Length`
- * is within `maxBytes`. When Content-Length is missing or misleading and the
- * resulting body still exceeds `maxBytes`, a diagnostic warning is logged.
- */
 async function readResponseBodyWithSizeGuard(
   response: Response,
   maxBytes: number,
   label: string,
 ): Promise<string> {
-  assertContentLengthWithinLimit(response, maxBytes, label);
-  const rawBody = await response.text();
-  if (rawBody.length > maxBytes) {
-    console.warn(
-      `BirdCoder API ${label} body exceeded maximum size of ${maxBytes} bytes (actual length: ${rawBody.length}); Content-Length may have been missing or misleading.`,
+  const declaredLength = readDeclaredContentLength(response, label);
+  if (declaredLength !== null && declaredLength > BigInt(maxBytes)) {
+    throw createResponseBodyLimitError(
+      label,
+      maxBytes,
+      `declared Content-Length: ${declaredLength.toString()}`,
     );
   }
-  return rawBody;
-}
 
-import { clampListPageSize } from '@sdkwork/utils/pagination';
+  const body = response.body;
+  if (body === null) {
+    return '';
+  }
+  if (!body || typeof body.getReader !== 'function') {
+    throw new Error(`BirdCoder API ${label} response is missing standard ReadableStream support.`);
+  }
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      if (!(value instanceof Uint8Array)) {
+        await reader.cancel('BirdCoder API response yielded a non-byte stream chunk.').catch(() => undefined);
+        throw new Error(`BirdCoder API ${label} response yielded a non-byte stream chunk.`);
+      }
+
+      if (value.byteLength > maxBytes - totalBytes) {
+        await reader.cancel('BirdCoder API response body exceeded its configured byte limit.').catch(() => undefined);
+        throw createResponseBodyLimitError(label, maxBytes, `received bytes: ${totalBytes + value.byteLength}`);
+      }
+
+      chunks.push(value);
+      totalBytes += value.byteLength;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
 
 export function createListEnvelope<TItem>(
   items: readonly TItem[],
@@ -104,15 +164,15 @@ export function createListEnvelope<TItem>(
   } = {},
 ): BirdCoderApiListEnvelope<TItem> {
   const total = options.total ?? items.length;
+  if (!Number.isSafeInteger(total) || total < 0) {
+    throw new Error('List envelope total must be a non-negative safe integer.');
+  }
   const { offset, pageSize } = clampListPageSize(
     options.offset,
-    typeof options.pageSize === 'number' && Number.isFinite(options.pageSize) && options.pageSize > 0
-      ? options.pageSize
-      : items.length > 0
-        ? items.length
-        : undefined,
+    options.pageSize,
   );
-  const pageBase = pageSize > 0 ? pageSize : Math.max(items.length, 1);
+  const page = Math.floor(offset / pageSize) + 1;
+  const totalPages = Math.ceil(total / pageSize);
   return {
     code: 0,
     traceId: createBirdCoderLocalServerRequestId(),
@@ -120,9 +180,11 @@ export function createListEnvelope<TItem>(
       items: [...items],
       pageInfo: {
         mode: 'offset',
-        page: Math.floor(offset / pageBase) + 1,
+        hasMore: page < totalPages,
+        page,
         pageSize,
         totalItems: String(total),
+        totalPages,
       },
     },
   };
@@ -144,7 +206,11 @@ export function normalizeQueryValue(
 }
 
 function buildUrl(baseUrl: string, request: BirdCoderApiTransportRequest): URL {
-  const url = new URL(baseUrl);
+  const effectiveBaseUrl = baseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+  if (!effectiveBaseUrl) {
+    throw new Error('Cannot build API URL without a base URL or browser origin.');
+  }
+  const url = new URL(effectiveBaseUrl);
   const normalizedBasePath = url.pathname === '/' ? '' : url.pathname.replace(/\/+$/u, '');
   const normalizedRequestPath = request.path.startsWith('/') ? request.path : `/${request.path}`;
   url.pathname = `${normalizedBasePath}${normalizedRequestPath}`;
@@ -193,7 +259,7 @@ export function mapWorkspaceSummary(
 }
 
 export function mapProjectSummary(
-  project: Awaited<ReturnType<BirdCoderConsoleQueries['listProjects']>>[number],
+  project: BirdCoderRepresentativeProjectRecord,
 ): BirdCoderProjectSummary {
   const canonical = project as Partial<BirdCoderProjectSummary>;
   const ownerId = canonical.ownerId;
@@ -427,13 +493,91 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+export interface BirdCoderStrictOffsetListPage {
+  offset: number;
+  page: number;
+  pageSize: number;
+}
+
+function throwInvalidListPagination(request: BirdCoderApiTransportRequest): never {
+  throw new BirdCoderApiTransportError({
+    code: 40003,
+    detail: 'Invalid list pagination parameters.',
+    httpStatus: 400,
+    method: request.method,
+    path: request.path,
+    traceId: createBirdCoderLocalServerRequestId(),
+  });
+}
+
+function parsePositiveDecimalPaginationValue(
+  request: BirdCoderApiTransportRequest,
+  value: BirdCoderApiQueryValue,
+): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value) || value < 1) {
+      throwInvalidListPagination(request);
+    }
+    return value;
+  }
+  if (typeof value !== 'string' || !/^\d+$/u.test(value)) {
+    throwInvalidListPagination(request);
+  }
+
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throwInvalidListPagination(request);
+  }
+  return parsed;
+}
+
+export function readStrictOffsetListPage(
+  request: BirdCoderApiTransportRequest,
+): BirdCoderStrictOffsetListPage {
+  const query = request.query ?? {};
+  for (const key of LEGACY_OFFSET_PAGINATION_QUERY_KEYS) {
+    if (query[key] !== undefined) {
+      throwInvalidListPagination(request);
+    }
+  }
+  if (query.cursor !== undefined) {
+    throwInvalidListPagination(request);
+  }
+
+  const page = parsePositiveDecimalPaginationValue(request, query.page) ?? 1;
+  const pageSize =
+    parsePositiveDecimalPaginationValue(request, query.page_size) ?? DEFAULT_LIST_PAGE_SIZE;
+  if (pageSize > MAX_LIST_PAGE_SIZE) {
+    throwInvalidListPagination(request);
+  }
+
+  const offset = (page - 1) * pageSize;
+  if (!Number.isSafeInteger(offset) || offset > MAX_OFFSET_LIST_OFFSET) {
+    throwInvalidListPagination(request);
+  }
+  return { offset, page, pageSize };
+}
+
+function readProblemDetailCode(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function readProblemDetailTraceId(value: unknown): string | undefined {
+  const traceId = typeof value === 'string' ? value.trim() : '';
+  return traceId || undefined;
+}
+
 async function buildBirdCoderApiError(
   response: Response,
   request: BirdCoderApiTransportRequest,
 ): Promise<BirdCoderApiTransportError> {
   let detail = '';
-  let code: string | undefined;
+  let code: number | undefined;
   let businessCode: string | undefined;
+  let traceId: string | undefined;
 
   try {
     const rawBody = await readResponseBodyWithSizeGuard(
@@ -454,20 +598,26 @@ async function buildBirdCoderApiError(
     try {
       const parsedBody: unknown = parseBirdCoderApiJson(trimmedBody);
       if (isRecord(parsedBody)) {
+        const directDetail =
+          typeof parsedBody.detail === 'string' ? parsedBody.detail.trim() : '';
         const directMessage =
           typeof parsedBody.message === 'string' ? parsedBody.message.trim() : '';
         const dataMessage =
           isRecord(parsedBody.data) && typeof parsedBody.data.message === 'string'
             ? parsedBody.data.message.trim()
             : '';
-        detail = dataMessage || directMessage;
-        code = typeof parsedBody.code === 'string' ? parsedBody.code.trim() : undefined;
+        detail = directDetail || dataMessage || directMessage;
+        code = readProblemDetailCode(parsedBody.code);
+        traceId = readProblemDetailTraceId(parsedBody.traceId);
         businessCode =
           typeof parsedBody.businessCode === 'string'
             ? parsedBody.businessCode.trim()
             : undefined;
-        if (!code && isRecord(parsedBody.data) && typeof parsedBody.data.code === 'string') {
-          code = parsedBody.data.code.trim();
+        if (!code && isRecord(parsedBody.data)) {
+          code = readProblemDetailCode(parsedBody.data.code);
+        }
+        if (!traceId && isRecord(parsedBody.data)) {
+          traceId = readProblemDetailTraceId(parsedBody.data.traceId);
         }
       }
     } catch {
@@ -484,6 +634,7 @@ async function buildBirdCoderApiError(
     httpStatus: response.status,
     method: request.method,
     path: request.path,
+    traceId,
   });
 }
 
@@ -527,19 +678,31 @@ export function createBirdCoderHttpApiTransport({
         }, resolvedTimeoutMs);
       }
 
-      let response: Response;
       try {
-        response = await resolvedFetch(buildUrl(baseUrl, request), {
+        const response = await resolvedFetch(buildUrl(baseUrl, request), {
           method: request.method,
           headers,
           body: request.body === undefined ? undefined : stringifyBirdCoderApiJson(request.body),
           signal: abortController?.signal,
         });
+
+        if (!response.ok) {
+          throw await buildBirdCoderApiError(response, request);
+        }
+
+        const rawBody = await readResponseBodyWithSizeGuard(
+          response,
+          MAX_RESPONSE_BODY_BYTES,
+          'response',
+        );
+        const trimmedBody = rawBody.trim();
+        if (!trimmedBody) {
+          return undefined as TResponse;
+        }
+
+        return parseBirdCoderApiJson<TResponse>(trimmedBody);
       } catch (error) {
-        if (
-          requestTimedOut ||
-          (error instanceof Error && error.name === 'AbortError')
-        ) {
+        if (requestTimedOut || (error instanceof Error && error.name === 'AbortError')) {
           throw new Error(
             `BirdCoder API request timed out after ${resolvedTimeoutMs}ms: ${request.method} ${request.path}`,
           );
@@ -550,22 +713,6 @@ export function createBirdCoderHttpApiTransport({
           clearTimeout(timeoutHandle);
         }
       }
-
-      if (!response.ok) {
-        throw await buildBirdCoderApiError(response, request);
-      }
-
-      const rawBody = await readResponseBodyWithSizeGuard(
-        response,
-        MAX_RESPONSE_BODY_BYTES,
-        'response',
-      );
-      const trimmedBody = rawBody.trim();
-      if (!trimmedBody) {
-        return undefined as TResponse;
-      }
-
-      return parseBirdCoderApiJson<TResponse>(trimmedBody);
     },
   };
 }

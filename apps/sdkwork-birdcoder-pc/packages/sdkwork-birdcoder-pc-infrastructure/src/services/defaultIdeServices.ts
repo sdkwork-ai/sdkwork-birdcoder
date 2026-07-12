@@ -31,7 +31,6 @@ import { resolveRuntimeServerSessionHeaders } from './runtimeServerSession.ts';
 import {
   createBirdCoderAppSdkApiClient,
   createBirdCoderBackendSdkApiClient,
-  getBirdCoderGeneratedAppSdkClient,
   type BirdCoderAppSdkApiClient,
   type BirdCoderBackendSdkApiClient,
 } from './sdkClients.ts';
@@ -201,9 +200,7 @@ export function createDefaultBirdCoderIdeServices(
       appClient,
       currentUserProvider: runtime.authService,
     }),
-    vipMembershipService: new ApiBackedVipMembershipService({
-      appClient: getBirdCoderGeneratedAppSdkClient(),
-    }),
+    vipMembershipService: new ApiBackedVipMembershipService(),
     workspaceService,
   };
 }

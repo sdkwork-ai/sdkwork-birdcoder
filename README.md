@@ -52,9 +52,7 @@ All PC-specific packages are under `apps/sdkwork-birdcoder-pc/packages/` with th
 - `@sdkwork/birdcoder-pc-code` — Code editor
 - `@sdkwork/birdcoder-pc-studio` — Studio
 - `@sdkwork/birdcoder-pc-projection` — Kernel event → coding_session projection
-- `@sdkwork/birdcoder-pc-skills` — Skills
-- `@sdkwork/birdcoder-pc-templates` — Templates
-- ... (38 total PC packages)
+- ... (36 total PC packages)
 
 ### H5-Specific Packages
 

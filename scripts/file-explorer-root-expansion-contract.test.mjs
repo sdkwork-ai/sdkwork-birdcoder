@@ -19,7 +19,7 @@ const fileExplorerSource = fs.readFileSync(
     'FileExplorer.tsx',
   ),
   'utf8',
-);
+).replaceAll('\r\n', '\n');
 
 assert.match(
   fileExplorerSource,

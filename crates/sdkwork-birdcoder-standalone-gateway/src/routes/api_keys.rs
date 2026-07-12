@@ -11,7 +11,7 @@
 #[cfg(test)]
 use std::sync::OnceLock;
 
-use axum::extract::{Path, Query, Request, State};
+use axum::extract::{Path, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
@@ -24,8 +24,12 @@ use sqlx::Row;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
-use sdkwork_birdcoder_errors::{build_data_envelope, build_offset_list_envelope, ApiDataEnvelope, ApiListEnvelope};
-use sdkwork_utils_rust::{OffsetListPageParams, SdkWorkResultCode, validated_offset_list_params};
+use sdkwork_birdcoder_errors::{
+    build_data_envelope, build_offset_list_envelope, checked_list_total_items, ApiDataEnvelope,
+    ApiListEnvelope,
+};
+use sdkwork_birdcoder_router_context::StrictOffsetListQuery;
+use sdkwork_utils_rust::OffsetListPageParams;
 
 use crate::routes::{
     insert_rate_limit_subject, problem_response, problem_with, CommerceAppState, CommercePrincipal,
@@ -235,18 +239,33 @@ pub async fn touch_last_used_at(
 }
 
 /// Inserts a new API key row. Returns the persisted row keyed by `key_id`.
+pub struct InsertApiKeyInput<'a> {
+    pub tenant_id: i64,
+    pub workspace_id: Option<&'a str>,
+    pub key_id: &'a str,
+    pub user_id: i64,
+    pub name: &'a str,
+    pub key_hash: &'a str,
+    pub prefix: &'a str,
+    pub scopes: &'a [String],
+    pub expires_at: Option<&'a str>,
+}
+
 pub async fn insert_api_key(
     pool: &sqlx::AnyPool,
-    tenant_id: i64,
-    workspace_id: Option<&str>,
-    key_id: &str,
-    user_id: i64,
-    name: &str,
-    key_hash: &str,
-    prefix: &str,
-    scopes: &[String],
-    expires_at: Option<&str>,
+    input: InsertApiKeyInput<'_>,
 ) -> Result<ApiKeyRow, sqlx::Error> {
+    let InsertApiKeyInput {
+        tenant_id,
+        workspace_id,
+        key_id,
+        user_id,
+        name,
+        key_hash,
+        prefix,
+        scopes,
+        expires_at,
+    } = input;
     let now = now_rfc3339();
     let scopes_json = serde_json::to_string(scopes).unwrap_or_else(|_| "[]".to_string());
     let sql = format!(
@@ -322,7 +341,10 @@ pub async fn list_api_keys_for_user(
         .bind(params.offset)
         .fetch_all(pool)
         .await?;
-    let items = rows.iter().map(ApiKeyRow::from_row).collect::<Result<Vec<_>, _>>()?;
+    let items = rows
+        .iter()
+        .map(ApiKeyRow::from_row)
+        .collect::<Result<Vec<_>, _>>()?;
     Ok((items, total))
 }
 
@@ -395,11 +417,7 @@ pub async fn rotate_api_key(
 /// `commerce_api_key` table, injects [`CommercePrincipal`] and the rate-limit
 /// subject, and records `last_used_at`. Returns 401 when credentials are missing
 /// or invalid.
-pub async fn api_key_auth(
-    state: CommerceAppState,
-    mut request: Request,
-    next: Next,
-) -> Response {
+pub async fn api_key_auth(state: CommerceAppState, mut request: Request, next: Next) -> Response {
     let Some(token) = extract_bearer_token(&request) else {
         return problem_response(
             StatusCode::UNAUTHORIZED,
@@ -495,21 +513,6 @@ pub struct CreateApiKeyRequest {
     pub workspace_id: Option<String>,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ListApiKeysQuery {
-    pub page: Option<i64>,
-    pub page_size: Option<i64>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ApiKeyRevokedResponse {
-    pub id: String,
-    pub status: String,
-    pub revoked_at: String,
-}
-
 // ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
@@ -540,7 +543,10 @@ pub async fn create_api_key(
     }
 
     let scopes = body.scopes.unwrap_or_else(|| vec!["read".to_string()]);
-    let (tenant_id, user_id) = match (principal.tenant_id.parse::<i64>(), principal.user_id.parse::<i64>()) {
+    let (tenant_id, user_id) = match (
+        principal.tenant_id.parse::<i64>(),
+        principal.user_id.parse::<i64>(),
+    ) {
         (Ok(t), Ok(u)) => (t, u),
         _ => {
             return Err(problem_with(
@@ -552,30 +558,29 @@ pub async fn create_api_key(
             ));
         }
     };
-    let expires_at = body
-        .expires_in_days
-        .filter(|days| *days > 0)
-        .map(|days| {
-            OffsetDateTime::now_utc()
-                .checked_add(time::Duration::days(days))
-                .and_then(|t| t.format(&Rfc3339).ok())
-                .unwrap_or_else(|| now_rfc3339())
-        });
+    let expires_at = body.expires_in_days.filter(|days| *days > 0).map(|days| {
+        OffsetDateTime::now_utc()
+            .checked_add(time::Duration::days(days))
+            .and_then(|t| t.format(&Rfc3339).ok())
+            .unwrap_or_else(now_rfc3339)
+    });
 
     let key_id = uuid::Uuid::new_v4().to_string();
     let (plaintext, key_hash, prefix) = generate_api_key();
 
     let row = match insert_api_key(
         &state.pool,
-        tenant_id,
-        body.workspace_id.as_deref(),
-        &key_id,
-        user_id,
-        body.name.trim(),
-        &key_hash,
-        &prefix,
-        &scopes,
-        expires_at.as_deref(),
+        InsertApiKeyInput {
+            tenant_id,
+            workspace_id: body.workspace_id.as_deref(),
+            key_id: &key_id,
+            user_id,
+            name: body.name.trim(),
+            key_hash: &key_hash,
+            prefix: &prefix,
+            scopes: &scopes,
+            expires_at: expires_at.as_deref(),
+        },
     )
     .await
     {
@@ -609,8 +614,8 @@ pub async fn create_api_key(
 pub async fn list_api_keys(
     principal: CommercePrincipal,
     ctx: CommerceRequestContext,
+    StrictOffsetListQuery(params): StrictOffsetListQuery,
     State(state): State<CommerceAppState>,
-    Query(query): Query<ListApiKeysQuery>,
 ) -> Result<Json<ApiListEnvelope<ApiKeyResponse>>, ProblemJsonBody> {
     if !principal.has_scope("read") {
         return Err(problem_with(
@@ -621,7 +626,10 @@ pub async fn list_api_keys(
             ctx.trace_id_opt(),
         ));
     }
-    let (tenant_id, user_id) = match (principal.tenant_id.parse::<i64>(), principal.user_id.parse::<i64>()) {
+    let (tenant_id, user_id) = match (
+        principal.tenant_id.parse::<i64>(),
+        principal.user_id.parse::<i64>(),
+    ) {
         (Ok(t), Ok(u)) => (t, u),
         _ => {
             return Err(problem_with(
@@ -633,28 +641,8 @@ pub async fn list_api_keys(
             ));
         }
     };
-    let params = match validated_offset_list_params(query.page, query.page_size) {
-        Ok(params) => params,
-        Err(SdkWorkResultCode::InvalidParameter) => {
-            return Err(problem_with(
-                StatusCode::BAD_REQUEST,
-                "invalid_input",
-                "page must be >= 1 and page_size must be between 1 and 200",
-                false,
-                ctx.trace_id_opt(),
-            ));
-        }
-        Err(_) => {
-            return Err(problem_with(
-                StatusCode::BAD_REQUEST,
-                "invalid_input",
-                "invalid pagination parameters",
-                false,
-                ctx.trace_id_opt(),
-            ));
-        }
-    };
-    let (rows, total) = match list_api_keys_for_user(&state.pool, tenant_id, user_id, params).await {
+    let (rows, total) = match list_api_keys_for_user(&state.pool, tenant_id, user_id, params).await
+    {
         Ok(result) => result,
         Err(error) => {
             tracing::warn!(%error, "failed to list api keys");
@@ -670,7 +658,7 @@ pub async fn list_api_keys(
     let items: Vec<ApiKeyResponse> = rows.iter().map(ApiKeyRow::to_response).collect();
     let offset = usize::try_from(params.offset).unwrap_or(0);
     let page_size = usize::try_from(params.page_size).unwrap_or(1);
-    let total_items = usize::try_from(total).unwrap_or(0);
+    let total_items = checked_list_total_items(total, ctx.trace_id_opt())?;
     Ok(Json(build_offset_list_envelope(
         items,
         offset,
@@ -685,7 +673,7 @@ pub async fn revoke_api_key_handler(
     ctx: CommerceRequestContext,
     State(state): State<CommerceAppState>,
     Path(key_id): Path<String>,
-) -> Result<Json<ApiDataEnvelope<ApiKeyRevokedResponse>>, ProblemJsonBody> {
+) -> Result<StatusCode, ProblemJsonBody> {
     // Revoking is privileged; require admin scope (the owner of an admin key
     // revokes keys they own).
     if !principal.has_scope("admin") {
@@ -697,7 +685,10 @@ pub async fn revoke_api_key_handler(
             ctx.trace_id_opt(),
         ));
     }
-    let (tenant_id, user_id) = match (principal.tenant_id.parse::<i64>(), principal.user_id.parse::<i64>()) {
+    let (tenant_id, user_id) = match (
+        principal.tenant_id.parse::<i64>(),
+        principal.user_id.parse::<i64>(),
+    ) {
         (Ok(t), Ok(u)) => (t, u),
         _ => {
             return Err(problem_with(
@@ -709,7 +700,7 @@ pub async fn revoke_api_key_handler(
             ));
         }
     };
-    let Some(row) = revoke_api_key(&state.pool, &key_id, tenant_id, user_id)
+    let Some(_) = revoke_api_key(&state.pool, &key_id, tenant_id, user_id)
         .await
         .map_err(|error| {
             tracing::warn!(%error, "failed to revoke api key");
@@ -730,12 +721,7 @@ pub async fn revoke_api_key_handler(
             ctx.trace_id_opt(),
         ));
     };
-    let response = ApiKeyRevokedResponse {
-        id: row.key_id.clone(),
-        status: row.status.clone(),
-        revoked_at: row.revoked_at.unwrap_or_else(now_rfc3339),
-    };
-    Ok(Json(build_data_envelope(response, &ctx.request_id)))
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn rotate_api_key_handler(
@@ -753,7 +739,10 @@ pub async fn rotate_api_key_handler(
             ctx.trace_id_opt(),
         ));
     }
-    let (tenant_id, user_id) = match (principal.tenant_id.parse::<i64>(), principal.user_id.parse::<i64>()) {
+    let (tenant_id, user_id) = match (
+        principal.tenant_id.parse::<i64>(),
+        principal.user_id.parse::<i64>(),
+    ) {
         (Ok(t), Ok(u)) => (t, u),
         _ => {
             return Err(problem_with(
@@ -795,7 +784,9 @@ pub async fn rotate_api_key_handler(
         status: row.status.clone(),
         expires_at: row.expires_at.clone(),
         created_at: row.created_at.clone(),
-        message: Some("Rotated key. Store the new secret securely; it will not be shown again.".to_string()),
+        message: Some(
+            "Rotated key. Store the new secret securely; it will not be shown again.".to_string(),
+        ),
     };
     Ok(Json(build_data_envelope(response, &ctx.request_id)))
 }
@@ -817,8 +808,11 @@ pub fn build_api_keys_router() -> Router<CommerceAppState> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::body::Body;
+    use axum::body::{to_bytes, Body};
     use axum::http::Request as HttpRequest;
+    use axum::Extension;
+    use sqlx::any::AnyPoolOptions;
+    use tower::ServiceExt;
 
     static RNG_SEED: OnceLock<()> = OnceLock::new();
 
@@ -871,11 +865,9 @@ mod tests {
         rand::thread_rng().fill_bytes(&mut bytes);
         let encoded = encode_base62(&bytes);
         assert!(!encoded.is_empty());
-        assert!(
-            encoded
-                .chars()
-                .all(|c| BASE62_ALPHABET.contains(&(c as u8)))
-        );
+        assert!(encoded
+            .chars()
+            .all(|c| BASE62_ALPHABET.contains(&(c as u8))));
     }
 
     #[test]
@@ -931,5 +923,40 @@ mod tests {
     fn now_rfc3339_is_parseable() {
         let ts = now_rfc3339();
         assert!(OffsetDateTime::parse(&ts, &Rfc3339).is_ok());
+    }
+
+    #[tokio::test]
+    async fn list_api_keys_rejects_legacy_pagination_alias_before_database_access() {
+        sqlx::any::install_default_drivers();
+        let pool = AnyPoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("open API key pagination test database");
+        let principal = CommercePrincipal {
+            user_id: "42".to_owned(),
+            tenant_id: "7".to_owned(),
+            api_key_id: "test-api-key".to_owned(),
+            scopes: vec!["read".to_owned()],
+        };
+        let response = build_api_keys_router()
+            .with_state(CommerceAppState::new(pool))
+            .layer(Extension(principal))
+            .oneshot(
+                HttpRequest::builder()
+                    .uri("/api/v1/api-keys?pageSize=20")
+                    .body(Body::empty())
+                    .expect("build legacy API key pagination request"),
+            )
+            .await
+            .expect("serve legacy API key pagination request");
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("read bounded API key pagination problem");
+        let problem: serde_json::Value =
+            serde_json::from_slice(&body).expect("parse API key pagination problem");
+        assert_eq!(problem["code"], 40003);
     }
 }

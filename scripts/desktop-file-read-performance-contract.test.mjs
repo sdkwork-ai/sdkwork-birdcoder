@@ -57,6 +57,24 @@ assert.match(
 );
 
 assert.match(
+  hostFilesystemSource,
+  /if let Some\(max_bytes\) = max_bytes[\s\S]*\.take\(max_bytes as u64\)[\s\S]*let metadata = fs::metadata\(file_path\)/s,
+  'Prefix reads must be reserved for callers that explicitly provide a search budget.',
+);
+
+assert.match(
+  hostFilesystemSource,
+  /metadata\.len\(\) > DEFAULT_FS_READ_FILE_MAX_BYTES as u64[\s\S]*exceeds the \{\} byte text editor limit/s,
+  'Normal editor reads must reject oversized files instead of returning a silently truncated buffer.',
+);
+
+assert.match(
+  hostFilesystemSource,
+  /String::from_utf8\(bytes\)[\s\S]*not valid UTF-8 text and cannot be opened in the text editor/s,
+  'Normal editor reads must reject binary or invalid UTF-8 files instead of replacing bytes lossily.',
+);
+
+assert.match(
   desktopLibSource,
   /fs_read_file,/,
   'Desktop shell must register the shared tauri-host fs_read_file command.',

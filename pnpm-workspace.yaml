@@ -7,8 +7,8 @@ packages:
   - "apps/sdkwork-birdcoder-h5/packages/*"
   - "apps/sdkwork-birdcoder-pc"
   - "apps/sdkwork-birdcoder-pc/packages/*"
-  - 'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*'
-  - 'apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*'
+  - "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-*"
+  - "apps/sdkwork-birdcoder-h5/packages/sdkwork-birdcoder-h5-*"
   - "apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript"
   - "apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript"
   - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts"
@@ -39,6 +39,21 @@ packages:
   - "../sdkwork-sdk-commons/sdkwork-sdk-common-typescript"
   - "../sdkwork-utils/packages/sdkwork-utils-typescript"
   - "../sdkwork-app-topology"
+  # --- sdkwork-membership (membership app SDK, service, PC components) ---
+  - "../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript"
+  - "../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-contracts"
+  - "../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-sdk-ports"
+  - "../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-service"
+  - "../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership"
+  - "../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription"
+  # --- sdkwork-promotion (promotion PC coupon + service, dependency of membership-pc-subscription) ---
+  - "../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-core"
+  - "../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon"
+  - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-contracts"
+  - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-sdk-ports"
+  - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-service"
+  # --- sdkwork-order (order app SDK, dependency of membership-service) ---
+  - "../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript"
   # ===========================================================================
   # BirdCoder-owned workspace packages (this repository)
   # ===========================================================================

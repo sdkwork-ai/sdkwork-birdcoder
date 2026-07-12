@@ -54,8 +54,6 @@ async fn apply_sqlite_pragmas(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query("PRAGMA journal_mode=WAL;")
         .execute(pool)
         .await?;
-    sqlx::query("PRAGMA foreign_keys=ON;")
-        .execute(pool)
-        .await?;
+    sqlx::query("PRAGMA foreign_keys=ON;").execute(pool).await?;
     Ok(())
 }

@@ -219,161 +219,113 @@ pub struct DesktopTerminalSessionInventorySnapshot {
     pub last_exit_code: Option<i32>,
 }
 
-fn disabled_terminal_bridge_error() -> String {
-    "BirdCoder desktop terminal session bridge is not enabled in this host build.".to_string()
-}
-
 #[tauri::command]
-pub fn desktop_session_index() -> Result<DesktopSessionIndexSnapshot, String> {
-    Ok(DesktopSessionIndexSnapshot {
-        sessions: Vec::new(),
-        attachments: Vec::new(),
-    })
+pub fn desktop_session_index(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
+) -> Result<DesktopSessionIndexSnapshot, String> {
+    state.session_index()
 }
 
 #[tauri::command]
 pub fn desktop_session_replay_slice(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     session_id: String,
     from_cursor: Option<String>,
-    _limit: Option<usize>,
+    limit: Option<usize>,
 ) -> Result<DesktopSessionReplaySnapshot, String> {
-    Ok(DesktopSessionReplaySnapshot {
-        session_id,
-        from_cursor: from_cursor.clone(),
-        next_cursor: from_cursor.unwrap_or_else(|| "0".to_string()),
-        has_more: false,
-        entries: Vec::new(),
-    })
+    state.session_replay_slice(&session_id, from_cursor, limit)
 }
 
 #[tauri::command]
 pub fn desktop_session_attach(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     request: DesktopSessionAttachRequest,
 ) -> Result<DesktopSessionAttachmentSnapshot, String> {
-    Err(format!(
-        "{} Session not found: {}",
-        disabled_terminal_bridge_error(),
-        request.session_id
-    ))
+    state.attach_session(request)
 }
 
 #[tauri::command]
 pub fn desktop_session_detach(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     request: DesktopSessionDetachRequest,
 ) -> Result<DesktopSessionDescriptorSnapshot, String> {
-    Err(format!(
-        "{} Attachment not found: {}",
-        disabled_terminal_bridge_error(),
-        request.attachment_id
-    ))
+    state.detach_session_attachment(request)
 }
 
 #[tauri::command]
 pub fn desktop_session_reattach(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     request: DesktopSessionAttachRequest,
 ) -> Result<DesktopSessionAttachmentSnapshot, String> {
-    Err(format!(
-        "{} Session not found: {}",
-        disabled_terminal_bridge_error(),
-        request.session_id
-    ))
+    state.reattach_session(request)
 }
 
 #[tauri::command]
 pub fn desktop_terminal_session_inventory_list(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
 ) -> Result<Vec<DesktopTerminalSessionInventorySnapshot>, String> {
-    Ok(Vec::new())
+    state.terminal_session_inventory()
 }
 
 #[tauri::command]
 pub fn desktop_local_shell_exec(
     request: DesktopLocalShellExecRequest,
 ) -> Result<DesktopLocalShellExecSnapshot, String> {
-    Err(format!(
-        "{} Refused local shell command for profile '{}'.",
-        disabled_terminal_bridge_error(),
-        request.profile
-    ))
+    crate::host::terminal_runtime::execute_local_shell_command_snapshot(request)
 }
 
 #[tauri::command]
 pub fn desktop_local_shell_session_create(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     request: DesktopLocalShellSessionCreateRequest,
 ) -> Result<DesktopLocalShellSessionCreateSnapshot, String> {
-    Err(format!(
-        "{} Refused local shell session for profile '{}'.",
-        disabled_terminal_bridge_error(),
-        request.profile
-    ))
+    state.create_local_shell_session(request)
 }
 
 #[tauri::command]
 pub fn desktop_local_process_session_create(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     request: DesktopLocalProcessSessionCreateRequest,
 ) -> Result<DesktopLocalProcessSessionCreateSnapshot, String> {
-    let program = request
-        .command
-        .first()
-        .map(String::as_str)
-        .unwrap_or("<empty>");
-    Err(format!(
-        "{} Refused local process session for program '{}'.",
-        disabled_terminal_bridge_error(),
-        program
-    ))
+    state.create_local_process_session(request)
 }
 
 #[tauri::command]
 pub fn desktop_session_input(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     request: DesktopLocalShellSessionInputRequest,
 ) -> Result<DesktopLocalShellSessionInputSnapshot, String> {
-    Err(format!(
-        "{} Session not found: {}",
-        disabled_terminal_bridge_error(),
-        request.session_id
-    ))
+    state.write_local_shell_input(request)
 }
 
 #[tauri::command]
 pub fn desktop_session_input_bytes(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     request: DesktopLocalShellSessionInputBytesRequest,
 ) -> Result<DesktopLocalShellSessionInputSnapshot, String> {
-    Err(format!(
-        "{} Session not found: {}",
-        disabled_terminal_bridge_error(),
-        request.session_id
-    ))
+    state.write_local_shell_input_bytes(request)
 }
 
 #[tauri::command]
 pub fn desktop_session_attachment_acknowledge(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     request: DesktopSessionAttachmentAcknowledgeRequest,
 ) -> Result<DesktopAttachmentDescriptorSnapshot, String> {
-    Err(format!(
-        "{} Attachment not found: {}",
-        disabled_terminal_bridge_error(),
-        request.attachment_id
-    ))
+    state.acknowledge_session_attachment(request)
 }
 
 #[tauri::command]
 pub fn desktop_session_resize(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     request: DesktopLocalShellSessionResizeRequest,
 ) -> Result<DesktopLocalShellSessionResizeSnapshot, String> {
-    Err(format!(
-        "{} Session not found: {}",
-        disabled_terminal_bridge_error(),
-        request.session_id
-    ))
+    state.resize_local_shell_session(request)
 }
 
 #[tauri::command]
 pub fn desktop_session_terminate(
+    state: tauri::State<'_, crate::host::DesktopTerminalRuntimeState>,
     session_id: String,
 ) -> Result<DesktopLocalShellSessionTerminateSnapshot, String> {
-    Err(format!(
-        "{} Session not found: {}",
-        disabled_terminal_bridge_error(),
-        session_id
-    ))
+    state.terminate_local_shell_session(&session_id)
 }

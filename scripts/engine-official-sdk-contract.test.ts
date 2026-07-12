@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 
 import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
 import {
-  resolveFallbackRuntimeMode,
   resolvePackagePresence,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/index.ts';
 import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
@@ -40,7 +39,7 @@ for (const engine of listWorkbenchCliEngines()) {
 
   assert.ok(integration, `${engine.id} integration descriptor must be available`);
   assert.ok(health, `${engine.id} health report must be available`);
-  assert.equal(integration?.integrationClass, 'official-sdk');
+  assert.equal(integration?.integrationClass, 'official-protocol');
   assert.equal(
     integration?.officialEntry.packageName,
     EXPECTED_OFFICIAL_PACKAGES[engine.id],
@@ -69,8 +68,8 @@ for (const engine of listWorkbenchCliEngines()) {
   }
   assert.equal(
     integration?.runtimeMode,
-    'sdk',
-    `${engine.id} must advertise the official SDK runtime mode`,
+    'headless',
+    `${engine.id} must advertise the implemented CLI runtime mode`,
   );
   assert.equal(typeof health?.sdkAvailable, 'boolean');
   assert.equal(typeof health?.cliAvailable, 'boolean');
@@ -85,35 +84,15 @@ for (const engine of listWorkbenchCliEngines()) {
 
   assert.equal(
     health?.sdkAvailable,
-    packagePresence.installed,
-    `${engine.id} health must reflect whether the official SDK package is actually installed`,
+    false,
+    `${engine.id} health must not report the planned SDK lane as the active runtime`,
   );
-
-  if (health?.sdkAvailable) {
-    assert.equal(
-      health.runtimeMode,
-      'sdk',
-      `${engine.id} should stay on the SDK runtime when the official package is installed`,
-    );
-    assert.equal(
-      health.fallbackActive,
-      false,
-      `${engine.id} should not mark fallback active when the SDK is installed`,
-    );
-  } else {
-    assert.equal(
-      health.fallbackActive,
-      health.cliAvailable,
-      `${engine.id} should only activate fallback when the real CLI lane is executable`,
-    );
-    assert.equal(
-      health.runtimeMode,
-      health.fallbackActive
-        ? resolveFallbackRuntimeMode(integration?.transportKinds ?? []) ?? integration?.runtimeMode
-        : integration?.runtimeMode,
-      `${engine.id} health runtime must reflect the actual executable lane instead of a declared-only fallback`,
-    );
-  }
+  assert.equal(
+    health?.fallbackActive,
+    false,
+    `${engine.id} CLI is the primary lane, not a synthetic SDK fallback`,
+  );
+  assert.equal(health?.runtimeMode, 'headless');
   assert.ok(
     typeof health?.status === 'string' && health.status.length > 0,
     `${engine.id} health report must expose a non-empty status`,

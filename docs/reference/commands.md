@@ -26,7 +26,7 @@ pnpm server:dev:private
 pnpm server:dev:cloud
 ```
 
-`pnpm dev` starts the default private BirdCoder web sample stack. It launches the native BirdCoder server first, waits until `/app/v3/api/system/health` succeeds, then boots the browser host while defaulting `VITE_BIRDCODER_API_BASE_URL` to `http://127.0.0.1:10240` for local iteration when no explicit value is configured.
+`pnpm dev` starts the default private BirdCoder web sample stack. It launches the native BirdCoder server first, waits until the unauthenticated infrastructure readiness probe at `/readyz` succeeds, then boots the browser host while defaulting `VITE_BIRDCODER_API_BASE_URL` to `http://127.0.0.1:10240` for local iteration when no explicit value is configured.
 `pnpm dev:local` starts the canonical single-machine BirdCoder sample loop by delegating to the desktop-local Tauri host with the embedded coding server and local SDKWork IAM authority.
 `pnpm dev:private` is the explicit alias for that same managed private web sample stack.
 `pnpm dev:cloud` starts the shared BirdCoder web workbench against a cloud-backed BirdCoder server.
@@ -37,7 +37,7 @@ pnpm server:dev:cloud
 `pnpm desktop:dev:local`, `pnpm desktop:dev:private`, and `pnpm desktop:dev:cloud` expose the same desktop matrix with explicit mode naming for operator documentation and sample-app onboarding.
 `pnpm web:dev:private` and `pnpm web:dev:cloud` expose the browser-hosted mode matrix with naming that matches the desktop and server families when you intentionally manage the corresponding server process yourself.
 `pnpm stack:desktop:local` keeps the BirdCoder reference sample on a one-command local desktop loop with the embedded server and SDKWork IAM authority.
-`pnpm stack:desktop:private` and `pnpm stack:desktop:cloud` start the native BirdCoder server first when needed, wait until `/app/v3/api/system/health` succeeds, and then launch the desktop client against the same resolved IAM env.
+`pnpm stack:desktop:private` and `pnpm stack:desktop:cloud` start the native BirdCoder server first when needed, wait until `/readyz` succeeds, and then launch the desktop client against the same resolved IAM env.
 `pnpm stack:web:private` and `pnpm stack:web:cloud` do the same for the browser-hosted sample so private and cloud-backed lanes can be demonstrated without manually coordinating two terminals, while still proving the canonical auth contract is live before the host boots. `pnpm dev` is now the default alias for `pnpm stack:web:private`.
 `pnpm server:dev` starts the governed private BirdCoder server loop with SDKWork IAM private authority and local sqlite persistence.
 `pnpm server:dev:private` is the explicit private-server alias for the same governed native-server loop.
@@ -191,9 +191,9 @@ The emitted `finalized-release-smoke-report.json` now also carries `stopShipSign
 ## Release Control Examples
 
 ```bash
-pnpm release:plan -- --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/architecture/tech/TECH-13-release-github-flow.md
+pnpm release:plan -- --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/guides/operator/incident-response.md
 pnpm release:rollback:plan -- --release-tag release-2026-04-09-105 --release-assets-dir artifacts/release --rollback-command "gh workflow run rollback.yml --ref main"
-pnpm release:finalize -- --release-assets-dir artifacts/release --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/architecture/tech/TECH-13-release-github-flow.md --repository Sdkwork-Cloud/sdkwork-birdcoder
+pnpm release:finalize -- --release-assets-dir artifacts/release --release-kind canary --rollout-stage ring-1 --monitoring-window-minutes 45 --rollback-runbook-ref docs/guides/operator/incident-response.md --repository Sdkwork-Cloud/sdkwork-birdcoder
 ```
 
 `releaseKind` allows `formal`, `canary`, `hotfix`, and `rollback`. `rollbackCommand` remains optional, but `rollbackRunbookRef` must always exist.

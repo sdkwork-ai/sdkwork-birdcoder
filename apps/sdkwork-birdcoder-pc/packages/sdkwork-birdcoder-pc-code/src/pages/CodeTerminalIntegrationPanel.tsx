@@ -1,12 +1,13 @@
 import {
   areTerminalCommandRequestsEqual,
   useBirdcoderTerminalLaunchPlanResolver,
+  useToast,
   type TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-commons';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
 import { DesktopTerminalApp } from '@sdkwork/terminal-pc-desktop';
 import { X } from 'lucide-react';
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 
 interface CodeTerminalIntegrationPanelProps {
   isOpen: boolean;
@@ -41,9 +42,15 @@ export const CodeTerminalIntegrationPanel = memo(function CodeTerminalIntegratio
   onResize,
   onClose,
 }: CodeTerminalIntegrationPanelProps) {
+  const { addToast } = useToast();
+  const handleLaunchBlocked = useCallback(
+    (message: string) => addToast(message, 'error'),
+    [addToast],
+  );
   const resolveTerminalLaunchPlan = useBirdcoderTerminalLaunchPlanResolver(
     workspaceId,
     projectId,
+    handleLaunchBlocked,
   );
 
   return (

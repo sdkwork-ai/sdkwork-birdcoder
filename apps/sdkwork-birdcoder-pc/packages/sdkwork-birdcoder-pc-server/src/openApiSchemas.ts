@@ -187,6 +187,13 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
       'Most recent transcript mutation timestamp, when available.',
     ),
   } satisfies Record<string, BirdCoderOpenApiSchema>;
+  const flexibleMetadataSchema = createOpenApiObjectSchema(
+    {},
+    {
+      additionalProperties: true,
+      description: 'Free-form JSON metadata owned by the caller and validated by the service.',
+    },
+  );
 
   return {
     ...createSdkWorkEnvelopeComponentSchemas(),
@@ -1390,6 +1397,206 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
       },
       {
         required: ['id', 'name', 'sortWeight', 'packages'],
+      },
+    ),
+    BirdCoderCreateCommerceApiKeyRequest: createOpenApiObjectSchema(
+      {
+        name: createOpenApiStringSchema(),
+        scopes: createOpenApiArraySchema(createOpenApiStringSchema()),
+        expiresInDays: createOpenApiIntegerSchema(1),
+        workspaceId: createOpenApiStringSchema(),
+      },
+      {
+        required: ['name'],
+      },
+    ),
+    BirdCoderCommerceApiKeySummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        prefix: createOpenApiStringSchema(),
+        scopes: createOpenApiArraySchema(createOpenApiStringSchema()),
+        status: createOpenApiStringSchema(),
+        lastUsedAt: createOpenApiNullableStringSchema(),
+        expiresAt: createOpenApiNullableStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'name', 'prefix', 'scopes', 'status', 'createdAt', 'updatedAt'],
+      },
+    ),
+    BirdCoderCommerceApiKeyCreated: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        name: createOpenApiStringSchema(),
+        key: createOpenApiStringSchema('Plaintext API key returned exactly once.'),
+        prefix: createOpenApiStringSchema(),
+        scopes: createOpenApiArraySchema(createOpenApiStringSchema()),
+        status: createOpenApiStringSchema(),
+        expiresAt: createOpenApiNullableStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        message: createOpenApiStringSchema(),
+      },
+      {
+        required: ['id', 'name', 'key', 'prefix', 'scopes', 'status', 'createdAt'],
+      },
+    ),
+    BirdCoderCreateCommerceNotificationRequest: createOpenApiObjectSchema(
+      {
+        notificationType: createOpenApiStringSchema(),
+        title: createOpenApiStringSchema(),
+        content: createOpenApiStringSchema(),
+        workspaceId: createOpenApiStringSchema(),
+        metadata: flexibleMetadataSchema,
+      },
+      {
+        required: ['notificationType', 'title', 'content'],
+      },
+    ),
+    BirdCoderCommerceNotificationSummary: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        notificationType: createOpenApiStringSchema(),
+        title: createOpenApiStringSchema(),
+        content: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        readAt: createOpenApiNullableStringSchema(),
+        sentAt: createOpenApiNullableStringSchema(),
+        createdAt: createOpenApiDateTimeSchema(),
+        updatedAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: [
+          'id',
+          'notificationType',
+          'title',
+          'content',
+          'status',
+          'createdAt',
+          'updatedAt',
+        ],
+      },
+    ),
+    BirdCoderCommerceNotificationCreated: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        notificationType: createOpenApiStringSchema(),
+        title: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        sentAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'notificationType', 'title', 'status', 'sentAt'],
+      },
+    ),
+    BirdCoderCommerceNotificationRead: createOpenApiObjectSchema(
+      {
+        id: createOpenApiStringSchema(),
+        status: createOpenApiStringSchema(),
+        readAt: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: ['id', 'status', 'readAt'],
+      },
+    ),
+    BirdCoderCommerceMarkAllRead: createOpenApiObjectSchema(
+      {
+        updated: createOpenApiLongIntegerStringSchema(),
+        status: createOpenApiStringSchema(),
+      },
+      {
+        required: ['updated', 'status'],
+      },
+    ),
+    BirdCoderCommerceUnreadCount: createOpenApiObjectSchema(
+      {
+        unreadCount: createOpenApiLongIntegerStringSchema(),
+      },
+      {
+        required: ['unreadCount'],
+      },
+    ),
+    BirdCoderRecordCommerceUsageRequest: createOpenApiObjectSchema(
+      {
+        metricType: createOpenApiStringSchema(),
+        metricValue: createOpenApiLongIntegerStringSchema(),
+        workspaceId: createOpenApiStringSchema(),
+        metadata: flexibleMetadataSchema,
+      },
+      {
+        required: ['metricType', 'metricValue'],
+      },
+    ),
+    BirdCoderCommerceMetricTotal: createOpenApiObjectSchema(
+      {
+        metricType: createOpenApiStringSchema(),
+        total: createOpenApiLongIntegerStringSchema(),
+      },
+      {
+        required: ['metricType', 'total'],
+      },
+    ),
+    BirdCoderCommerceUsageHistoryBucket: createOpenApiObjectSchema(
+      {
+        period: createOpenApiStringSchema(),
+        metricType: createOpenApiStringSchema(),
+        total: createOpenApiLongIntegerStringSchema(),
+      },
+      {
+        required: ['period', 'metricType', 'total'],
+      },
+    ),
+    BirdCoderCommerceCurrentPeriodUsage: createOpenApiObjectSchema(
+      {
+        periodStart: createOpenApiDateTimeSchema(),
+        periodEnd: createOpenApiDateTimeSchema(),
+        metrics: createOpenApiArraySchema(createOpenApiSchemaReference('BirdCoderCommerceMetricTotal')),
+      },
+      {
+        required: ['periodStart', 'periodEnd', 'metrics'],
+      },
+    ),
+    BirdCoderCommerceUsageBreakdown: createOpenApiObjectSchema(
+      {
+        periodStart: createOpenApiDateTimeSchema(),
+        periodEnd: createOpenApiDateTimeSchema(),
+        metrics: createOpenApiArraySchema(createOpenApiSchemaReference('BirdCoderCommerceMetricTotal')),
+      },
+      {
+        required: ['periodStart', 'periodEnd', 'metrics'],
+      },
+    ),
+    BirdCoderCommerceQuotaStatus: createOpenApiObjectSchema(
+      {
+        metricType: createOpenApiStringSchema(),
+        used: createOpenApiLongIntegerStringSchema(),
+        limit: createOpenApiLongIntegerStringSchema(),
+        remaining: createOpenApiLongIntegerStringSchema(),
+        percentage: createOpenApiNumberSchema(),
+        periodStart: createOpenApiDateTimeSchema(),
+        periodEnd: createOpenApiDateTimeSchema(),
+      },
+      {
+        required: [
+          'metricType',
+          'used',
+          'limit',
+          'remaining',
+          'percentage',
+          'periodStart',
+          'periodEnd',
+        ],
+      },
+    ),
+    BirdCoderCommerceRecordUsage: createOpenApiObjectSchema(
+      {
+        recorded: createOpenApiBooleanSchema(),
+        metricType: createOpenApiStringSchema(),
+        metricValue: createOpenApiLongIntegerStringSchema(),
+      },
+      {
+        required: ['recorded', 'metricType', 'metricValue'],
       },
     ),
     BirdCoderCreateCommerceOrderRequest: createOpenApiObjectSchema(
@@ -2653,6 +2860,45 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     ),
     BirdCoderCommerceMembershipPackageGroupSummaryListEnvelope: createOpenApiListEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderCommerceMembershipPackageGroupSummary'),
+    ),
+    BirdCoderCommerceApiKeyCreatedEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceApiKeyCreated'),
+    ),
+    BirdCoderCommerceApiKeySummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceApiKeySummary'),
+    ),
+    BirdCoderCommerceNotificationSummaryEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceNotificationSummary'),
+    ),
+    BirdCoderCommerceNotificationSummaryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceNotificationSummary'),
+    ),
+    BirdCoderCommerceNotificationCreatedEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceNotificationCreated'),
+    ),
+    BirdCoderCommerceNotificationReadEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceNotificationRead'),
+    ),
+    BirdCoderCommerceMarkAllReadEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceMarkAllRead'),
+    ),
+    BirdCoderCommerceUnreadCountEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceUnreadCount'),
+    ),
+    BirdCoderCommerceRecordUsageEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceRecordUsage'),
+    ),
+    BirdCoderCommerceCurrentPeriodUsageEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceCurrentPeriodUsage'),
+    ),
+    BirdCoderCommerceUsageHistoryListEnvelope: createOpenApiListEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceUsageHistoryBucket'),
+    ),
+    BirdCoderCommerceUsageBreakdownEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceUsageBreakdown'),
+    ),
+    BirdCoderCommerceQuotaStatusEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderCommerceQuotaStatus'),
     ),
     BirdCoderCommerceOrderSummaryEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderCommerceOrderSummary'),

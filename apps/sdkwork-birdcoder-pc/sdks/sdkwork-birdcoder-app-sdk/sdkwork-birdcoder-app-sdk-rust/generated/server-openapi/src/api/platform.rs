@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::api::paths::app_path;
 use crate::api::paths::append_query_string;
 use crate::http::{SdkworkError, SdkworkHttpClient};
-use crate::models::{BirdCoderCommitProjectGitChangesRequest, BirdCoderCreateProjectGitBranchRequest, BirdCoderCreateProjectGitWorktreeRequest, BirdCoderCreateProjectRequest, BirdCoderCreateWorkspaceRequest, BirdCoderDeletedResourceEnvelope, BirdCoderDeploymentRecordSummaryListEnvelope, BirdCoderDeploymentTargetSummaryListEnvelope, BirdCoderProjectCollaboratorSummaryEnvelope, BirdCoderProjectCollaboratorSummaryListEnvelope, BirdCoderProjectGitOverviewEnvelope, BirdCoderProjectPublishResultEnvelope, BirdCoderProjectSummaryEnvelope, BirdCoderProjectSummaryListEnvelope, BirdCoderPublishProjectRequest, BirdCoderPushProjectGitBranchRequest, BirdCoderRemoveProjectGitWorktreeRequest, BirdCoderSwitchProjectGitBranchRequest, BirdCoderUpdateProjectRequest, BirdCoderUpdateWorkspaceRequest, BirdCoderUpsertProjectCollaboratorRequest, BirdCoderWorkspaceSummaryEnvelope, BirdCoderWorkspaceSummaryListEnvelope, ProblemDetail};
+use crate::models::{BirdCoderCommitProjectGitChangesRequest, BirdCoderCreateProjectGitBranchRequest, BirdCoderCreateProjectGitWorktreeRequest, BirdCoderCreateProjectRequest, BirdCoderCreateWorkspaceRequest, BirdCoderDeploymentRecordSummaryListEnvelope, BirdCoderDeploymentTargetSummaryListEnvelope, BirdCoderProjectCollaboratorSummaryEnvelope, BirdCoderProjectCollaboratorSummaryListEnvelope, BirdCoderProjectGitOverviewEnvelope, BirdCoderProjectPublishResultEnvelope, BirdCoderProjectSummaryEnvelope, BirdCoderProjectSummaryListEnvelope, BirdCoderPublishProjectRequest, BirdCoderPushProjectGitBranchRequest, BirdCoderRemoveProjectGitWorktreeRequest, BirdCoderSwitchProjectGitBranchRequest, BirdCoderUpdateProjectRequest, BirdCoderUpdateWorkspaceRequest, BirdCoderUpsertProjectCollaboratorRequest, BirdCoderWorkspaceSummaryEnvelope, BirdCoderWorkspaceSummaryListEnvelope};
 
 #[derive(Clone)]
 pub struct PlatformApi {
@@ -22,29 +22,29 @@ impl PlatformApi {
     }
 
     /// List projects
-    pub async fn projects_list(&self, user_id: Option<&str>, workspace_id: Option<&str>, root_path: Option<&str>, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderProjectSummaryListEnvelope, SdkworkError> {
+    pub async fn projects_list(&self, user_id: Option<&str>, workspace_id: Option<&str>, root_path: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderProjectSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("userId", user_id, "form", true, false, None),
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
             QueryParameterSpec::new("rootPath", root_path, "form", true, false, None),
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/projects".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// Upsert project collaborator
-    pub async fn projects_collaborators_upsert(&self, project_id: &str, body: &BirdCoderUpsertProjectCollaboratorRequest) -> Result<BirdCoderProjectCollaboratorSummaryEnvelope, SdkworkError> {
+    pub async fn projects_collaborators_create(&self, project_id: &str, body: &BirdCoderUpsertProjectCollaboratorRequest) -> Result<BirdCoderProjectCollaboratorSummaryEnvelope, SdkworkError> {
         let path = app_path(&format!("/projects/{}/collaborators", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }
 
     /// List project collaborators
-    pub async fn projects_collaborators_list(&self, project_id: &str, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderProjectCollaboratorSummaryListEnvelope, SdkworkError> {
+    pub async fn projects_collaborators_list(&self, project_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderProjectCollaboratorSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&format!("/projects/{}/collaborators", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)))), &query);
         self.client.get(&path, None, None).await
@@ -57,18 +57,18 @@ impl PlatformApi {
     }
 
     /// List workspaces
-    pub async fn workspaces_list(&self, user_id: Option<&str>, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderWorkspaceSummaryListEnvelope, SdkworkError> {
+    pub async fn workspaces_list(&self, user_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderWorkspaceSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("userId", user_id, "form", true, false, None),
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/workspaces".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// Delete project
-    pub async fn projects_delete(&self, project_id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
+    pub async fn projects_delete(&self, project_id: &str) -> Result<(), SdkworkError> {
         let path = app_path(&format!("/projects/{}", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -86,7 +86,7 @@ impl PlatformApi {
     }
 
     /// Delete workspace
-    pub async fn workspaces_delete(&self, workspace_id: &str) -> Result<BirdCoderDeletedResourceEnvelope, SdkworkError> {
+    pub async fn workspaces_delete(&self, workspace_id: &str) -> Result<(), SdkworkError> {
         let path = app_path(&format!("/workspaces/{}", serialize_path_parameter(workspace_id, PathParameterSpec::new("workspaceId", "simple", false))));
         self.client.delete(&path, None, None).await
     }
@@ -103,30 +103,21 @@ impl PlatformApi {
         self.client.patch(&path, Some(body), None, None, Some("application/json")).await
     }
 
-    /// Subscribe to workspace realtime invalidation events
-    pub async fn workspaces_realtime_subscribe(&self, workspace_id: &str, session_id: Option<&str>) -> Result<ProblemDetail, SdkworkError> {
-        let query = build_query_string(&[
-            QueryParameterSpec::new("sessionId", session_id, "form", true, false, None),
-        ]);
-        let path = append_query_string(app_path(&format!("/workspaces/{}/realtime", serialize_path_parameter(workspace_id, PathParameterSpec::new("workspaceId", "simple", false)))), &query);
-        self.client.get(&path, None, None).await
-    }
-
     /// List deployments
-    pub async fn deployments_list(&self, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderDeploymentRecordSummaryListEnvelope, SdkworkError> {
+    pub async fn deployments_list(&self, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderDeploymentRecordSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&"/deployments".to_string()), &query);
         self.client.get(&path, None, None).await
     }
 
     /// List project deployment targets
-    pub async fn projects_deployment_targets_list(&self, project_id: &str, limit: Option<i64>, offset: Option<i64>) -> Result<BirdCoderDeploymentTargetSummaryListEnvelope, SdkworkError> {
+    pub async fn projects_deployment_targets_list(&self, project_id: &str, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderDeploymentTargetSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
-            QueryParameterSpec::new("limit", limit, "form", true, false, None),
-            QueryParameterSpec::new("offset", offset, "form", true, false, None),
+            QueryParameterSpec::new("page", page, "form", true, false, None),
+            QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);
         let path = append_query_string(app_path(&format!("/projects/{}/deployment_targets", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false)))), &query);
         self.client.get(&path, None, None).await
@@ -181,7 +172,7 @@ impl PlatformApi {
     }
 
     /// Publish project release flow
-    pub async fn projects_publish_create(&self, project_id: &str, body: &BirdCoderPublishProjectRequest) -> Result<BirdCoderProjectPublishResultEnvelope, SdkworkError> {
+    pub async fn projects_publish(&self, project_id: &str, body: &BirdCoderPublishProjectRequest) -> Result<BirdCoderProjectPublishResultEnvelope, SdkworkError> {
         let path = app_path(&format!("/projects/{}/publish", serialize_path_parameter(project_id, PathParameterSpec::new("projectId", "simple", false))));
         self.client.post(&path, Some(body), None, None, Some("application/json")).await
     }

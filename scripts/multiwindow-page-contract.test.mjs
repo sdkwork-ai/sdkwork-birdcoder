@@ -91,7 +91,7 @@ assert.match(
 
 assert.match(
   pageSource,
-  /useProjects\(workspaceId, \{\s*isActive: isVisible,\s*\}\)/,
+  /useProjects\(workspaceId,\s*\{[\s\S]*?isActive: isVisible,[\s\S]*?\}\)/,
   'Multi-window page must reuse the shared workbench project/session inventory.',
 );
 
@@ -477,8 +477,8 @@ assert.match(
 );
 assert.match(
   pageSource,
-  /cancelActiveDispatchBatch\(/,
-  'Multi-window page must cancel the active batch during workspace lifecycle resets.',
+  /discardActiveDispatchBatch\(/,
+  'Multi-window page must discard the active batch during workspace lifecycle resets.',
 );
 assert.match(
   pageSource,
@@ -492,13 +492,13 @@ assert.match(
 );
 assert.match(
   pageSource,
-  /handleCancelDispatch/,
-  'Multi-window page must expose a user-triggered cancel action for the active high-concurrency batch.',
+  /handleStopDispatch/,
+  'Multi-window page must expose a user-triggered stop action for undispatched windows in the active batch.',
 );
 assert.match(
   pageSource,
-  /onCancelDispatch=\{handleCancelDispatch\}/,
-  'Multi-window page must wire the manual cancel action into the bottom composer.',
+  /onStopDispatch=\{handleStopDispatch\}/,
+  'Multi-window page must wire the stop action into the bottom composer.',
 );
 assert.match(
   pageSource,
@@ -517,13 +517,13 @@ assert.match(
 );
 assert.match(
   composerSource,
-  /onCancelDispatch/,
-  'Multi-window composer must expose a manual cancel action while a batch is running.',
+  /onStopDispatch/,
+  'Multi-window composer must expose a stop action while a batch is running.',
 );
 assert.match(
   composerSource,
-  /multiWindow\.cancelDispatch/,
-  'Multi-window composer must label manual batch cancellation with a localized command.',
+  /multiWindow\.(stopDispatch|stoppingDispatch)/,
+  'Multi-window composer must label stopping undispatched work with a localized command.',
 );
 
 assert.match(

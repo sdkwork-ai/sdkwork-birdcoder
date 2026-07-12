@@ -16,18 +16,20 @@ use sdkwork_birdcoder_engine_catalog_service::service::engine_catalog_service::{
     NativeSessionProviderPayload as EngineNativeSessionProviderPayload,
     SyncModelConfigResultPayload,
 };
+use sdkwork_birdcoder_native_sessions_service::error::NativeSessionError;
 use sdkwork_birdcoder_native_sessions_service::service::native_session_service::{
     NativeSessionDetailPayload, NativeSessionLookup, NativeSessionQuery, NativeSessionRepository,
     NativeSessionService, NativeSessionSummaryPayload, NativeSessionTurnPayload,
 };
-use sdkwork_birdcoder_native_sessions_service::error::NativeSessionError;
 
-use sdkwork_utils_rust::is_blank;
 use sdkwork_birdcoder_errors::{
-    build_data_envelope, build_list_envelope, build_unbounded_list_envelope, trace_id_from_request_id, ApiDataEnvelope,
-    ApiListEnvelope,
+    build_data_envelope, build_offset_list_envelope, build_unbounded_list_envelope,
+    trace_id_from_request_id, ApiDataEnvelope, ApiListEnvelope,
 };
-use sdkwork_birdcoder_router_context::{RequiredIamContext, WebRequestContext};
+use sdkwork_birdcoder_router_context::{
+    RequiredIamContext, StrictOffsetListQuery, WebRequestContext,
+};
+use sdkwork_utils_rust::is_blank;
 
 use crate::error;
 use crate::mapper::request::{
@@ -51,19 +53,25 @@ pub struct RealEngineCatalogProvider;
 impl EngineCatalogProvider for RealEngineCatalogProvider {
     fn list_engine_descriptors(&self) -> Result<Vec<EngineDescriptorPayload>, String> {
         let descriptors = list_codeengine_descriptors();
-        Ok(descriptors.iter().map(|d| EngineDescriptorPayload {
-            engine_key: d.engine_key.clone(),
-            name: d.display_name.clone(),
-            description: d.vendor.clone(),
-            default_model_id: d.default_model_id.clone(),
-            capability_matrix: EngineCapabilityMatrixPayload {
+        Ok(descriptors
+            .iter()
+            .map(|d| EngineDescriptorPayload {
                 engine_key: d.engine_key.clone(),
-                capabilities: vec![],
-            },
-        }).collect())
+                name: d.display_name.clone(),
+                description: d.vendor.clone(),
+                default_model_id: d.default_model_id.clone(),
+                capability_matrix: EngineCapabilityMatrixPayload {
+                    engine_key: d.engine_key.clone(),
+                    capabilities: vec![],
+                },
+            })
+            .collect())
     }
 
-    fn find_engine_descriptor(&self, engine_key: &str) -> Result<Option<EngineDescriptorPayload>, String> {
+    fn find_engine_descriptor(
+        &self,
+        engine_key: &str,
+    ) -> Result<Option<EngineDescriptorPayload>, String> {
         match find_codeengine_descriptor(engine_key) {
             Some(d) => Ok(Some(EngineDescriptorPayload {
                 engine_key: d.engine_key.clone(),
@@ -81,22 +89,30 @@ impl EngineCatalogProvider for RealEngineCatalogProvider {
 
     fn list_model_catalog_entries(&self) -> Result<Vec<ModelCatalogEntryPayload>, String> {
         let entries = list_codeengine_model_catalog_entries();
-        Ok(entries.iter().map(|e| ModelCatalogEntryPayload {
-            engine_key: e.engine_key.clone(),
-            model_id: e.model_id.clone(),
-            label: e.display_name.clone(),
-            description: e.status.clone(),
-            updated_at: e.updated_at.clone(),
-        }).collect())
+        Ok(entries
+            .iter()
+            .map(|e| ModelCatalogEntryPayload {
+                engine_key: e.engine_key.clone(),
+                model_id: e.model_id.clone(),
+                label: e.display_name.clone(),
+                description: e.status.clone(),
+                updated_at: e.updated_at.clone(),
+            })
+            .collect())
     }
 
-    fn list_native_session_provider_entries(&self) -> Result<Vec<EngineNativeSessionProviderPayload>, String> {
+    fn list_native_session_provider_entries(
+        &self,
+    ) -> Result<Vec<EngineNativeSessionProviderPayload>, String> {
         let entries = list_native_session_provider_catalog_entries();
-        Ok(entries.iter().map(|e| EngineNativeSessionProviderPayload {
-            provider_id: e.engine_id.clone(),
-            name: e.display_name.clone(),
-            description: e.native_session_id_prefix.clone(),
-        }).collect())
+        Ok(entries
+            .iter()
+            .map(|e| EngineNativeSessionProviderPayload {
+                provider_id: e.engine_id.clone(),
+                name: e.display_name.clone(),
+                description: e.native_session_id_prefix.clone(),
+            })
+            .collect())
     }
 }
 
@@ -109,30 +125,43 @@ impl NativeSessionRepository for RealNativeSessionRepository {
     fn list_sessions(
         &self,
         query: &NativeSessionQuery,
-    ) -> Result<Vec<NativeSessionSummaryPayload>, String> {
-        let engine_id = query.engine_id.as_deref().filter(|value| !is_blank(Some(*value)));
-        let limit = query.limit.map(|value| value as usize);
+    ) -> Result<(Vec<NativeSessionSummaryPayload>, usize), String> {
+        let engine_id = query
+            .engine_id
+            .as_deref()
+            .filter(|value| !is_blank(Some(*value)));
+        let offset = query.offset.unwrap_or(0);
+        let limit = query
+            .limit
+            .unwrap_or(sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE)
+            .clamp(
+                1,
+                sdkwork_birdcoder_project_service::pagination::MAX_LIST_PAGE_SIZE,
+            );
+        let mut total = 0usize;
         let mut sessions = Vec::new();
         for record in list_codeengine_native_session_summaries(engine_id)? {
             if !matches_native_session_query(&record, query) {
                 continue;
             }
-            sessions.push(map_native_session_summary(record));
-            if let Some(max) = limit {
-                if sessions.len() >= max {
-                    break;
-                }
+            if total >= offset && sessions.len() < limit {
+                sessions.push(map_native_session_summary(record));
             }
+            total += 1;
         }
-        Ok(sessions)
+        Ok((sessions, total))
     }
 
     fn get_session(
         &self,
         lookup: &NativeSessionLookup,
     ) -> Result<Option<NativeSessionDetailPayload>, String> {
-        let engine_id = lookup.engine_id.as_deref().filter(|value| !is_blank(Some(*value)));
-        let Some(detail) = get_codeengine_native_session_detail(&lookup.session_id, engine_id)? else {
+        let engine_id = lookup
+            .engine_id
+            .as_deref()
+            .filter(|value| !is_blank(Some(*value)));
+        let Some(detail) = get_codeengine_native_session_detail(&lookup.session_id, engine_id)?
+        else {
             return Ok(None);
         };
         if !matches_native_session_lookup(&detail.summary, lookup) {
@@ -145,8 +174,12 @@ impl NativeSessionRepository for RealNativeSessionRepository {
         &self,
         lookup: &NativeSessionLookup,
     ) -> Result<Option<NativeSessionSummaryPayload>, String> {
-        let engine_id = lookup.engine_id.as_deref().filter(|value| !is_blank(Some(*value)));
-        let Some(summary) = get_codeengine_native_session_summary(&lookup.session_id, engine_id)? else {
+        let engine_id = lookup
+            .engine_id
+            .as_deref()
+            .filter(|value| !is_blank(Some(*value)));
+        let Some(summary) = get_codeengine_native_session_summary(&lookup.session_id, engine_id)?
+        else {
             return Ok(None);
         };
         if !matches_native_session_lookup(&summary, lookup) {
@@ -192,12 +225,17 @@ fn matches_native_session_scope(
         return false;
     };
     match (
-        record.workspace_id.as_deref().filter(|value| !is_blank(Some(*value))),
-        record.project_id.as_deref().filter(|value| !is_blank(Some(*value))),
+        record
+            .workspace_id
+            .as_deref()
+            .filter(|value| !is_blank(Some(*value))),
+        record
+            .project_id
+            .as_deref()
+            .filter(|value| !is_blank(Some(*value))),
     ) {
         (Some(record_workspace_id), Some(record_project_id)) => {
-            record_workspace_id == expected_workspace_id
-                && record_project_id == expected_project_id
+            record_workspace_id == expected_workspace_id && record_project_id == expected_project_id
         }
         _ => false,
     }
@@ -211,7 +249,11 @@ fn matches_native_session_query(
         return false;
     }
 
-    if let Some(engine_id) = query.engine_id.as_deref().filter(|value| !is_blank(Some(*value))) {
+    if let Some(engine_id) = query
+        .engine_id
+        .as_deref()
+        .filter(|value| !is_blank(Some(*value)))
+    {
         if record.engine_id != engine_id {
             return false;
         }
@@ -232,7 +274,11 @@ fn matches_native_session_lookup(
         return false;
     }
 
-    if let Some(engine_id) = lookup.engine_id.as_deref().filter(|value| !is_blank(Some(*value))) {
+    if let Some(engine_id) = lookup
+        .engine_id
+        .as_deref()
+        .filter(|value| !is_blank(Some(*value)))
+    {
         if record.engine_id != engine_id {
             return false;
         }
@@ -245,7 +291,9 @@ fn matches_native_session_lookup(
     )
 }
 
-fn map_native_session_summary(record: CodeEngineSessionSummaryRecord) -> NativeSessionSummaryPayload {
+fn map_native_session_summary(
+    record: CodeEngineSessionSummaryRecord,
+) -> NativeSessionSummaryPayload {
     NativeSessionSummaryPayload {
         id: record.id,
         title: record.title,
@@ -290,8 +338,13 @@ pub struct EngineCatalogAppState {
 impl Default for EngineCatalogAppState {
     fn default() -> Self {
         Self {
-            engine_catalog_service: Arc::new(EngineCatalogService::new(RealEngineCatalogProvider, "v3".to_string())),
-            native_session_service: Arc::new(NativeSessionService::new(RealNativeSessionRepository)),
+            engine_catalog_service: Arc::new(EngineCatalogService::new(
+                RealEngineCatalogProvider,
+                "v3".to_string(),
+            )),
+            native_session_service: Arc::new(NativeSessionService::new(
+                RealNativeSessionRepository,
+            )),
         }
     }
 }
@@ -302,14 +355,13 @@ pub async fn list_engines(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
-) -> Result<
-    Json<ApiListEnvelope<EngineDescriptorPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiListEnvelope<EngineDescriptorPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.list_engines() {
-        Ok(engines) => Ok(Json(build_unbounded_list_envelope(engines, request_id(&web)))),
+        Ok(engines) => Ok(Json(build_unbounded_list_envelope(
+            engines,
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
@@ -319,11 +371,7 @@ pub async fn get_engine_capabilities(
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Path(params): Path<EngineKeyPathParams>,
-) -> Result<
-    Json<ApiDataEnvelope<EngineCapabilityMatrixPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiDataEnvelope<EngineCapabilityMatrixPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     match state
         .engine_catalog_service
@@ -338,17 +386,13 @@ pub async fn list_native_session_providers(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
-) -> Result<
-    Json<ApiListEnvelope<EngineNativeSessionProviderPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiListEnvelope<EngineNativeSessionProviderPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
-    match state
-        .engine_catalog_service
-        .list_native_session_providers()
-    {
-        Ok(providers) => Ok(Json(build_unbounded_list_envelope(providers, request_id(&web)))),
+    match state.engine_catalog_service.list_native_session_providers() {
+        Ok(providers) => Ok(Json(build_unbounded_list_envelope(
+            providers,
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
@@ -356,20 +400,21 @@ pub async fn list_native_session_providers(
 pub async fn list_native_sessions(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
+    StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<EngineCatalogAppState>,
     Query(params): Query<NativeSessionQueryParams>,
-) -> Result<
-    Json<ApiListEnvelope<NativeSessionSummaryPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiListEnvelope<NativeSessionSummaryPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
-    if !native_session_query_is_scoped(&NativeSessionQuery {
-        workspace_id: params.workspace_id.clone(),
-        project_id: params.project_id.clone(),
-        engine_id: params.engine_id.clone(),
-        limit: params.limit,
-    }) {
+    let offset = pagination.offset as usize;
+    let limit = pagination.page_size as usize;
+    let query = NativeSessionQuery {
+        workspace_id: params.workspace_id,
+        project_id: params.project_id,
+        engine_id: params.engine_id,
+        offset: Some(offset),
+        limit: Some(limit),
+    };
+    if !native_session_query_is_scoped(&query) {
         return Err(error::map_native_session_error(
             NativeSessionError::InvalidInput(
                 "workspaceId and projectId are required to list native sessions.".into(),
@@ -378,27 +423,14 @@ pub async fn list_native_sessions(
         ));
     }
 
-    let query = NativeSessionQuery {
-        workspace_id: params.workspace_id,
-        project_id: params.project_id,
-        engine_id: params.engine_id,
-        limit: params.limit,
-    };
     match state.native_session_service.list_sessions(&query) {
-        Ok(sessions) => {
-            let total = sessions.len();
-            let page_size = query
-                .limit
-                .unwrap_or(sdkwork_birdcoder_project_service::pagination::DEFAULT_LIST_PAGE_SIZE)
-                .clamp(1, sdkwork_birdcoder_project_service::pagination::MAX_LIST_PAGE_SIZE);
-            Ok(Json(build_list_envelope(
-                sessions,
-                0,
-                page_size,
-                total,
-                request_id(&web),
-            )))
-        }
+        Ok((sessions, total)) => Ok(Json(build_offset_list_envelope(
+            sessions,
+            offset,
+            limit,
+            total,
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_native_session_error(e, trace_id)),
     }
 }
@@ -409,11 +441,7 @@ pub async fn get_native_session(
     State(state): State<EngineCatalogAppState>,
     Path(params): Path<NativeSessionPathParams>,
     Query(scope): Query<NativeSessionScopeQuery>,
-) -> Result<
-    Json<ApiDataEnvelope<NativeSessionDetailPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiDataEnvelope<NativeSessionDetailPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     if is_blank(Some(scope.workspace_id.as_str())) || is_blank(Some(scope.project_id.as_str())) {
         return Err(error::map_native_session_error(
@@ -440,14 +468,13 @@ pub async fn list_models(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
-) -> Result<
-    Json<ApiListEnvelope<ModelCatalogEntryPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiListEnvelope<ModelCatalogEntryPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.list_models() {
-        Ok(models) => Ok(Json(build_unbounded_list_envelope(models, request_id(&web)))),
+        Ok(models) => Ok(Json(build_unbounded_list_envelope(
+            models,
+            request_id(&web),
+        ))),
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
     }
 }
@@ -456,11 +483,7 @@ pub async fn get_model_config(
     web: WebRequestContext,
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
-) -> Result<
-    Json<ApiDataEnvelope<CodeEngineModelConfigPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiDataEnvelope<CodeEngineModelConfigPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     match state.engine_catalog_service.get_model_config() {
         Ok(config) => Ok(Json(build_data_envelope(config, request_id(&web)))),
@@ -473,11 +496,7 @@ pub async fn sync_model_config(
     RequiredIamContext(_iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Json(body): Json<SyncModelConfigRequest>,
-) -> Result<
-    Json<ApiDataEnvelope<SyncModelConfigResultPayload>>,
-    error::ProblemJsonBody,
->
-{
+) -> Result<Json<ApiDataEnvelope<SyncModelConfigResultPayload>>, error::ProblemJsonBody> {
     let trace_id = request_trace_id(&web);
     match state
         .engine_catalog_service

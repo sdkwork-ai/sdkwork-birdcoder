@@ -6,15 +6,14 @@ use sdkwork_database_sqlx::DatabasePool;
 use sdkwork_routes_workspace_app_api::{
     realtime_backend_from_env, resolve_redis_config, RealtimeBackendKind,
 };
+use sdkwork_web_bootstrap::{ReadinessCheck, ReadinessFuture};
 use serde::Serialize;
 use serde_json::{json, Value};
 
-const IAM_SERVICE_NAME: &str = "IAM";
-
-/// Singleton IAM database pool, initialized once at startup via [`init_iam_pool`].
+/// Singleton view of the IAM database pool, initialized from the shared IAM database host.
 ///
 /// Holding the pool in a `OnceLock` ensures every health check reuses the same
-/// pool instead of leaking a new connection pool per request.
+/// IAM host pool instead of opening a second connection pool per request.
 static IAM_DATABASE_POOL: OnceLock<Option<DatabasePool>> = OnceLock::new();
 
 /// Cached process and dependency readiness state.
@@ -32,15 +31,42 @@ pub struct ReadinessState {
     pub realtime: bool,
 }
 
-/// Initialize the singleton IAM database pool. Idempotent; safe to call multiple times.
+#[derive(Clone)]
+pub struct BirdCoderReadinessCheck {
+    database_pool: DatabasePool,
+}
+
+impl BirdCoderReadinessCheck {
+    pub fn new(database_pool: DatabasePool) -> Self {
+        Self { database_pool }
+    }
+}
+
+impl ReadinessCheck for BirdCoderReadinessCheck {
+    fn check(&self) -> ReadinessFuture<'_> {
+        let database_pool = self.database_pool.clone();
+        Box::pin(async move {
+            let state = health_state(&database_pool).await;
+            if state.readiness.database && state.readiness.iam_database && state.readiness.realtime
+            {
+                Ok(())
+            } else {
+                Err("BirdCoder readiness dependencies are unavailable".to_string())
+            }
+        })
+    }
+}
+
+/// Initialize the IAM health view from the shared IAM database host.
 ///
-/// Call once during bootstrap so subsequent health checks read pool state without
-/// creating new connections.
+/// Call this after IAM router bootstrap so readiness observes the process-wide
+/// IAM pool without creating another connection pool.
 pub async fn init_iam_pool() {
     if IAM_DATABASE_POOL.get().is_some() {
         return;
     }
-    let pool = load_iam_pool().await;
+    let pool =
+        sdkwork_iam_database_host::installed_iam_database_host().map(|host| host.pool().clone());
     match &pool {
         Some(pool) => tracing::debug!(
             engine = pool_engine_label(pool),
@@ -49,24 +75,6 @@ pub async fn init_iam_pool() {
         None => tracing::debug!("IAM database health pool not configured"),
     }
     let _ = IAM_DATABASE_POOL.set(pool);
-}
-
-async fn load_iam_pool() -> Option<DatabasePool> {
-    let configured = std::env::var("SDKWORK_IAM_DATABASE_URL")
-        .ok()
-        .map(|value| !value.trim().is_empty())
-        .unwrap_or(false);
-    if !configured {
-        return None;
-    }
-    match sdkwork_database_sqlx::create_pool_from_env(IAM_SERVICE_NAME).await {
-        Ok(Some(pool)) => Some(pool),
-        Ok(None) => None,
-        Err(error) => {
-            tracing::debug!(error = %error, "IAM database pool initialization failed");
-            None
-        }
-    }
 }
 
 /// Returns the current health state.
@@ -102,18 +110,8 @@ async fn check_database_connectivity(pool: &DatabasePool) -> bool {
         return false;
     }
     match pool {
-        DatabasePool::Sqlite(inner, _) => {
-            sqlx::query("SELECT 1")
-                .execute(inner)
-                .await
-                .is_ok()
-        }
-        DatabasePool::Postgres(inner, _) => {
-            sqlx::query("SELECT 1")
-                .execute(inner)
-                .await
-                .is_ok()
-        }
+        DatabasePool::Sqlite(inner, _) => sqlx::query("SELECT 1").execute(inner).await.is_ok(),
+        DatabasePool::Postgres(inner, _) => sqlx::query("SELECT 1").execute(inner).await.is_ok(),
     }
 }
 
@@ -142,7 +140,8 @@ fn pool_engine_label(pool: &DatabasePool) -> &'static str {
 pub async fn health_check(pool: DatabasePool) -> (StatusCode, Json<Value>) {
     let state = health_state(&pool).await;
     let payload = build_health_payload(&pool).await;
-    let ready = state.readiness.database && state.readiness.iam_database && state.readiness.realtime;
+    let ready =
+        state.readiness.database && state.readiness.iam_database && state.readiness.realtime;
     let status_code = if ready && state.status == "healthy" {
         StatusCode::OK
     } else {
@@ -306,7 +305,7 @@ mod tests {
         init_iam_pool().await;
         init_iam_pool().await;
         // Without SDKWORK_IAM_DATABASE_URL the pool is None and readiness is ok.
-        assert!(super::iam_database_readiness());
+        assert!(super::check_iam_database_connectivity().await);
     }
 
     #[test]

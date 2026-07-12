@@ -4,7 +4,7 @@
  */
 
 import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Settings, Terminal, Zap, LayoutTemplate } from 'lucide-react';
+import { Settings, Terminal } from 'lucide-react';
 import {
   DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   buildDefaultTerminalCommandRequest,
@@ -20,7 +20,7 @@ import {
   normalizeWorkbenchRecoverySnapshot,
   normalizeWorkbenchRecoveryUserScope,
   openLocalFolder,
-  openTauriShellPath,
+  revealTauriPathInFileManager,
   recoverySnapshotsEqual,
   resolveEffectiveWorkspaceId,
   resolveLocalFolderImportWorkspaceId,
@@ -90,17 +90,6 @@ export function AppContent() {
     'recovery-context',
     DEFAULT_WORKBENCH_RECOVERY_SNAPSHOT,
   );
-  const {
-    workspaces,
-    hasFetched: workspacesHasFetched,
-    isLoading: isWorkspacesLoading,
-    createWorkspace,
-    updateWorkspace,
-    deleteWorkspace,
-    refreshWorkspaces,
-  } = useWorkspaces({
-    isActive: Boolean(user),
-  });
   const currentWorkbenchUserScope = normalizeWorkbenchRecoveryUserScope(user?.id);
   const normalizedStoredRecoverySnapshot = useMemo(
     () => normalizeWorkbenchRecoverySnapshot(recoverySnapshot),
@@ -115,6 +104,28 @@ export function AppContent() {
     ),
     [currentWorkbenchUserScope, normalizedStoredRecoverySnapshot],
   );
+  const {
+    workspaces,
+    error: workspacesError,
+    hasFetched: workspacesHasFetched,
+    hasMore: hasMoreWorkspaces,
+    isLoading: isWorkspacesLoading,
+    isLoadingMore: isLoadingMoreWorkspaces,
+    createWorkspace,
+    updateWorkspace,
+    deleteWorkspace,
+    loadMoreWorkspaces: loadMoreWorkspaceInventory,
+    refreshWorkspaces,
+  } = useWorkspaces({
+    isActive: Boolean(user),
+    targetWorkspaceId: normalizedRecoverySnapshot.activeWorkspaceId,
+  });
+
+  useEffect(() => {
+    if (workspacesError) {
+      addToast(workspacesError, 'error');
+    }
+  }, [addToast, workspacesError]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string>('');
   const [activeCodingSessionId, setActiveCodingSessionId] = useState<string>('');
@@ -149,12 +160,21 @@ export function AppContent() {
   const {
     projects: activeProjects,
     hasFetched: activeProjectsHasFetched,
+    hasMore: activeProjectsHasMore,
+    isLoadingMore: isActiveProjectsLoadingMore,
     createProject: createActiveProject,
+    loadMoreProjects: loadMoreActiveProjects,
     refreshProjects: refreshActiveProjects,
     updateProject: updateActiveProject,
     deleteProject: deleteActiveProject,
     createCodingSession: createActiveCodingSession,
-  } = useProjects(projectsWorkspaceId);
+  } = useProjects(projectsWorkspaceId, {
+    targetProjectId:
+      scopedActiveProjectId ||
+      (normalizedRecoverySnapshot.activeWorkspaceId === projectsWorkspaceId
+        ? normalizedRecoverySnapshot.activeProjectId
+        : null),
+  });
   const activeProjectsIndex = useMemo(
     () => buildProjectCodingSessionIndex(activeProjects),
     [activeProjects],
@@ -162,7 +182,10 @@ export function AppContent() {
   const {
     projects: distinctMenuProjects,
     hasFetched: distinctMenuProjectsHasFetched,
+    hasMore: distinctMenuProjectsHasMore,
+    isLoadingMore: isDistinctMenuProjectsLoadingMore,
     createProject: createDistinctMenuProject,
+    loadMoreProjects: loadMoreDistinctMenuProjects,
     createCodingSession: createDistinctMenuCodingSession,
     refreshProjects: refreshDistinctMenuProjects,
     updateProject: updateDistinctMenuProject,
@@ -182,6 +205,25 @@ export function AppContent() {
     shouldUseDistinctMenuProjectsStore
       ? distinctMenuProjectsHasFetched
       : activeProjectsHasFetched;
+  const menuProjectsHasMore = shouldUseDistinctMenuProjectsStore
+    ? distinctMenuProjectsHasMore
+    : activeProjectsHasMore;
+  const isMenuProjectsLoadingMore = shouldUseDistinctMenuProjectsStore
+    ? isDistinctMenuProjectsLoadingMore
+    : isActiveProjectsLoadingMore;
+  const loadMoreMenuProjects = shouldUseDistinctMenuProjectsStore
+    ? loadMoreDistinctMenuProjects
+    : loadMoreActiveProjects;
+  const handleLoadMoreMenuProjects = useCallback(async () => {
+    try {
+      await loadMoreMenuProjects();
+    } catch (error) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message
+        : t('code.failedToLoadMoreProjects');
+      addToast(message, 'error');
+    }
+  }, [addToast, loadMoreMenuProjects, t]);
   const createMenuProject =
     shouldUseDistinctMenuProjectsStore ? createDistinctMenuProject : createActiveProject;
   const createMenuCodingSession =
@@ -278,6 +320,7 @@ export function AppContent() {
       isAuthLoading ||
       !isRecoveryHydrated ||
       !workspacesHasFetched ||
+      workspacesError ||
       workspaceBootstrapPromiseRef.current
     ) {
       return;
@@ -349,6 +392,7 @@ export function AppContent() {
     user,
     workspaces,
     workspacesById,
+    workspacesError,
     workspacesHasFetched,
   ]);
 
@@ -855,7 +899,7 @@ export function AppContent() {
     };
     const handleRevealInExplorer = async (path?: string) => {
       try {
-        if (await openTauriShellPath(path || '')) {
+        if (await revealTauriPathInFileManager(path || '')) {
           addToast(t('app.revealedInExplorer', { path: path || 'project' }), 'info');
           return;
         }
@@ -2096,7 +2140,6 @@ export function AppContent() {
           ),
       },
       { label: t('app.menu.whatsNew'), onClick: () => setShowWhatsNewModal(true) },
-      { label: t('app.menu.skills'), onClick: () => setActiveTab('skills') },
       { label: '', divider: true },
       {
         label: t('app.menu.keyboardShortcuts'),
@@ -2181,8 +2224,12 @@ export function AppContent() {
             effectiveProjectId={effectiveProjectId}
             showWorkspaceMenu={showWorkspaceMenu}
             workspaces={workspaces}
+            hasMoreWorkspaces={hasMoreWorkspaces}
+            isLoadingMoreWorkspaces={isLoadingMoreWorkspaces}
             menuProjects={menuProjects}
             menuProjectsHasFetched={menuProjectsHasFetched}
+            menuProjectsHasMore={menuProjectsHasMore}
+            isMenuProjectsLoadingMore={isMenuProjectsLoadingMore}
             shouldUseDistinctMenuProjectsStore={shouldUseDistinctMenuProjectsStore}
             isWorkspacesLoading={isWorkspacesLoading}
             hasActiveProjectsFetched={activeProjectsHasFetched}
@@ -2202,12 +2249,14 @@ export function AppContent() {
             onToggleMenu={handleWorkspaceMenuToggle}
             onCloseMenuSurface={closeWorkspaceMenuSurface}
             onPreviewWorkspaceSelection={previewWorkspaceSelection}
+            onLoadMoreWorkspaces={loadMoreWorkspaceInventory}
             onStartWorkspaceRename={handleStartWorkspaceRename}
             onWorkspaceRenameValueChange={setRenameWorkspaceValue}
             onFinishWorkspaceRename={handleFinishWorkspaceRename}
             onCommitWorkspaceRename={handleRenameWorkspace}
             onConfirmDeleteWorkspace={confirmDeleteWorkspace}
             onSelectProject={handleSelectMenuProject}
+            onLoadMoreMenuProjects={handleLoadMoreMenuProjects}
             onStartProjectRename={handleStartProjectRename}
             onProjectRenameValueChange={setRenameProjectValue}
             onFinishProjectRename={handleFinishProjectRename}
@@ -2286,5 +2335,3 @@ export function AppContent() {
     </div>
   );
 }
-
-
