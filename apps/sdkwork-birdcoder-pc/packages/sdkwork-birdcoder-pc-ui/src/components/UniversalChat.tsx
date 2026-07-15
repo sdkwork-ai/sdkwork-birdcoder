@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, memo, useCallback, useMemo, useRef, useEffect, useLayoutEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { Plus, ChevronDown, ChevronUp, GripVertical, Check, ArrowUp, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, BookOpen, List, Loader2 } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, GripVertical, ArrowUp, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, BookOpen, List, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-commons/chat/types';

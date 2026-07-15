@@ -14,6 +14,18 @@ const universalChatPath = path.join(
   'UniversalChat.tsx',
 );
 const universalChatSource = fs.readFileSync(universalChatPath, 'utf8');
+const sharedComposerFooterSource = fs.readFileSync(path.join(
+  rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'chat',
+  'composer',
+  'SharedComposerFooter.tsx',
+), 'utf8');
 const codePageSource = fs.readFileSync(path.join(
   rootDir,
   'apps',
@@ -48,9 +60,14 @@ assert.match(
   'Composer must always resolve a non-empty selected model label for display.',
 );
 assert.match(
-  universalChatSource,
-  /data-testid="universal-chat-model-picker"[\s\S]*?<ModelPicker[\s\S]*?menuPlacement="auto"[\s\S]*?onSelectModel=\{handleComposerModelSelect\}[\s\S]*?selectedModelId=\{currentModelPickerId\}/u,
+  sharedComposerFooterSource,
+  /data-testid="universal-chat-model-picker"[\s\S]*?<ModelPicker[\s\S]*?menuPlacement="auto"[\s\S]*?onSelectModel=\{onSelectModel\}[\s\S]*?selectedModelId=\{selectedModelPickerId\}/u,
   'Composer model picker must expose its selected model and use adaptive viewport placement.',
+);
+assert.match(
+  universalChatSource,
+  /<UniversalChatComposerFooter[\s\S]*?engineId=\{resolvedSelectedEngineId\}[\s\S]*?onSelectModel=\{handleComposerModelSelect\}/u,
+  'UniversalChat must delegate its footer while retaining engine and model orchestration.',
 );
 assert.match(
   codePageSource,
@@ -68,8 +85,8 @@ assert.match(
   'Composer textarea must default to two 24px lines and keep resizing aligned to that 48px minimum.',
 );
 assert.match(
-  universalChatSource,
-  /<div className="mt-1 flex min-w-0 items-center justify-between gap-3">/u,
+  sharedComposerFooterSource,
+  /<div\s+className="mt-1 flex min-w-0 items-center justify-between gap-3"/u,
   'Composer footer must use compact spacing below the two-line textarea.',
 );
 assert.match(
@@ -81,6 +98,11 @@ assert.match(
   appStylesSource,
   /@media \(max-width:\s*520px\)[\s\S]*?\.sdkwork-model-picker-menu--flat\s*\{[\s\S]*?grid-template-columns:\s*minmax\(96px, 36%\) minmax\(0, 1fr\)\s*!important;/u,
   'Model picker menu must adapt its vendor and model columns on narrow viewports.',
+);
+assert.match(
+  appStylesSource,
+  /body:has\([\s\S]*?\.sdkwork-model-picker-trigger\[aria-expanded='true'\][\s\S]*?\.sdkwork-model-picker-menu--flat[\s\S]*?\.sdkwork-model-picker-model-list[\s\S]*?min-height:\s*368px;/u,
+  'Composer model picker must reserve a stable list height across vendors with different model counts.',
 );
 
 console.log('universal chat composer model display contract passed.');

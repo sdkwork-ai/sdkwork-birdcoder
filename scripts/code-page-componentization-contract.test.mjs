@@ -53,6 +53,18 @@ const universalChatPath = path.join(
   'UniversalChat.tsx',
 );
 const universalChatSource = fs.readFileSync(universalChatPath, 'utf8');
+const sharedComposerFooterSource = fs.readFileSync(path.join(
+  rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'chat',
+  'composer',
+  'SharedComposerFooter.tsx',
+), 'utf8');
 const engineSelectionHookPath = path.join(
   rootDir,
   'apps',
@@ -164,9 +176,9 @@ assert.match(
 );
 
 assert.match(
-  universalChatSource,
+  sharedComposerFooterSource,
   /import \{ createFallbackModel, ModelPicker \} from '@sdkwork\/models-pc-picker';/,
-  'UniversalChat must consume the shared SDKWork model picker instead of maintaining a local vendor menu.',
+  'The shared composer footer must consume the SDKWork model picker instead of maintaining a local vendor menu.',
 );
 
 assert.match(
@@ -177,8 +189,14 @@ assert.match(
 
 assert.match(
   universalChatSource,
-  /<ModelPicker[\s\S]*onSelectModel=\{handleComposerModelSelect\}[\s\S]*selectedModelId=\{currentModelPickerId\}/s,
-  'UniversalChat must route SDKWork model picker selections through its engine/model selection adapter.',
+  /<UniversalChatComposerFooter[\s\S]*onSelectModel=\{handleComposerModelSelect\}[\s\S]*selectedModelPickerId=\{currentModelPickerId\}/s,
+  'UniversalChat must route shared composer footer selections through its engine/model selection adapter.',
+);
+
+assert.doesNotMatch(
+  universalChatSource,
+  /<ModelPicker/u,
+  'UniversalChat must not inline model picker presentation after composer footer componentization.',
 );
 
 assert.match(
