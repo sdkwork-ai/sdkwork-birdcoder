@@ -33,9 +33,10 @@ pub struct ProviderRunnerEnvironmentBinding {
 
 /// Server-owned project root resolver for remote project sources and Git.
 ///
-/// The root is derived from authenticated scope plus database-issued IDs. It
-/// intentionally has no client path input and creates only private,
-/// non-symlinked descendants beneath the configured runner root.
+/// By default the root is derived from authenticated scope plus database-issued
+/// IDs. Local browser/server development may explicitly bind one deployment
+/// directory; that value is server configuration and never comes from a
+/// client request.
 #[derive(Clone, Debug)]
 pub struct ServerProjectWorkspaceRootResolver {
     configured_root: Option<PathBuf>,
@@ -350,7 +351,12 @@ mod tests {
     use std::ffi::OsStr;
     use std::path::{Path, PathBuf};
 
-    use super::{ProviderRunnerBinding, ProviderRunnerIsolationError};
+    use sdkwork_birdcoder_project_service::context::ProjectContext;
+    use sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver;
+
+    use super::{
+        ProviderRunnerBinding, ProviderRunnerIsolationError, ServerProjectWorkspaceRootResolver,
+    };
 
     struct TestDirectory {
         root: PathBuf,
@@ -449,6 +455,27 @@ mod tests {
             binding.resolve_project_root("../escape"),
             Err(ProviderRunnerIsolationError::InvalidIdentity("project id"))
         ));
+    }
+
+    #[test]
+    fn explicit_deployment_project_root_overrides_isolated_project_directory() {
+        let deployment_root = TestDirectory::new();
+        let resolver = ServerProjectWorkspaceRootResolver::new(None)
+            .with_deployment_project_root(Some(deployment_root.root.clone()));
+        let context = ProjectContext {
+            tenant_id: "100000000000000001".to_owned(),
+            organization_id: "0".to_owned(),
+            user_id: "100000000000000002".to_owned(),
+        };
+
+        let resolved = resolver
+            .resolve_project_root(&context, "workspace-alpha", "100000000000000003")
+            .expect("resolve explicit deployment project root");
+
+        assert_eq!(
+            resolved,
+            std::fs::canonicalize(&deployment_root.root).expect("canonical deployment root")
+        );
     }
 
     #[test]
