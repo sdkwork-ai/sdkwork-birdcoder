@@ -150,8 +150,8 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /showComposerEngineSelector:\s*!visibleSessionId,/,
-  'CodePage must derive composer engine selector visibility from the visible session id after pending new-session masking.',
+  /showComposerEngineSelector:\s*true,/,
+  'CodePage must keep per-turn composer model selection available for both new and existing sessions.',
 );
 
 assert.match(

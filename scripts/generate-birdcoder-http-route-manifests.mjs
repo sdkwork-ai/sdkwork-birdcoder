@@ -132,6 +132,7 @@ const crates = [
       ['Patch', 'PROJECT_DETAIL_PATH', 'projects'],
       ['Delete', 'PROJECT_DETAIL_PATH', 'projects'],
       ['Get', 'PROJECT_GIT_OVERVIEW_PATH', 'projects'],
+      ['Get', 'PROJECT_GIT_DIFF_PATH', 'projects'],
       ['Post', 'PROJECT_GIT_BRANCHES_PATH', 'projects'],
       ['Post', 'PROJECT_GIT_BRANCH_SWITCH_PATH', 'projects'],
       ['Post', 'PROJECT_GIT_COMMITS_PATH', 'projects'],

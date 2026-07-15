@@ -91,8 +91,10 @@ pub use sdk_bridge::{
     CODEENGINE_SDK_BRIDGE_HOME_ENV,
 };
 pub use session_records::{
+    sanitize_codeengine_session_metadata,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionSummaryRecord,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
+    CODE_ENGINE_NATIVE_SESSION_SCHEMA_VERSION,
 };
 pub use turns::{
     build_codeengine_turn_prompt, CodeEngineApprovalDecisionRecord, CodeEngineTurnConfigRecord,

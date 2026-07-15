@@ -44,6 +44,33 @@ const studioStageHeaderSource = readSource(
   'preview',
   'StudioStageHeader.tsx',
 );
+const gitDiffDialogSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'ProjectGitDiffDialog.tsx',
+);
+const codeWorkbenchCommandsSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-code',
+  'src',
+  'pages',
+  'useCodeWorkbenchCommands.ts',
+);
+const studioWorkbenchEventBindingsSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-studio',
+  'src',
+  'pages',
+  'useStudioWorkbenchEventBindings.ts',
+);
 
 assert.equal(
   fs.existsSync(sharedControlsPath),
@@ -202,6 +229,41 @@ assert.match(
   /import[\s\S]*ProjectGitHeaderControls[\s\S]*from '@sdkwork\/birdcoder-pc-ui';/s,
   'Studio stage header must import the shared ProjectGitHeaderControls component.',
 );
+
+assert.match(
+  gitDiffDialogSource,
+  /gitService\.getProjectGitDiff\(normalizedProjectId\)/,
+  'Git diff dialog must load the actual project Git diff through the injected Git service.',
+);
+
+assert.match(
+  gitDiffDialogSource,
+  /className="fixed inset-0 z-\[120\]/,
+  'Git diff dialog must render above header menus and overview drawers.',
+);
+
+assert.match(
+  topBarSource,
+  /onRequestViewDiff=\{\(\) => setShowGitDiffDialog\(true\)\}/,
+  'Code top bar View Diff action must open the real Git diff dialog.',
+);
+
+assert.match(
+  studioStageHeaderSource,
+  /onRequestViewDiff=\{\(\) => setShowGitDiffDialog\(true\)\}/,
+  'Studio code header View Diff action must open the real Git diff dialog.',
+);
+
+for (const [sourceName, source] of [
+  ['Code workbench commands', codeWorkbenchCommandsSource],
+  ['Studio workbench event bindings', studioWorkbenchEventBindingsSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /toggleDiffPanel|noActiveDiff/,
+    `${sourceName} must not retain the former no-op Git diff event handler.`,
+  );
+}
 
 assert.match(
   studioStageHeaderSource,

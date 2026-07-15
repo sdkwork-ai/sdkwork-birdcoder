@@ -117,8 +117,8 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /showComposerEngineSelector:\s*!visibleSessionId,/,
-  'CodePage must hide the composer engine selector once a visible coding session exists and restore selector affordances while a new session is pending.',
+  /showComposerEngineSelector:\s*true,/,
+  'CodePage must expose per-turn composer model selection for both new and existing coding sessions.',
 );
 
 assert.match(
@@ -148,7 +148,7 @@ assert.match(
 assert.match(
   codeEditorWorkspacePanelSource,
   /showComposerEngineSelector=\{showComposerEngineSelector\}/,
-  'CodeEditorWorkspacePanel must forward the code page session lock state into UniversalChat so the editor-side composer cannot mutate session engine/model.',
+  'CodeEditorWorkspacePanel must forward composer model-picker visibility into UniversalChat.',
 );
 
 assert.match(

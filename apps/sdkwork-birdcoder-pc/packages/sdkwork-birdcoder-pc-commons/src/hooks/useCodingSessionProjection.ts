@@ -15,23 +15,35 @@ import type {
   BirdCoderCodingSessionArtifact,
   BirdCoderCodingSessionCheckpoint,
   BirdCoderCodingSessionEvent,
-  BirdCoderCodingSessionSummary,
   BirdCoderSubmitApprovalDecisionRequest,
   BirdCoderSubmitUserQuestionAnswerRequest,
   BirdCoderUserQuestionAnswerResult,
 } from '@sdkwork/birdcoder-pc-types';
-import type { IAppRuntimeReadService, IAppRuntimeWriteService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
+import type { IAppRuntimeWriteService } from '@sdkwork/birdcoder-pc-infrastructure-runtime';
 import { useIDEServices } from '../context/ideServices.ts';
+import {
+  loadCodingSessionProjection,
+  loadCodingSessionProjectionIfAvailable,
+  shouldReportCodingSessionProjectionError,
+  type BirdCoderCodingSessionProjection,
+  type BirdCoderCodingSessionProjectionReader,
+} from '../services/codingSessionProjectionService.ts';
 
-export interface BirdCoderCodingSessionProjection {
-  artifacts: BirdCoderCodingSessionArtifact[];
-  checkpoints: BirdCoderCodingSessionCheckpoint[];
-  events: BirdCoderCodingSessionEvent[];
-  session: BirdCoderCodingSessionSummary | null;
-}
+export {
+  BirdCoderCodingSessionProjectionUnavailableError,
+  isBirdCoderCodingSessionProjectionUnavailableError,
+  loadCodingSessionProjection,
+  loadCodingSessionProjectionIfAvailable,
+} from '../services/codingSessionProjectionService.ts';
+export type {
+  BirdCoderCodingSessionProjection,
+  BirdCoderCodingSessionProjectionReader,
+} from '../services/codingSessionProjectionService.ts';
 
-export interface BirdCoderCodingSessionProjectionState extends BirdCoderCodingSessionProjection {
+export interface BirdCoderCodingSessionProjectionState
+  extends Omit<BirdCoderCodingSessionProjection, 'session'> {
   isLoading: boolean;
+  session: BirdCoderCodingSessionProjection['session'] | null;
 }
 
 export interface BirdCoderCodingSessionPendingApproval {
@@ -89,7 +101,7 @@ export interface BirdCoderCodingSessionPendingInteractionState
   isLoading: boolean;
 }
 
-const EMPTY_PROJECTION: BirdCoderCodingSessionProjection = {
+const EMPTY_PROJECTION: Omit<BirdCoderCodingSessionProjectionState, 'isLoading'> = {
   artifacts: [],
   checkpoints: [],
   events: [],
@@ -917,41 +929,19 @@ function deriveCodingSessionPendingUserQuestionsFromIndex(
   return normalizePendingUserQuestions([...pendingByQuestionKey.values()]);
 }
 
-export async function loadCodingSessionProjection(
-  appRuntimeReadService: Pick<
-    IAppRuntimeReadService,
-    | 'getCodingSession'
-    | 'listCodingSessionArtifacts'
-    | 'listCodingSessionCheckpoints'
-    | 'listCodingSessionEvents'
-  >,
-  codingSessionId: string,
-): Promise<BirdCoderCodingSessionProjection> {
-  const [session, events, artifacts, checkpoints] = await Promise.all([
-    appRuntimeReadService.getCodingSession(codingSessionId),
-    appRuntimeReadService.listCodingSessionEvents(codingSessionId),
-    appRuntimeReadService.listCodingSessionArtifacts(codingSessionId),
-    appRuntimeReadService.listCodingSessionCheckpoints(codingSessionId),
-  ]);
-
-  return {
-    artifacts,
-    checkpoints,
-    events,
-    session,
-  };
-}
-
-type BirdCoderCodingSessionApprovalReader = Pick<
-  IAppRuntimeReadService,
-  'getCodingSession' | 'listCodingSessionArtifacts' | 'listCodingSessionCheckpoints' | 'listCodingSessionEvents'
->;
+type BirdCoderCodingSessionApprovalReader = BirdCoderCodingSessionProjectionReader;
 
 export async function loadCodingSessionApprovalState(
   appRuntimeReadService: BirdCoderCodingSessionApprovalReader,
   codingSessionId: string,
 ): Promise<BirdCoderCodingSessionPendingApproval[]> {
-  const projection = await loadCodingSessionProjection(appRuntimeReadService, codingSessionId);
+  const projection = await loadCodingSessionProjectionIfAvailable(
+    appRuntimeReadService,
+    codingSessionId,
+  );
+  if (!projection) {
+    return EMPTY_APPROVALS;
+  }
   return deriveCodingSessionPendingApprovals(projection);
 }
 
@@ -959,7 +949,13 @@ export async function loadCodingSessionUserQuestionState(
   appRuntimeReadService: BirdCoderCodingSessionApprovalReader,
   codingSessionId: string,
 ): Promise<BirdCoderCodingSessionPendingUserQuestion[]> {
-  const projection = await loadCodingSessionProjection(appRuntimeReadService, codingSessionId);
+  const projection = await loadCodingSessionProjectionIfAvailable(
+    appRuntimeReadService,
+    codingSessionId,
+  );
+  if (!projection) {
+    return EMPTY_USER_QUESTIONS;
+  }
   return deriveCodingSessionPendingUserQuestions(projection);
 }
 
@@ -968,7 +964,13 @@ export async function loadCodingSessionPendingInteractionState(
   codingSessionId: string,
   expectedProjectId?: string | null,
 ): Promise<BirdCoderCodingSessionPendingInteractions> {
-  const projection = await loadCodingSessionProjection(appRuntimeReadService, codingSessionId);
+  const projection = await loadCodingSessionProjectionIfAvailable(
+    appRuntimeReadService,
+    codingSessionId,
+  );
+  if (!projection) {
+    return EMPTY_PENDING_INTERACTIONS;
+  }
   const normalizedExpectedProjectId = expectedProjectId?.trim() ?? '';
   const projectionProjectId = projection.session?.projectId?.trim() ?? '';
   if (
@@ -1037,7 +1039,16 @@ export function useCodingSessionProjection(
     ));
 
     try {
-      const projection = await loadCodingSessionProjection(appRuntimeReadService, codingSessionId);
+      const projection = await loadCodingSessionProjectionIfAvailable(
+        appRuntimeReadService,
+        codingSessionId,
+      );
+      if (!projection) {
+        if (latestRefreshTokenRef.current === refreshToken) {
+          setState(INITIAL_STATE);
+        }
+        return EMPTY_PROJECTION;
+      }
       if (latestRefreshTokenRef.current === refreshToken) {
         setState({
           ...projection,
@@ -1046,7 +1057,9 @@ export function useCodingSessionProjection(
       }
       return projection;
     } catch (error) {
-      console.error('Failed to load coding session projection', error);
+      if (shouldReportCodingSessionProjectionError(error)) {
+        console.error('Failed to load coding session projection', error);
+      }
       if (latestRefreshTokenRef.current === refreshToken) {
         setState((current) => ({
           ...current,
@@ -1117,7 +1130,9 @@ export function useCodingSessionApprovalState(
       }
       return approvals;
     } catch (error) {
-      console.error('Failed to load coding session approvals', error);
+      if (shouldReportCodingSessionProjectionError(error)) {
+        console.error('Failed to load coding session approvals', error);
+      }
       if (latestRefreshTokenRef.current === refreshToken) {
         setState((current) => ({
           ...current,
@@ -1217,7 +1232,9 @@ export function useCodingSessionPendingInteractionState(
       }
       return pendingInteractions;
     } catch (error) {
-      console.error('Failed to load coding session pending interactions', error);
+      if (shouldReportCodingSessionProjectionError(error)) {
+        console.error('Failed to load coding session pending interactions', error);
+      }
       if (latestRefreshTokenRef.current === refreshToken) {
         setState((current) => ({
           ...current,
@@ -1325,7 +1342,9 @@ export function useCodingSessionUserQuestionState(
       }
       return questions;
     } catch (error) {
-      console.error('Failed to load coding session user questions', error);
+      if (shouldReportCodingSessionProjectionError(error)) {
+        console.error('Failed to load coding session user questions', error);
+      }
       if (latestRefreshTokenRef.current === refreshToken) {
         setState((current) => ({
           ...current,

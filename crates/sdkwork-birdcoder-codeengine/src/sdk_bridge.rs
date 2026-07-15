@@ -226,6 +226,7 @@ fn build_sdk_bridge_session_summary_record(
         transcript_updated_at: Some(stored_session.updated_at.clone()),
         workspace_id: stored_session.workspace_id.clone(),
         project_id: stored_session.project_id.clone(),
+        native_attributes: Default::default(),
     }
 }
 

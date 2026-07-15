@@ -46,6 +46,13 @@ pub struct GitProjectOverview {
     pub worktrees: Vec<GitWorktreeSummary>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GitProjectDiff {
+    pub patch: String,
+    pub truncated: bool,
+}
+
 #[derive(Debug, Clone)]
 pub enum GitMutationError {
     NotRepository,
@@ -71,6 +78,11 @@ pub trait GitOperations: Send + Sync {
         &self,
         project_root_path: &str,
     ) -> Result<GitProjectOverview, GitMutationError>;
+
+    async fn inspect_diff(
+        &self,
+        project_root_path: &str,
+    ) -> Result<GitProjectDiff, GitMutationError>;
 
     async fn create_branch(
         &self,

@@ -16,7 +16,7 @@
               - img [ref=e34]
               - text: Refresh QR code
           - generic [ref=e39]: QR status unavailable
-          - paragraph [ref=e40]: "HTTP 401: Unauthorized"
+          - paragraph [ref=e40]: SDKWork IAM runtime QR auth session response is missing sessionKey
       - generic [ref=e42]:
         - heading "Account sign-in" [level=1] [ref=e44]
         - generic [ref=e46]:

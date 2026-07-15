@@ -88,6 +88,9 @@ function toStoredNativeSessionSummary(
     modelId: summary.modelId,
     nativeSessionId,
     nativeCwd: summary.nativeCwd ?? null,
+    nativeAttributes: summary.nativeAttributes
+      ? structuredClone(summary.nativeAttributes)
+      : undefined,
     projectId: summary.projectId,
     runtimeStatus: summary.runtimeStatus,
     sortTimestamp: summary.sortTimestamp,

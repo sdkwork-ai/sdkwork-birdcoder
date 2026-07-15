@@ -14,6 +14,33 @@ const universalChatPath = path.join(
   'UniversalChat.tsx',
 );
 const universalChatSource = fs.readFileSync(universalChatPath, 'utf8');
+const codePageSource = fs.readFileSync(path.join(
+  rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-code',
+  'src',
+  'pages',
+  'CodePage.tsx',
+), 'utf8');
+const studioChatSidebarSource = fs.readFileSync(path.join(
+  rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-studio',
+  'src',
+  'pages',
+  'StudioChatSidebar.tsx',
+), 'utf8');
+const appStylesSource = fs.readFileSync(path.join(
+  rootDir,
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'src',
+  'index.css',
+), 'utf8');
 
 assert.match(
   universalChatSource,
@@ -22,13 +49,38 @@ assert.match(
 );
 assert.match(
   universalChatSource,
-  /\{showComposerEngineSelector \? \([\s\S]*?<ModelPicker[\s\S]*?\) : \(\s*<div[\s\S]*?data-testid="universal-chat-selected-model"[\s\S]*?title=\{currentEngineSummary\}[\s\S]*?\{currentComposerModelLabel\}[\s\S]*?<\/div>\s*\)\}/u,
-  'Composer must show the editable picker for new sessions and a read-only selected-model label for locked sessions.',
+  /data-testid="universal-chat-model-picker"[\s\S]*?<ModelPicker[\s\S]*?menuPlacement="auto"[\s\S]*?onSelectModel=\{handleComposerModelSelect\}[\s\S]*?selectedModelId=\{currentModelPickerId\}/u,
+  'Composer model picker must expose its selected model and use adaptive viewport placement.',
+);
+assert.match(
+  codePageSource,
+  /showComposerEngineSelector:\s*true,/u,
+  'Code workbench must keep the composer model picker available after a session exists.',
+);
+assert.match(
+  studioChatSidebarSource,
+  /<DeferredUniversalChat[\s\S]*?showComposerEngineSelector\s*[\s\S]*?layout="sidebar"/u,
+  'Studio workbench must keep the composer model picker available after a session exists.',
 );
 assert.match(
   universalChatSource,
-  /className="flex min-w-12 max-w-\[min\(46vw,240px\)\][^"]*"[\s\S]*?<span className="min-w-0 truncate text-xs font-semibold text-zinc-200">\s*\{currentComposerModelLabel\}/u,
-  'Read-only selected-model text must remain visible and truncate inside narrow composer layouts.',
+  /const RESIZABLE_COMPOSER_MIN_HEIGHT = 48;[\s\S]*?className=\{`min-h-12 w-full[\s\S]*?rows=\{2\}/u,
+  'Composer textarea must default to two 24px lines and keep resizing aligned to that 48px minimum.',
+);
+assert.match(
+  universalChatSource,
+  /<div className="mt-1 flex min-w-0 items-center justify-between gap-3">/u,
+  'Composer footer must use compact spacing below the two-line textarea.',
+);
+assert.match(
+  appStylesSource,
+  /\.sdkwork-model-picker-menu\s*\{[\s\S]*?overscroll-behavior:\s*contain;[\s\S]*?z-index:\s*2147483000\s*!important;/u,
+  'Model picker portal must stay above application overlays and contain internal scrolling.',
+);
+assert.match(
+  appStylesSource,
+  /@media \(max-width:\s*520px\)[\s\S]*?\.sdkwork-model-picker-menu--flat\s*\{[\s\S]*?grid-template-columns:\s*minmax\(96px, 36%\) minmax\(0, 1fr\)\s*!important;/u,
+  'Model picker menu must adapt its vendor and model columns on narrow viewports.',
 );
 
 console.log('universal chat composer model display contract passed.');

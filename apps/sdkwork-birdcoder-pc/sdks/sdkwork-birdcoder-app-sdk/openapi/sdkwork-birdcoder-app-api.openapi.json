@@ -5391,6 +5391,78 @@
         "x-sdkwork-api-surface": "app-api"
       }
     },
+    "/app/v3/api/projects/{projectId}/git/diff": {
+      "get": {
+        "operationId": "projects.git.diff.retrieve",
+        "summary": "Get project Git diff",
+        "description": "Get project Git diff. Requires an authenticated BirdCoder user session.",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "description": "BirdCoder project identifier.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project Git diff returned successfully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BirdCoderProjectGitDiffEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project was not found.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Problem response envelope.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AuthToken": [],
+            "AccessToken": []
+          }
+        ],
+        "x-sdkwork-auth-mode": "user",
+        "x-sdkwork-data-scope": "organization",
+        "x-sdkwork-deployment": "all",
+        "x-sdkwork-domain": "platform",
+        "x-sdkwork-permission": "birdcoder.platform-projects-git-overview.read",
+        "x-sdkwork-public": false,
+        "x-sdkwork-resource": "birdcoder.platform-projects-git-overview",
+        "x-sdkwork-surface": "app",
+        "x-sdkwork-tenant-scope": "tenant",
+        "x-sdkwork-api-authority": "sdkwork-birdcoder-app-api",
+        "x-sdkwork-owner": "sdkwork-birdcoder",
+        "x-sdkwork-request-context": "WebRequestContext",
+        "x-sdkwork-api-surface": "app-api"
+      }
+    },
     "/app/v3/api/projects/{projectId}/git/branches": {
       "post": {
         "operationId": "projects.git.branches.create",
@@ -12553,6 +12625,50 @@
                 "required": [
                   "items",
                   "pageInfo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "BirdCoderProjectGitDiff": {
+        "type": "object",
+        "properties": {
+          "patch": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "patch",
+          "truncated"
+        ],
+        "additionalProperties": false
+      },
+      "BirdCoderProjectGitDiffEnvelope": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SdkWorkApiResponse"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "object",
+                "properties": {
+                  "item": {
+                    "$ref": "#/components/schemas/BirdCoderProjectGitDiff"
+                  }
+                },
+                "required": [
+                  "item"
                 ],
                 "additionalProperties": false
               }

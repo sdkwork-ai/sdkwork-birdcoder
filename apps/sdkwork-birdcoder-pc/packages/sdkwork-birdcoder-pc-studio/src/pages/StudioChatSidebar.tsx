@@ -1009,7 +1009,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
             setSelectedEngineId={onSelectedEngineIdChange}
             setSelectedModelId={onSelectedModelIdChange}
             showEngineHeader={false}
-            showComposerEngineSelector={!selectedCodingSessionId}
+            showComposerEngineSelector
             layout="sidebar"
             onViewChanges={onViewChanges}
             onEditMessage={onEditMessage}

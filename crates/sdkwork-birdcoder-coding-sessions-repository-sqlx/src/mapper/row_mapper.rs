@@ -4,6 +4,7 @@ use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     CodingSessionArtifactPayload, CodingSessionCheckpointPayload, CodingSessionEventPayload,
     CodingSessionPayload, CodingSessionTurnPayload, OperationPayload,
 };
+use sdkwork_birdcoder_coding_sessions_service::native_session_types::NativeSessionAttributesPayload;
 
 use crate::db::rows::{ArtifactRow, CheckpointRow, EventRow, OperationRow, SessionRow, TurnRow};
 
@@ -27,6 +28,27 @@ pub fn session_row_to_payload(
         runtime_status,
         sort_timestamp: row.sort_timestamp.unwrap_or(0),
         transcript_updated_at: row.transcript_updated_at,
+        native_attributes: NativeSessionAttributesPayload {
+            schema_version: row.native_schema_version,
+            session_tree_id: row.native_session_tree_id,
+            parent_session_id: row.native_parent_session_id,
+            forked_from_session_id: row.native_forked_from_session_id,
+            title: row.native_title,
+            preview: row.native_preview,
+            source: row.native_source,
+            provider_version: row.provider_version,
+            model_provider: row.model_provider,
+            project_id: row.native_project_id,
+            cwd: row.native_cwd,
+            git_branch: row.native_git_branch,
+            git_commit: row.native_git_commit,
+            git_repository_url: row.native_git_repository_url,
+            agent_name: row.native_agent_name,
+            agent_role: row.native_agent_role,
+            is_ephemeral: row.native_is_ephemeral != 0,
+            is_sidechain: row.native_is_sidechain != 0,
+            metadata: parse_json_btree_map(&row.native_metadata_json),
+        },
     }
 }
 

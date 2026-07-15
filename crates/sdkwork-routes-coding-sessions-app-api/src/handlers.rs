@@ -4,8 +4,9 @@ use axum::Json;
 
 use sdkwork_birdcoder_codeengine::{
     extract_native_lookup_id_for_engine, list_codeengine_native_session_summaries,
-    CodeEngineSessionSummaryRecord,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
 };
+use sdkwork_birdcoder_coding_sessions_service::native_session_types::NativeSessionAttributesPayload;
 
 use sdkwork_birdcoder_coding_sessions_service::domain::results::{
     ApprovalDecisionPayload, CodingSessionArtifactPayload, CodingSessionCheckpointPayload,
@@ -188,6 +189,7 @@ fn map_native_summary_to_coding_session(
     project_id: &str,
     native_session_id: Option<String>,
 ) -> sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload {
+    let native_attributes = map_native_session_attributes(summary.native_attributes);
     sdkwork_birdcoder_coding_sessions_service::domain::results::CodingSessionPayload {
         id: summary.id,
         workspace_id: workspace_id.to_owned(),
@@ -204,6 +206,33 @@ fn map_native_summary_to_coding_session(
         runtime_status: summary.runtime_status,
         sort_timestamp: summary.sort_timestamp,
         transcript_updated_at: summary.transcript_updated_at,
+        native_attributes,
+    }
+}
+
+fn map_native_session_attributes(
+    record: CodeEngineSessionNativeAttributesRecord,
+) -> NativeSessionAttributesPayload {
+    NativeSessionAttributesPayload {
+        schema_version: record.schema_version,
+        session_tree_id: record.session_tree_id,
+        parent_session_id: record.parent_session_id,
+        forked_from_session_id: record.forked_from_session_id,
+        title: record.title,
+        preview: record.preview,
+        source: record.source,
+        provider_version: record.provider_version,
+        model_provider: record.model_provider,
+        project_id: record.project_id,
+        cwd: record.cwd,
+        git_branch: record.git_branch,
+        git_commit: record.git_commit,
+        git_repository_url: record.git_repository_url,
+        agent_name: record.agent_name,
+        agent_role: record.agent_role,
+        is_ephemeral: record.is_ephemeral,
+        is_sidechain: record.is_sidechain,
+        metadata: record.metadata,
     }
 }
 
@@ -574,6 +603,7 @@ mod tests {
             transcript_updated_at: Some("2026-07-15T08:01:00.000Z".to_owned()),
             workspace_id: None,
             project_id: None,
+            native_attributes: Default::default(),
         }
     }
 

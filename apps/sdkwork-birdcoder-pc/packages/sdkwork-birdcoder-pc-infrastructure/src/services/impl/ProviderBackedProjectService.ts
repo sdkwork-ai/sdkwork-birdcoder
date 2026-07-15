@@ -2278,6 +2278,9 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       engineId: session.engineId,
       modelId: session.modelId,
       nativeSessionId: session.nativeSessionId,
+      nativeAttributes: session.nativeAttributes
+        ? structuredClone(session.nativeAttributes)
+        : undefined,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
       lastTurnAt: session.lastTurnAt,
@@ -2307,6 +2310,9 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       engineId: codingSession.engineId,
       modelId: codingSession.modelId,
       nativeSessionId: codingSession.nativeSessionId,
+      nativeAttributes: codingSession.nativeAttributes
+        ? structuredClone(codingSession.nativeAttributes)
+        : undefined,
       createdAt: codingSession.createdAt,
       updatedAt: codingSession.updatedAt,
       lastTurnAt: codingSession.lastTurnAt,

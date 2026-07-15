@@ -20,6 +20,14 @@ const engineRegistry = fs.readFileSync(
   path.join(root, 'crates/sdkwork-birdcoder-kernel-bridge/src/engine_registry.rs'),
   'utf8',
 );
+const bridgeTurnExecutor = fs.readFileSync(
+  path.join(root, 'crates/sdkwork-birdcoder-kernel-bridge/src/turn_executor.rs'),
+  'utf8',
+);
+const gatewayAdapters = fs.readFileSync(
+  path.join(root, 'crates/sdkwork-birdcoder-standalone-gateway/src/bootstrap/adapters.rs'),
+  'utf8',
+);
 const workflow = JSON.parse(
   fs.readFileSync(path.join(root, 'sdkwork.workflow.json'), 'utf8'),
 );
@@ -45,6 +53,16 @@ assert.match(boundaries, /LEGACY_CODEENGINE_SURFACES/);
 assert.match(boundaries, /coding_session/);
 
 assert.match(engineRegistry, /sdkwork_agents_runtime_facade/);
+assert.match(
+  bridgeTurnExecutor,
+  /commands:\s*\(!output\.tool_calls\.is_empty\(\)\)/u,
+  'kernel bridge must preserve kernel tool calls in the coding-session result.',
+);
+assert.match(
+  gatewayAdapters,
+  /commands:\s*projected_commands\.as_deref\(\)/u,
+  'standalone gateway must project bridge commands into coding-session events.',
+);
 
 assert.equal(
   workflow.dependencies.some((dep) => dep.id === 'sdkwork-kernel'),

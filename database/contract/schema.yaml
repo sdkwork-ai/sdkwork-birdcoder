@@ -1,7 +1,7 @@
 schema_version: 1
 kind: sdkwork.database.schema
 module_id: birdcoder
-contract_version: 1.0.0
+contract_version: 1.1.0
 owner_team: birdcoder-platform
 compliance_level: L2
 engines:

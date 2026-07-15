@@ -1169,6 +1169,17 @@ export interface BirdCoderProjectDocumentSummaryListEnvelope {
   traceId: string;
 }
 
+export interface BirdCoderProjectGitDiff {
+  patch: string;
+  truncated: boolean;
+}
+
+export interface BirdCoderProjectGitDiffEnvelope {
+  code: 0;
+  data: Record<string, unknown>;
+  traceId: string;
+}
+
 export interface BirdCoderProjectGitOverview {
   branches: Array<BirdCoderGitBranchSummary>;
   currentBranch?: string;
@@ -1745,6 +1756,10 @@ export interface PlatformProjectsGitBranchSwitchCreatePathParams {
 }
 
 export interface PlatformProjectsGitCommitsCreatePathParams {
+  projectId: string;
+}
+
+export interface PlatformProjectsGitDiffRetrievePathParams {
   projectId: string;
 }
 
@@ -2865,6 +2880,24 @@ export const BIRDCODER_APP_SDK_OPERATIONS = [
     "public": false,
     "resource": "birdcoder.platform-projects-git-commits",
     "summary": "Commit project Git changes",
+    "tag": "platform",
+    "tenantScope": "tenant"
+  },
+  {
+    "key": "platform.projects.git.diff.retrieve",
+    "method": "GET",
+    "operationId": "projects.git.diff.retrieve",
+    "path": "/app/v3/api/projects/{projectId}/git/diff",
+    "pathParamNames": [
+      "projectId"
+    ],
+    "dataScope": "organization",
+    "deployment": "all",
+    "domain": "platform",
+    "permission": "birdcoder.platform-projects-git-overview.read",
+    "public": false,
+    "resource": "birdcoder.platform-projects-git-overview",
+    "summary": "Get project Git diff",
     "tag": "platform",
     "tenantScope": "tenant"
   },

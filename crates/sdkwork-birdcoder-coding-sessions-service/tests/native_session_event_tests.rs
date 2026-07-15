@@ -21,6 +21,7 @@ fn native_session_events_preserve_rich_message_payloads() {
             native_cwd: Some("D:/project-rich".to_owned()),
             sort_timestamp: 1,
             transcript_updated_at: Some("2026-04-20T10:00:01Z".to_owned()),
+            native_attributes: Default::default(),
         },
         messages: vec![
             NativeSessionMessagePayload {

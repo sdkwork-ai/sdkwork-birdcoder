@@ -9,22 +9,10 @@
     "protocol": "http",
     "packageName": "@sdkwork/birdcoder-app-sdk"
   },
-  "changeFingerprint": "d9151173d4e7bb0a765790f997a3decea54b945f4a4398b5ea27dcdadfde0642",
+  "changeFingerprint": "12d4ee12a69e1a301a793c224f59abbfcecc6537abaa01fc88a2312dcd15ffcd",
   "changes": {
     "createdGeneratedFiles": [],
-    "updatedGeneratedFiles": [
-      "src/api/platform.ts",
-      "src/types/bird-coder-create-project-git-worktree-request.ts",
-      "src/types/bird-coder-create-project-request.ts",
-      "src/types/bird-coder-git-branch-summary.ts",
-      "src/types/bird-coder-git-status-counts.ts",
-      "src/types/bird-coder-git-worktree-summary.ts",
-      "src/types/bird-coder-project-git-overview.ts",
-      "src/types/bird-coder-project-summary.ts",
-      "src/types/bird-coder-remove-project-git-worktree-request.ts",
-      "src/types/bird-coder-update-project-request.ts",
-      "src/types/bird-coder-upsert-project-collaborator-request.ts"
-    ],
+    "updatedGeneratedFiles": [],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
       "bin/publish.ps1",
@@ -46,6 +34,7 @@
       "src/api/intelligence.ts",
       "src/api/oauth.ts",
       "src/api/paths.ts",
+      "src/api/platform.ts",
       "src/api/runtime.ts",
       "src/api/skills.ts",
       "src/api/system.ts",
@@ -122,6 +111,8 @@
       "src/types/bird-coder-create-commerce-order-request.ts",
       "src/types/bird-coder-create-commerce-payment-request.ts",
       "src/types/bird-coder-create-project-git-branch-request.ts",
+      "src/types/bird-coder-create-project-git-worktree-request.ts",
+      "src/types/bird-coder-create-project-request.ts",
       "src/types/bird-coder-create-workspace-request.ts",
       "src/types/bird-coder-deployment-record-summary-list-envelope.ts",
       "src/types/bird-coder-deployment-record-summary.ts",
@@ -139,6 +130,9 @@
       "src/types/bird-coder-engine-official-entry.ts",
       "src/types/bird-coder-engine-official-integration.ts",
       "src/types/bird-coder-fork-coding-session-request.ts",
+      "src/types/bird-coder-git-branch-summary.ts",
+      "src/types/bird-coder-git-status-counts.ts",
+      "src/types/bird-coder-git-worktree-summary.ts",
       "src/types/bird-coder-iam-create-session-request.ts",
       "src/types/bird-coder-iam-device-authorization-create-request.ts",
       "src/types/bird-coder-iam-device-authorization-envelope.ts",
@@ -187,14 +181,19 @@
       "src/types/bird-coder-project-collaborator-summary.ts",
       "src/types/bird-coder-project-document-summary-list-envelope.ts",
       "src/types/bird-coder-project-document-summary.ts",
+      "src/types/bird-coder-project-git-diff-envelope.ts",
+      "src/types/bird-coder-project-git-diff.ts",
       "src/types/bird-coder-project-git-overview-envelope.ts",
+      "src/types/bird-coder-project-git-overview.ts",
       "src/types/bird-coder-project-publish-result-envelope.ts",
       "src/types/bird-coder-project-publish-result.ts",
       "src/types/bird-coder-project-summary-envelope.ts",
       "src/types/bird-coder-project-summary-list-envelope.ts",
+      "src/types/bird-coder-project-summary.ts",
       "src/types/bird-coder-publish-project-request.ts",
       "src/types/bird-coder-push-project-git-branch-request.ts",
       "src/types/bird-coder-release-summary.ts",
+      "src/types/bird-coder-remove-project-git-worktree-request.ts",
       "src/types/bird-coder-skill-catalog-entry-summary.ts",
       "src/types/bird-coder-skill-installation-summary-envelope.ts",
       "src/types/bird-coder-skill-installation-summary.ts",
@@ -208,7 +207,9 @@
       "src/types/bird-coder-team-summary.ts",
       "src/types/bird-coder-update-coding-session-request.ts",
       "src/types/bird-coder-update-current-user-profile-request.ts",
+      "src/types/bird-coder-update-project-request.ts",
       "src/types/bird-coder-update-workspace-request.ts",
+      "src/types/bird-coder-upsert-project-collaborator-request.ts",
       "src/types/bird-coder-upsert-workspace-member-request.ts",
       "src/types/bird-coder-user-question-answer-result-envelope.ts",
       "src/types/bird-coder-user-question-answer-result.ts",
@@ -235,88 +236,26 @@
   },
   "impact": {
     "schemaVersion": 1,
-    "areas": [
-      "api-surface",
-      "models"
-    ],
-    "details": [
-      {
-        "area": "api-surface",
-        "paths": [
-          "src/api/platform.ts"
-        ]
-      },
-      {
-        "area": "models",
-        "paths": [
-          "src/types/bird-coder-create-project-git-worktree-request.ts",
-          "src/types/bird-coder-create-project-request.ts",
-          "src/types/bird-coder-git-branch-summary.ts",
-          "src/types/bird-coder-git-status-counts.ts",
-          "src/types/bird-coder-git-worktree-summary.ts",
-          "src/types/bird-coder-project-git-overview.ts",
-          "src/types/bird-coder-project-summary.ts",
-          "src/types/bird-coder-remove-project-git-worktree-request.ts",
-          "src/types/bird-coder-update-project-request.ts",
-          "src/types/bird-coder-upsert-project-collaborator-request.ts"
-        ]
-      }
-    ],
-    "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, models. Verification is required."
+    "areas": [],
+    "details": [],
+    "requiresVerification": false,
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped."
   },
   "verificationPlan": {
-    "shouldRun": true,
-    "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, models. Verification is required. Run the required verification commands now against the generated SDK output.",
-    "steps": [
-      {
-        "id": "check",
-        "title": "Unified package check",
-        "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-typescript\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "typescript",
-          "--project-dir",
-          ".",
-          "--action",
-          "check"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action check"
-      },
-      {
-        "id": "build",
-        "title": "Unified package build",
-        "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models.",
-        "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-typescript\\generated\\server-openapi",
-        "command": "node",
-        "args": [
-          "./bin/publish-core.mjs",
-          "--language",
-          "typescript",
-          "--project-dir",
-          ".",
-          "--action",
-          "build"
-        ],
-        "displayCommand": "node ./bin/publish-core.mjs --language typescript --project-dir . --action build"
-      }
-    ]
+    "shouldRun": false,
+    "runPhase": "skip",
+    "summary": "No generated, scaffold, or backup changes detected. Verification can be skipped.",
+    "steps": []
   },
   "executionDecision": {
     "schemaVersion": 1,
-    "riskLevel": "medium",
-    "nextAction": "verify",
+    "riskLevel": "low",
+    "nextAction": "skip",
     "requiresManualReview": false,
     "applyRequiresExpectedFingerprint": false,
-    "summary": "Changes have been applied. Run the required verification plan now.",
+    "summary": "No actionable changes were detected. No apply or verification step is required.",
     "reasons": [
-      "verification-required"
+      "no-actionable-changes"
     ]
   },
   "preservedLegacyFiles": false

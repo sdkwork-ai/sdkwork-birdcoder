@@ -17,6 +17,7 @@ type PlatformProjectsDeploymentTargetsListQuery = Types.PlatformProjectsDeployme
 type PlatformProjectsGitBranchesCreatePathParams = Types.PlatformProjectsGitBranchesCreatePathParams;
 type PlatformProjectsGitBranchSwitchCreatePathParams = Types.PlatformProjectsGitBranchSwitchCreatePathParams;
 type PlatformProjectsGitCommitsCreatePathParams = Types.PlatformProjectsGitCommitsCreatePathParams;
+type PlatformProjectsGitDiffRetrievePathParams = Types.PlatformProjectsGitDiffRetrievePathParams;
 type PlatformProjectsGitOverviewRetrievePathParams = Types.PlatformProjectsGitOverviewRetrievePathParams;
 type PlatformProjectsGitPushesCreatePathParams = Types.PlatformProjectsGitPushesCreatePathParams;
 type PlatformProjectsGitWorktreePruneCreatePathParams = Types.PlatformProjectsGitWorktreePruneCreatePathParams;
@@ -54,6 +55,9 @@ export interface PlatformApi {
       };
       commits: {
         create(pathParams: PlatformProjectsGitCommitsCreatePathParams, body: Types.BirdCoderCommitProjectGitChangesRequest, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectGitOverviewEnvelope>;
+      };
+      diff: {
+        retrieve(pathParams: PlatformProjectsGitDiffRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectGitDiffEnvelope>;
       };
       overview: {
         retrieve(pathParams: PlatformProjectsGitOverviewRetrievePathParams, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderProjectGitOverviewEnvelope>;
@@ -128,6 +132,11 @@ export function createPlatformApi(requestOperation: BirdcoderSdkRequestOperation
         commits: {
           create(pathParams: PlatformProjectsGitCommitsCreatePathParams, body: Types.BirdCoderCommitProjectGitChangesRequest, options: BirdcoderSdkRequestOptions = {}) {
             return requestOperation<Types.BirdCoderProjectGitOverviewEnvelope>("platform.projects.git.commits.create", { pathParams, body }, options);
+          }
+        },
+        diff: {
+          retrieve(pathParams: PlatformProjectsGitDiffRetrievePathParams, options: BirdcoderSdkRequestOptions = {}) {
+            return requestOperation<Types.BirdCoderProjectGitDiffEnvelope>("platform.projects.git.diff.retrieve", { pathParams }, options);
           }
         },
         overview: {

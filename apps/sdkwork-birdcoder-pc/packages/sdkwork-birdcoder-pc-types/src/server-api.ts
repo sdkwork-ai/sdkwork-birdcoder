@@ -385,6 +385,11 @@ export interface BirdCoderProjectGitOverview {
   worktrees: BirdCoderGitWorktreeSummary[];
 }
 
+export interface BirdCoderProjectGitDiff {
+  patch: string;
+  truncated: boolean;
+}
+
 export interface BirdCoderCreateProjectGitBranchRequest {
   branchName: string;
 }

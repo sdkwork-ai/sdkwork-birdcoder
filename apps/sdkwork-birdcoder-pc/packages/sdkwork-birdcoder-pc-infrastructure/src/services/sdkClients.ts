@@ -89,6 +89,7 @@ import type {
   BirdCoderPageInfo,
   BirdCoderProjectDocumentSummary,
   BirdCoderProjectCollaboratorSummary,
+  BirdCoderProjectGitDiff,
   BirdCoderProjectGitOverview,
   BirdCoderProjectPublishResult,
   BirdCoderProjectSummary,
@@ -205,6 +206,7 @@ export interface BirdCoderAppSdkApiClient {
   getOperation(operationId: string): Promise<BirdCoderOperationDescriptor>;
   getProject(projectId: string): Promise<BirdCoderProjectSummary>;
   getProjectGitOverview(projectId: string): Promise<BirdCoderProjectGitOverview>;
+  getProjectGitDiff(projectId: string): Promise<BirdCoderProjectGitDiff>;
   getRuntime(): Promise<BirdCoderCoreRuntimeSummary>;
   installSkillPackage(
     packageId: string,
@@ -994,12 +996,12 @@ export function createBirdCoderAppSdkApiClient({
   authToken,
   transport,
 }: CreateBirdCoderAppSdkApiClientOptions): BirdCoderAppSdkApiClient {
+  const sessionTransport = createBirdCoderSessionAwareTransport(transport);
   const client: BirdcoderAppSdkClient = createBirdcoderAppSdkClient({
     accessToken,
     authToken,
-    transport,
+    transport: sessionTransport,
   });
-  const sessionTransport = createBirdCoderSessionAwareTransport(transport);
 
   return {
     async getDescriptor() {
@@ -1228,6 +1230,9 @@ export function createBirdCoderAppSdkApiClient({
     },
     async getProjectGitOverview(projectId) {
       return readData(await client.platform.projects.git.overview.retrieve({ projectId }));
+    },
+    async getProjectGitDiff(projectId) {
+      return readData(await client.platform.projects.git.diff.retrieve({ projectId }));
     },
     async createProjectGitBranch(projectId, request) {
       return readData(await client.platform.projects.git.branches.create({ projectId }, request));

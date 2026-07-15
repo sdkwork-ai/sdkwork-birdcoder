@@ -1115,6 +1115,17 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
         },
       }),
     },
+    'projects.git.diff.retrieve': {
+      parameters: [projectIdPathParameter],
+      responses: buildOpenApiResponses({
+        successStatus: '200',
+        successDescription: 'Project Git diff returned successfully.',
+        successSchema: createOpenApiSchemaReference('BirdCoderProjectGitDiffEnvelope'),
+        extraResponses: {
+          '404': createProblemResponse('Project was not found.'),
+        },
+      }),
+    },
     'projects.git.branches.create': {
       parameters: [projectIdPathParameter],
       requestBody: createOpenApiRequestBody(

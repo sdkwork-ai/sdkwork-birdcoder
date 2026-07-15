@@ -39,9 +39,10 @@ assert.ok(
   'Studio chat sidebar must disable the embedded UniversalChat engine header to avoid double headers.',
 );
 
-assert.ok(
-  studioChatSidebarSource.includes('showComposerEngineSelector={!selectedCodingSessionId}'),
-  'Studio chat sidebar should only expose the composer engine selector before a session exists so the session engine remains fixed after creation.',
+assert.match(
+  studioChatSidebarSource,
+  /<DeferredUniversalChat[\s\S]*?showComposerEngineSelector\s*[\s\S]*?layout="sidebar"/s,
+  'Studio chat sidebar must expose per-turn composer model selection for existing and new sessions.',
 );
 
 assert.match(

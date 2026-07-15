@@ -33,7 +33,7 @@ use sdkwork_birdcoder_project_service::domain::commands::{
 use sdkwork_birdcoder_project_service::domain::results::{
     DeleteEntityPayload, ProjectCollaboratorPayload, ProjectPayload,
 };
-use sdkwork_birdcoder_project_service::ports::git::GitProjectOverview;
+use sdkwork_birdcoder_project_service::ports::git::{GitProjectDiff, GitProjectOverview};
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 
 use sdkwork_birdcoder_deployment_service::domain::commands::PublishProjectCommand;
@@ -539,6 +539,23 @@ pub async fn get_project_git_overview(
         .await
     {
         Ok(overview) => Ok(Json(build_data_envelope(overview, request_id(&web)))),
+        Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
+    }
+}
+
+pub async fn get_project_git_diff(
+    web: WebRequestContext,
+    RequiredIamContext(iam): RequiredIamContext,
+    State(state): State<WorkspaceAppState>,
+    Path(params): Path<ProjectPathParams>,
+) -> Result<Json<ApiDataEnvelope<GitProjectDiff>>, error::ProblemJsonBody> {
+    let ctx = project_context(&iam);
+    match state
+        .project_service
+        .get_project_git_diff(&ctx, &params.project_id)
+        .await
+    {
+        Ok(diff) => Ok(Json(build_data_envelope(diff, request_id(&web)))),
         Err(e) => Err(error::map_project_error(e, request_trace_id(&web))),
     }
 }

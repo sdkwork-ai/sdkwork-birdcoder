@@ -136,6 +136,8 @@ export type { BirdCoderProjectCollaboratorSummaryEnvelope } from './bird-coder-p
 export type { BirdCoderProjectCollaboratorSummaryListEnvelope } from './bird-coder-project-collaborator-summary-list-envelope';
 export type { BirdCoderProjectDocumentSummary } from './bird-coder-project-document-summary';
 export type { BirdCoderProjectDocumentSummaryListEnvelope } from './bird-coder-project-document-summary-list-envelope';
+export type { BirdCoderProjectGitDiff } from './bird-coder-project-git-diff';
+export type { BirdCoderProjectGitDiffEnvelope } from './bird-coder-project-git-diff-envelope';
 export type { BirdCoderProjectGitOverview } from './bird-coder-project-git-overview';
 export type { BirdCoderProjectGitOverviewEnvelope } from './bird-coder-project-git-overview-envelope';
 export type { BirdCoderProjectPublishResult } from './bird-coder-project-publish-result';

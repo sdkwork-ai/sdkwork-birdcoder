@@ -3,6 +3,12 @@ import { defineLocaleModule } from '../../resource.ts';
 export default defineLocaleModule('code/actions', {
   code: {
     noActiveDiff: 'No active diff to show',
+    gitDiffLoadFailed: 'Failed to load Git diff.',
+    gitDiffProjectRequired: 'Select a project before viewing Git diff.',
+    gitDiffTruncated: 'The diff is larger than 2 MB and has been truncated.',
+    loadingGitDiff: 'Loading Git diff...',
+    noGitChanges: 'No Git changes to show.',
+    refreshGitDiff: 'Refresh Git diff',
     fileSaved: 'File saved',
     allFilesSaved: 'All files saved',
     startingApplication: 'Starting application...',

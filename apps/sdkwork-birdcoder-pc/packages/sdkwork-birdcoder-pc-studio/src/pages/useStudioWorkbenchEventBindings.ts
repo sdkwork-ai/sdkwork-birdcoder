@@ -18,7 +18,7 @@ import {
   type RunConfigurationRecord,
   type TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-commons';
-import type { BirdCoderProject, FileChange } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 
 type ToastVariant = 'success' | 'info' | 'error';
 
@@ -42,7 +42,6 @@ interface UseStudioWorkbenchEventBindingsOptions {
   setIsRunTaskVisible: Dispatch<SetStateAction<boolean>>;
   setIsTerminalOpen: Dispatch<SetStateAction<boolean>>;
   setTerminalRequest: Dispatch<SetStateAction<TerminalCommandRequest | undefined>>;
-  setViewingDiff: Dispatch<SetStateAction<FileChange | null>>;
   t: (key: string, options?: Record<string, unknown>) => string;
 }
 
@@ -64,7 +63,6 @@ export function useStudioWorkbenchEventBindings({
   setIsRunTaskVisible,
   setIsTerminalOpen,
   setTerminalRequest,
-  setViewingDiff,
   t,
 }: UseStudioWorkbenchEventBindingsOptions) {
   const projectCodingSessionIndexProjectsRef = useRef(projectsRef.current);
@@ -220,16 +218,6 @@ export function useStudioWorkbenchEventBindings({
     const handleAddRunConfiguration = () => {
       setIsRunConfigVisible(true);
     };
-    const handleToggleDiffPanel = () => {
-      setViewingDiff((previousState) => {
-        if (previousState) {
-          return null;
-        }
-
-        addToast(t('studio.noActiveDiff'), 'info');
-        return null;
-      });
-    };
     const handleFindInFiles = () => {
       setIsFindVisible(true);
     };
@@ -249,7 +237,6 @@ export function useStudioWorkbenchEventBindings({
     globalEventBus.on('startDebugging', handleStartDebugging);
     globalEventBus.on('runWithoutDebugging', handleRunWithoutDebugging);
     globalEventBus.on('addRunConfiguration', handleAddRunConfiguration);
-    globalEventBus.on('toggleDiffPanel', handleToggleDiffPanel);
     globalEventBus.on('findInFiles', handleFindInFiles);
     globalEventBus.on('openQuickOpen', handleOpenQuickOpen);
 
@@ -266,7 +253,6 @@ export function useStudioWorkbenchEventBindings({
       globalEventBus.off('startDebugging', handleStartDebugging);
       globalEventBus.off('runWithoutDebugging', handleRunWithoutDebugging);
       globalEventBus.off('addRunConfiguration', handleAddRunConfiguration);
-      globalEventBus.off('toggleDiffPanel', handleToggleDiffPanel);
       globalEventBus.off('findInFiles', handleFindInFiles);
       globalEventBus.off('openQuickOpen', handleOpenQuickOpen);
     };
@@ -287,7 +273,6 @@ export function useStudioWorkbenchEventBindings({
     setIsRunTaskVisible,
     setIsTerminalOpen,
     setTerminalRequest,
-    setViewingDiff,
     t,
   ]);
 }

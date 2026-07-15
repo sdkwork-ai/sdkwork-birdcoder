@@ -5,6 +5,7 @@ pub const WORKSPACE_MEMBERS_PATH: &str = "/app/v3/api/workspaces/{workspaceId}/m
 pub const PROJECTS_PATH: &str = "/app/v3/api/projects";
 pub const PROJECT_DETAIL_PATH: &str = "/app/v3/api/projects/{projectId}";
 pub const PROJECT_GIT_OVERVIEW_PATH: &str = "/app/v3/api/projects/{projectId}/git/overview";
+pub const PROJECT_GIT_DIFF_PATH: &str = "/app/v3/api/projects/{projectId}/git/diff";
 pub const PROJECT_GIT_BRANCHES_PATH: &str = "/app/v3/api/projects/{projectId}/git/branches";
 pub const PROJECT_GIT_BRANCH_SWITCH_PATH: &str =
     "/app/v3/api/projects/{projectId}/git/branch_switch";

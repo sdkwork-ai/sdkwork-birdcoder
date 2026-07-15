@@ -416,6 +416,9 @@ function getOpenApiResourceContextForOperationId(
   operationId: string,
   domain: BirdCoderOpenApiDomain,
 ): string {
+  if (operationId === 'projects.git.diff.retrieve') {
+    return `${domain}.projects.git.overview`;
+  }
   const operationParts = operationId.split('.').filter(Boolean);
   const resourceParts = operationParts.slice(0, -1);
   const normalizedResource =
@@ -618,6 +621,7 @@ export function getOperationIdForRoute(route: BirdCoderApiRouteDefinition): stri
     ['GET /app/v3/api/projects', 'projects.list'],
     ['GET /app/v3/api/projects/:projectId', 'projects.retrieve'],
     ['GET /app/v3/api/projects/:projectId/git/overview', 'projects.git.overview.retrieve'],
+    ['GET /app/v3/api/projects/:projectId/git/diff', 'projects.git.diff.retrieve'],
     ['POST /app/v3/api/projects/:projectId/git/branches', 'projects.git.branches.create'],
     ['POST /app/v3/api/projects/:projectId/git/branch_switch', 'projects.git.branchSwitch.create'],
     ['POST /app/v3/api/projects/:projectId/git/commits', 'projects.git.commits.create'],

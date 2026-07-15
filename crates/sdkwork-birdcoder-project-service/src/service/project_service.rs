@@ -14,7 +14,7 @@ use crate::domain::commands::{
 use crate::domain::results::{DeleteEntityPayload, ProjectCollaboratorPayload, ProjectPayload};
 use crate::error::ProjectError;
 use crate::ports::events::ProjectEventPublisher;
-use crate::ports::git::{GitMutationError, GitOperations, GitProjectOverview};
+use crate::ports::git::{GitMutationError, GitOperations, GitProjectDiff, GitProjectOverview};
 use crate::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use crate::ports::repository::ProjectRepository;
 use crate::service::git_operation_coordinator::GitOperationCoordinator;
@@ -281,6 +281,23 @@ impl ProjectService {
         let _read_guard = project_lock.read().await;
         self.git
             .inspect_overview(root_path.to_string_lossy().as_ref())
+            .await
+            .map_err(map_git_error)
+    }
+
+    pub async fn get_project_git_diff(
+        &self,
+        ctx: &ProjectContext,
+        project_id: &str,
+    ) -> Result<GitProjectDiff, ProjectError> {
+        let root_path = self.resolve_project_root(ctx, project_id).await?;
+        let project_lock = self
+            .git_operation_coordinator
+            .project_lock(project_id)
+            .await;
+        let _read_guard = project_lock.read().await;
+        self.git
+            .inspect_diff(root_path.to_string_lossy().as_ref())
             .await
             .map_err(map_git_error)
     }

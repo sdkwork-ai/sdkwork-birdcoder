@@ -19,6 +19,7 @@ import type {
   BirdCoderReleaseSummary,
 } from '@sdkwork/birdcoder-pc-types';
 import {
+  ProjectGitDiffDialog,
   ProjectGitHeaderControls,
 } from '@sdkwork/birdcoder-pc-ui';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
@@ -144,6 +145,7 @@ function TopBarComponent({
   const [showShareModal, setShowShareModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [showCommitModal, setShowCommitModal] = useState(false);
+  const [showGitDiffDialog, setShowGitDiffDialog] = useState(false);
   const [showPushModal, setShowPushModal] = useState(false);
   const [commitMessage, setCommitMessage] = useState('');
   const [inviteUserId, setInviteUserId] = useState('');
@@ -152,6 +154,13 @@ function TopBarComponent({
   >([]);
   const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(false);
   const [isInvitingCollaborator, setIsInvitingCollaborator] = useState(false);
+
+  useEffect(
+    () => globalEventBus.on('toggleDiffPanel', () => {
+      setShowGitDiffDialog((isOpen) => !isOpen);
+    }),
+    [],
+  );
   const [deploymentTargets, setDeploymentTargets] = useState<BirdCoderDeploymentTargetSummary[]>(
     [],
   );
@@ -283,12 +292,11 @@ function TopBarComponent({
     try {
       await commitChanges(commitMessage);
       addToast(t('code.changesCommitted'), 'success');
+      setShowCommitModal(false);
+      setCommitMessage('');
     } catch (err) {
       addToast(t('code.failedToCommit', { error: String(err) }), 'error');
     }
-    
-    setShowCommitModal(false);
-    setCommitMessage('');
   };
 
   const handlePush = async () => {
@@ -300,13 +308,12 @@ function TopBarComponent({
       addToast(t('code.pushingToRemote'), 'info');
       await pushBranch({
         branchName,
-        remoteName: 'origin',
       });
       addToast(t('code.pushedToRemote'), 'success');
+      setShowPushModal(false);
     } catch (err) {
       addToast(t('code.failedToPush', { error: String(err) }), 'error');
     }
-    setShowPushModal(false);
   };
 
   useEffect(() => {
@@ -529,7 +536,7 @@ function TopBarComponent({
             isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
             onRequestCommit={() => setShowCommitModal(true)}
             onRequestPush={() => setShowPushModal(true)}
-            onRequestViewDiff={() => globalEventBus.emit('toggleDiffPanel')}
+            onRequestViewDiff={() => setShowGitDiffDialog(true)}
             onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
             projectId={projectId}
             projectGitOverviewState={resolvedProjectGitOverviewState}
@@ -1025,6 +1032,12 @@ function TopBarComponent({
         </div>
       )}
 
+      <ProjectGitDiffDialog
+        isOpen={showGitDiffDialog}
+        onClose={() => setShowGitDiffDialog(false)}
+        projectId={projectId}
+      />
+
       {/* Commit Modal */}
       {showCommitModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
@@ -1093,7 +1106,7 @@ function TopBarComponent({
                 {t('app.pushToRemoteDesc')}
               </p>
               <div className="text-xs text-gray-500 bg-[#0e0e11] p-2 rounded border border-white/5 font-mono">
-                git push origin {overview?.currentBranch || currentBranchLabel || 'HEAD'}
+                {overview?.currentBranch || currentBranchLabel || 'HEAD'}
               </div>
             </div>
             <div className="p-4 border-t border-white/5 bg-[#121214] flex justify-end gap-3">

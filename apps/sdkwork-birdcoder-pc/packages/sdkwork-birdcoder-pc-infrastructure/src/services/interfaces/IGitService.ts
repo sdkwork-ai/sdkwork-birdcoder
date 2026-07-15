@@ -2,6 +2,7 @@ import type {
   BirdCoderCommitProjectGitChangesRequest,
   BirdCoderCreateProjectGitBranchRequest,
   BirdCoderCreateProjectGitWorktreeRequest,
+  BirdCoderProjectGitDiff,
   BirdCoderProjectGitOverview,
   BirdCoderPushProjectGitBranchRequest,
   BirdCoderRemoveProjectGitWorktreeRequest,
@@ -22,6 +23,7 @@ export interface IGitService {
     request: BirdCoderCreateProjectGitWorktreeRequest,
   ): Promise<BirdCoderProjectGitOverview>;
   getProjectGitOverview(projectId: string): Promise<BirdCoderProjectGitOverview>;
+  getProjectGitDiff(projectId: string): Promise<BirdCoderProjectGitDiff>;
   pushProjectGitBranch(
     projectId: string,
     request: BirdCoderPushProjectGitBranchRequest,

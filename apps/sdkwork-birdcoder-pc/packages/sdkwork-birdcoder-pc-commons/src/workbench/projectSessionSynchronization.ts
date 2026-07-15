@@ -168,6 +168,9 @@ function toSynchronizedProjectSession(
     engineId: summarySource.engineId,
     modelId: summarySource.modelId,
     nativeSessionId: record.nativeSessionId ?? existingSession?.nativeSessionId,
+    nativeAttributes: summarySource.nativeAttributes
+      ?? record.nativeAttributes
+      ?? existingSession?.nativeAttributes,
     runtimeStatus: summarySource.runtimeStatus,
     createdAt: existingSession?.createdAt ?? record.createdAt,
     updatedAt:
@@ -209,6 +212,8 @@ function areSynchronizedSessionSummariesEqual(
     left.engineId === right.engineId &&
     left.modelId === right.modelId &&
     left.nativeSessionId === right.nativeSessionId &&
+    JSON.stringify(left.nativeAttributes ?? null) ===
+      JSON.stringify(right.nativeAttributes ?? null) &&
     left.runtimeStatus === right.runtimeStatus &&
     left.createdAt === right.createdAt &&
     left.updatedAt === right.updatedAt &&

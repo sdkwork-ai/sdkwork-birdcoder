@@ -1,6 +1,10 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-pc-commons';
 import {
+  globalEventBus,
+  type ProjectGitOverviewViewState,
+} from '@sdkwork/birdcoder-pc-commons';
+import {
+  ProjectGitDiffDialog,
   ProjectGitHeaderControls,
 } from '@sdkwork/birdcoder-pc-ui';
 import {
@@ -209,6 +213,17 @@ export const StudioStageHeader = memo(function StudioStageHeader({
 }: StudioStageHeaderProps) {
   const { t } = useTranslation();
   const normalizedProjectId = projectId?.trim() ?? '';
+  const [showGitDiffDialog, setShowGitDiffDialog] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== 'code') {
+      setShowGitDiffDialog(false);
+      return undefined;
+    }
+    return globalEventBus.on('toggleDiffPanel', () => {
+      setShowGitDiffDialog((isOpen) => !isOpen);
+    });
+  }, [activeTab]);
   const webDeviceOptions: StageHeaderSelectOption[] = [
     { value: 'desktop', label: t('studio.desktop'), icon: <Monitor size={14} /> },
     { value: 'tablet', label: t('studio.tablet'), icon: <Tablet size={14} /> },
@@ -460,6 +475,7 @@ export const StudioStageHeader = memo(function StudioStageHeader({
             <div className="flex items-center gap-2 lg:hidden">
               <ProjectGitHeaderControls
                 isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
+                onRequestViewDiff={() => setShowGitDiffDialog(true)}
                 onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
                 projectId={normalizedProjectId}
                 projectGitOverviewState={projectGitOverviewState}
@@ -472,6 +488,7 @@ export const StudioStageHeader = memo(function StudioStageHeader({
             <div className="hidden max-w-[42vw] items-center gap-2 lg:flex">
               <ProjectGitHeaderControls
                 isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
+                onRequestViewDiff={() => setShowGitDiffDialog(true)}
                 onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
                 projectId={normalizedProjectId}
                 projectGitOverviewState={projectGitOverviewState}
@@ -521,6 +538,11 @@ export const StudioStageHeader = memo(function StudioStageHeader({
         </Button>
         </div>
       </div>
+      <ProjectGitDiffDialog
+        isOpen={showGitDiffDialog}
+        onClose={() => setShowGitDiffDialog(false)}
+        projectId={normalizedProjectId}
+      />
     </>
   );
 });

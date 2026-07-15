@@ -216,6 +216,11 @@ assertMatch(
   /handleBirdCoderSdkSessionAuthError/u,
   'BirdCoder SDK client factory must clear IAM session state on SDK auth errors.',
 );
+assertMatch(
+  sdkClientsSource,
+  /export function createBirdCoderAppSdkApiClient\([\s\S]*const sessionTransport = createBirdCoderSessionAwareTransport\(transport\);[\s\S]*createBirdcoderAppSdkClient\(\{[\s\S]*transport: sessionTransport,/u,
+  'The composed BirdCoder app client must bind generated SDK requests to the shared unauthorized-session boundary.',
+);
 assertNoMatch(
   sdkClientsSource,
   /getStoredAppSessionAuthToken|getStoredAppSessionAccessToken/u,

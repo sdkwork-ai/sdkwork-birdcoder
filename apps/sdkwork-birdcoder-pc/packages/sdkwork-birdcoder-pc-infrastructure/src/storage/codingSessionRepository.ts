@@ -130,6 +130,7 @@ export interface BirdCoderPersistedCodingSessionRecord {
   lastTurnAt?: string;
   modelId: string;
   nativeSessionId?: string;
+  nativeAttributes?: BirdCoderCodingSession['nativeAttributes'];
   pinned: boolean;
   projectId: string;
   sortTimestamp?: string;
@@ -139,6 +140,69 @@ export interface BirdCoderPersistedCodingSessionRecord {
   unread: boolean;
   updatedAt: string;
   workspaceId: string;
+}
+
+function normalizeOptionalSessionAttribute(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function normalizeNativeSessionAttributes(
+  value: unknown,
+): BirdCoderCodingSession['nativeAttributes'] {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const schemaVersion =
+    typeof value.schemaVersion === 'number' && Number.isSafeInteger(value.schemaVersion)
+      ? value.schemaVersion
+      : 1;
+  return {
+    schemaVersion,
+    sessionTreeId: normalizeOptionalSessionAttribute(value.sessionTreeId),
+    parentSessionId: normalizeOptionalSessionAttribute(value.parentSessionId),
+    forkedFromSessionId: normalizeOptionalSessionAttribute(value.forkedFromSessionId),
+    title: normalizeOptionalSessionAttribute(value.title),
+    preview: normalizeOptionalSessionAttribute(value.preview),
+    source: normalizeOptionalSessionAttribute(value.source),
+    providerVersion: normalizeOptionalSessionAttribute(value.providerVersion),
+    modelProvider: normalizeOptionalSessionAttribute(value.modelProvider),
+    projectId: normalizeOptionalSessionAttribute(value.projectId),
+    cwd: normalizeOptionalSessionAttribute(value.cwd),
+    gitBranch: normalizeOptionalSessionAttribute(value.gitBranch),
+    gitCommit: normalizeOptionalSessionAttribute(value.gitCommit),
+    gitRepositoryUrl: normalizeOptionalSessionAttribute(value.gitRepositoryUrl),
+    agentName: normalizeOptionalSessionAttribute(value.agentName),
+    agentRole: normalizeOptionalSessionAttribute(value.agentRole),
+    isEphemeral: value.isEphemeral === true,
+    isSidechain: value.isSidechain === true,
+    metadata: isRecord(value.metadata) ? value.metadata : {},
+  };
+}
+
+function nativeSessionAttributesFromRow(
+  row: BirdCoderSqlRow,
+): BirdCoderCodingSession['nativeAttributes'] {
+  return normalizeNativeSessionAttributes({
+    schemaVersion: row.native_schema_version,
+    sessionTreeId: row.native_session_tree_id,
+    parentSessionId: row.native_parent_session_id,
+    forkedFromSessionId: row.native_forked_from_session_id,
+    title: row.native_title,
+    preview: row.native_preview,
+    source: row.native_source,
+    providerVersion: row.provider_version,
+    modelProvider: row.model_provider,
+    projectId: row.native_project_id,
+    cwd: row.native_cwd,
+    gitBranch: row.native_git_branch,
+    gitCommit: row.native_git_commit,
+    gitRepositoryUrl: row.native_git_repository_url,
+    agentName: row.native_agent_name,
+    agentRole: row.native_agent_role,
+    isEphemeral: row.native_is_ephemeral === true || row.native_is_ephemeral === 1,
+    isSidechain: row.native_is_sidechain === true || row.native_is_sidechain === 1,
+    metadata: row.native_metadata_json,
+  });
 }
 
 export type BirdCoderPersistedCodingSessionMessageRecord = BirdCoderChatMessage;
@@ -298,6 +362,7 @@ function normalizeCodingSessionStorageRecord(
         value.nativeSessionId,
         normalizedEngineId,
       ),
+      nativeAttributes: normalizeNativeSessionAttributes(value.nativeAttributes),
       createdAt: createdAtCandidate,
       updatedAt: updatedAtCandidate,
       lastTurnAt: lastTurnAtCandidate,
@@ -358,6 +423,7 @@ function normalizeCodingSessionStorageRecord(
       row.native_session_id,
       normalizedEngineId,
     ),
+    nativeAttributes: nativeSessionAttributesFromRow(row),
     createdAt: createdAtCandidate,
     updatedAt: updatedAtCandidate,
     lastTurnAt: lastTurnAtCandidate,
@@ -449,6 +515,25 @@ function toCodingSessionStorageRow(
     engine_id: value.engineId,
     model_id: value.modelId,
     native_session_id: value.nativeSessionId ?? null,
+    native_session_tree_id: value.nativeAttributes?.sessionTreeId ?? null,
+    native_parent_session_id: value.nativeAttributes?.parentSessionId ?? null,
+    native_forked_from_session_id: value.nativeAttributes?.forkedFromSessionId ?? null,
+    native_title: value.nativeAttributes?.title ?? null,
+    native_preview: value.nativeAttributes?.preview ?? null,
+    native_source: value.nativeAttributes?.source ?? null,
+    provider_version: value.nativeAttributes?.providerVersion ?? null,
+    model_provider: value.nativeAttributes?.modelProvider ?? null,
+    native_project_id: value.nativeAttributes?.projectId ?? null,
+    native_cwd: value.nativeAttributes?.cwd ?? null,
+    native_git_branch: value.nativeAttributes?.gitBranch ?? null,
+    native_git_commit: value.nativeAttributes?.gitCommit ?? null,
+    native_git_repository_url: value.nativeAttributes?.gitRepositoryUrl ?? null,
+    native_agent_name: value.nativeAttributes?.agentName ?? null,
+    native_agent_role: value.nativeAttributes?.agentRole ?? null,
+    native_is_ephemeral: value.nativeAttributes?.isEphemeral === true,
+    native_is_sidechain: value.nativeAttributes?.isSidechain === true,
+    native_schema_version: value.nativeAttributes?.schemaVersion ?? 1,
+    native_metadata_json: value.nativeAttributes?.metadata ?? {},
     last_turn_at: value.lastTurnAt ?? null,
     sort_timestamp: value.sortTimestamp ?? null,
     transcript_updated_at: value.transcriptUpdatedAt ?? null,

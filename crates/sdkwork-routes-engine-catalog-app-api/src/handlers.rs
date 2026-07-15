@@ -8,7 +8,7 @@ use sdkwork_birdcoder_codeengine::{
     get_codeengine_native_session_summary, list_codeengine_descriptors,
     list_codeengine_model_catalog_entries, list_codeengine_native_session_summaries,
     list_native_session_provider_catalog_entries, CodeEngineSessionDetailRecord,
-    CodeEngineSessionSummaryRecord,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
 };
 use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
 use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
@@ -21,8 +21,8 @@ use sdkwork_birdcoder_engine_catalog_service::service::engine_catalog_service::{
 use sdkwork_birdcoder_native_sessions_service::error::NativeSessionError;
 use sdkwork_birdcoder_native_sessions_service::service::native_session_service::{
     NativeSessionCommandPayload, NativeSessionDetailPayload, NativeSessionLookup,
-    NativeSessionMessagePayload, NativeSessionQuery, NativeSessionRepository, NativeSessionService,
-    NativeSessionSummaryPayload,
+    NativeSessionAttributesPayload, NativeSessionMessagePayload, NativeSessionQuery,
+    NativeSessionRepository, NativeSessionService, NativeSessionSummaryPayload,
 };
 use sdkwork_birdcoder_project_service::context::ProjectContext;
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
@@ -449,6 +449,7 @@ fn map_native_session_summary(
         record.engine_id.as_str(),
     )
     .ok();
+    let native_attributes = map_native_session_attributes(record.native_attributes);
     NativeSessionSummaryPayload {
         id: record.id,
         title: record.title,
@@ -475,6 +476,33 @@ fn map_native_session_summary(
         sort_timestamp: record.sort_timestamp,
         kind: record.kind,
         native_cwd: record.native_cwd,
+        native_attributes,
+    }
+}
+
+fn map_native_session_attributes(
+    record: CodeEngineSessionNativeAttributesRecord,
+) -> NativeSessionAttributesPayload {
+    NativeSessionAttributesPayload {
+        schema_version: record.schema_version,
+        session_tree_id: record.session_tree_id,
+        parent_session_id: record.parent_session_id,
+        forked_from_session_id: record.forked_from_session_id,
+        title: record.title,
+        preview: record.preview,
+        source: record.source,
+        provider_version: record.provider_version,
+        model_provider: record.model_provider,
+        project_id: record.project_id,
+        cwd: record.cwd,
+        git_branch: record.git_branch,
+        git_commit: record.git_commit,
+        git_repository_url: record.git_repository_url,
+        agent_name: record.agent_name,
+        agent_role: record.agent_role,
+        is_ephemeral: record.is_ephemeral,
+        is_sidechain: record.is_sidechain,
+        metadata: record.metadata,
     }
 }
 
@@ -828,6 +856,7 @@ mod tests {
             transcript_updated_at: Some("2026-07-15T00:01:00Z".to_owned()),
             workspace_id: None,
             project_id: None,
+            native_attributes: Default::default(),
         }
     }
 

@@ -1,7 +1,7 @@
 import { appApiPath } from './paths';
 import type { HttpClient } from '../http/client';
 
-import type { BirdCoderCommitProjectGitChangesRequest, BirdCoderCreateProjectGitBranchRequest, BirdCoderCreateProjectGitWorktreeRequest, BirdCoderCreateProjectRequest, BirdCoderCreateWorkspaceRequest, BirdCoderDeploymentRecordSummary, BirdCoderDeploymentTargetSummary, BirdCoderProjectCollaboratorSummary, BirdCoderProjectGitOverview, BirdCoderProjectPublishResult, BirdCoderProjectSummary, BirdCoderPublishProjectRequest, BirdCoderPushProjectGitBranchRequest, BirdCoderRemoveProjectGitWorktreeRequest, BirdCoderSwitchProjectGitBranchRequest, BirdCoderUpdateProjectRequest, BirdCoderUpdateWorkspaceRequest, BirdCoderUpsertProjectCollaboratorRequest, BirdCoderWorkspaceSummary, PageInfo } from '../types';
+import type { BirdCoderCommitProjectGitChangesRequest, BirdCoderCreateProjectGitBranchRequest, BirdCoderCreateProjectGitWorktreeRequest, BirdCoderCreateProjectRequest, BirdCoderCreateWorkspaceRequest, BirdCoderDeploymentRecordSummary, BirdCoderDeploymentTargetSummary, BirdCoderProjectCollaboratorSummary, BirdCoderProjectGitDiff, BirdCoderProjectGitOverview, BirdCoderProjectPublishResult, BirdCoderProjectSummary, BirdCoderPublishProjectRequest, BirdCoderPushProjectGitBranchRequest, BirdCoderRemoveProjectGitWorktreeRequest, BirdCoderSwitchProjectGitBranchRequest, BirdCoderUpdateProjectRequest, BirdCoderUpdateWorkspaceRequest, BirdCoderUpsertProjectCollaboratorRequest, BirdCoderWorkspaceSummary, PageInfo } from '../types';
 
 
 export interface PlatformDeploymentsListParams {
@@ -184,6 +184,20 @@ export class PlatformProjectsGitBranchesApi {
   }
 }
 
+export class PlatformProjectsGitDiffApi {
+  private client: HttpClient;
+
+  constructor(client: HttpClient) {
+    this.client = client;
+  }
+
+
+/** Get project Git diff */
+  async retrieve(projectId: string): Promise<BirdCoderProjectGitDiff> {
+    return this.client.get<BirdCoderProjectGitDiff>(appApiPath(`/projects/${serializePathParameter(projectId, { name: 'projectId', style: 'simple', explode: false })}/git/diff`));
+  }
+}
+
 export class PlatformProjectsGitOverviewApi {
   private client: HttpClient;
 
@@ -201,6 +215,7 @@ export class PlatformProjectsGitOverviewApi {
 export class PlatformProjectsGitApi {
   private client: HttpClient;
   public readonly overview: PlatformProjectsGitOverviewApi;
+  public readonly diff: PlatformProjectsGitDiffApi;
   public readonly branches: PlatformProjectsGitBranchesApi;
   public readonly branchSwitch: PlatformProjectsGitBranchSwitchApi;
   public readonly commits: PlatformProjectsGitCommitsApi;
@@ -212,6 +227,7 @@ export class PlatformProjectsGitApi {
   constructor(client: HttpClient) {
     this.client = client;
     this.overview = new PlatformProjectsGitOverviewApi(client);
+    this.diff = new PlatformProjectsGitDiffApi(client);
     this.branches = new PlatformProjectsGitBranchesApi(client);
     this.branchSwitch = new PlatformProjectsGitBranchSwitchApi(client);
     this.commits = new PlatformProjectsGitCommitsApi(client);

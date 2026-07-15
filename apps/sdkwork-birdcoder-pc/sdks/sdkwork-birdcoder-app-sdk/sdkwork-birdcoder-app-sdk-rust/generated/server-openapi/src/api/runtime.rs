@@ -28,7 +28,7 @@ impl RuntimeApi {
     }
 
     /// Get discovered native engine session detail
-    pub async fn native_sessions_retrieve(&self, id: &str, workspace_id: Option<&str>, project_id: Option<&str>, engine_id: Option<&str>) -> Result<BirdCoderNativeSessionDetailEnvelope, SdkworkError> {
+    pub async fn native_sessions_retrieve(&self, id: &str, workspace_id: &str, project_id: &str, engine_id: Option<&str>) -> Result<BirdCoderNativeSessionDetailEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
             QueryParameterSpec::new("projectId", project_id, "form", true, false, None),
@@ -45,7 +45,7 @@ impl RuntimeApi {
     }
 
     /// List discovered native engine sessions
-    pub async fn native_sessions_list(&self, workspace_id: Option<&str>, project_id: Option<&str>, engine_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderNativeSessionSummaryListEnvelope, SdkworkError> {
+    pub async fn native_sessions_list(&self, workspace_id: &str, project_id: &str, engine_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderNativeSessionSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
             QueryParameterSpec::new("projectId", project_id, "form", true, false, None),

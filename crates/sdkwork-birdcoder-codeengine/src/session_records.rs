@@ -1,6 +1,152 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+pub const CODE_ENGINE_NATIVE_SESSION_SCHEMA_VERSION: i64 = 1;
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CodeEngineSessionNativeAttributesRecord {
+    #[serde(default = "default_native_session_schema_version")]
+    pub schema_version: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_tree_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forked_from_session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_provider: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_branch: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_commit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_repository_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_role: Option<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub is_ephemeral: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub is_sidechain: bool,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub metadata: BTreeMap<String, serde_json::Value>,
+}
+
+impl Default for CodeEngineSessionNativeAttributesRecord {
+    fn default() -> Self {
+        Self {
+            schema_version: CODE_ENGINE_NATIVE_SESSION_SCHEMA_VERSION,
+            session_tree_id: None,
+            parent_session_id: None,
+            forked_from_session_id: None,
+            title: None,
+            preview: None,
+            source: None,
+            provider_version: None,
+            model_provider: None,
+            project_id: None,
+            cwd: None,
+            git_branch: None,
+            git_commit: None,
+            git_repository_url: None,
+            agent_name: None,
+            agent_role: None,
+            is_ephemeral: false,
+            is_sidechain: false,
+            metadata: BTreeMap::new(),
+        }
+    }
+}
+
+const fn default_native_session_schema_version() -> i64 {
+    CODE_ENGINE_NATIVE_SESSION_SCHEMA_VERSION
+}
+
+const fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+pub fn sanitize_codeengine_session_metadata(value: &Value) -> BTreeMap<String, Value> {
+    value
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter_map(|(key, value)| {
+            if should_redact_session_metadata_key(key) {
+                return None;
+            }
+            sanitize_session_metadata_value(value).map(|value| (key.clone(), value))
+        })
+        .collect()
+}
+
+fn sanitize_session_metadata_value(value: &Value) -> Option<Value> {
+    match value {
+        Value::Object(record) => Some(Value::Object(
+            record
+                .iter()
+                .filter_map(|(key, value)| {
+                    if should_redact_session_metadata_key(key) {
+                        return None;
+                    }
+                    sanitize_session_metadata_value(value).map(|value| (key.clone(), value))
+                })
+                .collect(),
+        )),
+        Value::Array(values) => Some(Value::Array(
+            values
+                .iter()
+                .filter_map(sanitize_session_metadata_value)
+                .collect(),
+        )),
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => Some(value.clone()),
+    }
+}
+
+fn should_redact_session_metadata_key(key: &str) -> bool {
+    let normalized = key
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect::<String>();
+    matches!(
+        normalized.as_str(),
+        "authorization"
+            | "content"
+            | "credential"
+            | "credentials"
+            | "env"
+            | "environment"
+            | "events"
+            | "input"
+            | "messages"
+            | "output"
+            | "password"
+            | "prompt"
+            | "secret"
+            | "transcript"
+    ) || normalized.contains("apikey")
+        || normalized.contains("accesstoken")
+        || normalized.contains("authtoken")
+        || normalized.contains("privatekey")
+        || normalized.contains("refreshtoken")
+}
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -79,6 +225,8 @@ pub struct CodeEngineSessionSummaryRecord {
     pub workspace_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_id: Option<String>,
+    #[serde(default)]
+    pub native_attributes: CodeEngineSessionNativeAttributesRecord,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]

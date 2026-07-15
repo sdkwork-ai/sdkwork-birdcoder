@@ -29,6 +29,25 @@ CREATE TABLE IF NOT EXISTS ai_coding_session (
     model_id TEXT NOT NULL,
     last_turn_at TEXT NULL,
     native_session_id TEXT NULL,
+    native_session_tree_id TEXT NULL,
+    native_parent_session_id TEXT NULL,
+    native_forked_from_session_id TEXT NULL,
+    native_title TEXT NULL,
+    native_preview TEXT NULL,
+    native_source TEXT NULL,
+    provider_version TEXT NULL,
+    model_provider TEXT NULL,
+    native_project_id TEXT NULL,
+    native_cwd TEXT NULL,
+    native_git_branch TEXT NULL,
+    native_git_commit TEXT NULL,
+    native_git_repository_url TEXT NULL,
+    native_agent_name TEXT NULL,
+    native_agent_role TEXT NULL,
+    native_is_ephemeral INTEGER NOT NULL DEFAULT 0,
+    native_is_sidechain INTEGER NOT NULL DEFAULT 0,
+    native_schema_version INTEGER NOT NULL DEFAULT 1,
+    native_metadata_json TEXT NOT NULL DEFAULT '{}',
     sort_timestamp INTEGER NULL,
     transcript_updated_at TEXT NULL,
     pinned INTEGER NOT NULL DEFAULT 0,
@@ -207,6 +226,10 @@ ON ai_coding_session(tenant_id, project_id, updated_at);
 
 CREATE INDEX IF NOT EXISTS idx_ai_coding_session_tenant_user_updated
 ON ai_coding_session(tenant_id, user_id, updated_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_tenant_user_engine_native
+ON ai_coding_session(tenant_id, user_id, engine_id, native_session_id)
+WHERE native_session_id IS NOT NULL AND is_deleted = 0;
 
 CREATE INDEX IF NOT EXISTS idx_ai_coding_session_message_tenant_session_created
 ON ai_coding_session_message(tenant_id, coding_session_id, created_at);

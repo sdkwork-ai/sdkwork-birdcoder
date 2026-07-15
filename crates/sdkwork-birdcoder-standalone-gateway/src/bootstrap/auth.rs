@@ -145,10 +145,9 @@ pub(crate) fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
 
     // Non-development standalone servers retain exact loopback defaults when
     // bound locally. Cloud deployments always require operator-owned origins.
-    let is_local_standalone = matches!(
-        config.deployment_profile,
-        BirdDeploymentProfile::Standalone
-    ) && (is_loopback_bind_host(&config.host) || is_wildcard_bind_host(&config.host));
+    let is_local_standalone =
+        matches!(config.deployment_profile, BirdDeploymentProfile::Standalone)
+            && (is_loopback_bind_host(&config.host) || is_wildcard_bind_host(&config.host));
     if is_local_standalone {
         for origin in default_loopback_browser_origins() {
             if !explicit_origins.iter().any(|allowed| allowed == &origin) {
@@ -223,10 +222,7 @@ mod tests {
     fn standalone_loopback_cors_includes_local_vite_ports() {
         let policy = build_cors_policy(&test_config(BirdDeploymentProfile::Standalone));
 
-        for origin in [
-            "http://localhost:3001",
-            "https://operator.example.test",
-        ] {
+        for origin in ["http://localhost:3001", "https://operator.example.test"] {
             let request = Request::builder()
                 .header("origin", origin)
                 .body(axum::body::Body::empty())

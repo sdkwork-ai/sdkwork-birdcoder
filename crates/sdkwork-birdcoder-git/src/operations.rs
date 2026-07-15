@@ -10,6 +10,8 @@ use crate::validation::{
     validate_git_branch_name, validate_git_remote_name, validate_git_worktree_path,
 };
 
+const GIT_DIFF_RESPONSE_LIMIT_BYTES: usize = 2 * 1024 * 1024;
+
 pub fn inspect_project_git_overview(
     project_root_path: &str,
 ) -> Result<GitProjectOverview, GitInspectionError> {
@@ -53,6 +55,48 @@ pub fn inspect_project_git_overview(
         status_counts,
         worktrees,
     })
+}
+
+pub fn inspect_project_git_diff(
+    project_root_path: &str,
+) -> Result<GitProjectDiff, GitMutationError> {
+    let root = Path::new(project_root_path);
+    validate_git_repo(root)?;
+    let has_head = run_git(&["rev-parse", "--verify", "HEAD"], root).is_ok();
+    let tracked_args = if has_head {
+        vec!["diff", "--no-ext-diff", "--binary", "HEAD", "--"]
+    } else {
+        vec!["diff", "--no-ext-diff", "--binary", "--cached", "--"]
+    };
+    let mut patch =
+        run_git(&tracked_args, root).map_err(|error| GitMutationError::Mutate(error.message))?;
+
+    let untracked = run_git(&["ls-files", "--others", "--exclude-standard", "-z"], root)
+        .map_err(|error| GitMutationError::Mutate(error.message))?;
+    for untracked_path in untracked.split('\0').filter(|value| !value.is_empty()) {
+        let untracked_patch = run_git_allow_exit_codes(
+            &[
+                "diff",
+                "--no-index",
+                "--binary",
+                "--",
+                "/dev/null",
+                untracked_path,
+            ],
+            root,
+            &[0, 1],
+        )
+        .map_err(|error| GitMutationError::Mutate(error.message))?;
+        if !untracked_patch.is_empty() {
+            if !patch.is_empty() && !patch.ends_with('\n') {
+                patch.push('\n');
+            }
+            patch.push_str(&untracked_patch);
+        }
+    }
+
+    let (patch, truncated) = truncate_utf8(patch, GIT_DIFF_RESPONSE_LIMIT_BYTES);
+    Ok(GitProjectDiff { patch, truncated })
 }
 
 pub fn create_project_git_branch(
@@ -140,8 +184,6 @@ pub fn push_project_git_branch(
 ) -> Result<GitProjectOverview, GitMutationError> {
     let root = Path::new(project_root_path);
     validate_git_repo(root)?;
-    let remote = remote_name.unwrap_or("origin").trim();
-    validate_git_remote_name(remote)?;
     let resolved_branch = match branch_name {
         Some(branch) => branch.trim().to_owned(),
         None => run_git(&["symbolic-ref", "--quiet", "--short", "HEAD"], root)
@@ -155,7 +197,7 @@ pub fn push_project_git_branch(
     };
     validate_git_branch_name(&resolved_branch)?;
     let upstream = format!("{resolved_branch}@{{upstream}}");
-    let has_upstream = run_git(
+    let upstream_name = run_git(
         &[
             "rev-parse",
             "--abbrev-ref",
@@ -164,8 +206,42 @@ pub fn push_project_git_branch(
         ],
         root,
     )
-    .is_ok();
-    let args = if has_upstream {
+    .ok()
+    .map(|value| value.trim().to_owned())
+    .filter(|value| !value.is_empty());
+    let remotes = run_git(&["remote"], root)
+        .map_err(|error| GitMutationError::Mutate(error.message))?
+        .lines()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let upstream_remote = upstream_name
+        .as_deref()
+        .and_then(|value| value.split('/').next());
+    let remote = remote_name
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .or(upstream_remote)
+        .or_else(|| {
+            remotes
+                .iter()
+                .any(|value| value == "origin")
+                .then_some("origin")
+        })
+        .or_else(|| (remotes.len() == 1).then(|| remotes[0].as_str()))
+        .ok_or_else(|| {
+            GitMutationError::Validation(
+                "a configured Git remote is required before pushing".to_owned(),
+            )
+        })?;
+    validate_git_remote_name(remote)?;
+    if !remotes.iter().any(|value| value == remote) {
+        return Err(GitMutationError::Validation(format!(
+            "Git remote does not exist: {remote}"
+        )));
+    }
+    let args = if upstream_name.is_some() {
         vec!["push", remote, resolved_branch.as_str()]
     } else {
         vec!["push", "--set-upstream", remote, resolved_branch.as_str()]
@@ -361,6 +437,14 @@ fn worktree_exclude_pattern(root: &Path, worktree: &Path) -> Result<String, GitM
 }
 
 pub(crate) fn run_git(args: &[&str], cwd: &Path) -> Result<String, GitCommandError> {
+    run_git_allow_exit_codes(args, cwd, &[0])
+}
+
+fn run_git_allow_exit_codes(
+    args: &[&str],
+    cwd: &Path,
+    allowed_exit_codes: &[i32],
+) -> Result<String, GitCommandError> {
     let output = Command::new("git")
         .args(args)
         .current_dir(cwd)
@@ -369,13 +453,28 @@ pub(crate) fn run_git(args: &[&str], cwd: &Path) -> Result<String, GitCommandErr
             message: format!("failed to execute git: {e}"),
         })?;
 
-    if output.status.success() {
+    if output
+        .status
+        .code()
+        .is_some_and(|code| allowed_exit_codes.contains(&code))
+    {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
         Err(GitCommandError {
             message: String::from_utf8_lossy(&output.stderr).to_string(),
         })
     }
+}
+
+fn truncate_utf8(value: String, max_bytes: usize) -> (String, bool) {
+    if value.len() <= max_bytes {
+        return (value, false);
+    }
+    let mut end = max_bytes;
+    while !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    (value[..end].to_owned(), true)
 }
 
 pub(crate) fn list_branches(root: &Path) -> Result<Vec<GitBranchSummary>, GitInspectionError> {
@@ -693,6 +792,33 @@ mod tests {
     }
 
     #[test]
+    fn inspect_project_git_diff_includes_tracked_and_untracked_changes() {
+        let repo = create_temp_git_repo("diff");
+        fs::write(repo.join("tracked.txt"), "initial\n").expect("write tracked fixture");
+        Command::new("git")
+            .args(["add", "tracked.txt"])
+            .current_dir(&repo)
+            .output()
+            .expect("git add");
+        Command::new("git")
+            .args(["commit", "-m", "initial"])
+            .current_dir(&repo)
+            .output()
+            .expect("git commit");
+
+        fs::write(repo.join("tracked.txt"), "updated\n").expect("modify tracked fixture");
+        fs::write(repo.join("untracked.txt"), "new file\n").expect("write untracked fixture");
+
+        let diff = inspect_project_git_diff(&repo.to_string_lossy()).expect("inspect diff");
+        assert!(!diff.truncated);
+        assert!(diff.patch.contains("tracked.txt"));
+        assert!(diff.patch.contains("untracked.txt"));
+        assert!(diff.patch.contains("+updated"));
+        assert!(diff.patch.contains("+new file"));
+        fs::remove_dir_all(&repo).ok();
+    }
+
+    #[test]
     fn commit_project_git_changes_creates_commit_for_staged_worktree_changes() {
         let repo = create_temp_git_repo("commit");
         fs::write(repo.join("README.md"), "test").expect("write file");
@@ -779,10 +905,10 @@ mod tests {
             .output()
             .expect("git commit");
         Command::new("git")
-            .args(["remote", "add", "origin", &remote.to_string_lossy()])
+            .args(["remote", "add", "upstream", &remote.to_string_lossy()])
             .current_dir(&repo)
             .output()
-            .expect("add origin");
+            .expect("add upstream");
 
         let overview = push_project_git_branch(&repo.to_string_lossy(), None, None)
             .expect("push current branch");
@@ -796,7 +922,7 @@ mod tests {
             &repo,
         )
         .expect("resolve upstream");
-        assert_eq!(upstream.trim(), format!("origin/{current_branch}"));
+        assert_eq!(upstream.trim(), format!("upstream/{current_branch}"));
         fs::remove_dir_all(&repo).ok();
         fs::remove_dir_all(&remote).ok();
     }

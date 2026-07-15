@@ -39,6 +39,10 @@ pub fn build_workspace_app_router() -> Router<WorkspaceAppState> {
             get(handlers::get_project_git_overview),
         )
         .route(
+            paths::PROJECT_GIT_DIFF_PATH,
+            get(handlers::get_project_git_diff),
+        )
+        .route(
             paths::PROJECT_GIT_BRANCHES_PATH,
             post(handlers::create_project_git_branch),
         )

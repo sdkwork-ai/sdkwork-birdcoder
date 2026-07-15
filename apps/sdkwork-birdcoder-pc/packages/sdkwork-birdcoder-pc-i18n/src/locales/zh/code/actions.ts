@@ -3,6 +3,12 @@ import { defineLocaleModule } from '../../resource.ts';
 export default defineLocaleModule('code/actions', {
   code: {
     noActiveDiff: '\u6ca1\u6709\u53ef\u663e\u793a\u7684\u5dee\u5f02',
+    gitDiffLoadFailed: '\u52a0\u8f7d Git \u5dee\u5f02\u5931\u8d25\u3002',
+    gitDiffProjectRequired: '\u8bf7\u5148\u9009\u62e9\u9879\u76ee\uff0c\u518d\u67e5\u770b Git \u5dee\u5f02\u3002',
+    gitDiffTruncated: '\u5dee\u5f02\u5185\u5bb9\u8d85\u8fc7 2 MB\uff0c\u5df2\u622a\u65ad\u663e\u793a\u3002',
+    loadingGitDiff: '\u6b63\u5728\u52a0\u8f7d Git \u5dee\u5f02...',
+    noGitChanges: '\u6ca1\u6709\u53ef\u663e\u793a\u7684 Git \u53d8\u66f4\u3002',
+    refreshGitDiff: '\u5237\u65b0 Git \u5dee\u5f02',
     fileSaved: '\u6587\u4ef6\u5df2\u4fdd\u5b58',
     allFilesSaved: '\u5168\u90e8\u6587\u4ef6\u5df2\u4fdd\u5b58',
     startingApplication: '\u6b63\u5728\u542f\u52a8\u5e94\u7528...',

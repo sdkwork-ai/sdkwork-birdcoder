@@ -43,6 +43,7 @@ interface StoredCodingSessionPersistedEntry {
   lastTurnAt?: unknown;
   modelId?: unknown;
   nativeSessionId?: unknown;
+  nativeAttributes?: unknown;
   projectId?: unknown;
   runtimeStatus?: unknown;
   status?: unknown;
@@ -246,6 +247,10 @@ function normalizeStoredCodingSessionRecord(
     engineId,
     modelId: rawModelId,
     nativeSessionId: normalizeInventoryNativeSessionId(value.nativeSessionId, engineId),
+    nativeAttributes:
+      value.nativeAttributes && typeof value.nativeAttributes === 'object'
+        ? value.nativeAttributes as BirdCoderCodingSessionSummary['nativeAttributes']
+        : undefined,
     runtimeStatus: normalizeRuntimeStatus(value.runtimeStatus),
     createdAt,
     updatedAt,
@@ -422,6 +427,9 @@ function mergeCodingSessionInventoryRecords(
     runtimeStatus: activitySource.runtimeStatus,
     nativeSessionId: primary.nativeSessionId ?? secondary.nativeSessionId,
     nativeCwd: primary.nativeCwd ?? secondary.nativeCwd ?? null,
+    nativeAttributes: activitySource.nativeAttributes
+      ?? primary.nativeAttributes
+      ?? secondary.nativeAttributes,
     updatedAt:
       resolveLatestIsoTimestamp(primary.updatedAt, secondary.updatedAt) ??
       primary.updatedAt,

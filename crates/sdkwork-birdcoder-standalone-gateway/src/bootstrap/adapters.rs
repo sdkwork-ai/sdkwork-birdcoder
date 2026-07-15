@@ -24,6 +24,7 @@ use sdkwork_birdcoder_coding_sessions_service::error::CodingSessionError;
 use sdkwork_birdcoder_coding_sessions_service::event_payload::{
     build_succeeded_coding_session_turn_events, SucceededCodingSessionTurnEventInput,
 };
+use sdkwork_birdcoder_coding_sessions_service::native_session_types::NativeSessionCommandPayload;
 use sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator;
 use sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider;
 use sdkwork_birdcoder_kernel_bridge::BirdcoderKernelHost;
@@ -308,6 +309,8 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
             .format(&time::format_description::well_known::Iso8601::DEFAULT)
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string());
 
+        let projected_commands = map_kernel_commands(result.commands.as_deref());
+
         let events =
             build_succeeded_coding_session_turn_events(SucceededCodingSessionTurnEventInput {
                 coding_session_id: &session_id,
@@ -315,7 +318,7 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
                 turn_id: &turn_id,
                 operation_id: &operation_id,
                 assistant_content: &result.assistant_content,
-                commands: None,
+                commands: projected_commands.as_deref(),
                 base_sequence: 0,
                 completed_at: &completed_at,
                 native_session_id: result.native_session_id.as_deref(),
@@ -406,6 +409,27 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
         .map_err(|error| CodingSessionError::Repository(error.to_string()))?
         .map_err(CodingSessionError::Repository)
     }
+}
+
+fn map_kernel_commands(
+    commands: Option<&[sdkwork_birdcoder_codeengine::CodeEngineSessionCommandRecord]>,
+) -> Option<Vec<NativeSessionCommandPayload>> {
+    commands.map(|commands| {
+        commands
+            .iter()
+            .map(|command| NativeSessionCommandPayload {
+                command: command.command.clone(),
+                status: command.status.clone(),
+                output: command.output.clone(),
+                kind: command.kind.clone(),
+                tool_name: command.tool_name.clone(),
+                tool_call_id: command.tool_call_id.clone(),
+                runtime_status: command.runtime_status.clone(),
+                requires_approval: command.requires_approval,
+                requires_reply: command.requires_reply,
+            })
+            .collect()
+    })
 }
 
 #[async_trait::async_trait]
@@ -629,12 +653,35 @@ mod tests {
 
     use super::{
         build_turn_request, build_turn_request_with_runner_binding, code_engine_turn_admission,
-        execute_admitted_blocking_turn, prepare_runner_binding, user_code_engine_turn_admission,
-        wire_code_engine_provider_with_kernel_host, wire_engine_validator_with_kernel_host,
-        CodeEngineProvider, CodingSessionError, KernelBridgeCodeEngineProvider,
-        TurnAdmissionPermits, CODE_ENGINE_USER_TURN_ADMISSION_SATURATED,
-        DEFAULT_CODE_ENGINE_TURN_MAX_OUTPUT_BYTES, DEFAULT_CODE_ENGINE_TURN_TIMEOUT_MS,
+        execute_admitted_blocking_turn, map_kernel_commands, prepare_runner_binding,
+        user_code_engine_turn_admission, wire_code_engine_provider_with_kernel_host,
+        wire_engine_validator_with_kernel_host, CodeEngineProvider, CodingSessionError,
+        KernelBridgeCodeEngineProvider, TurnAdmissionPermits,
+        CODE_ENGINE_USER_TURN_ADMISSION_SATURATED, DEFAULT_CODE_ENGINE_TURN_MAX_OUTPUT_BYTES,
+        DEFAULT_CODE_ENGINE_TURN_TIMEOUT_MS,
     };
+
+    #[test]
+    fn kernel_commands_are_preserved_for_session_event_projection() {
+        let commands = vec![
+            sdkwork_birdcoder_codeengine::CodeEngineSessionCommandRecord {
+                command: r#"{"command":"cargo test"}"#.to_owned(),
+                status: "pending".to_owned(),
+                kind: Some("tool_call".to_owned()),
+                tool_name: Some("codex.shell".to_owned()),
+                tool_call_id: Some("call-1".to_owned()),
+                runtime_status: Some("awaiting".to_owned()),
+                ..Default::default()
+            },
+        ];
+
+        let projected = map_kernel_commands(Some(&commands)).expect("projected commands");
+
+        assert_eq!(projected.len(), 1);
+        assert_eq!(projected[0].tool_name.as_deref(), Some("codex.shell"));
+        assert_eq!(projected[0].tool_call_id.as_deref(), Some("call-1"));
+        assert_eq!(projected[0].command, r#"{"command":"cargo test"}"#);
+    }
 
     struct TestDirectory {
         root: PathBuf,

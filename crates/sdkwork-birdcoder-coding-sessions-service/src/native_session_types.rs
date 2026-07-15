@@ -2,6 +2,81 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+pub const NATIVE_SESSION_ATTRIBUTES_SCHEMA_VERSION: i64 = 1;
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeSessionAttributesPayload {
+    #[serde(default = "default_native_session_attributes_schema_version")]
+    pub schema_version: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_tree_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forked_from_session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_provider: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_branch: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_commit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub git_repository_url: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub agent_role: Option<String>,
+    #[serde(default)]
+    pub is_ephemeral: bool,
+    #[serde(default)]
+    pub is_sidechain: bool,
+    #[serde(default)]
+    pub metadata: BTreeMap<String, serde_json::Value>,
+}
+
+impl Default for NativeSessionAttributesPayload {
+    fn default() -> Self {
+        Self {
+            schema_version: NATIVE_SESSION_ATTRIBUTES_SCHEMA_VERSION,
+            session_tree_id: None,
+            parent_session_id: None,
+            forked_from_session_id: None,
+            title: None,
+            preview: None,
+            source: None,
+            provider_version: None,
+            model_provider: None,
+            project_id: None,
+            cwd: None,
+            git_branch: None,
+            git_commit: None,
+            git_repository_url: None,
+            agent_name: None,
+            agent_role: None,
+            is_ephemeral: false,
+            is_sidechain: false,
+            metadata: BTreeMap::new(),
+        }
+    }
+}
+
+const fn default_native_session_attributes_schema_version() -> i64 {
+    NATIVE_SESSION_ATTRIBUTES_SCHEMA_VERSION
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NativeSessionCommandPayload {
@@ -82,6 +157,8 @@ pub struct NativeSessionSummaryPayload {
     pub sort_timestamp: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transcript_updated_at: Option<String>,
+    #[serde(default)]
+    pub native_attributes: NativeSessionAttributesPayload,
 }
 
 pub fn serialize_i64_as_decimal_string<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>

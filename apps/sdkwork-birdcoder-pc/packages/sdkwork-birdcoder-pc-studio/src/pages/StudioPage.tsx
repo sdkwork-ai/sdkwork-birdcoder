@@ -580,7 +580,6 @@ function StudioPageComponent({
     setIsRunTaskVisible,
     setIsTerminalOpen,
     setTerminalRequest,
-    setViewingDiff,
     t,
   });
 

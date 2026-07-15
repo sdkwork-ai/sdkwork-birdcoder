@@ -2,6 +2,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
 
 use super::models::{CodingSessionTurnIdeContextPayload, CodingSessionTurnOptionsPayload};
+use crate::native_session_types::NativeSessionAttributesPayload;
 
 // 鈹€鈹€ Serialization helpers 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
@@ -106,6 +107,8 @@ pub struct CodingSessionPayload {
     pub sort_timestamp: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transcript_updated_at: Option<String>,
+    #[serde(default)]
+    pub native_attributes: NativeSessionAttributesPayload,
 }
 
 #[derive(Clone, Debug, Serialize)]

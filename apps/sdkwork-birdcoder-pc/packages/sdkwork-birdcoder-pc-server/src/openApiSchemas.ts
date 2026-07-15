@@ -183,6 +183,7 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     engineId: createOpenApiStringEnumSchema(engineKeys),
     modelId: createOpenApiStringSchema(),
     nativeSessionId: createOpenApiStringSchema(),
+    nativeAttributes: createOpenApiSchemaReference('BirdCoderNativeSessionAttributes'),
     createdAt: createOpenApiDateTimeSchema(),
     updatedAt: createOpenApiDateTimeSchema(),
     lastTurnAt: createOpenApiDateTimeSchema(),
@@ -636,6 +637,32 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
       },
       {
         required: ['host', 'port', 'configFileName'],
+      },
+    ),
+    BirdCoderNativeSessionAttributes: createOpenApiObjectSchema(
+      {
+        schemaVersion: createOpenApiIntegerSchema(1),
+        sessionTreeId: createOpenApiStringSchema(),
+        parentSessionId: createOpenApiStringSchema(),
+        forkedFromSessionId: createOpenApiStringSchema(),
+        title: createOpenApiStringSchema(),
+        preview: createOpenApiStringSchema(),
+        source: createOpenApiStringSchema(),
+        providerVersion: createOpenApiStringSchema(),
+        modelProvider: createOpenApiStringSchema(),
+        projectId: createOpenApiStringSchema(),
+        cwd: createOpenApiStringSchema(),
+        gitBranch: createOpenApiStringSchema(),
+        gitCommit: createOpenApiStringSchema(),
+        gitRepositoryUrl: createOpenApiStringSchema(),
+        agentName: createOpenApiStringSchema(),
+        agentRole: createOpenApiStringSchema(),
+        isEphemeral: createOpenApiBooleanSchema(),
+        isSidechain: createOpenApiBooleanSchema(),
+        metadata: createOpenApiObjectSchema({}, { additionalProperties: true }),
+      },
+      {
+        required: ['schemaVersion', 'isEphemeral', 'isSidechain', 'metadata'],
       },
     ),
     BirdCoderCodingSessionSummary: createOpenApiObjectSchema(codingSessionSummaryProperties, {
@@ -1911,6 +1938,15 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         ],
       },
     ),
+    BirdCoderProjectGitDiff: createOpenApiObjectSchema(
+      {
+        patch: createOpenApiStringSchema(),
+        truncated: createOpenApiBooleanSchema(),
+      },
+      {
+        required: ['patch', 'truncated'],
+      },
+    ),
     BirdCoderCreateProjectGitBranchRequest: createOpenApiObjectSchema(
       {
         branchName: createOpenApiStringSchema(),
@@ -2859,6 +2895,9 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     ),
     BirdCoderProjectGitOverviewEnvelope: createOpenApiEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderProjectGitOverview'),
+    ),
+    BirdCoderProjectGitDiffEnvelope: createOpenApiEnvelopeSchema(
+      createOpenApiSchemaReference('BirdCoderProjectGitDiff'),
     ),
     BirdCoderProjectSummaryListEnvelope: createOpenApiListEnvelopeSchema(
       createOpenApiSchemaReference('BirdCoderProjectSummary'),

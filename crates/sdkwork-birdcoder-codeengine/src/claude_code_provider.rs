@@ -146,6 +146,7 @@ mod tests {
             transcript_updated_at: Some("2026-07-15T00:00:00Z".to_owned()),
             workspace_id: None,
             project_id: None,
+            native_attributes: Default::default(),
         }
     }
 }

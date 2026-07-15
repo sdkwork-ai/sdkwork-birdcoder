@@ -1136,6 +1136,25 @@ pub mod platform {
                 };
             }
 
+            pub mod diff {
+                pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
+                    data_scope: "organization",
+                    deployment: "all",
+                    domain: "platform",
+                    key: "platform.projects.git.diff.retrieve",
+                    method: "GET",
+                    operation_id: "projects.git.diff.retrieve",
+                    path: "/app/v3/api/projects/{projectId}/git/diff",
+                    path_param_names: &["projectId"],
+                    permission: Some("birdcoder.platform-projects-git-overview.read"),
+                    public: false,
+                    resource: "birdcoder.platform-projects-git-overview",
+                    summary: "Get project Git diff",
+                    tag: "platform",
+                    tenant_scope: "tenant",
+                };
+            }
+
             pub mod overview {
                 pub const RETRIEVE: crate::SdkOperation = crate::SdkOperation {
                     data_scope: "organization",
@@ -1907,6 +1926,7 @@ pub const OPERATIONS: &[SdkOperation] = &[
     platform::projects::git::branches::CREATE,
     platform::projects::git::branch_switch::CREATE,
     platform::projects::git::commits::CREATE,
+    platform::projects::git::diff::RETRIEVE,
     platform::projects::git::overview::RETRIEVE,
     platform::projects::git::pushes::CREATE,
     platform::projects::git::worktree_prune::CREATE,

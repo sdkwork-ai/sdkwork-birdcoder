@@ -103,6 +103,13 @@ pub const WORKSPACE_APP_API_ROUTES: &[HttpRoute] = &[
     )
     .with_required_permission("birdcoder.platform-projects-git-overview.read"),
     HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::PROJECT_GIT_DIFF_PATH,
+        "projects",
+        "projects.git.diff.retrieve",
+    )
+    .with_required_permission("birdcoder.platform-projects-git-overview.read"),
+    HttpRoute::dual_token(
         HttpMethod::Post,
         paths::PROJECT_GIT_BRANCHES_PATH,
         "projects",

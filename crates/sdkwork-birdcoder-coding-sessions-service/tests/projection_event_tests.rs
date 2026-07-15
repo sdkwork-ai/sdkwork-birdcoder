@@ -60,6 +60,7 @@ fn build_projection_session_events_with_native_detail_preserves_projection_user_
             native_cwd: Some("D:/demo".to_owned()),
             sort_timestamp: 1,
             transcript_updated_at: Some("2026-04-20T09:00:01Z".to_owned()),
+            native_attributes: Default::default(),
         },
         messages: vec![
             NativeSessionMessagePayload {
@@ -186,6 +187,7 @@ fn build_projection_session_events_with_native_detail_dedupes_mismatched_native_
             native_cwd: Some("D:/demo".to_owned()),
             sort_timestamp: 1,
             transcript_updated_at: Some("2026-04-20T09:00:04Z".to_owned()),
+            native_attributes: Default::default(),
         },
         messages: vec![
             NativeSessionMessagePayload {
@@ -336,6 +338,7 @@ fn build_projection_session_events_with_native_detail_dedupes_native_final_again
             native_cwd: Some("D:/demo".to_owned()),
             sort_timestamp: 1,
             transcript_updated_at: Some("2026-04-20T09:00:03Z".to_owned()),
+            native_attributes: Default::default(),
         },
         messages: vec![NativeSessionMessagePayload {
             id: "native-assistant-final".to_owned(),

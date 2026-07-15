@@ -8,7 +8,8 @@ use crate::{
     map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
     map_codeengine_tool_kind, map_codeengine_tool_runtime_status, resolve_codeengine_command_text,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionSummaryRecord,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
+    sanitize_codeengine_session_metadata,
 };
 
 const GEMINI_ENGINE_ID: &str = "gemini";
@@ -31,6 +32,8 @@ pub(super) struct GeminiConversationRecord {
     model: Option<String>,
     #[serde(default)]
     kind: Option<String>,
+    #[serde(default, flatten)]
+    extra: BTreeMap<String, Value>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -122,6 +125,40 @@ pub(super) fn build_gemini_session_summary(
     let sort_timestamp = parse_timestamp_millis(updated_at.as_str())
         .or_else(|| parse_timestamp_millis(created_at.as_str()))
         .unwrap_or_default();
+    let native_title = conversation
+        .title
+        .as_deref()
+        .and_then(normalize_title)
+        .or_else(|| conversation.summary.as_deref().and_then(normalize_title));
+    let preview = first_user_message_title(conversation.messages.as_slice());
+    let mut native_metadata = sanitize_codeengine_session_metadata(&Value::Object(
+        conversation.extra.clone().into_iter().collect(),
+    ));
+    for (key, value) in [
+        ("kind", conversation.kind.as_ref()),
+        ("model", conversation.model.as_ref()),
+        ("summary", conversation.summary.as_ref()),
+        ("title", conversation.title.as_ref()),
+    ] {
+        if let Some(value) = value {
+            native_metadata.insert(key.to_owned(), Value::String(value.clone()));
+        }
+    }
+    let native_attributes = CodeEngineSessionNativeAttributesRecord {
+        session_tree_id: Some(raw_session_id.clone()),
+        title: native_title,
+        preview,
+        model_provider: Some("google".to_owned()),
+        project_id: normalize_non_empty_string(Some(conversation.project_hash.as_str())),
+        cwd: native_cwd.clone(),
+        agent_role: normalize_non_empty_string(conversation.kind.as_deref()),
+        is_sidechain: conversation
+            .kind
+            .as_deref()
+            .is_some_and(|kind| kind.trim().eq_ignore_ascii_case("subagent")),
+        metadata: native_metadata,
+        ..Default::default()
+    };
 
     Some(CodeEngineSessionSummaryRecord {
         created_at,
@@ -140,6 +177,7 @@ pub(super) fn build_gemini_session_summary(
         transcript_updated_at: Some(updated_at),
         workspace_id: None,
         project_id: None,
+        native_attributes,
     })
 }
 

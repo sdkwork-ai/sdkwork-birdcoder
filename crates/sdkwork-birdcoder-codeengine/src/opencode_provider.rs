@@ -13,7 +13,9 @@ use crate::{
     map_codeengine_tool_command_status, map_codeengine_tool_kind,
     map_codeengine_tool_runtime_status, resolve_codeengine_command_interaction_state,
     resolve_codeengine_command_text, session_id_targets_engine, CodeEngineSessionCommandRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
+    sanitize_codeengine_session_metadata,
     NativeSessionProviderPlugin, NativeSessionProviderRegistration,
 };
 
@@ -120,7 +122,10 @@ fn build_opencode_session_summary_record(
         timestamp_from_value_millis(session.get("time").and_then(|time| time.get("updated")))
             .unwrap_or_else(|| created_at.clone());
     let native_cwd = normalize_path_string(session.get("directory"));
-    let title = normalize_value_string(session.get("title"))
+    let native_title = normalize_value_string(session.get("title"))
+        .map(|title| truncate_title(title.as_str()))
+        ;
+    let title = native_title.clone()
         .or_else(|| derive_working_directory_title_from_path(native_cwd.as_deref()))
         .unwrap_or_else(|| {
             format!(
@@ -132,6 +137,49 @@ fn build_opencode_session_summary_record(
     let raw_status = session_status_map.get(&raw_session_id);
     let runtime_status =
         map_codeengine_session_runtime_status(raw_status.map(|value| value.as_str()));
+    let model = session.get("model");
+    let git = session.get("git").or_else(|| session.get("gitInfo"));
+    let native_attributes = CodeEngineSessionNativeAttributesRecord {
+        session_tree_id: Some(raw_session_id.clone()),
+        parent_session_id: normalize_value_string(
+            session
+                .get("parentID")
+                .or_else(|| session.get("parentId"))
+                .or_else(|| session.get("parent_id")),
+        ),
+        title: native_title,
+        preview: normalize_value_string(session.get("summary")),
+        source: normalize_value_string(session.get("source")),
+        provider_version: normalize_value_string(session.get("version")),
+        model_provider: normalize_value_string(
+            model
+                .and_then(|value| value.get("providerID"))
+                .or_else(|| model.and_then(|value| value.get("providerId")))
+                .or_else(|| session.get("providerID"))
+                .or_else(|| session.get("providerId")),
+        ),
+        project_id: normalize_value_string(
+            session
+                .get("projectID")
+                .or_else(|| session.get("projectId"))
+                .or_else(|| session.get("project_id")),
+        ),
+        cwd: native_cwd.clone(),
+        git_branch: normalize_value_string(git.and_then(|value| value.get("branch"))),
+        git_commit: normalize_value_string(git.and_then(|value| {
+            value
+                .get("commit")
+                .or_else(|| value.get("commitHash"))
+                .or_else(|| value.get("sha"))
+        })),
+        git_repository_url: normalize_value_string(git.and_then(|value| {
+            value
+                .get("repositoryUrl")
+                .or_else(|| value.get("remoteUrl"))
+        })),
+        metadata: sanitize_codeengine_session_metadata(session),
+        ..Default::default()
+    };
     Some(CodeEngineSessionSummaryRecord {
         created_at: created_at.clone(),
         id: build_native_session_id(OPENCODE_ENGINE_ID, raw_session_id.as_str()),
@@ -151,6 +199,7 @@ fn build_opencode_session_summary_record(
         transcript_updated_at: Some(updated_at),
         workspace_id: None,
         project_id: None,
+        native_attributes,
     })
 }
 
@@ -515,6 +564,25 @@ mod tests {
             .expect("build summary");
 
         assert_eq!(summary.model_id, "openai/gpt-5.4");
+        assert_eq!(summary.title, "BirdCoder OpenCode Session");
+    }
+
+    #[test]
+    fn build_opencode_session_summary_record_normalizes_native_title() {
+        let session = json!({
+            "id": "session-native-title",
+            "title": "  Native    OpenCode   session  ",
+            "directory": "D:/workspace/project",
+            "time": {
+                "created": 1_710_000_000_000_i64,
+                "updated": 1_710_000_001_000_i64
+            }
+        });
+
+        let summary = build_opencode_session_summary_record(&session, &Default::default(), None)
+            .expect("build OpenCode summary with native title");
+
+        assert_eq!(summary.title, "Native OpenCode session");
     }
 
     #[test]

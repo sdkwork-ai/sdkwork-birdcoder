@@ -259,8 +259,8 @@ assert.match(
 
 assert.match(
   topBarSource,
-  /<ProjectGitHeaderControls[\s\S]*projectId=\{projectId\}[\s\S]*variant="topbar"[\s\S]*onAnyMenuOpen=\{\(\) => \{\s*setShowSubmitMenu\(false\);/s,
-  'Code TopBar must delegate branch and worktree controls to the shared ProjectGitHeaderControls component.',
+  /<ProjectGitHeaderControls[\s\S]*onRequestViewDiff=\{\(\) => setShowGitDiffDialog\(true\)\}[\s\S]*projectId=\{projectId\}[\s\S]*variant="topbar"/s,
+  'Code TopBar must delegate Git controls to the shared header component and open the real diff dialog.',
 );
 
 assert.doesNotMatch(

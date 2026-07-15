@@ -92,11 +92,11 @@
     },
     {
       "path": "src/api/platform.ts",
-      "sha256": "f6a91e4924141ac24cc74a820509d4bc6f9df5cc6274a34cc05bc3014b8c7da9"
+      "sha256": "103bc066e5f8a47d49b8b7d96dee1632e7829195526fa611ef911f0caca42b01"
     },
     {
       "path": "src/api/runtime.ts",
-      "sha256": "a7d297cdfd8e90c3f0bc83f76f5e2d3d907507d7796b395852f0d6f802bfffb5"
+      "sha256": "b40821bec2ac66c531b435f3cfb9a360d788b3f06034f2a20fda50046bb52039"
     },
     {
       "path": "src/api/skills.ts",
@@ -679,6 +679,14 @@
       "sha256": "a8d3249d33a2b9aad7c3d15da288c4859d75d1f48afb01ca3569d75755ee9247"
     },
     {
+      "path": "src/types/bird-coder-project-git-diff-envelope.ts",
+      "sha256": "6194b79f750de5f6abec82715912fc8afb4c56c0b99aa2e1ddada1f1c613a326"
+    },
+    {
+      "path": "src/types/bird-coder-project-git-diff.ts",
+      "sha256": "efd0dd907c1ba65cc37f48986eef6bdc0757c4354b97f1ed6114551af67d2628"
+    },
+    {
       "path": "src/types/bird-coder-project-git-overview-envelope.ts",
       "sha256": "4100767ef71f1c8b48ca3dfe8642689d28852d6efe343e50013b48df3f9dbbc6"
     },
@@ -828,7 +836,7 @@
     },
     {
       "path": "src/types/index.ts",
-      "sha256": "3d9dd1798d853c41c93c8506603a7ab0a05a6b2b1c3cfb89f1063de1c3c33e41"
+      "sha256": "132409c6bc31f1b576339bf70cb4f02ca12ab1e0b61ab0b710c3271148e63aec"
     },
     {
       "path": "src/types/page-info.ts",

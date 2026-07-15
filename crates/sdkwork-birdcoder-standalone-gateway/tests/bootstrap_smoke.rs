@@ -772,7 +772,10 @@ async fn cors_preflight_allows_dynamic_lan_web_origins_in_development() {
                 .uri("/app/v3/api/workspaces")
                 .header("origin", "http://192.168.31.108:3001")
                 .header("access-control-request-method", "GET")
-                .header("access-control-request-headers", "authorization,content-type")
+                .header(
+                    "access-control-request-headers",
+                    "authorization,content-type",
+                )
                 .body(Body::empty())
                 .expect("build LAN OPTIONS preflight request"),
         )

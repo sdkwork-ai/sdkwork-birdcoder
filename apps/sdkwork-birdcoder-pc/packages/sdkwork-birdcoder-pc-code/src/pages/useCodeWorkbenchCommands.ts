@@ -5,7 +5,7 @@ import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
 import type { BirdCoderProjectCodingSessionIndex } from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
 import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
 import type { ToastType } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
-import type { FileChange, BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
+import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 import { useTranslation } from 'react-i18next';
 
 interface UseCodeWorkbenchCommandsOptions {
@@ -18,7 +18,6 @@ interface UseCodeWorkbenchCommandsOptions {
     codingSessionId: string,
     options?: { projectId?: string },
   ) => void;
-  setViewingDiff: React.Dispatch<React.SetStateAction<FileChange | null>>;
   setIsTerminalOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setTerminalRequest: React.Dispatch<React.SetStateAction<TerminalCommandRequest | undefined>>;
   setIsSidebarVisible: React.Dispatch<React.SetStateAction<boolean>>;
@@ -39,7 +38,6 @@ export function useCodeWorkbenchCommands({
   selectedProjectId,
   resolveLocalWorkingDirectory,
   selectCodingSession,
-  setViewingDiff,
   setIsTerminalOpen,
   setTerminalRequest,
   setIsSidebarVisible,
@@ -104,16 +102,6 @@ export function useCodeWorkbenchCommands({
 
     const handleToggleTerminal = () => setIsTerminalOpen((previousState) => !previousState);
     const handleToggleSidebar = () => setIsSidebarVisible((previousState) => !previousState);
-
-    const handleToggleDiffPanel = () => {
-      setViewingDiff((previousState) => {
-        if (previousState) {
-          return null;
-        }
-        addToast(t('code.noActiveDiff'), 'info');
-        return null;
-      });
-    };
 
     const handleFindInFiles = () => {
       setIsFindVisible(true);
@@ -233,7 +221,6 @@ export function useCodeWorkbenchCommands({
       globalEventBus.on('openTerminal', handleOpenTerminal),
       globalEventBus.on('toggleTerminal', handleToggleTerminal),
       globalEventBus.on('toggleSidebar', handleToggleSidebar),
-      globalEventBus.on('toggleDiffPanel', handleToggleDiffPanel),
       globalEventBus.on('findInFiles', handleFindInFiles),
       globalEventBus.on('openQuickOpen', handleOpenQuickOpen),
       globalEventBus.on('previousCodingSession', handlePreviousCodingSession),

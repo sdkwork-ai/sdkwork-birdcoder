@@ -12,6 +12,9 @@ function readText(relativePath) {
 const projectionHookSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/hooks/useCodingSessionProjection.ts',
 );
+const projectionServiceSource = readText(
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/codingSessionProjectionService.ts',
+);
 const codePendingInteractionsSource = readText(
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePendingInteractions.ts',
 );
@@ -31,8 +34,14 @@ assert.match(
 
 assert.match(
   projectionHookSource,
-  /export async function loadCodingSessionPendingInteractionState\([\s\S]*const projection = await loadCodingSessionProjection\(appRuntimeReadService, codingSessionId\);[\s\S]*const pendingInteractionIndex = buildPendingInteractionDerivationIndex\(projection\);[\s\S]*approvals: deriveCodingSessionPendingApprovalsFromIndex\(projection,\s*pendingInteractionIndex\),[\s\S]*questions: deriveCodingSessionPendingUserQuestionsFromIndex\(pendingInteractionIndex\),/,
+  /export async function loadCodingSessionPendingInteractionState\([\s\S]*const projection = await loadCodingSessionProjectionIfAvailable\([\s\S]*if \(!projection\) \{\s*return EMPTY_PENDING_INTERACTIONS;\s*\}[\s\S]*const pendingInteractionIndex = buildPendingInteractionDerivationIndex\(projection\);[\s\S]*approvals: deriveCodingSessionPendingApprovalsFromIndex\(projection,\s*pendingInteractionIndex\),[\s\S]*questions: deriveCodingSessionPendingUserQuestionsFromIndex\(pendingInteractionIndex\),/,
   'Combined pending interaction loader must load the session projection once and derive both approvals and questions from one shared projection index.',
+);
+
+assert.match(
+  projectionServiceSource,
+  /const session = await appRuntimeReadService\.getCodingSession\(codingSessionId\);[\s\S]*const \[events, artifacts, checkpoints\] = await Promise\.all\(/,
+  'Projection loading must validate the parent session before requesting child collections.',
 );
 
 assert.match(

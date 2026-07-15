@@ -3,8 +3,8 @@ use std::path::{Component, Path};
 use sdkwork_birdcoder_git as birdcoder_git;
 use sdkwork_birdcoder_project_service::domain::commands::is_valid_worktree_key;
 use sdkwork_birdcoder_project_service::ports::git::{
-    GitBranchSummary, GitMutationError, GitOperations, GitOverviewStatus, GitProjectOverview,
-    GitStatusCounts, GitWorktreeSummary,
+    GitBranchSummary, GitMutationError, GitOperations, GitOverviewStatus, GitProjectDiff,
+    GitProjectOverview, GitStatusCounts, GitWorktreeSummary,
 };
 
 struct ProcessGitOperations;
@@ -29,6 +29,23 @@ impl GitOperations for ProcessGitOperations {
         .map_err(map_inspection_error)?;
 
         Ok(map_git_overview(&project_root_path, overview))
+    }
+
+    async fn inspect_diff(
+        &self,
+        project_root_path: &str,
+    ) -> Result<GitProjectDiff, GitMutationError> {
+        let project_root_path = project_root_path.to_string();
+        tokio::task::spawn_blocking(move || {
+            birdcoder_git::inspect_project_git_diff(&project_root_path)
+        })
+        .await
+        .map_err(|error| GitMutationError::Mutate(error.to_string()))?
+        .map(|diff| GitProjectDiff {
+            patch: diff.patch,
+            truncated: diff.truncated,
+        })
+        .map_err(map_mutation_error)
     }
 
     async fn create_branch(

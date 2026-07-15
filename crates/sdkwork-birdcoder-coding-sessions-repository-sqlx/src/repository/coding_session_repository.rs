@@ -584,6 +584,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             runtime_status: None,
             sort_timestamp,
             transcript_updated_at: None,
+            native_attributes: Default::default(),
         })
     }
 
@@ -799,6 +800,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             runtime_status: None,
             sort_timestamp,
             transcript_updated_at: None,
+            native_attributes: Default::default(),
         };
 
         if let Err(error) = session_history_copy::copy_session_history_in_transaction(

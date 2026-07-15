@@ -9,7 +9,7 @@ use sdkwork_birdcoder_deployment_service::service::deployment_service::Deploymen
 use sdkwork_birdcoder_project_service::error::ProjectError;
 use sdkwork_birdcoder_project_service::ports::events::ProjectEventPublisher;
 use sdkwork_birdcoder_project_service::ports::git::{
-    GitMutationError, GitOperations, GitProjectOverview,
+    GitMutationError, GitOperations, GitProjectDiff, GitProjectOverview,
 };
 use sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
@@ -185,6 +185,15 @@ impl GitOperations for UnavailableGitOperations {
         &self,
         _project_root_path: &str,
     ) -> Result<GitProjectOverview, GitMutationError> {
+        Err(GitMutationError::Mutate(
+            "git unavailable in handler smoke".into(),
+        ))
+    }
+
+    async fn inspect_diff(
+        &self,
+        _project_root_path: &str,
+    ) -> Result<GitProjectDiff, GitMutationError> {
         Err(GitMutationError::Mutate(
             "git unavailable in handler smoke".into(),
         ))

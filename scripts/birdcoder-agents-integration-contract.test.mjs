@@ -54,6 +54,10 @@ const agentsFacadeLib = fs.readFileSync(
   path.join(root, '../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/lib.rs'),
   'utf8',
 );
+const agentsFacadeTurn = fs.readFileSync(
+  path.join(root, '../sdkwork-agents/crates/sdkwork-agents-runtime-facade/src/turn.rs'),
+  'utf8',
+);
 for (const symbol of [
   'AgentsCodeEngineHost',
   'execute_code_engine_turn',
@@ -66,6 +70,16 @@ for (const symbol of [
     `sdkwork-agents-runtime-facade must export ${symbol}`,
   );
 }
+assert.match(
+  agentsFacadeTurn,
+  /tool_calls:\s*response\.tool_calls/u,
+  'agents runtime facade must preserve kernel tool calls in turn output.',
+);
+assert.match(
+  agentsFacadeTurn,
+  /if input\.native_session_id\.is_none\(\)\s*\{\s*return execute_code_engine_turn/u,
+  'first streamed turns must use the diagnostic-bearing invoke response so native session ids are not lost.',
+);
 
 const agentsServiceHttp = fs.readFileSync(
   path.join(

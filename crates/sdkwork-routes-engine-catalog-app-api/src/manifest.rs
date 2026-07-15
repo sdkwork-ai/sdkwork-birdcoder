@@ -39,8 +39,13 @@ pub const ENGINE_CATALOG_APP_API_ROUTES: &[HttpRoute] = &[
         "nativeSessions.retrieve",
     )
     .with_required_permission("birdcoder.runtime-native-sessions.read"),
-    HttpRoute::dual_token(HttpMethod::Get, paths::MODELS_PATH, "models", "models.list")
-        .with_required_permission("birdcoder.runtime-models.read"),
+    HttpRoute::dual_token(
+        HttpMethod::Get,
+        paths::MODELS_PATH,
+        "models",
+        "models.list",
+    )
+    .with_required_permission("birdcoder.runtime-models.read"),
     HttpRoute::dual_token(
         HttpMethod::Get,
         paths::MODEL_CONFIG_PATH,

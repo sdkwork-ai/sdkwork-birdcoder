@@ -84,11 +84,11 @@
     },
     {
       "path": "src/api/platform.rs",
-      "sha256": "3093c071425fdb662c47bb348f4edd7595747567528cdfab363ee1cd1063a2bd"
+      "sha256": "727ba3babee28dc372ebf179ee6472bca592fa829ac5315396c1f1ed007424fc"
     },
     {
       "path": "src/api/runtime.rs",
-      "sha256": "ada34024a77c9397d0652ce13c1524e57882c916867ad6a0d848d1c63f1937c6"
+      "sha256": "2c8bda20eeb4eaabc47894620e7a5a65527e391bb98566cc6763c461ee62b963"
     },
     {
       "path": "src/api/skills.rs",
@@ -667,6 +667,14 @@
       "sha256": "27bfb2b20c36fdc3a10d6851388ac480b83289512da4a7a8df51e8601a1e64b6"
     },
     {
+      "path": "src/models/bird_coder_project_git_diff_envelope.rs",
+      "sha256": "39190f28f42bd5cc8d9df8439fd0eaec5da238f3aaa3849db24c45024bc18f53"
+    },
+    {
+      "path": "src/models/bird_coder_project_git_diff.rs",
+      "sha256": "b23bee6a3f8be7e2a5381358a2660a2c584713502cc961fc99deb8102a02932c"
+    },
+    {
       "path": "src/models/bird_coder_project_git_overview_envelope.rs",
       "sha256": "01fd401d1c8392dc46eca5861ae47c72a40c1d054b5240eeeeca1cd1efb347e6"
     },
@@ -816,7 +824,7 @@
     },
     {
       "path": "src/models/mod.rs",
-      "sha256": "6a5e446f14bec9b10b0301e205b0e73aa2c7ac773b5216fbbc5b6fc5d6889b17"
+      "sha256": "b1bf386a3087cc9664612604986b4ed3fbf99ab010e6c9ef4d5bae5e9ae2841c"
     },
     {
       "path": "src/models/page_info.rs",

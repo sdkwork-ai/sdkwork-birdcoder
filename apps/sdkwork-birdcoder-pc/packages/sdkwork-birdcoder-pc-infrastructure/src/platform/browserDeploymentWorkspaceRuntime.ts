@@ -2,6 +2,7 @@ import type {
   BirdCoderCommitProjectGitChangesRequest,
   BirdCoderCreateProjectGitBranchRequest,
   BirdCoderCreateProjectGitWorktreeRequest,
+  BirdCoderProjectGitDiff,
   BirdCoderProjectGitOverview,
   BirdCoderPushProjectGitBranchRequest,
   BirdCoderRemoveProjectGitWorktreeRequest,
@@ -37,6 +38,7 @@ export interface BrowserDeploymentWorkspaceRuntime {
   deleteEntry(projectId: string, path: string, recursive?: boolean): Promise<void>;
   renameNode(projectId: string, oldPath: string, newPath: string): Promise<void>;
   getProjectGitOverview(projectId: string): Promise<BirdCoderProjectGitOverview>;
+  getProjectGitDiff(projectId: string): Promise<BirdCoderProjectGitDiff>;
   createProjectGitBranch(projectId: string, request: BirdCoderCreateProjectGitBranchRequest): Promise<BirdCoderProjectGitOverview>;
   createProjectGitWorktree(projectId: string, request: BirdCoderCreateProjectGitWorktreeRequest): Promise<BirdCoderProjectGitOverview>;
   switchProjectGitBranch(projectId: string, request: BirdCoderSwitchProjectGitBranchRequest): Promise<BirdCoderProjectGitOverview>;
@@ -199,6 +201,9 @@ export function createBrowserDeploymentWorkspaceRuntime(): BrowserDeploymentWork
     },
     async getProjectGitOverview(projectId) {
       return requestJson<BirdCoderProjectGitOverview>('/git', undefined, projectQuery(projectId));
+    },
+    async getProjectGitDiff(projectId) {
+      return requestJson<BirdCoderProjectGitDiff>('/git/diff', undefined, projectQuery(projectId));
     },
     async createProjectGitBranch(projectId, request) {
       return requestJson('/git', { method: 'POST', body: encodeBody({ operation: 'createBranch', ...request }) }, projectQuery(projectId));

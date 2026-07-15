@@ -396,6 +396,13 @@ export function getResolvedBirdCoderAppApiContract(): BirdCoderAppApiContract {
       '/app/v3/api/projects/:projectId/git/overview',
       'Get project Git overview',
     ),
+    projectGitDiff: createRoute(
+      'app',
+      'user',
+      'GET',
+      '/app/v3/api/projects/:projectId/git/diff',
+      'Get project Git diff',
+    ),
     createProjectGitBranch: createRoute(
       'app',
       'user',

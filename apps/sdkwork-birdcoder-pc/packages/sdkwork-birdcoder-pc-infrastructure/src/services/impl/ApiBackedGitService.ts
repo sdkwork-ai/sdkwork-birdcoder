@@ -2,6 +2,7 @@ import type {
   BirdCoderCommitProjectGitChangesRequest,
   BirdCoderCreateProjectGitBranchRequest,
   BirdCoderCreateProjectGitWorktreeRequest,
+  BirdCoderProjectGitDiff,
   BirdCoderProjectGitOverview,
   BirdCoderPushProjectGitBranchRequest,
   BirdCoderRemoveProjectGitWorktreeRequest,
@@ -114,6 +115,13 @@ export class ApiBackedGitService implements IGitService {
     return this.withBrowserDeploymentFallback(
       (runtime) => runtime.pruneProjectGitWorktrees(projectId),
       () => this.appClient.pruneProjectGitWorktrees(projectId),
+    );
+  }
+
+  async getProjectGitDiff(projectId: string): Promise<BirdCoderProjectGitDiff> {
+    return this.withBrowserDeploymentFallback(
+      (runtime) => runtime.getProjectGitDiff(projectId),
+      () => this.appClient.getProjectGitDiff(projectId),
     );
   }
 }

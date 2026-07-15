@@ -1,8 +1,7 @@
 import React, { Suspense, lazy, memo, useCallback, useMemo, useRef, useEffect, useLayoutEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Lightbulb, BookOpen, List, Loader2 } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, GripVertical, Check, ArrowUp, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, BookOpen, List, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import { createFallbackModel, ModelPicker } from '@sdkwork/models-pc-picker';
 import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-commons/chat/types';
 import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-pc-commons/chat/types';
 import {
@@ -61,6 +60,7 @@ import {
 } from './chatScrollBehavior';
 import { resolveTranscriptMessageKey } from './transcriptVirtualization';
 import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
+import { UniversalChatComposerFooter } from './chat/composer/UniversalChatComposerFooter';
 import { UniversalChatPendingInteractions } from './UniversalChatPendingInteractions';
 import {
   buildWorkbenchModelPickerId,
@@ -141,7 +141,7 @@ export interface UniversalChatComposerSelection {
 }
 
 const AUTO_RESIZE_TEXTAREA_MAX_HEIGHT = 200;
-const RESIZABLE_COMPOSER_MIN_HEIGHT = 72;
+const RESIZABLE_COMPOSER_MIN_HEIGHT = 48;
 const RESIZABLE_COMPOSER_MAX_HEIGHT = 360;
 const FOLDER_UPLOAD_YIELD_INTERVAL = 8;
 const MAX_SINGLE_FILE_UPLOAD_BYTES = 1048576;
@@ -782,16 +782,6 @@ export const UniversalChat = memo(function UniversalChat({
   const availableEngines = useMemo(
     () => listWorkbenchServerImplementedCodeEngines(preferences),
     [preferences, catalogLoaded],
-  );
-  const fallbackWorkbenchModel = useMemo(
-    () => createFallbackModel(
-      t('chat.modelCatalogFallback'),
-      t('chat.modelCatalogLoading'),
-      'workspace',
-      'llms',
-      'BirdCoder',
-    ),
-    [t],
   );
   const modelPickerCatalog = useMemo(
     () => createWorkbenchModelPickerCatalog(availableEngines),
@@ -2666,130 +2656,46 @@ export const UniversalChat = memo(function UniversalChat({
               onCompositionEnd={handleComposerCompositionEnd}
               onKeyDown={handleKeyDown}
               placeholder={disabled ? t('chat.placeholderDisabled') : t('chat.placeholderEnabled')}
-              className={`w-full min-h-[56px] resize-none overflow-y-auto bg-transparent px-1 pt-1 text-[15px] leading-6 text-white outline-none placeholder:text-gray-500 custom-scrollbar ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-              rows={1}
+              className={`min-h-12 w-full resize-none overflow-y-auto bg-transparent px-1 text-[15px] leading-6 text-white outline-none placeholder:text-gray-500 custom-scrollbar ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
+              rows={2}
               disabled={disabled}
               style={{
                 maxHeight: `${manualComposerHeight ?? AUTO_RESIZE_TEXTAREA_MAX_HEIGHT}px`,
               }}
             />
             </div>
-            <div className="mt-3 flex min-w-0 items-center justify-between gap-3">
-              <div className="relative flex min-w-0 items-center gap-1 text-xs text-gray-400">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`h-7 w-7 rounded-lg transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:text-white hover:bg-white/10'}`} 
-                  title={t('chat.addAttachment')}
-                  onClick={() => !disabled && setShowAttachmentMenu(!showAttachmentMenu)}
-                  disabled={disabled}
-                >
-                  <Plus size={16} />
-                </Button>
-
-                {showAttachmentMenu && !disabled && (
-                  <div ref={attachmentMenuRef} className="absolute bottom-full left-0 z-50 mb-2 w-44 rounded-lg bg-[#29292e] py-1.5 text-sm text-gray-300 shadow-[0_18px_52px_rgba(0,0,0,0.46)] animate-in fade-in zoom-in-95 duration-100">
-                    <div className="px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2 mx-1 rounded-md transition-colors" onClick={() => fileInputRef.current?.click()}>
-                      <FileUp size={14} />
-                      <span className="text-xs">{t('chat.uploadFile')}</span>
-                    </div>
-                    <div className="px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2 mx-1 rounded-md transition-colors" onClick={() => folderInputRef.current?.click()}>
-                      <FolderUp size={14} />
-                      <span className="text-xs">{t('chat.uploadFolder')}</span>
-                    </div>
-                    <div className="px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2 mx-1 rounded-md transition-colors" onClick={() => imageInputRef.current?.click()}>
-                      <ImageIcon size={14} />
-                      <span className="text-xs">{t('chat.uploadImage')}</span>
-                    </div>
-                  </div>
-                )}
-                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
-                <input type="file" ref={folderInputRef} className="hidden" onChange={handleFolderUpload} {...{ webkitdirectory: "", directory: "" } as any} />
-                <input type="file" ref={imageInputRef} accept="image/*" className="hidden" onChange={handleImageUpload} />
-                
-                <div className="relative">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className={`h-7 w-7 rounded-lg transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:text-white hover:bg-white/10'}`} 
-                    title={t('chat.prompts')}
-                    onClick={() => !disabled && setShowPromptModal(true)}
-                    disabled={disabled}
-                  >
-                    <Lightbulb size={16} />
-                  </Button>
-                </div>
-
-              </div>
-              <div className="flex min-w-0 items-center gap-1.5">
-                {showComposerEngineSelector ? (
-                  <div className="birdcoder-composer-model-picker min-w-0 max-w-[min(46vw,240px)]">
-                    <ModelPicker
-                      bucket="llms"
-                      compact
-                      disabled={disabled}
-                      fallback={fallbackWorkbenchModel}
-                      menuPlacement="top"
-                      modelGroups={modelPickerCatalog.groups}
-                      onSelectModel={handleComposerModelSelect}
-                      selectedModelId={currentModelPickerId}
-                      setShowModelMenu={setShowModelMenu}
-                      showModelDescription
-                      showModelMenu={showModelMenu}
-                      variant="flat"
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className="flex min-w-12 max-w-[min(46vw,240px)] items-center rounded-lg px-2 py-1.5"
-                    data-testid="universal-chat-selected-model"
-                    title={currentEngineSummary}
-                  >
-                    <span className="min-w-0 truncate text-xs font-semibold text-zinc-200">
-                      {currentComposerModelLabel}
-                    </span>
-                  </div>
-                )}
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`h-8 w-8 rounded-full transition-colors ${disabled ? 'opacity-50 cursor-not-allowed text-gray-600' : isListening ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20' : 'text-gray-400 hover:text-white hover:bg-white/10'}`} 
-                  title={isListening ? t('chat.stopListening') : t('chat.voiceInput')}
-                  disabled={disabled}
-                  onClick={toggleVoiceInput}
-                >
-                  <Mic size={16} className={isListening ? "animate-pulse" : ""} />
-                </Button>
-                {isComposerProcessing && !editingMessage && !canQueueTypedMessage && !canSubmitPendingUserQuestionAnswer ? (
-                  <Button
-                    size="icon"
-                    className="h-8 w-8 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
-                    disabled
-                    title={t('chat.generatingResponse')}
-                  >
-                    <Loader2 size={14} className="animate-spin" />
-                  </Button>
-                ) : (
-                  <Button 
-                    size="icon"
-                    className={`h-8 w-8 rounded-full transition-all duration-200 ${canSubmitComposerMessage ? 'bg-zinc-100 text-zinc-900 shadow-[0_5px_18px_rgba(255,255,255,0.14)] hover:bg-white' : 'bg-white/10 text-gray-500'}`}
-                    onClick={() => {
-                      void handleSend();
-                    }}
-                    disabled={!canSubmitComposerMessage}
-                    title={
-                      editingMessage ? t('chat.saveEditedMessage') : canSubmitPendingUserQuestionAnswer
-                        ? t('chat.submitAnswer')
-                        : isComposerTurnBlocked || isAwaitingQueuedTurnSettlement
-                          ? t('chat.queueMessage')
-                          : t('chat.sendMessage')
-                    }
-                  >
-                    {editingMessage ? <Check size={16} /> : <ArrowUp size={16} />}
-                  </Button>
-                )}
-              </div>
-              </div>
+            <UniversalChatComposerFooter
+              attachmentMenuRef={attachmentMenuRef}
+              canQueueTypedMessage={canQueueTypedMessage}
+              canSubmitComposerMessage={canSubmitComposerMessage}
+              canSubmitPendingUserQuestionAnswer={canSubmitPendingUserQuestionAnswer}
+              disabled={disabled}
+              editingMessage={Boolean(editingMessage)}
+              engineId={resolvedSelectedEngineId}
+              fileInputRef={fileInputRef}
+              folderInputRef={folderInputRef}
+              imageInputRef={imageInputRef}
+              isAttachmentMenuOpen={showAttachmentMenu}
+              isAwaitingQueuedTurnSettlement={isAwaitingQueuedTurnSettlement}
+              isComposerProcessing={isComposerProcessing}
+              isComposerTurnBlocked={isComposerTurnBlocked}
+              isListening={isListening}
+              modelGroups={modelPickerCatalog.groups}
+              onAttachmentMenuOpenChange={setShowAttachmentMenu}
+              onFileUpload={handleFileUpload}
+              onFolderUpload={handleFolderUpload}
+              onImageUpload={handleImageUpload}
+              onOpenPromptModal={() => setShowPromptModal(true)}
+              onSelectModel={handleComposerModelSelect}
+              onSend={handleSend}
+              onToggleVoiceInput={toggleVoiceInput}
+              selectedModelLabel={currentComposerModelLabel}
+              selectedModelPickerId={currentModelPickerId}
+              selectedModelSummary={currentEngineSummary}
+              setShowModelMenu={setShowModelMenu}
+              showModelMenu={showModelMenu}
+              showModelPicker={showComposerEngineSelector}
+            />
           </UniversalChatComposerChrome>
         </div>
       </div>

@@ -163,7 +163,7 @@ assert.match(
 );
 assert.match(
   sdkClientsSource,
-  /const client: BirdcoderAppSdkClient = createBirdcoderAppSdkClient\(\{[\s\S]*transport,[\s\S]*\}\);/s,
+  /const client: BirdcoderAppSdkClient = createBirdcoderAppSdkClient\(\{[\s\S]*transport: sessionTransport,[\s\S]*\}\);/s,
   'The infrastructure app client facade must be constructed from the composed app SDK client.',
 );
 assert.doesNotMatch(
@@ -185,6 +185,7 @@ assert.match(
 
 const gitOperations = [
   ['getProjectGitOverview', 'overview.retrieve'],
+  ['getProjectGitDiff', 'diff.retrieve'],
   ['createProjectGitBranch', 'branches.create'],
   ['createProjectGitWorktree', 'worktrees.create'],
   ['switchProjectGitBranch', 'branchSwitch.create'],
@@ -203,10 +204,10 @@ for (const [operationName, composedSdkOperation] of gitOperations) {
   assert.match(
     apiBackedGitServiceSource,
     new RegExp(
-      `async\\s+${operationName}\\s*\\([\\s\\S]*?return this\\.appClient\\.${operationName}\\(`,
+      `async\\s+${operationName}\\s*\\([\\s\\S]*?runtime\\.${operationName}\\([\\s\\S]*?this\\.appClient\\.${operationName}\\(`,
       'u',
     ),
-    `ApiBackedGitService must delegate ${operationName} to its injected app SDK client.`,
+    `ApiBackedGitService must run ${operationName} against the browser deployment workspace with an app SDK fallback.`,
   );
   assert.match(
     sdkClientsSource,

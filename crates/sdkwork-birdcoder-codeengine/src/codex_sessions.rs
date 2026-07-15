@@ -14,7 +14,8 @@ use crate::{
     build_native_session_id, find_codeengine_descriptor, map_codeengine_session_runtime_status,
     map_codeengine_tool_command_status, native_session_prefix_for_engine,
     CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionSummaryRecord,
+    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
+    sanitize_codeengine_session_metadata,
 };
 
 const CODEX_SESSIONS_DIRECTORY_NAME: &str = "sessions";
@@ -91,6 +92,7 @@ struct SessionLineContext {
     model_id: Option<String>,
     native_cwd: Option<String>,
     native_session_id: Option<String>,
+    native_attributes: CodeEngineSessionNativeAttributesRecord,
     pending_tool_calls: BTreeMap<String, PendingCodexToolCall>,
     title: Option<String>,
     title_source: SessionTitleSource,
@@ -120,6 +122,7 @@ impl Default for SessionLineContext {
             model_id: None,
             native_cwd: None,
             native_session_id: None,
+            native_attributes: CodeEngineSessionNativeAttributesRecord::default(),
             pending_tool_calls: BTreeMap::new(),
             title: None,
             title_source: SessionTitleSource::None,
@@ -1205,6 +1208,90 @@ fn apply_codex_context_payload(
     payload: Option<&Value>,
     fallback_timestamp: &str,
 ) {
+    if let Some(payload) = payload {
+        context
+            .native_attributes
+            .metadata
+            .extend(sanitize_codeengine_session_metadata(payload));
+        context.native_attributes.session_tree_id = normalize_value_string(
+            payload.get("sessionId").or_else(|| payload.get("session_id")),
+        )
+        .or_else(|| context.native_attributes.session_tree_id.clone());
+        context.native_attributes.parent_session_id = normalize_value_string(
+            payload
+                .get("parentThreadId")
+                .or_else(|| payload.get("parent_thread_id")),
+        )
+        .or_else(|| context.native_attributes.parent_session_id.clone());
+        context.native_attributes.forked_from_session_id = normalize_value_string(
+            payload
+                .get("forkedFromId")
+                .or_else(|| payload.get("forked_from_id")),
+        )
+        .or_else(|| context.native_attributes.forked_from_session_id.clone());
+        context.native_attributes.source = normalize_value_string(
+            payload
+                .get("threadSource")
+                .or_else(|| payload.get("thread_source"))
+                .or_else(|| payload.get("source")),
+        )
+        .or_else(|| context.native_attributes.source.clone());
+        context.native_attributes.provider_version = normalize_value_string(
+            payload
+                .get("cliVersion")
+                .or_else(|| payload.get("cli_version")),
+        )
+        .or_else(|| context.native_attributes.provider_version.clone());
+        context.native_attributes.model_provider = normalize_value_string(
+            payload
+                .get("modelProvider")
+                .or_else(|| payload.get("model_provider")),
+        )
+        .or_else(|| context.native_attributes.model_provider.clone());
+        context.native_attributes.agent_name = normalize_value_string(
+            payload
+                .get("agentNickname")
+                .or_else(|| payload.get("agent_nickname")),
+        )
+        .or_else(|| context.native_attributes.agent_name.clone());
+        context.native_attributes.agent_role = normalize_value_string(
+            payload
+                .get("agentRole")
+                .or_else(|| payload.get("agent_role")),
+        )
+        .or_else(|| context.native_attributes.agent_role.clone());
+        context.native_attributes.is_ephemeral = payload
+            .get("ephemeral")
+            .and_then(Value::as_bool)
+            .unwrap_or(context.native_attributes.is_ephemeral);
+        let git_info = payload
+            .get("gitInfo")
+            .or_else(|| payload.get("git_info"))
+            .or_else(|| payload.get("git"));
+        context.native_attributes.git_branch = normalize_value_string(
+            git_info.and_then(|value| value.get("branch")),
+        )
+        .or_else(|| context.native_attributes.git_branch.clone());
+        context.native_attributes.git_commit = normalize_value_string(
+            git_info.and_then(|value| {
+                value
+                    .get("commitHash")
+                    .or_else(|| value.get("commit_hash"))
+                    .or_else(|| value.get("sha"))
+            }),
+        )
+        .or_else(|| context.native_attributes.git_commit.clone());
+        context.native_attributes.git_repository_url = normalize_value_string(
+            git_info.and_then(|value| {
+                value
+                    .get("repositoryUrl")
+                    .or_else(|| value.get("repository_url"))
+                    .or_else(|| value.get("remoteUrl"))
+                    .or_else(|| value.get("remote_url"))
+            }),
+        )
+        .or_else(|| context.native_attributes.git_repository_url.clone());
+    }
     context.native_session_id = normalize_value_string(payload.and_then(|value| value.get("id")))
         .or_else(|| normalize_value_string(payload.and_then(|value| value.get("session_id"))))
         .or_else(|| normalize_value_string(payload.and_then(|value| value.get("sessionId"))))
@@ -1217,6 +1304,7 @@ fn apply_codex_context_payload(
     context.native_cwd = normalize_path_string(payload.and_then(|value| value.get("cwd")))
         .or_else(|| normalize_path_string(payload.and_then(|value| value.get("directory"))))
         .or_else(|| context.native_cwd.clone());
+    context.native_attributes.cwd = context.native_cwd.clone();
     context.fallback_title =
         normalize_working_directory_title(payload.and_then(|value| value.get("cwd")))
             .or_else(|| {
@@ -1226,8 +1314,6 @@ fn apply_codex_context_payload(
     context.model_id = normalize_value_string(payload.and_then(|value| value.get("model")))
         .or_else(|| normalize_value_string(payload.and_then(|value| value.get("model_name"))))
         .or_else(|| normalize_value_string(payload.and_then(|value| value.get("modelName"))))
-        .or_else(|| normalize_value_string(payload.and_then(|value| value.get("model_provider"))))
-        .or_else(|| normalize_value_string(payload.and_then(|value| value.get("modelProvider"))))
         .or_else(|| context.model_id.clone());
 }
 
@@ -1280,10 +1366,8 @@ fn build_codex_summary(
         .clone()
         .or_else(|| context.latest_timestamp.clone())
         .or_else(|| Some(updated_at.clone()));
-    let title = context
-        .title
-        .clone()
-        .or_else(|| normalize_session_index_title(index_entry.thread_name.as_deref()))
+    let title = normalize_session_index_title(index_entry.thread_name.as_deref())
+        .or_else(|| context.title.clone())
         .or_else(|| context.fallback_title.clone())
         .or_else(|| derive_working_directory_title_from_path(context.native_cwd.as_deref()))
         .unwrap_or_else(|| {
@@ -1308,6 +1392,15 @@ fn build_codex_summary(
             .unwrap_or_else(|| "gpt-5-codex".to_owned())
     });
 
+    let native_title = normalize_session_index_title(index_entry.thread_name.as_deref());
+    let mut native_attributes = context.native_attributes.clone();
+    native_attributes.title = native_title;
+    native_attributes.preview = context.title.clone();
+    native_attributes.cwd = context.native_cwd.clone();
+    if native_attributes.session_tree_id.is_none() {
+        native_attributes.session_tree_id = Some(raw_session_id.clone());
+    }
+
     Ok(CodeEngineSessionSummaryRecord {
         created_at,
         id: summary_id,
@@ -1325,6 +1418,7 @@ fn build_codex_summary(
         transcript_updated_at,
         workspace_id: None,
         project_id: None,
+        native_attributes,
     })
 }
 
@@ -2080,6 +2174,74 @@ mod tests {
         assert_eq!(summary.model_id, expected_default_model);
 
         let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn build_codex_summary_prefers_native_thread_name_over_prompt_preview() {
+        let file_path = create_test_codex_session_file("codex-summary-native-title.jsonl");
+        let raw_session_id = "019d54b7-f3da-79b1-bb78-10770953da2e";
+        let context = SessionLineContext {
+            native_session_id: Some(raw_session_id.to_owned()),
+            latest_timestamp: Some("2026-04-20T10:00:00.000Z".to_owned()),
+            title: Some("First user message preview".to_owned()),
+            title_source: SessionTitleSource::ResponseUserMessage,
+            ..SessionLineContext::default()
+        };
+        let session_index = BTreeMap::from([(
+            raw_session_id.to_owned(),
+            CodexSessionIndexEntry {
+                thread_name: Some("  Native   Codex thread title  ".to_owned()),
+                updated_at: Some("2026-04-20T10:01:00.000Z".to_owned()),
+            },
+        )]);
+
+        let summary = build_codex_summary(&file_path, &session_index, &context)
+            .expect("build Codex summary with native title");
+
+        assert_eq!(summary.title, "Native Codex thread title");
+        assert_eq!(summary.updated_at, "2026-04-20T10:01:00.000Z");
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn build_codex_summary_uses_prompt_preview_when_native_title_is_missing() {
+        let file_path = create_test_codex_session_file("codex-summary-preview-title.jsonl");
+        let context = SessionLineContext {
+            native_session_id: Some("019d54b7-f3da-79b1-bb78-10770953da2f".to_owned()),
+            latest_timestamp: Some("2026-04-20T10:00:00.000Z".to_owned()),
+            title: Some("First user message preview".to_owned()),
+            title_source: SessionTitleSource::ResponseUserMessage,
+            ..SessionLineContext::default()
+        };
+
+        let summary = build_codex_summary(&file_path, &BTreeMap::new(), &context)
+            .expect("build Codex summary with preview fallback");
+
+        assert_eq!(summary.title, "First user message preview");
+
+        let _ = fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn codex_context_keeps_model_provider_separate_from_model_id() {
+        let mut context = SessionLineContext::default();
+        apply_codex_context_payload(
+            &mut context,
+            Some(&serde_json::json!({
+                "model_provider": "openai",
+                "cwd": "E:/workspace/birdcoder"
+            })),
+            "2026-04-20T10:00:00.000Z",
+        );
+        assert_eq!(context.model_id, None);
+
+        apply_codex_context_payload(
+            &mut context,
+            Some(&serde_json::json!({ "model": "gpt-5.4" })),
+            "2026-04-20T10:00:01.000Z",
+        );
+        assert_eq!(context.model_id.as_deref(), Some("gpt-5.4"));
     }
 
     #[test]

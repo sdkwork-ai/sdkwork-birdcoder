@@ -12,7 +12,8 @@ use serde_json::Value;
 use crate::{
     build_native_session_id, extract_native_lookup_id_for_engine, find_codeengine_descriptor,
     map_codeengine_session_status_from_runtime, CodeEngineSessionDetailRecord,
-    CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord,
+    CodeEngineSessionMessageRecord, CodeEngineSessionNativeAttributesRecord,
+    CodeEngineSessionSummaryRecord,
 };
 
 pub const CLAUDE_CONFIG_DIR_ENV: &str = "CLAUDE_CONFIG_DIR";
@@ -57,6 +58,7 @@ struct ClaudeSessionParseContext {
     model_id: Option<String>,
     native_cwd: Option<String>,
     native_session_id: Option<String>,
+    native_attributes: CodeEngineSessionNativeAttributesRecord,
     summary: Option<String>,
 }
 
@@ -390,6 +392,7 @@ fn apply_claude_jsonl_line(
                 .unwrap_or(false),
         );
     }
+    observe_claude_native_session_attributes(context, &envelope);
     if envelope
         .get("isSidechain")
         .and_then(Value::as_bool)
@@ -406,6 +409,7 @@ fn apply_claude_jsonl_line(
         .native_cwd
         .clone()
         .or_else(|| normalize_value_string(envelope.get("cwd")));
+    context.native_attributes.cwd = context.native_cwd.clone();
     context.model_id =
         normalize_value_string(envelope.get("model")).or_else(|| context.model_id.clone());
 
@@ -446,6 +450,55 @@ fn apply_claude_jsonl_line(
             line_index,
         ),
         _ => {}
+    }
+}
+
+fn observe_claude_native_session_attributes(
+    context: &mut ClaudeSessionParseContext,
+    envelope: &Value,
+) {
+    let attributes = &mut context.native_attributes;
+    attributes.is_sidechain |= envelope
+        .get("isSidechain")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    attributes.parent_session_id = normalize_value_string(
+        envelope
+            .get("parentSessionId")
+            .or_else(|| envelope.get("parent_session_id")),
+    )
+    .or_else(|| attributes.parent_session_id.clone());
+    attributes.source = normalize_value_string(
+        envelope
+            .get("entrypoint")
+            .or_else(|| envelope.get("entryPoint")),
+    )
+    .or_else(|| attributes.source.clone());
+    attributes.provider_version = normalize_value_string(envelope.get("version"))
+        .or_else(|| attributes.provider_version.clone());
+    attributes.git_branch = normalize_value_string(envelope.get("gitBranch"))
+        .or_else(|| attributes.git_branch.clone());
+    attributes.agent_name = normalize_value_string(
+        envelope
+            .get("agentName")
+            .or_else(|| envelope.get("agentId")),
+    )
+    .or_else(|| attributes.agent_name.clone());
+
+    for key in [
+        "aiTitle",
+        "customTitle",
+        "entrypoint",
+        "gitBranch",
+        "isSidechain",
+        "lastPrompt",
+        "slug",
+        "summary",
+        "version",
+    ] {
+        if let Some(value) = envelope.get(key).filter(|value| !value.is_null()) {
+            attributes.metadata.insert(key.to_owned(), value.clone());
+        }
     }
 }
 
@@ -708,6 +761,25 @@ fn build_claude_session_detail(
     };
     let status = map_codeengine_session_status_from_runtime(runtime_status).to_owned();
 
+    let mut native_attributes = context.native_attributes.clone();
+    native_attributes.session_tree_id = Some(raw_session_id);
+    native_attributes.title = context
+        .custom_title
+        .clone()
+        .or_else(|| context.ai_title.clone());
+    native_attributes.preview = context
+        .last_prompt
+        .clone()
+        .or_else(|| context.first_prompt.clone())
+        .or_else(|| context.summary.clone());
+    native_attributes.cwd = context.native_cwd.clone();
+    if let Some(first_prompt) = context.first_prompt.as_ref() {
+        native_attributes.metadata.insert(
+            "firstPrompt".to_owned(),
+            Value::String(first_prompt.clone()),
+        );
+    }
+
     let summary = CodeEngineSessionSummaryRecord {
         created_at: created_at.clone(),
         id: summary_id.clone(),
@@ -728,6 +800,7 @@ fn build_claude_session_detail(
             .map(|value| value.text.clone()),
         workspace_id: None,
         project_id: None,
+        native_attributes,
     };
     let messages = if include_messages {
         context
@@ -1045,6 +1118,75 @@ mod tests {
             Some(1)
         );
         assert!(detail.messages[0].id.ends_with("user-message-1"));
+    }
+
+    #[test]
+    fn claude_session_parser_prefers_native_title_then_resume_preview() {
+        let fixture = TestDirectory::new("title-priority");
+        let ai_title_session_id = "12121212-1212-4212-8212-121212121212";
+        let summary_session_id = "13131313-1313-4313-8313-131313131313";
+        let project_directory = fixture.path().join("projects/title-priority");
+
+        let ai_title_path = project_directory.join(format!("{ai_title_session_id}.jsonl"));
+        write_jsonl(
+            ai_title_path.as_path(),
+            &[
+                json!({
+                    "parentUuid": null,
+                    "isSidechain": false,
+                    "cwd": "E:/workspace/birdcoder",
+                    "sessionId": ai_title_session_id,
+                    "type": "user",
+                    "message": {"role": "user", "content": "First prompt preview"},
+                    "uuid": "user-title-priority-1",
+                    "timestamp": "2099-07-15T01:00:00Z"
+                }),
+                json!({"type": "summary", "summary": "Generated summary"}),
+                json!({
+                    "type": "last-prompt",
+                    "sessionId": ai_title_session_id,
+                    "lastPrompt": "Latest prompt preview"
+                }),
+                json!({
+                    "type": "ai-title",
+                    "sessionId": ai_title_session_id,
+                    "aiTitle": "Native Claude title"
+                }),
+            ],
+        );
+
+        let summary_path = project_directory.join(format!("{summary_session_id}.jsonl"));
+        write_jsonl(
+            summary_path.as_path(),
+            &[
+                json!({
+                    "parentUuid": null,
+                    "isSidechain": false,
+                    "cwd": "E:/workspace/birdcoder",
+                    "sessionId": summary_session_id,
+                    "type": "user",
+                    "message": {"role": "user", "content": "First prompt preview"},
+                    "uuid": "user-title-priority-2",
+                    "timestamp": "2099-07-15T01:00:00Z"
+                }),
+                json!({"type": "summary", "summary": "Native session summary"}),
+                json!({
+                    "type": "last-prompt",
+                    "sessionId": summary_session_id,
+                    "lastPrompt": "Latest prompt preview"
+                }),
+            ],
+        );
+
+        let ai_title_summary = parse_claude_code_session_summary(ai_title_path.as_path())
+            .expect("parse Claude AI-titled summary")
+            .expect("Claude AI-titled summary");
+        let native_summary = parse_claude_code_session_summary(summary_path.as_path())
+            .expect("parse Claude generated summary")
+            .expect("Claude generated summary");
+
+        assert_eq!(ai_title_summary.title, "Native Claude title");
+        assert_eq!(native_summary.title, "Latest prompt preview");
     }
 
     #[test]

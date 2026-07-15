@@ -7,6 +7,7 @@ export { resolveSafeMarkdownHref } from './components/markdownLinkSecurity';
 
 export { ProjectGitOverviewPanel } from './components/ProjectGitOverviewPanel';
 export { ProjectGitOverviewDrawer } from './components/ProjectGitOverviewDrawer';
+export { ProjectGitDiffDialog } from './components/ProjectGitDiffDialog';
 export { ProjectGitOverviewSurface } from './components/ProjectGitOverviewSurface';
 export type { ProjectGitOverviewSectionId } from './components/ProjectGitOverviewSurface';
 
