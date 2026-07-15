@@ -30,8 +30,8 @@ export interface RuntimeApi {
     list(options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderNativeSessionProviderSummaryListEnvelope>;
   };
   nativeSessions: {
-    list(query?: RuntimeNativeSessionsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderNativeSessionSummaryListEnvelope>;
-    retrieve(pathParams: RuntimeNativeSessionsRetrievePathParams, query?: RuntimeNativeSessionsRetrieveQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderNativeSessionDetailEnvelope>;
+    list(query: RuntimeNativeSessionsListQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderNativeSessionSummaryListEnvelope>;
+    retrieve(pathParams: RuntimeNativeSessionsRetrievePathParams, query: RuntimeNativeSessionsRetrieveQuery, options?: BirdcoderSdkRequestOptions): Promise<Types.BirdCoderNativeSessionDetailEnvelope>;
   };
 }
 
@@ -66,10 +66,10 @@ export function createRuntimeApi(requestOperation: BirdcoderSdkRequestOperation)
       }
     },
     nativeSessions: {
-      list(query: RuntimeNativeSessionsListQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+      list(query: RuntimeNativeSessionsListQuery, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderNativeSessionSummaryListEnvelope>("runtime.nativeSessions.list", { query }, options);
       },
-      retrieve(pathParams: RuntimeNativeSessionsRetrievePathParams, query: RuntimeNativeSessionsRetrieveQuery = {}, options: BirdcoderSdkRequestOptions = {}) {
+      retrieve(pathParams: RuntimeNativeSessionsRetrievePathParams, query: RuntimeNativeSessionsRetrieveQuery, options: BirdcoderSdkRequestOptions = {}) {
         return requestOperation<Types.BirdCoderNativeSessionDetailEnvelope>("runtime.nativeSessions.retrieve", { pathParams, query }, options);
       }
     }

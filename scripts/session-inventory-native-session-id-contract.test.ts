@@ -182,8 +182,8 @@ const nativeOnlySession = nativeOnlyRecords.find(
 
 assert.equal(
   nativeOnlySession?.id,
-  'native-only-session',
-  'authority-backed session inventory must include native-only coding sessions instead of dropping them when projection summaries are empty.',
+  'codex-native:native-only-session',
+  'native-only coding sessions must receive a stable provider-scoped id instead of being dropped when projection summaries are empty.',
 );
 assert.equal(
   nativeOnlySession?.engineId,

@@ -3,9 +3,9 @@ import type { BirdCoderCodingSession, BirdCoderProject } from '@sdkwork/birdcode
 
 export interface ProjectExplorerProjectEntry {
   canShowMoreSessions: boolean;
-  canToggleSessionExpansion: boolean;
   filteredSessions: BirdCoderCodingSession[];
-  nextExpansionCount: number;
+  isLoadingMoreSessions: boolean;
+  nextVisibleSessionCount: number;
   project: BirdCoderProject;
   visibleSessions: BirdCoderCodingSession[];
 }

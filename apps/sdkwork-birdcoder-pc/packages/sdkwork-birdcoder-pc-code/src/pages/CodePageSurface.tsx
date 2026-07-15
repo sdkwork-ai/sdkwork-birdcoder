@@ -101,7 +101,7 @@ export const CodePageSurface = memo(function CodePageSurface({
   workspaceProps,
 }: CodePageSurfaceProps) {
   return (
-    <div className="flex h-full w-full bg-[#0e0e11] text-gray-100 font-sans selection:bg-white/10 selection:text-white">
+    <div className="birdcoder-workbench-shell flex h-full w-full bg-[#0e0e11] text-gray-100 font-sans selection:bg-white/10 selection:text-white">
       {isSidebarVisible && (
         <>
           <DeferredProjectExplorer {...projectExplorerProps} />
@@ -109,7 +109,7 @@ export const CodePageSurface = memo(function CodePageSurface({
         </>
       )}
 
-      <div className="flex-1 flex flex-col relative bg-[#0e0e11] shadow-[-4px_0_24px_-4px_rgba(0,0,0,0.5)] overflow-hidden">
+      <div className="flex-1 flex flex-col relative bg-[#0e0e11] overflow-hidden">
         <DeferredCodeWorkspaceOverlays {...overlayProps} />
         <DeferredCodePageDialogs {...dialogProps} />
         <DeferredTopBar {...topBarProps} />

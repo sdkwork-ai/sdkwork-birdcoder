@@ -453,6 +453,31 @@ function sortCodingSessionsByActivity<TSession extends SortableCodingSessionLike
   return [...sessions].sort(compareCodingSessionsByActivity);
 }
 
+function buildCodingSessionSummaryVersionKey(
+  codingSession: BirdCoderCodingSession,
+): string {
+  return [
+    codingSession.id,
+    codingSession.workspaceId,
+    codingSession.projectId,
+    codingSession.title,
+    codingSession.status,
+    codingSession.hostMode,
+    codingSession.engineId,
+    codingSession.modelId,
+    codingSession.nativeSessionId ?? '',
+    codingSession.runtimeStatus ?? '',
+    codingSession.createdAt,
+    codingSession.updatedAt,
+    codingSession.lastTurnAt ?? '',
+    resolveBirdCoderSessionSortTimestampString(codingSession),
+    codingSession.transcriptUpdatedAt ?? '',
+    codingSession.pinned === true ? '1' : '0',
+    codingSession.archived === true ? '1' : '0',
+    codingSession.unread === true ? '1' : '0',
+  ].join('\u0002');
+}
+
 function indexCodingSessionsById(
   sessions: readonly BirdCoderCodingSession[],
 ): Map<string, BirdCoderCodingSession> {
@@ -1115,8 +1140,25 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       nextCodingSession.id,
     );
 
-    if (shouldPreservePersistedTranscript && existingCodingSession?.messages.length) {
-      nextCodingSession.messages = existingCodingSession.messages;
+    if (shouldPreservePersistedTranscript && existingCodingSession) {
+      if (compareBirdCoderSessionSortTimestamp(existingCodingSession, nextCodingSession) > 0) {
+        const incomingNativeSessionId = nextCodingSession.nativeSessionId;
+        nextCodingSession = {
+          ...nextCodingSession,
+          ...existingCodingSession,
+          nativeSessionId: existingCodingSession.nativeSessionId ?? incomingNativeSessionId,
+          messages: existingCodingSession.messages,
+        };
+      } else if (existingCodingSession.messages.length > 0) {
+        nextCodingSession.messages = existingCodingSession.messages;
+      }
+
+      if (
+        buildCodingSessionSummaryVersionKey(existingCodingSession) ===
+        buildCodingSessionSummaryVersionKey(nextCodingSession)
+      ) {
+        return;
+      }
     }
     if (!shouldPreservePersistedTranscript) {
       nextCodingSession.messages = deduplicateCodingSessionMessages(
@@ -1284,13 +1326,10 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       nextMessages,
       newMessage,
     );
-    const nextCodingSession = this.touchCodingSessionTranscript(
-      {
-        ...codingSession,
-        messages: nextMessages,
-      },
-      { updateLastTurnAt: false },
-    );
+    const nextCodingSession = this.touchCodingSessionTranscript({
+      ...codingSession,
+      messages: nextMessages,
+    });
     this.replaceCachedCodingSession(projectId, nextCodingSession);
     this.markLocallyMutatedTranscriptSession(projectId, codingSessionId);
     this.setCachedCodingSessionMessageIndex(projectId, codingSessionId, nextMessageIndex);
@@ -1377,10 +1416,13 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       message,
       messageIndex,
     );
-    const nextCodingSession = this.touchCodingSessionTranscript({
-      ...codingSession,
-      messages: nextMessages,
-    });
+    const nextCodingSession = this.touchCodingSessionTranscript(
+      {
+        ...codingSession,
+        messages: nextMessages,
+      },
+      { updateLastTurnAt: false },
+    );
     this.replaceCachedCodingSession(projectId, nextCodingSession);
     this.markLocallyMutatedTranscriptSession(projectId, codingSessionId);
     this.setCachedCodingSessionMessageIndex(projectId, codingSessionId, nextMessageIndex);

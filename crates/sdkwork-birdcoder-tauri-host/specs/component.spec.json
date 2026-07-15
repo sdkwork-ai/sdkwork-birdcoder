@@ -81,7 +81,9 @@
       "start_embedded_coding_server",
       "ensure_desktop_runtime_config",
       "spawn_embedded_coding_server_startup",
-      "request_embedded_api_shutdown"
+      "request_embedded_api_shutdown",
+      "desktop_native_session_list",
+      "desktop_native_session_get"
     ],
     "providedPorts": [
       {
@@ -95,6 +97,14 @@
       {
         "name": "desktopRuntimeConfig",
         "export": "ensure_desktop_runtime_config"
+      },
+      {
+        "name": "nativeSessionCatalog",
+        "export": "desktop_native_session_list"
+      },
+      {
+        "name": "nativeSessionDetailReader",
+        "export": "desktop_native_session_get"
       }
     ],
     "requiredPorts": [
@@ -109,6 +119,8 @@
       "src/host/state.rs#ensure_desktop_runtime_config",
       "src/host/state.rs#spawn_embedded_coding_server_startup",
       "src/commands/mod.rs",
+      "src/commands/session_commands.rs#desktop_native_session_list",
+      "src/commands/session_commands.rs#desktop_native_session_get",
       "Cargo.toml"
     ],
     "routeManifest": null,
@@ -141,7 +153,7 @@
     ]
   },
   "integration": {
-    "authority": "The Tauri host owns native commands, local filesystem boundaries, local SQLite key-value storage, and embedded gateway startup only.",
+    "authority": "The Tauri host owns native commands, local filesystem boundaries, local SQLite key-value storage, embedded gateway startup, and the device-local native session catalog. Native session paths are accepted only through registered filesystem mounts and are never sent as public API DTO fields.",
     "gatewayPolicy": "Business HTTP and agent workflows are executed through the embedded sdkwork-birdcoder-standalone-gateway and sdkwork-agents routes.",
     "securityPolicy": "Filesystem roots and native commands must remain explicitly registered and must not create raw unaudited host access paths."
   },

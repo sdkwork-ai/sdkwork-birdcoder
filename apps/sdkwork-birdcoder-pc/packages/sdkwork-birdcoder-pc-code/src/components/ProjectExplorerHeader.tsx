@@ -157,7 +157,7 @@ export function ProjectExplorerHeader({
           }
         `}
       </style>
-      <div className="p-3 flex shrink-0 flex-col gap-2">
+      <div className="birdcoder-sidebar-session-create p-3 flex shrink-0 flex-col gap-2">
         <WorkbenchNewSessionButton
           buttonLabel={newSessionLabel}
           currentSessionEngineId={currentSessionEngineId}
@@ -243,7 +243,7 @@ export function ProjectExplorerHeader({
           {showFilterMenu && (
             <div
               ref={filterMenuRef}
-              className="absolute right-0 top-6 w-48 bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 animate-in fade-in zoom-in-95 duration-150 origin-top-right"
+              className="birdcoder-chrome-menu absolute right-0 top-6 w-48 backdrop-blur-xl border rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 animate-in fade-in zoom-in-95 duration-150 origin-top-right"
             >
               <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">{organizeLabel}</div>
               <button
@@ -311,7 +311,7 @@ export function ProjectExplorerHeader({
               value={searchQuery}
               onChange={(event) => onSearchQueryChange?.(event.target.value)}
               placeholder={searchSessionsPlaceholder}
-              className="w-full bg-white/5 text-white text-xs px-2 py-1.5 pr-6 rounded outline-none border border-white/10 focus:border-[#555]"
+              className="birdcoder-session-search w-full text-white text-xs px-2 py-1.5 pr-6 rounded outline-none border border-white/10 focus:border-white/25"
               autoFocus
             />
             {searchQuery && (

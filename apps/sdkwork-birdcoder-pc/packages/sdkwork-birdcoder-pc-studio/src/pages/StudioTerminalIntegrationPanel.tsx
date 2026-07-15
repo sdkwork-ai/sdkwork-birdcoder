@@ -5,8 +5,8 @@ import {
   useToast,
   type TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-commons';
+import { BirdcoderTerminalApp } from '@sdkwork/birdcoder-pc-commons/terminal/BirdcoderTerminalApp';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
-import { DesktopTerminalApp } from '@sdkwork/terminal-pc-desktop';
 
 interface StudioTerminalIntegrationPanelProps {
   isOpen: boolean;
@@ -57,11 +57,13 @@ export const StudioTerminalIntegrationPanel = memo(function StudioTerminalIntegr
         style={isOpen ? { height } : undefined}
       >
         {isOpen ? (
-          <DesktopTerminalApp
+          <BirdcoderTerminalApp
             launchRequest={terminalRequest}
             launchRequestKey={terminalRequest?.timestamp ?? null}
             resolveLaunchPlan={resolveTerminalLaunchPlan}
             showWindowControls={false}
+            workspaceId={workspaceId}
+            projectId={projectId}
           />
         ) : null}
       </div>

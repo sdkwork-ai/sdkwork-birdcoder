@@ -2027,7 +2027,7 @@ export function AppContent() {
       { label: t('app.menu.exit'), onClick: handleClose },
       { label: t('app.menu.settings'), shortcut: 'Ctrl+,', onClick: () => setActiveTab('settings') },
       { label: '', divider: true },
-      { label: t('app.menu.aboutCodex'), onClick: () => setShowAboutModal(true) },
+      { label: t('app.menu.aboutBirdCoder'), onClick: () => setShowAboutModal(true) },
     ],
     [
       availableNewSessionEngines,
@@ -2201,7 +2201,7 @@ export function AppContent() {
         onClick: handleToggleRecording,
       },
       { label: '', divider: true },
-      { label: t('app.menu.aboutCodex'), onClick: () => setShowAboutModal(true) },
+      { label: t('app.menu.aboutBirdCoder'), onClick: () => setShowAboutModal(true) },
     ],
     [handleToggleRecording, isRecording, t],
   );
@@ -2258,7 +2258,7 @@ export function AppContent() {
 
   return (
       <div
-        className="flex flex-col h-full w-full bg-[#0e0e11] text-gray-100 overflow-hidden font-sans selection:bg-blue-500/30"
+        className="birdcoder-app-shell flex flex-col h-full w-full bg-[#0e0e11] text-gray-100 overflow-hidden font-sans selection:bg-blue-500/30"
       >
       <BirdcoderAppHeader
         centerContent={shouldShowWorkbenchHeaderChrome ? (

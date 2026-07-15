@@ -1,10 +1,12 @@
 mod catalog;
 mod claude_code_provider;
+mod claude_code_sessions;
 mod codeengine_dialect;
 mod codex;
 mod codex_provider;
 mod codex_sessions;
 mod gemini_provider;
+mod gemini_sessions;
 mod opencode;
 mod opencode_provider;
 mod provider;
@@ -42,6 +44,9 @@ pub use catalog::{
     PartialCodeEngineCapabilityMatrixRecord, SharedCodeEngineCatalogRecord,
 };
 pub use claude_code_provider::ClaudeCodeEngineProvider;
+pub use claude_code_sessions::{
+    get_claude_code_session_detail, list_claude_code_session_summaries, CLAUDE_CONFIG_DIR_ENV,
+};
 pub use codeengine_dialect::{
     canonicalize_codeengine_provider_tool_name, canonicalize_codeengine_tool_name,
     map_codeengine_session_runtime_status, map_codeengine_session_status_from_runtime,
@@ -65,6 +70,9 @@ pub use codex_sessions::{
     CodexSessionIndexEntry,
 };
 pub use gemini_provider::GeminiCodeEngineProvider;
+pub use gemini_sessions::{
+    get_gemini_session_detail, list_gemini_session_summaries, GEMINI_CLI_HOME_ENV, GEMINI_HOME_ENV,
+};
 pub use opencode::{
     create_opencode_session, get_opencode_session, get_opencode_session_messages,
     is_opencode_transport_available, list_opencode_session_status_map, list_opencode_sessions,

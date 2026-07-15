@@ -152,14 +152,19 @@ export async function listAuthorityBackedNativeSessions(
   if (!options.appRuntimeReadService) {
     return [];
   }
+  const projectId = options.projectId?.trim();
+  const workspaceId = options.workspaceId?.trim();
+  if (!projectId || !workspaceId) {
+    return [];
+  }
 
   try {
     const summaries = await options.appRuntimeReadService.listNativeSessions({
       engineId: options.engineId,
       limit: options.limit,
       offset: options.offset,
-      projectId: options.projectId ?? undefined,
-      workspaceId: options.workspaceId ?? undefined,
+      projectId,
+      workspaceId,
     });
 
     return summaries
@@ -185,12 +190,17 @@ export async function readAuthorityBackedNativeSessionRecord(
   if (!options.appRuntimeReadService) {
     return null;
   }
+  const projectId = options.projectId?.trim();
+  const workspaceId = options.workspaceId?.trim();
+  if (!projectId || !workspaceId) {
+    return null;
+  }
 
   try {
     const detail = await options.appRuntimeReadService.getNativeSession(codingSessionId, {
       engineId: options.engineId,
-      projectId: options.projectId,
-      workspaceId: options.workspaceId,
+      projectId,
+      workspaceId,
     });
     return toAuthorityBackedNativeSessionRecord(detail);
   } catch (error) {

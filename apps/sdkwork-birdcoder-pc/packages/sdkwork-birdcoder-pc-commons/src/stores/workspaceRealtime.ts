@@ -19,6 +19,16 @@ import {
   stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-pc-types';
 
+const HIGH_FREQUENCY_SESSION_PROGRESS_EVENT_KINDS = new Set([
+  'approval.required',
+  'artifact.upserted',
+  'message.delta',
+  'operation.updated',
+  'tool.call.completed',
+  'tool.call.progress',
+  'tool.call.requested',
+]);
+
 function resolveTimestamp(value: string | null | undefined): number {
   if (typeof value !== 'string') {
     return 0;
@@ -210,6 +220,18 @@ function isRealtimeCodingSessionTranscriptActivityEvent(
   );
 }
 
+function shouldAdvanceRealtimeSessionActivity(
+  event: BirdCoderWorkspaceRealtimeEvent,
+): boolean {
+  if (event.eventKind === 'coding-session.turn.created') {
+    return true;
+  }
+
+  const projectionEventKind = event.codingSessionEventKind?.trim();
+  return !projectionEventKind ||
+    !HIGH_FREQUENCY_SESSION_PROGRESS_EVENT_KINDS.has(projectionEventKind);
+}
+
 function shouldPreserveExistingCodingSessionMetadata(
   codingSession: BirdCoderProject['codingSessions'][number],
   event: BirdCoderWorkspaceRealtimeEvent,
@@ -341,6 +363,9 @@ function buildRealtimeCodingSessionSeed(
 
   const timestamp = resolveRealtimeEventTimestamp(event);
   const sortTimestamp = stringifyBirdCoderLongInteger(resolveTimestamp(timestamp));
+  const lastTurnAt = event.eventKind === 'coding-session.turn.created'
+    ? timestamp
+    : undefined;
   return {
     id: normalizedCodingSessionId,
     workspaceId: normalizedWorkspaceId,
@@ -353,14 +378,14 @@ function buildRealtimeCodingSessionSeed(
     nativeSessionId: normalizedNativeSessionId,
     createdAt: timestamp,
     updatedAt: timestamp,
-    lastTurnAt: timestamp,
+    lastTurnAt,
     sortTimestamp,
     transcriptUpdatedAt: timestamp,
     runtimeStatus: resolveRealtimeCodingSessionRuntimeStatus(event),
     displayTime: formatBirdCoderSessionActivityDisplayTime({
       createdAt: timestamp,
       updatedAt: timestamp,
-      lastTurnAt: timestamp,
+      lastTurnAt,
       sortTimestamp,
       transcriptUpdatedAt: timestamp,
     }),
@@ -444,20 +469,36 @@ function updateCodingSessionTimestamp(
     return null;
   }
 
+  const shouldAdvanceActivity = shouldAdvanceRealtimeSessionActivity(event);
   const nextActivityAt =
     resolveLatestTimestamp(
       codingSession.transcriptUpdatedAt,
       codingSession.lastTurnAt,
       codingSession.updatedAt,
-      event.codingSessionUpdatedAt,
-      event.occurredAt,
+      shouldAdvanceActivity ? event.codingSessionUpdatedAt : undefined,
+      shouldAdvanceActivity ? event.occurredAt : undefined,
     ) ??
     codingSession.updatedAt;
   const nextUpdatedAt =
-    resolveLatestTimestamp(codingSession.updatedAt, event.codingSessionUpdatedAt, nextActivityAt) ??
+    resolveLatestTimestamp(
+      codingSession.updatedAt,
+      shouldAdvanceActivity ? event.codingSessionUpdatedAt : undefined,
+      nextActivityAt,
+    ) ??
     codingSession.updatedAt;
+  const nextLastTurnAt = event.eventKind === 'coding-session.turn.created'
+    ? resolveLatestTimestamp(
+        codingSession.lastTurnAt,
+        event.codingSessionUpdatedAt,
+        event.occurredAt,
+      ) ?? codingSession.lastTurnAt
+    : codingSession.lastTurnAt;
   const nextProjectUpdatedAt =
-    resolveLatestTimestamp(project.updatedAt, event.projectUpdatedAt, nextActivityAt) ??
+    resolveLatestTimestamp(
+      project.updatedAt,
+      shouldAdvanceActivity ? event.projectUpdatedAt : undefined,
+      nextActivityAt,
+    ) ??
     project.updatedAt;
   const preserveExistingMetadata = shouldPreserveExistingCodingSessionMetadata(
     codingSession,
@@ -495,7 +536,7 @@ function updateCodingSessionTimestamp(
       })
     : codingSession.messages;
   if (
-    nextActivityAt === codingSession.lastTurnAt &&
+    nextLastTurnAt === codingSession.lastTurnAt &&
     nextUpdatedAt === codingSession.updatedAt &&
     nextProjectUpdatedAt === project.updatedAt &&
     (codingSession.transcriptUpdatedAt ?? undefined) === nextActivityAt &&
@@ -512,7 +553,7 @@ function updateCodingSessionTimestamp(
   const nextCodingSession = {
     ...codingSession,
     updatedAt: nextUpdatedAt,
-    lastTurnAt: nextActivityAt,
+    lastTurnAt: nextLastTurnAt,
     transcriptUpdatedAt: nextActivityAt,
     runtimeStatus: nextRuntimeStatus,
     nativeSessionId: nextNativeSessionId,

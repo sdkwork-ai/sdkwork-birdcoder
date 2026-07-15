@@ -53,7 +53,7 @@ export function ProjectExplorerProjectContextMenu({
   return (
     <div
       ref={menuRef}
-      className="fixed bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+      className="birdcoder-chrome-menu fixed backdrop-blur-xl border rounded-lg shadow-2xl py-1.5 text-[13px] text-gray-300 w-56 animate-in fade-in zoom-in-95 duration-150 origin-top-left"
       style={{ top: position.y, left: position.x, zIndex }}
     >
       <button

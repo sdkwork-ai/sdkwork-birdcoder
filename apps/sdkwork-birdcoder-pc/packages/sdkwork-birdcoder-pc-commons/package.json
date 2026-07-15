@@ -55,6 +55,10 @@
       "import": "./src/terminal/*.ts",
       "types": "./src/terminal/*.ts"
     },
+    "./terminal/BirdcoderTerminalApp": {
+      "import": "./src/terminal/BirdcoderTerminalApp.tsx",
+      "types": "./src/terminal/BirdcoderTerminalApp.tsx"
+    },
     "./storage/dataKernel": {
       "import": "./src/storage/dataKernel.ts",
       "types": "./src/storage/dataKernel.ts"
@@ -84,6 +88,7 @@
     "@sdkwork/utils": "workspace:*",
     "@sdkwork/terminal-pc-infrastructure": "workspace:*",
     "@sdkwork/terminal-pc-shell": "workspace:*",
+    "@sdkwork/terminal-pc-desktop": "workspace:*",
     "lucide-react": "catalog:"
   },
   "devDependencies": {

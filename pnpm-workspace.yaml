@@ -41,6 +41,7 @@ packages:
   - "../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript"
   - "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript"
   - "../sdkwork-models/sdks/sdkwork-models-sdk/sdkwork-models-sdk-typescript"
+  - "../sdkwork-models/apps/sdkwork-models-pc/packages/sdkwork-models-pc-picker"
   - "../sdkwork-sdk-generator"
   - "../sdkwork-app-topology"
   - "../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript"

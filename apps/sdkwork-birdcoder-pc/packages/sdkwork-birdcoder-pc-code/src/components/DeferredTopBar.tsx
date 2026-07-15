@@ -8,7 +8,7 @@ const Runtime = lazy(async () => {
 
 export function DeferredTopBar(props: TopBarProps) {
   return (
-    <Suspense fallback={<div className="h-12 shrink-0 bg-[#0e0e11]" aria-hidden="true" />}>
+    <Suspense fallback={<div className="birdcoder-workbench-header h-12 shrink-0" aria-hidden="true" />}>
       <Runtime {...props} />
     </Suspense>
   );

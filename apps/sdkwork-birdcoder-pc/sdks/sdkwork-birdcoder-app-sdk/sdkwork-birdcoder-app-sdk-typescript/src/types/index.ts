@@ -1810,8 +1810,8 @@ export interface RuntimeEnginesCapabilitiesRetrievePathParams {
 }
 
 export interface RuntimeNativeSessionsListQuery extends Record<string, BirdcoderSdkQueryValue> {
-  workspaceId?: string;
-  projectId?: string;
+  workspaceId: string;
+  projectId: string;
   engineId?: "codex" | "claude-code" | "gemini" | "opencode";
   page?: number;
   page_size?: number;
@@ -1822,8 +1822,8 @@ export interface RuntimeNativeSessionsRetrievePathParams {
 }
 
 export interface RuntimeNativeSessionsRetrieveQuery extends Record<string, BirdcoderSdkQueryValue> {
-  workspaceId?: string;
-  projectId?: string;
+  workspaceId: string;
+  projectId: string;
   engineId?: "codex" | "claude-code" | "gemini" | "opencode";
 }
 

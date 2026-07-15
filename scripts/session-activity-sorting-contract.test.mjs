@@ -21,8 +21,13 @@ assert.match(
 );
 assert.match(
   providerServiceSource,
-  /\{ updateLastTurnAt: false \}/,
-  'message edits and deletes must preserve the timestamp of the latest created turn.',
+  /async addCodingSessionMessage[\s\S]*?const nextCodingSession = this\.touchCodingSessionTranscript\(\{[\s\S]*?messages: nextMessages,[\s\S]*?\}\);/,
+  'a newly appended message must advance the timestamp of the latest created turn.',
+);
+assert.equal(
+  providerServiceSource.match(/\{ updateLastTurnAt: false \}/g)?.length,
+  2,
+  'message edits and deletes must both preserve the timestamp of the latest created turn.',
 );
 assert.match(
   providerServiceSource,
@@ -41,8 +46,13 @@ assert.match(
 );
 assert.match(
   projectsHookSource,
-  /runtimeStatus: 'streaming',\s*updatedAt: newMessage\.createdAt,\s*sortTimestamp: codingSession\.sortTimestamp,/s,
-  'resolving one optimistic message must preserve the sort timestamp assigned by the initial send.',
+  /messages:\s*reconcileCodingSessionMessage\([\s\S]*?newMessage,\s*\),\s*\}\)\),/,
+  'resolving one optimistic message must preserve the activity and runtime fields already held by the current session.',
+);
+assert.match(
+  projectsHookSource,
+  /rollbackOptimisticCodingSessionMessage\([\s\S]*?codingSession\.updatedAt === optimisticMessage\.createdAt[\s\S]*?codingSession\.sortTimestamp === optimisticSortTimestamp/,
+  'a failed optimistic send must restore only activity fields still owned by that send.',
 );
 assert.match(
   repositorySource,

@@ -10436,7 +10436,8 @@
           {
             "name": "workspaceId",
             "in": "query",
-            "description": "Filter resources to a single workspace.",
+            "description": "Authorized workspace scope for native sessions.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -10444,7 +10445,8 @@
           {
             "name": "projectId",
             "in": "query",
-            "description": "Filter resources to a single project.",
+            "description": "Authorized project scope for native sessions.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -10592,7 +10594,8 @@
           {
             "name": "workspaceId",
             "in": "query",
-            "description": "Filter resources to a single workspace.",
+            "description": "Authorized workspace scope for native sessions.",
+            "required": true,
             "schema": {
               "type": "string"
             }
@@ -10600,7 +10603,8 @@
           {
             "name": "projectId",
             "in": "query",
-            "description": "Filter resources to a single project.",
+            "description": "Authorized project scope for native sessions.",
+            "required": true,
             "schema": {
               "type": "string"
             }

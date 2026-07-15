@@ -134,7 +134,7 @@
         "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-host-core/src/index.ts"
       ],
       "@sdkwork/terminal-pc-desktop": [
-        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalDesktop.d.ts"
+        "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-desktop/src/index.ts"
       ],
       "lucide-react": [
         "node_modules/lucide-react"
@@ -143,13 +143,16 @@
         "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-*/src"
       ],
       "@sdkwork/terminal-pc-shell": [
-        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalShell.d.ts"
+        "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src"
+      ],
+      "@sdkwork/terminal-pc-shell/web-integration": [
+        "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/web-integration.tsx"
       ],
       "@sdkwork/terminal-pc-shell/*": [
         "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/*"
       ],
       "@sdkwork/terminal-pc-infrastructure": [
-        "apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalInfrastructure.d.ts"
+        "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src"
       ],
       "@sdkwork/terminal-local-runtime-app-sdk": [
         "../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript/src/index.ts"

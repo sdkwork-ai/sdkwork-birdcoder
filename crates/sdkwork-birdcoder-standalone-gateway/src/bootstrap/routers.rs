@@ -96,6 +96,7 @@ pub async fn build_router(
             CodingSessionsAppState {
                 service: state.services.coding_session.clone(),
                 commerce_pool: Some(state.repositories.any_pool.clone()),
+                project_service: Some(Arc::new(state.services.project.clone())),
             },
         );
 

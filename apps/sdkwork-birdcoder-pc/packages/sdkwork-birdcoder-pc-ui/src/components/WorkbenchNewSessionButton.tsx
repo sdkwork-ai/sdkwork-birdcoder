@@ -51,19 +51,19 @@ function getVariantStyle(
       return {
         container: 'relative animate-in fade-in slide-in-from-left-4 fill-mode-both',
         menu:
-          'absolute left-0 top-full z-50 mt-1.5 w-64 rounded-lg border border-white/10 bg-[#18181b]/95 py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl',
+          'birdcoder-chrome-menu absolute left-0 top-full z-50 mt-1.5 w-64 rounded-lg border py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl',
         primaryButton:
           'flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left transition-all duration-200',
         secondaryButton:
           'flex items-center justify-center border-l border-white/10 px-2 transition-all duration-200',
-        wrapper: 'flex overflow-hidden rounded-md transition-all duration-200',
+        wrapper: 'flex overflow-hidden rounded-md border border-white/[0.08] bg-white/[0.025] transition-all duration-200',
       };
     case 'topbar':
     default:
       return {
         container: 'relative animate-in fade-in slide-in-from-top-2 fill-mode-both',
         menu:
-          'absolute right-0 top-full z-50 mt-1.5 w-64 rounded-lg border border-white/10 bg-[#18181b]/95 py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 origin-top-right',
+          'birdcoder-chrome-menu absolute right-0 top-full z-50 mt-1.5 w-64 rounded-lg border py-1.5 text-[13px] text-gray-300 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 origin-top-right',
         primaryButton:
           'flex h-8 items-center gap-2 px-3 text-xs font-medium transition-colors',
         secondaryButton:

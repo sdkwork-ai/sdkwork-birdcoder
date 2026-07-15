@@ -7,7 +7,9 @@ export {
 export {
   normalizeBirdCoderServerBaseUrl,
   readStoredBirdCoderServerBaseUrl,
+  resolveBirdCoderBrowserServerBaseUrl,
   resolveBirdCoderBootstrapServerBaseUrl,
+  type ResolveBirdCoderBrowserServerBaseUrlOptions,
   type ResolveBirdCoderBootstrapServerBaseUrlOptions,
 } from './application/bootstrap/bootstrapServerBaseUrl';
 export {

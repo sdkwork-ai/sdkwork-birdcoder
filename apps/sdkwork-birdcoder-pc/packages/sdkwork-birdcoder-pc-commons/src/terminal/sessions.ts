@@ -3,6 +3,16 @@ import type {
   DesktopRuntimeBridgeClient,
   DesktopTerminalSessionInventorySnapshot,
 } from './contracts/sdkworkTerminalInfrastructure.d.ts';
+import {
+  getDefaultBirdCoderIdeServicesRuntimeConfig,
+  getBirdCoderGlobalTokenManager,
+  readBirdCoderRuntimePublicEnv,
+} from '@sdkwork/birdcoder-pc-infrastructure';
+import {
+  createWebRuntimeBridgeClient,
+  resolveWebRuntimeBridgeAuthToken,
+} from '@sdkwork/terminal-pc-infrastructure';
+import { isBirdcoderTauriRuntime } from './birdcoderTerminalRuntime.ts';
 
 export type TerminalSessionStatus = 'idle' | 'running' | 'error' | 'closed';
 
@@ -25,23 +35,97 @@ export interface ListStoredTerminalSessionsOptions {
 }
 
 async function resolveDesktopRuntimeClient(): Promise<DesktopRuntimeBridgeClient | null> {
-  if (typeof window === 'undefined' || !window.__TAURI__) {
+  if (!isBirdcoderTauriRuntime()) {
     return null;
   }
 
   try {
     const { invoke } = await import('@tauri-apps/api/core');
     const { createDesktopRuntimeBridgeClient } = await import('@sdkwork/terminal-pc-infrastructure');
-    return createDesktopRuntimeBridgeClient(invoke);
+    return createDesktopRuntimeBridgeClient(invoke) as unknown as DesktopRuntimeBridgeClient;
   } catch {
     return null;
   }
 }
 
+interface BrowserRuntimeSessionDescriptor {
+  sessionId: string;
+  workspaceId: string;
+  state: string;
+  lastActiveAt: string;
+  tags: string[];
+}
+
+function readTaggedValue(tags: readonly string[], prefix: string): string {
+  return tags.find((tag) => tag.startsWith(prefix))?.slice(prefix.length).trim() ?? '';
+}
+
+async function listBrowserRuntimeSessions(): Promise<TerminalSessionRecord[]> {
+  try {
+    const baseUrl = readBirdCoderRuntimePublicEnv(
+      'VITE_SDKWORK_BIRDCODER_TERMINAL_RUNTIME_BASE_URL',
+    ) ?? readBirdCoderRuntimePublicEnv('VITE_SDKWORK_TERMINAL_RUNTIME_BASE_URL') ??
+      getDefaultBirdCoderIdeServicesRuntimeConfig().apiBaseUrl;
+    const tokenManager = getBirdCoderGlobalTokenManager();
+    const authToken = resolveWebRuntimeBridgeAuthToken(
+      tokenManager.getAuthToken() || tokenManager.getAccessToken(),
+    );
+    const accessToken = tokenManager.getAccessToken()?.trim() || undefined;
+    if (!authToken || !accessToken) {
+      return [];
+    }
+    const snapshot = await createWebRuntimeBridgeClient({
+      baseUrl,
+      authToken,
+      accessToken,
+    }).sessionIndex() as {
+      sessions?: BrowserRuntimeSessionDescriptor[];
+    };
+    return (snapshot.sessions ?? [])
+      .filter((session) => session.tags.includes('birdcoder'))
+      .map((session) => {
+        const profileId = getTerminalProfile(
+          readTaggedValue(session.tags, 'profile:') || 'bash',
+        ).id;
+        return {
+          id: session.sessionId,
+          title: readTaggedValue(session.tags, 'title:') || getTerminalProfile(profileId).title,
+          profileId,
+          cwd: readTaggedValue(session.tags, 'cwd:'),
+          updatedAt: Number.isNaN(Date.parse(session.lastActiveAt))
+            ? 0
+            : Date.parse(session.lastActiveAt),
+          workspaceId: session.workspaceId,
+          projectId: readTaggedValue(session.tags, 'project:'),
+          status: normalizeTerminalSessionStatus(session.state),
+          lastExitCode: null,
+        };
+      });
+  } catch {
+    return [];
+  }
+}
+
 function normalizeTerminalSessionStatus(value: string): TerminalSessionStatus {
-  return value === 'running' || value === 'error' || value === 'closed' || value === 'idle'
-    ? value
-    : 'idle';
+  switch (value.trim().toLowerCase()) {
+    case 'creating':
+    case 'starting':
+    case 'running':
+    case 'reattaching':
+    case 'replaying':
+    case 'stopping':
+      return 'running';
+    case 'failed':
+    case 'error':
+      return 'error';
+    case 'exited':
+    case 'closed':
+      return 'closed';
+    case 'detached':
+    case 'idle':
+    default:
+      return 'idle';
+  }
 }
 
 function normalizeRuntimeTerminalSessionRecord(
@@ -108,7 +192,10 @@ export async function listStoredTerminalSessions(
 ): Promise<TerminalSessionRecord[]> {
   const desktopRuntimeClient = await resolveDesktopRuntimeClient();
   if (!desktopRuntimeClient) {
-    return [];
+    return sortAndSliceTerminalSessions(
+      filterTerminalSessions(await listBrowserRuntimeSessions(), options),
+      options,
+    );
   }
 
   try {

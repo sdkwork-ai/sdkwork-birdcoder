@@ -4,8 +4,8 @@ import {
   useToast,
   type TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-commons';
+import { BirdcoderTerminalApp } from '@sdkwork/birdcoder-pc-commons/terminal/BirdcoderTerminalApp';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
-import { DesktopTerminalApp } from '@sdkwork/terminal-pc-desktop';
 import { X } from 'lucide-react';
 import { memo, useCallback } from 'react';
 
@@ -78,11 +78,13 @@ export const CodeTerminalIntegrationPanel = memo(function CodeTerminalIntegratio
               </button>
             </div>
             <div className="min-h-0 flex-1">
-              <DesktopTerminalApp
+              <BirdcoderTerminalApp
                 launchRequest={terminalRequest}
                 launchRequestKey={terminalRequest?.timestamp ?? null}
                 resolveLaunchPlan={resolveTerminalLaunchPlan}
                 showWindowControls={false}
+                workspaceId={workspaceId}
+                projectId={projectId}
               />
             </div>
           </>

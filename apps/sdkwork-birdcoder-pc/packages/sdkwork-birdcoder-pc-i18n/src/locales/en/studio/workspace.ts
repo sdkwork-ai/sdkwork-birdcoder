@@ -52,7 +52,9 @@ export default defineLocaleModule('studio/workspace', {
     "noMatchingFiles": "No matching files found",
     "fileMatch": "File match",
     "ranFor": "Ran for {{time}}",
-    "showMoreSessions": "Show {{count}} more",
+    "showMoreSessions": "Show more",
+    "loadingMoreSessions": "Loading more sessions...",
+    "failedToLoadMoreSessions": "Failed to load more sessions",
     "collapseSessions": "Collapse"
   }
 });

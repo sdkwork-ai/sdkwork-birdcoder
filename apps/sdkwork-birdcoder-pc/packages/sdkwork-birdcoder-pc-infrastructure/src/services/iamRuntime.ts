@@ -179,7 +179,7 @@ export function createBirdCoderIamRuntimeComposition(): SdkworkAppbasePcAuthRunt
 
   const runtime = attachBirdCoderCurrentSessionCoalescer(
     composition.runtime,
-    () => iamAuthorityClient.auth.sessions.current.retrieve(),
+    () => retrieveBirdCoderAuthenticatedCurrentSession(iamAuthorityClient),
   );
   installBirdCoderCurrentUserAuthority(
     runtime,
@@ -248,6 +248,20 @@ function resolveBirdCoderRuntimeSdkBaseUrl(envNames: readonly string[]): string 
   return BIRDCODER_DEFAULT_LOCAL_API_BASE_URL;
 }
 
+function retrieveBirdCoderAuthenticatedCurrentSession(
+  client: ReturnType<typeof createAppbaseAppSdkClient>,
+): ReturnType<typeof client.auth.sessions.current.retrieve> {
+  syncBirdCoderGlobalTokenManagerFromStorage();
+  const tokens = getBirdCoderGlobalTokenManager().getTokens();
+  if (!tokens?.authToken || !tokens.accessToken) {
+    return Promise.reject(new Error(
+      'Current SDKWork IAM session validation requires committed dual-token credentials.',
+    ));
+  }
+
+  return client.auth.sessions.current.retrieve();
+}
+
 export function resolveBirdCoderBrowserDevelopmentSdkBaseUrl(baseUrl: string): string {
   if (typeof window === 'undefined') {
     return baseUrl;
@@ -263,18 +277,30 @@ export function resolveBirdCoderBrowserDevelopmentSdkBaseUrl(baseUrl: string): s
   const isDevelopmentLike = runtimeEnv?.DEV === 'true'
     || runtimeMode === 'development'
     || runtimeMode === 'test';
-  if (!isDevelopmentLike) {
-    return baseUrl;
-  }
-
   try {
     const configuredUrl = new URL(baseUrl);
     const hostname = configuredUrl.hostname.toLowerCase();
     const isLoopback = hostname === 'localhost'
       || hostname === '::1'
+      || hostname === '0.0.0.0'
+      || hostname === '::'
       || /^127(?:\.\d{1,3}){3}$/u.test(hostname);
     if (isLoopback && ['http:', 'https:'].includes(configuredUrl.protocol)) {
-      return window.location.origin;
+      if (isDevelopmentLike) {
+        return window.location.origin;
+      }
+
+      const browserHostname = window.location.hostname.trim().toLowerCase();
+      const browserIsLoopback = browserHostname === 'localhost'
+        || browserHostname === 'tauri.localhost'
+        || browserHostname === '::1'
+        || browserHostname === '0.0.0.0'
+        || browserHostname === '::'
+        || /^127(?:\.\d{1,3}){3}$/u.test(browserHostname);
+      if (!browserIsLoopback && browserHostname) {
+        configuredUrl.hostname = browserHostname;
+        return configuredUrl.toString().replace(/\/$/u, '');
+      }
     }
   } catch {
     // Preserve the configured value so the SDK reports its normal URL error.

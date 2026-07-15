@@ -216,6 +216,40 @@ export function createDesktopRuntimeBridgeClient(
   invoke: (...args: any[]) => Promise<unknown>,
 ): DesktopRuntimeBridgeClient;
 
+export interface WebRuntimeBridgeClient {
+  sessionIndex: () => Promise<unknown>;
+  createRemoteRuntimeSession: (request: Record<string, unknown>) => Promise<unknown>;
+  sessionReplay: (sessionId: string, request?: Record<string, unknown>) => Promise<unknown>;
+  writeSessionInput: (request: Record<string, unknown>) => Promise<unknown>;
+  writeSessionInputBytes: (request: Record<string, unknown>) => Promise<unknown>;
+  resizeSession: (request: Record<string, unknown>) => Promise<unknown>;
+  terminateSession: (sessionId: string) => Promise<unknown>;
+  subscribeSessionEvents?: (sessionId: string, listener: (event: unknown) => void) => Promise<DesktopUnlisten>;
+}
+
+export interface WebRuntimeBridgeClientOptions {
+  baseUrl?: string;
+  authToken?: string;
+  accessToken?: string;
+  fetch?: (...args: any[]) => Promise<unknown>;
+  createEventSource?: (...args: any[]) => unknown;
+}
+
+export function createWebRuntimeBridgeClient(
+  options?: WebRuntimeBridgeClientOptions,
+): WebRuntimeBridgeClient;
+export function createAuthorizedFetchEventSourceFactory(
+  authToken: string,
+  options?: {
+    accessToken?: string;
+    fetch?: (...args: any[]) => Promise<unknown>;
+  },
+): any;
+export function resolveWebRuntimeBridgeAuthToken(
+  iamAuthToken?: string | null,
+  explicitToken?: string,
+): string | undefined;
+
 export interface TerminalViewAdapter {
   kind: 'terminal-view-adapter';
   copySelection: () => string;

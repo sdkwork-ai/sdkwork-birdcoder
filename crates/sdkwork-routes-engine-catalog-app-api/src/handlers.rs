@@ -262,9 +262,11 @@ fn matches_native_session_scope(
         return true;
     }
 
-    record.workspace_id.is_none()
-        && record.project_id.is_none()
-        && native_session_cwd_is_within_project(record.native_cwd.as_deref(), project_root)
+    // Native histories can retain the workspace/project ids from an earlier
+    // import of the same directory.  The project root is resolved and
+    // authorized by the project service before this predicate runs, so a cwd
+    // match is a safe compatibility fallback for stale or missing ids.
+    native_session_cwd_is_within_project(record.native_cwd.as_deref(), project_root)
 }
 
 fn normalize_native_session_path(value: Option<&str>) -> Option<String> {
@@ -272,14 +274,99 @@ fn normalize_native_session_path(value: Option<&str>) -> Option<String> {
     if value.is_empty() {
         return None;
     }
-    let normalized = value.replace('\\', "/");
-    let normalized = normalized.trim_end_matches('/');
+    let path = std::path::Path::new(value);
+    // Prefer filesystem canonicalization so symlink/junction aliases cannot
+    // cause a valid project history to be missed.  Native histories may point
+    // at a directory that was removed after the session ended, therefore the
+    // lexical fallback remains necessary.
+    let normalized = std::fs::canonicalize(path)
+        .ok()
+        .map(|canonical| canonical.to_string_lossy().into_owned())
+        .unwrap_or_else(|| value.to_owned());
+    let normalized = normalize_native_session_path_lexically(normalized.as_str());
     if normalized.is_empty() {
         None
-    } else if cfg!(windows) || normalized.as_bytes().get(1) == Some(&b':') {
-        Some(normalized.to_ascii_lowercase())
     } else {
-        Some(normalized.to_owned())
+        Some(
+            if cfg!(windows) || normalized.as_bytes().get(1) == Some(&b':') {
+                normalized.to_ascii_lowercase()
+            } else {
+                normalized
+            },
+        )
+    }
+}
+
+fn normalize_native_session_path_lexically(value: &str) -> String {
+    let value = value.replace('\\', "/");
+    // Windows canonicalize() may return an extended-length path (\\?\\C:\\...)
+    // while a persisted CLI cwd is usually the regular drive spelling.  Keep
+    // both forms comparable before applying component normalization.
+    let value = if let Some(unc_path) = value.strip_prefix("//?/UNC/") {
+        format!("//{unc_path}")
+    } else if let Some(drive_path) = value.strip_prefix("//?/") {
+        drive_path.to_owned()
+    } else {
+        value
+    };
+    let (prefix, remainder, absolute) = if value.starts_with("//") {
+        ("//", value.trim_start_matches('/'), true)
+    } else if value.starts_with('/') {
+        ("/", value.trim_start_matches('/'), true)
+    } else if value.as_bytes().get(1) == Some(&b':') {
+        let prefix = &value[..2];
+        let remainder = value[2..].trim_start_matches('/');
+        (prefix, remainder, value.as_bytes().get(2) == Some(&b'/'))
+    } else {
+        ("", value.as_str(), false)
+    };
+
+    // A UNC path's server/share pair is its root.  Do not let lexical `..`
+    // processing climb above that anchor when the target directory no longer
+    // exists and canonicalization was unavailable.
+    let protected_components = if prefix == "//" { 2 } else { 0 };
+    let mut components: Vec<&str> = Vec::new();
+    for component in remainder.split('/') {
+        match component {
+            "" | "." => {}
+            ".." => {
+                if components.len() > protected_components
+                    && components.last().is_some_and(|last| *last != "..")
+                {
+                    components.pop();
+                } else if !absolute {
+                    components.push(component);
+                }
+            }
+            component => components.push(component),
+        }
+    }
+
+    let joined = components.join("/");
+    if prefix == "/" {
+        if joined.is_empty() {
+            "/".to_owned()
+        } else {
+            format!("/{joined}")
+        }
+    } else if prefix == "//" {
+        if joined.is_empty() {
+            "//".to_owned()
+        } else {
+            format!("//{joined}")
+        }
+    } else if prefix.len() == 2 && absolute {
+        if joined.is_empty() {
+            format!("{prefix}/")
+        } else {
+            format!("{prefix}/{joined}")
+        }
+    } else if prefix.is_empty() {
+        joined
+    } else if joined.is_empty() {
+        prefix.to_owned()
+    } else {
+        format!("{prefix}{joined}")
     }
 }
 
@@ -369,15 +456,16 @@ fn map_native_session_summary(
         host_mode: record.host_mode,
         engine_id: record.engine_id,
         model_id: record.model_id,
-        workspace_id: record
-            .workspace_id
-            .clone()
-            .or_else(|| workspace_id.map(str::to_owned))
+        // The query scope is already authorized and may have reassigned a
+        // stale native history by its cwd. Return that effective scope rather
+        // than leaking the history's old project ids back to the client.
+        workspace_id: workspace_id
+            .map(str::to_owned)
+            .or_else(|| record.workspace_id.clone())
             .unwrap_or_default(),
-        project_id: record
-            .project_id
-            .clone()
-            .or_else(|| project_id.map(str::to_owned))
+        project_id: project_id
+            .map(str::to_owned)
+            .or_else(|| record.project_id.clone())
             .unwrap_or_default(),
         native_session_id,
         created_at: record.created_at,
@@ -716,7 +804,10 @@ pub async fn sync_model_config(
 
 #[cfg(test)]
 mod tests {
-    use super::{map_native_session_summary, matches_native_session_scope};
+    use super::{
+        map_native_session_summary, matches_native_session_scope,
+        normalize_native_session_path_lexically,
+    };
     use sdkwork_birdcoder_codeengine::{build_native_session_id, CodeEngineSessionSummaryRecord};
 
     fn native_summary(engine_id: &str, native_cwd: Option<&str>) -> CodeEngineSessionSummaryRecord {
@@ -769,8 +860,25 @@ mod tests {
     }
 
     #[test]
-    fn explicit_native_scope_cannot_be_reassigned_by_cwd() {
+    fn stale_native_scope_can_be_reassigned_by_authorized_cwd() {
         let mut summary = native_summary("codex", Some("C:/workspace/project"));
+        summary.workspace_id = Some("workspace-other".to_owned());
+        summary.project_id = Some("project-other".to_owned());
+
+        assert!(matches_native_session_scope(
+            &summary,
+            Some("workspace-1"),
+            Some("project-1"),
+            Some("C:/workspace/project"),
+        ));
+    }
+
+    #[test]
+    fn stale_native_scope_cannot_escape_authorized_project_root() {
+        let mut summary = native_summary(
+            "codex",
+            Some("C:/workspace/project/packages/../../project-other"),
+        );
         summary.workspace_id = Some("workspace-other".to_owned());
         summary.project_id = Some("project-other".to_owned());
 
@@ -780,6 +888,37 @@ mod tests {
             Some("project-1"),
             Some("C:/workspace/project"),
         ));
+    }
+
+    #[test]
+    fn native_scope_normalizes_dot_segments_inside_authorized_project_root() {
+        let summary = native_summary(
+            "codex",
+            Some("C:/workspace/project/packages/../packages/app"),
+        );
+
+        assert!(matches_native_session_scope(
+            &summary,
+            Some("workspace-1"),
+            Some("project-1"),
+            Some("C:/workspace/project"),
+        ));
+    }
+
+    #[test]
+    fn native_scope_normalizes_windows_extended_length_paths() {
+        assert_eq!(
+            normalize_native_session_path_lexically("//?/C:/workspace/project/../project/app"),
+            "C:/workspace/project/app"
+        );
+        assert_eq!(
+            normalize_native_session_path_lexically("//?/UNC/server/share/project/app"),
+            "//server/share/project/app"
+        );
+        assert_eq!(
+            normalize_native_session_path_lexically("//server/share/project/../../escape"),
+            "//server/share/escape"
+        );
     }
 
     #[test]
@@ -797,5 +936,18 @@ mod tests {
         assert_eq!(json["nativeCwd"], "C:/workspace/project");
         assert_eq!(json["kind"], "coding");
         assert_eq!(json["sortTimestamp"], "1752537660123");
+    }
+
+    #[test]
+    fn mapped_native_summary_uses_effective_scope_after_stale_cwd_reassignment() {
+        let mut record = native_summary("codex", Some("C:/workspace/project"));
+        record.workspace_id = Some("workspace-old".to_owned());
+        record.project_id = Some("project-old".to_owned());
+
+        let payload =
+            map_native_session_summary(record, Some("workspace-current"), Some("project-current"));
+
+        assert_eq!(payload.workspace_id, "workspace-current");
+        assert_eq!(payload.project_id, "project-current");
     }
 }

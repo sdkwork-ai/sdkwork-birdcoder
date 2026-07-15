@@ -200,7 +200,7 @@ export interface BirdCoderAppSdkApiClient {
   getModelConfig(): Promise<BirdCoderCodeEngineModelConfig>;
   getNativeSession(
     codingSessionId: string,
-    request?: BirdCoderGetNativeSessionRequest,
+    request: BirdCoderGetNativeSessionRequest,
   ): Promise<BirdCoderNativeSessionDetail>;
   getOperation(operationId: string): Promise<BirdCoderOperationDescriptor>;
   getProject(projectId: string): Promise<BirdCoderProjectSummary>;
@@ -219,6 +219,9 @@ export interface BirdCoderAppSdkApiClient {
   listCodingSessions(
     request?: BirdCoderListCodingSessionsRequest,
   ): Promise<BirdCoderCodingSessionSummary[]>;
+  listCodingSessionPage(
+    request?: BirdCoderListCodingSessionsRequest,
+  ): Promise<BirdCoderPage<BirdCoderCodingSessionSummary>>;
   listDeployments(options?: BirdCoderWorkspaceScopedListRequest): Promise<BirdCoderDeploymentRecordSummary[]>;
   listDeploymentTargets(
     projectId: string,
@@ -229,8 +232,11 @@ export interface BirdCoderAppSdkApiClient {
   listModels(): Promise<BirdCoderModelCatalogEntry[]>;
   listNativeSessionProviders(): Promise<BirdCoderNativeSessionProviderSummary[]>;
   listNativeSessions(
-    request?: BirdCoderListNativeSessionsRequest,
+    request: BirdCoderListNativeSessionsRequest,
   ): Promise<BirdCoderNativeSessionSummary[]>;
+  listNativeSessionPage(
+    request: BirdCoderListNativeSessionsRequest,
+  ): Promise<BirdCoderPage<BirdCoderNativeSessionSummary>>;
   listProjectCollaborators(
     projectId: string,
     options?: BirdCoderWorkspaceScopedListRequest,
@@ -315,10 +321,12 @@ export type BirdCoderAppRuntimeReadSdkApiClient = Pick<
   | 'listCodingSessionArtifacts'
   | 'listCodingSessionCheckpoints'
   | 'listCodingSessionEvents'
+  | 'listCodingSessionPage'
   | 'listCodingSessions'
   | 'listEngines'
   | 'listModels'
   | 'listNativeSessionProviders'
+  | 'listNativeSessionPage'
   | 'listNativeSessions'
   | 'listRoutes'
 >;
@@ -710,21 +718,31 @@ function toGeneratedNativeSessionListQuery(
   request: BirdCoderListNativeSessionsRequest,
 ): RuntimeNativeSessionsListQuery {
   const scoped = withDefaultPageSize(request);
+  const workspaceId = scoped.workspaceId?.trim();
+  const projectId = scoped.projectId?.trim();
+  if (!workspaceId || !projectId) {
+    throw new Error('Native session list requires workspaceId and projectId.');
+  }
   return {
     ...(scoped.engineId ? { engineId: toGeneratedCodeEngineKey(scoped.engineId) } : {}),
     ...toGeneratedPageQuery(scoped),
-    ...(scoped.projectId ? { projectId: scoped.projectId } : {}),
-    ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
+    projectId,
+    workspaceId,
   };
 }
 
 function toGeneratedNativeSessionRetrieveQuery(
   request: BirdCoderGetNativeSessionRequest,
 ): RuntimeNativeSessionsRetrieveQuery {
+  const workspaceId = request.workspaceId?.trim();
+  const projectId = request.projectId?.trim();
+  if (!workspaceId || !projectId) {
+    throw new Error('Native session retrieval requires workspaceId and projectId.');
+  }
   return {
     ...(request.engineId ? { engineId: toGeneratedCodeEngineKey(request.engineId) } : {}),
-    ...(request.projectId ? { projectId: request.projectId } : {}),
-    ...(request.workspaceId ? { workspaceId: request.workspaceId } : {}),
+    projectId,
+    workspaceId,
   };
 }
 
@@ -1041,12 +1059,18 @@ export function createBirdCoderAppSdkApiClient({
         await client.runtime.nativeSessionProviders.list(),
       );
     },
-    async listNativeSessions(request = {}) {
+    async listNativeSessions(request) {
       return readCanonicalItems<BirdCoderNativeSessionSummary>(
         await client.runtime.nativeSessions.list(toGeneratedNativeSessionListQuery(request)),
       );
     },
-    async getNativeSession(codingSessionId, request = {}) {
+    async listNativeSessionPage(request) {
+      return readCanonicalOffsetPage<BirdCoderNativeSessionSummary>(
+        await client.runtime.nativeSessions.list(toGeneratedNativeSessionListQuery(request)),
+        'Native session',
+      );
+    },
+    async getNativeSession(codingSessionId, request) {
       return readCanonicalData<BirdCoderNativeSessionDetail>(
         await client.runtime.nativeSessions.retrieve(
           { id: codingSessionId },
@@ -1057,6 +1081,12 @@ export function createBirdCoderAppSdkApiClient({
     async listCodingSessions(request = {}) {
       return readCanonicalItems<BirdCoderCodingSessionSummary>(
         await client.intelligence.codingSessions.list(toGeneratedCodingSessionQuery(request)),
+      );
+    },
+    async listCodingSessionPage(request = {}) {
+      return readCanonicalOffsetPage<BirdCoderCodingSessionSummary>(
+        await client.intelligence.codingSessions.list(toGeneratedCodingSessionQuery(request)),
+        'Coding session',
       );
     },
     async getCodingSession(codingSessionId) {

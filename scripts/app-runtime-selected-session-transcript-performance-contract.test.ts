@@ -88,11 +88,30 @@ const projectService = {
 
 const appClient = createBirdCoderAppSdkApiClient({
   transport: createBirdCoderInProcessAppRuntimeTransport({
+    nativeSessionProvider: {
+      async getNativeSession() {
+        return {
+          summary: {
+            ...inventorySession,
+            kind: 'coding',
+            nativeCwd: 'E:/workspace/performance-contract',
+            sortTimestamp: inventorySession.updatedAt,
+          },
+          messages: transcriptMessages,
+        };
+      },
+      async listNativeSessionPage() {
+        throw new Error('selected-session detail test must not list native sessions');
+      },
+    } as never,
     projectService,
   }),
 });
 
-const nativeSession = await appClient.getNativeSession(codingSessionId);
+const nativeSession = await appClient.getNativeSession(codingSessionId, {
+  workspaceId,
+  projectId,
+});
 assert.deepEqual(
   nativeSession.messages.map((message) => message.id),
   transcriptMessages.map((message) => message.id),
@@ -109,8 +128,8 @@ assert.deepEqual(
 );
 assert.equal(
   transcriptReads,
-  2,
-  'selected-session detail/event reads should use one precise transcript read per selected-session endpoint call.',
+  1,
+  'coding-session event projection should perform one precise project transcript read while native-session detail remains owned by the native provider.',
 );
 
 const appRuntimeTransportSource = fs.readFileSync(

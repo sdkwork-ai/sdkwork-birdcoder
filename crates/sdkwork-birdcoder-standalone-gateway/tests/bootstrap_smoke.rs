@@ -758,6 +758,47 @@ async fn cors_preflight_short_circuits_options_with_200_for_iam_routes() {
 }
 
 #[tokio::test]
+async fn cors_preflight_allows_dynamic_lan_web_origins_in_development() {
+    let config = smoke_config("bootstrap-smoke-cors-lan-preflight.db");
+
+    let app = build_smoke_app(&config)
+        .await
+        .expect("build_app should succeed");
+
+    let response = app
+        .request(
+            Request::builder()
+                .method("OPTIONS")
+                .uri("/app/v3/api/workspaces")
+                .header("origin", "http://192.168.31.108:3001")
+                .header("access-control-request-method", "GET")
+                .header("access-control-request-headers", "authorization,content-type")
+                .body(Body::empty())
+                .expect("build LAN OPTIONS preflight request"),
+        )
+        .await
+        .expect("serve LAN OPTIONS preflight request");
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response
+            .headers()
+            .get("access-control-allow-origin")
+            .and_then(|value| value.to_str().ok()),
+        Some("http://192.168.31.108:3001")
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get("access-control-allow-credentials")
+            .and_then(|value| value.to_str().ok()),
+        Some("true")
+    );
+
+    cleanup_smoke_database(&config.sqlite_file);
+}
+
+#[tokio::test]
 async fn cors_layer_applies_headers_to_iam_routes_for_allowed_origin() {
     let config = smoke_config("bootstrap-smoke-cors-iam-route.db");
 

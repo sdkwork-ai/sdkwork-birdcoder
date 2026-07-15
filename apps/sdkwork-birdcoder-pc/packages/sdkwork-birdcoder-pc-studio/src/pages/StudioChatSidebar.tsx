@@ -137,6 +137,13 @@ interface StudioChatSidebarProps {
   onSelectCodingSession: (projectId: string, codingSessionId: string) => void;
   onCreateProject: () => Promise<void>;
   onLoadMoreProjects: () => Promise<unknown> | void;
+  onLoadMoreProjectSessions?: (
+    projectId: string,
+    requestedCount: number,
+  ) => Promise<{ hasMore?: boolean; loadedCount?: number }> | {
+    hasMore?: boolean;
+    loadedCount?: number;
+  } | void;
   onOpenFolder: () => Promise<void>;
   onCreateCodingSession: (
     projectId: string,
@@ -276,6 +283,7 @@ function areStudioChatSidebarPropsEqual(
     left.onSelectCodingSession === right.onSelectCodingSession &&
     left.onCreateProject === right.onCreateProject &&
     left.onLoadMoreProjects === right.onLoadMoreProjects &&
+    left.onLoadMoreProjectSessions === right.onLoadMoreProjectSessions &&
     left.onOpenFolder === right.onOpenFolder &&
     left.onCreateCodingSession === right.onCreateCodingSession &&
     left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
@@ -320,6 +328,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   onSelectCodingSession,
   onCreateProject,
   onLoadMoreProjects,
+  onLoadMoreProjectSessions,
   onOpenFolder,
   onCreateCodingSession,
   onRefreshProjectSessions,
@@ -338,6 +347,10 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   const [visibleSessionCountByProjectId, setVisibleSessionCountByProjectId] = useState<
     Record<string, number>
   >({});
+  const [loadingMoreSessionProjectIds, setLoadingMoreSessionProjectIds] = useState<
+    Record<string, boolean>
+  >({});
+  const loadingMoreSessionProjectIdsRef = useRef(new Set<string>());
   const projectMenuRef = useRef<HTMLDivElement>(null);
   const projectMenuProjectsRef = useRef<HTMLDivElement>(null);
   const projectMenuSessionsRef = useRef<HTMLDivElement>(null);
@@ -385,8 +398,15 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
 
       for (const project of renderProjects) {
         const existingCount = previousState[project.id];
-        nextState[project.id] =
-          typeof existingCount === 'number' ? existingCount : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+        const shouldRestoreInitialWindow =
+          typeof existingCount === 'number' &&
+          existingCount > INITIAL_VISIBLE_SESSIONS_PER_PROJECT &&
+          existingCount > project.codingSessions.length;
+        nextState[project.id] = shouldRestoreInitialWindow
+          ? INITIAL_VISIBLE_SESSIONS_PER_PROJECT
+          : typeof existingCount === 'number'
+            ? existingCount
+            : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
         if (nextState[project.id] !== existingCount) {
           changed = true;
         }
@@ -397,6 +417,26 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
       }
 
       return changed ? nextState : previousState;
+    });
+  }, [renderProjects]);
+
+  useEffect(() => {
+    setLoadingMoreSessionProjectIds((previousState) => {
+      const projectIds = new Set(renderProjects.map((project) => project.id));
+      const nextState: Record<string, boolean> = {};
+      for (const [projectId, isLoading] of Object.entries(previousState)) {
+        if (isLoading && projectIds.has(projectId)) {
+          nextState[projectId] = true;
+        }
+      }
+      const previousKeys = Object.keys(previousState);
+      const nextKeys = Object.keys(nextState);
+      if (previousKeys.length !== nextKeys.length) {
+        return nextState;
+      }
+      return previousKeys.every((projectId) => nextState[projectId] === true)
+        ? previousState
+        : nextState;
     });
   }, [renderProjects]);
 
@@ -453,7 +493,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
 
       return project.codingSessions.some((codingSession) =>
         codingSession.title.toLowerCase().includes(normalizedProjectSearchQuery),
-      );
+      ) || project.codingSessions.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
     });
   }, [normalizedProjectSearchQuery, renderProjects, showProjectMenu]);
   const effectiveMenuProjectId = useMemo(() => {
@@ -485,6 +525,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
   }, [menuProject, normalizedProjectSearchQuery, showProjectMenu]);
   const visibleSessionCount =
     visibleSessionCountByProjectId[effectiveMenuProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+  const isLoadingMoreSessions = loadingMoreSessionProjectIds[effectiveMenuProjectId] === true;
   const visibleSessions = useMemo(
     () =>
       showProjectMenu
@@ -540,12 +581,9 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
       visibleSessions,
     ],
   );
-  const canToggleSessionExpansion = menuProjectSessions.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-  const canShowMoreSessions = visibleSessionCount < menuProjectSessions.length;
-  const nextExpansionCount = Math.min(
-    SESSION_EXPANSION_BATCH_SIZE,
-    Math.max(0, menuProjectSessions.length - visibleSessionCount),
-  );
+  const canShowMoreSessions =
+    visibleSessionCount < menuProjectSessions.length ||
+    visibleSessionCount < (menuProject?.codingSessions.length ?? 0);
   const hasEffectiveMenuProject = effectiveMenuProjectId.trim().length > 0;
   const showEngineBusyCurrentSessionIndicator =
     isEngineBusyCurrentSession && Boolean(selectedCodingSessionId);
@@ -595,24 +633,60 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
     setShowProjectMenu(false);
   }, [onSelectCodingSession]);
 
-  const handleToggleMenuProjectSessionExpansion = useCallback(
-    (projectId: string, sessionCount: number, canShowMoreSessionsForProject: boolean) => {
-      setVisibleSessionCountByProjectId((previousState) => {
-        const currentCount =
-          previousState[projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-        const nextCount = canShowMoreSessionsForProject
-          ? Math.min(currentCount + SESSION_EXPANSION_BATCH_SIZE, sessionCount)
-          : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-        if (nextCount === currentCount) {
-          return previousState;
-        }
-        return {
-          ...previousState,
-          [projectId]: nextCount,
-        };
-      });
+  const handleLoadMoreMenuProjectSessions = useCallback(
+    async (projectId: string, requestedCount: number): Promise<void> => {
+      const normalizedProjectId = projectId.trim();
+      if (
+        !normalizedProjectId ||
+        !onLoadMoreProjectSessions ||
+        loadingMoreSessionProjectIdsRef.current.has(normalizedProjectId)
+      ) {
+        return;
+      }
+
+      const nextCount = Math.max(INITIAL_VISIBLE_SESSIONS_PER_PROJECT, Math.floor(requestedCount));
+      loadingMoreSessionProjectIdsRef.current.add(normalizedProjectId);
+      setLoadingMoreSessionProjectIds((previousState) => ({
+        ...previousState,
+        [normalizedProjectId]: true,
+      }));
+
+      try {
+        const result = await onLoadMoreProjectSessions(normalizedProjectId, nextCount);
+        const loadedCount =
+          result && typeof result.loadedCount === 'number' && Number.isFinite(result.loadedCount)
+            ? Math.max(INITIAL_VISIBLE_SESSIONS_PER_PROJECT, Math.floor(result.loadedCount))
+            : nextCount;
+        setVisibleSessionCountByProjectId((previousState) => {
+          const previousCount =
+            previousState[normalizedProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+          const resolvedCount = Math.max(previousCount, Math.min(nextCount, loadedCount));
+          if (resolvedCount <= previousCount) {
+            return previousState;
+          }
+          return {
+            ...previousState,
+            [normalizedProjectId]: resolvedCount,
+          };
+        });
+      } catch (error) {
+        const message = error instanceof Error && error.message.trim()
+          ? error.message
+          : t('studio.failedToLoadMoreSessions');
+        addToast(message, 'error');
+      } finally {
+        loadingMoreSessionProjectIdsRef.current.delete(normalizedProjectId);
+        setLoadingMoreSessionProjectIds((previousState) => {
+          if (!previousState[normalizedProjectId]) {
+            return previousState;
+          }
+          const nextState = { ...previousState };
+          delete nextState[normalizedProjectId];
+          return nextState;
+        });
+      }
     },
-    [],
+    [addToast, onLoadMoreProjectSessions, t],
   );
 
   const handleRefreshCurrentContext = () => {
@@ -776,23 +850,25 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
                     {shouldWindowMenuSessions ? (
                       <div style={{ height: menuSessionsWindowedRange.paddingBottom }} />
                     ) : null}
-                    {canToggleSessionExpansion && (
+                    {canShowMoreSessions && (
                       <button
                         type="button"
-                        className="mx-3 mt-1 inline-flex items-center justify-start rounded-lg px-3 py-2 text-xs font-medium text-gray-500 transition-all hover:bg-white/5 hover:text-gray-200"
-                        onClick={() =>
-                          handleToggleMenuProjectSessionExpansion(
+                        className="mx-3 mt-1 inline-flex items-center justify-start gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-gray-500 transition-all hover:bg-white/5 hover:text-gray-200 disabled:cursor-wait disabled:opacity-60"
+                        disabled={isLoadingMoreSessions}
+                        aria-busy={isLoadingMoreSessions}
+                        onClick={() => {
+                          void handleLoadMoreMenuProjectSessions(
                             effectiveMenuProjectId,
-                            menuProjectSessions.length,
-                            canShowMoreSessions,
-                          )
-                        }
+                            visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
+                          );
+                        }}
                       >
-                        {canShowMoreSessions
-                          ? t('studio.showMoreSessions', {
-                              count: nextExpansionCount,
-                            })
-                          : t('studio.collapseSessions')}
+                        {isLoadingMoreSessions ? (
+                          <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+                        ) : null}
+                        {isLoadingMoreSessions
+                          ? t('studio.loadingMoreSessions')
+                          : t('studio.showMoreSessions')}
                       </button>
                     )}
                   </div>

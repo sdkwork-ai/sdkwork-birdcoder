@@ -114,7 +114,7 @@ export const AppMainBody = React.memo(function AppMainBody({
 
   return (
     <div className="flex flex-1 overflow-hidden">
-      <div className="w-14 flex flex-col items-center py-4 border-r border-white/[0.08] bg-[#0e0e11] justify-between shrink-0">
+      <div className="birdcoder-app-sidebar w-14 flex flex-col items-center py-4 border-r justify-between shrink-0">
           <div className="flex flex-col gap-3 items-center w-full px-2">
             <Button variant="ghost" size="icon" onClick={() => onActiveTabChange('code')} className={`w-10 h-10 rounded-xl transition-all duration-200 animate-in fade-in slide-in-from-left-2 fill-mode-both ${activeTab === 'code' ? 'text-white bg-white/10 shadow-sm' : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'}`} style={{ animationDelay: '0ms' }} title={t('app.code')}>
               <Code2 size={22} strokeWidth={1.5} />
@@ -206,6 +206,8 @@ export const AppMainBody = React.memo(function AppMainBody({
                   launchRequestKey={terminalRequest?.timestamp ?? null}
                   resolveLaunchPlan={resolveTerminalLaunchPlan}
                   showWindowControls={false}
+                  workspaceId={workspaceId}
+                  projectId={projectId}
                 />
               </SurfaceErrorBoundaryWithTranslation>
             </PersistentAppTabPanel>

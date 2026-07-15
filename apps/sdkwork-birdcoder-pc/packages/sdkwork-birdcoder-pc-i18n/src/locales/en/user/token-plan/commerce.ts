@@ -1,5 +1,5 @@
 import { defineLocaleModule } from '../../../resource.ts';
-import { sdkworkSubscriptionCheckoutResources } from '@sdkwork/membership-pc-subscription/catalog';
+import { sdkworkSubscriptionCheckoutResources } from '@sdkwork/membership-pc-subscription/i18n';
 
 export default defineLocaleModule('user/token-plan/commerce', {
   ...sdkworkSubscriptionCheckoutResources['en-US'],

@@ -1,7 +1,6 @@
 import { memo, useState, useRef, useEffect, useCallback } from 'react';
 import {
   Bot,
-  ChevronDown,
   CheckCircle2,
   FileCode2,
   Globe,
@@ -21,7 +20,6 @@ import type {
 } from '@sdkwork/birdcoder-pc-types';
 import {
   ProjectGitHeaderControls,
-  WorkbenchNewSessionButton,
 } from '@sdkwork/birdcoder-pc-ui';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
@@ -117,30 +115,20 @@ function TopBarComponent({
   isProjectGitOverviewDrawerOpen,
   onToggleProjectGitOverviewDrawer,
   isEngineBusyCurrentSession = false,
-  selectedEngineId,
-  selectedModelId,
-  selectedSessionEngineId,
-  selectedSessionModelId,
   selectedSessionTitle,
   projectGitOverviewState,
   activeTab,
   setActiveTab,
   isTerminalOpen,
   setIsTerminalOpen,
-  onCreateCodingSession,
 }: TopBarProps) {
-  const [showSubmitMenu, setShowSubmitMenu] = useState(false);
   const [topBarDensity, setTopBarDensity] = useState<TopBarDensity>('compact');
   const topBarRef = useRef<HTMLDivElement>(null);
-  const submitMenuRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
   const { t } = useTranslation();
   const showSessionTitle = topBarDensity !== 'minimal';
   const showTabLabels = topBarDensity === 'regular' || topBarDensity === 'balanced';
-  const showGitBranchControl = topBarDensity !== 'minimal';
-  const showGitWorktreeControl = topBarDensity !== 'minimal';
   const useCompactGitControls = topBarDensity !== 'regular';
-  const showCommitLabel = topBarDensity === 'regular';
   const showPrimaryActionLabels = topBarDensity === 'regular';
   const topBarActionGapClassName = topBarDensity === 'regular' ? 'gap-1.5' : 'gap-1';
   const projectDisplayLabel = projectName || '-';
@@ -321,27 +309,6 @@ function TopBarComponent({
     setShowPushModal(false);
   };
 
-  const handleClickOutside = useCallback(
-    (event: MouseEvent) => {
-      if (!showSubmitMenu) {
-        return;
-      }
-      if (submitMenuRef.current && !submitMenuRef.current.contains(event.target as Node)) {
-        setShowSubmitMenu(false);
-      }
-    },
-    [showSubmitMenu],
-  );
-
-  useEffect(() => {
-    if (!showSubmitMenu) {
-      return;
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [handleClickOutside, showSubmitMenu]);
-
   useEffect(() => {
     if (!showShareModal) {
       return;
@@ -483,10 +450,10 @@ function TopBarComponent({
     <>
       <div
         ref={topBarRef}
-        className="relative grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_max-content] items-center gap-2 border-b border-white/5 bg-[#0e0e11] px-3 text-sm text-gray-100 sm:px-4"
+        className="birdcoder-workbench-header relative z-50 flex h-12 shrink-0 items-center justify-between gap-2 overflow-visible border-b px-3 text-sm text-gray-100 sm:px-4"
       >
         <div
-          className="flex min-w-0 w-full items-center gap-2 overflow-hidden whitespace-nowrap animate-in fade-in slide-in-from-top-2 fill-mode-both"
+          className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden whitespace-nowrap animate-in fade-in slide-in-from-top-2 fill-mode-both"
           style={{ animationDelay: '100ms' }}
           title={headerTitle}
         >
@@ -512,7 +479,7 @@ function TopBarComponent({
         </div>
 
         <div
-          className="z-10 flex shrink-0 justify-self-center items-center gap-0.5 rounded-lg bg-transparent p-0 animate-in fade-in slide-in-from-top-2 fill-mode-both"
+          className="absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-lg bg-transparent p-0 animate-in fade-in slide-in-from-top-2 fill-mode-both"
           style={{ animationDelay: '125ms' }}
           aria-label="Code view mode"
         >
@@ -556,76 +523,21 @@ function TopBarComponent({
           </button>
         </div>
 
-        <div className={`flex w-max max-w-full flex-nowrap items-center justify-end whitespace-nowrap text-gray-400 [&>*]:shrink-0 ${topBarActionGapClassName}`}>
+        <div className={`ml-auto flex w-max max-w-full shrink-0 flex-nowrap items-center justify-end whitespace-nowrap text-gray-400 [&>*]:shrink-0 ${topBarActionGapClassName}`}>
           <ProjectGitHeaderControls
             compactControls={useCompactGitControls}
             isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
+            onRequestCommit={() => setShowCommitModal(true)}
+            onRequestPush={() => setShowPushModal(true)}
+            onRequestViewDiff={() => globalEventBus.emit('toggleDiffPanel')}
             onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
             projectId={projectId}
             projectGitOverviewState={resolvedProjectGitOverviewState}
-            showBranchControl={showGitBranchControl}
+            showBranchControl
             showOverviewDrawerToggle={activeTab === 'editor'}
-            showWorktreeControl={showGitWorktreeControl}
+            showWorktreeControl
             variant="topbar"
-            onAnyMenuOpen={() => {
-              setShowSubmitMenu(false);
-            }}
           />
-          <WorkbenchNewSessionButton
-            buttonLabel={t('app.menu.newSession')}
-            compact={topBarDensity === 'minimal'}
-            currentSessionEngineId={selectedSessionEngineId}
-            currentSessionModelId={selectedSessionModelId}
-            disabled={!projectId}
-            disabledTitle={t('code.selectProjectFirst')}
-            selectedEngineId={selectedEngineId}
-            selectedModelId={selectedModelId}
-            variant="topbar"
-            onCreateSession={onCreateCodingSession}
-          />
-          <div
-            className="relative animate-in fade-in slide-in-from-top-2 fill-mode-both"
-            style={{ animationDelay: '200ms' }}
-          >
-            <button
-              type="button"
-              title={t('app.menu.commit')}
-              aria-label={t('app.menu.commit')}
-              aria-expanded={showSubmitMenu}
-              className={`inline-flex h-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-white/[0.06] hover:text-white ${
-                showCommitLabel ? 'gap-1.5 px-2 text-xs' : 'w-8 px-0'
-              }`}
-              onClick={() => {
-                setShowSubmitMenu(!showSubmitMenu);
-              }}
-            >
-              <CheckCircle2 size={14} className="text-gray-400" />
-              {showCommitLabel ? (
-                <>
-                  <span className="font-medium">{t('app.menu.commit')}</span>
-                  <ChevronDown size={14} className="text-gray-500" />
-                </>
-              ) : null}
-            </button>
-
-            {showSubmitMenu && (
-              <div ref={submitMenuRef} className="absolute right-0 top-full mt-1.5 w-48 bg-[#18181b]/95 backdrop-blur-xl border border-white/10 rounded-lg shadow-2xl z-50 py-1.5 text-[13px] text-gray-300 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
-                <div className="px-3 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer flex items-center gap-2 transition-colors" onClick={() => { setShowSubmitMenu(false); setShowCommitModal(true); }}>
-                  <span>{t('app.menu.commitChanges')}</span>
-                </div>
-                <div className="px-3 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer flex items-center gap-2 transition-colors" onClick={() => { setShowSubmitMenu(false); setShowPushModal(true); }}>
-                  <span>{t('app.menu.pushToRemote')}</span>
-                </div>
-                <div className="h-px bg-white/10 my-1.5"></div>
-                <div className="px-3 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer flex items-center gap-2 transition-colors" onClick={() => { 
-                  setShowSubmitMenu(false); 
-                  globalEventBus.emit('toggleDiffPanel');
-                }}>
-                  <span>{t('app.menu.viewDiff')}</span>
-                </div>
-              </div>
-            )}
-          </div>
 
           <Button
             variant="ghost"
@@ -661,7 +573,7 @@ function TopBarComponent({
             size="sm"
             title={t('app.menu.publish')}
             aria-label={t('app.menu.publish')}
-            className={`h-8 text-xs text-blue-300 hover:bg-blue-500/[0.12] hover:text-blue-100 animate-in fade-in slide-in-from-top-2 fill-mode-both ${
+            className={`h-8 text-xs text-gray-300 hover:bg-white/[0.08] hover:text-white animate-in fade-in slide-in-from-top-2 fill-mode-both ${
               showPrimaryActionLabels ? 'gap-1.5 px-2.5' : 'w-8 px-0'
             }`}
             style={{ animationDelay: '300ms' }}

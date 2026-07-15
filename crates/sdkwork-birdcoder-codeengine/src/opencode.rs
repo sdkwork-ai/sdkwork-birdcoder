@@ -168,12 +168,80 @@ fn parse_opencode_listen_url(line: &str) -> Option<String> {
 }
 
 pub fn list_opencode_sessions() -> Result<Vec<Value>, String> {
-    let response = opencode_request_json("GET", "/session", &[], None, false)?
-        .unwrap_or(Value::Array(Vec::new()));
-    match response {
-        Value::Array(sessions) => Ok(sessions),
-        _ => Err("OpenCode session list response was not an array.".to_owned()),
+    list_opencode_sessions_with_request(|path, allow_not_found| {
+        opencode_request_json("GET", path, &[], None, allow_not_found)
+    })
+}
+
+fn list_opencode_sessions_with_request<F>(mut request: F) -> Result<Vec<Value>, String>
+where
+    F: FnMut(&str, bool) -> Result<Option<Value>, String>,
+{
+    const GLOBAL_SESSION_PATH: &str = "/experimental/session";
+    const LEGACY_SESSION_PATH: &str = "/session";
+
+    let mut global_endpoint_missing = false;
+    let global_error = match request(GLOBAL_SESSION_PATH, true) {
+        Ok(Some(response)) => {
+            match parse_opencode_session_list_response(GLOBAL_SESSION_PATH, Some(response)) {
+                Ok(sessions) => return Ok(deduplicate_opencode_sessions(sessions)),
+                Err(error) => Some(error),
+            }
+        }
+        Ok(None) => {
+            global_endpoint_missing = true;
+            None
+        }
+        Err(error) => Some(error),
+    };
+
+    if global_endpoint_missing {
+        tracing::warn!(
+            "OpenCode global session inventory is unavailable; using a compatibility fallback limited to the server's active directory."
+        );
+    } else if let Some(error) = global_error.as_deref() {
+        tracing::warn!(
+            error,
+            "OpenCode global session inventory failed; using a compatibility fallback limited to the server's active directory."
+        );
     }
+
+    let legacy_result = request(LEGACY_SESSION_PATH, false).and_then(|response| {
+        parse_opencode_session_list_response(LEGACY_SESSION_PATH, response)
+            .map(deduplicate_opencode_sessions)
+    });
+
+    legacy_result.map_err(|legacy_error| match global_error {
+        Some(global_error) => format!(
+            "OpenCode global session inventory failed: {global_error} Legacy session fallback also failed: {legacy_error}"
+        ),
+        None => legacy_error,
+    })
+}
+
+fn parse_opencode_session_list_response(
+    path: &str,
+    response: Option<Value>,
+) -> Result<Vec<Value>, String> {
+    match response.unwrap_or(Value::Array(Vec::new())) {
+        Value::Array(sessions) => Ok(sessions),
+        _ => Err(format!(
+            "OpenCode session list response from {path} was not an array."
+        )),
+    }
+}
+
+fn deduplicate_opencode_sessions(sessions: Vec<Value>) -> Vec<Value> {
+    let mut seen_session_ids = BTreeSet::new();
+
+    sessions
+        .into_iter()
+        .filter(|session| {
+            normalize_value_string(session.get("id"))
+                .map(|session_id| seen_session_ids.insert(session_id))
+                .unwrap_or(true)
+        })
+        .collect()
 }
 
 pub fn list_opencode_session_status_map() -> Result<BTreeMap<String, String>, String> {
@@ -1208,8 +1276,85 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        build_opencode_model_payload, project_opencode_stream_events, OpencodeStreamProjectionState,
+        build_opencode_model_payload, list_opencode_sessions_with_request,
+        project_opencode_stream_events, OpencodeStreamProjectionState,
     };
+
+    #[test]
+    fn opencode_session_inventory_keeps_sessions_from_different_directories() {
+        let mut requests = Vec::new();
+
+        let sessions = list_opencode_sessions_with_request(|path, allow_not_found| {
+            requests.push((path.to_owned(), allow_not_found));
+            Ok(Some(json!([
+                {
+                    "id": "session-new",
+                    "title": "Newest session",
+                    "directory": "C:/workspace/project-alpha"
+                },
+                {
+                    "id": "session-new",
+                    "title": "Stale duplicate",
+                    "directory": "C:/workspace/project-alpha"
+                },
+                {
+                    "id": "session-old",
+                    "title": "Older session",
+                    "directory": "D:/workspace/project-beta"
+                }
+            ])))
+        })
+        .expect("list global OpenCode sessions");
+
+        assert_eq!(requests, vec![("/experimental/session".to_owned(), true)]);
+        assert_eq!(sessions.len(), 2);
+        assert_eq!(sessions[0]["id"], "session-new");
+        assert_eq!(sessions[0]["title"], "Newest session");
+        assert_eq!(sessions[0]["directory"], "C:/workspace/project-alpha");
+        assert_eq!(sessions[1]["id"], "session-old");
+        assert_eq!(sessions[1]["directory"], "D:/workspace/project-beta");
+    }
+
+    #[test]
+    fn opencode_session_inventory_falls_back_to_the_active_directory_for_older_servers() {
+        let mut requests = Vec::new();
+
+        let sessions = list_opencode_sessions_with_request(|path, allow_not_found| {
+            requests.push((path.to_owned(), allow_not_found));
+            match path {
+                "/experimental/session" => Ok(None),
+                "/session" => Ok(Some(json!([{
+                    "id": "legacy-session",
+                    "title": "Legacy session"
+                }]))),
+                _ => panic!("unexpected OpenCode request path: {path}"),
+            }
+        })
+        .expect("list sessions through the legacy OpenCode endpoint");
+
+        assert_eq!(
+            requests,
+            vec![
+                ("/experimental/session".to_owned(), true),
+                ("/session".to_owned(), false),
+            ]
+        );
+        assert_eq!(sessions.len(), 1);
+        assert_eq!(sessions[0]["id"], "legacy-session");
+    }
+
+    #[test]
+    fn opencode_session_inventory_reports_global_and_fallback_failures() {
+        let error = list_opencode_sessions_with_request(|path, _allow_not_found| match path {
+            "/experimental/session" => Err("global endpoint unavailable".to_owned()),
+            "/session" => Err("legacy endpoint unavailable".to_owned()),
+            _ => panic!("unexpected OpenCode request path: {path}"),
+        })
+        .expect_err("both OpenCode session inventory endpoints should fail");
+
+        assert!(error.contains("global endpoint unavailable"));
+        assert!(error.contains("legacy endpoint unavailable"));
+    }
 
     #[test]
     fn build_opencode_model_payload_omits_birdcoder_engine_sentinels() {

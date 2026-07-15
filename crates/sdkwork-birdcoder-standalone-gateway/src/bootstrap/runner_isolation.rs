@@ -39,11 +39,20 @@ pub struct ProviderRunnerEnvironmentBinding {
 #[derive(Clone, Debug)]
 pub struct ServerProjectWorkspaceRootResolver {
     configured_root: Option<PathBuf>,
+    deployment_project_root: Option<PathBuf>,
 }
 
 impl ServerProjectWorkspaceRootResolver {
     pub fn new(configured_root: Option<PathBuf>) -> Self {
-        Self { configured_root }
+        Self {
+            configured_root,
+            deployment_project_root: None,
+        }
+    }
+
+    pub fn with_deployment_project_root(mut self, project_root: Option<PathBuf>) -> Self {
+        self.deployment_project_root = project_root;
+        self
     }
 }
 
@@ -197,6 +206,18 @@ impl ProjectWorkspaceRootResolver for ServerProjectWorkspaceRootResolver {
         workspace_id: &str,
         project_id: &str,
     ) -> Result<PathBuf, ProjectError> {
+        if let Some(deployment_project_root) = self.deployment_project_root.as_deref() {
+            let canonical_root = std::fs::canonicalize(deployment_project_root).map_err(|_| {
+                ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
+            })?;
+            if !canonical_root.is_dir() {
+                return Err(ProjectError::Unavailable(
+                    "Server project workspace is unavailable.".to_owned(),
+                ));
+            }
+            return Ok(canonical_root);
+        }
+
         let configured_root = self.configured_root.as_deref().ok_or_else(|| {
             ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
         })?;

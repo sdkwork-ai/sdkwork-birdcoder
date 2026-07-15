@@ -1018,8 +1018,8 @@ export interface BirdCoderListNativeSessionsRequest {
   engineId?: BirdCoderCodeEngineKey;
   limit?: number;
   offset?: number;
-  projectId?: string;
-  workspaceId?: string;
+  projectId: string;
+  workspaceId: string;
 }
 
 export interface BirdCoderListCodingSessionsRequest {
@@ -1032,8 +1032,8 @@ export interface BirdCoderListCodingSessionsRequest {
 
 export interface BirdCoderGetNativeSessionRequest {
   engineId?: BirdCoderCodeEngineKey;
-  projectId?: string;
-  workspaceId?: string;
+  projectId: string;
+  workspaceId: string;
 }
 
 export interface BirdCoderCreateCodingSessionRequest {

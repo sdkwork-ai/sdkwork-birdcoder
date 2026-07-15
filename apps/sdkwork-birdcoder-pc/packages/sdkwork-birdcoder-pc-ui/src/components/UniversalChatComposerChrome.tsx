@@ -18,20 +18,28 @@ export const UniversalChatComposerChrome = memo(function UniversalChatComposerCh
   onResize,
 }: UniversalChatComposerChromeProps) {
   return (
-    <div className={`group/composer relative ${className}`}>
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center opacity-0 transition-opacity duration-150 group-hover/composer:opacity-100 group-focus-within/composer:opacity-100">
-        <div className="mt-[1px] h-1 w-16 rounded-full bg-blue-400/55 shadow-[0_0_14px_rgba(96,165,250,0.35)]" />
-      </div>
+    <div className={`relative ${className}`}>
       {onResize ? (
-        <ResizeHandle
-          className="absolute left-4 right-4 top-0 z-20 bg-transparent opacity-0 transition-opacity duration-150 hover:bg-blue-400/75 group-hover/composer:opacity-100 group-focus-within/composer:opacity-100"
-          direction="vertical"
-          onResize={onResize}
-        />
+        <div
+          className="group/composer-resize absolute inset-x-4 top-0 z-20 h-3 -translate-y-1/2"
+          data-testid="universal-chat-composer-resize-hit-area"
+        >
+          <ResizeHandle
+            className="peer absolute inset-0 !m-0 !h-full !w-full !bg-transparent hover:!h-full hover:!bg-transparent"
+            direction="vertical"
+            onResize={onResize}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 z-[60] flex items-center justify-center opacity-0 transition-opacity duration-150 group-hover/composer-resize:opacity-100 peer-data-[dragging=true]:opacity-100"
+            data-testid="universal-chat-composer-resize-indicator"
+          >
+            <div className="h-0.5 w-12 rounded-full bg-blue-400/75 shadow-[0_0_10px_rgba(96,165,250,0.28)]" />
+          </div>
+        </div>
       ) : null}
       <div
-        className={`flex flex-col gap-2 rounded-2xl border bg-[#18181b]/88 p-3 shadow-lg backdrop-blur-xl transition-all duration-300 ${
-          isFocused ? 'border-white/20 shadow-white/5' : 'border-white/10'
+        className={`flex flex-col gap-2 rounded-[24px] bg-[#29292c] px-4 pb-3 pt-4 shadow-[0_18px_54px_rgba(0,0,0,0.24)] transition-[background-color,box-shadow] duration-200 ${
+          isFocused ? 'bg-[#2c2c30] shadow-[0_20px_60px_rgba(0,0,0,0.3)]' : ''
         } ${innerClassName}`}
         style={{ animationDelay: '150ms' }}
       >

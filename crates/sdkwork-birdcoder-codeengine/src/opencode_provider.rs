@@ -112,7 +112,6 @@ fn build_opencode_session_summary_record(
     session_status_map: &BTreeMap<String, String>,
     model_id: Option<String>,
 ) -> Option<CodeEngineSessionSummaryRecord> {
-    let model_id = model_id?;
     let raw_session_id = normalize_value_string(session.get("id"))?;
     let created_at =
         timestamp_from_value_millis(session.get("time").and_then(|time| time.get("created")))
@@ -141,7 +140,9 @@ fn build_opencode_session_summary_record(
         runtime_status: Some(runtime_status.to_owned()),
         host_mode: "server".to_owned(),
         engine_id: OPENCODE_ENGINE_ID.to_owned(),
-        model_id,
+        model_id: model_id
+            .or_else(|| load_opencode_session_model_id(session))
+            .unwrap_or_else(|| "opencode".to_owned()),
         updated_at: updated_at.clone(),
         last_turn_at: Some(updated_at.clone()),
         kind: "coding".to_owned(),
@@ -154,9 +155,19 @@ fn build_opencode_session_summary_record(
 }
 
 fn load_opencode_session_model_id(session: &Value) -> Option<String> {
-    let raw_session_id = normalize_value_string(session.get("id"))?;
-    let messages = get_opencode_session_messages(raw_session_id.as_str()).ok()?;
-    extract_opencode_session_model_id(&messages)
+    let model = session.get("model");
+    let model_id = normalize_value_string(model)
+        .or_else(|| normalize_value_string(model.and_then(|value| value.get("id"))))
+        .or_else(|| normalize_value_string(model.and_then(|value| value.get("modelID"))))
+        .or_else(|| normalize_value_string(model.and_then(|value| value.get("model_id"))))
+        .or_else(|| normalize_value_string(session.get("modelID")))
+        .or_else(|| normalize_value_string(session.get("model_id")))?;
+    let provider_id = normalize_value_string(model.and_then(|value| value.get("providerID")))
+        .or_else(|| normalize_value_string(model.and_then(|value| value.get("provider_id"))))
+        .or_else(|| normalize_value_string(session.get("providerID")))
+        .or_else(|| normalize_value_string(session.get("provider_id")));
+
+    combine_opencode_provider_model_id(provider_id.as_deref(), model_id.as_str())
 }
 
 fn extract_opencode_session_model_id(messages: &[Value]) -> Option<String> {
@@ -169,10 +180,18 @@ fn extract_opencode_session_model_id(messages: &[Value]) -> Option<String> {
 fn build_opencode_message_model_id(info: Option<&Value>) -> Option<String> {
     let info = info?;
     let model_id = normalize_value_string(info.get("modelID"))?;
-    if let Some(provider_id) = normalize_value_string(info.get("providerID")) {
-        return Some(format!("{provider_id}/{model_id}"));
+    combine_opencode_provider_model_id(
+        normalize_value_string(info.get("providerID")).as_deref(),
+        model_id.as_str(),
+    )
+}
+
+fn combine_opencode_provider_model_id(provider_id: Option<&str>, model_id: &str) -> Option<String> {
+    let model_id = normalize_non_empty_string(Some(model_id))?;
+    match provider_id.and_then(|value| normalize_non_empty_string(Some(value))) {
+        Some(provider_id) if !model_id.contains('/') => Some(format!("{provider_id}/{model_id}")),
+        _ => Some(model_id),
     }
-    Some(model_id)
 }
 
 fn build_opencode_message_records(
@@ -457,7 +476,7 @@ mod tests {
 
     use super::{
         build_opencode_session_summary_record, extract_opencode_message_commands,
-        extract_opencode_session_model_id,
+        extract_opencode_session_model_id, load_opencode_session_model_id,
     };
 
     #[test]
@@ -481,20 +500,43 @@ mod tests {
             "id": "session-1",
             "title": "BirdCoder OpenCode Session",
             "directory": "D:/workspace/project",
+            "model": {
+                "id": "gpt-5.4",
+                "providerID": "openai",
+                "variant": "high"
+            },
             "time": {
                 "created": 1_710_000_000_000_i64,
                 "updated": 1_710_000_001_000_i64
             }
         });
 
-        let summary = build_opencode_session_summary_record(
-            &session,
-            &Default::default(),
-            Some("openai/gpt-5.4".to_owned()),
-        )
-        .expect("build summary");
+        let summary = build_opencode_session_summary_record(&session, &Default::default(), None)
+            .expect("build summary");
 
         assert_eq!(summary.model_id, "openai/gpt-5.4");
+    }
+
+    #[test]
+    fn load_opencode_session_model_id_supports_legacy_and_provider_scoped_fields() {
+        assert_eq!(
+            load_opencode_session_model_id(&json!({
+                "providerID": "anthropic",
+                "modelID": "claude-sonnet-4-5"
+            }))
+            .as_deref(),
+            Some("anthropic/claude-sonnet-4-5")
+        );
+        assert_eq!(
+            load_opencode_session_model_id(&json!({
+                "model": {
+                    "id": "openai/gpt-5.4",
+                    "providerID": "openai"
+                }
+            }))
+            .as_deref(),
+            Some("openai/gpt-5.4")
+        );
     }
 
     #[test]
@@ -523,7 +565,7 @@ mod tests {
     }
 
     #[test]
-    fn build_opencode_session_summary_record_rejects_missing_model_id() {
+    fn build_opencode_session_summary_record_keeps_session_without_model_metadata() {
         let session = json!({
             "id": "session-1",
             "title": "BirdCoder OpenCode Session",
@@ -534,9 +576,11 @@ mod tests {
             }
         });
 
-        let summary = build_opencode_session_summary_record(&session, &Default::default(), None);
+        let summary = build_opencode_session_summary_record(&session, &Default::default(), None)
+            .expect("build summary without model metadata");
 
-        assert!(summary.is_none());
+        assert_eq!(summary.id, "session-1");
+        assert_eq!(summary.model_id, "opencode");
     }
 
     #[test]

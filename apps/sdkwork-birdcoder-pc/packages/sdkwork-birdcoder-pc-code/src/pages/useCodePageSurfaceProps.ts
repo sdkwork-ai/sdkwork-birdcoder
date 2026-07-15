@@ -143,6 +143,7 @@ interface UseCodePageSurfacePropsOptions {
   onNewCodingSessionInProject: NonNullable<ProjectExplorerProps['onNewCodingSessionInProject']>;
   onNewProject: NonNullable<ProjectExplorerProps['onNewProject']>;
   onLoadMoreProjects: NonNullable<ProjectExplorerProps['onLoadMoreProjects']>;
+  onLoadMoreProjectSessions: NonNullable<ProjectExplorerProps['onLoadMoreProjectSessions']>;
   onNotifyNoResults: NonNullable<CodeWorkspaceOverlaysComponentProps['onNotifyNoResults']>;
   onOpenFolder: NonNullable<ProjectExplorerProps['onOpenFolder']>;
   onOpenInFileExplorer: NonNullable<ProjectExplorerProps['onOpenInFileExplorer']>;
@@ -279,6 +280,7 @@ export function useCodePageSurfaceProps({
   onNewCodingSessionInProject,
   onNewProject,
   onLoadMoreProjects,
+  onLoadMoreProjectSessions,
   onNotifyNoResults,
   onOpenFolder,
   onOpenInFileExplorer,
@@ -369,6 +371,7 @@ export function useCodePageSurfaceProps({
     onDeleteProject,
     onNewProject,
     onLoadMoreProjects,
+    onLoadMoreProjectSessions,
     onOpenFolder,
     onNewCodingSessionInProject,
     onRefreshProjectSessions,
@@ -415,6 +418,7 @@ export function useCodePageSurfaceProps({
     onNewCodingSessionInProject,
     onNewProject,
     onLoadMoreProjects,
+    onLoadMoreProjectSessions,
     onOpenFolder,
     onOpenCodingSessionInTerminal,
     onOpenInFileExplorer,

@@ -15,6 +15,7 @@ import { ProviderBackedPromptService } from './impl/ProviderBackedPromptService.
 import { ProviderBackedWorkspaceService } from './impl/ProviderBackedWorkspaceService.ts';
 import { createBirdCoderRuntimeAuthService } from './impl/RuntimeAuthService.ts';
 import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
+import { BrowserDeploymentFileSystemService } from './impl/BrowserDeploymentFileSystemService.ts';
 import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
 import { createProjectDeviceMountSubjectProvider } from './projectDeviceMountSubject.ts';
 import type { IAuthService } from './interfaces/IAuthService.ts';
@@ -306,8 +307,11 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const projectDeviceMountRegistry = new ProjectDeviceMountRegistry({
     subjectProvider: createProjectDeviceMountSubjectProvider(),
   });
-  const fileSystemService = new RuntimeFileSystemService({
+  const runtimeFileSystemService = new RuntimeFileSystemService({
     mountRegistry: projectDeviceMountRegistry,
+  });
+  const fileSystemService = new BrowserDeploymentFileSystemService({
+    fallback: runtimeFileSystemService,
   });
 
   return {

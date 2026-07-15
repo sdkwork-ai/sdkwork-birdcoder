@@ -8,7 +8,7 @@ const Runtime = lazy(async () => {
 
 export function DeferredProjectExplorer(props: ProjectExplorerProps) {
   return (
-    <Suspense fallback={<div className="h-full w-[280px] shrink-0 bg-[#111114]" aria-hidden="true" />}>
+    <Suspense fallback={<div className="birdcoder-workbench-sidebar h-full w-[280px] shrink-0" aria-hidden="true" />}>
       <Runtime {...props} />
     </Suspense>
   );

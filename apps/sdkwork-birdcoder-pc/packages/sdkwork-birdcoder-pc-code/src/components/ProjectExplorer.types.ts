@@ -1,5 +1,10 @@
 import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 
+export interface ProjectSessionLoadMoreResult {
+  hasMore?: boolean;
+  loadedCount?: number;
+}
+
 export interface ProjectExplorerProps {
   hasMoreProjects?: boolean;
   isLoadingMoreProjects?: boolean;
@@ -15,6 +20,10 @@ export interface ProjectExplorerProps {
   onDeleteProject: (id: string) => void;
   onNewProject: () => Promise<string | undefined>;
   onLoadMoreProjects?: () => Promise<unknown> | void;
+  onLoadMoreProjectSessions?: (
+    projectId: string,
+    requestedCount: number,
+  ) => Promise<ProjectSessionLoadMoreResult> | ProjectSessionLoadMoreResult | void;
   onOpenFolder?: () => void;
   onNewCodingSessionInProject: (projectId: string, engineId?: string, modelId?: string) => void;
   onRefreshProjectSessions?: (id: string) => Promise<void> | void;

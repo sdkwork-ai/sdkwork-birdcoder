@@ -36,5 +36,15 @@ assert.doesNotMatch(
   /globalThis\.localStorage/u,
   'appSessionToken must not read or write browser localStorage for IAM tokens.',
 );
+assert.match(
+  tokenSource,
+  /persisted\.refreshToken = token\.refreshToken/u,
+  'appSessionToken must persist the rotating refresh token through the host-selected session store.',
+);
+assert.match(
+  tokenSource,
+  /parsed\.refreshToken \|\| preservedRefreshToken/u,
+  'appSessionToken must restore the refresh token after page reload or application restart.',
+);
 
 console.log('app session persistence port contract passed.');

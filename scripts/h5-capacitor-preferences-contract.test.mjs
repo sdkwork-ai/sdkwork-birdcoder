@@ -16,6 +16,11 @@ const h5PackageJson = JSON.parse(read('apps/sdkwork-birdcoder-h5/package.json'))
 
 assert.equal(packageJson.dependencies['@capacitor/core'], 'catalog:');
 assert.equal(packageJson.dependencies['@capacitor/preferences'], 'catalog:');
+assert.equal(
+  packageJson.dependencies['@aparajita/capacitor-secure-storage'],
+  '^6.0.1',
+  'H5 native auth sessions must use Keychain/Keystore-backed secure storage.',
+);
 
 assert.match(
   runtimeSource,
@@ -35,8 +40,13 @@ assert.match(
 
 assert.match(
   adapterSource,
+  /SecureStorage/u,
+  'Capacitor auth session storage must persist through the native secure-storage plugin.',
+);
+assert.doesNotMatch(
+  adapterSource,
   /Preferences/u,
-  'Capacitor secure storage must persist through the Preferences plugin on native targets.',
+  'Capacitor auth session storage must not persist long-lived credentials through plaintext Preferences.',
 );
 assert.match(
   adapterSource,

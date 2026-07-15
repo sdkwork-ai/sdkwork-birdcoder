@@ -82,6 +82,16 @@ assert.match(
   /createSdkworkAppbasePcAuthRuntime\(\{[\s\S]*createAppbaseAppClient[\s\S]*sdkClients:\s*\[[\s\S]*birdcoderApp[\s\S]*driveApp[\s\S]*messagingApp/u,
   'BirdCoder IAM runtime must compose appbase, BirdCoder product app, Drive, and Messaging SDK clients through the high-level appbase auth runtime.',
 );
+assert.match(
+  iamRuntimeSource,
+  /function retrieveBirdCoderAuthenticatedCurrentSession\([\s\S]*syncBirdCoderGlobalTokenManagerFromStorage\(\);[\s\S]*getBirdCoderGlobalTokenManager\(\)\.getTokens\(\);[\s\S]*if \(!tokens\?\.authToken \|\| !tokens\.accessToken\) \{[\s\S]*return Promise\.reject\([\s\S]*client\.auth\.sessions\.current\.retrieve\(\);/u,
+  'Current-session validation must synchronize and require committed dual-token credentials before issuing the SDK request.',
+);
+assert.match(
+  iamRuntimeSource,
+  /attachBirdCoderCurrentSessionCoalescer\([\s\S]*\(\) => retrieveBirdCoderAuthenticatedCurrentSession\(iamAuthorityClient\)/u,
+  'BirdCoder current-session authority must route network validation through the dual-token readiness gate.',
+);
 assert.doesNotMatch(
   iamRuntimeSource,
   /getBirdCoderGeneratedBackendSdkClient/u,

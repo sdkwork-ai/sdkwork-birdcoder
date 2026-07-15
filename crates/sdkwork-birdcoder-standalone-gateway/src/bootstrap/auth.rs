@@ -118,13 +118,37 @@ pub(crate) fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
         .cloned()
         .collect();
 
-    // Standalone servers are commonly opened from whichever local Vite port
-    // is available. Keep this expansion limited to loopback origins so a
-    // development port change does not break browser startup while cloud
-    // deployments continue to require explicit, operator-owned origins.
-    let is_local_standalone =
+    // Development clients can be served from dynamically assigned LAN IPs and
+    // arbitrary dev-server ports. The shared framework policy keeps this
+    // limited to loopback/private-network origins and is production-invalid.
+    let uses_development_private_network =
         matches!(config.deployment_profile, BirdDeploymentProfile::Standalone)
-            && (is_loopback_bind_host(&config.host) || is_wildcard_bind_host(&config.host));
+            && matches!(
+                config.environment,
+                crate::bootstrap::config::BirdEnvironment::Development
+                    | crate::bootstrap::config::BirdEnvironment::Test
+            );
+    if uses_development_private_network {
+        let mut policy = CorsPolicy::development_private_network();
+        for origin in explicit_origins {
+            if !policy.allowed_origins.contains(&origin) {
+                policy.allowed_origins.push(origin);
+            }
+        }
+        if uses_wildcard {
+            tracing::warn!(
+                "BIRDCODER_CODING_SERVER_ALLOWED_ORIGINS contains '*' which is forbidden; using the development private-network policy and explicit origins only."
+            );
+        }
+        return policy;
+    }
+
+    // Non-development standalone servers retain exact loopback defaults when
+    // bound locally. Cloud deployments always require operator-owned origins.
+    let is_local_standalone = matches!(
+        config.deployment_profile,
+        BirdDeploymentProfile::Standalone
+    ) && (is_loopback_bind_host(&config.host) || is_wildcard_bind_host(&config.host));
     if is_local_standalone {
         for origin in default_loopback_browser_origins() {
             if !explicit_origins.iter().any(|allowed| allowed == &origin) {
@@ -199,14 +223,27 @@ mod tests {
     fn standalone_loopback_cors_includes_local_vite_ports() {
         let policy = build_cors_policy(&test_config(BirdDeploymentProfile::Standalone));
 
-        assert!(policy
-            .allowed_origins
-            .iter()
-            .any(|origin| origin == "http://localhost:3001"));
-        assert!(policy
-            .allowed_origins
-            .iter()
-            .any(|origin| origin == "https://operator.example.test"));
+        for origin in [
+            "http://localhost:3001",
+            "https://operator.example.test",
+        ] {
+            let request = Request::builder()
+                .header("origin", origin)
+                .body(axum::body::Body::empty())
+                .expect("build configured origin request");
+            assert!(policy.validate_origin(&request).is_ok(), "origin={origin}");
+        }
+    }
+
+    #[test]
+    fn standalone_development_cors_allows_dynamic_private_network_origins() {
+        let policy = build_cors_policy(&test_config(BirdDeploymentProfile::Standalone));
+        let request = Request::builder()
+            .header("origin", "http://192.168.31.108:3001")
+            .body(axum::body::Body::empty())
+            .expect("build private-network origin request");
+
+        assert!(policy.validate_origin(&request).is_ok());
     }
 
     #[test]

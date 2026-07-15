@@ -46,6 +46,7 @@ Root SDKWork standards remain authoritative. Local component specs can narrow or
 - `./services/defaultIdeServicesRuntime`
 - `./services/workspaceRealtimeClient`
 - `./platform/openLocalFolder`
+- `./platform/tauriNativeSessions`
 - `./storage/runtime`
 - `./storage/dataKernel`
 - `./storage/appConsoleRepository`

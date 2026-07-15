@@ -86,6 +86,7 @@
     "@sdkwork/birdcoder-pc-codeengine": "workspace:*",
     "@sdkwork/birdcoder-pc-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-ui-shell": "workspace:*",
+    "@sdkwork/models-pc-picker": "workspace:*",
     "space-separated-tokens": "catalog:",
     "state-local": "^1.0.7",
     "stringify-entities": "catalog:",

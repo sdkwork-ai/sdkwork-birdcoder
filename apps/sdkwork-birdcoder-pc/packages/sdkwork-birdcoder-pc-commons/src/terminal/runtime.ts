@@ -17,6 +17,7 @@ import {
   type TerminalCommandGuardSetting,
 } from '../settings/appSettings.ts';
 import { globalEventBus } from '../utils/EventBus.ts';
+import { isBirdcoderTauriRuntime } from './birdcoderTerminalRuntime.ts';
 import type {
   BirdcoderApprovalDecision,
   BirdcoderApprovalPolicy,
@@ -358,7 +359,7 @@ export function buildTerminalCommandAuditEvent(
 }
 
 async function resolveTauriInvoke() {
-  if (typeof window === 'undefined' || !window.__TAURI__) {
+  if (!isBirdcoderTauriRuntime()) {
     return null;
   }
 

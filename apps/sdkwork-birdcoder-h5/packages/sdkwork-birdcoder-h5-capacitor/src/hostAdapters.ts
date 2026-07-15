@@ -10,14 +10,14 @@ import {
 
 import {
   createCapacitorSecureStorageAdapter,
-  type CapacitorPreferencesPort,
+  type CapacitorSecureStoragePort,
 } from './adapters/capacitorSecureStorageAdapter.ts';
 import { registerCapacitorBirdCoderDeepLinkAdapter } from './adapters/capacitorDeepLinkAdapter.ts';
 import { isCapacitorNativePlatform } from './runtime/capacitorRuntime.ts';
 
 export {
   createCapacitorSecureStorageAdapter,
-  type CapacitorPreferencesPort,
+  type CapacitorSecureStoragePort,
 } from './adapters/capacitorSecureStorageAdapter.ts';
 
 export function registerCapacitorBirdCoderHostAdapters(): SecureStorageHostAdapter {

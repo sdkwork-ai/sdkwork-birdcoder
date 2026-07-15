@@ -20,6 +20,18 @@ import type {
   BirdCoderOperationDescriptor,
 } from '@sdkwork/birdcoder-pc-types';
 
+export interface BirdCoderRuntimeSessionPage<TItem> {
+  items: TItem[];
+  pageInfo: {
+    hasMore: boolean;
+    mode: 'offset';
+    page: number;
+    pageSize: number;
+    totalItems: string;
+    totalPages: number;
+  };
+}
+
 export interface IAppRuntimeReadService {
   getCodingSession(codingSessionId: string): Promise<BirdCoderCodingSessionSummary>;
   getDescriptor(): Promise<BirdCoderCodingServerDescriptor>;
@@ -28,7 +40,7 @@ export interface IAppRuntimeReadService {
   getModelConfig(): Promise<BirdCoderCodeEngineModelConfig>;
   getNativeSession(
     codingSessionId: string,
-    request?: BirdCoderGetNativeSessionRequest,
+    request: BirdCoderGetNativeSessionRequest,
   ): Promise<BirdCoderNativeSessionDetail>;
   getOperation(operationId: string): Promise<BirdCoderOperationDescriptor>;
   getRuntime(): Promise<BirdCoderCoreRuntimeSummary>;
@@ -38,11 +50,17 @@ export interface IAppRuntimeReadService {
   listCodingSessions(
     request?: BirdCoderListCodingSessionsRequest,
   ): Promise<BirdCoderCodingSessionSummary[]>;
+  listCodingSessionPage(
+    request?: BirdCoderListCodingSessionsRequest,
+  ): Promise<BirdCoderRuntimeSessionPage<BirdCoderCodingSessionSummary>>;
   listEngines(): Promise<BirdCoderEngineDescriptor[]>;
   listModels(): Promise<BirdCoderModelCatalogEntry[]>;
   listNativeSessionProviders(): Promise<BirdCoderNativeSessionProviderSummary[]>;
   listNativeSessions(
-    request?: BirdCoderListNativeSessionsRequest,
+    request: BirdCoderListNativeSessionsRequest,
   ): Promise<BirdCoderNativeSessionSummary[]>;
+  listNativeSessionPage(
+    request: BirdCoderListNativeSessionsRequest,
+  ): Promise<BirdCoderRuntimeSessionPage<BirdCoderNativeSessionSummary>>;
   listRoutes(): Promise<BirdCoderApiRouteCatalogEntry[]>;
 }

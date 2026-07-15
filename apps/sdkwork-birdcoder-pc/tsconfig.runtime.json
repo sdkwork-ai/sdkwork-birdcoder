@@ -107,6 +107,9 @@
       "@sdkwork/terminal-pc-shell": [
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src"
       ],
+      "@sdkwork/terminal-pc-shell/web-integration": [
+        "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/web-integration.tsx"
+      ],
       "@sdkwork/terminal-pc-shell/*": [
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/*"
       ],

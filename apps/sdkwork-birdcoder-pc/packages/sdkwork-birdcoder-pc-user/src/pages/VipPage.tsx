@@ -16,6 +16,14 @@ export interface VipPageProps {
   onAuthenticationRequired?(): void;
 }
 
+function redirectToBirdCoderLogin(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const returnPath = window.location.hash || '#/vip';
+  window.location.assign(`/#/auth/login?redirect=${encodeURIComponent(returnPath)}`);
+}
+
 function joinClassNames(...classNames: Array<string | undefined>): string {
   return classNames.filter(Boolean).join(' ');
 }
@@ -27,7 +35,7 @@ export function VipPage({
   const { user } = useAuth();
 
   if (!user) {
-    onAuthenticationRequired?.();
+    (onAuthenticationRequired ?? redirectToBirdCoderLogin)();
     return (
       <main
         className={joinClassNames(
@@ -48,6 +56,7 @@ export function VipPage({
   return (
     <BirdCoderTokenPlanPage
       className={joinClassNames('h-full', className)}
+      onAuthenticationRequired={onAuthenticationRequired}
     />
   );
 }

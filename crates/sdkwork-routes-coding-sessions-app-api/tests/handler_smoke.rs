@@ -172,6 +172,7 @@ async fn test_state_with_seeded_workspace(workspace_id: i64) -> CodingSessionsAp
     CodingSessionsAppState {
         service,
         commerce_pool: None,
+        project_service: None,
     }
 }
 

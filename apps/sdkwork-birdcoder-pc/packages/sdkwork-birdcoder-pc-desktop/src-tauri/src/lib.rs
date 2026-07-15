@@ -257,6 +257,24 @@ fn desktop_terminal_session_inventory_list(
 }
 
 #[tauri::command]
+async fn desktop_native_session_list(
+    request: host::DesktopNativeSessionListRequest,
+) -> Result<host::DesktopNativeSessionPageSnapshot, String> {
+    tauri::async_runtime::spawn_blocking(move || host::desktop_native_session_list(request))
+        .await
+        .map_err(|error| format!("desktop native session list worker failed: {error}"))?
+}
+
+#[tauri::command]
+async fn desktop_native_session_get(
+    request: host::DesktopNativeSessionGetRequest,
+) -> Result<host::DesktopNativeSessionDetailSnapshot, String> {
+    tauri::async_runtime::spawn_blocking(move || host::desktop_native_session_get(request))
+        .await
+        .map_err(|error| format!("desktop native session get worker failed: {error}"))?
+}
+
+#[tauri::command]
 async fn desktop_local_shell_exec(
     request: host::DesktopLocalShellExecRequest,
 ) -> Result<host::DesktopLocalShellExecSnapshot, String> {
@@ -364,6 +382,8 @@ pub fn run() {
             desktop_session_detach,
             desktop_session_reattach,
             desktop_terminal_session_inventory_list,
+            desktop_native_session_list,
+            desktop_native_session_get,
             desktop_local_shell_exec,
             desktop_local_shell_session_create,
             desktop_local_process_session_create,

@@ -91,6 +91,7 @@ function CodePageComponent({
     sendMessage,
     forkCodingSession,
     loadMoreProjects,
+    loadMoreProjectSessions,
   } = useProjects(effectiveWorkspaceId, {
     isActive: isVisible,
     targetProjectId: projectId,
@@ -1280,6 +1281,7 @@ function CodePageComponent({
     onNewCodingSessionInProject: createCodingSessionInProjectWithTranscriptReset,
     onNewProject: handleNewProject,
     onLoadMoreProjects: loadMoreProjects,
+    onLoadMoreProjectSessions: loadMoreProjectSessions,
     onNotifyNoResults: handleNotifyNoCodeResults,
     onOpenFolder: handleOpenFolder,
     onOpenCodingSessionInTerminal: handleOpenCodingSessionInTerminal,

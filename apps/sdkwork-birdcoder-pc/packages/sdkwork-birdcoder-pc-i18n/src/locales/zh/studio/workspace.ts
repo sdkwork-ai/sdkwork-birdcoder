@@ -54,7 +54,9 @@ export default defineLocaleModule('studio/workspace', {
     noMatchingFiles: '\u672a\u627e\u5230\u5339\u914d\u7684\u6587\u4ef6',
     fileMatch: '\u6587\u4ef6\u5339\u914d',
     ranFor: '\u5df2\u8fd0\u884c {{time}}',
-    showMoreSessions: '\u5c55\u5f00 {{count}} \u4e2a\u66f4\u591a\u4f1a\u8bdd',
+    showMoreSessions: '\u5c55\u5f00\u66f4\u591a',
+    loadingMoreSessions: '\u6b63\u5728\u52a0\u8f7d\u66f4\u591a\u4f1a\u8bdd...',
+    failedToLoadMoreSessions: '\u52a0\u8f7d\u66f4\u591a\u4f1a\u8bdd\u5931\u8d25',
     collapseSessions: '\u6536\u8d77\u4f1a\u8bdd',
   },
 });

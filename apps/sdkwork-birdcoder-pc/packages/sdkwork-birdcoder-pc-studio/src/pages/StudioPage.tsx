@@ -98,6 +98,7 @@ function StudioPageComponent({
     editCodingSessionMessage,
     deleteCodingSessionMessage,
     loadMoreProjects,
+    loadMoreProjectSessions,
   } = useProjects(workspaceId, {
     isActive: isVisible,
     targetProjectId: projectId,
@@ -1251,6 +1252,7 @@ function StudioPageComponent({
         onSelectCodingSession={handleSelectCodingSession}
         onCreateProject={handleCreateSidebarProject}
         onLoadMoreProjects={loadMoreProjects}
+        onLoadMoreProjectSessions={loadMoreProjectSessions}
         onOpenFolder={handleOpenSidebarFolder}
         onCreateCodingSession={createStudioCodingSessionInProject}
         onRefreshProjectSessions={handleRefreshProjectSessions}

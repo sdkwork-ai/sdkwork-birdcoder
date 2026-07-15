@@ -1,4 +1,6 @@
 export * from './platform/openLocalFolder.ts';
+export * from './platform/tauriNativeSessions.ts';
+export * from './platform/browserDeploymentWorkspaceRuntime.ts';
 export * from './storage/appConsoleRepository.ts';
 export * from './storage/codingSessionRepository.ts';
 export * from './storage/codingSessionPromptEntryRepository.ts';
@@ -14,6 +16,8 @@ export * from './services/backendSdkTransport.ts';
 export * from './services/consoleQueries.ts';
 export * from './services/appRuntimeTransport.ts';
 export * from './services/defaultIdeServicesRuntime.ts';
+export * from './services/defaultIdeServices.ts';
+export * from './services/runtimeTopology.ts';
 export * from './services/defaultIdeServicesShared.ts';
 export * from './services/lazyDefaultIdeServices.ts';
 export * from './services/appSessionToken.ts';

@@ -30,6 +30,8 @@ export default defineLocaleModule('chat', {
     prompts: 'Prompts',
     modelVendors: 'Model Vendors',
     noModelsForVendor: 'No models available for this vendor.',
+    modelCatalogFallback: 'Code model',
+    modelCatalogLoading: 'The code model catalog is still loading',
     uploadFile: 'Upload File',
     uploadFolder: 'Upload Folder',
     uploadImage: 'Upload Image',
@@ -98,5 +100,12 @@ export default defineLocaleModule('chat', {
     restoreChanges: 'Restore',
     engineUnavailableModels:
       '{{engine}} is not routed through the Rust server yet. Model selection stays read-only until the adapter is implemented.',
+  },
+  playground: {
+    modelPicker: {
+      vendorSection: 'Provider',
+      noVendors: 'No providers available',
+      noVendorModels: 'No models are available for this provider.',
+    },
   },
 });

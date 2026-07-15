@@ -1840,6 +1840,39 @@ const richReplayProject: BirdCoderProject = {
 };
 const richReplayAppClient = createBirdCoderAppSdkApiClient({
   transport: createBirdCoderInProcessAppRuntimeTransport({
+    nativeSessionProvider: {
+      async getNativeSession() {
+        return {
+          summary: {
+            ...richReplaySession,
+            kind: 'coding',
+            nativeCwd: 'E:/workspace/rich-replay',
+            sortTimestamp: richReplaySession.updatedAt,
+          },
+          messages: richReplaySession.messages,
+        };
+      },
+      async listNativeSessionPage() {
+        return {
+          items: [
+            {
+              ...richReplaySession,
+              kind: 'coding',
+              nativeCwd: 'E:/workspace/rich-replay',
+              sortTimestamp: richReplaySession.updatedAt,
+            },
+          ],
+          pageInfo: {
+            hasMore: false,
+            mode: 'offset',
+            page: 1,
+            pageSize: 20,
+            totalItems: '1',
+            totalPages: 1,
+          },
+        };
+      },
+    } as never,
     projectService: {
       async getProjectById(projectId: string) {
         return projectId === richReplayProject.id ? richReplayProject : null;
@@ -1860,11 +1893,12 @@ assert.deepEqual(
 );
 const richReplayNativeSessionList = await richReplayAppClient.listNativeSessions({
   workspaceId: richReplaySession.workspaceId,
+  projectId: richReplaySession.projectId,
 });
 assert.deepEqual(
   richReplayNativeSessionList.map((session) => session.id),
   [richReplaySession.id],
-  'in-process app runtime should list native sessions from a minimal projectService through the same paged project inventory fallback',
+  'in-process app runtime should list native sessions only through its explicitly injected native provider',
 );
 const richReplayEvents = await richReplayAppClient.listCodingSessionEvents(
   richReplaySession.id,
@@ -1949,6 +1983,10 @@ assert.equal(
 
 const richReplayNativeSession = await richReplayAppClient.getNativeSession(
   richReplaySession.id,
+  {
+    workspaceId: richReplaySession.workspaceId,
+    projectId: richReplaySession.projectId,
+  },
 );
 const richReplayNativeAssistantMessage = richReplayNativeSession.messages.find(
   (message) => message.role === 'assistant',
@@ -1980,6 +2018,8 @@ assert.equal(
 const authorityBackedNativeRecord = await readAuthorityBackedNativeSessionRecord(
   richReplaySession.id,
   {
+    workspaceId: richReplaySession.workspaceId,
+    projectId: richReplaySession.projectId,
     appRuntimeReadService: {
       async getNativeSession() {
         return richReplayNativeSession;

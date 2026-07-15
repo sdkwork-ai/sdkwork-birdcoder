@@ -1,6 +1,14 @@
 export const BIRDCODER_APP_SETTINGS_STORAGE_SCOPE = 'settings';
 export const BIRDCODER_APP_SETTINGS_STORAGE_KEY = 'app';
 const BIRDCODER_LOCAL_STORE_NAMESPACE = 'sdkwork-birdcoder';
+const BIRDCODER_BROWSER_LOCAL_API_HOSTNAMES = new Set([
+  'localhost',
+  'tauri.localhost',
+  '127.0.0.1',
+  '::1',
+  '0.0.0.0',
+  '::',
+]);
 
 type TauriInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>;
 type TauriWindow = Window &
@@ -23,6 +31,11 @@ export interface ResolveBirdCoderBootstrapServerBaseUrlOptions {
   configuredApiBaseUrl?: string;
   runtimeApiBaseUrl?: string;
   storedApiBaseUrl?: string;
+}
+
+export interface ResolveBirdCoderBrowserServerBaseUrlOptions {
+  browserLocationUrl?: string;
+  preferSameOrigin?: boolean;
 }
 
 export function normalizeBirdCoderServerBaseUrl(value?: string | null): string | undefined {
@@ -118,4 +131,45 @@ export function resolveBirdCoderBootstrapServerBaseUrl({
     normalizeBirdCoderServerBaseUrl(storedApiBaseUrl) ??
     normalizeBirdCoderServerBaseUrl(configuredApiBaseUrl)
   );
+}
+
+function isBrowserLocalApiHostname(hostname: string): boolean {
+  const normalizedHostname = hostname.trim().toLowerCase();
+  return (
+    BIRDCODER_BROWSER_LOCAL_API_HOSTNAMES.has(normalizedHostname) ||
+    /^127(?:\.\d{1,3}){3}$/u.test(normalizedHostname)
+  );
+}
+
+/**
+ * Makes a loopback API URL reachable from the computer that opened the web UI.
+ * Desktop runtimes do not call this resolver and keep their embedded loopback URL.
+ */
+export function resolveBirdCoderBrowserServerBaseUrl(
+  apiBaseUrl?: string,
+  options: ResolveBirdCoderBrowserServerBaseUrlOptions = {},
+): string | undefined {
+  const normalizedApiBaseUrl = normalizeBirdCoderServerBaseUrl(apiBaseUrl);
+  const normalizedBrowserLocationUrl = normalizeBirdCoderServerBaseUrl(
+    options.browserLocationUrl,
+  );
+  if (!normalizedApiBaseUrl || !normalizedBrowserLocationUrl) {
+    return normalizedApiBaseUrl;
+  }
+
+  const apiUrl = new URL(normalizedApiBaseUrl);
+  if (!isBrowserLocalApiHostname(apiUrl.hostname)) {
+    return normalizedApiBaseUrl;
+  }
+
+  const browserUrl = new URL(normalizedBrowserLocationUrl);
+  if (options.preferSameOrigin) {
+    return browserUrl.origin;
+  }
+  if (isBrowserLocalApiHostname(browserUrl.hostname)) {
+    return normalizedApiBaseUrl;
+  }
+
+  apiUrl.hostname = browserUrl.hostname;
+  return normalizeBirdCoderServerBaseUrl(apiUrl.toString());
 }

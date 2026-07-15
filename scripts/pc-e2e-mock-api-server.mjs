@@ -19,13 +19,31 @@ import {
 
 const port = Number(process.env.PC_E2E_MOCK_API_PORT ?? 10240);
 const host = process.env.PC_E2E_MOCK_API_HOST ?? '127.0.0.1';
+const allowedOrigins = new Set(
+  (process.env.PC_E2E_ALLOWED_ORIGINS ?? 'http://127.0.0.1:5173,http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+);
 
-function writeJson(response, statusCode, payload) {
+function corsHeaders(request) {
+  const origin = request.headers.origin?.trim();
+  if (!origin || !allowedOrigins.has(origin)) {
+    return {};
+  }
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
+    Vary: 'Origin',
+  };
+}
+
+function writeJson(request, response, statusCode, payload) {
   const body = `${JSON.stringify(payload)}\n`;
   response.writeHead(statusCode, {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-store',
-    'Access-Control-Allow-Origin': '*',
+    ...corsHeaders(request),
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Access-Token, Content-Type, X-Request-Id',
   });
@@ -222,7 +240,7 @@ const server = http.createServer(async (request, response) => {
 
   if (route.payload === null) {
     response.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
+      ...corsHeaders(request),
       'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Authorization, Access-Token, Content-Type, X-Request-Id',
     });
@@ -230,7 +248,7 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
-  writeJson(response, route.statusCode, route.payload);
+  writeJson(request, response, route.statusCode, route.payload);
 });
 
 server.listen(port, host, () => {

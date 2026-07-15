@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import type {
   BirdCoderCodingSession,
   BirdCoderCodingSessionSummary,
@@ -10,6 +11,30 @@ import {
   synchronizeProjectsSessionsFromAuthority,
 } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/projectSessionSynchronization.ts';
 import type { IProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/services/interfaces/IProjectService.ts';
+
+const sessionInventorySource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-commons/src/workbench/sessionInventory.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+
+assert.match(
+  sessionInventorySource,
+  /import \{[\s\S]*?listStoredTerminalSessions,[\s\S]*?type TerminalSessionRecord,[\s\S]*?\} from '\.\.\/terminal\/sessions\.ts';/,
+  'session authority must use the canonical terminal inventory export without an ineffective dynamic import.',
+);
+assert.match(
+  sessionInventorySource,
+  /try \{[\s\S]*?return listStoredTerminalSessions\(options\);[\s\S]*?catch \(error\)/,
+  'session authority must isolate optional terminal inventory failures without hiding provider sessions.',
+);
+assert.doesNotMatch(
+  sessionInventorySource,
+  /import\('\.\.\/terminal\/sessions\.ts'\)/,
+  'session authority must not retain an ineffective dynamic import for a module already exported by the commons package.',
+);
 
 const workspaceId = 'workspace-session-authority-sync';
 const projectId = 'project-session-authority-sync';
@@ -258,14 +283,313 @@ const boundedSync = await synchronizeProjectSessionsFromAuthority({
 });
 assert.equal(
   boundedSync.project.codingSessions.length,
-  200,
-  'a synchronization pass must cap the merged projection/native page at 200 sessions.',
+  6,
+  'initial project synchronization must retain five visible sessions plus one hidden sentinel.',
 );
 assert.equal(
   boundedUpserts.length,
-  200,
-  'a synchronization pass must not write more than the bounded merged session page.',
+  6,
+  'initial project synchronization must only mirror the bounded session prefix.',
 );
+assert.equal(
+  boundedSync.hasMoreSessions,
+  true,
+  'the hidden sentinel must report that the project still has additional authority sessions.',
+);
+assert.equal(boundedSync.loadedSessionCount, 6);
+
+const expandedToFifteen = await synchronizeProjectSessionsFromAuthority({
+  appRuntimeReadService: {
+    async listCodingSessions() {
+      return boundedProjectionSummaries;
+    },
+    async listNativeSessions() {
+      return boundedNativeSummaries;
+    },
+  } as never,
+  project: boundedSync.project,
+  projectService: {
+    async upsertCodingSession() {},
+  } as IProjectService,
+  sessionLimit: 16,
+});
+assert.equal(
+  expandedToFifteen.project.codingSessions.length,
+  16,
+  'the first Show more target must retain fifteen visible sessions plus one hidden sentinel.',
+);
+assert.equal(expandedToFifteen.hasMoreSessions, true);
+
+const expandedToTwentyFive = await synchronizeProjectSessionsFromAuthority({
+  appRuntimeReadService: {
+    async listCodingSessions() {
+      return boundedProjectionSummaries;
+    },
+    async listNativeSessions() {
+      return boundedNativeSummaries;
+    },
+  } as never,
+  project: expandedToFifteen.project,
+  projectService: {
+    async upsertCodingSession() {},
+  } as IProjectService,
+  sessionLimit: 26,
+});
+assert.equal(
+  expandedToTwentyFive.project.codingSessions.length,
+  26,
+  'the second Show more target must retain twenty-five visible sessions plus one hidden sentinel.',
+);
+assert.equal(expandedToTwentyFive.hasMoreSessions, true);
+
+const pagedProviderIds = ['codex', 'claude-code', 'gemini', 'opencode'] as const;
+const pagedBaseTimestamp = Date.parse('2026-07-15T03:00:00.000Z');
+const pagedProjectionSummaries = Array.from({ length: 240 }, (_, index) => {
+  const isSharedWithNative = index < 180;
+  const engineId = pagedProviderIds[index % pagedProviderIds.length];
+  return buildProjectionSummary({
+    id: isSharedWithNative
+      ? `paged-projection-shared-${index}`
+      : `paged-projection-only-${index}`,
+    engineId,
+    modelId: `${engineId}-model`,
+    nativeSessionId: isSharedWithNative
+      ? `paged-shared-${index}`
+      : `paged-projection-only-native-${index}`,
+    title: isSharedWithNative
+      ? `Paged shared projection ${index}`
+      : `Paged projection only ${index}`,
+    updatedAt: new Date(pagedBaseTimestamp + index).toISOString(),
+    lastTurnAt: new Date(pagedBaseTimestamp + index).toISOString(),
+    sortTimestamp: String(pagedBaseTimestamp + index),
+    transcriptUpdatedAt: new Date(pagedBaseTimestamp + index).toISOString(),
+  });
+});
+const pagedSharedNativeSummaries = Array.from({ length: 180 }, (_, index) => {
+  const engineId = pagedProviderIds[index % pagedProviderIds.length];
+  const activityTimestamp = pagedBaseTimestamp + 10_000 + index;
+  return buildNativeSummary({
+    id: `${engineId}-native:paged-shared-${index}`,
+    engineId,
+    modelId: `${engineId}-model`,
+    nativeSessionId: `paged-shared-${index}`,
+    title: `Paged shared native ${index}`,
+    updatedAt: new Date(activityTimestamp).toISOString(),
+    lastTurnAt: new Date(activityTimestamp).toISOString(),
+    sortTimestamp: String(activityTimestamp),
+    transcriptUpdatedAt: new Date(activityTimestamp).toISOString(),
+  });
+});
+const pagedNativeOnlySummaries = Array.from({ length: 60 }, (_, index) => {
+  const engineId = index === 0
+    ? 'codex'
+    : index === 1
+      ? 'gemini'
+      : pagedProviderIds[(index + 1) % pagedProviderIds.length];
+  const activityTimestamp = pagedBaseTimestamp + 20_000 + index;
+  const crossProviderNativeId = index < 2
+    ? 'same-native-id-across-providers'
+    : `paged-native-only-${index}`;
+  return buildNativeSummary({
+    id: `${engineId}-native:${crossProviderNativeId}`,
+    engineId,
+    modelId: `${engineId}-model`,
+    nativeSessionId: crossProviderNativeId,
+    title: `Paged native only ${index}`,
+    updatedAt: new Date(activityTimestamp).toISOString(),
+    lastTurnAt: new Date(activityTimestamp).toISOString(),
+    sortTimestamp: String(activityTimestamp),
+    transcriptUpdatedAt: new Date(activityTimestamp).toISOString(),
+  });
+});
+const pagedNativeSummaries = [
+  ...pagedSharedNativeSummaries.slice(100),
+  ...pagedNativeOnlySummaries,
+  ...pagedSharedNativeSummaries.slice(0, 100),
+];
+const projectionPageRequests: Array<{ limit?: number; offset?: number }> = [];
+const nativePageRequests: Array<{ limit?: number; offset?: number }> = [];
+const buildRuntimePage = <T,>(
+  items: readonly T[],
+  request: { limit?: number; offset?: number } | undefined,
+) => {
+  const limit = request?.limit ?? 20;
+  const offset = request?.offset ?? 0;
+  const pageItems = items.slice(offset, offset + limit);
+  return {
+    items: pageItems,
+    pageInfo: {
+      hasMore: offset + pageItems.length < items.length,
+    },
+  };
+};
+const pagedUpserts: BirdCoderCodingSession[] = [];
+const pagedSync = await synchronizeProjectSessionsFromAuthority({
+  appRuntimeReadService: {
+    async listCodingSessions() {
+      throw new Error('paged authority synchronization must use listCodingSessionPage');
+    },
+    async listCodingSessionPage(request) {
+      assert.equal(request?.workspaceId, workspaceId);
+      assert.equal(request?.projectId, projectId);
+      projectionPageRequests.push({ limit: request?.limit, offset: request?.offset });
+      return buildRuntimePage(pagedProjectionSummaries, request);
+    },
+    async listNativeSessions() {
+      throw new Error('paged authority synchronization must use listNativeSessionPage');
+    },
+    async listNativeSessionPage(request) {
+      assert.equal(request?.workspaceId, workspaceId);
+      assert.equal(request?.projectId, projectId);
+      nativePageRequests.push({ limit: request?.limit, offset: request?.offset });
+      return buildRuntimePage(pagedNativeSummaries, request);
+    },
+  },
+  project: {
+    ...project,
+    codingSessions: [],
+  },
+  projectService: {
+    async upsertCodingSession(_projectId: string, codingSession: BirdCoderCodingSession) {
+      pagedUpserts.push(codingSession);
+    },
+  } as IProjectService,
+  sessionLimit: 300,
+});
+
+assert.deepEqual(
+  projectionPageRequests,
+  [
+    { limit: 200, offset: 0 },
+    { limit: 200, offset: 200 },
+  ],
+  'projection inventory must continue beyond the first 200-session authority page.',
+);
+assert.deepEqual(
+  nativePageRequests,
+  [
+    { limit: 200, offset: 0 },
+    { limit: 200, offset: 200 },
+  ],
+  'native provider inventory must continue beyond the first 200-session authority page.',
+);
+assert.equal(
+  pagedSync.project.codingSessions.length,
+  300,
+  'cross-page projection and native inventories must merge into the complete 300-session project list.',
+);
+assert.equal(pagedSync.loadedSessionCount, 300);
+assert.equal(pagedSync.hasMoreSessions, false);
+assert.equal(pagedUpserts.length, 300);
+assert.equal(
+  pagedSync.project.codingSessions.filter((session) =>
+    session.nativeSessionId?.startsWith('paged-shared-'),
+  ).length,
+  180,
+  'projection/native snapshots for the same provider session must deduplicate even when they land on different source pages.',
+);
+assert.deepEqual(
+  new Set(pagedSync.project.codingSessions.map((session) => session.engineId)),
+  new Set(pagedProviderIds),
+  'the complete project inventory must retain Codex, Claude Code, Gemini, and OpenCode sessions.',
+);
+assert.equal(
+  pagedSync.project.codingSessions.filter(
+    (session) => session.nativeSessionId === 'same-native-id-across-providers',
+  ).length,
+  2,
+  'equal native ids owned by different providers must remain separate sessions.',
+);
+assert.deepEqual(
+  pagedSync.project.codingSessions
+    .filter((session) => session.nativeSessionId === 'same-native-id-across-providers')
+    .map((session) => session.id)
+    .sort(),
+  [
+    'codex-native:same-native-id-across-providers',
+    'gemini-native:same-native-id-across-providers',
+  ],
+  'every member of a cross-provider id collision must receive a stable provider-scoped id independent of activity order.',
+);
+assert.equal(
+  new Set(pagedSync.project.codingSessions.map((session) => session.id)).size,
+  pagedSync.project.codingSessions.length,
+  'provider-scoped native sessions must retain unique unified session ids for stable IDE row identity.',
+);
+
+const stagedNativeProject = {
+  ...project,
+  codingSessions: [],
+};
+const stagedNativeSession = buildNativeSummary({
+  engineId: 'codex',
+  id: 'codex-native:stable-cross-page-id',
+  nativeSessionId: 'codex-native:stable-cross-page-id',
+  projectId,
+  workspaceId,
+});
+const firstStagedSync = await synchronizeProjectSessionsFromAuthority({
+  appRuntimeReadService: {
+    async listCodingSessions() {
+      return [];
+    },
+    async listNativeSessions() {
+      return [stagedNativeSession];
+    },
+  } as never,
+  project: stagedNativeProject,
+  projectService: {
+    async upsertCodingSession() {},
+  } as IProjectService,
+});
+const firstStagedId = firstStagedSync.project.codingSessions[0]?.id;
+assert.equal(
+  firstStagedId,
+  'codex-native:stable-cross-page-id',
+  'a native-only session must receive its provider-scoped id on the first page.',
+);
+const secondStagedSync = await synchronizeProjectSessionsFromAuthority({
+  appRuntimeReadService: {
+    async listCodingSessions() {
+      return [];
+    },
+    async listNativeSessions() {
+      return [
+        stagedNativeSession,
+        buildNativeSummary({
+          engineId: 'gemini',
+          id: 'gemini-native:stable-cross-page-id',
+          nativeSessionId: 'gemini-native:stable-cross-page-id',
+          projectId,
+          workspaceId,
+        }),
+      ];
+    },
+  } as never,
+  project: firstStagedSync.project,
+  projectService: {
+    async upsertCodingSession() {},
+  } as IProjectService,
+});
+assert.equal(
+  secondStagedSync.project.codingSessions.find((session) => session.engineId === 'codex')?.id,
+  firstStagedId,
+  'adding a same-raw-id session from another provider must not rename an already loaded row.',
+);
+assert.equal(
+  secondStagedSync.project.codingSessions.find((session) => session.engineId === 'gemini')?.id,
+  'gemini-native:stable-cross-page-id',
+);
+
+for (let index = 1; index < pagedSync.project.codingSessions.length; index += 1) {
+  const previous = pagedSync.project.codingSessions[index - 1];
+  const current = pagedSync.project.codingSessions[index];
+  assert.ok(previous && current);
+  assert.ok(
+    BigInt(previous.sortTimestamp ?? '0') >= BigInt(current.sortTimestamp ?? '0'),
+    'the fully merged cross-provider inventory must remain sorted by latest activity.',
+  );
+}
 
 let batchProjectionReads = 0;
 let batchNativeReads = 0;

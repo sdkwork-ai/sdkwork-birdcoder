@@ -36,6 +36,18 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'Filter resources to a single project.',
     createOpenApiStringSchema(),
   );
+  const requiredWorkspaceIdParameter = createOpenApiQueryParameter(
+    'workspaceId',
+    'Authorized workspace scope for native sessions.',
+    createOpenApiStringSchema(),
+    true,
+  );
+  const requiredProjectIdParameter = createOpenApiQueryParameter(
+    'projectId',
+    'Authorized project scope for native sessions.',
+    createOpenApiStringSchema(),
+    true,
+  );
   const engineIdParameter = createOpenApiQueryParameter(
     'engineId',
     'Filter resources to a single code engine.',
@@ -337,8 +349,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     },
     'nativeSessions.list': {
       parameters: [
-        workspaceIdParameter,
-        projectIdParameter,
+        requiredWorkspaceIdParameter,
+        requiredProjectIdParameter,
         engineIdParameter,
         pageParameter,
         pageSizeParameter,
@@ -369,8 +381,8 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'nativeSessions.retrieve': {
       parameters: [
         codingSessionIdPathParameter,
-        workspaceIdParameter,
-        projectIdParameter,
+        requiredWorkspaceIdParameter,
+        requiredProjectIdParameter,
         engineIdParameter,
       ],
       responses: buildOpenApiResponses({

@@ -60,6 +60,321 @@
   }
 }
 
+/* Keep the workbench frame visibly brighter than the session rail and conversation stage. */
+@layer components {
+  .birdcoder-app-shell,
+  .birdcoder-workbench-shell {
+    --birdcoder-chrome-bg: #242428;
+    --birdcoder-chrome-surface: #1b1b1f;
+    --birdcoder-chrome-surface-raised: #242429;
+    --birdcoder-chrome-surface-hover: #29292e;
+    --birdcoder-chrome-border: rgba(255, 255, 255, 0.11);
+    --birdcoder-chrome-border-strong: rgba(255, 255, 255, 0.17);
+    --birdcoder-chrome-text: #f4f4f5;
+    --birdcoder-chrome-text-muted: #a1a1aa;
+    --birdcoder-chrome-text-subtle: #71717a;
+    --birdcoder-chrome-selection: #323238;
+    --birdcoder-chrome-selection-hover: #38383e;
+    --birdcoder-chrome-focus: rgba(255, 255, 255, 0.24);
+    --birdcoder-conversation-bg: #0e0e11;
+  }
+
+  .birdcoder-app-sidebar,
+  .birdcoder-workbench-sidebar {
+    background: var(--birdcoder-chrome-bg);
+    border-color: var(--birdcoder-chrome-border);
+    color: var(--birdcoder-chrome-text-muted);
+  }
+
+  .birdcoder-app-header {
+    background: var(--birdcoder-chrome-bg);
+    border-color: var(--birdcoder-chrome-border);
+    color: var(--birdcoder-chrome-text);
+  }
+
+  .birdcoder-workbench-header {
+    background: var(--birdcoder-conversation-bg);
+    border-color: var(--birdcoder-chrome-border);
+    color: var(--birdcoder-chrome-text);
+  }
+
+  .birdcoder-session-list {
+    background: var(--birdcoder-chrome-surface);
+  }
+
+  .birdcoder-sidebar-session-create {
+    background: var(--birdcoder-chrome-bg);
+    border-bottom: 1px solid var(--birdcoder-chrome-border);
+  }
+
+  .birdcoder-session-search {
+    background: var(--birdcoder-chrome-surface-raised);
+  }
+
+  .birdcoder-session-list .birdcoder-session-selected {
+    background: var(--birdcoder-chrome-selection);
+    color: var(--birdcoder-chrome-text);
+  }
+
+  .birdcoder-session-list .birdcoder-session-row:hover {
+    background: var(--birdcoder-chrome-surface-hover);
+    color: var(--birdcoder-chrome-text);
+  }
+
+  .birdcoder-session-list .birdcoder-session-row.birdcoder-session-selected:hover {
+    background: var(--birdcoder-chrome-selection-hover);
+  }
+
+  .birdcoder-session-list .birdcoder-session-action {
+    background: var(--birdcoder-chrome-surface-raised);
+    border: 1px solid var(--birdcoder-chrome-border);
+  }
+
+  .birdcoder-chrome-menu {
+    background: rgba(41, 41, 46, 0.98);
+    border-color: var(--birdcoder-chrome-border-strong, rgba(255, 255, 255, 0.12));
+  }
+
+  .birdcoder-chrome-menu button:hover,
+  .birdcoder-chrome-menu [role='menuitem']:hover {
+    background: var(--birdcoder-chrome-surface-hover, #1b1b1f);
+  }
+
+  .birdcoder-composer-model-picker .sdkwork-model-picker-trigger {
+    display: flex;
+    min-height: 32px;
+    max-width: 100%;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    padding: 5px 7px;
+    text-align: left;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  .birdcoder-composer-model-picker .sdkwork-model-picker-trigger:hover:not(:disabled),
+  .birdcoder-composer-model-picker .sdkwork-model-picker-trigger[aria-expanded='true'] {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .birdcoder-composer-model-picker .sdkwork-model-picker-trigger:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .birdcoder-composer-model-picker .sdkwork-model-picker-trigger__label {
+    overflow: hidden;
+    color: #e4e4e7;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .birdcoder-composer-model-picker .sdkwork-model-picker-trigger__chevron {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    color: #8b8b94;
+    transition: transform 180ms ease;
+  }
+
+  .birdcoder-composer-model-picker .sdkwork-model-picker-trigger__chevron.is-open {
+    transform: rotate(180deg);
+  }
+
+  .sdkwork-model-picker-menu {
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 0;
+    border-radius: 12px;
+    background: rgba(41, 41, 46, 0.99) !important;
+    color: #e4e4e7;
+    box-shadow: 0 24px 72px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+
+  .sdkwork-model-picker-vendors,
+  .sdkwork-model-picker-models {
+    min-width: 0;
+  }
+
+  .sdkwork-model-picker-vendors {
+    display: flex;
+    height: auto;
+    flex-direction: column;
+    align-self: start;
+    overflow: visible;
+    background: #222226 !important;
+    box-shadow: inset -1px 0 rgba(255, 255, 255, 0.07);
+  }
+
+  .sdkwork-model-picker-vendors--scrollable {
+    height: 100%;
+    min-height: 0;
+    align-self: stretch;
+    overflow: hidden;
+  }
+
+  .sdkwork-model-picker-panel-head {
+    flex: none;
+    padding: 10px 11px 7px;
+  }
+
+  .sdkwork-model-picker-panel-title {
+    display: block;
+    color: #71717a;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .sdkwork-model-picker-vendor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 3px 6px 7px;
+  }
+
+  .sdkwork-model-picker-vendors--scrollable .sdkwork-model-picker-vendor-list {
+    min-height: 0;
+    flex: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .sdkwork-model-picker-vendor-button {
+    position: relative;
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    padding: 8px 9px 8px 11px;
+    color: #a1a1aa;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: left;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  .sdkwork-model-picker-vendor-button:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #e4e4e7;
+  }
+
+  .sdkwork-model-picker-vendor-button[data-active='true'] {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fafafa;
+  }
+
+  .sdkwork-model-picker-vendor-button[data-active='true']::before {
+    position: absolute;
+    top: 7px;
+    bottom: 7px;
+    left: 0;
+    width: 2px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.72);
+    content: '';
+  }
+
+  .sdkwork-model-picker-vendor-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sdkwork-model-picker-vendor-count {
+    min-width: 18px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    padding: 0 5px;
+    color: #8b8b94;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+  }
+
+  .sdkwork-model-picker-models {
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: #29292e !important;
+    padding: 6px;
+  }
+
+  .sdkwork-model-picker-model-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sdkwork-model-picker-model-button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    padding: 9px 10px;
+    text-align: left;
+    transition: background-color 150ms ease;
+  }
+
+  .sdkwork-model-picker-model-button:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .sdkwork-model-picker-model-button[data-active='true'] {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .sdkwork-model-picker-model-name {
+    display: block;
+    color: #d4d4d8;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  .sdkwork-model-picker-model-name.is-active {
+    color: #ffffff;
+  }
+
+  .sdkwork-model-picker-model-desc {
+    margin-top: 2px;
+    color: #71717a;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .sdkwork-model-picker-model-check {
+    flex: none;
+    color: #e4e4e7;
+  }
+
+  .sdkwork-model-picker-empty {
+    padding: 24px 14px;
+    color: #71717a;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+  }
+}
+
 /* Shared startup surface used by runtime, auth, and lazy workspace phases. */
 .sdkwork-startup-screen {
   align-items: center;

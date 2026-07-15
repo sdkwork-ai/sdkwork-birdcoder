@@ -79,8 +79,8 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
 
   return (
     <div
-      className={`${paddingClassName} py-1.5 relative group flex w-full min-w-0 max-w-full items-center justify-between overflow-hidden cursor-pointer rounded-md transition-colors ${
-        isSelected ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-white/10'
+      className={`birdcoder-session-row ${isSelected ? 'birdcoder-session-selected' : ''} ${paddingClassName} py-1.5 relative group flex w-full min-w-0 max-w-full items-center justify-between overflow-hidden cursor-pointer rounded-md transition-colors ${
+        isSelected ? 'text-white' : 'text-gray-400'
       }`}
       style={buildProjectExplorerSurfaceStyle('36px')}
       onClick={() => onSelectCodingSession(session.id, resolvedSessionProjectId)}
@@ -134,7 +134,7 @@ export const ProjectExplorerSessionRow = React.memo(function ProjectExplorerSess
       {!isRenaming && (
         <button
           type="button"
-          className="pointer-events-none absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md bg-[#18181b]/95 p-1 text-gray-500 opacity-0 shadow-lg ring-1 ring-white/10 transition-all hover:bg-white/10 hover:text-white group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
+          className="birdcoder-session-action pointer-events-none absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md p-1 text-gray-500 opacity-0 transition-colors hover:bg-white/10 hover:text-white group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100"
           title={moreActionsLabel}
           onClick={(event) => onCodingSessionContextMenu(event, session.id, resolvedSessionProjectId)}
         >

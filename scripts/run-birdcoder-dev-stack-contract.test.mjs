@@ -4,6 +4,7 @@ import net from 'node:net';
 
 const {
   applyClientLoopbackPortFallback,
+  resolveClientAccessUrls,
   runBirdcoderDevStack,
 } = await import('./run-birdcoder-dev-stack.mjs');
 
@@ -35,6 +36,45 @@ assert.deepEqual(
 assert.ok(
   readDefaultServerReadyTimeoutMs() >= 120000,
   'dev stack readiness must allow a first cargo run compile before declaring the server unavailable.',
+);
+
+assert.deepEqual(
+  resolveClientAccessUrls({
+    host: '0.0.0.0',
+    port: 3000,
+    networkInterfaces: {
+      ethernet: [
+        { address: '192.168.1.8', family: 'IPv4', internal: false },
+        { address: 'fe80::1', family: 'IPv6', internal: false },
+      ],
+      loopback: [
+        { address: '127.0.0.1', family: 'IPv4', internal: true },
+      ],
+      wifi: [
+        { address: '10.0.0.6', family: 'IPv4', internal: false },
+      ],
+    },
+  }),
+  [
+    'http://127.0.0.1:3000',
+    'http://10.0.0.6:3000',
+    'http://192.168.1.8:3000',
+  ],
+  'web dev stack must expose deterministic local and LAN URLs for every non-loopback IPv4 interface.',
+);
+
+assert.deepEqual(
+  resolveClientAccessUrls({
+    host: '127.0.0.1',
+    port: 3000,
+    networkInterfaces: {
+      wifi: [
+        { address: '192.168.1.8', family: 'IPv4', internal: false },
+      ],
+    },
+  }),
+  ['http://127.0.0.1:3000'],
+  'an explicit loopback-only client host must not advertise an unreachable LAN URL.',
 );
 
 function listen(server, { host, port }) {
@@ -171,6 +211,11 @@ const defaultDryRun = await captureRunBirdcoderDevStack([
     stdout,
     /\[birdcoder-stack\] client=.*--host 127\.0\.0\.1 --port 4173/u,
     'passthrough browser-host arguments should stay attached to the client plan when pnpm forwards them after "--".',
+  );
+  assert.match(
+    stdout,
+    /\[birdcoder-stack\] client=.*--strictPort/u,
+    'web dev startup must lock the selected port so the readiness probe and advertised URLs cannot drift from Vite.',
   );
   assert.match(
     stdout,

@@ -2,9 +2,9 @@ import { createRoot } from 'react-dom/client';
 import {
   BootstrapGate,
   bootstrapShellRuntime,
-  isBirdCoderLocalRuntimeApiBaseUrl,
   normalizeBirdCoderServerBaseUrl,
   readStoredBirdCoderServerBaseUrl,
+  resolveBirdCoderBrowserServerBaseUrl,
   resolveBirdCoderBootstrapServerBaseUrl,
   waitForBirdCoderApiReady,
 } from '@sdkwork/birdcoder-pc-shell-runtime';
@@ -32,21 +32,10 @@ function readConfiguredApiBaseUrl(): string | undefined {
   );
 }
 
-function resolveDevelopmentApiBaseUrl(apiBaseUrl?: string): string | undefined {
+function isDevelopmentBrowserRuntime(): boolean {
   const runtimeGlobal = globalThis as typeof globalThis & BirdCoderRuntimeGlobal;
-  if (
-    !apiBaseUrl ||
-    runtimeGlobal.__SDKWORK_PC_REACT_ENV__?.DEV !== 'true' ||
-    typeof window === 'undefined' ||
-    !isBirdCoderLocalRuntimeApiBaseUrl(apiBaseUrl)
-  ) {
-    return apiBaseUrl;
-  }
-
-  // Keep browser development requests same-origin. Vite proxies the API
-  // paths to the configured local server, which avoids requiring every
-  // ephemeral dev port to be added to the gateway CORS allow-list.
-  return window.location.origin;
+  return import.meta.env.DEV ||
+    runtimeGlobal.__SDKWORK_PC_REACT_ENV__?.DEV === 'true';
 }
 
 async function bootstrapRuntime() {
@@ -56,7 +45,10 @@ async function bootstrapRuntime() {
     configuredApiBaseUrl: configuredRuntimeApiBaseUrl,
     storedApiBaseUrl,
   });
-  const resolvedApiBaseUrl = resolveDevelopmentApiBaseUrl(configuredApiBaseUrl);
+  const resolvedApiBaseUrl = resolveBirdCoderBrowserServerBaseUrl(configuredApiBaseUrl, {
+    browserLocationUrl: window.location.href,
+    preferSameOrigin: isDevelopmentBrowserRuntime(),
+  });
 
   await waitForBirdCoderApiReady(resolvedApiBaseUrl);
   await bootstrapShellRuntime({

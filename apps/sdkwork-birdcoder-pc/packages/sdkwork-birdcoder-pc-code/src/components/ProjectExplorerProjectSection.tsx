@@ -1,5 +1,12 @@
 import React from 'react';
-import { Archive, ChevronDown, ChevronRight, Folder, MoreHorizontal, Plus } from 'lucide-react';
+import {
+  Archive,
+  Folder,
+  FolderOpen,
+  Loader2,
+  MoreHorizontal,
+  Plus,
+} from 'lucide-react';
 import type { ProjectExplorerProjectEntry } from './ProjectExplorer.shared';
 import { buildProjectExplorerSurfaceStyle } from './ProjectExplorer.shared';
 import { ProjectExplorerSessionRow } from './ProjectExplorerSessionRow';
@@ -15,7 +22,10 @@ export interface ProjectExplorerProjectSectionProps {
   isRenamingProject: boolean;
   projectRenameValue: string;
   noSessionsLabel: string;
-  toggleSessionExpansionLabel: string;
+  expandProjectLabel: string;
+  collapseProjectLabel: string;
+  loadMoreSessionsLabel: string;
+  loadingMoreSessionsLabel: string;
   defaultNewSessionEngineId: string;
   defaultNewSessionModelId: string;
   newSessionInProjectLabel: string;
@@ -51,11 +61,10 @@ export interface ProjectExplorerProjectSectionProps {
     currentTitle: string,
   ) => void;
   onSessionRenameCancel: () => void;
-  onToggleSessionExpansion: (
+  onLoadMoreProjectSessions: (
     projectId: string,
-    filteredSessionCount: number,
-    canShowMoreSessions: boolean,
-  ) => void;
+    requestedCount: number,
+  ) => Promise<void> | void;
 }
 
 export const ProjectExplorerProjectSection = React.memo(function ProjectExplorerProjectSection({
@@ -69,7 +78,10 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
   isRenamingProject,
   projectRenameValue,
   noSessionsLabel,
-  toggleSessionExpansionLabel,
+  expandProjectLabel,
+  collapseProjectLabel,
+  loadMoreSessionsLabel,
+  loadingMoreSessionsLabel,
   defaultNewSessionEngineId,
   defaultNewSessionModelId,
   newSessionInProjectLabel,
@@ -93,9 +105,15 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
   onSessionRenameValueChange,
   onSessionRenameSubmit,
   onSessionRenameCancel,
-  onToggleSessionExpansion,
+  onLoadMoreProjectSessions,
 }: ProjectExplorerProjectSectionProps) {
   const { project, filteredSessions, visibleSessions } = entry;
+  const sessionsRegionId = React.useId();
+
+  const handleProjectRowClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    onSelectProject(project.id);
+    onToggleProject(project.id, event);
+  };
 
   return (
     <div
@@ -103,26 +121,27 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
       style={buildProjectExplorerSurfaceStyle(expanded ? '260px' : '44px')}
     >
       <div
-        className={`relative flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors group ${
-          isSelectedProject ? 'bg-white/10 text-white' : 'text-gray-300 hover:bg-white/10'
+        className={`birdcoder-session-row ${isSelectedProject ? 'birdcoder-session-selected' : ''} relative flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors group ${
+          isSelectedProject ? 'text-white' : 'text-gray-300'
         }`}
-        onClick={() => onSelectProject(project.id)}
+        onClick={handleProjectRowClick}
         onContextMenu={(event) => onProjectContextMenu(event, project.id)}
       >
-        <div
-          className={`transition-colors p-0.5 rounded-sm hover:bg-white/20 ${
-            isSelectedProject ? 'text-gray-300' : 'text-gray-500 group-hover:text-gray-300'
+        <button
+          type="button"
+          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:bg-white/10 focus-visible:outline-none ${
+            isSelectedProject
+              ? 'text-gray-100 hover:bg-white/10'
+              : 'text-gray-400 hover:bg-white/[0.08] hover:text-gray-200 group-hover:text-gray-300'
           }`}
           onClick={(event) => onToggleProject(project.id, event)}
+          aria-expanded={expanded}
+          aria-controls={sessionsRegionId}
+          aria-label={expanded ? collapseProjectLabel : expandProjectLabel}
+          title={expanded ? collapseProjectLabel : expandProjectLabel}
         >
-          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </div>
-        <Folder
-          size={14}
-          className={`transition-colors ${
-            isSelectedProject ? 'text-blue-400' : 'text-gray-400 group-hover:text-gray-300'
-          }`}
-        />
+          {expanded ? <FolderOpen size={15} aria-hidden="true" /> : <Folder size={15} aria-hidden="true" />}
+        </button>
         {project.archived && <Archive size={14} className="text-gray-500 shrink-0" />}
         {isRenamingProject ? (
           <input
@@ -145,7 +164,7 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
           <span className="min-w-0 flex-1 truncate font-medium">{project.name}</span>
         )}
         {!isRenamingProject && (
-          <div className="absolute right-2 pointer-events-none flex items-center gap-1 rounded-md bg-[#18181b]/80 px-1 opacity-0 transition-all group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+          <div className="birdcoder-session-action absolute right-2 pointer-events-none flex items-center gap-1 rounded-md px-1 opacity-0 transition-all group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
             <button
               type="button"
               className="rounded-md p-1 text-gray-500 transition-all hover:bg-white/10 hover:text-white"
@@ -173,60 +192,72 @@ export const ProjectExplorerProjectSection = React.memo(function ProjectExplorer
         )}
       </div>
 
-      {expanded && (
-        <div className="flex flex-col mt-0.5">
+      <div
+        id={sessionsRegionId}
+        className="grid min-h-0 transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none"
+        style={{
+          gridTemplateRows: expanded ? '1fr' : '0fr',
+          opacity: expanded ? 1 : 0,
+        }}
+        aria-hidden={!expanded}
+        inert={!expanded}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="flex flex-col mt-0.5">
           {filteredSessions.length > 0 ? (
-            <>
-              {visibleSessions.map((session) => (
-                <ProjectExplorerSessionRow
-                  key={session.id}
-                  relativeTimeNow={relativeTimeNow}
-                  session={session}
-                  sessionProjectId={project.id}
-                  isSelected={selectedVisibleSessionId === session.id}
-                  isRenaming={renamingVisibleSessionId === session.id}
-                  renameValue={renamingVisibleSessionId === session.id ? sessionRenameValue : ''}
-                  paddingClassName="pl-8 pr-2"
-                  awaitingApprovalSessionLabel={awaitingApprovalSessionLabel}
-                  awaitingToolSessionLabel={awaitingToolSessionLabel}
-                  awaitingUserSessionLabel={awaitingUserSessionLabel}
-                  executingSessionLabel={executingSessionLabel}
-                  initializingSessionLabel={initializingSessionLabel}
-                  failedSessionLabel={failedSessionLabel}
-                  moreActionsLabel={moreActionsLabel}
-                  onSelectCodingSession={onSelectCodingSession}
-                  onCodingSessionContextMenu={onCodingSessionContextMenu}
-                  onRenameValueChange={onSessionRenameValueChange}
-                  onRenameSubmit={onSessionRenameSubmit}
-                  onRenameCancel={onSessionRenameCancel}
-                />
-              ))}
-              {entry.canToggleSessionExpansion && (
-                <button
-                  type="button"
-                  className="ml-8 mt-1 inline-flex items-center justify-start rounded-md px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-200"
-                  onClick={() =>
-                    onToggleSessionExpansion(
-                      project.id,
-                      filteredSessions.length,
-                      entry.canShowMoreSessions,
-                    )
-                  }
-                >
-                  {toggleSessionExpansionLabel}
-                </button>
-              )}
-            </>
-          ) : (
+            visibleSessions.map((session) => (
+              <ProjectExplorerSessionRow
+                key={session.id}
+                relativeTimeNow={relativeTimeNow}
+                session={session}
+                sessionProjectId={project.id}
+                isSelected={selectedVisibleSessionId === session.id}
+                isRenaming={renamingVisibleSessionId === session.id}
+                renameValue={renamingVisibleSessionId === session.id ? sessionRenameValue : ''}
+                paddingClassName="pl-8 pr-2"
+                awaitingApprovalSessionLabel={awaitingApprovalSessionLabel}
+                awaitingToolSessionLabel={awaitingToolSessionLabel}
+                awaitingUserSessionLabel={awaitingUserSessionLabel}
+                executingSessionLabel={executingSessionLabel}
+                initializingSessionLabel={initializingSessionLabel}
+                failedSessionLabel={failedSessionLabel}
+                moreActionsLabel={moreActionsLabel}
+                onSelectCodingSession={onSelectCodingSession}
+                onCodingSessionContextMenu={onCodingSessionContextMenu}
+                onRenameValueChange={onSessionRenameValueChange}
+                onRenameSubmit={onSessionRenameSubmit}
+                onRenameCancel={onSessionRenameCancel}
+              />
+            ))
+          ) : !entry.canShowMoreSessions ? (
             <div
               className="pl-8 py-1 text-gray-500 text-xs italic"
               style={buildProjectExplorerSurfaceStyle('28px')}
             >
               {noSessionsLabel}
             </div>
+          ) : null}
+          {entry.canShowMoreSessions && (
+            <button
+              type="button"
+              className="ml-8 mt-1 inline-flex items-center justify-start gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-200 disabled:cursor-wait disabled:opacity-60"
+                  disabled={entry.isLoadingMoreSessions === true}
+                  aria-busy={entry.isLoadingMoreSessions === true}
+              onClick={() =>
+                onLoadMoreProjectSessions(project.id, entry.nextVisibleSessionCount)
+              }
+            >
+              {entry.isLoadingMoreSessions ? (
+                <Loader2 size={11} className="animate-spin" aria-hidden="true" />
+              ) : null}
+              {entry.isLoadingMoreSessions
+                ? loadingMoreSessionsLabel
+                : loadMoreSessionsLabel}
+            </button>
           )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 });

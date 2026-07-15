@@ -160,13 +160,25 @@ assert.match(
 assert.match(
   universalChatSource,
   /\{currentEngineSummary\}/,
-  'UniversalChat should render the de-duplicated engine summary in both the header and composer selector.',
+  'UniversalChat should render the de-duplicated engine summary in its engine header.',
 );
 
 assert.match(
   universalChatSource,
-  /useEffect\(\(\) => \{\s*setSelectedModelVendor\(\(previousVendor\) =>\s*previousVendor === currentModelVendor \? previousVendor : currentModelVendor,\s*\);\s*\}, \[currentModelVendor, resolvedSelectedEngineId\]\);/s,
-  'UniversalChat should resynchronize its internal model-vendor menu state whenever the externally selected engine changes so session switches cannot leave a stale vendor highlighted.',
+  /import \{ createFallbackModel, ModelPicker \} from '@sdkwork\/models-pc-picker';/,
+  'UniversalChat must consume the shared SDKWork model picker instead of maintaining a local vendor menu.',
+);
+
+assert.match(
+  universalChatSource,
+  /const currentModelPickerId = buildWorkbenchModelPickerId\(\s*resolvedSelectedEngineId,\s*currentModelId,\s*\);/s,
+  'UniversalChat must derive the picker selection from the externally synchronized engine and model.',
+);
+
+assert.match(
+  universalChatSource,
+  /<ModelPicker[\s\S]*onSelectModel=\{handleComposerModelSelect\}[\s\S]*selectedModelId=\{currentModelPickerId\}/s,
+  'UniversalChat must route SDKWork model picker selections through its engine/model selection adapter.',
 );
 
 assert.match(

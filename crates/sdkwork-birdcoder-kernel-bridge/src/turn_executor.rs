@@ -1,5 +1,6 @@
 use sdkwork_birdcoder_codeengine::{
-    build_codeengine_turn_prompt, CodeEngineTurnRequestRecord, CodeEngineTurnResultRecord,
+    build_codeengine_turn_prompt, CodeEngineSessionCommandRecord, CodeEngineTurnRequestRecord,
+    CodeEngineTurnResultRecord,
 };
 
 use crate::engine_registry::KernelEngineSlot;
@@ -20,8 +21,34 @@ pub fn execute_kernel_turn(
     Ok(CodeEngineTurnResultRecord {
         assistant_content: output.assistant_content,
         native_session_id: output.native_session_id,
-        commands: None,
+        commands: (!output.tool_calls.is_empty()).then(|| {
+            output
+                .tool_calls
+                .iter()
+                .map(map_tool_call)
+                .collect::<Vec<_>>()
+        }),
     })
+}
+
+fn map_tool_call(
+    tool_call: &sdkwork_agents_runtime_facade::ToolCall,
+) -> CodeEngineSessionCommandRecord {
+    CodeEngineSessionCommandRecord {
+        command: if tool_call.arguments.trim().is_empty() {
+            tool_call.tool_id.clone()
+        } else {
+            tool_call.arguments.clone()
+        },
+        status: "pending".to_owned(),
+        kind: Some("tool_call".to_owned()),
+        tool_name: Some(tool_call.tool_id.clone()),
+        tool_call_id: Some(tool_call.tool_call_id.clone()),
+        runtime_status: Some("awaiting".to_owned()),
+        output: None,
+        requires_approval: None,
+        requires_reply: None,
+    }
 }
 
 fn build_runtime_turn_input(
@@ -140,6 +167,21 @@ mod tests {
     #[test]
     fn rejects_empty_provider_output() {
         assert!(validate_provider_output("   ").is_err());
+    }
+
+    #[test]
+    fn maps_kernel_tool_calls_to_coding_session_commands() {
+        let tool_call = sdkwork_agents_runtime_facade::ToolCall::new(
+            "call-1",
+            "codex.shell",
+            r#"{"command":"cargo test"}"#,
+        );
+        let command = map_tool_call(&tool_call);
+
+        assert_eq!(command.status, "pending");
+        assert_eq!(command.kind.as_deref(), Some("tool_call"));
+        assert_eq!(command.tool_name.as_deref(), Some("codex.shell"));
+        assert_eq!(command.tool_call_id.as_deref(), Some("call-1"));
     }
 
     #[test]

@@ -31,6 +31,8 @@ export default defineLocaleModule('chat', {
     prompts: '\u63d0\u793a\u8bcd',
     modelVendors: '\u6a21\u578b\u5382\u5546',
     noModelsForVendor: '\u8be5\u5382\u5546\u4e0b\u6682\u65e0\u53ef\u7528\u6a21\u578b\u3002',
+    modelCatalogFallback: '\u4ee3\u7801\u6a21\u578b',
+    modelCatalogLoading: '\u4ee3\u7801\u6a21\u578b\u76ee\u5f55\u6b63\u5728\u52a0\u8f7d',
     uploadFile: '\u4e0a\u4f20\u6587\u4ef6',
     uploadFolder: '\u4e0a\u4f20\u6587\u4ef6\u5939',
     uploadImage: '\u4e0a\u4f20\u56fe\u7247',
@@ -99,5 +101,12 @@ export default defineLocaleModule('chat', {
     restoreChanges: '\u6062\u590d',
     engineUnavailableModels:
       '{{engine}} \u5c1a\u672a\u901a\u8fc7 Rust Server \u63a5\u5165\uff0c\u5728 adapter \u5b9e\u73b0\u524d\uff0c\u6a21\u578b\u5217\u8868\u4ec5\u4f9b\u67e5\u770b\u3002',
+  },
+  playground: {
+    modelPicker: {
+      vendorSection: '\u4f9b\u5e94\u5546',
+      noVendors: '\u6682\u65e0\u53ef\u7528\u4f9b\u5e94\u5546',
+      noVendorModels: '\u8be5\u4f9b\u5e94\u5546\u6682\u65e0\u53ef\u7528\u6a21\u578b\u3002',
+    },
   },
 });

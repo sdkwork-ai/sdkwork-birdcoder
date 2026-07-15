@@ -1,22 +1,18 @@
 import React, { Suspense, lazy, memo, useCallback, useMemo, useRef, useEffect, useLayoutEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, ChevronDown, ChevronUp, GripVertical, Check, Mic, ArrowUp, CheckCircle2, RotateCcw, Edit2, Copy, Trash2, Zap, FileUp, FolderUp, Image as ImageIcon, Lightbulb, BookOpen, List, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Button, WorkbenchCodeEngineIcon } from '@sdkwork/birdcoder-pc-ui-shell';
+import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
+import { createFallbackModel, ModelPicker } from '@sdkwork/models-pc-picker';
 import { resolveBirdCoderCodeEngineCommandInteractionState } from '@sdkwork/birdcoder-pc-commons/chat/types';
 import type { BirdCoderChatMessage, FileChange } from '@sdkwork/birdcoder-pc-commons/chat/types';
 import {
   findWorkbenchCodeEngineDefinition,
   getWorkbenchCodeEngineDefinition,
   getWorkbenchCodeModelLabel,
-  getWorkbenchModelVendorLabel,
   listWorkbenchServerImplementedCodeEngines,
-  MODEL_VENDOR_VALUES,
   normalizeWorkbenchServerImplementedCodeEngineId,
   normalizeWorkbenchCodeModelId,
   useModelCatalogLoaded,
-  type ModelVendor,
-  type WorkbenchCodeEngineDefinition,
-  type WorkbenchCodeEngineModelDefinition,
 } from '@sdkwork/birdcoder-pc-codeengine';
 import {
   deleteSavedPrompt,
@@ -67,6 +63,10 @@ import { resolveTranscriptMessageKey } from './transcriptVirtualization';
 import { UniversalChatComposerChrome } from './UniversalChatComposerChrome';
 import { UniversalChatPendingInteractions } from './UniversalChatPendingInteractions';
 import {
+  buildWorkbenchModelPickerId,
+  createWorkbenchModelPickerCatalog,
+} from './workbenchModelPickerAdapter';
+import {
   buildVisibleMessageActionTargets,
   ChatTranscriptMessage,
   type ChatMessageRenderContext,
@@ -85,17 +85,6 @@ type PromptEntry = {
   text: string;
   timestamp: number;
 };
-
-interface ComposerModelOption {
-  engine: WorkbenchCodeEngineDefinition;
-  model: WorkbenchCodeEngineModelDefinition;
-}
-
-interface ComposerModelVendorGroup {
-  label: string;
-  models: ComposerModelOption[];
-  vendor: ModelVendor;
-}
 
 interface ComposerModelSelectionOverride {
   engineId: string;
@@ -764,8 +753,6 @@ export const UniversalChat = memo(function UniversalChat({
   const { addToast } = useToast();
   const { settings: appSettings } = useBirdcoderAppSettings();
   const { preferences } = useWorkbenchPreferences();
-  const modelMenuRef = useRef<HTMLDivElement>(null);
-  const selectedModelButtonRef = useRef<HTMLButtonElement | null>(null);
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -796,6 +783,20 @@ export const UniversalChat = memo(function UniversalChat({
     () => listWorkbenchServerImplementedCodeEngines(preferences),
     [preferences, catalogLoaded],
   );
+  const fallbackWorkbenchModel = useMemo(
+    () => createFallbackModel(
+      t('chat.modelCatalogFallback'),
+      t('chat.modelCatalogLoading'),
+      'workspace',
+      'llms',
+      'BirdCoder',
+    ),
+    [t],
+  );
+  const modelPickerCatalog = useMemo(
+    () => createWorkbenchModelPickerCatalog(availableEngines),
+    [availableEngines],
+  );
   const currentEngine =
     findWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences) ??
     getWorkbenchCodeEngineDefinition(resolvedSelectedEngineId, preferences);
@@ -821,39 +822,36 @@ export const UniversalChat = memo(function UniversalChat({
     currentModelLabel.trim().toLowerCase() === currentEngine.label.trim().toLowerCase()
       ? currentEngine.label
       : `${currentEngine.label} / ${currentModelLabel}`;
-  const currentModelDefinition = currentEngine.modelCatalog.find(
-    (model) => model.id.toLowerCase() === currentModelId.toLowerCase(),
-  );
   const currentComposerSelection = useMemo<UniversalChatComposerSelection>(() => ({
     engineId: resolvedSelectedEngineId,
     modelId: currentModelId,
   }), [currentModelId, resolvedSelectedEngineId]);
-  const currentModelVendor = currentModelDefinition?.modelVendor ?? 'unknown';
-  const modelVendorGroups = useMemo<ComposerModelVendorGroup[]>(() => {
-    const groupedModels = new Map<ModelVendor, ComposerModelOption[]>();
-
-    for (const engine of availableEngines) {
-      for (const model of engine.modelCatalog) {
-        const vendorModels = groupedModels.get(model.modelVendor) ?? [];
-        vendorModels.push({ engine, model });
-        groupedModels.set(model.modelVendor, vendorModels);
-      }
+  const currentModelPickerId = buildWorkbenchModelPickerId(
+    resolvedSelectedEngineId,
+    currentModelId,
+  );
+  const handleComposerModelSelect = useCallback((pickerId: string) => {
+    const selection = modelPickerCatalog.selectionByPickerId.get(pickerId);
+    if (!selection) {
+      return;
     }
 
-    return MODEL_VENDOR_VALUES
-      .map((vendor) => ({
-        label: getWorkbenchModelVendorLabel(vendor),
-        models: groupedModels.get(vendor) ?? [],
-        vendor,
-      }))
-      .filter((group) => group.models.length > 0);
-  }, [availableEngines]);
-  const [selectedModelVendor, setSelectedModelVendor] = useState<ModelVendor>(currentModelVendor);
-  const selectedModelVendorGroup =
-    modelVendorGroups.find((group) => group.vendor === selectedModelVendor) ??
-    modelVendorGroups.find((group) => group.vendor === currentModelVendor) ??
-    modelVendorGroups[0] ??
-    null;
+    setComposerSelectionOverride(writeComposerModelSelectionOverride({
+      engineId: selection.engineId,
+      modelId: selection.modelId,
+      scopeKey: normalizedComposerSelectionScopeKey,
+    }));
+    if (setSelectedModelId) {
+      setSelectedModelId(selection.modelId, selection.engineId);
+    } else {
+      setSelectedEngineId?.(selection.engineId);
+    }
+  }, [
+    modelPickerCatalog.selectionByPickerId,
+    normalizedComposerSelectionScopeKey,
+    setSelectedEngineId,
+    setSelectedModelId,
+  ]);
   const firstPendingUserQuestion = pendingUserQuestions.find(
     (question) => question.questionId.trim().length > 0,
   );
@@ -1815,45 +1813,6 @@ export const UniversalChat = memo(function UniversalChat({
     normalizedComposerSelectionScopeKey,
   ]);
 
-  useEffect(() => {
-    setSelectedModelVendor((previousVendor) =>
-      previousVendor === currentModelVendor ? previousVendor : currentModelVendor,
-    );
-  }, [currentModelVendor, resolvedSelectedEngineId]);
-
-  useEffect(() => {
-    if (modelVendorGroups.some((group) => group.vendor === selectedModelVendor)) {
-      return;
-    }
-
-    setSelectedModelVendor(
-      modelVendorGroups.find((group) => group.vendor === currentModelVendor)?.vendor ??
-      modelVendorGroups[0]?.vendor ??
-      'unknown',
-    );
-  }, [currentModelVendor, modelVendorGroups, selectedModelVendor]);
-
-  useEffect(() => {
-    if (!showModelMenu) {
-      return;
-    }
-
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.requestAnimationFrame(() => {
-      selectedModelButtonRef.current?.scrollIntoView({
-        block: 'nearest',
-      });
-    });
-  }, [
-    currentModelId,
-    resolvedSelectedEngineId,
-    selectedModelVendorGroup?.vendor,
-    showModelMenu,
-  ]);
-
   const persistSubmittedPromptHistory = useCallback(
     async (submittedText: string) => {
       if (!normalizedSessionStateScopeKey) {
@@ -2276,15 +2235,12 @@ export const UniversalChat = memo(function UniversalChat({
     }
   }, [inputValue, isActive, manualComposerHeight]);
 
-  const hasOpenFloatingMenu = showModelMenu || showAttachmentMenu;
+  const hasOpenFloatingMenu = showAttachmentMenu;
 
   const handleFloatingMenuClickOutside = useCallback(
     (event: MouseEvent) => {
       if (!hasOpenFloatingMenu) {
         return;
-      }
-      if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
-        setShowModelMenu(false);
       }
       if (attachmentMenuRef.current && !attachmentMenuRef.current.contains(event.target as Node)) {
         setShowAttachmentMenu(false);
@@ -2517,7 +2473,7 @@ export const UniversalChat = memo(function UniversalChat({
         <>
       {/* Input Area */}
       <div className={`shrink-0 ${layout === 'sidebar' ? 'px-4 pb-4 pt-3' : 'px-5 pb-5 pt-4'} bg-transparent`}>
-        <div className={`mx-auto ${layout === 'main' ? 'max-w-3xl' : 'w-full'}`}>
+        <div className={`mx-auto ${layout === 'main' ? 'max-w-[880px]' : 'w-full'}`}>
           <UniversalChatPendingInteractions
             disabled={disabled}
             isSubmitting={isSubmittingPendingInteraction}
@@ -2710,7 +2666,7 @@ export const UniversalChat = memo(function UniversalChat({
               onCompositionEnd={handleComposerCompositionEnd}
               onKeyDown={handleKeyDown}
               placeholder={disabled ? t('chat.placeholderDisabled') : t('chat.placeholderEnabled')}
-              className={`w-full bg-transparent outline-none text-[15px] placeholder-gray-500 text-white resize-none min-h-[24px] overflow-y-auto px-1 custom-scrollbar ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`w-full min-h-[56px] resize-none overflow-y-auto bg-transparent px-1 pt-1 text-[15px] leading-6 text-white outline-none placeholder:text-gray-500 custom-scrollbar ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
               rows={1}
               disabled={disabled}
               style={{
@@ -2718,8 +2674,8 @@ export const UniversalChat = memo(function UniversalChat({
               }}
             />
             </div>
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-2 text-gray-400 text-xs relative">
+            <div className="mt-3 flex min-w-0 items-center justify-between gap-3">
+              <div className="relative flex min-w-0 items-center gap-1 text-xs text-gray-400">
                 <Button 
                   variant="ghost" 
                   size="icon" 
@@ -2732,7 +2688,7 @@ export const UniversalChat = memo(function UniversalChat({
                 </Button>
 
                 {showAttachmentMenu && !disabled && (
-                  <div ref={attachmentMenuRef} className="absolute bottom-full left-0 mb-2 w-40 bg-[#18181b] border border-white/10 rounded-xl shadow-xl z-50 py-1.5 text-sm text-gray-300 animate-in fade-in zoom-in-95 duration-100">
+                  <div ref={attachmentMenuRef} className="absolute bottom-full left-0 z-50 mb-2 w-44 rounded-lg bg-[#29292e] py-1.5 text-sm text-gray-300 shadow-[0_18px_52px_rgba(0,0,0,0.46)] animate-in fade-in zoom-in-95 duration-100">
                     <div className="px-3 py-2 hover:bg-white/10 cursor-pointer flex items-center gap-2 mx-1 rounded-md transition-colors" onClick={() => fileInputRef.current?.click()}>
                       <FileUp size={14} />
                       <span className="text-xs">{t('chat.uploadFile')}</span>
@@ -2764,119 +2720,36 @@ export const UniversalChat = memo(function UniversalChat({
                   </Button>
                 </div>
 
-                {showComposerEngineSelector ? (
-                  <>
-                    <div 
-                      className={`flex items-center gap-1 px-1.5 py-1 rounded transition-colors ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:text-gray-200 cursor-pointer text-gray-500 hover:bg-white/5'}`}
-                      onClick={() => {
-                        if (disabled) return;
-                        if (!showModelMenu) {
-                          setSelectedModelVendor(currentModelVendor);
-                        }
-                        setShowModelMenu(!showModelMenu);
-                      }}
-                    >
-                      <span className="text-[11px] font-medium">{currentComposerModelLabel}</span>
-                      <ChevronDown size={12} />
-                    </div>
-                    
-                    {showModelMenu && !disabled && (
-                      <div ref={modelMenuRef} className="absolute bottom-full left-8 mb-2 w-[440px] bg-[#18181b] border border-white/10 rounded-xl shadow-2xl z-50 flex overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                        <div className="w-[42%] bg-[#0e0e11]/50 border-r border-white/5 py-1.5">
-                          <div className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                            {t('chat.modelVendors')}
-                          </div>
-                          {modelVendorGroups.map((vendorGroup) => {
-                            const isActive = selectedModelVendorGroup?.vendor === vendorGroup.vendor;
-                            return (
-                              <button
-                                key={vendorGroup.vendor}
-                                type="button"
-                                className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs transition-colors ${
-                                  isActive
-                                    ? 'bg-white/10 text-white font-medium'
-                                    : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
-                                }`}
-                                onClick={() => setSelectedModelVendor(vendorGroup.vendor)}
-                              >
-                                <div className="min-w-0 flex items-center gap-2">
-                                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white/10 text-[10px] font-semibold text-gray-300">
-                                    {vendorGroup.label.slice(0, 2).toUpperCase()}
-                                  </span>
-                                  <span className="truncate">{vendorGroup.label}</span>
-                                </div>
-                                <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] ${
-                                  isActive
-                                    ? 'bg-blue-500/15 text-blue-200'
-                                    : 'bg-white/5 text-gray-500'
-                                }`}>
-                                  {vendorGroup.models.length}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <div className="w-[58%] py-1.5 max-h-72 overflow-y-auto">
-                          {selectedModelVendorGroup ? (
-                            <>
-                              <div className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                                {selectedModelVendorGroup.label}
-                              </div>
-                              {selectedModelVendorGroup.models.map(({ engine, model }) => {
-                                const isSelected =
-                                  engine.id === resolvedSelectedEngineId &&
-                                  model.id.toLowerCase() === currentModelId.toLowerCase();
-                                return (
-                                  <button
-                                    key={`${engine.id}:${model.id}`}
-                                    ref={isSelected ? selectedModelButtonRef : undefined}
-                                    type="button"
-                                    className={`px-3 py-2 hover:bg-white/10 cursor-pointer flex w-[calc(100%-0.5rem)] items-center justify-between gap-3 mx-1 rounded-md transition-colors text-xs ${isSelected ? 'text-blue-400 font-medium bg-blue-500/10' : 'text-gray-300'}`}
-                                    onClick={() => {
-                                      setComposerSelectionOverride(writeComposerModelSelectionOverride({
-                                        engineId: engine.id,
-                                        modelId: model.id,
-                                        scopeKey: normalizedComposerSelectionScopeKey,
-                                      }));
-                                      if (setSelectedModelId) {
-                                        setSelectedModelId(model.id, engine.id);
-                                      } else {
-                                        setSelectedEngineId?.(engine.id);
-                                      }
-                                      setShowModelMenu(false);
-                                    }}
-                                  >
-                                    <div className="min-w-0 flex items-center gap-2">
-                                      <WorkbenchCodeEngineIcon engineId={engine.id} />
-                                      <span className="min-w-0 flex flex-col">
-                                        <span className="truncate">{model.label}</span>
-                                        <span className="truncate text-[10px] font-normal text-gray-500">
-                                          {engine.label}
-                                        </span>
-                                      </span>
-                                      {model.source === 'custom' ? (
-                                        <span className="shrink-0 rounded bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-300">
-                                          {t('settings.engines.customModel')}
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                    {isSelected && <Check size={14} className="shrink-0 text-blue-400" />}
-                                  </button>
-                                );
-                              })}
-                            </>
-                          ) : (
-                            <div className="flex h-full min-h-40 flex-col justify-center px-4 py-6 text-sm text-gray-400">
-                              {t('chat.noModelsForVendor')}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                ) : null}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-1.5">
+                {showComposerEngineSelector ? (
+                  <div className="birdcoder-composer-model-picker min-w-0 max-w-[min(46vw,240px)]">
+                    <ModelPicker
+                      bucket="llms"
+                      compact
+                      disabled={disabled}
+                      fallback={fallbackWorkbenchModel}
+                      menuPlacement="top"
+                      modelGroups={modelPickerCatalog.groups}
+                      onSelectModel={handleComposerModelSelect}
+                      selectedModelId={currentModelPickerId}
+                      setShowModelMenu={setShowModelMenu}
+                      showModelDescription
+                      showModelMenu={showModelMenu}
+                      variant="flat"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="flex min-w-12 max-w-[min(46vw,240px)] items-center rounded-lg px-2 py-1.5"
+                    data-testid="universal-chat-selected-model"
+                    title={currentEngineSummary}
+                  >
+                    <span className="min-w-0 truncate text-xs font-semibold text-zinc-200">
+                      {currentComposerModelLabel}
+                    </span>
+                  </div>
+                )}
                 <Button 
                   variant="ghost" 
                   size="icon" 
@@ -2890,7 +2763,7 @@ export const UniversalChat = memo(function UniversalChat({
                 {isComposerProcessing && !editingMessage && !canQueueTypedMessage && !canSubmitPendingUserQuestionAnswer ? (
                   <Button
                     size="icon"
-                    className="h-8 w-8 rounded-full transition-all duration-200 bg-white/5 text-gray-400"
+                    className="h-8 w-8 rounded-full bg-white/10 text-gray-400 transition-all duration-200"
                     disabled
                     title={t('chat.generatingResponse')}
                   >
@@ -2899,7 +2772,7 @@ export const UniversalChat = memo(function UniversalChat({
                 ) : (
                   <Button 
                     size="icon"
-                    className={`h-8 w-8 rounded-full transition-all duration-200 ${canSubmitComposerMessage ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 text-gray-500'}`}
+                    className={`h-8 w-8 rounded-full transition-all duration-200 ${canSubmitComposerMessage ? 'bg-zinc-100 text-zinc-900 shadow-[0_5px_18px_rgba(255,255,255,0.14)] hover:bg-white' : 'bg-white/10 text-gray-500'}`}
                     onClick={() => {
                       void handleSend();
                     }}

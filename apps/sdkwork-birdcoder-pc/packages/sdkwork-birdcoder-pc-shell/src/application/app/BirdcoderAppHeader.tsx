@@ -51,7 +51,7 @@ export function BirdcoderAppHeader({
 }: BirdcoderAppHeaderProps) {
   return (
     <div
-      className="grid h-10 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-white/[0.08] bg-[#0e0e11] px-2 shrink-0 select-none z-50 touch-none"
+      className="birdcoder-app-header grid h-10 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-b px-2 shrink-0 select-none z-50 touch-none"
       onPointerDown={onPointerDown}
       onContextMenu={onContextMenu}
       onDragStart={onDragStart}

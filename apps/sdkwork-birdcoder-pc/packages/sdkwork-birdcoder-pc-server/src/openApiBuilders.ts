@@ -334,11 +334,13 @@ export function createOpenApiQueryParameter(
   name: string,
   description: string,
   schema: BirdCoderOpenApiSchema,
+  required = false,
 ): BirdCoderOpenApiParameterObject {
   return {
     name,
     in: 'query',
     description,
+    ...(required ? { required: true } : {}),
     schema,
   };
 }

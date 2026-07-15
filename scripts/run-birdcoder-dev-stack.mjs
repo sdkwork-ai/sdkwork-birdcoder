@@ -2,6 +2,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import net from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -16,6 +17,7 @@ import {
 import { createWorkspacePackageScriptPlan } from './run-workspace-package-script.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
+const WORKSPACE_ROOT = path.resolve(path.dirname(__filename), '..');
 
 const DEFAULT_SERVER_READY_POLL_INTERVAL_MS = 350;
 const DEFAULT_SERVER_READY_REQUEST_TIMEOUT_MS = 800;
@@ -26,6 +28,8 @@ const DEFAULT_SERVER_READY_PATHS = Object.freeze([
 const DEFAULT_STACK_VITE_MODE = 'development';
 const CLIENT_LOOPBACK_PORT_FALLBACK_HOST = '127.0.0.1';
 const CLIENT_LOOPBACK_PORT_FALLBACK_MAX_ATTEMPTS = 20;
+const DEFAULT_WEB_CLIENT_HOST = '0.0.0.0';
+const DEFAULT_CLIENT_READY_TIMEOUT_MS = 30000;
 const STACK_VITE_MODES = new Set(['development', 'test']);
 
 const STACK_SURFACE_CONFIGS = Object.freeze({
@@ -178,6 +182,38 @@ function readLastCliOptionValue(args = [], flag) {
   return undefined;
 }
 
+export function resolveClientAccessUrls({ host, port, networkInterfaces = os.networkInterfaces() } = {}) {
+  const normalizedPort = normalizePort(port);
+  if (!normalizedPort) {
+    return [];
+  }
+
+  const urls = [`http://127.0.0.1:${normalizedPort}`];
+  if (host !== '127.0.0.1' && host !== 'localhost' && host !== '::1') {
+    for (const entries of Object.values(networkInterfaces ?? {})) {
+      for (const entry of entries ?? []) {
+        if (
+          (entry?.family === 'IPv4' || entry?.family === 4)
+          && !entry.internal
+          && entry.address
+          && !urls.includes(`http://${entry.address}:${normalizedPort}`)
+        ) {
+          urls.push(`http://${entry.address}:${normalizedPort}`);
+        }
+      }
+    }
+  }
+  return [urls[0], ...urls.slice(1).sort((left, right) => left.localeCompare(right))];
+}
+
+function resolveClientHostAndPort(plan) {
+  const args = Array.isArray(plan?.args) ? plan.args : [];
+  return {
+    host: readLastCliOptionValue(args, '--host') ?? DEFAULT_WEB_CLIENT_HOST,
+    port: normalizePort(readLastCliOptionValue(args, '--port')),
+  };
+}
+
 function normalizePort(value) {
   const port = Number.parseInt(String(value ?? '').trim(), 10);
   if (!Number.isInteger(port) || port <= 0 || port > 65535) {
@@ -202,7 +238,17 @@ function canBindLoopbackPort(port, host = CLIENT_LOOPBACK_PORT_FALLBACK_HOST) {
   });
 }
 
+async function canBindClientPort(port, host) {
+  if (!(await canBindLoopbackPort(port, host))) {
+    return false;
+  }
+
+  return host !== DEFAULT_WEB_CLIENT_HOST
+    || canBindLoopbackPort(port, CLIENT_LOOPBACK_PORT_FALLBACK_HOST);
+}
+
 async function resolveAvailableLoopbackPort({
+  host = CLIENT_LOOPBACK_PORT_FALLBACK_HOST,
   maxAttempts = CLIENT_LOOPBACK_PORT_FALLBACK_MAX_ATTEMPTS,
   preferredPort,
 } = {}) {
@@ -217,7 +263,7 @@ async function resolveAvailableLoopbackPort({
       return undefined;
     }
 
-    if (await canBindLoopbackPort(candidatePort)) {
+    if (await canBindClientPort(candidatePort, host)) {
       return candidatePort;
     }
   }
@@ -244,7 +290,11 @@ export async function applyClientLoopbackPortFallback({
     return stackPlans;
   }
 
+  const clientHost =
+    readLastCliOptionValue(stackPlans.clientPlan.args, '--host')
+    ?? CLIENT_LOOPBACK_PORT_FALLBACK_HOST;
   const availablePort = await resolveAvailableLoopbackPort({
+    host: clientHost,
     preferredPort,
   });
   if (!availablePort || availablePort === preferredPort) {
@@ -258,10 +308,38 @@ export async function applyClientLoopbackPortFallback({
       ['--port', String(availablePort)],
     ),
     clientPortFallback: {
-      host: CLIENT_LOOPBACK_PORT_FALLBACK_HOST,
+      host: clientHost,
       preferredPort,
       resolvedPort: availablePort,
     },
+  };
+}
+
+function applyWebClientLanHost(stackPlans) {
+  if (
+    stackPlans?.target !== 'web'
+    || hasCliOption(stackPlans.clientPlan?.args, '--host')
+  ) {
+    return stackPlans;
+  }
+
+  return {
+    ...stackPlans,
+    clientPlan: appendPlanArgs(stackPlans.clientPlan, ['--host', DEFAULT_WEB_CLIENT_HOST]),
+  };
+}
+
+function applyWebClientStrictPort(stackPlans) {
+  if (
+    stackPlans?.target !== 'web'
+    || hasCliOption(stackPlans.clientPlan?.args, '--strictPort')
+  ) {
+    return stackPlans;
+  }
+
+  return {
+    ...stackPlans,
+    clientPlan: appendPlanArgs(stackPlans.clientPlan, ['--strictPort']),
   };
 }
 
@@ -319,7 +397,12 @@ function resolveStackPlans({
   });
   const serverPlan = serverResolvedIam
     ? createWorkspacePackageScriptPlan({
-        env: serverResolvedIam.env,
+        env: {
+          ...serverResolvedIam.env,
+          ...(iamMode === 'server-private'
+            ? { BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT: WORKSPACE_ROOT }
+            : {}),
+        },
         packageDir: SERVER_DEV_CONFIG.packageDir,
         scriptName: SERVER_DEV_CONFIG.scriptName,
       })
@@ -516,6 +599,50 @@ async function waitForServerReady({
   return false;
 }
 
+async function waitForClientReady({
+  clientChild,
+  port,
+  timeoutMs = DEFAULT_CLIENT_READY_TIMEOUT_MS,
+} = {}) {
+  if (!port || typeof globalThis.fetch !== 'function') {
+    return false;
+  }
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (clientChild?.exitCode !== null) {
+      return false;
+    }
+    try {
+      const response = await probeServerReadyEndpoint(
+        `http://127.0.0.1:${port}/`,
+        DEFAULT_SERVER_READY_REQUEST_TIMEOUT_MS,
+      );
+      if (response.ok) {
+        return true;
+      }
+    } catch {
+      // Vite may need a short interval after the process starts before accepting requests.
+    }
+    await sleep(DEFAULT_SERVER_READY_POLL_INTERVAL_MS);
+  }
+  return false;
+}
+
+function printClientAccessSummary(clientPlan) {
+  const { host, port } = resolveClientHostAndPort(clientPlan);
+  const urls = resolveClientAccessUrls({ host, port });
+  if (urls.length === 0) {
+    return;
+  }
+  console.log('[birdcoder-stack] client ready');
+  console.log(`[birdcoder-stack] localUrl=${urls[0]}/`);
+  if (urls.length > 1) {
+    console.log(`[birdcoder-stack] lanUrls=${urls.slice(1).map((url) => `${url}/`).join(',')}`);
+  } else if (host === DEFAULT_WEB_CLIENT_HOST) {
+    console.log('[birdcoder-stack] lanUrls=unavailable (no non-loopback IPv4 address detected)');
+  }
+}
+
 function spawnPlan(plan, label) {
   console.log(`[birdcoder-stack] starting ${label}`);
   return spawn(plan.command, plan.args, {
@@ -539,6 +666,8 @@ export async function runBirdcoderDevStack({
     target: options.target,
     viteMode: options.viteMode,
   });
+  stackPlans = applyWebClientLanHost(stackPlans);
+  stackPlans = applyWebClientStrictPort(stackPlans);
 
   if (!options.dryRun) {
     stackPlans = await applyClientLoopbackPortFallback({
@@ -594,6 +723,17 @@ export async function runBirdcoderDevStack({
 
   const clientChild = spawnPlan(stackPlans.clientPlan, 'client');
   activeChildren.push(clientChild);
+  if (stackPlans.target === 'web') {
+    const clientReady = await waitForClientReady({
+      ...resolveClientHostAndPort(stackPlans.clientPlan),
+      clientChild,
+    });
+    if (clientReady) {
+      printClientAccessSummary(stackPlans.clientPlan);
+    } else {
+      console.log('[birdcoder-stack] client readiness probe timed out; inspect the Vite output above for the actual port.');
+    }
+  }
   const exitResult = await Promise.race(
     activeChildren.map((childProcess, index) =>
       waitForChildExit(

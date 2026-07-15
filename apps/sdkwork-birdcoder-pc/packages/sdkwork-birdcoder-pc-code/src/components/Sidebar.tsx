@@ -127,10 +127,23 @@ function collectSidebarChronologicalSessions(
   projects: readonly BirdCoderProject[],
   showArchived: boolean,
   normalizedSearchQuery: string,
+  visibleSessionCountByProjectId: Readonly<Record<string, number>>,
 ): BirdCoderCodingSession[] {
   const sessions: BirdCoderCodingSession[] = [];
   for (const project of projects) {
-    for (const codingSession of project.codingSessions) {
+    if (!showArchived && project.archived) {
+      continue;
+    }
+    const visibleSessionCount = Math.max(
+      INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+      visibleSessionCountByProjectId[project.id] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+    );
+    const sessionCount = Math.min(visibleSessionCount, project.codingSessions.length);
+    for (let sessionIndex = 0; sessionIndex < sessionCount; sessionIndex += 1) {
+      const codingSession = project.codingSessions[sessionIndex];
+      if (!codingSession) {
+        continue;
+      }
       const scopedProjectId = resolveSidebarSessionProjectId(codingSession, project.id);
       const scopedCodingSession =
         scopedProjectId === codingSession.projectId
@@ -248,6 +261,7 @@ function areSidebarPropsEqual(left: ProjectExplorerProps, right: ProjectExplorer
     left.onDeleteProject === right.onDeleteProject &&
     left.onNewProject === right.onNewProject &&
     left.onLoadMoreProjects === right.onLoadMoreProjects &&
+    left.onLoadMoreProjectSessions === right.onLoadMoreProjectSessions &&
     left.onOpenFolder === right.onOpenFolder &&
     left.onNewCodingSessionInProject === right.onNewCodingSessionInProject &&
     left.onRefreshProjectSessions === right.onRefreshProjectSessions &&
@@ -282,8 +296,15 @@ type SidebarFilteredProjectSessionsEntry = {
   project: BirdCoderProject;
 };
 
+type SidebarChronologicalContinuationEntry = {
+  isLoading: boolean;
+  nextVisibleSessionCount: number;
+  project: BirdCoderProject;
+};
+
 const EMPTY_SIDEBAR_FILTERED_PROJECT_SESSIONS: SidebarFilteredProjectSessionsEntry[] = [];
 const EMPTY_SIDEBAR_PROJECT_ENTRIES: SidebarProjectEntry[] = [];
+const EMPTY_SIDEBAR_CHRONOLOGICAL_CONTINUATIONS: SidebarChronologicalContinuationEntry[] = [];
 
 export const Sidebar = React.memo(function Sidebar({
   hasMoreProjects = false,
@@ -300,6 +321,7 @@ export const Sidebar = React.memo(function Sidebar({
   onDeleteProject,
   onNewProject,
   onLoadMoreProjects,
+  onLoadMoreProjectSessions,
   onOpenFolder,
   onNewCodingSessionInProject,
   onRefreshProjectSessions,
@@ -329,6 +351,10 @@ export const Sidebar = React.memo(function Sidebar({
   const [visibleSessionCountByProjectId, setVisibleSessionCountByProjectId] = useState<
     Record<string, number>
   >({});
+  const [loadingMoreSessionProjectIds, setLoadingMoreSessionProjectIds] = useState<
+    Record<string, boolean>
+  >({});
+  const loadingMoreSessionProjectIdsRef = useRef(new Set<string>());
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -468,8 +494,15 @@ export const Sidebar = React.memo(function Sidebar({
 
       for (const project of renderProjects) {
         const existingCount = previousState[project.id];
-        nextState[project.id] =
-          typeof existingCount === 'number' ? existingCount : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+        const shouldRestoreInitialWindow =
+          typeof existingCount === 'number' &&
+          existingCount > INITIAL_VISIBLE_SESSIONS_PER_PROJECT &&
+          existingCount > project.codingSessions.length;
+        nextState[project.id] = shouldRestoreInitialWindow
+          ? INITIAL_VISIBLE_SESSIONS_PER_PROJECT
+          : typeof existingCount === 'number'
+            ? existingCount
+            : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
         if (nextState[project.id] !== existingCount) {
           changed = true;
         }
@@ -479,6 +512,28 @@ export const Sidebar = React.memo(function Sidebar({
         changed = true;
       }
 
+      return changed ? nextState : previousState;
+    });
+  }, [renderProjects]);
+
+  useEffect(() => {
+    setLoadingMoreSessionProjectIds((previousState) => {
+      let changed = false;
+      const nextState: Record<string, boolean> = {};
+      for (const project of renderProjects) {
+        if (previousState[project.id] === true) {
+          nextState[project.id] = true;
+        }
+      }
+      if (Object.keys(previousState).length !== Object.keys(nextState).length) {
+        changed = true;
+      }
+      for (const projectId of Object.keys(nextState)) {
+        if (previousState[projectId] !== nextState[projectId]) {
+          changed = true;
+          break;
+        }
+      }
       return changed ? nextState : previousState;
     });
   }, [renderProjects]);
@@ -493,11 +548,6 @@ export const Sidebar = React.memo(function Sidebar({
 
   const selectProject = useCallback((projectId: string) => {
     onSelectProject?.(projectId);
-    setExpandedProjects((previousExpandedProjects) =>
-      previousExpandedProjects[projectId] === true
-        ? previousExpandedProjects
-        : { ...previousExpandedProjects, [projectId]: true },
-    );
   }, [onSelectProject]);
 
   const handleSelectCodingSession = useCallback((
@@ -663,24 +713,60 @@ export const Sidebar = React.memo(function Sidebar({
       })),
     [],
   );
-  const handleToggleProjectSessionExpansion = useCallback(
-    (projectId: string, filteredSessionCount: number, canShowMoreSessions: boolean) => {
-      setVisibleSessionCountByProjectId((previousState) => {
-        const currentCount =
-          previousState[projectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-        const nextCount = canShowMoreSessions
-          ? Math.min(currentCount + SESSION_EXPANSION_BATCH_SIZE, filteredSessionCount)
-          : INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
-        if (nextCount === currentCount) {
-          return previousState;
-        }
-        return {
-          ...previousState,
-          [projectId]: nextCount,
-        };
-      });
+  const handleLoadMoreProjectSessions = useCallback(
+    async (projectId: string, requestedCount: number): Promise<void> => {
+      const normalizedProjectId = projectId.trim();
+      if (
+        !normalizedProjectId ||
+        !onLoadMoreProjectSessions ||
+        loadingMoreSessionProjectIdsRef.current.has(normalizedProjectId)
+      ) {
+        return;
+      }
+
+      const nextCount = Math.max(INITIAL_VISIBLE_SESSIONS_PER_PROJECT, Math.floor(requestedCount));
+      loadingMoreSessionProjectIdsRef.current.add(normalizedProjectId);
+      setLoadingMoreSessionProjectIds((previousState) => ({
+        ...previousState,
+        [normalizedProjectId]: true,
+      }));
+
+      try {
+        const result = await onLoadMoreProjectSessions(normalizedProjectId, nextCount);
+        const loadedCount =
+          result && typeof result.loadedCount === 'number' && Number.isFinite(result.loadedCount)
+            ? Math.max(INITIAL_VISIBLE_SESSIONS_PER_PROJECT, Math.floor(result.loadedCount))
+            : nextCount;
+        setVisibleSessionCountByProjectId((previousState) => {
+          const previousCount =
+            previousState[normalizedProjectId] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+          const resolvedCount = Math.max(previousCount, Math.min(nextCount, loadedCount));
+          if (resolvedCount <= previousCount) {
+            return previousState;
+          }
+          return {
+            ...previousState,
+            [normalizedProjectId]: resolvedCount,
+          };
+        });
+      } catch (error) {
+        const message = error instanceof Error && error.message.trim()
+          ? error.message
+          : t('code.failedToLoadMoreSessions');
+        addToast(message, 'error');
+      } finally {
+        loadingMoreSessionProjectIdsRef.current.delete(normalizedProjectId);
+        setLoadingMoreSessionProjectIds((previousState) => {
+          if (!previousState[normalizedProjectId]) {
+            return previousState;
+          }
+          const nextState = { ...previousState };
+          delete nextState[normalizedProjectId];
+          return nextState;
+        });
+      }
     },
-    [],
+    [addToast, onLoadMoreProjectSessions, t],
   );
   const handleRenameValueChange = useCallback((value: string) => {
     setRenameValue(value);
@@ -858,7 +944,10 @@ export const Sidebar = React.memo(function Sidebar({
           ),
         }))
         .filter(
-          (entry) => !normalizedSearchQuery || entry.filteredSessions.length > 0,
+          (entry) =>
+            !normalizedSearchQuery ||
+            entry.filteredSessions.length > 0 ||
+            entry.project.codingSessions.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
         );
     },
     [
@@ -880,6 +969,7 @@ export const Sidebar = React.memo(function Sidebar({
           renderProjects,
           showArchived,
           normalizedSearchQuery,
+          visibleSessionCountByProjectId,
         ),
       );
     },
@@ -889,6 +979,37 @@ export const Sidebar = React.memo(function Sidebar({
       renderProjects,
       showArchived,
       sortChronologicalSessions,
+      visibleSessionCountByProjectId,
+    ],
+  );
+  const chronologicalContinuationEntries = useMemo<SidebarChronologicalContinuationEntry[]>(
+    () => {
+      if (organizeBy !== 'chronological') {
+        return EMPTY_SIDEBAR_CHRONOLOGICAL_CONTINUATIONS;
+      }
+
+      return renderProjects
+        .filter((project) => showArchived || !project.archived)
+        .map((project) => {
+          const visibleSessionCount =
+            visibleSessionCountByProjectId[project.id] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
+          return {
+            isLoading: loadingMoreSessionProjectIds[project.id] === true,
+            nextVisibleSessionCount: visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
+            project,
+          };
+        })
+        .filter(
+          (entry) => entry.nextVisibleSessionCount - SESSION_EXPANSION_BATCH_SIZE <
+            entry.project.codingSessions.length,
+        );
+    },
+    [
+      loadingMoreSessionProjectIds,
+      organizeBy,
+      renderProjects,
+      showArchived,
+      visibleSessionCountByProjectId,
     ],
   );
   const projectEntries = useMemo<SidebarProjectEntry[]>(
@@ -903,24 +1024,20 @@ export const Sidebar = React.memo(function Sidebar({
             visibleSessionCountByProjectId[project.id] ?? INITIAL_VISIBLE_SESSIONS_PER_PROJECT;
 
           return {
-            canShowMoreSessions: visibleSessionCount < filteredSessions.length,
-            canToggleSessionExpansion:
-              !normalizedSearchQuery &&
-              filteredSessions.length > INITIAL_VISIBLE_SESSIONS_PER_PROJECT,
+            canShowMoreSessions:
+              visibleSessionCount < filteredSessions.length ||
+              visibleSessionCount < project.codingSessions.length,
             filteredSessions,
-            nextExpansionCount: Math.min(
-              SESSION_EXPANSION_BATCH_SIZE,
-              Math.max(0, filteredSessions.length - visibleSessionCount),
-            ),
+            isLoadingMoreSessions: loadingMoreSessionProjectIds[project.id] === true,
+            nextVisibleSessionCount: visibleSessionCount + SESSION_EXPANSION_BATCH_SIZE,
             project,
-            visibleSessions: normalizedSearchQuery
-              ? filteredSessions
-              : filteredSessions.slice(0, visibleSessionCount),
+            visibleSessions: filteredSessions.slice(0, visibleSessionCount),
           };
         });
     },
     [
       filteredProjectSessions,
+      loadingMoreSessionProjectIds,
       normalizedSearchQuery,
       organizeBy,
       visibleSessionCountByProjectId,
@@ -953,11 +1070,12 @@ export const Sidebar = React.memo(function Sidebar({
   );
   return (
     <div 
-      className="flex flex-col border-r border-white/5 bg-[#0e0e11]/95 backdrop-blur-xl text-sm relative shrink-0" 
+      className="birdcoder-workbench-sidebar flex flex-col border-r backdrop-blur-xl text-sm relative shrink-0"
       style={{ width }}
       onContextMenu={handleRootContextMenu}
     >
-      <ProjectExplorerHeader
+      <div className="birdcoder-session-list flex min-h-0 flex-1 flex-col">
+        <ProjectExplorerHeader
         selectedProjectId={selectedProjectId}
         showFilterMenu={showFilterMenu}
         showSearch={showSearch}
@@ -1037,11 +1155,10 @@ export const Sidebar = React.memo(function Sidebar({
                   isRenamingProject={renamingProjectId === entry.project.id}
                   projectRenameValue={renamingProjectId === entry.project.id ? renameValue : ''}
                   noSessionsLabel={t('app.noSessions')}
-                  toggleSessionExpansionLabel={
-                    entry.canShowMoreSessions
-                      ? t('code.showMoreSessions', { count: entry.nextExpansionCount })
-                      : t('code.collapseSessions')
-                  }
+                  expandProjectLabel={t('code.expandProject', { name: entry.project.name })}
+                  collapseProjectLabel={t('code.collapseProject', { name: entry.project.name })}
+                  loadMoreSessionsLabel={t('code.showMoreSessions')}
+                  loadingMoreSessionsLabel={t('code.loadingMoreSessions')}
                   defaultNewSessionEngineId={newSessionEngineCatalog.preferredSelection.engineId}
                   defaultNewSessionModelId={newSessionEngineCatalog.preferredSelection.modelId}
                   newSessionInProjectLabel={t('code.newSessionInProject')}
@@ -1065,7 +1182,7 @@ export const Sidebar = React.memo(function Sidebar({
                   onSessionRenameValueChange={handleRenameValueChange}
                   onSessionRenameSubmit={handleCodingSessionRenameSubmit}
                   onSessionRenameCancel={handleCodingSessionRenameCancel}
-                  onToggleSessionExpansion={handleToggleProjectSessionExpansion}
+                  onLoadMoreProjectSessions={handleLoadMoreProjectSessions}
                 />
               );
             })
@@ -1117,6 +1234,33 @@ export const Sidebar = React.memo(function Sidebar({
               {shouldWindowChronologicalSessions ? (
                 <div style={{ height: chronologicalWindowedRange.paddingBottom }} />
               ) : null}
+              {chronologicalContinuationEntries.map((entry) => (
+                <button
+                  key={`chronological-continuation:${entry.project.id}`}
+                  type="button"
+                  className="mx-2 mt-1 inline-flex min-h-8 items-center justify-start gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-white/5 hover:text-gray-200 disabled:cursor-wait disabled:opacity-60"
+                  disabled={entry.isLoading}
+                  aria-busy={entry.isLoading}
+                  onClick={() =>
+                    handleLoadMoreProjectSessions(
+                      entry.project.id,
+                      entry.nextVisibleSessionCount,
+                    )
+                  }
+                >
+                  {entry.isLoading ? (
+                    <Loader2 size={11} className="shrink-0 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ChevronDown size={11} className="shrink-0" aria-hidden="true" />
+                  )}
+                  <span className="min-w-0 truncate">{entry.project.name}</span>
+                  <span className="shrink-0">
+                    {entry.isLoading
+                      ? t('code.loadingMoreSessions')
+                      : t('code.showMoreSessions')}
+                  </span>
+                </button>
+              ))}
             </>
           )}
 
@@ -1142,7 +1286,8 @@ export const Sidebar = React.memo(function Sidebar({
             </button>
           ) : null}
         </div>
-      </ProjectExplorerHeader>
+        </ProjectExplorerHeader>
+      </div>
 
       {rootContextMenu &&
         renderSidebarContextMenuPortal(

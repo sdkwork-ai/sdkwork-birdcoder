@@ -100,6 +100,7 @@
       "./services/defaultIdeServicesRuntime",
       "./services/workspaceRealtimeClient",
       "./platform/openLocalFolder",
+      "./platform/tauriNativeSessions",
       "./storage/runtime",
       "./storage/dataKernel",
       "./storage/appConsoleRepository",

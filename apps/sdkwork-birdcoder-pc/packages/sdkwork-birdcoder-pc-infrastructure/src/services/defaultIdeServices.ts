@@ -34,6 +34,7 @@ import {
   type BirdCoderBackendSdkApiClient,
 } from './sdkClients.ts';
 import { createBirdCoderHttpApiTransport } from './sdkTransportShared.ts';
+import { createBirdCoderTauriNativeSessionReadPort } from '../platform/tauriNativeSessions.ts';
 
 export {
   type BirdCoderDefaultIdeServices,
@@ -176,6 +177,7 @@ export function createDefaultBirdCoderIdeServices(
     appRuntimeReadService: new ApiBackedAppRuntimeReadService({
       client: runtime.appRuntimeClient,
       currentUserProvider: runtime.authService,
+      nativeSessionReadPort: createBirdCoderTauriNativeSessionReadPort(runtime.fileSystemService),
     }),
     appRuntimeWriteService: new ApiBackedAppRuntimeWriteService({
       client: runtime.appRuntimeClient,

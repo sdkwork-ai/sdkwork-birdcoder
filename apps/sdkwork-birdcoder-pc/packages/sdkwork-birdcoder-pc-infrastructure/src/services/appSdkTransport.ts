@@ -23,6 +23,9 @@ import {
 
 export interface CreateBirdCoderInProcessAppSdkTransportOptions {
   hostMode?: BirdCoderHostMode;
+  nativeSessionProvider?: Parameters<
+    typeof createBirdCoderInProcessAppRuntimeTransport
+  >[0]['nativeSessionProvider'];
   observe?: (request: BirdCoderApiTransportRequest) => void;
   projectService?: Pick<
     IProjectService,
@@ -59,6 +62,7 @@ function isAppRuntimeSdkRoute(path: string): boolean {
 
 export function createBirdCoderInProcessAppSdkTransport({
   hostMode,
+  nativeSessionProvider,
   observe,
   projectService,
   queries,
@@ -69,6 +73,7 @@ export function createBirdCoderInProcessAppSdkTransport({
   const appRuntimeTransport = projectService
     ? createBirdCoderInProcessAppRuntimeTransport({
         hostMode,
+        nativeSessionProvider,
         projectService,
         runtime,
       })

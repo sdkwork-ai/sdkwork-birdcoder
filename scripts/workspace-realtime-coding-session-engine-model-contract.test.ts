@@ -116,6 +116,11 @@ const createdProjects = applyWorkspaceRealtimeEventToProjects([baseProject], cre
 assert.ok(createdProjects, 'workspace realtime must materialize coding sessions from complete creation events.');
 assert.equal(createdProjects?.[0]?.codingSessions[0]?.engineId, 'codex');
 assert.equal(createdProjects?.[0]?.codingSessions[0]?.modelId, 'gpt-5.4');
+assert.equal(
+  createdProjects?.[0]?.codingSessions[0]?.lastTurnAt,
+  undefined,
+  'creating a session without a turn must not invent a latest-turn timestamp.',
+);
 
 const createdProjectsWithNativeSessionId = applyWorkspaceRealtimeEventToProjects(
   [baseProject],
@@ -189,6 +194,11 @@ assert.equal(
   updatedProjects?.[0]?.codingSessions[0]?.nativeSessionId,
   'realtime-native-session-update',
   'workspace realtime must attach the provider-native session id from coding-session updates so the session context menu can resume in terminal.',
+);
+assert.equal(
+  updatedProjects?.[0]?.codingSessions[0]?.lastTurnAt,
+  undefined,
+  'metadata and transcript updates must not change the latest-created-turn timestamp.',
 );
 assert.equal(
   isWorkspaceRealtimeEventSatisfiedByProjects(
@@ -275,6 +285,11 @@ assert.equal(
   locallyAdvancedProjects?.[0]?.codingSessions[0]?.runtimeStatus,
   'streaming',
 );
+assert.equal(
+  locallyAdvancedProjects?.[0]?.codingSessions[0]?.lastTurnAt,
+  '2026-04-20T10:03:00.000Z',
+  'only turn-created realtime events may advance lastTurnAt.',
+);
 
 const sameTimestampCompletedProjects = applyWorkspaceRealtimeEventToProjects(
   locallyAdvancedProjects ?? updatedProjects ?? createdProjects ?? [baseProject],
@@ -296,6 +311,11 @@ assert.ok(
 assert.equal(
   sameTimestampCompletedProjects?.[0]?.codingSessions[0]?.runtimeStatus,
   'completed',
+);
+assert.equal(
+  sameTimestampCompletedProjects?.[0]?.codingSessions[0]?.lastTurnAt,
+  '2026-04-20T10:03:00.000Z',
+  'a completion update must preserve the latest-created-turn timestamp.',
 );
 assert.equal(
   sameTimestampCompletedProjects?.[0]?.codingSessions[0]?.title,
@@ -399,6 +419,11 @@ assert.equal(
   'The transcript loaded successfully.',
   'workspace realtime must still merge the completed assistant message while converging the left session row runtime status.',
 );
+assert.equal(
+  assistantCompletedRealtimeProjects?.[0]?.codingSessions[0]?.updatedAt,
+  '2026-04-20T10:03:30.000Z',
+  'the terminal message event must advance session activity once when the response completes.',
+);
 
 const deltaAppliedProjects = applyWorkspaceRealtimeEventToProjects(
   createdProjects ?? [baseProject],
@@ -422,6 +447,21 @@ assert.equal(
   deltaAppliedProjects?.[0]?.codingSessions[0]?.messages.at(-1)?.content,
   'Streaming response chunk.',
   'workspace realtime must merge message.delta chunks directly into cached session messages so the selected transcript can echo through the stream instead of waiting for a refresh.',
+);
+assert.equal(
+  deltaAppliedProjects?.[0]?.codingSessions[0]?.lastTurnAt,
+  undefined,
+  'streaming deltas must not repeatedly rewrite lastTurnAt.',
+);
+assert.equal(
+  deltaAppliedProjects?.[0]?.codingSessions[0]?.updatedAt,
+  createdProjects?.[0]?.codingSessions[0]?.updatedAt,
+  'streaming deltas must not repeatedly rewrite the session activity timestamp.',
+);
+assert.equal(
+  deltaAppliedProjects?.[0]?.codingSessions[0]?.sortTimestamp,
+  createdProjects?.[0]?.codingSessions[0]?.sortTimestamp,
+  'streaming deltas must not repeatedly reorder the project session list.',
 );
 
 const liveToolAppliedProjects = applyWorkspaceRealtimeEventToProjects(

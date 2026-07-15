@@ -1,277 +1,105 @@
 # Engine SDK Integration
 
-This document is the technical implementation reference for BirdCoder's multi-engine middle layer.
+This document describes the current BirdCoder engine boundary. It is normative for the
+desktop session inventory path; provider-specific protocol details remain owned by the
+corresponding provider adapter and SDKWork kernel contracts.
 
-## Kernel bridge execution path (current)
+## Ownership
 
-As of the Kernel ↔ BirdCoder alignment (docs `架构/30–32`), **agent turn execution** no longer lives in BirdCoder per-engine adapter packages.
+| Layer | Responsibility |
+| --- | --- |
+| `sdkwork-kernel` and `sdkwork-agents` | Agent execution, provider SDK negotiation, model turns, and streaming |
+| `sdkwork-birdcoder-codeengine` | Engine catalog, provider-specific dialects, and native session/thread discovery |
+| `sdkwork-birdcoder-tauri-host` | Authorized desktop filesystem boundary and local native-session read commands |
+| `sdkwork-birdcoder-pc-infrastructure` | Injected app-runtime read services and generated BirdCoder app SDK consumption |
+| `sdkwork-birdcoder-pc-commons` | Project-scoped session inventory merge, deduplication, ordering, and pagination |
+| `sdkwork-birdcoder-standalone-gateway` | Authenticated app-api routes for remote and embedded server deployments |
 
-| Layer | Owner | Responsibility |
-| --- | --- | --- |
-| `sdkwork-kernel` | kernel repo | Official SDK bindings, `ModelProvider`, adapter SPI |
-| `sdkwork-birdcoder-kernel-bridge` | BirdCoder | `BirdcoderKernelHost`, `execute_kernel_turn`, `birdcoder-kernel-turn` CLI |
-| `@sdkwork/birdcoder-pc-codeengine` → `kernelRuntime.ts` | BirdCoder | `sendCanonicalEvents()` via kernel-turn subprocess |
-| `@sdkwork/birdcoder-pc-projection` | BirdCoder | Transcript, dialect, canonical projection only |
-| `sdkwork-birdcoder-codeengine` (Rust) | BirdCoder | Dialect + **native session catalog** only (no agent turn) |
-| `sdkwork-birdcoder-standalone-gateway` | BirdCoder | `KernelBridgeCodeEngineProvider` for coding-server turns |
+Agent turn execution must not be added to `sdkwork-birdcoder-codeengine`; it remains on
+the approved kernel bridge/runtime-facade boundary.
 
-Retired BirdCoder surfaces:
+## Native Session Semantics
 
-- `@sdkwork/birdcoder-pc-chat*` per-engine TS adapters
-- `scripts/codeengine-official-sdk-bridge.ts`
-- `RegistryCodeEngineProvider` / `execute_official_sdk_bridge_turn*`
-- `execute_turn` on `codeengine` `*_provider.rs`
+BirdCoder calls the provider-native conversation a `coding session` at the app contract
+boundary. For Codex, the native identity is a Codex **thread**. The adapter exposes the
+thread as a `BirdCoderNativeSessionSummary` using the stable provider-scoped id
+`codex-native:<thread-id>` and preserves the provider working directory in `nativeCwd`.
 
-Alignment tracker: `specs/kernel-birdcoder-alignment.spec.json`. Verification: `pnpm run check:kernel-birdcoder-alignment`.
+Codex discovery is performed by the Rust Codex provider adapter from the local Codex
+state/rollout catalog under `CODEX_HOME`. The adapter parses summaries without loading
+message bodies for list requests and loads the transcript only for a detail request.
+This is the native-session catalog boundary, not a second BirdCoder persistence store.
 
-The sections below describing per-provider TS bridge loaders remain as **historical integration patterns** for dialect and health semantics; new turn work must go through kernel-bridge only.
+Provider summaries are filtered to the currently mounted project root before they cross
+the native boundary. A session is accepted only when its recorded `cwd` equals the
+authorized root or is a descendant of it. Missing roots, missing `cwd`, path traversal,
+and unresolvable mounts fail closed.
 
-## Scope
+## Desktop Read Path
 
-It defines how BirdCoder should integrate Codex, Claude, Gemini, and OpenCode through official SDKs, normalize their runtime semantics, and expose one canonical runtime surface to product packages.
+Opening a local folder creates a device-local mount. The renderer never sends the native
+absolute path through the public app-api. The desktop path is:
 
-## Official package baseline
-
-| Engine | Official package | Integration class | Stable primary lane | Supplemental lane |
-| --- | --- | --- | --- | --- |
-| Codex | `@openai/codex-sdk` | `official-sdk` | SDK native-thread API | CLI JSONL, app-server JSON-RPC |
-| Claude | `@anthropic-ai/claude-agent-sdk` | `official-sdk` | Agent SDK `query()` | Headless CLI, remote-control, preview sessions |
-| Gemini | `@google/gemini-cli-sdk` | `official-sdk` | SDK agent/session API | CLI/core runtime |
-| OpenCode | `@opencode-ai/sdk` | `official-sdk` | SDK client/server API | OpenAPI, SSE |
-
-## Local mirror truth
-
-- `Codex` uses `external/codex/sdk/typescript` as the local official SDK mirror root.
-- `Claude` keeps `external/claude-code` only as a local protocol/source mirror. It is not the official Agent SDK package root.
-- `Gemini` uses `external/gemini/packages/sdk` as the local official SDK mirror root.
-- `OpenCode` uses `external/opencode/packages/sdk/js` as the local JavaScript SDK package root.
-
-## Health semantics
-
-- `describeIntegration()` declares the canonical BirdCoder integration strategy and keeps the provider classified as `official-sdk`.
-- `getHealth()` reports the actual runtime lane selected in the current environment.
-- If the official SDK package is not installed locally, health must expose the fallback lane instead of pretending the runtime is still on `sdk`.
-- Fallback activation, missing auth, local mirror version, and executable visibility must remain visible in diagnostics.
-
-## Runtime execution selection
-
-- Provider adapters must not stop at metadata-only official SDK declarations.
-- `sendMessage()` and `sendMessageStream()` must prefer a provider-specific official SDK bridge when one can be loaded.
-- If the provider bridge cannot be loaded, BirdCoder must fall back to the deterministic local transport-compatible implementation for that engine.
-- Runtime bridge loading failure is a transport/bootstrap concern. It may trigger fallback.
-- Once a provider bridge is loaded successfully, request execution errors should surface to the caller instead of being silently rewritten as fallback success.
-
-## Shared bridge contract
-
-The current middle layer standardizes the provider runtime bridge through a small shared contract:
-
-- `ChatEngineOfficialSdkBridge`
-- `ChatEngineOfficialSdkBridgeLoader`
-- `invokeWithOptionalOfficialSdk()`
-- `streamWithOptionalOfficialSdk()`
-- `createModuleBackedOfficialSdkBridgeLoader()`
-
-This keeps runtime selection logic centralized in `@sdkwork/birdcoder-pc-projection` (`providerAdapter.ts`) for **transcript and dialect helpers**; agent turn execution is owned by `sdkwork-kernel` via `sdkwork-birdcoder-kernel-bridge`.
-
-`apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-projection/src/providerAdapter.ts` must remain browser-safe:
-
-- no static `node:*` imports
-- Node builtin access only through lazy `process.getBuiltinModule(...)`
-- provider candidate imports must keep `/* @vite-ignore */` so Vite does not prebundle environment-specific SDK roots
-
-Provider packages should also expose their official bridge factory as a stable adapter-internal entrypoint so bridge-level contract tests can verify one-shot and streaming normalization without going through the full engine wrapper.
-
-Provider package manifest rules:
-
-- Each provider package must declare its own official SDK as an optional `peerDependencies` entry.
-- Official SDK peer versions must be governed from the root `pnpm-workspace.yaml` `catalog`.
-- Official SDK peer dependencies must not move into `dependencies` or `devDependencies`, because runtime selection still permits mirror-backed and deterministic fallback lanes.
-
-## Module candidate policy
-
-- Every provider should try the installed official package first.
-- Local mirror entry paths may be attempted only as development-time supplemental candidates.
-- `Claude` must not treat `external/claude-code` as the official SDK root candidate.
-- `OpenCode` must use the JavaScript SDK root under `external/opencode/packages/sdk/js`.
-
-## Provider runtime mapping
-
-- `Codex` maps the native `Codex().startThread().run()` and `runStreamed()` lane into BirdCoder one-shot and streaming completions.
-- `Claude` maps the Agent SDK `unstable_v2_prompt()` and `query()` surfaces into BirdCoder one-shot and streaming completions.
-- When a Claude `query()` stream emits partial assistant deltas and later reports the full final assistant text in its `result` event, the bridge must emit only the non-overlapping suffix so canonical streams do not duplicate already-streamed text.
-- `Gemini` maps `GeminiCliAgent().session().sendStream()` into BirdCoder one-shot and streaming completions.
-- `OpenCode` maps the official SDK session client into BirdCoder one-shot completions through `session.prompt()`, and maps `session.promptAsync()` plus `event.subscribe()` SSE into native canonical streaming.
-
-## Canonical fallback rule
-
-- Fallback behavior remains provider-shaped rather than collapsing all engines into one generic mock.
-- Canonical runtime wrappers must preserve provider `describeIntegration()`, `getHealth()`, `getCapabilities()`, and `describeRawExtensions()` even when execution falls back.
-- The explicit `extensions/raw` lane remains the only place where provider-native semantics are exposed directly.
-
-## Package layout
-
-BirdCoder should converge on the following package family:
-
-- `@sdkwork/birdcoder-engine`
-- `@sdkwork/birdcoder-engine-types`
-- `@sdkwork/birdcoder-engine-runtime`
-- `@sdkwork/birdcoder-engine-transport`
-- `@sdkwork/birdcoder-engine-registry`
-- `@sdkwork/birdcoder-engine-codex`
-- `@sdkwork/birdcoder-engine-claude`
-- `@sdkwork/birdcoder-engine-gemini`
-- `@sdkwork/birdcoder-engine-opencode`
-
-The legacy `@sdkwork/birdcoder-pc-chat*` packages are **retired**. Long-term integration center:
-
-- `@sdkwork/birdcoder-pc-projection` — projection and dialect
-- `@sdkwork/birdcoder-pc-codeengine` — catalog + `kernelRuntime.ts`
-- `sdkwork-birdcoder-kernel-bridge` — agent turn boundary
-
-## Canonical runtime objects
-
-The middle layer must standardize these runtime objects:
-
-- `EngineDescriptor`
-- `EngineSession`
-- `EngineTurn`
-- `EngineMessage`
-- `EngineEvent`
-- `EngineArtifact`
-- `ApprovalCheckpoint`
-- `CapabilitySnapshot`
-
-## Canonical event kinds
-
-- `session.started`
-- `turn.started`
-- `message.delta`
-- `message.completed`
-- `message.deleted`
-- `message.edited`
-- `tool.call.requested`
-- `tool.call.progress`
-- `tool.call.completed`
-- `artifact.upserted`
-- `approval.required`
-- `operation.updated`
-- `turn.completed`
-- `turn.failed`
-
-## Canonical artifact kinds
-
-- `diff`
-- `patch`
-- `file`
-- `command-log`
-- `todo-list`
-- `pty-transcript`
-- `structured-output`
-- `build-evidence`
-- `preview-evidence`
-- `simulator-evidence`
-- `test-evidence`
-- `release-evidence`
-- `diagnostic-bundle`
-
-## Required adapter contracts
-
-Every provider package must implement:
-
-- `EngineAdapter`
-- `SessionAdapter`
-- `EventNormalizer`
-- `ArtifactProjector`
-- `ApprovalAdapter`
-- `ExtensionAdapter`
-- `HealthAdapter`
-
-## Recommended TypeScript shape
-
-```ts
-export interface EngineAdapter {
-  readonly descriptor: EngineDescriptor;
-  listModels(): Promise<readonly EngineModelEntry[]>;
-  getHealth(): Promise<EngineHealthReport>;
-  getCapabilities(input?: CapabilityProbeInput): Promise<CapabilitySnapshot>;
-  startSession(input: StartSessionInput): Promise<EngineSessionHandle>;
-  resumeSession(input: ResumeSessionInput): Promise<EngineSessionHandle>;
-}
-
-export interface EngineSessionHandle {
-  readonly session: EngineSession;
-  sendTurn(input: SendTurnInput): Promise<EngineTurnHandle>;
-  close(): Promise<void>;
-}
-
-export interface EngineTurnHandle {
-  readonly turn: EngineTurn;
-  readonly events: AsyncIterable<EngineEvent>;
-}
+```text
+folder mount
+  -> ProjectDeviceMountRegistry
+  -> Tauri authorized filesystem root
+  -> desktop_native_session_list / desktop_native_session_get
+  -> sdkwork-birdcoder-codeengine provider catalog
+  -> injected IAppRuntimeReadService native-session port
+  -> project-scoped workbench inventory
 ```
 
-## Transport rules
+Both Tauri commands execute on a blocking worker. The host validates the requested root
+against the registered filesystem-root allow-list before the provider catalog is read.
+The list command uses offset pagination with `page_size` semantics (default `20`, maximum
+`200`) and returns the same `items` plus `pageInfo` shape as the generated app SDK.
 
-- `transport` is responsible for connectivity and framing only
-- `adapter` is responsible for semantic normalization
-- product packages must never parse provider-native events directly
-- provider-native DTOs must not escape adapter boundaries
+When no authorized desktop mount exists, the injected port returns `null` and the service
+falls back to the authenticated generated app SDK. This preserves browser, private
+remote, and cloud deployments without leaking local paths into HTTP requests.
 
-## Provider implementation notes
+## App SDK Contract
 
-### Codex
+The public operations are:
 
-- Preserve native-thread continuity and turn boundaries
-- Normalize `item.*` into message, tool, and artifact updates
-- Support structured output and resume semantics
+- `runtime.nativeSessions.list`
+- `runtime.nativeSessions.retrieve`
 
-### Claude
+Both operations require `workspaceId` and `projectId`. The server already enforced this
+scope, so the OpenAPI authority and generated SDK now express the same requirement.
+List consumers request one bounded page at a time and carry the returned `pageInfo`.
+No UI path downloads an unbounded native-session collection or paginates by slicing a
+fully downloaded array.
 
-- Prefer Agent SDK over protocol-only integration
-- Keep headless and remote-control as supplemental lanes
-- Treat preview session APIs as experimental capability, not stable baseline
+## Remote And Embedded Server Path
 
-### Gemini
+The authenticated Rust route remains available for remote and embedded gateway modes:
 
-- Preserve tool registry, skill loading, and dynamic instruction assembly
-- Keep file-system and shell context under session context, not page-layer glue
+```text
+GET /app/v3/api/native_sessions
+  -> native session scope authorization
+  -> project-root resolution
+  -> native provider registry
+  -> provider cwd filtering
+  -> SDKWork response envelope
+```
 
-### OpenCode
+The server route and the Tauri local port share the same native summary identity and
+project-scope rules. The server never trusts a renderer-supplied filesystem path.
 
-- Preserve server/client duality
-- Keep `diff`, `todo`, and `pty` as first-class artifacts or operations
+## Verification
 
-## Source-derived fallback policy
+The session boundary is covered by:
 
-Use `source-derived` only when:
+- `scripts/tauri-native-session-composition-contract.test.ts`
+- `scripts/project-session-authority-synchronization-contract.test.ts`
+- `scripts/app-runtime-selected-session-transcript-performance-contract.test.ts`
+- `cargo test -p sdkwork-birdcoder-tauri-host`
+- `cargo test -p sdkwork-birdcoder-codeengine`
+- `pnpm generate:sdk:birdcoder`
+- `pnpm --dir apps/sdkwork-birdcoder-pc typecheck`
 
-- there is no official SDK
-- there is no reusable official protocol
-- the capability is still required
-- the adapter is explicitly marked as source-derived in docs, registry, and health output
-
-## Governance requirements
-
-- no product package may import provider SDKs directly
-- every provider must ship contract tests for descriptor, capability, event normalization, and artifact projection
-- preview APIs must be feature-gated
-- `getCapabilities().experimentalCapabilities` may expose provider experimental features only while the resolved runtime remains `sdk`; fallback snapshots must suppress them
-- fallback modes must be visible in health diagnostics
-- canonical event kinds and artifact kinds must remain registry-controlled
-
-## Minimum verification checklist
-
-- descriptor contract test
-- capability snapshot test
-- session lifecycle test
-- streamed event normalization test
-- artifact projection test
-- approval mapping test
-- health/fallback test
-- official SDK runtime-selection contract test
-- official SDK error-propagation contract test
-- experimental capability gating contract test
-- product-package provider-SDK import governance contract test
-- provider SDK package-manifest contract test
-- provider-adapter browser-safety contract test
-- canonical event/artifact registry governance contract test
+Any future provider that adds native inventory must implement the same provider-scoped
+identity, authorized cwd filtering, bounded page contract, summary/detail split, and
+injected app-runtime port. Provider SDK DTOs must not escape the adapter boundary.

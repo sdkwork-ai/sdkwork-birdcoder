@@ -60,6 +60,22 @@ assert.equal(
 
 const resources = i18nModule.buildBirdCoderLocaleResources();
 
+for (const [locale, expectedLabel] of [
+  ['en', 'Show more'],
+  ['zh', '\u5c55\u5f00\u66f4\u591a'],
+]) {
+  assert.equal(
+    resources[locale]?.translation?.code?.showMoreSessions,
+    expectedLabel,
+    `${locale} Code session pagination must use a stable label without a batch-size interpolation.`,
+  );
+  assert.equal(
+    resources[locale]?.translation?.studio?.showMoreSessions,
+    expectedLabel,
+    `${locale} Studio session pagination must use a stable label without a batch-size interpolation.`,
+  );
+}
+
 for (const locale of ['en', 'zh']) {
   assert.equal(
     resources[locale]?.translation?.app?.menu?.file,
@@ -77,6 +93,31 @@ for (const locale of ['en', 'zh']) {
   assert.ok(
     resources[locale]?.translation?.app?.menu?.newSession,
     `${locale} runtime resources must preserve the merged app.menu.newSession label.`,
+  );
+  assert.match(
+    resources[locale]?.translation?.app?.menu?.aboutBirdCoder,
+    /BirdCoder/,
+    `${locale} runtime resources must identify the application as BirdCoder in the About menu.`,
+  );
+  assert.equal(
+    resources[locale]?.translation?.app?.menu?.aboutCodex,
+    undefined,
+    `${locale} runtime resources must not expose the retired app.menu.aboutCodex key.`,
+  );
+  assert.match(
+    resources[locale]?.translation?.app?.menu?.documentation,
+    /BirdCoder/,
+    `${locale} runtime resources must identify the application as BirdCoder in the documentation menu.`,
+  );
+  assert.equal(
+    resources[locale]?.translation?.app?.aboutTitle,
+    'BirdCoder IDE',
+    `${locale} runtime resources must identify the About dialog as BirdCoder IDE.`,
+  );
+  assert.match(
+    resources[locale]?.translation?.app?.whatsNewTitle,
+    /BirdCoder/,
+    `${locale} runtime resources must identify the What's New dialog as BirdCoder.`,
   );
 }
 

@@ -34,6 +34,7 @@ Object.defineProperty(globalThis, 'window', {
 try {
   const {
     readStoredBirdCoderServerBaseUrl,
+    resolveBirdCoderBrowserServerBaseUrl,
     resolveBirdCoderBootstrapServerBaseUrl,
   } = await import(`${bootstrapServerBaseUrlModulePath.href}?t=${Date.now()}`);
 
@@ -100,6 +101,39 @@ try {
     }),
     'https://env.example.com/birdcoder-api',
     'build-time configured API base URL should remain the final fallback when neither persisted settings nor runtime config provide an override.',
+  );
+
+  assert.equal(
+    resolveBirdCoderBrowserServerBaseUrl('http://127.0.0.1:10240', {
+      browserLocationUrl: 'http://192.168.31.108:3001/workspaces',
+    }),
+    'http://192.168.31.108:10240',
+    'a remote browser must address the API through the web server host instead of its own loopback interface.',
+  );
+
+  assert.equal(
+    resolveBirdCoderBrowserServerBaseUrl('http://localhost:10240/birdcoder-gateway', {
+      browserLocationUrl: 'http://10.42.0.18:3001/',
+    }),
+    'http://10.42.0.18:10240/birdcoder-gateway',
+    'LAN host substitution must preserve the configured API port and path across different private subnets.',
+  );
+
+  assert.equal(
+    resolveBirdCoderBrowserServerBaseUrl('http://127.0.0.1:10240', {
+      browserLocationUrl: 'http://192.168.31.108:3001/',
+      preferSameOrigin: true,
+    }),
+    'http://192.168.31.108:3001',
+    'development browser requests should use the Vite same-origin proxy boundary.',
+  );
+
+  assert.equal(
+    resolveBirdCoderBrowserServerBaseUrl('https://api.example.com/birdcoder', {
+      browserLocationUrl: 'http://192.168.31.108:3001/',
+    }),
+    'https://api.example.com/birdcoder',
+    'an explicit non-local API authority must never be rewritten.',
   );
 } finally {
   if (originalWindowDescriptor) {

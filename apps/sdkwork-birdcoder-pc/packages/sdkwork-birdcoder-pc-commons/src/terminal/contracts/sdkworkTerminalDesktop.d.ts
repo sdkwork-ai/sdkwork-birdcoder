@@ -12,6 +12,7 @@ export interface DesktopTerminalAppProps<TLaunchRequest = never> {
     | null
     | undefined;
   showWindowControls?: boolean;
+  onLaunchError?: (message: string) => void;
 }
 
 export const DesktopTerminalApp: ComponentType<DesktopTerminalAppProps<any>>;

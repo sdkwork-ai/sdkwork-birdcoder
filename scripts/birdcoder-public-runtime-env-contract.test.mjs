@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 import {
   createBirdcoderCredentialEntryBootstrapPlugin,
@@ -24,6 +25,24 @@ assert.equal(mergedRuntimeEnv.VITE_BIRDCODER_API_BASE_URL, 'http://127.0.0.1:102
 assert.equal(
   resolveBirdcoderDevelopmentApiEnvDefines('test')['import.meta.env.VITE_BIRDCODER_API_BASE_URL'],
   'undefined',
+);
+
+const webMainSource = fs.readFileSync(
+  new URL(
+    '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-web/src/main.tsx',
+    import.meta.url,
+  ),
+  'utf8',
+);
+assert.match(
+  webMainSource,
+  /const isDevelopment = import\.meta\.env\.DEV \|\|/u,
+  'Web bootstrap must use Vite DEV authority when deciding whether local API traffic uses the same-origin proxy.',
+);
+assert.match(
+  webMainSource,
+  /return window\.location\.origin;/u,
+  'Web development must keep local API traffic on the current browser origin.',
 );
 assert.deepEqual(resolveBirdcoderDevelopmentApiEnvDefines('production'), {});
 

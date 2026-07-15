@@ -1,8 +1,9 @@
-import type {
-  BirdCoderDefaultIdeServiceKey,
-  BirdCoderDefaultIdeServices,
-  BirdCoderDefaultIdeSharedRuntime,
-  CreateBirdCoderDefaultIdeServicesOptions,
+import {
+  createBirdCoderDefaultIdeSharedRuntime,
+  type BirdCoderDefaultIdeServiceKey,
+  type BirdCoderDefaultIdeServices,
+  type BirdCoderDefaultIdeSharedRuntime,
+  type CreateBirdCoderDefaultIdeServicesOptions,
 } from './defaultIdeServicesShared.ts';
 import {
   createBirdCoderAdminIdeServices,
@@ -10,6 +11,20 @@ import {
   createUnavailableAdminPolicyService,
   createUnavailableAuditService,
 } from '@sdkwork/birdcoder-pc-admin-core';
+import { ApiBackedCatalogService } from './impl/ApiBackedCatalogService.ts';
+import { ApiBackedCollaborationService } from './impl/ApiBackedCollaborationService.ts';
+import { ApiBackedAppRuntimeReadService } from './impl/ApiBackedAppRuntimeReadService.ts';
+import { ApiBackedAppRuntimeWriteService } from './impl/ApiBackedAppRuntimeWriteService.ts';
+import { ApiBackedDeploymentService } from './impl/ApiBackedDeploymentService.ts';
+import { ApiBackedDocumentService } from './impl/ApiBackedDocumentService.ts';
+import { ApiBackedGitService } from './impl/ApiBackedGitService.ts';
+import { ApiBackedProjectService } from './impl/ApiBackedProjectService.ts';
+import { ApiBackedReleaseService } from './impl/ApiBackedReleaseService.ts';
+import { ApiBackedTeamService } from './impl/ApiBackedTeamService.ts';
+import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
+import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
+import { createUnavailableReleaseService } from './impl/UnavailableReleaseService.ts';
+import { createBirdCoderTauriNativeSessionReadPort } from '../platform/tauriNativeSessions.ts';
 export type {
   BirdCoderDefaultIdeServiceKey,
   BirdCoderDefaultIdeServices,
@@ -24,13 +39,11 @@ function loadSharedRuntime(
   options?: CreateBirdCoderDefaultIdeServicesOptions,
 ): Promise<BirdCoderDefaultIdeSharedRuntime> {
   if (options) {
-    return import('./defaultIdeServicesShared.ts').then((module) =>
-      module.createBirdCoderDefaultIdeSharedRuntime(options),
-    );
+    return Promise.resolve(createBirdCoderDefaultIdeSharedRuntime(options));
   }
 
-  sharedRuntimePromise ??= import('./defaultIdeServicesShared.ts').then((module) =>
-    module.createBirdCoderDefaultIdeSharedRuntime(),
+  sharedRuntimePromise ??= Promise.resolve().then(() =>
+    createBirdCoderDefaultIdeSharedRuntime(),
   );
   return sharedRuntimePromise;
 }
@@ -42,7 +55,6 @@ async function loadWorkspaceService(
     return runtime.providerBackedWorkspaceService;
   }
 
-  const { ApiBackedWorkspaceService } = await import('./impl/ApiBackedWorkspaceService.ts');
   return new ApiBackedWorkspaceService({
     appClient: runtime.appClient,
     currentUserProvider: runtime.authService,
@@ -58,7 +70,6 @@ async function loadProjectService(
     return runtime.providerBackedProjectService;
   }
 
-  const { ApiBackedProjectService } = await import('./impl/ApiBackedProjectService.ts');
   return new ApiBackedProjectService({
     appClient: runtime.appClient,
     codingSessionMirror: runtime.providerBackedProjectService,
@@ -105,39 +116,34 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
         return createBirdCoderAdminIdeServices(runtime.backendClient).auditService;
       }
       case 'catalogService': {
-        const { ApiBackedCatalogService } = await import('./impl/ApiBackedCatalogService.ts');
         return new ApiBackedCatalogService({
           appClient: runtime.appClient,
         });
       }
       case 'collaborationService': {
-        const { ApiBackedCollaborationService } = await import('./impl/ApiBackedCollaborationService.ts');
         return new ApiBackedCollaborationService({
           appClient: runtime.appClient,
           currentUserProvider: runtime.authService,
         });
       }
       case 'appRuntimeReadService': {
-        const { ApiBackedAppRuntimeReadService } = await import('./impl/ApiBackedAppRuntimeReadService.ts');
         return new ApiBackedAppRuntimeReadService({
           client: runtime.appRuntimeClient,
           currentUserProvider: runtime.authService,
+          nativeSessionReadPort: createBirdCoderTauriNativeSessionReadPort(runtime.fileSystemService),
         });
       }
       case 'appRuntimeWriteService': {
-        const { ApiBackedAppRuntimeWriteService } = await import('./impl/ApiBackedAppRuntimeWriteService.ts');
         return new ApiBackedAppRuntimeWriteService({
           client: runtime.appRuntimeClient,
         });
       }
       case 'deploymentService': {
-        const { ApiBackedDeploymentService } = await import('./impl/ApiBackedDeploymentService.ts');
         return new ApiBackedDeploymentService({
           appClient: runtime.appClient,
         });
       }
       case 'documentService': {
-        const { ApiBackedDocumentService } = await import('./impl/ApiBackedDocumentService.ts');
         return new ApiBackedDocumentService({
           appClient: runtime.appClient,
         });
@@ -146,7 +152,6 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
         return runtime.fileSystemService;
       }
       case 'gitService': {
-        const { ApiBackedGitService } = await import('./impl/ApiBackedGitService.ts');
         return new ApiBackedGitService({
           appClient: runtime.appClient,
         });
@@ -157,21 +162,17 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
         return loadProjectService(runtime);
       case 'releaseService': {
         if (!runtime.hasExplicitBackendClient) {
-          const { createUnavailableReleaseService } = await import('./impl/UnavailableReleaseService.ts');
           return createUnavailableReleaseService();
         }
-        const { ApiBackedReleaseService } = await import('./impl/ApiBackedReleaseService.ts');
         return new ApiBackedReleaseService({ backendClient: runtime.backendClient });
       }
       case 'teamService': {
-        const { ApiBackedTeamService } = await import('./impl/ApiBackedTeamService.ts');
         return new ApiBackedTeamService({
           appClient: runtime.appClient,
           currentUserProvider: runtime.authService,
         });
       }
       case 'vipMembershipService': {
-        const { ApiBackedVipMembershipService } = await import('./impl/ApiBackedVipMembershipService.ts');
         return new ApiBackedVipMembershipService();
       }
       case 'workspaceService':

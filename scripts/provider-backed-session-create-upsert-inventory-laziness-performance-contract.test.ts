@@ -37,14 +37,18 @@ function buildSession(id: string): BirdCoderPersistedCodingSessionRecord {
   };
 }
 
-function buildMessage(sessionId: string, id: string): BirdCoderChatMessage {
+function buildMessage(
+  sessionId: string,
+  id: string,
+  createdAt: string = timestamp,
+): BirdCoderChatMessage {
   return {
     codingSessionId: sessionId,
     content: id,
-    createdAt: timestamp,
+    createdAt,
     id,
     role: 'assistant',
-    timestamp: Date.parse(timestamp),
+    timestamp: Date.parse(createdAt),
   };
 }
 
@@ -77,6 +81,14 @@ function buildCodingSessionSummaryInput(
 
 function countPlanKind(kind: string): number {
   return sqlExecutor.history.filter((plan) => plan.meta?.kind === kind).length;
+}
+
+function countCodingSessionSummaryWrites(): number {
+  return sqlExecutor.history.filter(
+    (plan) =>
+      plan.meta?.kind === 'table-upsert' &&
+      plan.meta.tableName === 'ai_coding_session',
+  ).length;
 }
 
 const sqlExecutor = createBirdCoderInMemorySqlExecutor('sqlite');
@@ -176,6 +188,171 @@ assert.deepEqual(
   ),
   ['session-create-upsert-message-a', 'session-create-upsert-message-b'],
   'summary-only upsert must preserve the already persisted transcript.',
+);
+
+const staleGuardSessionId = 'session-create-upsert-stale-summary-guard';
+const cachedNewerUpdatedAt = '2026-04-30T10:20:00.000Z';
+const cachedNewerLastTurnAt = '2026-04-30T10:19:00.000Z';
+const cachedNewerSortTimestamp = String(Date.parse(cachedNewerLastTurnAt));
+const cachedNewerTranscriptUpdatedAt = '2026-04-30T10:18:00.000Z';
+const cachedNewerTitle = 'Cached Newer Session Title';
+const staleAuthorityNativeSessionId = 'native-session-summary-backfill';
+const staleGuardMessageIds = [
+  'session-create-upsert-stale-message-a',
+  'session-create-upsert-stale-message-b',
+];
+const cachedNewerSession: BirdCoderPersistedCodingSessionRecord = {
+  ...buildSession(staleGuardSessionId),
+  lastTurnAt: cachedNewerLastTurnAt,
+  sortTimestamp: cachedNewerSortTimestamp,
+  title: cachedNewerTitle,
+  transcriptUpdatedAt: cachedNewerTranscriptUpdatedAt,
+  updatedAt: cachedNewerUpdatedAt,
+};
+
+await codingSessionRepositories.sessions.save(cachedNewerSession);
+await codingSessionRepositories.messages.saveMany([
+  buildMessage(
+    staleGuardSessionId,
+    staleGuardMessageIds[0]!,
+    '2026-04-30T10:17:00.000Z',
+  ),
+  buildMessage(
+    staleGuardSessionId,
+    staleGuardMessageIds[1]!,
+    cachedNewerTranscriptUpdatedAt,
+  ),
+]);
+
+const hydratedNewerSession = await service.getCodingSessionTranscript(
+  projectId,
+  staleGuardSessionId,
+);
+assert.ok(
+  hydratedNewerSession,
+  'stale-summary guard setup must hydrate the newer cached session.',
+);
+assert.deepEqual(
+  hydratedNewerSession.messages.map((message) => message.id),
+  staleGuardMessageIds,
+  'stale-summary guard setup must cache the complete newer transcript.',
+);
+
+const staleAuthoritySummary: BirdCoderCodingSession = {
+  ...hydratedNewerSession,
+  lastTurnAt: '2026-04-30T10:04:00.000Z',
+  messages: [],
+  nativeSessionId: staleAuthorityNativeSessionId,
+  sortTimestamp: String(Date.parse('2026-04-30T10:04:00.000Z')),
+  title: 'Stale Authority Session Title',
+  transcriptUpdatedAt: '2026-04-30T10:03:00.000Z',
+  updatedAt: '2026-04-30T10:05:00.000Z',
+};
+
+sqlExecutor.history.length = 0;
+await service.upsertCodingSession(projectId, staleAuthoritySummary);
+assert.equal(
+  countCodingSessionSummaryWrites(),
+  1,
+  'a stale authority summary may persist once when it backfills a missing native session id.',
+);
+
+const persistedAfterStaleSummary =
+  await codingSessionRepositories.sessions.findById(staleGuardSessionId);
+assert.ok(
+  persistedAfterStaleSummary,
+  'the stale-summary guard session must remain persisted.',
+);
+assert.equal(
+  persistedAfterStaleSummary.nativeSessionId,
+  staleAuthorityNativeSessionId,
+  'the stale authority summary must be allowed to backfill nativeSessionId.',
+);
+assert.equal(
+  persistedAfterStaleSummary.title,
+  cachedNewerTitle,
+  'a stale authority summary must not replace the newer cached title.',
+);
+assert.equal(
+  persistedAfterStaleSummary.updatedAt,
+  cachedNewerUpdatedAt,
+  'a stale authority summary must not replace the newer cached updatedAt.',
+);
+assert.equal(
+  persistedAfterStaleSummary.lastTurnAt,
+  cachedNewerLastTurnAt,
+  'a stale authority summary must not replace the newer cached lastTurnAt.',
+);
+assert.equal(
+  persistedAfterStaleSummary.sortTimestamp,
+  cachedNewerSortTimestamp,
+  'a stale authority summary must not replace the newer cached sortTimestamp.',
+);
+assert.equal(
+  persistedAfterStaleSummary.transcriptUpdatedAt,
+  cachedNewerTranscriptUpdatedAt,
+  'a stale authority summary must not replace the newer cached transcript timestamp.',
+);
+
+const cachedAfterStaleSummary = await service.getCodingSessionTranscript(
+  projectId,
+  staleGuardSessionId,
+);
+assert.ok(
+  cachedAfterStaleSummary,
+  'the guarded session must remain available from the selected-session cache.',
+);
+assert.equal(
+  cachedAfterStaleSummary.title,
+  cachedNewerTitle,
+  'the selected-session cache must retain the newer title.',
+);
+assert.equal(
+  cachedAfterStaleSummary.updatedAt,
+  cachedNewerUpdatedAt,
+  'the selected-session cache must retain the newer updatedAt.',
+);
+assert.equal(
+  cachedAfterStaleSummary.lastTurnAt,
+  cachedNewerLastTurnAt,
+  'the selected-session cache must retain the newer lastTurnAt.',
+);
+assert.equal(
+  cachedAfterStaleSummary.sortTimestamp,
+  cachedNewerSortTimestamp,
+  'the selected-session cache must retain the newer sortTimestamp.',
+);
+assert.equal(
+  cachedAfterStaleSummary.transcriptUpdatedAt,
+  cachedNewerTranscriptUpdatedAt,
+  'the selected-session cache must retain the newer transcript timestamp.',
+);
+assert.deepEqual(
+  cachedAfterStaleSummary.messages.map((message) => message.id),
+  staleGuardMessageIds,
+  'a stale authority summary must not replace the newer cached transcript messages.',
+);
+assert.deepEqual(
+  (
+    await codingSessionRepositories.listMessagesByCodingSessionIds([
+      staleGuardSessionId,
+    ])
+  ).map((message) => message.id),
+  staleGuardMessageIds,
+  'a stale authority summary must not replace the persisted transcript messages.',
+);
+
+sqlExecutor.history.length = 0;
+await service.upsertCodingSession(projectId, staleAuthoritySummary);
+assert.equal(
+  countCodingSessionSummaryWrites(),
+  0,
+  'replaying an equivalent stale authority summary must not persist the session again.',
+);
+assert.equal(
+  sqlExecutor.history.some((plan) => plan.intent === 'write'),
+  false,
+  'replaying an equivalent stale authority summary must not emit any redundant persistence plan.',
 );
 
 const providerBackedProjectServiceSource = fs.readFileSync(

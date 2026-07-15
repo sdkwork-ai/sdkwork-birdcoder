@@ -1,0 +1,59 @@
+# Page snapshot
+
+```yaml
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - region "Notifications alt+T"
+    - generic [ref=e7]:
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - img [ref=e14]
+          - heading "Scan to sign in" [level=2] [ref=e20]
+        - generic [ref=e21]:
+          - generic [ref=e24]:
+            - img [ref=e26]
+            - button "Refresh QR code" [ref=e33]:
+              - img [ref=e34]
+              - text: Refresh QR code
+          - generic [ref=e39]: QR status unavailable
+          - paragraph [ref=e40]: "HTTP 401: Unauthorized"
+      - generic [ref=e42]:
+        - heading "Account sign-in" [level=1] [ref=e44]
+        - generic [ref=e46]:
+          - generic [ref=e48]:
+            - button "Password" [ref=e49]:
+              - img [ref=e51]
+              - generic [ref=e54]: Password
+            - button "Email code" [ref=e55]:
+              - img [ref=e57]
+              - generic [ref=e60]: Email code
+            - button "Phone code" [ref=e61]:
+              - img [ref=e63]
+              - generic [ref=e66]: Phone code
+          - generic [ref=e67]:
+            - generic [ref=e68]:
+              - text: Account
+              - generic [ref=e69]:
+                - img
+                - textbox "Account" [ref=e70]:
+                  - /placeholder: Username, phone, or email
+              - alert [ref=e71]: Enter your account.
+            - generic [ref=e72]:
+              - text: Password
+              - generic [ref=e73]:
+                - generic [ref=e74]:
+                  - img
+                - textbox "Password" [ref=e76]:
+                  - /placeholder: Enter your password
+                  - text: e2e-password
+                - button "Show password" [ref=e78]:
+                  - img [ref=e79]
+            - button "Sign in" [active] [ref=e82]:
+              - text: Sign in
+              - img [ref=e83]
+          - generic [ref=e85]:
+            - button "Forgot password?" [ref=e86]
+            - generic [ref=e87]:
+              - text: Don't have an account?
+              - button "Sign up" [ref=e88]
+```

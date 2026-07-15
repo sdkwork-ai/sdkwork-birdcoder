@@ -25,10 +25,12 @@ import { useTokenPlanNotify } from './tokenPlanNotify.tsx';
 
 export interface BirdCoderTokenPlanPageProps {
   className?: string;
+  onAuthenticationRequired?: () => void;
 }
 
 export function BirdCoderTokenPlanPage({
   className,
+  onAuthenticationRequired,
 }: BirdCoderTokenPlanPageProps = {}) {
   const { memberSummary, refreshMembership, setMembershipTierKey } = useTokenPlanMemberSummary();
   const { NotifyOutlet, onNotify } = useTokenPlanNotify();
@@ -49,6 +51,7 @@ export function BirdCoderTokenPlanPage({
           }}
           memberSummary={memberSummary}
           notifyOutlet={NotifyOutlet}
+          onLoginRequired={onAuthenticationRequired}
           onMembershipTierUpdated={(membershipTierKey: string) => {
             setMembershipTierKey(membershipTierKey);
             void refreshMembership().catch(() => undefined);

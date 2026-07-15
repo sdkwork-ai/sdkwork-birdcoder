@@ -47,13 +47,12 @@ import {
   type BirdCoderEditCodingSessionMessageRequest,
   type BirdCoderEditCodingSessionMessageResult,
   type BirdCoderForkCodingSessionRequest,
+  type BirdCoderGetNativeSessionRequest,
   type BirdCoderHostMode,
   type BirdCoderListCodingSessionsRequest,
   type BirdCoderListNativeSessionsRequest,
   type BirdCoderNativeSessionDetail,
-  type BirdCoderNativeSessionMessage,
   type BirdCoderNativeSessionProviderSummary,
-  type BirdCoderNativeSessionSummary,
   type BirdCoderProject,
   type BirdCoderSubmitApprovalDecisionRequest,
   type BirdCoderSubmitUserQuestionAnswerRequest,
@@ -64,6 +63,7 @@ import type {
   BirdCoderCodingSessionListResult,
   IProjectService,
 } from './interfaces/IProjectService.ts';
+import type { IAppRuntimeReadService } from './interfaces/IAppRuntimeReadService.ts';
 import { resolveRequiredCodingSessionSelection } from './codingSessionSelection.ts';
 import { createBirdCoderLocalServerRequestId } from './localServerRequestId.ts';
 import { randomString } from '@sdkwork/utils/id';
@@ -86,6 +86,10 @@ function throwInProcessRuntimeShimError(operationId: string): never {
 
 export interface CreateBirdCoderInProcessAppRuntimeTransportOptions {
   hostMode?: BirdCoderHostMode;
+  nativeSessionProvider?: Pick<
+    IAppRuntimeReadService,
+    'getNativeSession' | 'listNativeSessionPage'
+  >;
   observe?: (request: BirdCoderApiTransportRequest) => void;
   projectService: InProcessProjectService;
   runtime?: Partial<BirdCoderCoreRuntimeSummary>;
@@ -244,6 +248,17 @@ function readTextQueryValue(value: BirdCoderApiQueryValue): string | undefined {
   return typeof value === 'string' ? normalizeText(value) : undefined;
 }
 
+function readRequiredTextQueryValue(
+  value: BirdCoderApiQueryValue,
+  name: string,
+): string {
+  const normalized = readTextQueryValue(value)?.trim();
+  if (!normalized) {
+    throw new Error(`${name} is required for native session operations.`);
+  }
+  return normalized;
+}
+
 function compareCodingSessionMessages(
   left: BirdCoderCodingSession['messages'][number],
   right: BirdCoderCodingSession['messages'][number],
@@ -295,76 +310,6 @@ function toCodingSessionSummary(
     lastTurnAt: session.lastTurnAt,
     sortTimestamp: session.sortTimestamp,
     transcriptUpdatedAt: session.transcriptUpdatedAt,
-  };
-}
-
-function toNativeSessionMetadata(
-  metadata: Record<string, unknown> | undefined,
-): Record<string, string> | undefined {
-  if (!metadata) {
-    return undefined;
-  }
-
-  const normalizedEntries = Object.entries(metadata)
-    .map(([key, value]) => {
-      if (typeof value === 'string') {
-        return [key, value] as const;
-      }
-      if (
-        typeof value === 'number' ||
-        typeof value === 'boolean' ||
-        value === null
-      ) {
-        return [key, String(value)] as const;
-      }
-      const serializedValue = stringifyBirdCoderApiJson(value);
-      return typeof serializedValue === 'string'
-        ? ([key, serializedValue] as const)
-        : null;
-    })
-    .filter((entry): entry is readonly [string, string] => !!entry && entry[1].trim().length > 0);
-
-  return normalizedEntries.length > 0 ? Object.fromEntries(normalizedEntries) : undefined;
-}
-
-function toNativeSessionMessage(
-  message: BirdCoderCodingSession['messages'][number],
-): BirdCoderNativeSessionMessage {
-  return {
-    id: message.id,
-    codingSessionId: message.codingSessionId,
-    turnId: message.turnId,
-    role: message.role,
-    content: message.content,
-    commands: message.commands?.map((command) => ({
-      command: command.command,
-      kind: command.kind,
-      output: command.output,
-      requiresApproval: command.requiresApproval,
-      requiresReply: command.requiresReply,
-      runtimeStatus: command.runtimeStatus,
-      status: command.status,
-      toolCallId: command.toolCallId,
-      toolName: command.toolName,
-    })),
-    tool_calls: message.tool_calls,
-    tool_call_id: message.tool_call_id,
-    fileChanges: message.fileChanges,
-    taskProgress: message.taskProgress,
-    metadata: toNativeSessionMetadata(message.metadata),
-    createdAt: message.createdAt,
-  };
-}
-
-function toNativeSessionSummary(
-  session: BirdCoderCodingSession,
-): BirdCoderNativeSessionSummary {
-  return {
-    ...toCodingSessionSummary(session),
-    kind: 'coding',
-    nativeCwd: null,
-    sortTimestamp: resolveBirdCoderSessionSortTimestampString(session),
-    transcriptUpdatedAt: session.transcriptUpdatedAt ?? null,
   };
 }
 
@@ -681,6 +626,69 @@ function compareRuntimeCodingSessions(
     compareBirdCoderSessionSortTimestamp(right, left) ||
     left.id.localeCompare(right.id)
   );
+}
+
+/**
+ * The coding-session list is the workbench inventory authority. Native
+ * providers still expose their dedicated route for detail/recovery, but list
+ * consumers must receive one stable, deduplicated page from this operation.
+ */
+async function listUnifiedCodingSessionsForRuntime(
+  projectService: RuntimeCodingSessionInventoryProjectService,
+  nativeSessionProvider: CreateBirdCoderInProcessAppRuntimeTransportOptions['nativeSessionProvider'],
+  request: BirdCoderListCodingSessionsRequest,
+): Promise<{ items: BirdCoderCodingSessionSummary[]; total: number }> {
+  const requestedLimit = request.limit ?? DEFAULT_LIST_PAGE_SIZE;
+  const requestedOffset = request.offset ?? 0;
+  const targetEnd = requestedOffset + requestedLimit;
+  const projectionPage = await listCodingSessionsForRuntime(projectService, {
+    ...request,
+    offset: 0,
+    limit: targetEnd,
+  });
+  const nativePage =
+    nativeSessionProvider && request.projectId && request.workspaceId
+      ? await nativeSessionProvider.listNativeSessionPage({
+          engineId: request.engineId,
+          projectId: request.projectId,
+          workspaceId: request.workspaceId,
+          offset: 0,
+          limit: targetEnd,
+        })
+      : null;
+
+  const records = new Map<string, BirdCoderCodingSessionSummary>();
+  const nativeIdentities = new Map<string, string>();
+  let matchedNativeCount = 0;
+  for (const summary of projectionPage.items.map(toCodingSessionSummary)) {
+    records.set(summary.id, summary);
+    if (summary.nativeSessionId) {
+      nativeIdentities.set(`native:${summary.engineId}:${summary.nativeSessionId}`, summary.id);
+    }
+  }
+  for (const summary of nativePage?.items ?? []) {
+    const identity = `native:${summary.engineId}:${summary.nativeSessionId ?? summary.id}`;
+    const existingId = nativeIdentities.get(identity) ?? (records.has(summary.id) ? summary.id : undefined);
+    const existing = existingId ? records.get(existingId) : undefined;
+    if (existing) {
+      matchedNativeCount += 1;
+      records.set(existing.id, { ...existing, ...summary, id: existing.id });
+      nativeIdentities.set(identity, existing.id);
+    } else {
+      records.set(summary.id, summary);
+      nativeIdentities.set(identity, summary.id);
+    }
+  }
+
+  const uniqueItems = [...records.values()].sort((left, right) =>
+    compareBirdCoderSessionSortTimestamp(right, left) || left.id.localeCompare(right.id),
+  );
+  const items = uniqueItems.slice(requestedOffset, targetEnd);
+  const nativeTotal = nativePage ? Number(nativePage.pageInfo.totalItems) : 0;
+  return {
+    items,
+    total: Math.max(uniqueItems.length, projectionPage.total + nativeTotal - matchedNativeCount),
+  };
 }
 
 function pushCodingSessionIntoSortedWindow(
@@ -1019,6 +1027,7 @@ function readRequestBody<TBody>(
 
 export function createBirdCoderInProcessAppRuntimeTransport({
   hostMode = 'desktop',
+  nativeSessionProvider,
   observe,
   projectService,
   runtime,
@@ -1090,7 +1099,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
         }
         case 'codingSessions.list': {
           const { offset, pageSize } = readOffsetListPageParams(request.query);
-          const page = await listCodingSessionsForRuntime(projectService, {
+          const page = await listUnifiedCodingSessionsForRuntime(projectService, nativeSessionProvider, {
             engineId: readTextQueryValue(request.query?.engineId) as
               | BirdCoderListCodingSessionsRequest['engineId']
               | undefined,
@@ -1109,7 +1118,7 @@ export function createBirdCoderInProcessAppRuntimeTransport({
               knownWorkspaceIds.add(normalizedWorkspaceId);
             }
           }
-          return createListEnvelope(page.items.map(toCodingSessionSummary), {
+          return createListEnvelope(page.items, {
             offset,
             pageSize,
             total: page.total,
@@ -1126,44 +1135,43 @@ export function createBirdCoderInProcessAppRuntimeTransport({
         }
         case 'nativeSessions.list': {
           const { offset, pageSize } = readOffsetListPageParams(request.query);
-          const page = await listCodingSessionsForRuntime(projectService, {
+          if (!nativeSessionProvider) {
+            throw new Error(
+              'Native session provider is unavailable in the in-process app runtime.',
+            );
+          }
+          const page = await nativeSessionProvider.listNativeSessionPage({
             engineId: readTextQueryValue(request.query?.engineId) as
-              | BirdCoderListCodingSessionsRequest['engineId']
+              | BirdCoderListNativeSessionsRequest['engineId']
               | undefined,
-            projectId: readTextQueryValue(request.query?.projectId),
-            workspaceId: readTextQueryValue(request.query?.workspaceId),
+            projectId: readRequiredTextQueryValue(request.query?.projectId, 'projectId'),
+            workspaceId: readRequiredTextQueryValue(request.query?.workspaceId, 'workspaceId'),
             offset,
             limit: pageSize,
           });
-          for (const codingSession of page.items) {
-            codingSessionProjectIndex.set(codingSession.id, {
-              projectId: codingSession.projectId,
-              workspaceId: codingSession.workspaceId,
-            });
-            const normalizedWorkspaceId = codingSession.workspaceId.trim();
-            if (normalizedWorkspaceId) {
-              knownWorkspaceIds.add(normalizedWorkspaceId);
-            }
-          }
-          return createListEnvelope(page.items.map(toNativeSessionSummary), {
+          return createListEnvelope(page.items, {
             offset,
             pageSize,
-            total: page.total,
+            total: Number(page.pageInfo.totalItems),
           }) as TResponse;
         }
         case 'nativeSessions.retrieve': {
-          const codingSession = await getCodingSessionTranscriptById(
-            projectService,
-            codingSessionProjectIndex,
-            knownWorkspaceIds,
+          if (!nativeSessionProvider) {
+            throw new Error(
+              'Native session provider is unavailable in the in-process app runtime.',
+            );
+          }
+          const detail = await nativeSessionProvider.getNativeSession(
             resolveCodingSessionPathParam(resolvedOperation.pathParams),
+            {
+              engineId: readTextQueryValue(request.query?.engineId) as
+                | BirdCoderGetNativeSessionRequest['engineId']
+                | undefined,
+              projectId: readRequiredTextQueryValue(request.query?.projectId, 'projectId'),
+              workspaceId: readRequiredTextQueryValue(request.query?.workspaceId, 'workspaceId'),
+            },
           );
-          return createEnvelope<BirdCoderNativeSessionDetail>({
-            summary: toNativeSessionSummary(codingSession),
-            messages: getOrderedCodingSessionMessages(codingSession.messages).map(
-              toNativeSessionMessage,
-            ),
-          }) as TResponse;
+          return createEnvelope<BirdCoderNativeSessionDetail>(detail) as TResponse;
         }
         case 'codingSessions.events.list': {
           const { offset, pageSize } = readOffsetListPageParams(request.query);

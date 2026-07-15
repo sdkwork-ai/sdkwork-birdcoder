@@ -7,25 +7,30 @@ import {
   formatBirdCoderSessionActivityDisplayTime,
   resolveBirdCoderSessionSortTimestampString,
 } from '@sdkwork/birdcoder-pc-types';
-import { normalizeBirdCoderCodeEngineNativeSessionId } from '@sdkwork/birdcoder-pc-codeengine';
+import {
+  normalizeBirdCoderCodeEngineNativeSessionId,
+  resolveBirdCoderCodeEngineNativeSessionIdPrefix,
+} from '@sdkwork/birdcoder-pc-codeengine';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import {
-  listStoredSessionInventory,
+  listAuthorityBackedCodingSessionInventoryPage,
+  type SessionInventoryAppRuntimeReadService,
   type StoredCodingSessionInventoryRecord,
   type WorkbenchSessionInventoryRecord,
 } from './sessionInventory.ts';
 
-type ProjectSessionSynchronizationRuntimeService = NonNullable<
-  NonNullable<Parameters<typeof listStoredSessionInventory>[0]>['appRuntimeReadService']
->;
+type ProjectSessionSynchronizationRuntimeService = SessionInventoryAppRuntimeReadService;
 
 export interface SynchronizeProjectSessionsFromAuthorityOptions {
   appRuntimeReadService?: ProjectSessionSynchronizationRuntimeService;
   project: BirdCoderProject;
   projectService: IProjectService;
+  sessionLimit?: number;
 }
 
 export interface SynchronizeProjectSessionsFromAuthorityResult {
+  hasMoreSessions: boolean;
+  loadedSessionCount: number;
   project: BirdCoderProject;
   synchronizedSessionIds: string[];
 }
@@ -34,10 +39,19 @@ export interface SynchronizeProjectsSessionsFromAuthorityOptions {
   appRuntimeReadService?: ProjectSessionSynchronizationRuntimeService;
   projects: readonly BirdCoderProject[];
   projectService: IProjectService;
+  sessionLimit?: number;
   workspaceId: string;
 }
 
-const PROJECT_SESSION_SYNCHRONIZATION_LIMIT = 200;
+const DEFAULT_PROJECT_SESSION_SYNCHRONIZATION_LIMIT = 6;
+const MAX_PROJECT_SESSION_SYNCHRONIZATION_LIMIT = 200_000;
+
+function normalizeProjectSessionSynchronizationLimit(value: number | undefined): number {
+  if (!Number.isSafeInteger(value) || value === undefined || value <= 0) {
+    return DEFAULT_PROJECT_SESSION_SYNCHRONIZATION_LIMIT;
+  }
+  return Math.min(value, MAX_PROJECT_SESSION_SYNCHRONIZATION_LIMIT);
+}
 
 function normalizeIdentityPart(value: string | null | undefined): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -137,8 +151,15 @@ function toSynchronizedProjectSession(
   const existingSessionIsNewer = !!existingSession &&
     compareBirdCoderSessionSortTimestamp(existingSession, record) > 0;
   const summarySource = existingSessionIsNewer ? existingSession : record;
+  const providerPrefix = resolveBirdCoderCodeEngineNativeSessionIdPrefix(record.engineId);
+  const recordUsesProviderScopedId = !!providerPrefix && record.id.startsWith(providerPrefix);
+  const existingUsesProviderScopedId =
+    !!providerPrefix && !!existingSession?.id.startsWith(providerPrefix);
   const session: BirdCoderCodingSession = {
-    id: existingSession?.id ?? record.id,
+    id:
+      recordUsesProviderScopedId && !existingUsesProviderScopedId
+        ? record.id
+        : existingSession?.id ?? record.id,
     workspaceId: record.workspaceId,
     projectId: record.projectId,
     title: summarySource.title,
@@ -210,6 +231,7 @@ function sortProjectSessionsByActivity(
 async function synchronizeProjectSessionsFromInventory(
   options: SynchronizeProjectSessionsFromAuthorityOptions,
   inventory: readonly WorkbenchSessionInventoryRecord[],
+  hasMoreSessions: boolean,
 ): Promise<SynchronizeProjectSessionsFromAuthorityResult> {
   const workspaceId = options.project.workspaceId.trim();
   const projectId = options.project.id.trim();
@@ -219,6 +241,8 @@ async function synchronizeProjectSessionsFromInventory(
     !projectId
   ) {
     return {
+      hasMoreSessions: false,
+      loadedSessionCount: options.project.codingSessions.length,
       project: options.project,
       synchronizedSessionIds: [],
     };
@@ -231,9 +255,11 @@ async function synchronizeProjectSessionsFromInventory(
         record.workspaceId.trim() === workspaceId &&
         record.projectId.trim() === projectId,
     ),
-  ).slice(0, PROJECT_SESSION_SYNCHRONIZATION_LIMIT);
+  );
   if (authoritySessions.length === 0) {
     return {
+      hasMoreSessions,
+      loadedSessionCount: options.project.codingSessions.length,
       project: options.project,
       synchronizedSessionIds: [],
     };
@@ -242,9 +268,7 @@ async function synchronizeProjectSessionsFromInventory(
   const sessionsByIdentity = indexProjectSessionsByIdentity(
     options.project.codingSessions,
   );
-  const sessionsById = new Map(
-    options.project.codingSessions.map((session) => [session.id, session]),
-  );
+  const synchronizedSessions: BirdCoderCodingSession[] = [];
   const synchronizedSessionIds: string[] = [];
 
   for (const authoritySession of authoritySessions) {
@@ -256,7 +280,7 @@ async function synchronizeProjectSessionsFromInventory(
       authoritySession,
       existingSession,
     );
-    sessionsById.set(synchronizedSession.id, synchronizedSession);
+    synchronizedSessions.push(synchronizedSession);
     for (const key of buildSessionIdentityKeys(synchronizedSession)) {
       sessionsByIdentity.set(key, synchronizedSession);
     }
@@ -270,9 +294,11 @@ async function synchronizeProjectSessionsFromInventory(
   }
 
   return {
+    hasMoreSessions,
+    loadedSessionCount: synchronizedSessions.length,
     project: {
       ...options.project,
-      codingSessions: sortProjectSessionsByActivity([...sessionsById.values()]),
+      codingSessions: sortProjectSessionsByActivity(synchronizedSessions),
     },
     synchronizedSessionIds,
   };
@@ -285,20 +311,26 @@ export async function synchronizeProjectSessionsFromAuthority(
   const projectId = options.project.id.trim();
   if (!options.appRuntimeReadService || !workspaceId || !projectId) {
     return {
+      hasMoreSessions: false,
+      loadedSessionCount: options.project.codingSessions.length,
       project: options.project,
       synchronizedSessionIds: [],
     };
   }
 
-  const inventory = await listStoredSessionInventory({
+  const inventory = await listAuthorityBackedCodingSessionInventoryPage({
     appRuntimeReadService: options.appRuntimeReadService,
     includeGlobal: false,
-    limit: PROJECT_SESSION_SYNCHRONIZATION_LIMIT,
+    limit: normalizeProjectSessionSynchronizationLimit(options.sessionLimit),
     offset: 0,
     projectId,
     workspaceId,
   });
-  return synchronizeProjectSessionsFromInventory(options, inventory);
+  return synchronizeProjectSessionsFromInventory(
+    options,
+    inventory.items,
+    inventory.hasMore,
+  );
 }
 
 export async function synchronizeProjectsSessionsFromAuthority(
@@ -318,6 +350,7 @@ export async function synchronizeProjectsSessionsFromAuthority(
   }
 
   const synchronizedProjectsById = new Map<string, BirdCoderProject>();
+  const sessionLimit = normalizeProjectSessionSynchronizationLimit(options.sessionLimit);
   let nextProjectIndex = 0;
   const synchronizeNextProject = async (): Promise<void> => {
     while (nextProjectIndex < scopedProjects.length) {
@@ -325,10 +358,10 @@ export async function synchronizeProjectsSessionsFromAuthority(
       if (!project) {
         continue;
       }
-      const inventory = await listStoredSessionInventory({
+      const inventory = await listAuthorityBackedCodingSessionInventoryPage({
         appRuntimeReadService: options.appRuntimeReadService,
         includeGlobal: false,
-        limit: PROJECT_SESSION_SYNCHRONIZATION_LIMIT,
+        limit: sessionLimit,
         offset: 0,
         projectId: project.id,
         workspaceId,
@@ -338,8 +371,10 @@ export async function synchronizeProjectsSessionsFromAuthority(
           appRuntimeReadService: options.appRuntimeReadService,
           project,
           projectService: options.projectService,
+          sessionLimit,
         },
-        inventory,
+        inventory.items,
+        inventory.hasMore,
       );
       synchronizedProjectsById.set(project.id, synchronized.project);
     }

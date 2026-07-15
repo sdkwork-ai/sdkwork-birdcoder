@@ -80,7 +80,7 @@ impl SqliteCodingSessionRepository {
                  SELECT s.* FROM ai_coding_session s",
         );
         select_sql.push_str(filter_sql);
-        select_sql.push_str(" ORDER BY s.sort_timestamp DESC, s.id DESC");
+        select_sql.push_str(" ORDER BY s.sort_timestamp DESC, s.id ASC");
         if has_limit {
             select_sql.push_str(" LIMIT ?");
         }
@@ -93,7 +93,7 @@ impl SqliteCodingSessionRepository {
                  WHERE r.coding_session_id = s.id AND {runtime_is_not_deleted} \
                  ORDER BY r.created_at DESC, r.id DESC LIMIT 1\
              ) AS runtime_status FROM session_page s \
-             ORDER BY s.sort_timestamp DESC, s.id DESC",
+             ORDER BY s.sort_timestamp DESC, s.id ASC",
         ));
         select_sql
     }
@@ -2479,7 +2479,7 @@ mod tests {
             "runtime lookup must be downstream of a materialized page; sql={sql}; plan={plan:?}",
         );
         assert_eq!(
-            sql.matches("ORDER BY s.sort_timestamp DESC, s.id DESC")
+            sql.matches("ORDER BY s.sort_timestamp DESC, s.id ASC")
                 .count(),
             2,
             "inner and outer page order must both be deterministic; sql={sql}",

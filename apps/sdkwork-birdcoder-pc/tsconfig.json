@@ -152,6 +152,9 @@
       "@sdkwork/terminal-pc-shell": [
         "./packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalShell.d.ts"
       ],
+      "@sdkwork/terminal-pc-shell/web-integration": [
+        "./packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalShellWebIntegration.d.ts"
+      ],
       "@sdkwork/terminal-pc-shell/*": [
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src/*"
       ],
@@ -162,7 +165,7 @@
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-sessions/src/model.ts"
       ],
       "@sdkwork/terminal-pc-infrastructure": [
-        "./packages/sdkwork-birdcoder-pc-commons/src/terminal/contracts/sdkworkTerminalInfrastructure.d.ts"
+        "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src"
       ],
       "@sdkwork/terminal-pc-infrastructure/*": [
         "../../../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-infrastructure/src/*"

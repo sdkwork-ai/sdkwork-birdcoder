@@ -91,6 +91,7 @@ export function ResizeHandle({ direction, onResize, className = '' }: ResizeHand
           ? 'w-1 cursor-col-resize hover:w-1.5 -ml-0.5 -mr-0.5'
           : 'h-1 cursor-row-resize hover:h-1.5 -mt-0.5 -mb-0.5'
       } ${className}`}
+      data-dragging={isDragging ? 'true' : 'false'}
       onMouseDown={(event) => {
         event.preventDefault();
         setIsDragging(true);
