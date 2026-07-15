@@ -317,25 +317,39 @@ export async function synchronizeProjectsSessionsFromAuthority(
     return [...options.projects];
   }
 
-  const inventory = await listStoredSessionInventory({
-    appRuntimeReadService: options.appRuntimeReadService,
-    includeGlobal: false,
-    limit: PROJECT_SESSION_SYNCHRONIZATION_LIMIT,
-    offset: 0,
-    workspaceId,
-  });
   const synchronizedProjectsById = new Map<string, BirdCoderProject>();
-  for (const project of scopedProjects) {
-    const synchronized = await synchronizeProjectSessionsFromInventory(
-      {
+  let nextProjectIndex = 0;
+  const synchronizeNextProject = async (): Promise<void> => {
+    while (nextProjectIndex < scopedProjects.length) {
+      const project = scopedProjects[nextProjectIndex++];
+      if (!project) {
+        continue;
+      }
+      const inventory = await listStoredSessionInventory({
         appRuntimeReadService: options.appRuntimeReadService,
-        project,
-        projectService: options.projectService,
-      },
-      inventory,
-    );
-    synchronizedProjectsById.set(project.id, synchronized.project);
-  }
+        includeGlobal: false,
+        limit: PROJECT_SESSION_SYNCHRONIZATION_LIMIT,
+        offset: 0,
+        projectId: project.id,
+        workspaceId,
+      });
+      const synchronized = await synchronizeProjectSessionsFromInventory(
+        {
+          appRuntimeReadService: options.appRuntimeReadService,
+          project,
+          projectService: options.projectService,
+        },
+        inventory,
+      );
+      synchronizedProjectsById.set(project.id, synchronized.project);
+    }
+  };
+  await Promise.all(
+    Array.from(
+      { length: Math.min(4, scopedProjects.length) },
+      () => synchronizeNextProject(),
+    ),
+  );
 
   return options.projects.map(
     (project) => synchronizedProjectsById.get(project.id) ?? project,

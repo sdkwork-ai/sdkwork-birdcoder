@@ -303,8 +303,16 @@ const batchProjects = await synchronizeProjectsSessionsFromAuthority({
   } as IProjectService,
   workspaceId,
 });
-assert.equal(batchProjectionReads, 1);
-assert.equal(batchNativeReads, 1);
+assert.equal(
+  batchProjectionReads,
+  2,
+  'project-list synchronization must issue one scoped projection read per project.',
+);
+assert.equal(
+  batchNativeReads,
+  2,
+  'project-list synchronization must issue one scoped native-provider read per project.',
+);
 assert.equal(
   batchProjects.find((candidate) => candidate.id === projectId)?.codingSessions[0]?.id,
   'batch-projection-1',

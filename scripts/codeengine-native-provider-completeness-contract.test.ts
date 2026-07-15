@@ -92,6 +92,16 @@ for (const moduleName of [
   );
 }
 
+const nativeSessionCatalogSource = readFileSync(
+  path.join(root, 'crates/sdkwork-birdcoder-codeengine/src/native_session_catalog.rs'),
+  'utf8',
+);
+assert.match(
+  nativeSessionCatalogSource,
+  /sessions\.sort_by\([\s\S]*?sort_timestamp[\s\S]*?then_with/,
+  'Native session catalog must globally sort provider summaries before route pagination.',
+);
+
 const kernelRuntimeSource = readFileSync(
   path.join(
     root,
