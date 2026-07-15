@@ -25,6 +25,7 @@
     "@sdkwork/utils": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "typescript": "catalog:"
   },
   "exports": {

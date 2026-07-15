@@ -9,6 +9,7 @@ pub enum ProjectError {
     Repository(String),
     EventPublish(String),
     GitOperation(String),
+    Unavailable(String),
     Internal(String),
 }
 
@@ -22,6 +23,7 @@ impl fmt::Display for ProjectError {
             Self::Repository(msg) => write!(f, "repository error: {msg}"),
             Self::EventPublish(msg) => write!(f, "event publish error: {msg}"),
             Self::GitOperation(msg) => write!(f, "git operation error: {msg}"),
+            Self::Unavailable(msg) => write!(f, "unavailable: {msg}"),
             Self::Internal(msg) => write!(f, "internal error: {msg}"),
         }
     }

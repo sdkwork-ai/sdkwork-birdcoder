@@ -18,9 +18,9 @@ mod native_session_catalog;
 
 pub use native_session::{
     build_native_session_id, format_missing_native_session_provider_error,
-    known_standard_provider_registration, resolved_native_session_provider_registration,
-    is_authority_backed_native_session_id, lookup_standard_native_session_provider_registration,
-    native_session_prefix_for_engine, resolve_native_session_engine_id,
+    is_authority_backed_native_session_id, known_standard_provider_registration,
+    lookup_standard_native_session_provider_registration, native_session_prefix_for_engine,
+    resolve_native_session_engine_id, resolved_native_session_provider_registration,
     standard_native_session_provider_registrations,
 };
 pub use native_session_catalog::{
@@ -32,11 +32,11 @@ pub use catalog::{
     find_codeengine_descriptor, find_native_session_provider_catalog_entry,
     list_codeengine_descriptors, list_codeengine_model_catalog_entries,
     list_native_session_provider_catalog_entries, native_session_provider_catalog_entries,
-    register_provider, shared_codeengine_catalog, CatalogError,
-    CodeEngineAccessLaneStatusRecord, CodeEngineAccessStrategyKindRecord,
-    CodeEngineBridgeProtocolRecord, CodeEngineCapabilityMatrixRecord,
-    CodeEngineDescriptorRecord, CodeEngineModelCatalogEntryRecord,
-    CodeEngineRuntimeOwnerRecord, NativeSessionDiscoveryModeRecord as NativeSessionDiscoveryMode,
+    register_provider, shared_codeengine_catalog, CatalogError, CodeEngineAccessLaneStatusRecord,
+    CodeEngineAccessStrategyKindRecord, CodeEngineBridgeProtocolRecord,
+    CodeEngineCapabilityMatrixRecord, CodeEngineDescriptorRecord,
+    CodeEngineModelCatalogEntryRecord, CodeEngineRuntimeOwnerRecord,
+    NativeSessionDiscoveryModeRecord as NativeSessionDiscoveryMode,
     NativeSessionProviderCatalogRecord,
     NativeSessionProviderCatalogRecord as NativeSessionProviderRegistration,
     PartialCodeEngineCapabilityMatrixRecord, SharedCodeEngineCatalogRecord,

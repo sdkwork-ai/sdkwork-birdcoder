@@ -33,7 +33,6 @@ function buildProject(): BirdCoderProject {
     createdAt: '2026-04-28T10:00:00.000Z',
     id: projectId,
     name: 'Loading Timeout Project',
-    path: 'D:/workspace/loading-timeout',
     updatedAt: '2026-04-28T10:00:00.000Z',
     workspaceId,
   };
@@ -53,9 +52,6 @@ function buildProjectService(
     async getProjectById(candidateProjectId: string) {
       void candidateProjectId;
       return fail('getProjectById');
-    },
-    async getProjectByPath() {
-      return fail('getProjectByPath');
     },
     async createProject() {
       return fail('createProject');

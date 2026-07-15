@@ -181,14 +181,14 @@ assert.equal(
 
 assert.match(
   topBarSource,
-  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons';/,
-  'Code TopBar must import the shared project Git overview hook from commons.',
+  /import[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons\/hooks\/useProjectGitOverview';/,
+  'Code TopBar must import the shared project Git overview hook through the governed commons hook subpath.',
 );
 
 assert.match(
   topBarSource,
-  /import[\s\S]*useProjectGitMutationActions[\s\S]*from '@sdkwork\/birdcoder-pc-commons';/,
-  'Code TopBar must import shared Git mutation actions from commons instead of duplicating mutation logic locally.',
+  /import[\s\S]*useProjectGitMutationActions[\s\S]*from '@sdkwork\/birdcoder-pc-commons\/hooks\/useProjectGitMutationActions';/,
+  'Code TopBar must import shared Git mutation actions through the governed commons hook subpath instead of duplicating mutation logic locally.',
 );
 
 assert.match(

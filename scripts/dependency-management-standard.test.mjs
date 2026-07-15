@@ -16,13 +16,15 @@ const expectedDependencyIds = [
   'sdkwork-search',
   'sdkwork-terminal',
   'sdkwork-sdk-generator',
+  'sdkwork-membership',
+  'sdkwork-promotion',
+  'sdkwork-order',
   'sdkwork-web-framework',
   'sdkwork-database',
   'sdkwork-utils',
   'sdkwork-app-topology',
   'sdkwork-models',
   'sdkwork-kernel',
-  'sdkwork-agents',
 ];
 const sourceDependencyFiles = [
   'package.json',

@@ -33,6 +33,22 @@ const authSurfaceSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-b
 const infrastructureIndexSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/index.ts');
 const sdkClientsSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts');
 const iamRuntimeSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamRuntime.ts');
+
+assert.match(
+  iamRuntimeSource,
+  /resolveBirdCoderBrowserDevelopmentSdkBaseUrl\(envValue\)/u,
+  'PC web development must normalize loopback SDK authorities to the same-origin Vite proxy boundary.',
+);
+assert.match(
+  iamRuntimeSource,
+  /return window\.location\.origin/u,
+  'PC web development SDK clients must use the browser origin after local authority normalization.',
+);
+assert.match(
+  iamRuntimeSource,
+  /runtimeMode[\s\S]*development[\s\S]*test/u,
+  'PC test-mode SDK clients must use the same-origin proxy boundary as development clients.',
+);
 const defaultServicesSource = readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/defaultIdeServicesShared.ts');
 
 for (const [label, packageJson] of [

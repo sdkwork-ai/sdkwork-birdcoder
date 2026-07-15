@@ -10,7 +10,7 @@ use sdkwork_birdcoder_errors::{
 };
 use sdkwork_birdcoder_project_service::context::ProjectContext;
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
-use sdkwork_iam_context_service::IamAppContext;
+use sdkwork_iam_context_service::{IamAppContext, LoginScope, PLATFORM_ORGANIZATION_ID};
 use sdkwork_iam_web_adapter::iam_app_context_from_web_request;
 use sdkwork_utils_rust::{validated_offset_list_params, OffsetListPageParams, SdkWorkResultCode};
 
@@ -157,8 +157,13 @@ pub fn workspace_context(iam: &IamAppContext) -> WorkspaceContext {
 }
 
 pub fn project_context(iam: &IamAppContext) -> ProjectContext {
+    let organization_id = match iam.login_scope {
+        LoginScope::Tenant => PLATFORM_ORGANIZATION_ID.to_owned(),
+        LoginScope::Organization => iam.organization_id.clone().unwrap_or_default(),
+    };
     ProjectContext {
         tenant_id: iam.tenant_id.clone(),
+        organization_id,
         user_id: iam.user_id.clone(),
     }
 }
@@ -173,8 +178,38 @@ pub fn deployment_context(iam: &IamAppContext) -> DeploymentContext {
 #[cfg(test)]
 mod tests {
     use axum::http::Uri;
+    use sdkwork_iam_context_service::{AuthLevel, DeploymentMode, Environment};
 
     use super::*;
+
+    fn iam_context(organization_id: Option<&str>) -> IamAppContext {
+        IamAppContext::new(
+            "100001",
+            organization_id,
+            "200001",
+            "session-1",
+            "sdkwork-birdcoder",
+            Environment::Dev,
+            DeploymentMode::Local,
+            AuthLevel::Password,
+            vec![],
+            vec![],
+        )
+    }
+
+    #[test]
+    fn personal_project_context_uses_platform_organization_scope() {
+        let context = project_context(&iam_context(None));
+
+        assert_eq!(context.organization_id, PLATFORM_ORGANIZATION_ID);
+    }
+
+    #[test]
+    fn organization_project_context_preserves_selected_organization() {
+        let context = project_context(&iam_context(Some("300001")));
+
+        assert_eq!(context.organization_id, "300001");
+    }
 
     #[test]
     fn strict_offset_pagination_parses_the_standard_wire_parameters() {

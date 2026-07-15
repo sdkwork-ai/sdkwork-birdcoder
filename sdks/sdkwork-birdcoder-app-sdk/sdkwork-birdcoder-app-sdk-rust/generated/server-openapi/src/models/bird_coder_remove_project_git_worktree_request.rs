@@ -5,5 +5,6 @@ pub struct BirdCoderRemoveProjectGitWorktreeRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub force: Option<bool>,
 
-    pub path: String,
+    #[serde(rename = "worktreeKey")]
+    pub worktree_key: String,
 }

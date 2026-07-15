@@ -30,8 +30,7 @@ try {
   const birdcoderPackageSubpathAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/birdcoder-([^/]+)\\/(.+)$/u');
   const birdcoderPackageRootAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/birdcoder-([^/]+)$/u');
   const terminalDesktopAliasIndex = aliasFinders.indexOf('@sdkwork/terminal-pc-desktop');
-  const terminalPackageSubpathAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/terminal-(?!local-runtime-app-sdk$|pc-desktop$)([^/]+)\\/(.+)$/u');
-  const terminalPackageRootAliasIndex = aliasFinders.indexOf('/^@sdkwork\\/terminal-(?!local-runtime-app-sdk$|pc-desktop$)([^/]+)$/u');
+  const terminalPackageRootAliasIndex = aliasFinders.indexOf('@sdkwork/terminal-pc-core');
 
   assert.notEqual(
     aliasFinders.indexOf('/^qrcode$/u'),
@@ -73,18 +72,9 @@ try {
     'Desktop standard Vite test server must include the terminal desktop alias.',
   );
   assert.notEqual(
-    terminalPackageSubpathAliasIndex,
-    -1,
-    'Desktop standard Vite test server must include the terminal package-subpath alias.',
-  );
-  assert.notEqual(
     terminalPackageRootAliasIndex,
     -1,
-    'Desktop standard Vite test server must include the terminal package-root alias.',
-  );
-  assert.ok(
-    terminalPackageSubpathAliasIndex < terminalPackageRootAliasIndex,
-    'Desktop standard Vite test server must keep the terminal package-subpath alias ahead of the package-root alias so subpath imports are not shadowed.',
+    'Desktop standard Vite test server must include the exact terminal package-root alias used for root and subpath imports.',
   );
 } finally {
   await server.close();

@@ -9,6 +9,29 @@ export interface WaitForBirdCoderApiReadyOptions {
   paths?: readonly string[];
   requestTimeoutMs?: number;
   retryDelayMs?: number;
+  runtimeTarget?: BirdCoderApiRuntimeTarget;
+}
+
+export type BirdCoderApiRuntimeTarget = 'desktop' | 'web';
+
+export class BirdCoderApiReadyError extends Error {
+  readonly apiBaseUrl: string;
+  readonly lastFailure: string;
+  readonly runtimeTarget: BirdCoderApiRuntimeTarget;
+
+  constructor(
+    apiBaseUrl: string,
+    lastFailure: string,
+    runtimeTarget: BirdCoderApiRuntimeTarget,
+  ) {
+    super(
+      `BirdCoder ${runtimeTarget === 'desktop' ? 'embedded' : 'local'} API is unavailable at ${apiBaseUrl}. Last readiness failure: ${lastFailure}.`,
+    );
+    this.name = 'BirdCoderApiReadyError';
+    this.apiBaseUrl = apiBaseUrl;
+    this.lastFailure = lastFailure;
+    this.runtimeTarget = runtimeTarget;
+  }
 }
 
 function delay(milliseconds: number): Promise<void> {
@@ -120,7 +143,9 @@ export async function waitForBirdCoderApiReady(
     await delay(retryDelayMs);
   }
 
-  throw new Error(
-    `BirdCoder local API is unavailable at ${apiBaseUrl}. Start the BirdCoder server with "pnpm dev" or "pnpm server:dev" before opening appbase-backed pages. Last readiness failure: ${lastFailure}.`,
+  throw new BirdCoderApiReadyError(
+    apiBaseUrl,
+    lastFailure,
+    options.runtimeTarget ?? 'web',
   );
 }

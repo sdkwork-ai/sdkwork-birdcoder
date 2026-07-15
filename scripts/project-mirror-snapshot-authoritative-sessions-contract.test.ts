@@ -19,7 +19,6 @@ const localProject: BirdCoderProject = {
   workspaceId,
   name: 'Authoritative Session Project',
   description: 'Local mirror starts without session inventory after login.',
-  path: 'D:/workspace/authoritative-session-project',
   createdAt: '2026-04-24T00:00:00.000Z',
   updatedAt: '2026-04-24T00:01:00.000Z',
   codingSessions: [],
@@ -56,7 +55,6 @@ const client = {
         workspaceId,
         name: localProject.name,
         description: localProject.description,
-        rootPath: localProject.path,
         status: 'active',
         createdAt: localProject.createdAt,
         updatedAt: localProject.updatedAt,
@@ -100,6 +98,16 @@ assert.equal(
 );
 assert.equal(snapshots.length, 1);
 assert.equal(snapshots[0]?.id, projectId);
+assert.equal(
+  Object.hasOwn(snapshots[0] ?? {}, 'path'),
+  false,
+  'project mirror snapshots must not reconstruct a device-local path from authority metadata.',
+);
+assert.equal(
+  Object.hasOwn(snapshots[0] ?? {}, 'sitePath'),
+  false,
+  'project mirror snapshots must not reconstruct a device-local site path from authority metadata.',
+);
 assert.equal(
   snapshots[0]?.codingSessions.length,
   1,

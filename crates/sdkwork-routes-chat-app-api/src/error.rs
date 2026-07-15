@@ -14,16 +14,12 @@ pub fn map_service_error(error: ChatError, trace_id: Option<&str>) -> ProblemJso
         ChatError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
         }
-        ChatError::InvalidInput(msg) => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            msg,
-            trace_id,
-        ),
-        ChatError::Forbidden(msg) => traced_platform_problem(
-            SdkWorkResultCode::PermissionRequired,
-            msg,
-            trace_id,
-        ),
+        ChatError::InvalidInput(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
+        }
+        ChatError::Forbidden(msg) => {
+            traced_platform_problem(SdkWorkResultCode::PermissionRequired, msg, trace_id)
+        }
         ChatError::Repository(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
             client_safe_data_access_problem(),
@@ -80,9 +76,6 @@ mod tests {
             Some("trace-500"),
         );
         assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(
-            body.detail.as_deref(),
-            Some("An internal error occurred")
-        );
+        assert_eq!(body.detail.as_deref(), Some("An internal error occurred"));
     }
 }

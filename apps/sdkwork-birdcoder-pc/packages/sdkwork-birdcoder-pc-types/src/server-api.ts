@@ -150,7 +150,6 @@ export interface BirdCoderWorkspaceRealtimeEvent {
   workspaceId: string;
   projectId?: string;
   projectName?: string;
-  projectRootPath?: string;
   codingSessionId?: string;
   codingSessionTitle?: string;
   codingSessionStatus?: BirdCoderCodingSessionSummary['status'];
@@ -335,8 +334,6 @@ export interface BirdCoderProjectSummary {
   title?: string;
   name: string;
   description?: string;
-  rootPath?: string;
-  sitePath?: string;
   domainPrefix?: string;
   ownerId?: BirdCoderCanonicalEntityId;
   leaderId?: BirdCoderCanonicalEntityId;
@@ -359,43 +356,30 @@ export interface BirdCoderProjectSummary {
 export type BirdCoderGitOverviewStatus = 'ready' | 'not_repository';
 
 export interface BirdCoderGitStatusCounts {
-  conflicted: number;
-  deleted: number;
-  modified: number;
   staged: number;
+  unstaged: number;
   untracked: number;
 }
 
 export interface BirdCoderGitBranchSummary {
-  ahead: number;
-  behind: number;
   isCurrent: boolean;
-  kind: string;
+  isRemote: boolean;
   name: string;
-  upstreamName?: string;
 }
 
 export interface BirdCoderGitWorktreeSummary {
   branch?: string;
   head?: string;
-  id: string;
   isCurrent: boolean;
-  isDetached: boolean;
-  isLocked: boolean;
-  isPrunable: boolean;
-  label: string;
-  lockedReason?: string;
-  path: string;
   prunableReason?: string;
+  worktreeKey?: string;
 }
 
 export interface BirdCoderProjectGitOverview {
   branches: BirdCoderGitBranchSummary[];
   currentBranch?: string;
   currentRevision?: string;
-  currentWorktreePath?: string;
   detachedHead: boolean;
-  repositoryRootPath?: string;
   status: BirdCoderGitOverviewStatus;
   statusCounts: BirdCoderGitStatusCounts;
   worktrees: BirdCoderGitWorktreeSummary[];
@@ -420,12 +404,11 @@ export interface BirdCoderPushProjectGitBranchRequest {
 
 export interface BirdCoderCreateProjectGitWorktreeRequest {
   branchName: string;
-  path: string;
 }
 
 export interface BirdCoderRemoveProjectGitWorktreeRequest {
   force?: boolean;
-  path: string;
+  worktreeKey: string;
 }
 
 export interface BirdCoderSkillCatalogEntrySummary {
@@ -516,62 +499,12 @@ export interface BirdCoderAppTemplateSummary {
 export interface BirdCoderCreateProjectRequest {
   description?: string;
   name: string;
-  workspaceUuid?: string;
-  tenantId?: BirdCoderCanonicalEntityId;
-  organizationId?: BirdCoderCanonicalEntityId;
-  dataScope?: BirdCoderDataScope;
-  userId?: BirdCoderCanonicalEntityId;
-  parentId?: BirdCoderCanonicalEntityId;
-  parentUuid?: string;
-  parentMetadata?: Record<string, unknown>;
-  code?: string;
-  title?: string;
-  ownerId?: BirdCoderCanonicalEntityId;
-  leaderId?: BirdCoderCanonicalEntityId;
-  createdByUserId?: BirdCoderCanonicalEntityId;
-  author?: string;
-  fileId?: BirdCoderCanonicalEntityId;
-  conversationId?: BirdCoderCanonicalEntityId;
-  type?: string;
-  rootPath?: string;
-  sitePath?: string;
-  domainPrefix?: string;
-  coverImage?: Record<string, unknown>;
-  startTime?: string;
-  endTime?: string;
-  budgetAmount?: BirdCoderLongIntegerString;
-  isTemplate?: boolean;
-  appTemplateVersionId?: string;
-  templatePresetKey?: string;
-  status?: BirdCoderProjectSummary['status'];
   workspaceId: BirdCoderCanonicalEntityId;
 }
 
 export interface BirdCoderUpdateProjectRequest {
   description?: string;
-  dataScope?: BirdCoderDataScope;
-  userId?: BirdCoderCanonicalEntityId;
-  parentId?: BirdCoderCanonicalEntityId;
-  parentUuid?: string;
-  parentMetadata?: Record<string, unknown>;
-  code?: string;
-  title?: string;
   name?: string;
-  ownerId?: BirdCoderCanonicalEntityId;
-  leaderId?: BirdCoderCanonicalEntityId;
-  createdByUserId?: BirdCoderCanonicalEntityId;
-  author?: string;
-  fileId?: BirdCoderCanonicalEntityId;
-  conversationId?: BirdCoderCanonicalEntityId;
-  type?: string;
-  rootPath?: string;
-  sitePath?: string;
-  domainPrefix?: string;
-  coverImage?: Record<string, unknown>;
-  startTime?: string;
-  endTime?: string;
-  budgetAmount?: BirdCoderLongIntegerString;
-  isTemplate?: boolean;
   status?: BirdCoderProjectSummary['status'];
 }
 
@@ -682,13 +615,9 @@ export interface BirdCoderUpsertWorkspaceMemberRequest {
 }
 
 export interface BirdCoderUpsertProjectCollaboratorRequest {
-  userId?: string;
-  email?: string;
-  teamId?: string;
+  userId: string;
   role?: BirdCoderCollaborationRole;
-  status?: BirdCoderCollaborationStatus;
-  createdByUserId?: string;
-  grantedByUserId?: string;
+  status?: Exclude<BirdCoderCollaborationStatus, 'removed'>;
 }
 
 export interface BirdCoderDeploymentTargetSummary {
@@ -1022,9 +951,7 @@ export interface BirdCoderWorkspaceScopedListRequest {
   offset?: number;
 }
 
-export interface BirdCoderProjectListRequest extends BirdCoderWorkspaceScopedListRequest {
-  rootPath?: string;
-}
+export type BirdCoderProjectListRequest = BirdCoderWorkspaceScopedListRequest;
 
 export interface BirdCoderCoreHealthSummary {
   status: string;
@@ -1348,22 +1275,6 @@ function buildBirdCoderCodingSessionTurnOptionsBody(
   }
 
   return body;
-}
-
-function normalizeCollaborationUserReference(
-  request:
-    | BirdCoderUpsertProjectCollaboratorRequest
-    | BirdCoderUpsertWorkspaceMemberRequest,
-): { email?: string; userId?: string } {
-  const userId = normalizeOptionalText(request.userId);
-  const email = normalizeOptionalText(request.email);
-  if (!userId && !email) {
-    throw new Error('userId or email must not be empty.');
-  }
-  return {
-    email,
-    userId,
-  };
 }
 
 const BIRDCODER_WORKSPACE_STATUS_SET = new Set<BirdCoderWorkspaceSummary['status']>([

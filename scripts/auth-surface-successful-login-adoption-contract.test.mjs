@@ -38,8 +38,8 @@ assert.match(
 
 assert.match(
   authPageSource,
-  /runtimeConfig=\{resolveBirdCoderAuthRuntimeConfig\(\)\}/u,
-  'AuthPage must pass BirdCoder runtime metadata to the standard SDKWork IAM auth UI.',
+  /const BIRDCODER_AUTH_RUNTIME_CONFIG = resolveBirdCoderAuthRuntimeConfig\(\);[\s\S]*runtimeConfig=\{BIRDCODER_AUTH_RUNTIME_CONFIG\}/u,
+  'AuthPage must pass stable BirdCoder runtime metadata to the standard SDKWork IAM auth UI.',
 );
 
 assert.doesNotMatch(
@@ -50,20 +50,20 @@ assert.doesNotMatch(
 
 assert.match(
   runtimeAuthServiceSource,
-  /runtime\.service\.auth\.sessions\.current\.retrieve\(\)/u,
-  'RuntimeAuthService must validate the current SDKWork IAM session before hydrating users.',
+  /const session = await retrieveBirdCoderCurrentSession\(runtime\);[\s\S]*if \(!session\) \{[\s\S]*return null;/u,
+  'RuntimeAuthService must validate the current SDKWork IAM session through the shared session authority before hydrating users.',
 );
 
 assert.match(
   runtimeAuthServiceSource,
-  /runtime\.service\.iam\.users\.current\.retrieve\(\)/u,
-  'RuntimeAuthService must hydrate current users from the SDKWork IAM generated app SDK surface.',
+  /retrieveBirdCoderCurrentUser\(runtime, session\)/u,
+  'RuntimeAuthService must hydrate current users through the shared SDKWork IAM current-user authority.',
 );
 
 assert.match(
   runtimeAuthServiceSource,
-  /runtime\.service\.auth\.sessions\.current\.retrieve\(\)/u,
-  'RuntimeAuthService must validate the current SDKWork IAM session before hydrating users.',
+  /hasStoredSession\(\)[\s\S]*retrieveBirdCoderCurrentSession\(readRuntime\(\)\)/u,
+  'RuntimeAuthService stored-session checks must use the same validated SDKWork IAM session authority.',
 );
 
 assert.match(

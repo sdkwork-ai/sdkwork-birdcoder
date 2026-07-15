@@ -11,6 +11,42 @@ import {
 const workspaceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'birdcoder-openapi-export-'));
 
 try {
+  const deploymentOpenApiSidecars = [
+    {
+      artifactRelativePath: 'server/windows/x64/openapi/coding-server-v1.json',
+      manifestRelativePath: 'deployments/server-windows/x64/release-asset-manifest.json',
+      openApiRelativePath: 'deployments/server-windows/x64/openapi/coding-server-v1.json',
+    },
+    {
+      artifactRelativePath: 'server/win32/x64/openapi/coding-server-v1.json',
+      manifestRelativePath: 'deployments/server-win32/x64/release-asset-manifest.json',
+      openApiRelativePath: 'deployments/server-win32/x64/openapi/coding-server-v1.json',
+    },
+  ] as const;
+  for (const sidecar of deploymentOpenApiSidecars) {
+    const manifestPath = path.join(workspaceDir, sidecar.manifestRelativePath);
+    fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
+    const manifestSource = `${JSON.stringify({
+      artifacts: [
+        {
+          relativePath: sidecar.artifactRelativePath,
+          size: 1,
+        },
+        {
+          relativePath: 'server/shared/unrelated-artifact.txt',
+          size: 9,
+        },
+      ],
+      createdAt: '2026-07-13T00:00:00.000Z',
+      family: 'server',
+    }, null, 2)}\n`;
+    fs.writeFileSync(
+      manifestPath,
+      `${sidecar.manifestRelativePath.includes('server-win32') ? '\uFEFF' : ''}${manifestSource}`,
+      'utf8',
+    );
+  }
+
   const resolvedDefaultPath = resolveBirdCoderCodingServerOpenApiSnapshotPath({
     rootDir: workspaceDir,
   });
@@ -386,6 +422,40 @@ try {
     undefined,
     'WebSocket realtime subscribe remains in the route catalog and must not be emitted as an HTTP OpenAPI operation.',
   );
+  for (const sidecar of deploymentOpenApiSidecars) {
+    const openApiPath = path.join(workspaceDir, sidecar.openApiRelativePath);
+    const manifestText = fs.readFileSync(path.join(workspaceDir, sidecar.manifestRelativePath), 'utf8');
+    const manifest = JSON.parse(manifestText) as {
+      artifacts?: Array<{ relativePath?: string; size?: number }>;
+      createdAt?: string;
+      family?: string;
+    };
+    const openApiArtifact = manifest.artifacts?.find(
+      (artifact) => artifact.relativePath === sidecar.artifactRelativePath,
+    );
+    const unrelatedArtifact = manifest.artifacts?.find(
+      (artifact) => artifact.relativePath === 'server/shared/unrelated-artifact.txt',
+    );
+
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(openApiPath, 'utf8')),
+      writtenDocument,
+      'deployment OpenAPI sidecar must match the exported document.',
+    );
+    assert.equal(
+      openApiArtifact?.size,
+      fs.statSync(openApiPath).size,
+      'deployment release manifest must refresh the matching OpenAPI sidecar size.',
+    );
+    assert.equal(unrelatedArtifact?.size, 9, 'deployment sidecar refresh must not alter unrelated artifacts.');
+    assert.equal(manifest.createdAt, '2026-07-13T00:00:00.000Z');
+    assert.equal(manifest.family, 'server');
+    assert.doesNotMatch(
+      manifestText,
+      /^\uFEFF/u,
+      'deployment sidecar refresh must write canonical JSON after accepting a UTF-8 BOM manifest.',
+    );
+  }
   assert.match(fs.readFileSync(explicitOutputPath, 'utf8'), /\n$/);
 } finally {
   fs.rmSync(workspaceDir, { recursive: true, force: true });

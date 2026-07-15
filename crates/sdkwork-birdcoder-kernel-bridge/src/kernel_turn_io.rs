@@ -126,7 +126,9 @@ impl Write for BoundedOutputBuffer {
             .ok_or_else(|| io::Error::other("kernel turn response length overflow"))?;
         if next_len > self.maximum_bytes {
             self.limit_exceeded = true;
-            return Err(io::Error::other("kernel turn response exceeds maximum size"));
+            return Err(io::Error::other(
+                "kernel turn response exceeds maximum size",
+            ));
         }
         if self.bytes.try_reserve_exact(buffer.len()).is_err() {
             self.allocation_failed = true;

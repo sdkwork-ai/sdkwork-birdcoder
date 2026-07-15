@@ -14,16 +14,8 @@ pub struct BirdCoderProjectGitOverview {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_revision: Option<String>,
 
-    #[serde(rename = "currentWorktreePath")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub current_worktree_path: Option<String>,
-
     #[serde(rename = "detachedHead")]
     pub detached_head: bool,
-
-    #[serde(rename = "repositoryRootPath")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub repository_root_path: Option<String>,
 
     pub status: String,
 

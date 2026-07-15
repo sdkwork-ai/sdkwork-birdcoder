@@ -75,11 +75,11 @@ try {
   assert.equal(
     resolveBirdCoderBootstrapServerBaseUrl({
       configuredApiBaseUrl: 'https://env.example.com/birdcoder-api',
-      runtimeApiBaseUrl: 'http://127.0.0.1:10240',
+      runtimeApiBaseUrl: 'http://127.0.0.1:65172',
       storedApiBaseUrl: 'https://user.example.com/birdcoder-api',
     }),
-    'https://user.example.com/birdcoder-api',
-    'persisted user configuration must outrank runtime/env defaults so the settings center can truly override the server Base URL.',
+    'http://127.0.0.1:65172',
+    'the runtime-discovered desktop URL must outrank persisted settings so a new desktop process never reuses an expired ephemeral port.',
   );
 
   assert.equal(

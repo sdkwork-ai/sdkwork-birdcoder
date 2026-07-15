@@ -1,7 +1,5 @@
 export interface BirdCoderGitStatusCounts {
-  conflicted: number;
-  deleted: number;
-  modified: number;
   staged: number;
+  unstaged: number;
   untracked: number;
 }

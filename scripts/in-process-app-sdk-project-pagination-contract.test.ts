@@ -70,11 +70,7 @@ try {
     providerId: provider.providerId,
     storage: provider,
   });
-  await Promise.all([
-    repositories.projectContents.clear(),
-    repositories.projects.clear(),
-    repositories.workspaces.clear(),
-  ]);
+  await Promise.all([repositories.projects.clear(), repositories.workspaces.clear()]);
   await repositories.workspaces.save({
     createdAt,
     description: 'Workspace used to verify in-process project pagination.',
@@ -95,17 +91,6 @@ try {
       status: 'active',
       updatedAt: createdAt,
       workspaceId,
-    });
-    await repositories.projectContents.save({
-      configData: JSON.stringify({
-        rootPath: `D:/workspace/project-pagination/${String(index).padStart(2, '0')}`,
-      }),
-      contentVersion: '1.0',
-      createdAt,
-      id: `project-content-pagination-${String(index).padStart(2, '0')}`,
-      projectId,
-      projectUuid: `project-${projectId}`,
-      updatedAt: createdAt,
     });
   }
 
@@ -169,32 +154,6 @@ try {
     'project page two must expose only its 20 server-selected records with complete offset PageInfo.',
   );
 
-  await assert.rejects(
-    () =>
-      appSdkClient.platform.projects.list({
-        page: 1,
-        page_size: 20,
-        rootPath: 'D:/workspace/project-pagination/01',
-        workspaceId,
-      }),
-    (error: unknown) => {
-      if (!error || typeof error !== 'object') {
-        return false;
-      }
-      const typedError = error as {
-        code?: unknown;
-        httpStatus?: unknown;
-        traceId?: unknown;
-      };
-      return (
-        typedError.code === 42201 &&
-        typedError.httpStatus === 422 &&
-        typeof typedError.traceId === 'string' &&
-        typedError.traceId.length > 0
-      );
-    },
-    'an unindexed rootPath filter must fail closed with a standard typed transport error.',
-  );
 } finally {
   if (originalWindowDescriptor) {
     Object.defineProperty(globalThis, 'window', originalWindowDescriptor);

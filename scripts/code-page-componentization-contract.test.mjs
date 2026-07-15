@@ -129,20 +129,20 @@ assert.match(
 
 assert.match(
   codePageSurfaceSource,
-  /<CodeWorkspaceOverlays \{\.\.\.overlayProps\} \/>/,
-  'CodePageSurface must render the extracted workspace overlays component.',
+  /<DeferredCodeWorkspaceOverlays \{\.\.\.overlayProps\} \/>/,
+  'CodePageSurface must render the deferred workspace overlays component.',
 );
 
 assert.match(
   codePageSurfaceSource,
-  /<CodePageDialogs \{\.\.\.dialogProps\} \/>/,
-  'CodePageSurface must render the extracted dialog component.',
+  /<DeferredCodePageDialogs \{\.\.\.dialogProps\} \/>/,
+  'CodePageSurface must render the deferred dialog component.',
 );
 
 assert.match(
   codePageSurfaceSource,
-  /<CodeTerminalIntegrationPanel \{\.\.\.terminalProps\} \/>/,
-  'CodePageSurface must render the extracted terminal integration component.',
+  /<DeferredCodeTerminalIntegrationPanel \{\.\.\.terminalProps\} \/>/,
+  'CodePageSurface must render the deferred terminal integration component.',
 );
 
 assert.match(

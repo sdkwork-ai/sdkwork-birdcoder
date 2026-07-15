@@ -11,6 +11,9 @@ import {
   onBirdcoderRollupWarning,
   resolveBirdcoderProductionCssMinify,
   resolveBirdcoderProductionMinify,
+  resolveBirdcoderDevelopmentApiEnvDefines,
+  resolveBirdcoderViteRuntimeEnvSource,
+  resolveBirdcoderWebRuntimeEnvSource,
 } from '../../../../scripts/create-birdcoder-vite-plugins.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -137,16 +140,28 @@ function sdkworkModelsDataPlugin(): Plugin {
 // birdcoder-infrastructure-root
 
 export default defineConfig(({ mode }) => {
-  const runtimeEnvSource = loadEnv(mode, __dirname, '');
+  const runtimeEnvSource = resolveBirdcoderViteRuntimeEnvSource(
+    loadEnv(mode, __dirname, ''),
+  ) as Record<string, string | undefined>;
+  const devProxyTarget =
+    process.env.BIRDCODER_DEV_PROXY_TARGET ??
+    runtimeEnvSource.VITE_BIRDCODER_API_BASE_URL ??
+    'http://127.0.0.1:10240';
+  const publicRuntimeEnvSource = resolveBirdcoderWebRuntimeEnvSource(
+    runtimeEnvSource,
+    mode,
+  );
 
   return ({
     esbuild: false,
+    oxc: false,
+    define: resolveBirdcoderDevelopmentApiEnvDefines(mode),
     plugins: [
       ...createBirdcoderVitePlugins({
         appRootDir: __dirname,
         mode,
         namespace: 'sdkwork-birdcoder-pc-web',
-        runtimeEnvSource,
+        runtimeEnvSource: publicRuntimeEnvSource,
       }),
       sdkworkModelsDataPlugin(),
     ],
@@ -156,6 +171,18 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       minify: resolveBirdcoderProductionMinify(mode),
+      terserOptions: {
+        compress: {
+          passes: 5,
+          drop_console: true,
+          toplevel: true,
+        },
+        module: true,
+        mangle: true,
+        format: {
+          comments: false,
+        },
+      },
       cssMinify: resolveBirdcoderProductionCssMinify(mode),
       sourcemap: false,
       modulePreload: {
@@ -166,7 +193,7 @@ export default defineConfig(({ mode }) => {
 
           return deps.filter(
             (dependency) =>
-              !/^assets\/(?:birdcoder-iam-surface|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code-surface|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
+              !/^assets\/(?:birdcoder-iam-surface|birdcoder-platform|birdcoder-shell-bootstrap|birdcoder-code|birdcoder-studio-surface|birdcoder-multiwindow-surface|birdcoder-settings-surface|birdcoder-terminal-desktop|birdcoder-terminal-infrastructure|ui-workbench|ui-workbench-editors|ui-workbench-preview|ui-file-explorer|ui-chat|ui-run-dialogs|vendor-terminal-xterm|vendor-tauri|vendor-monaco|vendor-markdown|vendor-code-highlight)-/u.test(
                 dependency,
               ),
           );
@@ -207,10 +234,11 @@ export default defineConfig(({ mode }) => {
             id.includes('/node_modules/react-i18next/') ||
             id.includes('/node_modules/i18next/')
           ) {
-            return 'vendor-i18n';
+            return 'birdcoder-code-workbench';
             }
 
           if (
+            id.includes('/node_modules/react-dom/') ||
             id.includes('sdkwork-birdcoder-pc-web-react-dom-client') ||
             id.includes('sdkwork-birdcoder-pc-web-react-dom')
           ) {
@@ -218,6 +246,10 @@ export default defineConfig(({ mode }) => {
           }
 
           if (
+            id.includes('/node_modules/react/') ||
+            id.includes('/node_modules/scheduler/') ||
+            id.includes('/node_modules/use-sync-external-store/') ||
+            id.includes('sdkwork-birdcoder-pc-web-react-dom-client') ||
             id.includes('sdkwork-birdcoder-pc-web-react-jsx-runtime') ||
             id.includes('sdkwork-birdcoder-pc-web-react-jsx-dev-runtime') ||
             id.includes('sdkwork-birdcoder-pc-web-react') ||
@@ -229,9 +261,22 @@ export default defineConfig(({ mode }) => {
 
           if (
             id.includes('/node_modules/react-router/') ||
-            id.includes('/node_modules/react-router-dom/')
+            id.includes('/node_modules/react-router-dom/') ||
+            id.includes('react-router@')
           ) {
-            return 'vendor-react-router';
+            return 'birdcoder-shell-app';
+          }
+
+          if (id.includes('/node_modules/i18next/') || id.includes('i18next@')) {
+            return 'birdcoder-code-workbench';
+          }
+
+          if (id.includes('/node_modules/tailwind-merge/') || id.includes('tailwind-merge@')) {
+            return 'ui-workbench';
+          }
+
+          if (id.includes('/node_modules/sonner/') || id.includes('sonner@')) {
+            return 'ui-workbench';
           }
 
           if (id.includes('/node_modules/lucide-react/')) {
@@ -430,6 +475,21 @@ export default defineConfig(({ mode }) => {
           }
 
           if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/components/FileExplorer.tsx') ||
+            isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/components/fileExplorer')
+          ) {
+            return 'ui-file-explorer';
+          }
+
+          if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat.tsx') ||
+            isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/components/UniversalChat') ||
+            isSourcePath('/packages/sdkwork-birdcoder-pc-ui/src/components/chat/')
+          ) {
+            return 'ui-chat';
+          }
+
+          if (
             isSourcePath('/packages/sdkwork-birdcoder-pc-web/src/loadAppRoot.ts')
           ) {
             return 'birdcoder-shell-entry';
@@ -543,6 +603,115 @@ export default defineConfig(({ mode }) => {
             ])
           ) {
             return 'birdcoder-terminal-infrastructure';
+          }
+
+          if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx')
+          ) {
+            return 'birdcoder-code-topbar';
+          }
+
+          if (
+            isAnySourcePath([
+              '/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx',
+              '/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorer',
+            ])
+          ) {
+            return 'birdcoder-code-sidebar';
+          }
+
+          if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/CodeMobileProgrammingPanel.tsx')
+          ) {
+            return 'birdcoder-code-mobile';
+          }
+
+          if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageDialogs.tsx')
+          ) {
+            return 'birdcoder-code-dialogs';
+          }
+
+          if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/CodeWorkspaceOverlays.tsx')
+          ) {
+            return 'birdcoder-code-overlays';
+          }
+
+          if (
+            isAnySourcePath([
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorSurface.tsx',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageSurface.tsx',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/CodeTerminalIntegrationPanel.tsx',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/CodeTerminalIntegrationPanel.tsx',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageSurface.tsx',
+            ])
+          ) {
+            return 'birdcoder-code-workbench';
+          }
+
+          if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSurfaceProps.ts')
+          ) {
+            return 'birdcoder-code-workbench';
+          }
+
+          if (
+            isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts')
+          ) {
+            return 'birdcoder-code-project-runtime';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeProjectSessionResolution.ts')) {
+            return 'birdcoder-code-session-location-runtime';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/codeFileSearch.ts')) {
+            return 'birdcoder-code-search-runtime';
+          }
+
+          if (
+            isAnySourcePath([
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSessionSelection.ts',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePendingInteractions.ts',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeNewCodingSessionRequestState.ts',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeDeleteConfirmation.ts',
+            ])
+          ) {
+            return 'birdcoder-code-session-runtime';
+          }
+
+          if (isAnySourcePath([
+            '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeEditorChatLayout.ts',
+            '/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageShared.tsx',
+          ])) {
+            return 'birdcoder-code-workbench';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageClipboardActions.ts')) {
+            return 'birdcoder-code-clipboard-runtime';
+          }
+
+          if (
+            isAnySourcePath([
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageTerminalActions.ts',
+              '/packages/sdkwork-birdcoder-pc-code/src/pages/codingSessionTerminal.ts',
+            ])
+          ) {
+            return 'birdcoder-code-terminal-runtime';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeRunEntryActions.ts')) {
+            return 'birdcoder-code-run-runtime';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeWorkbenchCommands.ts')) {
+            return 'birdcoder-code-commands-runtime';
+          }
+
+          if (isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/pages/')) {
+            return 'birdcoder-code-runtime';
           }
 
           if (isSourcePath('/packages/sdkwork-birdcoder-pc-code/src/')) {
@@ -796,7 +965,6 @@ export default defineConfig(({ mode }) => {
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionMessageProjection.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionSelection.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/currentUserScope.ts',
-              '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/projectContentConfigData.ts',
               '/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeApiRetry.ts',
             ])
           ) {
@@ -866,6 +1034,40 @@ export default defineConfig(({ mode }) => {
       hmr: process.env.DISABLE_HMR !== 'true',
       fs: {
         allow: createBirdcoderWorkspaceFsAllowList(__dirname),
+      },
+      proxy: {
+        '/app': {
+          target: devProxyTarget,
+          changeOrigin: true,
+        },
+        '/backend': {
+          target: devProxyTarget,
+          changeOrigin: true,
+        },
+        '/api': {
+          target: devProxyTarget,
+          changeOrigin: true,
+        },
+        '/readyz': {
+          target: devProxyTarget,
+          changeOrigin: true,
+        },
+        '/healthz': {
+          target: devProxyTarget,
+          changeOrigin: true,
+        },
+        '/livez': {
+          target: devProxyTarget,
+          changeOrigin: true,
+        },
+        '/metrics': {
+          target: devProxyTarget,
+          changeOrigin: true,
+        },
+        '/openapi.json': {
+          target: devProxyTarget,
+          changeOrigin: true,
+        },
       },
     },
   });

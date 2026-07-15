@@ -408,8 +408,8 @@ pub async fn list_projects(
         .ensure_workspace_access(&workspace_ctx, workspace_id)
         .await
         .map_err(|error| error::map_workspace_error(error, trace_id))?;
-    // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET and root_path/user_id
-    // filters down to SQL — never collect-then-slice in process memory.
+    // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET and user filters down
+    // to SQL — never collect-then-slice in process memory.
     // Validate user_id scoping BEFORE calling the service so we fail fast
     // without materializing rows we would have to discard.
     if let Some(user_id) = query.user_id.as_deref() {
@@ -427,7 +427,6 @@ pub async fn list_projects(
         .list_projects(
             &ctx,
             workspace_id,
-            query.root_path.as_deref(),
             query.user_id.as_deref(),
             offset,
             page_size,
@@ -469,38 +468,15 @@ pub async fn create_project(
     Json(body): Json<CreateProjectBody>,
 ) -> Result<Json<ApiDataEnvelope<ProjectPayload>>, error::ProblemJsonBody> {
     let ctx = project_context(&iam);
+    state
+        .workspace_service
+        .ensure_workspace_access(&workspace_context(&iam), &body.workspace_id)
+        .await
+        .map_err(|error| error::map_workspace_error(error, request_trace_id(&web)))?;
     let request = CreateProjectRequest {
         workspace_id: body.workspace_id,
         name: body.name,
         description: body.description,
-        workspace_uuid: body.workspace_uuid,
-        tenant_id: body.tenant_id,
-        organization_id: body.organization_id,
-        data_scope: body.data_scope,
-        user_id: body.user_id,
-        parent_id: body.parent_id,
-        parent_uuid: body.parent_uuid,
-        parent_metadata: body.parent_metadata,
-        code: body.code,
-        title: body.title,
-        owner_id: body.owner_id,
-        leader_id: body.leader_id,
-        created_by_user_id: body.created_by_user_id,
-        author: body.author,
-        entity_type: body.entity_type,
-        root_path: body.root_path,
-        site_path: body.site_path,
-        domain_prefix: body.domain_prefix,
-        file_id: body.file_id,
-        conversation_id: body.conversation_id,
-        start_time: body.start_time,
-        end_time: body.end_time,
-        budget_amount: body.budget_amount,
-        cover_image: body.cover_image,
-        is_template: body.is_template,
-        app_template_version_id: None,
-        template_preset_key: None,
-        status: body.status,
     };
     match state.project_service.create_project(&ctx, &request).await {
         Ok(project) => Ok(Json(build_data_envelope(project, request_id(&web)))),
@@ -519,27 +495,6 @@ pub async fn update_project(
     let request = UpdateProjectRequest {
         name: body.name,
         description: body.description,
-        data_scope: body.data_scope,
-        user_id: body.user_id,
-        parent_id: body.parent_id,
-        parent_uuid: body.parent_uuid,
-        parent_metadata: body.parent_metadata,
-        code: body.code,
-        title: body.title,
-        owner_id: body.owner_id,
-        leader_id: body.leader_id,
-        author: body.author,
-        entity_type: body.entity_type,
-        root_path: body.root_path,
-        site_path: body.site_path,
-        domain_prefix: body.domain_prefix,
-        file_id: body.file_id,
-        conversation_id: body.conversation_id,
-        start_time: body.start_time,
-        end_time: body.end_time,
-        budget_amount: body.budget_amount,
-        cover_image: body.cover_image,
-        is_template: body.is_template,
         status: body.status,
     };
     match state
@@ -695,7 +650,6 @@ pub async fn create_project_git_worktree(
     let ctx = project_context(&iam);
     let request = CreateProjectGitWorktreeRequest {
         branch_name: body.branch_name,
-        path: body.path,
     };
     match state
         .project_service
@@ -719,7 +673,7 @@ pub async fn remove_project_git_worktree(
 ) -> Result<(StatusCode, Json<ApiDataEnvelope<GitProjectOverview>>), error::ProblemJsonBody> {
     let ctx = project_context(&iam);
     let request = RemoveProjectGitWorktreeRequest {
-        path: body.path,
+        worktree_key: body.worktree_key,
         force: body.force,
     };
     match state
@@ -795,12 +749,8 @@ pub async fn upsert_project_collaborator(
     let ctx = project_context(&iam);
     let request = UpsertProjectCollaboratorRequest {
         user_id: body.user_id,
-        email: body.email,
-        team_id: body.team_id,
         role: body.role,
         status: body.status,
-        created_by_user_id: body.created_by_user_id,
-        granted_by_user_id: body.granted_by_user_id,
     };
     match state
         .project_service

@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@sdkwork/birdcoder-pc-commons/context/AuthContext';
+import { StartupScreen } from '@sdkwork/birdcoder-pc-shell-runtime';
 import {
   buildProtectedRouteLoginPath,
   requiresAuthenticatedProductAccess,
@@ -25,12 +26,17 @@ function AuthGateLoadingState() {
   const { t } = useTranslation();
 
   return (
-    <div className="flex h-full w-full items-center justify-center bg-[#0e0e11] px-6 text-white">
-      <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#18181b] px-4 py-3 shadow-lg">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/10 border-t-white/80" />
-        <div className="text-sm text-gray-300">{t('auth.validatingSession')}</div>
-      </div>
-    </div>
+    <StartupScreen
+      description={t('bootstrap.validatingSession')}
+      progress={68}
+      stage="session"
+      stageLabels={{
+        runtime: t('bootstrap.runtimeStage'),
+        session: t('bootstrap.sessionStage'),
+        workspace: t('bootstrap.workspaceStage'),
+      }}
+      title={t('bootstrap.startingTitle')}
+    />
   );
 }
 

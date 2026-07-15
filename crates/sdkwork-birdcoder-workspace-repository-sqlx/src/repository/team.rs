@@ -6,10 +6,12 @@ use crate::db::columns::team_member as member_col;
 use crate::db::rows::{TeamMemberRow, TeamRow};
 use crate::mapper::row_mapper;
 use crate::repository::scope::{scoped_tenant_id, scoped_user_id};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{
+    inserted_row_id, IS_NOT_DELETED, SET_SOFT_DELETED,
+};
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_birdcoder_workspace_service::domain::results::{TeamMemberPayload, TeamPayload};
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{inserted_row_id, IS_NOT_DELETED, SET_SOFT_DELETED};
 
 #[derive(Clone)]
 pub struct SqliteTeamRepository {
@@ -49,7 +51,7 @@ impl SqliteTeamRepository {
             .bind(tenant_id)
             .fetch_optional(&self.pool)
             .await
-        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
         match row {
             Some(row) => {
@@ -83,7 +85,7 @@ impl SqliteTeamRepository {
             .bind(tenant_id)
             .fetch_all(&self.pool)
             .await
-        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
         rows.iter()
             .map(|row| {
@@ -105,9 +107,9 @@ impl SqliteTeamRepository {
         let tenant_id = scoped_tenant_id(ctx)?;
         let uid = user_id
             .map(|value| {
-                value.parse::<i64>().map_err(|_| {
-                    WorkspaceError::InvalidInput(format!("invalid user_id: {value}"))
-                })
+                value
+                    .parse::<i64>()
+                    .map_err(|_| WorkspaceError::InvalidInput(format!("invalid user_id: {value}")))
             })
             .transpose()?;
 
@@ -254,7 +256,11 @@ impl SqliteTeamRepository {
         Ok(row_mapper::team_row_to_payload(&r))
     }
 
-    pub async fn delete_team(&self, ctx: &WorkspaceContext, id: &str) -> Result<(), WorkspaceError> {
+    pub async fn delete_team(
+        &self,
+        ctx: &WorkspaceContext,
+        id: &str,
+    ) -> Result<(), WorkspaceError> {
         let id_num: i64 = id
             .parse()
             .map_err(|_| WorkspaceError::InvalidInput(format!("invalid id: {id}")))?;
@@ -286,7 +292,9 @@ impl SqliteTeamRepository {
         limit: usize,
     ) -> Result<(Vec<TeamMemberPayload>, usize), WorkspaceError> {
         if self.find_team_by_id(ctx, team_id).await?.is_none() {
-            return Err(WorkspaceError::NotFound(format!("team {team_id} not found")));
+            return Err(WorkspaceError::NotFound(format!(
+                "team {team_id} not found"
+            )));
         }
         let tid: i64 = team_id
             .parse()
@@ -336,7 +344,9 @@ impl SqliteTeamRepository {
         role: &str,
     ) -> Result<TeamMemberPayload, WorkspaceError> {
         if self.find_team_by_id(ctx, team_id).await?.is_none() {
-            return Err(WorkspaceError::NotFound(format!("team {team_id} not found")));
+            return Err(WorkspaceError::NotFound(format!(
+                "team {team_id} not found"
+            )));
         }
         let tid: i64 = team_id
             .parse()
@@ -369,7 +379,8 @@ impl SqliteTeamRepository {
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
-        let new_id = inserted_row_id(&id_row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let new_id =
+            inserted_row_id(&id_row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         let row = sqlx::query(&format!(
             "SELECT * FROM {} WHERE {} = ?",
             member_col::TABLE,
@@ -379,8 +390,8 @@ impl SqliteTeamRepository {
         .fetch_one(&self.pool)
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let r = TeamMemberRow::from_row(&row)
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let r =
+            TeamMemberRow::from_row(&row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         Ok(row_mapper::team_member_row_to_payload(&r))
     }
 
@@ -391,7 +402,9 @@ impl SqliteTeamRepository {
         user_id: &str,
     ) -> Result<(), WorkspaceError> {
         if self.find_team_by_id(ctx, team_id).await?.is_none() {
-            return Err(WorkspaceError::NotFound(format!("team {team_id} not found")));
+            return Err(WorkspaceError::NotFound(format!(
+                "team {team_id} not found"
+            )));
         }
         let tid: i64 = team_id
             .parse()

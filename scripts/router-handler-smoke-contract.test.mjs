@@ -37,13 +37,28 @@ for (const relativePath of listEnvelopeSmokeFiles) {
   );
   assert.match(
     source,
-    /json\["meta"\]\["version"\]/,
-    `${relativePath} must assert canonical list/data envelope metadata.`,
+    /json\["code"\], 0/,
+    `${relativePath} must assert the numeric zero success code required by the SDKWork response envelope.`,
   );
   assert.match(
     source,
-    /json\["requestId"\]/,
-    `${relativePath} must assert requestId on successful list responses.`,
+    /json\["traceId"\]/,
+    `${relativePath} must assert traceId on successful list responses.`,
+  );
+  assert.match(
+    source,
+    /json\["data"\]\["items"\]/,
+    `${relativePath} must assert list items inside the standard data envelope.`,
+  );
+  assert.match(
+    source,
+    /json\["data"\]\["pageInfo"\]/,
+    `${relativePath} must assert pagination metadata inside the standard data envelope.`,
+  );
+  assert.doesNotMatch(
+    source,
+    /json\["(?:meta|requestId)"\]/,
+    `${relativePath} must not reintroduce legacy meta or requestId response fields.`,
   );
 }
 

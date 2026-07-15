@@ -17,7 +17,8 @@ fn run() -> Result<(), KernelTurnIoError> {
         let stdin = io::stdin();
         read_bounded_turn_request(stdin.lock())?
     };
-    let host = BirdcoderKernelHost::bootstrap().map_err(|_| KernelTurnIoError::HostBootstrapFailed)?;
+    let host =
+        BirdcoderKernelHost::bootstrap().map_err(|_| KernelTurnIoError::HostBootstrapFailed)?;
     let result = host
         .execute_turn(&request)
         .map_err(|_| KernelTurnIoError::TurnExecutionFailed)?;

@@ -1,34 +1,37 @@
-import type { BirdCoderProject, LocalFolderMountSource } from '@sdkwork/birdcoder-pc-types';
+import type { LocalFolderMountSource } from '@sdkwork/birdcoder-pc-types';
 import { emitProjectGitOverviewRefresh } from './projectGitOverview.ts';
 
 interface ProjectIdentifier {
   id: string;
 }
 
-type ProjectPathCandidate = Pick<BirdCoderProject, 'id' | 'name' | 'path'>;
-
 export interface ImportLocalFolderProjectOptions {
   createProject: (
     name: string,
     options?: {
       appTemplateVersionId?: string;
-      path?: string;
       templatePresetKey?: string;
     },
   ) => Promise<ProjectIdentifier>;
   fallbackProjectName: string;
   folderInfo: LocalFolderMountSource;
-  getProjectByPath?: (projectPath: string) => Promise<ProjectPathCandidate | null>;
-  getProjects?: () => Promise<ProjectPathCandidate[]>;
   mountFolder: (projectId: string, folderInfo: LocalFolderMountSource) => Promise<void>;
-  updateProject: (projectId: string, updates: { path?: string }) => Promise<void>;
 }
 
 export interface ImportedLocalFolderProject {
+  localMount: LocalProjectMount;
   projectId: string;
   projectName: string;
-  projectPath: string;
   reusedExistingProject: boolean;
+}
+
+/**
+ * Device-local mount metadata returned to the renderer after a folder import.
+ * This is deliberately separate from the project's remote root identity.
+ */
+export interface LocalProjectMount {
+  displayName: string;
+  type: LocalFolderMountSource['type'];
 }
 
 export interface RebindLocalFolderProjectOptions {
@@ -36,7 +39,6 @@ export interface RebindLocalFolderProjectOptions {
   fallbackProjectName: string;
   folderInfo: LocalFolderMountSource;
   mountFolder: (projectId: string, folderInfo: LocalFolderMountSource) => Promise<void>;
-  updateProject: (projectId: string, updates: { path?: string }) => Promise<void>;
 }
 
 function isWindowsDriveRootPath(path: string): boolean {
@@ -110,75 +112,43 @@ function resolveImportedProjectName(
   return resolveTauriFolderName(folderInfo.path, fallbackProjectName);
 }
 
-function resolveImportedProjectPath(folderInfo: LocalFolderMountSource): string {
+function resolveLocalProjectMount(
+  folderInfo: LocalFolderMountSource,
+  fallbackProjectName: string,
+): LocalProjectMount {
+  const displayName = resolveImportedProjectName(folderInfo, fallbackProjectName);
   if (folderInfo.type === 'browser') {
-    return `/${folderInfo.handle.name}`;
+    return {
+      displayName,
+      type: 'browser',
+    };
   }
 
-  return resolveTauriFolderPath(folderInfo.path);
-}
-
-function hasMatchingProjectPath(
-  candidatePath: string | undefined,
-  projectPath: string,
-): boolean {
-  if (!candidatePath) {
-    return false;
-  }
-
-  return trimTrailingPathSeparators(candidatePath) === trimTrailingPathSeparators(projectPath);
-}
-
-async function resolveExistingProjectByPath(
-  options: ImportLocalFolderProjectOptions,
-  projectPath: string,
-): Promise<ProjectPathCandidate | null> {
-  if (typeof options.getProjectByPath === 'function') {
-    return options.getProjectByPath(projectPath);
-  }
-
-  if (typeof options.getProjects !== 'function') {
-    return null;
-  }
-
-  const projects = await options.getProjects();
-  return projects.find((project) => hasMatchingProjectPath(project.path, projectPath)) ?? null;
+  return {
+    displayName,
+    type: 'tauri',
+  };
 }
 
 export async function importLocalFolderProject(
   options: ImportLocalFolderProjectOptions,
 ): Promise<ImportedLocalFolderProject> {
   const normalizedFolderInfo = normalizeFolderInfo(options.folderInfo);
-  const projectName = resolveImportedProjectName(
+  const localMount = resolveLocalProjectMount(
     normalizedFolderInfo,
     options.fallbackProjectName,
   );
-  const projectPath = resolveImportedProjectPath(normalizedFolderInfo);
-  let existingProject: ProjectPathCandidate | null = null;
-
-  if (normalizedFolderInfo.type === 'tauri') {
-    existingProject = await resolveExistingProjectByPath(options, projectPath);
-  }
-
-  const reusedExistingProject = existingProject !== null;
-  const targetProjectId =
-    existingProject?.id ??
-    (await options.createProject(projectName, { path: projectPath })).id;
-  const resolvedProjectName = existingProject?.name.trim() || projectName;
+  const projectName = localMount.displayName;
+  const targetProjectId = (await options.createProject(projectName)).id;
 
   await options.mountFolder(targetProjectId, normalizedFolderInfo);
-  if (reusedExistingProject) {
-    await options.updateProject(targetProjectId, {
-      path: projectPath,
-    });
-  }
   emitProjectGitOverviewRefresh(targetProjectId);
 
   return {
+    localMount,
     projectId: targetProjectId,
-    projectName: resolvedProjectName,
-    projectPath,
-    reusedExistingProject,
+    projectName,
+    reusedExistingProject: false,
   };
 }
 
@@ -186,22 +156,19 @@ export async function rebindLocalFolderProject(
   options: RebindLocalFolderProjectOptions,
 ): Promise<ImportedLocalFolderProject> {
   const normalizedFolderInfo = normalizeFolderInfo(options.folderInfo);
-  const projectName = resolveImportedProjectName(
+  const localMount = resolveLocalProjectMount(
     normalizedFolderInfo,
     options.fallbackProjectName,
   );
-  const projectPath = resolveImportedProjectPath(normalizedFolderInfo);
+  const projectName = localMount.displayName;
 
   await options.mountFolder(options.projectId, normalizedFolderInfo);
-  await options.updateProject(options.projectId, {
-    path: projectPath,
-  });
   emitProjectGitOverviewRefresh(options.projectId);
 
   return {
+    localMount,
     projectId: options.projectId,
     projectName,
-    projectPath,
     reusedExistingProject: false,
   };
 }

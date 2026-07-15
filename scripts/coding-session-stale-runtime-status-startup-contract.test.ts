@@ -51,7 +51,6 @@ const localProject: BirdCoderProjectMirrorSnapshot = {
   id: projectId,
   workspaceId,
   name: 'Stale Runtime Status Startup Project',
-  path: 'D:/workspace/stale-runtime-status-startup',
   createdAt: '2026-04-27T09:59:00.000Z',
   updatedAt: localStreamingTimestamp,
   archived: false,
@@ -68,7 +67,6 @@ const projectSummary: BirdCoderProjectSummary = {
   id: projectId,
   workspaceId,
   name: localProject.name,
-  rootPath: localProject.path,
   status: 'active',
   createdAt: localProject.createdAt,
   updatedAt: localProject.updatedAt,
@@ -406,7 +404,6 @@ assert.equal(
 
 async function readTransientProjectDetailFallbackSession(options: {
   codingSessionId: string;
-  lookup: 'id' | 'path';
   projectId: string;
   runtimeStatus: BirdCoderCodingSession['runtimeStatus'];
   timestamp: string;
@@ -445,20 +442,13 @@ async function readTransientProjectDetailFallbackSession(options: {
         assert.equal(projectId, options.projectId);
         return structuredClone(fallbackProject);
       },
-      async getProjectByPath(workspaceId: string, path: string) {
-        assert.equal(workspaceId, options.workspaceId);
-        assert.equal(path, fallbackProject.path);
-        return structuredClone(fallbackProject);
-      },
     } as unknown as IProjectService,
   });
 
   const originalConsoleWarn = console.warn;
   console.warn = () => undefined;
   try {
-    const project = options.lookup === 'id'
-      ? await fallbackService.getProjectById(options.projectId)
-      : await fallbackService.getProjectByPath(options.workspaceId, fallbackProject.path);
+    const project = await fallbackService.getProjectById(options.projectId);
     return project?.codingSessions[0];
   } finally {
     console.warn = originalConsoleWarn;
@@ -468,7 +458,6 @@ async function readTransientProjectDetailFallbackSession(options: {
 const transientProjectIdFallbackStreamingSession =
   await readTransientProjectDetailFallbackSession({
     codingSessionId: 'coding-session-project-id-fallback-stale-streaming',
-    lookup: 'id',
     projectId: 'project-id-fallback-stale-streaming',
     runtimeStatus: 'streaming',
     timestamp: staleRuntimeUnknownTimestamp,
@@ -478,21 +467,6 @@ assert.equal(
   transientProjectIdFallbackStreamingSession?.runtimeStatus,
   undefined,
   'project detail transient fallback must clear stale local streaming state before returning a selected project.',
-);
-
-const transientProjectPathFallbackStreamingSession =
-  await readTransientProjectDetailFallbackSession({
-    codingSessionId: 'coding-session-project-path-fallback-stale-streaming',
-    lookup: 'path',
-    projectId: 'project-path-fallback-stale-streaming',
-    runtimeStatus: 'streaming',
-    timestamp: staleRuntimeUnknownTimestamp,
-    workspaceId: 'workspace-project-path-fallback-stale-streaming',
-  });
-assert.equal(
-  transientProjectPathFallbackStreamingSession?.runtimeStatus,
-  undefined,
-  'project path transient fallback must clear stale local streaming state before returning an import/selection project.',
 );
 
 const startupRecoveryRuntimeUnknownTimestamp = new Date(Date.now() - 10 * 60 * 1000).toISOString();

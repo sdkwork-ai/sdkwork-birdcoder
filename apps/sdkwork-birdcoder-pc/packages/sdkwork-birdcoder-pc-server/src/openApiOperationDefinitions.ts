@@ -31,11 +31,6 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
     'Filter resources to a single workspace.',
     createOpenApiStringSchema(),
   );
-  const rootPathParameter = createOpenApiQueryParameter(
-    'rootPath',
-    'Filter projects to a single absolute root path.',
-    createOpenApiStringSchema(),
-  );
   const projectIdParameter = createOpenApiQueryParameter(
     'projectId',
     'Filter resources to a single project.',
@@ -1077,7 +1072,6 @@ export function buildBirdCoderOpenApiOperationDefinitions(): Record<
       parameters: [
         userIdParameter,
         workspaceIdParameter,
-        rootPathParameter,
         pageParameter,
         pageSizeParameter,
       ],

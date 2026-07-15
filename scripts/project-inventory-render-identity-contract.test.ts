@@ -83,7 +83,6 @@ function buildProject(
     id: 'project-1',
     workspaceId: 'workspace-1',
     name: 'Render Project',
-    path: 'D:/workspace/render-project',
     createdAt: '2026-04-28T01:00:00.000Z',
     updatedAt: '2026-04-28T01:00:00.000Z',
     archived: false,

@@ -67,8 +67,8 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /useFileSystem\(currentProjectId,\s*currentProject\?\.path,\s*\{[\s\S]*isActive:\s*isVisible,[\s\S]*\}\)/s,
-  'CodePage must gate filesystem loading behind page visibility so hidden code surfaces stop loading trees and file contents.',
+  /useFileSystem\(currentProjectId,\s*\{[\s\S]*isActive:\s*isVisible,[\s\S]*\}\)/s,
+  'CodePage must gate filesystem loading by project id behind page visibility so hidden code surfaces stop loading trees and file contents without reading remote project paths.',
 );
 
 assert.match(
@@ -109,8 +109,8 @@ assert.match(
 
 assert.match(
   studioPageSource,
-  /useFileSystem\(currentProjectId,\s*currentProject\?\.path,\s*\{[\s\S]*isActive:\s*isVisible,[\s\S]*\}\)/s,
-  'StudioPage must gate filesystem loading behind page visibility so hidden studio surfaces stop loading trees and file contents.',
+  /useFileSystem\(currentProjectId,\s*\{[\s\S]*isActive:\s*isVisible,[\s\S]*\}\)/s,
+  'StudioPage must gate filesystem loading by project id behind page visibility so hidden studio surfaces stop loading trees and file contents without reading remote project paths.',
 );
 
 assert.match(
@@ -175,8 +175,8 @@ assert.match(
 
 assert.match(
   fileSystemHookSource,
-  /export function useFileSystem\(projectId: string, projectPath\?: string, options\?: UseFileSystemOptions\)/,
-  'useFileSystem must accept the activity options bag.',
+  /export function useFileSystem\(projectId: string, options\?: UseFileSystemOptions\)/,
+  'useFileSystem must accept the activity options bag without accepting a remote-project path.',
 );
 
 assert.match(

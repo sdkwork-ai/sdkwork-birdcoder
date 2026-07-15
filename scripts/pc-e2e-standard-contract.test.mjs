@@ -26,7 +26,7 @@ const catalog = readText('pnpm-workspace.yaml');
 
 assert.match(
   catalog,
-  /'@playwright\/test':/u,
+  /["']@playwright\/test["']:/u,
   'Workspace catalog must govern @playwright/test for PC e2e.',
 );
 

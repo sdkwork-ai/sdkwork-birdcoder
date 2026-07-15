@@ -9,6 +9,14 @@
     ".": {
       "import": "./src/index.ts",
       "types": "./src/index.ts"
+    },
+    "./components/*": {
+      "import": "./src/components/*.ts",
+      "types": "./src/components/*.ts"
+    },
+    "./components/DeferredRunDialogs": {
+      "import": "./src/components/DeferredRunDialogs.tsx",
+      "types": "./src/components/DeferredRunDialogs.tsx"
     }
   },
   "scripts": {

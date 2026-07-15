@@ -86,6 +86,8 @@ pub(crate) struct GitWorktreeEntry {
     pub(crate) branch: Option<String>,
     pub(crate) detached: bool,
     pub(crate) locked: bool,
+    pub(crate) locked_reason: Option<String>,
+    pub(crate) prunable_reason: Option<String>,
 }
 
 impl GitWorktreeEntry {
@@ -97,14 +99,11 @@ impl GitWorktreeEntry {
             is_current: false,
             is_detached: self.detached,
             is_locked: self.locked,
-            is_prunable: false,
-            label: self
-                .branch
-                .clone()
-                .unwrap_or_else(|| self.path.clone()),
-            locked_reason: None,
+            is_prunable: self.prunable_reason.is_some(),
+            label: self.branch.clone().unwrap_or_else(|| self.path.clone()),
+            locked_reason: self.locked_reason.clone(),
             path: self.path.clone(),
-            prunable_reason: None,
+            prunable_reason: self.prunable_reason.clone(),
         }
     }
 }

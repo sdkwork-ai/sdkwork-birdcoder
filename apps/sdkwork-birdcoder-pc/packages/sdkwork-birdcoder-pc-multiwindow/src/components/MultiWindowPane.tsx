@@ -2,7 +2,7 @@ import type { WorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons';
 import {
   getWorkbenchCodeEngineSessionSummary,
 } from '@sdkwork/birdcoder-pc-codeengine';
-import { UniversalChat } from '@sdkwork/birdcoder-pc-ui';
+import { DeferredUniversalChat } from '@sdkwork/birdcoder-pc-ui';
 import {
   WorkbenchCodeEngineIcon,
   resolveSafePreviewUrl,
@@ -248,7 +248,7 @@ export const MultiWindowPane = memo(function MultiWindowPane({
 
       {pane.mode === 'chat' ? (
         <div className="min-h-0 flex-1">
-          <UniversalChat
+          <DeferredUniversalChat
             className="bg-transparent"
             disabled
             emptyState={

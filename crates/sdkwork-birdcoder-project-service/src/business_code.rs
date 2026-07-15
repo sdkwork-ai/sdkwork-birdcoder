@@ -111,7 +111,11 @@ pub fn build_business_code(prefix: &str, primary_value: &str, fallback_id: &str)
     )
 }
 
-pub fn build_project_business_code(project_id: &str, name: &str, root_path: Option<&str>) -> String {
+pub fn build_project_business_code(
+    project_id: &str,
+    name: &str,
+    root_path: Option<&str>,
+) -> String {
     let primary_value = root_path
         .map(str::trim)
         .filter(|value| !value.is_empty())

@@ -80,8 +80,8 @@ assert.match(
 
 assert.match(
   sharedHookSource,
-  /export function useFileSystem\(projectId: string, projectPath\?: string(?:,\s*options\?: UseFileSystemOptions)?\)/,
-  'useFileSystem must accept persisted project-path metadata so local mounts can recover after restart.',
+  /export function useFileSystem\(projectId: string, options\?: UseFileSystemOptions\)/,
+  'useFileSystem must accept only the remote project identity and view options; device mounts recover through the host-private registry.',
 );
 
 assert.match(
@@ -145,14 +145,20 @@ assert.match(
 
 assert.match(
   sharedHookSource,
-  /resolveProjectMountRecoverySource\(projectPath\)/,
-  'useFileSystem must derive recovery mount sources from persisted project metadata before loading files.',
+  /await fileSystemService\.getProjectMountState\(requestProjectId\)/,
+  'useFileSystem must inspect device-private mount state before loading files.',
 );
 
 assert.match(
   sharedHookSource,
-  /await fileSystemService\.mountFolder\(requestProjectId, recoveryMountSource\)/,
-  'useFileSystem must re-mount recoverable local project roots before reading the file tree.',
+  /await fileSystemService\.restoreProjectMount\(requestProjectId\)/,
+  'useFileSystem must recover a persisted mount through the host-private registry before reading the file tree.',
+);
+
+assert.doesNotMatch(
+  sharedHookSource,
+  /resolveProjectMountRecoverySource|recoveryMountSource|projectPath/,
+  'useFileSystem must not derive local mounts from remote project metadata or an OS path.',
 );
 
 assert.match(
@@ -169,8 +175,8 @@ assert.match(
 
 assert.match(
   sharedHookSource,
-  /createRecoveredProjectMountRecoveryState\(/,
-  'useFileSystem must expose a recovered mount state after reopening a persisted desktop root.',
+  /createProjectMountRecoveryStateFromDeviceMount\(/,
+  'useFileSystem must map recovered mount state through the path-free device-mount contract.',
 );
 
 assert.match(
@@ -325,8 +331,8 @@ assert.match(
 
 assert.match(
   mountFolderSource,
-  /createRecoveredProjectMountRecoveryState\(/,
-  'useFileSystem mountFolder must expose a recovered state after reconnecting local folder access.',
+  /createProjectMountRecoveryStateFromDeviceMount\(/,
+  'useFileSystem mountFolder must expose state supplied by the path-free device-mount contract after reconnecting local folder access.',
 );
 
 assert.match(
@@ -371,8 +377,8 @@ for (const [label, source] of [
 ]) {
   assert.match(
     source,
-    /useFileSystem\(currentProjectId,\s*currentProject\?\.path(?:,\s*\{[\s\S]*?isActive:\s*isVisible[\s\S]*?\})?\)/,
-    `${label} must pass the persisted project path into useFileSystem so desktop project mounts can recover after restart.`,
+    /useFileSystem\(currentProjectId,\s*\{[\s\S]*?isActive:\s*isVisible[\s\S]*?\}\)/,
+    `${label} must pass only activity options into useFileSystem; desktop and browser mounts recover from device-private storage.`,
   );
 
   assert.match(

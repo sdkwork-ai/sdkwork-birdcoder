@@ -151,8 +151,8 @@ await assert.rejects(
 
 assert.match(
   codeLocalFolderImportHookSource,
-  /from '@sdkwork\/birdcoder-pc-commons';[\s\S]*resolveLocalFolderImportWorkspaceId/s,
-  'CodePage local folder imports must use the shared workspace resolver from commons.',
+  /resolveLocalFolderImportWorkspaceId as resolveSharedLocalFolderImportWorkspaceId \} from '@sdkwork\/birdcoder-pc-commons\/workbench\/localFolderProjectWorkspace';/,
+  'CodePage local folder imports must use the shared workspace resolver through the governed commons workbench subpath.',
 );
 
 assert.match(

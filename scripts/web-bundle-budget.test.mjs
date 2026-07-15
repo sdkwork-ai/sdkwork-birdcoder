@@ -135,6 +135,18 @@ for (const forbiddenPreloadPrefix of [
   'birdcoder-shell-app-',
   'birdcoder-shell-bootstrap-',
   'birdcoder-code-surface-',
+  'birdcoder-code-runtime-',
+  'birdcoder-code-project-runtime-',
+  'birdcoder-code-clipboard-runtime-',
+  'birdcoder-code-run-runtime-',
+  'birdcoder-code-commands-runtime-',
+  'birdcoder-code-sidebar-',
+  'birdcoder-code-topbar-',
+  'birdcoder-code-sidebar-',
+  'birdcoder-code-workbench-',
+  'birdcoder-code-mobile-',
+  'birdcoder-code-dialogs-',
+  'birdcoder-code-overlays-',
   'birdcoder-studio-surface-',
   'birdcoder-multiwindow-surface-',
   'birdcoder-settings-surface-',
@@ -147,6 +159,8 @@ for (const forbiddenPreloadPrefix of [
   'vendor-tauri-event-',
   'vendor-tauri-window-',
   'ui-workbench-',
+  'ui-file-explorer-',
+  'ui-chat-',
   'birdcoder-iam-surface-',
   'birdcoder-platform-',
   'birdcoder-platform-api-client-',
@@ -162,35 +176,35 @@ for (const forbiddenPreloadPrefix of [
   );
 }
 
+// Require observable async product boundaries. Static manual-chunk ownership is
+// covered by vite-config-esm-contract.test.mjs because Rolldown may legally merge
+// those modules when their static graph contains a cycle.
 for (const requiredChunkPrefix of [
   'birdcoder-shell-bootstrap-',
-  'birdcoder-storage-runtime-',
-  'ui-shell-',
+  'ui-file-explorer-',
+  'ui-chat-',
   'birdcoder-platform-runtime-',
-  'birdcoder-platform-utils-',
-  'birdcoder-platform-api-client-',
-  'birdcoder-platform-filesystem-',
   'birdcoder-code-surface-',
+  'birdcoder-code-runtime-',
+  'birdcoder-code-project-runtime-',
+  'birdcoder-code-clipboard-runtime-',
+  'birdcoder-code-run-runtime-',
+  'birdcoder-code-commands-runtime-',
+  'birdcoder-code-sidebar-',
+  'birdcoder-code-topbar-',
+  'birdcoder-code-workbench-',
+  'birdcoder-code-mobile-',
+  'birdcoder-code-dialogs-',
+  'birdcoder-code-overlays-',
   'birdcoder-studio-surface-',
   'birdcoder-multiwindow-surface-',
   'birdcoder-settings-surface-',
-  'birdcoder-terminal-desktop-',
-  'birdcoder-terminal-infrastructure-',
   'vendor-terminal-xterm-',
   'vendor-terminal-xterm-addon-canvas-',
   'vendor-terminal-xterm-addon-fit-',
   'vendor-terminal-xterm-addon-search-',
   'vendor-terminal-xterm-addon-web-links-',
-  'vendor-tauri-core-',
-  'vendor-tauri-event-',
-  'vendor-tauri-window-',
   'birdcoder-iam-surface-',
-  'birdcoder-codeengine-',
-  'birdcoder-commons-root-',
-  'birdcoder-infrastructure-root-',
-  'vendor-i18n-',
-  'vendor-markdown-',
-  'vendor-code-highlight-',
 ]) {
   assertChunkExists(jsAssets, requiredChunkPrefix);
 }
@@ -233,26 +247,28 @@ assert.ok(
 );
 
 const markdownAsset = findAssetByPrefix(jsAssets, 'vendor-markdown-');
-assert.ok(markdownAsset, 'web bundle budget check expected a vendor-markdown chunk.');
-assert.ok(
-  markdownAsset.size <= BIRDCODER_PERFORMANCE_BUDGETS.webMarkdownJsBytes,
-  [
-    `web markdown JS asset exceeds budget: ${markdownAsset.name} is ${formatKb(markdownAsset.size)}; expected <= ${formatKb(BIRDCODER_PERFORMANCE_BUDGETS.webMarkdownJsBytes)}.`,
-    'Top built assets:',
-    listTopAssets(jsAssets),
-  ].join('\n'),
-);
+if (markdownAsset) {
+  assert.ok(
+    markdownAsset.size <= BIRDCODER_PERFORMANCE_BUDGETS.webMarkdownJsBytes,
+    [
+      `web markdown JS asset exceeds budget: ${markdownAsset.name} is ${formatKb(markdownAsset.size)}; expected <= ${formatKb(BIRDCODER_PERFORMANCE_BUDGETS.webMarkdownJsBytes)}.`,
+      'Top built assets:',
+      listTopAssets(jsAssets),
+    ].join('\n'),
+  );
+}
 
 const codeHighlightAsset = findAssetByPrefix(jsAssets, 'vendor-code-highlight-');
-assert.ok(codeHighlightAsset, 'web bundle budget check expected a vendor-code-highlight chunk.');
-assert.ok(
-  codeHighlightAsset.size <= BIRDCODER_PERFORMANCE_BUDGETS.webCodeHighlightJsBytes,
-  [
-    `web code-highlight JS asset exceeds budget: ${codeHighlightAsset.name} is ${formatKb(codeHighlightAsset.size)}; expected <= ${formatKb(BIRDCODER_PERFORMANCE_BUDGETS.webCodeHighlightJsBytes)}.`,
-    'Top built assets:',
-    listTopAssets(jsAssets),
-  ].join('\n'),
-);
+if (codeHighlightAsset) {
+  assert.ok(
+    codeHighlightAsset.size <= BIRDCODER_PERFORMANCE_BUDGETS.webCodeHighlightJsBytes,
+    [
+      `web code-highlight JS asset exceeds budget: ${codeHighlightAsset.name} is ${formatKb(codeHighlightAsset.size)}; expected <= ${formatKb(BIRDCODER_PERFORMANCE_BUDGETS.webCodeHighlightJsBytes)}.`,
+      'Top built assets:',
+      listTopAssets(jsAssets),
+    ].join('\n'),
+  );
+}
 
 assertChunkSizeByPrefix(
   jsAssets,
@@ -262,5 +278,5 @@ assertChunkSizeByPrefix(
 );
 
 console.log(
-  `web bundle budget passed. entry=${entryAsset.name} (${formatKb(entryAsset.size)}), largest=${largestAsset.name} (${formatKb(largestAsset.size)}), markdown=${markdownAsset.name} (${formatKb(markdownAsset.size)}), codeHighlight=${codeHighlightAsset.name} (${formatKb(codeHighlightAsset.size)}).`,
+  `web bundle budget passed. entry=${entryAsset.name} (${formatKb(entryAsset.size)}), largest=${largestAsset.name} (${formatKb(largestAsset.size)}), markdown=${markdownAsset ? `${markdownAsset.name} (${formatKb(markdownAsset.size)})` : 'merged'}, codeHighlight=${codeHighlightAsset ? `${codeHighlightAsset.name} (${formatKb(codeHighlightAsset.size)})` : 'merged'}.`,
 );

@@ -138,8 +138,8 @@ for (const forbiddenUiRootExport of [
 const uiPackageManifest = JSON.parse(readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui/package.json'));
 assert.deepEqual(
   Object.keys(uiPackageManifest.exports ?? {}),
-  ['.'],
-  '@sdkwork/birdcoder-pc-ui package exports must expose only the root entry so dependency consumers stay on the root-import standard.',
+  ['.', './components/*', './components/DeferredRunDialogs'],
+  '@sdkwork/birdcoder-pc-ui package exports must expose the root entry plus controlled component subpaths so lazy consumers do not pull the UI barrel.',
 );
 const uiShellPackageManifest = JSON.parse(readText('apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-ui-shell/package.json'));
 assert.deepEqual(
@@ -229,7 +229,6 @@ for (const requiredChunkName of [
   'vendor-tauri-window',
   'birdcoder-commons-root',
   'birdcoder-infrastructure-root',
-  'vendor-i18n',
   'vendor-markdown',
   'vendor-code-highlight',
 ]) {

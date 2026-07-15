@@ -24,14 +24,12 @@ import {
   WorkbenchNewSessionButton,
 } from '@sdkwork/birdcoder-pc-ui';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
-import {
-  globalEventBus,
-  type ProjectGitOverviewViewState,
-  useProjectGitMutationActions,
-  useProjectGitOverview,
-  useIDEServices,
-  useToast,
-} from '@sdkwork/birdcoder-pc-commons';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
+import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
+import { useProjectGitMutationActions } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitMutationActions';
+import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
+import { useIDEServices } from '@sdkwork/birdcoder-pc-commons/context/IDEContext';
+import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
 import { useTranslation } from 'react-i18next';
 
 type PublishTargetMode = 'existing' | 'new';
@@ -94,10 +92,9 @@ function resolveTopBarDensity(width: number): TopBarDensity {
   return 'minimal';
 }
 
-interface TopBarProps {
+export interface TopBarProps {
   projectId?: string;
   projectName?: string;
-  projectPath?: string;
   isProjectGitOverviewDrawerOpen: boolean;
   onToggleProjectGitOverviewDrawer: () => void;
   isEngineBusyCurrentSession?: boolean;
@@ -161,7 +158,7 @@ function TopBarComponent({
   const [showCommitModal, setShowCommitModal] = useState(false);
   const [showPushModal, setShowPushModal] = useState(false);
   const [commitMessage, setCommitMessage] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteUserId, setInviteUserId] = useState('');
   const [projectCollaborators, setProjectCollaborators] = useState<
     BirdCoderProjectCollaboratorSummary[]
   >([]);
@@ -354,7 +351,7 @@ function TopBarComponent({
 
   useEffect(() => {
     if (!showShareModal) {
-      setInviteEmail('');
+      setInviteUserId('');
     }
   }, [showShareModal]);
 
@@ -383,23 +380,23 @@ function TopBarComponent({
 
   const handleInviteCollaborator = async () => {
     const normalizedProjectId = projectId?.trim();
-    const email = inviteEmail.trim();
+    const userId = inviteUserId.trim();
     if (!normalizedProjectId) {
       addToast('Please select a project before inviting collaborators.', 'error');
       return;
     }
-    if (!email || isInvitingCollaborator) {
+    if (!userId || isInvitingCollaborator) {
       return;
     }
 
     setIsInvitingCollaborator(true);
     try {
       await collaborationService.upsertProjectCollaborator(normalizedProjectId, {
-        email,
+        userId,
         role: 'member',
         status: 'invited',
       });
-      setInviteEmail('');
+      setInviteUserId('');
       addToast(t('code.invitationSent'), 'success');
       await loadProjectCollaborators();
     } catch (error) {
@@ -486,7 +483,7 @@ function TopBarComponent({
     <>
       <div
         ref={topBarRef}
-        className="relative grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b border-white/5 bg-[#0e0e11] px-3 text-sm text-gray-100 sm:px-4"
+        className="relative grid h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto_max-content] items-center gap-2 border-b border-white/5 bg-[#0e0e11] px-3 text-sm text-gray-100 sm:px-4"
       >
         <div
           className="flex min-w-0 w-full items-center gap-2 overflow-hidden whitespace-nowrap animate-in fade-in slide-in-from-top-2 fill-mode-both"
@@ -559,7 +556,7 @@ function TopBarComponent({
           </button>
         </div>
 
-        <div className={`flex min-w-0 w-full items-center justify-end text-gray-400 ${topBarActionGapClassName}`}>
+        <div className={`flex w-max max-w-full flex-nowrap items-center justify-end whitespace-nowrap text-gray-400 [&>*]:shrink-0 ${topBarActionGapClassName}`}>
           <ProjectGitHeaderControls
             compactControls={useCompactGitControls}
             isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
@@ -576,6 +573,7 @@ function TopBarComponent({
           />
           <WorkbenchNewSessionButton
             buttonLabel={t('app.menu.newSession')}
+            compact={topBarDensity === 'minimal'}
             currentSessionEngineId={selectedSessionEngineId}
             currentSessionModelId={selectedSessionModelId}
             disabled={!projectId}
@@ -739,28 +737,28 @@ function TopBarComponent({
               <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                 <label
                   className="text-sm font-medium text-gray-300"
-                  htmlFor="code-share-invite-email"
+                  htmlFor="code-share-invite-user-id"
                 >
                   {t('app.inviteCollaborators')}
                 </label>
                 <div className="flex gap-2">
                   <input
-                    id="code-share-invite-email"
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(event) => setInviteEmail(event.target.value)}
+                    id="code-share-invite-user-id"
+                    type="text"
+                    value={inviteUserId}
+                    onChange={(event) => setInviteUserId(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
                         event.preventDefault();
                         void handleInviteCollaborator();
                       }
                     }}
-                    placeholder={t('app.emailPlaceholder')}
+                    placeholder="User ID"
                     className="flex-1 bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
                   />
                   <Button
                     onClick={() => void handleInviteCollaborator()}
-                    disabled={!inviteEmail.trim() || isInvitingCollaborator || !projectId}
+                    disabled={!inviteUserId.trim() || isInvitingCollaborator || !projectId}
                     className="bg-blue-600 hover:bg-blue-500 text-white"
                   >
                     {isInvitingCollaborator ? (

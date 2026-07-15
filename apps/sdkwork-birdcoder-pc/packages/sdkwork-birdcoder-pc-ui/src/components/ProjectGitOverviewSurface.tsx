@@ -1,6 +1,11 @@
 import { memo } from 'react';
 import type { UseProjectGitOverviewResult } from '@sdkwork/birdcoder-pc-commons';
 import {
+  getProjectGitWorktreeDisplayName,
+  getProjectGitWorktreeKey,
+  isProjectGitWorktreePrunable,
+} from '@sdkwork/birdcoder-pc-commons';
+import {
   AlertCircle,
   FolderGit2,
   GitBranch,
@@ -27,11 +32,9 @@ interface ProjectGitOverviewSurfaceProps extends Pick<
 }
 
 const STATUS_COUNT_KEYS = [
-  { key: 'modified', tone: 'text-amber-300 bg-amber-500/10 border-amber-400/20' },
   { key: 'staged', tone: 'text-emerald-300 bg-emerald-500/10 border-emerald-400/20' },
+  { key: 'unstaged', tone: 'text-amber-300 bg-amber-500/10 border-amber-400/20' },
   { key: 'untracked', tone: 'text-sky-300 bg-sky-500/10 border-sky-400/20' },
-  { key: 'deleted', tone: 'text-rose-300 bg-rose-500/10 border-rose-400/20' },
-  { key: 'conflicted', tone: 'text-red-300 bg-red-500/10 border-red-400/20' },
 ] as const;
 
 const DEFAULT_VISIBLE_SECTIONS: readonly ProjectGitOverviewSectionId[] = [
@@ -62,6 +65,8 @@ export const ProjectGitOverviewSurface = memo(function ProjectGitOverviewSurface
   const contentOffsetClassName = showHeader ? 'mt-3 ' : '';
   const contentScrollClassName = bodyMaxHeight == null ? '' : 'overflow-y-auto pr-1';
   const contentStyle = bodyMaxHeight == null ? undefined : { maxHeight: bodyMaxHeight };
+  const currentWorktreeDisplayName = getProjectGitWorktreeDisplayName(currentWorktree);
+  const currentWorktreeKey = getProjectGitWorktreeKey(currentWorktree);
 
   return (
     <section className={sectionClassName}>
@@ -77,7 +82,7 @@ export const ProjectGitOverviewSurface = memo(function ProjectGitOverviewSurface
               </div>
               <div className="truncate text-[11px] text-gray-500">
                 {normalizedProjectId
-                  ? overview?.repositoryRootPath || currentWorktree?.path || t('code.loadingGitOverview')
+                  ? currentWorktreeDisplayName || overview?.currentBranch || t('code.loadingGitOverview')
                   : t('code.selectProjectFirst')}
               </div>
             </div>
@@ -132,11 +137,18 @@ export const ProjectGitOverviewSurface = memo(function ProjectGitOverviewSurface
                 {t('code.currentWorktree')}
               </div>
               <div className="truncate text-[12px] text-gray-200">
-                {currentWorktree?.label || currentWorktree?.path || 'N/A'}
+                {currentWorktreeDisplayName || 'N/A'}
               </div>
-              <div className="truncate text-[11px] text-gray-500">
-                {currentWorktree?.branch || currentWorktree?.path || overview.repositoryRootPath}
-              </div>
+              {currentWorktreeKey && currentWorktreeDisplayName !== currentWorktreeKey ? (
+                <div className="truncate font-mono text-[11px] text-gray-500">
+                  {t('code.worktreeKey')}: {currentWorktreeKey}
+                </div>
+              ) : null}
+              {currentWorktree?.head ? (
+                <div className="truncate text-[11px] text-gray-500">
+                  {currentWorktree.head}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -188,24 +200,12 @@ export const ProjectGitOverviewSurface = memo(function ProjectGitOverviewSurface
                           {branch.name}
                         </div>
                       </div>
-                      {branch.upstreamName ? (
-                        <div className="truncate pl-4 text-[11px] text-gray-500">
-                          {branch.upstreamName}
-                        </div>
-                      ) : null}
                     </div>
-                    <div className="flex shrink-0 items-center gap-1 text-[10px] text-gray-400">
-                      {branch.ahead > 0 ? (
-                        <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-200">
-                          {t('code.ahead')} {branch.ahead}
-                        </span>
-                      ) : null}
-                      {branch.behind > 0 ? (
-                        <span className="rounded-full border border-amber-400/20 bg-amber-500/10 px-1.5 py-0.5 text-amber-200">
-                          {t('code.behind')} {branch.behind}
-                        </span>
-                      ) : null}
-                    </div>
+                    {branch.isRemote ? (
+                      <span className="shrink-0 rounded-full border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[10px] text-gray-400">
+                        {t('code.remoteBranch')}
+                      </span>
+                    ) : null}
                   </div>
                 ))}
                 {remainingBranchCount > 0 ? (
@@ -228,43 +228,51 @@ export const ProjectGitOverviewSurface = memo(function ProjectGitOverviewSurface
                 </div>
               </div>
               <div className="space-y-1.5">
-                {overview.worktrees.map((worktree) => (
-                  <div
-                    key={worktree.id}
-                    className="rounded-lg border border-white/8 bg-white/[0.03] px-2.5 py-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        {worktree.isCurrent ? (
-                          <span className="h-2 w-2 shrink-0 rounded-full bg-blue-400" />
-                        ) : null}
-                        <div className="truncate text-[12px] font-medium text-gray-200">
-                          {worktree.label}
+                {overview.worktrees.map((worktree, index) => {
+                  const worktreeKey = getProjectGitWorktreeKey(worktree);
+                  const displayName = getProjectGitWorktreeDisplayName(worktree);
+                  const listItemKey =
+                    worktreeKey
+                    || `${worktree.branch?.trim() || 'worktree'}:${worktree.head?.trim() || index}`;
+
+                  return (
+                    <div
+                      key={listItemKey}
+                      className="rounded-lg border border-white/8 bg-white/[0.03] px-2.5 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                          {worktree.isCurrent ? (
+                            <span className="h-2 w-2 shrink-0 rounded-full bg-blue-400" />
+                          ) : null}
+                          <div className="truncate text-[12px] font-medium text-gray-200">
+                            {displayName || 'N/A'}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1 text-[10px] text-gray-400">
-                        {worktree.isLocked ? (
-                          <span className="rounded-full border border-white/10 bg-white/[0.05] px-1.5 py-0.5">
-                            {t('code.locked')}
-                          </span>
-                        ) : null}
-                        {worktree.isPrunable ? (
-                          <span className="rounded-full border border-red-400/20 bg-red-500/10 px-1.5 py-0.5 text-red-200">
+                        {isProjectGitWorktreePrunable(worktree) ? (
+                          <span className="shrink-0 rounded-full border border-red-400/20 bg-red-500/10 px-1.5 py-0.5 text-[10px] text-red-200">
                             {t('code.prunable')}
                           </span>
                         ) : null}
                       </div>
+                      {worktreeKey && displayName !== worktreeKey ? (
+                        <div className="mt-1 truncate font-mono text-[11px] text-gray-500">
+                          {t('code.worktreeKey')}: {worktreeKey}
+                        </div>
+                      ) : null}
+                      {worktree.head ? (
+                        <div className="mt-1 truncate text-[11px] text-gray-400">
+                          {worktree.head}
+                        </div>
+                      ) : null}
+                      {worktree.prunableReason ? (
+                        <div className="mt-1 truncate text-[11px] text-red-200/80">
+                          {worktree.prunableReason}
+                        </div>
+                      ) : null}
                     </div>
-                    <div className="mt-1 truncate text-[11px] text-gray-500">
-                      {worktree.path}
-                    </div>
-                    {worktree.branch || worktree.head ? (
-                      <div className="mt-1 truncate text-[11px] text-gray-400">
-                        {worktree.branch || worktree.head}
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : null}

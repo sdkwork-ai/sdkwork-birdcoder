@@ -147,7 +147,6 @@ export function createProjectFixture(overrides = {}) {
     title: 'E2E Project',
     name: 'E2E Project',
     description: 'Playwright fixture project for BirdCoder authenticated code smoke.',
-    rootPath: '/tmp/e2e-project',
     status: 'active',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',

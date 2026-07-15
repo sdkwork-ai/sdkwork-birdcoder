@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { withMockCodexCliJsonl } from './test-support/mockCodexCliJsonl.ts';
 import { createChatEngineById } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/engines.ts';
 import { listWorkbenchCliEngines } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/kernel.ts';
 import { createWorkbenchCanonicalChatEngine } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-codeengine/src/runtime.ts';
@@ -65,35 +66,37 @@ const kernelBinary = [
 assert.ok(kernelBinary, 'birdcoder-kernel-turn binary must be built');
 process.env.BIRDCODER_KERNEL_TURN_BIN = kernelBinary;
 
-for (const engine of listWorkbenchCliEngines()) {
-  const runtime = createWorkbenchCanonicalChatEngine(createChatEngineById(engine.id), {
-    engineId: engine.id,
-    defaultModelId: engine.defaultModelId,
-    descriptor: engine.descriptor,
-  });
-  const emittedEventKinds = new Set<string>();
+await withMockCodexCliJsonl(async () => {
+  for (const engine of listWorkbenchCliEngines()) {
+    const runtime = createWorkbenchCanonicalChatEngine(createChatEngineById(engine.id), {
+      engineId: engine.id,
+      defaultModelId: engine.defaultModelId,
+      descriptor: engine.descriptor,
+    });
+    const emittedEventKinds = new Set<string>();
 
-  for await (const event of runtime.sendCanonicalEvents?.(messages, {
-    model: engine.defaultModelId,
-    context: {
-      workspaceRoot: 'D:/workspace',
-      currentFile: {
-        path: 'src/App.tsx',
-        content: 'export default function App() { return null; }',
-        language: 'tsx',
+    for await (const event of runtime.sendCanonicalEvents?.(messages, {
+      model: engine.defaultModelId,
+      context: {
+        workspaceRoot: 'D:/workspace',
+        currentFile: {
+          path: 'src/App.tsx',
+          content: 'export default function App() { return null; }',
+          language: 'tsx',
+        },
       },
-    },
-  }) ?? []) {
-    emittedEventKinds.add(event.kind);
-    assert.equal(eventKindRegistry.has(event.kind), true);
+    }) ?? []) {
+      emittedEventKinds.add(event.kind);
+      assert.equal(eventKindRegistry.has(event.kind), true);
 
-    if (event.artifact) {
-      assert.equal(artifactKindRegistry.has(event.artifact.kind), true);
+      if (event.artifact) {
+        assert.equal(artifactKindRegistry.has(event.artifact.kind), true);
+      }
     }
-  }
 
-  assert.equal(emittedEventKinds.size > 0, true);
-  assert.equal(emittedEventKinds.has('turn.completed'), true);
-}
+    assert.equal(emittedEventKinds.size > 0, true);
+    assert.equal(emittedEventKinds.has('turn.completed'), true);
+  }
+});
 
 console.log('engine canonical registry governance contract passed.');

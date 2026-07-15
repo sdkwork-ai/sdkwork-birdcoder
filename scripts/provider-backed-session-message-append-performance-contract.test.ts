@@ -24,16 +24,12 @@ const codingSessionRepositories = createBirdCoderCodingSessionRepositories({
 });
 const service = new ProviderBackedProjectService({
   codingSessionRepositories,
-  projectContentRepository: appRepositories.projectContents,
   repository: appRepositories.projects,
 });
 
 const project = await service.createProject(
   'workspace-message-append-performance',
   'Message Append Performance',
-  {
-    path: 'D:/workspace/message-append-performance',
-  },
 );
 const session = await service.createCodingSession(project.id, 'Hot Append Session', {
   engineId: 'codex',

@@ -259,7 +259,6 @@ try {
   const providerBackedProjectService = new ProviderBackedProjectService({
     codingSessionRepositories,
     evidenceRepositories,
-    projectContentRepository: repositories.projectContents,
     repository: repositories.projects,
   });
   const projectService = new ApiBackedProjectService({
@@ -282,9 +281,6 @@ try {
   const createdProject = await projectService.createProject(
     'workspace-evidence-consumer-contract',
     'Evidence Consumer Contract Project',
-    {
-      path: 'D:/sdkwork/contracts/evidence-consumer-project',
-    },
   );
   const resolvedCreatedProject = await projectService.getProjectById(createdProject.id);
   assert.equal(
@@ -292,11 +288,7 @@ try {
     createdProject.id,
     'project creation must make the authoritative project immediately resolvable for the current user before session creation.',
   );
-  assert.equal(
-    resolvedCreatedProject?.path,
-    'D:/sdkwork/contracts/evidence-consumer-project',
-    'project creation must preserve the local rootPath through the SQL-backed app authority.',
-  );
+  assert.equal(Object.hasOwn(resolvedCreatedProject ?? {}, 'path'), false);
   const createdSession = await projectService.createCodingSession(
     createdProject.id,
     'Evidence Consumer Session',
@@ -340,8 +332,8 @@ try {
   assert.equal(templateInstantiation?.presetKey, 'default');
   assert.equal(
     templateInstantiation?.outputRoot,
-    'D:/sdkwork/contracts/evidence-consumer-project',
-    'project creation evidence must use the canonical studio_project_content rootPath as outputRoot.',
+    `project:${createdProject.id}`,
+    'project creation evidence must use an opaque project reference instead of a device path.',
   );
   assert.equal(templateInstantiation?.status, 'planned');
 } finally {

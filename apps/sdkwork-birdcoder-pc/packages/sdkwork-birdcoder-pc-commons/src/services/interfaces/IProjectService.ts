@@ -22,9 +22,14 @@ export interface UpdateCodingSessionOptions {
 
 export interface CreateProjectOptions {
   description?: string;
-  path?: string;
   appTemplateVersionId?: string;
   templatePresetKey?: string;
+}
+
+export interface UpdateProjectOptions {
+  description?: string;
+  name?: string;
+  status?: 'active' | 'archived';
 }
 
 export interface BirdCoderCodingSessionMirrorSnapshot extends BirdCoderCodingSessionSummary {
@@ -79,7 +84,6 @@ export interface IProjectService {
     pagination?: BirdCoderServiceListPagination,
   ): Promise<BirdCoderProject[]>;
   getProjectById(projectId: string): Promise<BirdCoderProject | null>;
-  getProjectByPath(workspaceId: string, path: string): Promise<BirdCoderProject | null>;
   invalidateProjectReadCache?(scope?: {
     projectId?: string;
     workspaceId?: string;
@@ -96,7 +100,7 @@ export interface IProjectService {
     options?: CreateProjectOptions,
   ): Promise<BirdCoderProject>;
   renameProject(projectId: string, name: string): Promise<void>;
-  updateProject(projectId: string, updates: Partial<BirdCoderProject>): Promise<void>;
+  updateProject(projectId: string, updates: UpdateProjectOptions): Promise<void>;
   deleteProject(projectId: string): Promise<void>;
 
   createCodingSession(

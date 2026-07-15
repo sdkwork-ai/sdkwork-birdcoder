@@ -90,9 +90,10 @@ impl SkillPackageRepository for SqliteSkillPackageRepository {
         &self,
         package_id: &str,
     ) -> Result<Option<(String, String)>, String> {
-        let versions = skill_package_repository::list_skill_versions_by_package(&self.pool, package_id)
-            .await
-            .map_err(|e| e.to_string())?;
+        let versions =
+            skill_package_repository::list_skill_versions_by_package(&self.pool, package_id)
+                .await
+                .map_err(|e| e.to_string())?;
         Ok(versions
             .first()
             .map(|version| (version.id.clone(), version.version_label.clone())))
@@ -105,10 +106,7 @@ impl SkillPackageRepository for SqliteSkillPackageRepository {
         package_id: &str,
     ) -> Result<Option<SkillInstallationPayload>, String> {
         let found = skill_package_repository::find_skill_installation_for_scope(
-            &self.pool,
-            scope_type,
-            scope_id,
-            package_id,
+            &self.pool, scope_type, scope_id, package_id,
         )
         .await
         .map_err(|e| e.to_string())?;

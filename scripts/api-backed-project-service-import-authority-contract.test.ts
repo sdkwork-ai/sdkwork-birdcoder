@@ -1,7 +1,11 @@
-import type { BirdCoderAppSdkApiClient } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
+import type {
+  BirdCoderAppRuntimeReadSdkApiClient,
+  BirdCoderAppSdkApiClient,
+} from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sdkClients.ts';
 import assert from 'node:assert/strict';
 import type {
   BirdCoderProject,
+  BirdCoderProjectSummary,
 } from '@sdkwork/birdcoder-pc-types';
 import { ApiBackedProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ApiBackedProjectService.ts';
 import type { IProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/interfaces/IProjectService.ts';
@@ -41,12 +45,22 @@ const localProject: BirdCoderProject = {
   id: 'project-local-stale',
   workspaceId: 'workspace-1',
   name: 'Imported local project',
-  description: 'Local mirror should not be treated as authoritative when the remote API says the path is absent.',
+  description: 'A stale local mirror must not control the authorized remote catalog.',
   path: 'D:\\repos\\birdcoder',
   createdAt: '2026-04-23T10:00:00.000Z',
   updatedAt: '2026-04-23T10:30:00.000Z',
   codingSessions: [],
 };
+
+const authorizedRootlessProject: BirdCoderProjectSummary = {
+  id: 'project-authorized-rootless',
+  workspaceId: 'workspace-1',
+  name: 'Authorized rootless project',
+  description: 'The remote catalog authorizes this project before a device mount exists.',
+  status: 'active',
+  createdAt: '2026-04-23T10:00:00.000Z',
+  updatedAt: '2026-04-23T10:30:00.000Z',
+} as BirdCoderProjectSummary;
 
 let capturedUserId: string | undefined;
 
@@ -55,18 +69,23 @@ const client = {
     options?: Parameters<BirdCoderAppSdkApiClient['listProjects']>[0],
   ): Promise<Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>> {
     capturedUserId = options?.userId;
-    return [];
+    return [authorizedRootlessProject];
   },
 } as unknown as BirdCoderAppSdkApiClient;
 
 const writeService = {
-  async getProjectByPath(): Promise<BirdCoderProject | null> {
-    return structuredClone(localProject);
+  async getProjects(): Promise<BirdCoderProject[]> {
+    return [structuredClone(localProject)];
   },
 } as unknown as IProjectService;
 
 const service = new ApiBackedProjectService({
   appClient: client,
+  codingRuntimeClient: {
+    async listCodingSessions() {
+      return [];
+    },
+  } as unknown as BirdCoderAppRuntimeReadSdkApiClient,
   currentUserProvider: {
     async getCurrentUser() {
       throw new Error(
@@ -77,20 +96,22 @@ const service = new ApiBackedProjectService({
   writeService,
 });
 
-const resolvedProject = await service.getProjectByPath(
-  'workspace-1',
-  'D:\\repos\\birdcoder',
-);
+const resolvedProjects = await service.getProjects('workspace-1');
 
 assert.equal(
   capturedUserId,
   undefined,
-  'project lookup must continue without an identity filter when current-user resolution is unavailable.',
+  'authorized project listing must continue without an identity filter when current-user resolution is unavailable.',
+);
+assert.deepEqual(
+  resolvedProjects.map((project) => project.id),
+  [authorizedRootlessProject.id],
+  'the authoritative catalog must determine visible projects even when the device has only a stale unrelated local mirror.',
 );
 assert.equal(
-  resolvedProject,
-  null,
-  'project import must not reuse a local-only mirrored project when the authoritative API reports no matching project path.',
+  resolvedProjects[0]?.path,
+  undefined,
+  'an authorized remote project without a device mount must not receive a fabricated local path.',
 );
 
-console.log('api backed project service import authority contract passed.');
+console.log('api-backed project service import authority contract passed.');

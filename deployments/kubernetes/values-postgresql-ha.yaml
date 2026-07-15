@@ -7,7 +7,7 @@
 # Required secrets:
 #   - birdcoder-database-url (PostgreSQL connection string)
 #   - birdcoder-redis-password (Redis auth password)
-# Compliance: HIGH_AVAILABILITY_SPEC.md SLO 99.9%
+# Compliance: DEPLOYMENT_SPEC.md, DATABASE_SPEC.md, SECURITY_SPEC.md
 
 replicaCount: 3
 

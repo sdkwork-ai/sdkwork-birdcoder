@@ -28,7 +28,6 @@ const remoteProjectSummary: BirdCoderProjectSummary = {
   description: 'A project supplied by the bounded authoritative page.',
   id: 'project-api-backed-page-21',
   name: 'Authoritative Project 21',
-  rootPath: 'D:\\workspaces\\project-21',
   status: 'active',
   updatedAt: '2026-07-10T00:00:01.000Z',
   workspaceId: request.workspaceId!,
@@ -150,7 +149,6 @@ assert.deepEqual(
     codingSessions: project.codingSessions,
     id: project.id,
     name: project.name,
-    path: project.path,
     workspaceId: project.workspaceId,
   })),
   [
@@ -159,11 +157,20 @@ assert.deepEqual(
       codingSessions: [],
       id: remoteProjectSummary.id,
       name: remoteProjectSummary.name,
-      path: remoteProjectSummary.rootPath,
       workspaceId: remoteProjectSummary.workspaceId,
     },
   ],
   'the API-backed service page path must expose a project inventory page without loading local project or transcript inventories.',
+);
+assert.equal(
+  Object.hasOwn(projectPage.items[0]!, 'path'),
+  false,
+  'the remote project inventory must not expose a device-private working directory.',
+);
+assert.equal(
+  Object.hasOwn(projectPage.items[0]!, 'sitePath'),
+  false,
+  'the remote project inventory must not expose a device-private site path.',
 );
 assert.deepEqual(
   boundedProjectPage.pageInfo,

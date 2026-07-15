@@ -176,7 +176,7 @@ BirdCoder exposes three canonical IAM deployment modes through the root `pnpm` w
 | `server-private` | `pnpm tauri:dev:private` | `pnpm server:dev` or `pnpm server:dev:private` | `private` | Private BirdCoder server with local SDKWork IAM |
 | `cloud-saas` | `pnpm tauri:dev:cloud` | `pnpm server:dev:cloud` | `saas` | BirdCoder server backed by SDKWork cloud app-api IAM |
 
-The wrappers load `.env`, `.env.local`, `.env.development`, `.env.development.local`, `.env.production`, and `.env.production.local` through Vite's env loader, then apply mode-specific defaults for sqlite, remote API base URL, SDKWork IAM mode, OAuth sample providers, and dev-only quick-login hints. The managed public client value is `VITE_SDKWORK_DEPLOYMENT_MODE`, and the server-facing value is `SDKWORK_IAM_MODE`.
+The wrappers load `.env`, `.env.local`, `.env.development`, `.env.development.local`, `.env.production`, and `.env.production.local` through Vite's env loader, then apply mode-specific defaults for sqlite, remote API base URL, SDKWork IAM mode, OAuth sample providers, and dev-only quick-login hints. The managed public client values are `VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE` and `VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET`, and the server-facing value is `SDKWORK_IAM_MODE`.
 
 Development commands for `server-private` and `cloud-saas` desktop modes default the client base URL to `http://127.0.0.1:10240` when you are iterating locally. Production desktop packaging for those two remote modes is stricter: you must explicitly set `BIRDCODER_API_BASE_URL` or `VITE_BIRDCODER_API_BASE_URL` so the packaged app cannot silently target a localhost endpoint.
 
@@ -206,7 +206,7 @@ pnpm iam:show -- server-dev --iam-mode server-private
 pnpm iam:show -- server-dev --iam-mode cloud-saas
 ```
 
-The inspector prints resolved `BIRDCODER_*`, `VITE_BIRDCODER_*`, `SDKWORK_IAM_*`, and `VITE_SDKWORK_DEPLOYMENT_MODE` values with secret-like fields masked, so you can confirm sqlite paths, API base URLs, dev quick-login defaults, OAuth sample provider configuration, and cloud app-api configuration before starting a host.
+The inspector prints resolved `BIRDCODER_*`, `VITE_BIRDCODER_*`, `SDKWORK_IAM_*`, `VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE`, and `VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET` values with secret-like fields masked, so you can confirm sqlite paths, API base URLs, dev quick-login defaults, OAuth sample provider configuration, and cloud app-api configuration before starting a host.
 
 When you want the same canonical deployment profile plus readiness validation, use the doctor aliases:
 

@@ -1,20 +1,16 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
-import {
-  buildTerminalProfileBlockedMessage,
-  emitOpenTerminalRequest,
-  globalEventBus,
-  getDefaultRunConfigurations,
-  resolveRunConfigurationTerminalLaunch,
-  useProjectRunConfigurations,
-  type RunConfigurationRecord,
-  type ToastType,
-} from '@sdkwork/birdcoder-pc-commons';
+import { buildTerminalProfileBlockedMessage, emitOpenTerminalRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
+import { getDefaultRunConfigurations } from '@sdkwork/birdcoder-pc-commons/terminal/runConfigStorage';
+import { resolveRunConfigurationTerminalLaunch } from '@sdkwork/birdcoder-pc-commons/terminal/runConfigs';
+import { useProjectRunConfigurations } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectRunConfigurations';
+import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-commons/terminal/runConfigStorage';
+import type { ToastType } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
 import { useTranslation } from 'react-i18next';
 
 interface UseCodeRunEntryActionsOptions {
   currentProjectId: string;
-  currentProjectPath?: string;
-  defaultWorkingDirectory: string;
+  resolveLocalWorkingDirectory: (projectId: string) => Promise<string | null>;
   isRunConfigVisible: boolean;
   setIsRunConfigVisible: Dispatch<SetStateAction<boolean>>;
   setIsDebugConfigVisible: Dispatch<SetStateAction<boolean>>;
@@ -24,8 +20,7 @@ interface UseCodeRunEntryActionsOptions {
 
 export function useCodeRunEntryActions({
   currentProjectId,
-  currentProjectPath,
-  defaultWorkingDirectory,
+  resolveLocalWorkingDirectory,
   isRunConfigVisible,
   setIsRunConfigVisible,
   setIsDebugConfigVisible,
@@ -51,11 +46,15 @@ export function useCodeRunEntryActions({
   }, [isRunConfigVisible, runConfigurations]);
 
   const dispatchRunConfiguration = async (configuration: RunConfigurationRecord) => {
-    const projectDirectory = currentProjectPath?.trim() || defaultWorkingDirectory;
+    const projectDirectory = await resolveLocalWorkingDirectory(currentProjectId);
+    if (!projectDirectory) {
+      addToast('A local desktop folder must be mounted before running this configuration.', 'error');
+      return;
+    }
 
     const launch = await resolveRunConfigurationTerminalLaunch(configuration, {
       projectDirectory,
-      workspaceDirectory: defaultWorkingDirectory,
+      workspaceDirectory: projectDirectory,
     });
 
     if (!launch.request) {

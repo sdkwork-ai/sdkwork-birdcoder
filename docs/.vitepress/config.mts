@@ -3,7 +3,8 @@ import { localSearchOptions, publicDocsSrcExclude } from './searchIndexPolicy';
 
 const nav = [
   { text: 'Guide', link: '/guide/getting-started' },
-  { text: 'Architecture', link: '/core/architecture' },
+  { text: 'Architecture', link: '/architecture/tech/TECH_ARCHITECTURE' },
+  { text: 'Operations', link: '/guides/operator/deployment-operations' },
   { text: 'Architecture Standards', link: '/架构/' },
   { text: 'API Reference', link: '/reference/api-reference' },
   { text: 'Reference', link: '/reference/commands' },
@@ -30,6 +31,19 @@ const sidebar = {
         { text: 'Packages', link: '/core/packages' },
         { text: 'Desktop Runtime', link: '/core/desktop' },
         { text: 'Release And Deployment', link: '/core/release-and-deployment' },
+      ],
+    },
+  ],
+  '/guides/operator/': [
+    {
+      text: 'Operator Guides',
+      items: [
+        { text: 'Overview', link: '/guides/operator/' },
+        { text: 'Deployment Operations', link: '/guides/operator/deployment-operations' },
+        { text: 'Windows Server Control Plane', link: '/guides/operator/windows-server-control-plane' },
+        { text: 'Backup And Restore', link: '/guides/operator/backup-restore' },
+        { text: 'Monitoring And Alerting', link: '/guides/operator/monitoring' },
+        { text: 'Incident Response', link: '/guides/operator/incident-response' },
       ],
     },
   ],

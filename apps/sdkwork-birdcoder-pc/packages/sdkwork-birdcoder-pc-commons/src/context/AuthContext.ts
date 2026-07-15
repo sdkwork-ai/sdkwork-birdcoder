@@ -26,10 +26,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const authMutationVersionRef = useRef(0);
+  const initialSessionLoadCompletedRef = useRef(false);
 
   const refreshCurrentUser = useCallback(async () => {
     const refreshAuthMutationVersion = authMutationVersionRef.current;
     try {
+      if (!(await authService.hasStoredSession())) {
+        if (authMutationVersionRef.current === refreshAuthMutationVersion) {
+          setUser(null);
+        }
+        return null;
+      }
       const currentUser = await authService.getCurrentUser();
       if (authMutationVersionRef.current !== refreshAuthMutationVersion) {
         return null;
@@ -70,8 +77,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       loadingInProgress = true;
       const currentAuthMutationVersion = authMutationVersionRef.current;
-      setIsLoading(true);
+      if (!initialSessionLoadCompletedRef.current) {
+        setIsLoading(true);
+      }
       try {
+        if (!(await authService.hasStoredSession())) {
+          if (!isMounted || authMutationVersionRef.current !== currentAuthMutationVersion) {
+            return;
+          }
+          setUser(null);
+          return;
+        }
         const currentUser = await authService.getCurrentUser();
         if (!isMounted || authMutationVersionRef.current !== currentAuthMutationVersion) {
           return;
@@ -87,6 +103,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } finally {
         loadingInProgress = false;
         if (isMounted && authMutationVersionRef.current === currentAuthMutationVersion) {
+          initialSessionLoadCompletedRef.current = true;
           setIsLoading(false);
         }
         if (isMounted && reloadRequested) {

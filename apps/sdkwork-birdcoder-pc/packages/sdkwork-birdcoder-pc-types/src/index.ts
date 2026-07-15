@@ -1533,6 +1533,49 @@ export type LocalFolderMountSource =
   | BrowserLocalFolderMountSource
   | TauriLocalFolderMountSource;
 
+/**
+ * Device-local mount state for a remote project. This intentionally exposes
+ * no browser handle, native path, or remote workspace-root value.
+ */
+export type ProjectDeviceMountStatus =
+  | 'mounted'
+  | 'recoverable'
+  | 'permission_required'
+  | 'mount_required'
+  | 'session_required';
+
+export interface ProjectDeviceMountState {
+  displayName: string | null;
+  host: LocalFolderMountSource['type'] | null;
+  status: ProjectDeviceMountStatus;
+}
+
+export interface ProjectDeviceMountRecoveryResult {
+  restored: boolean;
+  state: ProjectDeviceMountState;
+}
+
+/**
+ * Result of requesting a local folder capability from the current host.
+ *
+ * Browser folder handles and Tauri file-system paths intentionally remain
+ * device-local capabilities. Neither variant is a remote workspace root.
+ */
+export type LocalFolderPickerResult =
+  | {
+      status: 'selected';
+      source: LocalFolderMountSource;
+    }
+  | {
+      status: 'cancelled';
+    }
+  | {
+      status: 'unsupported';
+      capability: 'local_folder_picker';
+      code: 'browser_file_system_access_unavailable';
+      message: string;
+    };
+
 export interface BirdCoderProject {
   id: BirdCoderCanonicalEntityId;
   uuid?: string;
@@ -1549,8 +1592,6 @@ export interface BirdCoderProject {
   title?: string;
   name: string;
   description?: string;
-  path?: string;
-  sitePath?: string;
   domainPrefix?: string;
   ownerId?: BirdCoderCanonicalEntityId;
   leaderId?: BirdCoderCanonicalEntityId;

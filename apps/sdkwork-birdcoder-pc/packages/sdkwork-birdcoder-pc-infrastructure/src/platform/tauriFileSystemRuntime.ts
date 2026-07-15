@@ -91,6 +91,7 @@ export interface BirdCoderTauriFileSystemRuntime {
     oldMountedPath: string,
     newMountedPath: string,
   ): Promise<void>;
+  revealInFileManager(path: string): Promise<void>;
   listDirectory(
     rootSystemPath: string,
     rootVirtualPath: string | null,
@@ -456,6 +457,11 @@ export function createBirdCoderTauriFileSystemRuntime(): BirdCoderTauriFileSyste
         rootPath: rootSystemPath,
         oldRelativePath: toMountedRelativePath(rootVirtualPath, oldMountedPath),
         newRelativePath: toMountedRelativePath(rootVirtualPath, newMountedPath),
+      });
+    },
+    async revealInFileManager(path) {
+      await invokeTauriFileSystemCommand('desktop_reveal_in_file_manager', {
+        path: path.trim(),
       });
     },
   };

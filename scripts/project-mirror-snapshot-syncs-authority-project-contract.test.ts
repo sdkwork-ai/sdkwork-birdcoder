@@ -21,7 +21,6 @@ const projectSummary: BirdCoderProjectSummary = {
   workspaceId,
   name: 'Authority Mirrored Project',
   description: 'Imported project mirrors must be synchronized with authority during inventory reads.',
-  rootPath: 'D:/workspace/authority-mirrored-project',
   status: 'active',
   createdAt: '2026-04-25T00:00:00.000Z',
   updatedAt: '2026-04-25T00:01:00.000Z',
@@ -32,7 +31,6 @@ const localProject: BirdCoderProject = {
   workspaceId,
   name: 'Stale Imported Project Name',
   description: 'Local imported project mirror before authority synchronization.',
-  path: 'D:/workspace/authority-mirrored-project',
   createdAt: '2026-04-25T00:00:00.000Z',
   updatedAt: '2026-04-25T00:00:00.000Z',
   codingSessions: [],
@@ -94,7 +92,6 @@ const projectMirror = {
       description: summary.description,
       id: summary.id,
       name: summary.name,
-      path: summary.rootPath,
       updatedAt: summary.updatedAt,
       workspaceId: summary.workspaceId,
     };
@@ -148,6 +145,16 @@ assert.equal(
 );
 assert.equal(snapshots.length, 1);
 assert.equal(snapshots[0]?.id, projectId);
+assert.equal(
+  Object.hasOwn(syncedProjectSummary ?? {}, 'rootPath'),
+  false,
+  'authority summaries synchronized into the local mirror must not carry a client filesystem root.',
+);
+assert.equal(
+  Object.hasOwn(snapshots[0] ?? {}, 'path'),
+  false,
+  'mirror snapshots must remain path-free; device mounts are resolved separately by project id.',
+);
 assert.equal(snapshots[0]?.codingSessions.length, 1);
 assert.equal(snapshots[0]?.codingSessions[0]?.id, codingSessionId);
 assert.equal(

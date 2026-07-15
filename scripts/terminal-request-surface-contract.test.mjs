@@ -125,8 +125,8 @@ assert.match(
 
 assert.match(
   codePageTerminalActionsSource,
-  /emitOpenTerminalRequest\(\{[\s\S]*surface: 'workspace'[\s\S]*path: target\.projectPath[\s\S]*\}\);/,
-  'Project context-menu terminal launches must target the full Terminal workspace.',
+  /const localWorkingDirectory = await resolveLocalWorkingDirectory\(target\.id\);[\s\S]*if \(!localWorkingDirectory\) \{[\s\S]*return;[\s\S]*\}[\s\S]*emitOpenTerminalRequest\(\{[\s\S]*surface: 'workspace'[\s\S]*path: localWorkingDirectory[\s\S]*\}\);/,
+  'Project context-menu terminal launches must resolve a device-local working directory by project id before targeting the full Terminal workspace.',
 );
 
 assert.match(
@@ -184,8 +184,8 @@ assert.match(
 );
 assert.match(
   codingSessionTerminalSource,
-  /request: \{[\s\S]*surface: 'workspace'[\s\S]*path: input\.projectPath[\s\S]*command: resumeCommand[\s\S]*profileId: terminalProfile\.id[\s\S]*timestamp: input\.timestamp \?\? Date\.now\(\)[\s\S]*\}/m,
-  'Session terminal launch plans must target the full Terminal workspace with the resolved engine terminal profile, project path, and resume command.',
+  /request: \{[\s\S]*surface: 'workspace'[\s\S]*path: input\.localWorkingDirectory[\s\S]*command: resumeCommand[\s\S]*profileId: terminalProfile\.id[\s\S]*timestamp: input\.timestamp \?\? Date\.now\(\)[\s\S]*\}/m,
+  'Session terminal launch plans must target the full Terminal workspace with the resolved engine terminal profile, device-local working directory, and resume command.',
 );
 assert.match(
   codePageTerminalActionsSource,
@@ -194,8 +194,19 @@ assert.match(
 );
 assert.match(
   codePageTerminalActionsSource,
-  /const handleOpenCodingSessionInTerminal = useCallback\(async \(\s*codingSessionId: string,\s*projectId: string,\s*nativeSessionIdFromList\?: string \| null,\s*\) => \{[\s\S]*resolveSession\(codingSessionId, projectId\)[\s\S]*resolveProjectActionTarget\(resolvedSessionLocation\?\.project\)[\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*await resolveCodingSessionNativeSessionId\(codingSessionId, projectId\)[\s\S]*buildCodingSessionTerminalLaunchPlan\(\{[\s\S]*codingSession: \{ \.\.\.codingSession, nativeSessionId \},[\s\S]*projectPath: target\.projectPath[\s\S]*emitOpenTerminalRequest\(launchPlan\.request\);/m,
-  'Session context-menu terminal actions must resolve the selected project session and use the loaded session-list native id before falling back to authoritative resolution.',
+  /const handleOpenCodingSessionInTerminal = useCallback\(async \(\s*codingSessionId: string,\s*projectId: string,\s*nativeSessionIdFromList\?: string \| null,\s*\) => \{[\s\S]*resolveSession\(codingSessionId, projectId\)[\s\S]*resolveProjectActionTarget\(resolvedSessionLocation\?\.project\)[\s\S]*const localWorkingDirectory = await resolveLocalWorkingDirectory\(target\.id\);[\s\S]*nativeSessionIdFromList\?\.trim\(\) \|\|[\s\S]*await resolveCodingSessionNativeSessionId\(codingSessionId, projectId\)[\s\S]*buildCodingSessionTerminalLaunchPlan\(\{[\s\S]*codingSession: \{ \.\.\.codingSession, nativeSessionId \},[\s\S]*localWorkingDirectory,[\s\S]*emitOpenTerminalRequest\(launchPlan\.request\);/m,
+  'Session context-menu terminal actions must resolve the selected project session and a device-local working directory before using the loaded session-list native id or falling back to authority.',
+);
+
+assert.doesNotMatch(
+  codePageTerminalActionsSource,
+  /target\.projectPath|projectPath:/,
+  'Terminal actions must not take a local directory from remote project metadata.',
+);
+assert.doesNotMatch(
+  codingSessionTerminalSource,
+  /projectPath/,
+  'Coding-session terminal launch plans must accept only a device-local working directory resolved outside the remote project contract.',
 );
 assert.match(
   codePageTerminalActionsSource,
@@ -268,21 +279,25 @@ assert.match(
   'Authority-backed native session inventory records must preserve nativeSessionId in each list item as a normalized raw provider id.',
 );
 
-const fileExplorerTerminalRequestBlocks = [
-  ...fileExplorerSource.matchAll(/emitOpenTerminalRequest\(\{[\s\S]*?\}\);/g),
-].map((match) => match[0]);
-const directoryTerminalRequestBlocks = fileExplorerTerminalRequestBlocks.filter(
-  (block) => block.includes('projectBasePath') || block.includes('targetPath'),
+assert.match(
+  fileExplorerSource,
+  /const resolveProjectMountTarget = \(mountedPath\?: string\) => \{[\s\S]*projectId: normalizedProjectId,[\s\S]*mountedPath/,
+  'File explorer must pass only a project id and optional mounted virtual path through the device-mount event boundary.',
 );
-
-assert.equal(
-  directoryTerminalRequestBlocks.length,
-  2,
-  'File explorer should expose exactly root and directory open-in-terminal launch requests.',
+assert.match(
+  fileExplorerSource,
+  /const target = resolveProjectMountTarget\(\);[\s\S]*emitOpenProjectTerminal\(target\)/,
+  'File explorer root terminal actions must delegate local directory resolution to the project device-mount shell boundary.',
 );
-assert.ok(
-  directoryTerminalRequestBlocks.every((block) => block.includes("surface: 'workspace'")),
-  'File explorer root and directory terminal launches must target the full Terminal workspace.',
+assert.match(
+  fileExplorerSource,
+  /const target = resolveProjectMountTarget\(resolveMountedDirectoryPath\(contextMenu\.node\)\);[\s\S]*emitOpenProjectTerminal\(target\)/,
+  'File explorer directory terminal actions must preserve the virtual mounted path while delegating local directory resolution to the shell boundary.',
+);
+assert.doesNotMatch(
+  fileExplorerSource,
+  /emitOpenTerminalRequest|projectBasePath|targetPath/,
+  'File explorer must not construct terminal requests or expose an OS project path directly from the renderer.',
 );
 
 console.log('terminal request surface contract passed.');

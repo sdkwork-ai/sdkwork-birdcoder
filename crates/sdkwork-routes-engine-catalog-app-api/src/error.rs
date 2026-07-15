@@ -18,11 +18,9 @@ pub fn map_engine_catalog_error(
         EngineCatalogError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
         }
-        EngineCatalogError::InvalidInput(msg) => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            msg,
-            trace_id,
-        ),
+        EngineCatalogError::InvalidInput(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
+        }
         EngineCatalogError::Repository(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
             client_safe_data_access_problem(),
@@ -44,11 +42,9 @@ pub fn map_native_session_error(
         NativeSessionError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
         }
-        NativeSessionError::InvalidInput(msg) => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            msg,
-            trace_id,
-        ),
+        NativeSessionError::InvalidInput(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
+        }
         NativeSessionError::Conflict(msg) => {
             traced_platform_problem(SdkWorkResultCode::Conflict, msg, trace_id)
         }

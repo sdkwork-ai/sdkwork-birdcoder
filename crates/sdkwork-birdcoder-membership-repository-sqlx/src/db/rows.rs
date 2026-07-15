@@ -1,5 +1,5 @@
-use sqlx::Row;
 use sdkwork_birdcoder_sqlx_repository_pool::dialect::row_get_bool_as_i64;
+use sqlx::Row;
 
 #[derive(Clone, Debug)]
 pub struct MembershipRow {

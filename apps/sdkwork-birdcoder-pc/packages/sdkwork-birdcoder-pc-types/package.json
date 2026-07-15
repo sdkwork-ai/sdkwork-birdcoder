@@ -13,6 +13,10 @@
     "./storageBindings": {
       "import": "./src/storageBindings.ts",
       "types": "./src/storageBindings.ts"
+    },
+    "./dataScopes": {
+      "import": "./src/dataScopes.ts",
+      "types": "./src/dataScopes.ts"
     }
   },
   "scripts": {

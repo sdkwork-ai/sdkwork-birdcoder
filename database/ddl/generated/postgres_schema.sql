@@ -6,7 +6,7 @@
 -- Owner: birdcoder-platform
 -- Table prefixes: ai_, chat_, commerce_, ops_, runtime_, studio_
 -- Sources: baseline(1) + migrations(0)
--- Generated at: 2026-07-05T13:09:21.796Z
+-- Generated at: 2026-07-14T09:25:05.401Z
 
 -- ============================================================
 -- baseline: 0001_birdcoder_baseline.sql
@@ -182,7 +182,20 @@ CREATE TABLE IF NOT EXISTS ai_coding_session_operation (
     status TEXT NOT NULL,
     stream_url TEXT NOT NULL,
     stream_kind TEXT NOT NULL,
-    artifact_refs_json JSONB NOT NULL
+    artifact_refs_json JSONB NOT NULL,
+    request_payload_json TEXT NOT NULL DEFAULT '{}',
+    request_fingerprint TEXT NOT NULL DEFAULT '',
+    idempotency_key TEXT NULL,
+    available_at TEXT NOT NULL DEFAULT '1970-01-01T00:00:00Z',
+    attempt INTEGER NOT NULL DEFAULT 0,
+    max_attempt INTEGER NOT NULL DEFAULT 1,
+    lease_owner TEXT NULL,
+    lease_expires_at TEXT NULL,
+    fencing_token BIGINT NOT NULL DEFAULT 0,
+    runner_id TEXT NULL,
+    started_at TEXT NULL,
+    completed_at TEXT NULL,
+    problem_json TEXT NULL
 );
 
 CREATE TABLE IF NOT EXISTS ai_coding_session_prompt_entry (
@@ -369,7 +382,7 @@ CREATE TABLE IF NOT EXISTS studio_project_document (
     updated_at TIMESTAMPTZ NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    project_id TEXT NOT NULL,
+    project_id BIGINT NOT NULL REFERENCES studio_project(id),
     document_kind TEXT NOT NULL,
     title TEXT NOT NULL,
     slug TEXT NOT NULL,
@@ -390,7 +403,7 @@ CREATE TABLE IF NOT EXISTS studio_deployment_target (
     updated_at TIMESTAMPTZ NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    project_id TEXT NOT NULL,
+    project_id BIGINT NOT NULL REFERENCES studio_project(id),
     name TEXT NOT NULL,
     environment_key TEXT NOT NULL,
     runtime TEXT NOT NULL,
@@ -410,8 +423,8 @@ CREATE TABLE IF NOT EXISTS studio_deployment_record (
     updated_at TIMESTAMPTZ NOT NULL,
     version INTEGER NOT NULL DEFAULT 0,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    project_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
+    project_id BIGINT NOT NULL REFERENCES studio_project(id),
+    target_id TEXT NOT NULL REFERENCES studio_deployment_target(id),
     release_record_id TEXT NULL,
     status TEXT NOT NULL,
     endpoint_url TEXT NULL,
@@ -745,12 +758,12 @@ CREATE TABLE IF NOT EXISTS commerce_membership (
     status TEXT NOT NULL,
     started_at TIMESTAMPTZ NULL,
     expires_at TIMESTAMPTZ NULL,
-    remaining_days TEXT NOT NULL DEFAULT '0',
-    total_days TEXT NOT NULL DEFAULT '0',
-    total_spent TEXT NOT NULL DEFAULT '0',
-    points TEXT NOT NULL DEFAULT '0',
-    growth_value TEXT NOT NULL DEFAULT '0',
-    upgrade_growth_value TEXT NOT NULL DEFAULT '0'
+    remaining_days INTEGER NOT NULL DEFAULT 0,
+    total_days INTEGER NOT NULL DEFAULT 0,
+    total_spent NUMERIC NOT NULL DEFAULT 0,
+    points INTEGER NOT NULL DEFAULT 0,
+    growth_value NUMERIC NOT NULL DEFAULT 0,
+    upgrade_growth_value NUMERIC NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS commerce_membership_benefit (
@@ -769,8 +782,8 @@ CREATE TABLE IF NOT EXISTS commerce_membership_benefit (
     description TEXT NULL,
     icon TEXT NULL,
     claimed BOOLEAN NOT NULL DEFAULT FALSE,
-    usage_limit TEXT NULL,
-    used_count TEXT NULL
+    usage_limit INTEGER NULL,
+    used_count INTEGER NULL
 );
 
 CREATE TABLE IF NOT EXISTS commerce_membership_package_group (
@@ -784,7 +797,7 @@ CREATE TABLE IF NOT EXISTS commerce_membership_package_group (
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     name TEXT NOT NULL,
     description TEXT NULL,
-    sort_weight TEXT NOT NULL DEFAULT '0'
+    sort_weight INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS commerce_membership_package (
@@ -799,12 +812,12 @@ CREATE TABLE IF NOT EXISTS commerce_membership_package (
     group_id TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT NULL,
-    price TEXT NOT NULL,
-    original_price TEXT NULL,
-    point_amount TEXT NOT NULL DEFAULT '0',
-    duration_days TEXT NOT NULL DEFAULT '30',
+    price NUMERIC NOT NULL DEFAULT 0,
+    original_price NUMERIC NULL,
+    point_amount INTEGER NOT NULL DEFAULT 0,
+    duration_days INTEGER NOT NULL DEFAULT 30,
     plan_name TEXT NULL,
-    sort_weight TEXT NOT NULL DEFAULT '0',
+    sort_weight INTEGER NOT NULL DEFAULT 0,
     recommended BOOLEAN NOT NULL DEFAULT FALSE
 );
 
@@ -1052,6 +1065,17 @@ ON ai_coding_session_artifact(coding_session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_coding_session_operation_session_status
 ON ai_coding_session_operation(coding_session_id, status);
 
+CREATE INDEX IF NOT EXISTS idx_ai_coding_session_operation_queue
+ON ai_coding_session_operation(status, available_at, created_at, id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_operation_idempotency
+ON ai_coding_session_operation(tenant_id, user_id, coding_session_id, idempotency_key)
+WHERE idempotency_key IS NOT NULL AND is_deleted IS NOT TRUE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_ai_coding_session_operation_tenant_user_running
+ON ai_coding_session_operation(tenant_id, user_id)
+WHERE status = 'running' AND is_deleted IS NOT TRUE;
+
 CREATE INDEX IF NOT EXISTS idx_ai_coding_session_checkpoint_session_created
 ON ai_coding_session_checkpoint(coding_session_id, created_at);
 
@@ -1104,9 +1128,12 @@ ON ops_audit_event(tenant_id, created_at);
 --   * studio_app_template_*.template_id -> actual columns app_template_id / app_template_version_id
 --     with natural targets studio_app_template.id / studio_app_template_version.id
 --
--- Blocked FKs (omitted pending schema decision):
---   * studio_project_document.project_id  -> studio_project.id        (type mismatch: TEXT vs INTEGER)
---   * studio_deployment_record.project_id  -> studio_project.id        (type mismatch: TEXT vs INTEGER)
+-- Previously blocked FKs (now resolved with inline REFERENCES in baseline DDL):
+--   * studio_project_document.project_id  -> studio_project.id        (was TEXT, now BIGINT)
+--   * studio_deployment_record.project_id  -> studio_project.id        (was TEXT, now BIGINT)
+--   * studio_deployment_target.project_id  -> studio_project.id        (was TEXT, now BIGINT)
+--
+-- Remaining blocked FKs (external dependencies):
 --   * ops_release_record.target_id          -> studio_deployment_target.id (column target_id absent)
 --   * commerce_membership.user_id           -> user table               (no user table owned by this module)
 --   * commerce_order.user_id                -> user table               (no user table owned by this module)

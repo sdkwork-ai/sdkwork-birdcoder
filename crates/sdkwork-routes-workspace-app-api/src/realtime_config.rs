@@ -48,10 +48,11 @@ fn resolve_redis_url() -> Result<String, String> {
         }
     }
 
-    let host = std::env::var("SDKWORK_BIRDCODER_REDIS_HOST")
-        .unwrap_or_else(|_| "127.0.0.1".to_string());
+    let host =
+        std::env::var("SDKWORK_BIRDCODER_REDIS_HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
     let port = std::env::var("SDKWORK_BIRDCODER_REDIS_PORT").unwrap_or_else(|_| "6379".to_string());
-    let database = std::env::var("SDKWORK_BIRDCODER_REDIS_DATABASE").unwrap_or_else(|_| "0".to_string());
+    let database =
+        std::env::var("SDKWORK_BIRDCODER_REDIS_DATABASE").unwrap_or_else(|_| "0".to_string());
     let username = std::env::var("SDKWORK_BIRDCODER_REDIS_USERNAME")
         .ok()
         .filter(|value| !sdkwork_utils_rust::is_blank(Some(value)));
@@ -75,8 +76,9 @@ fn resolve_redis_password() -> Result<Option<String>, String> {
     if let Ok(path) = std::env::var("SDKWORK_BIRDCODER_REDIS_PASSWORD_FILE") {
         let trimmed = path.trim();
         if !trimmed.is_empty() {
-            let value = std::fs::read_to_string(trimmed)
-                .map_err(|error| format!("read SDKWORK_BIRDCODER_REDIS_PASSWORD_FILE failed: {error}"))?;
+            let value = std::fs::read_to_string(trimmed).map_err(|error| {
+                format!("read SDKWORK_BIRDCODER_REDIS_PASSWORD_FILE failed: {error}")
+            })?;
             let password = value.trim().to_string();
             if !password.is_empty() {
                 return Ok(Some(password));

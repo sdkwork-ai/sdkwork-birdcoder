@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use crate::bootstrap::config::{
     default_loopback_browser_origins, is_loopback_bind_host, is_wildcard_bind_host,
-    BirdServerConfig,
+    BirdDeploymentProfile, BirdServerConfig,
 };
 use crate::bootstrap::route_manifest::birdcoder_product_app_api_route_manifest;
 
@@ -35,10 +35,9 @@ pub async fn build_protected_app_router(
         .validate_public_path_prefixes(&birdcoder_public_path_prefixes())
         .map_err(|error| format!("route manifest public prefix validation failed: {error}"))?;
 
-    let authorization_policy =
-        Arc::new(BirdCoderAuthorizationPolicy::new(IamAuthorizationPolicy::new(
-            manifest,
-        )));
+    let authorization_policy = Arc::new(BirdCoderAuthorizationPolicy::new(
+        IamAuthorizationPolicy::new(manifest),
+    ));
 
     let layer = build_web_framework_layer(resolver, manifest, birdcoder_public_path_prefixes())
         .with_security_policy(build_security_policy(config))
@@ -112,12 +111,27 @@ async fn gateway_cors_middleware(
 
 pub(crate) fn build_cors_policy(config: &BirdServerConfig) -> CorsPolicy {
     let uses_wildcard = config.allowed_origins.iter().any(|origin| origin == "*");
-    let explicit_origins: Vec<String> = config
+    let mut explicit_origins: Vec<String> = config
         .allowed_origins
         .iter()
         .filter(|origin| *origin != "*")
         .cloned()
         .collect();
+
+    // Standalone servers are commonly opened from whichever local Vite port
+    // is available. Keep this expansion limited to loopback origins so a
+    // development port change does not break browser startup while cloud
+    // deployments continue to require explicit, operator-owned origins.
+    let is_local_standalone =
+        matches!(config.deployment_profile, BirdDeploymentProfile::Standalone)
+            && (is_loopback_bind_host(&config.host) || is_wildcard_bind_host(&config.host));
+    if is_local_standalone {
+        for origin in default_loopback_browser_origins() {
+            if !explicit_origins.iter().any(|allowed| allowed == &origin) {
+                explicit_origins.push(origin);
+            }
+        }
+    }
 
     if uses_wildcard {
         tracing::warn!(
@@ -159,6 +173,50 @@ fn build_security_policy(config: &BirdServerConfig) -> SecurityPolicy {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bootstrap::config::{BirdEnvironment, BirdRuntimeTarget};
+    use std::path::PathBuf;
+
+    fn test_config(deployment_profile: BirdDeploymentProfile) -> BirdServerConfig {
+        BirdServerConfig {
+            environment: BirdEnvironment::Development,
+            deployment_profile,
+            runtime_target: BirdRuntimeTarget::Server,
+            host: "127.0.0.1".to_owned(),
+            port: 10240,
+            sqlite_file: PathBuf::from("target/test-birdcoder-cors.sqlite3"),
+            allowed_origins: vec!["https://operator.example.test".to_owned()],
+            project_root: None,
+            rate_limit_enabled: false,
+            rate_limit_max_requests: 120,
+            rate_limit_window_secs: 60,
+        }
+    }
+
+    #[test]
+    fn standalone_loopback_cors_includes_local_vite_ports() {
+        let policy = build_cors_policy(&test_config(BirdDeploymentProfile::Standalone));
+
+        assert!(policy
+            .allowed_origins
+            .iter()
+            .any(|origin| origin == "http://localhost:3001"));
+        assert!(policy
+            .allowed_origins
+            .iter()
+            .any(|origin| origin == "https://operator.example.test"));
+    }
+
+    #[test]
+    fn cloud_cors_does_not_expand_operator_origins() {
+        let policy = build_cors_policy(&test_config(BirdDeploymentProfile::Cloud));
+
+        assert_eq!(policy.allowed_origins, ["https://operator.example.test"]);
+    }
+}
+
 /// BirdCoder authorization policy that adapts to the deployment mode.
 ///
 /// In production, this delegates to the full `IamAuthorizationPolicy` which
@@ -193,15 +251,10 @@ impl BirdCoderAuthorizationPolicy {
     /// Returns `true` when the principal is authenticated but carries an empty
     /// `permission_scope` in a non-SaaS deployment, indicating the IAM
     /// permission catalog is not provisioned (local SQLite dev databases).
-    fn principal_has_empty_permission_scope_in_non_saas(
-        ctx: &WebRequestContext,
-    ) -> bool {
+    fn principal_has_empty_permission_scope_in_non_saas(ctx: &WebRequestContext) -> bool {
         ctx.principal.as_ref().is_some_and(|principal| {
             principal.scopes.permission_scope.is_empty()
-                && !matches!(
-                    principal.app.deployment_mode,
-                    WebDeploymentMode::Saas
-                )
+                && !matches!(principal.app.deployment_mode, WebDeploymentMode::Saas)
         })
     }
 }

@@ -1,6 +1,7 @@
 import {
   areBirdCoderChatMessagesEquivalent,
   buildBirdCoderSessionSynchronizationVersion,
+  compareBirdCoderLongIntegers,
   formatBirdCoderSessionActivityDisplayTime,
   type BirdCoderChatMessage,
   type BirdCoderCodingSession,
@@ -12,6 +13,7 @@ import {
   type BirdCoderCodingSessionSummary,
   mergeBirdCoderProjectionMessages,
   resolveBirdCoderCodingSessionRuntimeStatus,
+  resolveBirdCoderSessionSortTimestampString,
 } from '@sdkwork/birdcoder-pc-types';
 import type {
   BirdCoderCodingSessionMirrorSnapshot,
@@ -22,6 +24,7 @@ import {
   isAuthorityBackedNativeSessionId,
   type NativeSessionAuthorityAppRuntimeReadService,
 } from './nativeSessionAuthority.ts';
+import { synchronizeProjectSessionsFromAuthority } from './projectSessionSynchronization.ts';
 
 type CodingSessionRefreshAppRuntimeReadService =
   NativeSessionAuthorityAppRuntimeReadService &
@@ -190,6 +193,25 @@ function resolveLatestRefreshTimestamp(
   }
 
   return Number.isFinite(latestTimestamp) ? latestTimestamp : Number.NaN;
+}
+
+function resolveLatestRefreshIsoTimestamp(
+  ...candidates: Array<string | null | undefined>
+): string | null {
+  let latestCandidate: string | null = null;
+  let latestTimestamp = Number.NEGATIVE_INFINITY;
+
+  for (const candidate of candidates) {
+    const parsedTimestamp = parseRefreshTimestamp(candidate);
+    if (Number.isNaN(parsedTimestamp) || parsedTimestamp < latestTimestamp) {
+      continue;
+    }
+
+    latestTimestamp = parsedTimestamp;
+    latestCandidate = candidate ?? null;
+  }
+
+  return latestCandidate;
 }
 
 function resolveLatestRefreshEventTimestamp(
@@ -471,12 +493,25 @@ function buildRefreshedCodingSession(
   messages?: readonly BirdCoderChatMessage[],
   runtimeStatus?: BirdCoderCodingSession['runtimeStatus'],
 ): BirdCoderCodingSession {
-  const resolvedTranscriptUpdatedAt =
-    summary.transcriptUpdatedAt ??
-    (messages ? findLatestTranscriptTimestamp(messages) : null) ??
-    existingSession.transcriptUpdatedAt ??
-    null;
-  return {
+  const resolvedTranscriptUpdatedAt = resolveLatestRefreshIsoTimestamp(
+    summary.transcriptUpdatedAt,
+    messages ? findLatestTranscriptTimestamp(messages) : null,
+    existingSession.transcriptUpdatedAt,
+  );
+  const resolvedUpdatedAt =
+    resolveLatestRefreshIsoTimestamp(summary.updatedAt, existingSession.updatedAt) ??
+    summary.updatedAt;
+  const resolvedLastTurnAt = resolveLatestRefreshIsoTimestamp(
+    summary.lastTurnAt,
+    existingSession.lastTurnAt,
+  ) ?? undefined;
+  const summarySortTimestamp = resolveBirdCoderSessionSortTimestampString(summary);
+  const existingSortTimestamp = resolveBirdCoderSessionSortTimestampString(existingSession);
+  const resolvedSortTimestamp =
+    compareBirdCoderLongIntegers(summarySortTimestamp, existingSortTimestamp) >= 0
+      ? summarySortTimestamp
+      : existingSortTimestamp;
+  const refreshedSession: BirdCoderCodingSession = {
     id: summary.id,
     workspaceId: summary.workspaceId.trim() || existingSession.workspaceId,
     projectId: summary.projectId.trim() || existingSession.projectId,
@@ -486,19 +521,20 @@ function buildRefreshedCodingSession(
     engineId: summary.engineId,
     modelId: summary.modelId,
     createdAt: summary.createdAt,
-    updatedAt: summary.updatedAt,
-    lastTurnAt: summary.lastTurnAt,
-    sortTimestamp: summary.sortTimestamp ?? existingSession.sortTimestamp,
+    updatedAt: resolvedUpdatedAt,
+    lastTurnAt: resolvedLastTurnAt,
+    sortTimestamp: resolvedSortTimestamp,
     transcriptUpdatedAt: resolvedTranscriptUpdatedAt,
     runtimeStatus: runtimeStatus ?? summary.runtimeStatus ?? existingSession.runtimeStatus,
-    displayTime: formatBirdCoderSessionActivityDisplayTime({
-      ...summary,
-      transcriptUpdatedAt: resolvedTranscriptUpdatedAt,
-    }),
+    displayTime: '',
     pinned: existingSession.pinned ?? false,
     archived: existingSession.archived ?? summary.status === 'archived',
     unread: existingSession.unread ?? false,
     messages: copyMessagesIfNeeded(existingSession.messages, messages),
+  };
+  return {
+    ...refreshedSession,
+    displayTime: formatBirdCoderSessionActivityDisplayTime(refreshedSession),
   };
 }
 
@@ -856,7 +892,7 @@ export async function refreshProjectSessions(
           status: 'failed',
         } satisfies RefreshProjectSessionsResult;
       }
-      const projects =
+      let projects =
         preciseProject
           ? [preciseProject]
           : (await options.projectService.getProjects(normalizedWorkspaceId)).filter((project) =>
@@ -870,6 +906,18 @@ export async function refreshProjectSessions(
           source: options.appRuntimeReadService ? 'app-runtime' : 'project-service',
           status: 'failed',
         } satisfies RefreshProjectSessionsResult;
+      }
+      if (options.appRuntimeReadService) {
+        const synchronizedProjects: BirdCoderProject[] = [];
+        for (const project of projects) {
+          const synchronized = await synchronizeProjectSessionsFromAuthority({
+            appRuntimeReadService: options.appRuntimeReadService,
+            project,
+            projectService: options.projectService,
+          });
+          synchronizedProjects.push(synchronized.project);
+        }
+        projects = synchronizedProjects;
       }
       const projectIds = projects.map((project) => project.id);
       const mirroredSessionIds = projects.flatMap((project) =>

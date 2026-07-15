@@ -12,30 +12,21 @@ export interface CodePageProps {
   onCodingSessionChange?: (codingSessionId: string, projectId?: string) => void;
 }
 
-export function resolveCodeProjectPath(projectPath?: string): string | null {
-  const normalizedProjectPath = projectPath?.trim() ?? '';
-  return normalizedProjectPath.length > 0 ? normalizedProjectPath : null;
-}
-
-export function resolveCodeProjectActionTarget<TProject extends { name: string; path?: string }>(
+export function resolveCodeProjectActionTarget<TProject extends { id: string; name: string }>(
   project: TProject | null | undefined,
   addToast: (message: string, type: 'error') => void,
-): { project: TProject; projectPath: string } | null {
+): TProject | null {
   if (!project) {
     addToast(i18n.t('code.projectNotFound'), 'error');
     return null;
   }
 
-  const projectPath = resolveCodeProjectPath(project.path);
-  if (!projectPath) {
+  if (!project.id.trim()) {
     addToast(i18n.t('code.projectFolderUnavailableNamed', { name: project.name }), 'error');
     return null;
   }
 
-  return {
-    project,
-    projectPath,
-  };
+  return project;
 }
 
 export function CodeSessionTranscriptLoadingState() {

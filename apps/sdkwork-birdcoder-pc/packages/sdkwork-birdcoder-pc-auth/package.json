@@ -30,6 +30,7 @@
     "@babel/runtime": "catalog:",
     "@sdkwork/auth-pc-react": "workspace:*",
     "@sdkwork/birdcoder-pc-commons": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*",
     "@sdkwork/ui-pc-react": "workspace:*",
     "react-i18next": "catalog:"

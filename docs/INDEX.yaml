@@ -4,7 +4,12 @@ repository: sdkwork-birdcoder
 canon:
   prd: docs/product/prd/PRD.md
   techArchitecture: docs/architecture/tech/TECH_ARCHITECTURE.md
-entries: []
+entries:
+  - id: ADR-20260713
+    path: docs/architecture/decisions/ADR-20260713-unified-project-runtime-boundary.md
+    layer: work
+    audience: [architecture, engineering, security, operations]
+    status: accepted
 domains:
   - id: product
     title: Product

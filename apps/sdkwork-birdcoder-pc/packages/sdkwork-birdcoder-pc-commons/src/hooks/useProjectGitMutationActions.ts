@@ -16,7 +16,7 @@ export interface UseProjectGitMutationActionsOptions {
 export interface UseProjectGitMutationActionsResult {
   commitChanges: (message: string) => Promise<string>;
   createBranch: (branchName: string) => Promise<string>;
-  createWorktree: (branchName: string, path: string) => Promise<{ branchName: string; path: string }>;
+  createWorktree: (branchName: string) => Promise<{ branchName: string }>;
   isCommitting: boolean;
   isCreatingBranch: boolean;
   isCreatingWorktree: boolean;
@@ -28,7 +28,7 @@ export interface UseProjectGitMutationActionsResult {
   pruneWorktrees: () => Promise<void>;
   removeWorktree: (
     request: BirdCoderRemoveProjectGitWorktreeRequest,
-  ) => Promise<{ path: string }>;
+  ) => Promise<{ worktreeKey: string }>;
   switchBranch: (branchName: string) => Promise<string>;
 }
 
@@ -90,28 +90,19 @@ export function useProjectGitMutationActions({
     }
   }, [applyGitOverview, gitService, requireProjectId]);
 
-  const createWorktree = useCallback(async (
-    branchName: string,
-    path: string,
-  ): Promise<{ branchName: string; path: string }> => {
+  const createWorktree = useCallback(async (branchName: string): Promise<{ branchName: string }> => {
     const nextProjectId = requireProjectId();
     const normalizedBranchName = normalizeGitBranchName(branchName);
-    const normalizedPath = path.trim();
-    if (!normalizedPath) {
-      throw new Error('Worktree path is required before creating a Git worktree.');
-    }
 
     setIsCreatingWorktree(true);
     try {
       applyGitOverview(
         await gitService.createProjectGitWorktree(nextProjectId, {
           branchName: normalizedBranchName,
-          path: normalizedPath,
         }),
       );
       return {
         branchName: normalizedBranchName,
-        path: normalizedPath,
       };
     } finally {
       setIsCreatingWorktree(false);
@@ -123,12 +114,13 @@ export function useProjectGitMutationActions({
     const normalizedBranchName = normalizeGitBranchName(branchName);
     setIsSwitchingBranch(true);
     try {
+      const nextOverview = await gitService.switchProjectGitBranch(nextProjectId, {
+        branchName: normalizedBranchName,
+      });
       applyGitOverview(
-        await gitService.switchProjectGitBranch(nextProjectId, {
-          branchName: normalizedBranchName,
-        }),
+        nextOverview,
       );
-      return normalizedBranchName;
+      return nextOverview.currentBranch?.trim() || normalizedBranchName;
     } finally {
       setIsSwitchingBranch(false);
     }
@@ -138,17 +130,20 @@ export function useProjectGitMutationActions({
     request: BirdCoderPushProjectGitBranchRequest,
   ): Promise<string> => {
     const nextProjectId = requireProjectId();
-    const normalizedBranchName = normalizeGitBranchName(request.branchName?.trim() ?? '');
+    const normalizedBranchName = request.branchName?.trim()
+      ? normalizeGitBranchName(request.branchName)
+      : undefined;
 
     setIsPushingBranch(true);
     try {
+      const nextOverview = await gitService.pushProjectGitBranch(nextProjectId, {
+        ...request,
+        ...(normalizedBranchName ? { branchName: normalizedBranchName } : {}),
+      });
       applyGitOverview(
-        await gitService.pushProjectGitBranch(nextProjectId, {
-          ...request,
-          branchName: normalizedBranchName,
-        }),
+        nextOverview,
       );
-      return normalizedBranchName;
+      return normalizedBranchName ?? nextOverview.currentBranch?.trim() ?? '';
     } finally {
       setIsPushingBranch(false);
     }
@@ -156,23 +151,23 @@ export function useProjectGitMutationActions({
 
   const removeWorktree = useCallback(async (
     request: BirdCoderRemoveProjectGitWorktreeRequest,
-  ): Promise<{ path: string }> => {
+  ): Promise<{ worktreeKey: string }> => {
     const nextProjectId = requireProjectId();
-    const normalizedPath = request.path.trim();
-    if (!normalizedPath) {
-      throw new Error('Worktree path is required before removing a Git worktree.');
+    const worktreeKey = request.worktreeKey.trim();
+    if (!worktreeKey) {
+      throw new Error('Worktree key is required before removing a Git worktree.');
     }
 
     setIsRemovingWorktree(true);
     try {
       applyGitOverview(
         await gitService.removeProjectGitWorktree(nextProjectId, {
-          ...request,
-          path: normalizedPath,
+          ...(request.force === undefined ? {} : { force: request.force }),
+          worktreeKey,
         }),
       );
       return {
-        path: normalizedPath,
+        worktreeKey,
       };
     } finally {
       setIsRemovingWorktree(false);

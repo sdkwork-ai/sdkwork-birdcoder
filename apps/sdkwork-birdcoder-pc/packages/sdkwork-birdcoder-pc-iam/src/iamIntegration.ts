@@ -74,11 +74,22 @@ function readBirdCoderPublicEnvValue(...keys: string[]): string | undefined {
   return undefined;
 }
 
-function normalizeDeploymentMode(value: string | undefined): BirdCoderIamDeploymentMode | undefined {
-  const normalized = value?.trim().toLowerCase();
-  return normalized === 'local' || normalized === 'private' || normalized === 'saas'
-    ? normalized
-    : undefined;
+function resolveDeploymentModeFromAppScopedEnv(): BirdCoderIamDeploymentMode | undefined {
+  const profile = readBirdCoderPublicEnvValue(
+    'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
+    'VITE_SDKWORK_DEPLOYMENT_PROFILE',
+  )?.toLowerCase();
+  if (profile === 'cloud') {
+    return 'saas';
+  }
+  if (profile === 'standalone') {
+    const target = readBirdCoderPublicEnvValue(
+      'VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET',
+      'VITE_SDKWORK_RUNTIME_TARGET',
+    )?.toLowerCase();
+    return target === 'desktop' ? 'local' : 'private';
+  }
+  return undefined;
 }
 
 function normalizeEnvironment(value: string | undefined): BirdCoderIamEnvironment | undefined {
@@ -100,13 +111,7 @@ export function resolveBirdCoderIamDeploymentProfile(
 ): BirdCoderIamDeploymentProfile {
   const iamMode =
     options.iamMode
-    ?? normalizeDeploymentMode(
-      readBirdCoderPublicEnvValue(
-        'VITE_SDKWORK_DEPLOYMENT_MODE',
-        'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE',
-        'VITE_SDKWORK_BIRDCODER_IAM_DEPLOYMENT_MODE',
-      ),
-    )
+    ?? resolveDeploymentModeFromAppScopedEnv()
     ?? 'private';
   const environment =
     options.environment

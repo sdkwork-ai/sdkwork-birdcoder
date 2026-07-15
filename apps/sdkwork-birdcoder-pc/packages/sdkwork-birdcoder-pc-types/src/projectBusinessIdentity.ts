@@ -112,17 +112,14 @@ export function buildBirdCoderBusinessCode({
 export function buildBirdCoderProjectBusinessCode({
   name,
   projectId,
-  rootPath,
 }: {
   name: string;
   projectId: string;
-  rootPath?: string | null;
 }): string {
-  const primaryValue = rootPath?.trim() || name;
   return buildBirdCoderBusinessCode({
     fallbackId: projectId,
     prefix: PROJECT_BUSINESS_CODE_PREFIX,
-    primaryValue,
+    primaryValue: name,
   });
 }
 

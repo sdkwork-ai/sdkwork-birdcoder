@@ -2,6 +2,9 @@ use std::fmt;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
+use sdkwork_birdcoder_project_service::context::ProjectContext;
+use sdkwork_birdcoder_project_service::error::ProjectError;
+use sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use sha2::{Digest, Sha256};
 
 const MAX_WORKSPACE_ID_LENGTH: usize = 128;
@@ -26,6 +29,22 @@ pub struct ProviderRunnerEnvironmentBinding {
     pub tmp: PathBuf,
     pub temp: PathBuf,
     pub sdkwork_credentials_root: PathBuf,
+}
+
+/// Server-owned project root resolver for remote project sources and Git.
+///
+/// The root is derived from authenticated scope plus database-issued IDs. It
+/// intentionally has no client path input and creates only private,
+/// non-symlinked descendants beneath the configured runner root.
+#[derive(Clone, Debug)]
+pub struct ServerProjectWorkspaceRootResolver {
+    configured_root: Option<PathBuf>,
+}
+
+impl ServerProjectWorkspaceRootResolver {
+    pub fn new(configured_root: Option<PathBuf>) -> Self {
+        Self { configured_root }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -142,6 +161,16 @@ impl ProviderRunnerBinding {
         }
     }
 
+    pub fn resolve_project_root(
+        &self,
+        project_id: &str,
+    ) -> Result<PathBuf, ProviderRunnerIsolationError> {
+        let project_id = normalize_numeric_identity(project_id, "project id")?;
+        let projects_root =
+            ensure_descendant_directory(&self.workspace_root, &self.workspace_root, "projects")?;
+        ensure_descendant_directory(&self.workspace_root, &projects_root, &project_id)
+    }
+
     pub fn resolve_working_directory(
         &self,
         requested_directory: Option<&Path>,
@@ -158,6 +187,31 @@ impl ProviderRunnerBinding {
             return Err(ProviderRunnerIsolationError::WorkingDirectoryOutsideWorkspace);
         }
         Ok(requested_directory)
+    }
+}
+
+impl ProjectWorkspaceRootResolver for ServerProjectWorkspaceRootResolver {
+    fn resolve_project_root(
+        &self,
+        context: &ProjectContext,
+        workspace_id: &str,
+        project_id: &str,
+    ) -> Result<PathBuf, ProjectError> {
+        let configured_root = self.configured_root.as_deref().ok_or_else(|| {
+            ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
+        })?;
+        let binding = ProviderRunnerBinding::prepare(
+            configured_root,
+            &context.tenant_id,
+            &context.user_id,
+            workspace_id,
+        )
+        .map_err(|_| {
+            ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
+        })?;
+        binding.resolve_project_root(project_id).map_err(|_| {
+            ProjectError::Unavailable("Server project workspace is unavailable.".to_owned())
+        })
     }
 }
 
@@ -209,6 +263,10 @@ fn canonicalize_isolation_root(
 ) -> Result<PathBuf, ProviderRunnerIsolationError> {
     if !configured_root.is_absolute() {
         return Err(ProviderRunnerIsolationError::InvalidRoot);
+    }
+    if !configured_root.exists() {
+        std::fs::create_dir_all(configured_root)
+            .map_err(|error| ProviderRunnerIsolationError::DirectoryCreation(error.to_string()))?;
     }
     let metadata = std::fs::symlink_metadata(configured_root)
         .map_err(|_| ProviderRunnerIsolationError::InvalidRoot)?;
@@ -268,7 +326,8 @@ fn create_private_directory(path: &Path) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::ffi::OsStr;
+    use std::path::{Path, PathBuf};
 
     use super::{ProviderRunnerBinding, ProviderRunnerIsolationError};
 
@@ -338,6 +397,56 @@ mod tests {
         assert_eq!(environment.tmp, first.temporary_root);
         assert_eq!(environment.temp, first.temporary_root);
         assert_eq!(environment.sdkwork_credentials_root, first.credentials_root);
+    }
+
+    #[test]
+    fn derives_distinct_server_owned_project_roots() {
+        let root = TestDirectory::new();
+        let binding = ProviderRunnerBinding::prepare(
+            &root.root,
+            "100000000000000001",
+            "100000000000000002",
+            "workspace-alpha",
+        )
+        .expect("prepare runner binding");
+
+        let first = binding
+            .resolve_project_root("100000000000000003")
+            .expect("derive first project root");
+        let second = binding
+            .resolve_project_root("100000000000000004")
+            .expect("derive second project root");
+
+        assert!(first.is_dir());
+        assert!(first.starts_with(&binding.workspace_root));
+        assert_ne!(first, second);
+        assert_eq!(
+            first.parent().and_then(Path::file_name),
+            Some(OsStr::new("projects"))
+        );
+        assert!(matches!(
+            binding.resolve_project_root("../escape"),
+            Err(ProviderRunnerIsolationError::InvalidIdentity("project id"))
+        ));
+    }
+
+    #[test]
+    fn creates_a_missing_absolute_isolation_root() {
+        let parent = TestDirectory::new();
+        let root = parent.root.join("runner-root");
+
+        let binding = ProviderRunnerBinding::prepare(
+            &root,
+            "100000000000000001",
+            "100000000000000002",
+            "workspace-alpha",
+        )
+        .expect("prepare runner binding under a missing root");
+
+        assert!(root.is_dir());
+        assert!(binding
+            .workspace_root
+            .starts_with(std::fs::canonicalize(&root).expect("canonical runner isolation root")));
     }
 
     #[test]

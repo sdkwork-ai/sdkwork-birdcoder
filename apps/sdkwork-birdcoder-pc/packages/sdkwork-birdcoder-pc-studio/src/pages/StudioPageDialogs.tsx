@@ -91,11 +91,11 @@ interface StudioPageDialogsProps {
   onConfirmDelete: () => void;
   showShareModal: boolean;
   collaborators: BirdCoderProjectCollaboratorSummary[];
-  inviteEmail: string;
+  inviteUserId: string;
   isCollaboratorsLoading: boolean;
   isInvitePending: boolean;
   onCloseShare: () => void;
-  onInviteEmailChange: (value: string) => void;
+  onInviteUserIdChange: (value: string) => void;
   onInviteCollaborator: () => void | Promise<void>;
   showPublishModal: boolean;
   publishProjectId?: string;
@@ -124,11 +124,11 @@ export function StudioPageDialogs({
   onConfirmDelete,
   showShareModal,
   collaborators,
-  inviteEmail,
+  inviteUserId,
   isCollaboratorsLoading,
   isInvitePending,
   onCloseShare,
-  onInviteEmailChange,
+  onInviteUserIdChange,
   onInviteCollaborator,
   showPublishModal,
   publishProjectId,
@@ -529,28 +529,28 @@ export function StudioPageDialogs({
               <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                 <label
                   className="text-sm font-medium text-gray-300"
-                  htmlFor="studio-share-invite-email"
+                  htmlFor="studio-share-invite-user-id"
                 >
                   {t('studio.inviteCollaborators')}
                 </label>
                 <div className="flex gap-2">
                   <input
-                    id="studio-share-invite-email"
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(event) => onInviteEmailChange(event.target.value)}
+                    id="studio-share-invite-user-id"
+                    type="text"
+                    value={inviteUserId}
+                    onChange={(event) => onInviteUserIdChange(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
                         event.preventDefault();
                         void onInviteCollaborator();
                       }
                     }}
-                    placeholder={t('studio.emailAddress')}
+                    placeholder="User ID"
                     className="flex-1 bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500"
                   />
                   <Button
                     onClick={() => void onInviteCollaborator()}
-                    disabled={!inviteEmail.trim() || isInvitePending}
+                    disabled={!inviteUserId.trim() || isInvitePending}
                     className="bg-blue-600 hover:bg-blue-500 text-white"
                   >
                     {isInvitePending ? (

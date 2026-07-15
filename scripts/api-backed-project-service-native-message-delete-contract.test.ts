@@ -41,7 +41,6 @@ const project: BirdCoderProject = {
   id: 'project-native-delete',
   workspaceId: 'workspace-native-delete',
   name: 'Native Delete Project',
-  path: 'D:/workspace/native-delete',
   createdAt: '2026-04-28T08:00:00.000Z',
   updatedAt: '2026-04-28T08:00:00.000Z',
   codingSessions: [codingSession],
@@ -56,6 +55,10 @@ const observedLocalEdits: Array<{
   messageId: string;
   projectId: string;
 }> = [];
+const observedLocalSessionUpserts: Array<{
+  codingSessionId: string;
+  projectId: string;
+}> = [];
 
 const writeService = {
   async getProjectById(projectId: string) {
@@ -63,6 +66,14 @@ const writeService = {
   },
   async getProjects() {
     return [structuredClone(project)];
+  },
+  async upsertCodingSession(projectId: string, nextCodingSession: BirdCoderCodingSession) {
+    assert.equal(projectId, project.id);
+    assert.equal(nextCodingSession.id, codingSession.id);
+    observedLocalSessionUpserts.push({
+      projectId,
+      codingSessionId: nextCodingSession.id,
+    });
   },
   async deleteCodingSessionMessage(projectId: string, codingSessionId: string, messageId: string) {
     observedLocalDeletes.push({ projectId, codingSessionId, messageId });
@@ -78,6 +89,16 @@ const writeService = {
 } as unknown as IProjectService;
 
 const appRuntimeWriteClient = {
+  async getCodingSession(codingSessionId: string) {
+    assert.equal(codingSessionId, codingSession.id);
+    return structuredClone(codingSession);
+  },
+  async listCodingSessions() {
+    return [structuredClone(codingSession)];
+  },
+  async listCodingSessionEvents() {
+    return [];
+  },
   async editCodingSessionMessage(
     codingSessionId: string,
     messageId: string,
@@ -105,7 +126,6 @@ const appClient = {
       id: project.id,
       workspaceId: project.workspaceId,
       name: project.name,
-      rootPath: project.path,
       status: 'active',
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
@@ -157,26 +177,27 @@ assert.deepEqual(
 );
 assert.deepEqual(
   observedLocalDeletes,
-  [
-    {
-      projectId: project.id,
-      codingSessionId: codingSession.id,
-      messageId: 'codex-native:session-1:authoritative:turn-1:user',
-    },
-  ],
-  'without a app runtime read client, native deletion should still update the local transcript mirror after the authority accepts the delete event.',
+  [],
+  'with an injected app runtime, native deletion must converge through the authoritative session projection instead of a direct local message mutation.',
 );
 assert.deepEqual(
   observedLocalEdits,
+  [],
+  'with an injected app runtime, native editing must converge through the authoritative session projection instead of a direct local message mutation.',
+);
+assert.deepEqual(
+  observedLocalSessionUpserts,
   [
     {
       projectId: project.id,
       codingSessionId: codingSession.id,
-      messageId: 'codex-native:session-1:authoritative:turn-1:user',
-      content: 'Edited native authoritative message',
+    },
+    {
+      projectId: project.id,
+      codingSessionId: codingSession.id,
     },
   ],
-  'without a app runtime read client, native editing should still update the local transcript mirror after the authority accepts the edit event.',
+  'each native message mutation must refresh the local session mirror from the authoritative runtime projection.',
 );
 
 console.log('api backed project service native message mutation contract passed.');

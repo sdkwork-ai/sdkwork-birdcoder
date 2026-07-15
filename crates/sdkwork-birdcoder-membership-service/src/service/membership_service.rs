@@ -15,7 +15,9 @@ pub trait MembershipRepository: Send + Sync {
         owner_user_id: &str,
     ) -> Result<Option<CommerceMembershipCurrentPayload>, String>;
 
-    async fn list_package_groups(&self) -> Result<Vec<CommerceMembershipPackageGroupPayload>, String>;
+    async fn list_package_groups(
+        &self,
+    ) -> Result<Vec<CommerceMembershipPackageGroupPayload>, String>;
 }
 
 // ── Service ──────────────────────────────────────────────────────────

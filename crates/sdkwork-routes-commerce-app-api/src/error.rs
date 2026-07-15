@@ -14,16 +14,12 @@ pub fn map_service_error(error: CommerceError, trace_id: Option<&str>) -> Proble
         CommerceError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
         }
-        CommerceError::InvalidInput(msg) => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            msg,
-            trace_id,
-        ),
-        CommerceError::Forbidden(msg) => traced_platform_problem(
-            SdkWorkResultCode::PermissionRequired,
-            msg,
-            trace_id,
-        ),
+        CommerceError::InvalidInput(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
+        }
+        CommerceError::Forbidden(msg) => {
+            traced_platform_problem(SdkWorkResultCode::PermissionRequired, msg, trace_id)
+        }
         CommerceError::Conflict(msg) => {
             traced_platform_problem(SdkWorkResultCode::Conflict, msg, trace_id)
         }

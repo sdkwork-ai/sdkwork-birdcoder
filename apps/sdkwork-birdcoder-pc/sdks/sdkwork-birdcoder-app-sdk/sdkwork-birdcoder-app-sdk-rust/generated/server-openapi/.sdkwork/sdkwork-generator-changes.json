@@ -9,14 +9,22 @@
     "protocol": "http",
     "packageName": "@sdkwork/birdcoder-app-sdk"
   },
-  "changeFingerprint": "cce2e2fddbd94c960bdad74d6177c0e887da117cd753e5faf064fc7245dd103c",
+  "changeFingerprint": "3341925370e7ff8c0975f25d9e0a314cc75f958a475d327834ba2a6af4918312",
   "changes": {
     "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [
       "sdkwork-sdk.json",
-      "src/api/auth.rs",
-      "src/api/oauth.rs",
-      "src/api/system.rs"
+      "src/api/platform.rs",
+      "src/models/bird_coder_create_project_git_worktree_request.rs",
+      "src/models/bird_coder_create_project_request.rs",
+      "src/models/bird_coder_git_branch_summary.rs",
+      "src/models/bird_coder_git_status_counts.rs",
+      "src/models/bird_coder_git_worktree_summary.rs",
+      "src/models/bird_coder_project_git_overview.rs",
+      "src/models/bird_coder_project_summary.rs",
+      "src/models/bird_coder_remove_project_git_worktree_request.rs",
+      "src/models/bird_coder_update_project_request.rs",
+      "src/models/bird_coder_upsert_project_collaborator_request.rs"
     ],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
@@ -26,6 +34,7 @@
       "CHANGELOG.md",
       "LICENSE",
       "README.md",
+      "src/api/auth.rs",
       "src/api/base.rs",
       "src/api/collaboration.rs",
       "src/api/commerce.rs",
@@ -33,10 +42,11 @@
       "src/api/iam.rs",
       "src/api/intelligence.rs",
       "src/api/mod.rs",
+      "src/api/oauth.rs",
       "src/api/paths.rs",
-      "src/api/platform.rs",
       "src/api/runtime.rs",
       "src/api/skills.rs",
+      "src/api/system.rs",
       "src/api/templates.rs",
       "src/client.rs",
       "src/http/client.rs",
@@ -109,8 +119,6 @@
       "src/models/bird_coder_create_commerce_order_request.rs",
       "src/models/bird_coder_create_commerce_payment_request.rs",
       "src/models/bird_coder_create_project_git_branch_request.rs",
-      "src/models/bird_coder_create_project_git_worktree_request.rs",
-      "src/models/bird_coder_create_project_request.rs",
       "src/models/bird_coder_create_workspace_request.rs",
       "src/models/bird_coder_deployment_record_summary_list_envelope.rs",
       "src/models/bird_coder_deployment_record_summary.rs",
@@ -128,9 +136,6 @@
       "src/models/bird_coder_engine_official_entry.rs",
       "src/models/bird_coder_engine_official_integration.rs",
       "src/models/bird_coder_fork_coding_session_request.rs",
-      "src/models/bird_coder_git_branch_summary.rs",
-      "src/models/bird_coder_git_status_counts.rs",
-      "src/models/bird_coder_git_worktree_summary.rs",
       "src/models/bird_coder_iam_create_session_request.rs",
       "src/models/bird_coder_iam_device_authorization_create_request.rs",
       "src/models/bird_coder_iam_device_authorization_envelope.rs",
@@ -180,16 +185,13 @@
       "src/models/bird_coder_project_document_summary_list_envelope.rs",
       "src/models/bird_coder_project_document_summary.rs",
       "src/models/bird_coder_project_git_overview_envelope.rs",
-      "src/models/bird_coder_project_git_overview.rs",
       "src/models/bird_coder_project_publish_result_envelope.rs",
       "src/models/bird_coder_project_publish_result.rs",
       "src/models/bird_coder_project_summary_envelope.rs",
       "src/models/bird_coder_project_summary_list_envelope.rs",
-      "src/models/bird_coder_project_summary.rs",
       "src/models/bird_coder_publish_project_request.rs",
       "src/models/bird_coder_push_project_git_branch_request.rs",
       "src/models/bird_coder_release_summary.rs",
-      "src/models/bird_coder_remove_project_git_worktree_request.rs",
       "src/models/bird_coder_skill_catalog_entry_summary.rs",
       "src/models/bird_coder_skill_installation_summary_envelope.rs",
       "src/models/bird_coder_skill_installation_summary.rs",
@@ -203,9 +205,7 @@
       "src/models/bird_coder_team_summary.rs",
       "src/models/bird_coder_update_coding_session_request.rs",
       "src/models/bird_coder_update_current_user_profile_request.rs",
-      "src/models/bird_coder_update_project_request.rs",
       "src/models/bird_coder_update_workspace_request.rs",
-      "src/models/bird_coder_upsert_project_collaborator_request.rs",
       "src/models/bird_coder_upsert_workspace_member_request.rs",
       "src/models/bird_coder_user_question_answer_result_envelope.rs",
       "src/models/bird_coder_user_question_answer_result.rs",
@@ -234,15 +234,29 @@
     "schemaVersion": 1,
     "areas": [
       "api-surface",
+      "models",
       "build-metadata"
     ],
     "details": [
       {
         "area": "api-surface",
         "paths": [
-          "src/api/auth.rs",
-          "src/api/oauth.rs",
-          "src/api/system.rs"
+          "src/api/platform.rs"
+        ]
+      },
+      {
+        "area": "models",
+        "paths": [
+          "src/models/bird_coder_create_project_git_worktree_request.rs",
+          "src/models/bird_coder_create_project_request.rs",
+          "src/models/bird_coder_git_branch_summary.rs",
+          "src/models/bird_coder_git_status_counts.rs",
+          "src/models/bird_coder_git_worktree_summary.rs",
+          "src/models/bird_coder_project_git_overview.rs",
+          "src/models/bird_coder_project_summary.rs",
+          "src/models/bird_coder_remove_project_git_worktree_request.rs",
+          "src/models/bird_coder_update_project_request.rs",
+          "src/models/bird_coder_upsert_project_collaborator_request.rs"
         ]
       },
       {
@@ -253,18 +267,18 @@
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, build-metadata. Verification is required."
+    "summary": "Detected impact areas: api-surface, models, build-metadata. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, build-metadata. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: api-surface, models, build-metadata. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, models, build-metadata.",
         "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -282,7 +296,7 @@
         "id": "build",
         "title": "Unified package build",
         "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, build-metadata.",
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, models, build-metadata.",
         "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-app-sdk\\sdkwork-birdcoder-app-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [

@@ -280,8 +280,6 @@ export function mapProjectSummary(
     title: canonical.title,
     name: project.name,
     description: project.description,
-    rootPath: project.rootPath,
-    sitePath: canonical.sitePath,
     domainPrefix: canonical.domainPrefix,
     ownerId,
     leaderId: canonical.leaderId ?? ownerId,

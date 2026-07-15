@@ -67,6 +67,27 @@ const importSource = readSource(
   'workbench',
   'localFolderProjectImport.ts',
 );
+const deviceMountRecoveryStart = fileSystemHookSource.indexOf('const recoverMountedProjectRoot');
+const deviceMountRecoveryEnd = fileSystemHookSource.indexOf(
+  'const ensureMountedProjectRoot',
+  deviceMountRecoveryStart,
+);
+
+assert.notEqual(
+  deviceMountRecoveryStart,
+  -1,
+  'File system hook must own a dedicated device mount recovery flow.',
+);
+assert.notEqual(
+  deviceMountRecoveryEnd,
+  -1,
+  'Device mount recovery flow must end before the mounted-root helper is declared.',
+);
+
+const deviceMountRecoverySource = fileSystemHookSource.slice(
+  deviceMountRecoveryStart,
+  deviceMountRecoveryEnd,
+);
 
 assert.equal(
   fs.existsSync(eventPath),
@@ -87,15 +108,46 @@ assert.match(
 );
 
 assert.match(
+  hookSource,
+  /return subscribeProjectGitOverviewRefresh\(\(refreshedProjectId\) => \{\s*if \(refreshedProjectId !== normalizedProjectId\) \{\s*return;\s*\}\s*void refreshGitOverview\(\);\s*\}\);/s,
+  'Project Git overview hook must reload only the matching project when the shared refresh bridge emits an event.',
+);
+
+assert.match(
   fileSystemHookSource,
   /import \{ emitProjectGitOverviewRefresh \} from '\.\.\/workbench\/projectGitOverview\.ts';/,
   'File system hook must import the shared workbench project Git overview bridge.',
 );
 
 assert.match(
-  fileSystemHookSource,
-  /await fileSystemService\.mountFolder\(requestProjectId, recoveryMountSource\);\s*emitProjectGitOverviewRefresh\(requestProjectId\);/s,
-  'Mount recovery must refresh the Git overview after remounting a project folder.',
+  deviceMountRecoverySource,
+  /const recovery = await fileSystemService\.restoreProjectMount\(requestProjectId\);\s*mountState = recovery\.state;\s*if \(!recovery\.restored\) \{[\s\S]*?return \[\];\s*\}\s*emitProjectGitOverviewRefresh\(requestProjectId\);\s*const recoveredFiles = await fileSystemService\.getFiles\(requestProjectId\);/s,
+  'Device-private mount recovery must refresh the Git overview only after restoreProjectMount succeeds and before restored files are read.',
+);
+
+assert.doesNotMatch(
+  deviceMountRecoverySource,
+  /fileSystemService\.mountFolder\(/,
+  'Device-private mount recovery must delegate remounting to restoreProjectMount instead of directly mounting a folder source.',
+);
+
+const restoreProjectMountIndex = deviceMountRecoverySource.indexOf(
+  'await fileSystemService.restoreProjectMount(requestProjectId)',
+);
+const unsuccessfulRecoveryGateIndex = deviceMountRecoverySource.indexOf('if (!recovery.restored)');
+const gitOverviewRefreshIndex = deviceMountRecoverySource.indexOf(
+  'emitProjectGitOverviewRefresh(requestProjectId)',
+);
+const recoveredFilesReadIndex = deviceMountRecoverySource.indexOf(
+  'const recoveredFiles = await fileSystemService.getFiles(requestProjectId)',
+);
+
+assert.ok(
+  restoreProjectMountIndex >= 0
+    && restoreProjectMountIndex < unsuccessfulRecoveryGateIndex
+    && unsuccessfulRecoveryGateIndex < gitOverviewRefreshIndex
+    && gitOverviewRefreshIndex < recoveredFilesReadIndex,
+  'Device mount recovery must not emit a Git overview refresh before a successful restore is gated.',
 );
 
 assert.match(

@@ -28,9 +28,7 @@ pub const QUOTA_WARNING_THRESHOLD: f64 = 0.8;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QuotaError {
-    Exceeded {
-        metric_type: String,
-    },
+    Exceeded { metric_type: String },
     Internal,
     InvalidTenantId,
 }
@@ -65,11 +63,13 @@ pub fn months_ago_start(months_ago: u32) -> String {
 
 pub fn quota_limit_for_metric(metric_type: &str) -> i64 {
     match metric_type {
-        METRIC_TOKEN_INPUT | METRIC_TOKEN_OUTPUT => std::env::var("BIRDCODER_QUOTA_TOKENS_PER_MONTH")
-            .ok()
-            .and_then(|value| value.trim().parse().ok())
-            .filter(|value: &i64| *value > 0)
-            .unwrap_or(DEFAULT_TOKEN_QUOTA_PER_MONTH),
+        METRIC_TOKEN_INPUT | METRIC_TOKEN_OUTPUT => {
+            std::env::var("BIRDCODER_QUOTA_TOKENS_PER_MONTH")
+                .ok()
+                .and_then(|value| value.trim().parse().ok())
+                .filter(|value: &i64| *value > 0)
+                .unwrap_or(DEFAULT_TOKEN_QUOTA_PER_MONTH)
+        }
         METRIC_FS_OPERATIONS => std::env::var("BIRDCODER_QUOTA_FS_OPERATIONS_PER_MONTH")
             .ok()
             .and_then(|value| value.trim().parse().ok())

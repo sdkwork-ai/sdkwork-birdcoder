@@ -72,7 +72,7 @@ assert.match(
 assert.match(
   useFileSystemSource,
   /const resolveProjectMountedRootPath = useCallback\(\(\): string \| null => \{/,
-  'useFileSystem must resolve a stable mounted root path from either the loaded file tree or persisted project path.',
+  'useFileSystem must resolve a stable mounted root path from the loaded device-mounted file tree, not from remote project metadata.',
 );
 
 assert.match(

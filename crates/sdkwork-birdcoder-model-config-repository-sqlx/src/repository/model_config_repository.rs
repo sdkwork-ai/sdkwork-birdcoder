@@ -17,7 +17,9 @@ pub async fn get_model_config(pool: &AnyPool) -> Result<ModelConfigRow, Reposito
         .await?;
 
     let Some(row) = row else {
-        return Err(RepositoryError::NotFound("model config not found".to_string()));
+        return Err(RepositoryError::NotFound(
+            "model config not found".to_string(),
+        ));
     };
     ModelConfigRow::from_row(&row).map_err(Into::into)
 }

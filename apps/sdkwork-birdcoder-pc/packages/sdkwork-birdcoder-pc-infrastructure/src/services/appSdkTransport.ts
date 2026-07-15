@@ -4,10 +4,8 @@ import type {
   BirdCoderApiTransport,
   BirdCoderApiTransportRequest,
 } from '@sdkwork/birdcoder-pc-types';
-import { BirdCoderApiTransportError } from '@sdkwork/birdcoder-pc-core/birdCoderApiTransportError';
 import type { IProjectService } from './interfaces/IProjectService.ts';
 import { createBirdCoderInProcessAppRuntimeTransport } from './appRuntimeTransport.ts';
-import { createBirdCoderLocalServerRequestId } from './localServerRequestId.ts';
 import type { BirdCoderConsoleQueries } from './consoleQueries.ts';
 import {
   BIRDCODER_CODING_SERVER_API_PREFIXES,
@@ -206,17 +204,6 @@ export function createBirdCoderInProcessAppSdkTransport({
             (await queries.listDeployments()).map(mapDeploymentSummary),
           ) as TResponse;
         case `${BIRDCODER_CODING_SERVER_API_PREFIXES.app}/projects`:
-          if (normalizeQueryValue('rootPath', request.query?.rootPath)) {
-            throw new BirdCoderApiTransportError({
-              code: 42201,
-              detail:
-                'Project rootPath filtering is unavailable until the local project-content index is provisioned.',
-              httpStatus: 422,
-              method: request.method,
-              path: request.path,
-              traceId: createBirdCoderLocalServerRequestId(),
-            });
-          }
           {
             const pagination = readStrictOffsetListPage(request);
             const page = await queries.listProjectPage({

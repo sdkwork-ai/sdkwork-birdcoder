@@ -279,7 +279,6 @@ function buildRealtimeProjectSeed(
     workspaceId: normalizedWorkspaceId,
     name: normalizedProjectName,
     description: undefined,
-    path: event.projectRootPath?.trim() || undefined,
     createdAt: timestamp,
     updatedAt: timestamp,
     archived: false,
@@ -292,14 +291,12 @@ function updateProjectMetadataFromEvent(
   event: BirdCoderWorkspaceRealtimeEvent,
 ): BirdCoderProject {
   const nextName = event.projectName?.trim() || project.name;
-  const nextPath = event.projectRootPath?.trim() || project.path;
   const nextUpdatedAt =
     resolveLatestTimestamp(project.updatedAt, event.projectUpdatedAt, event.occurredAt) ??
     project.updatedAt;
 
   if (
     nextName === project.name &&
-    nextPath === project.path &&
     nextUpdatedAt === project.updatedAt
   ) {
     return project;
@@ -308,7 +305,6 @@ function updateProjectMetadataFromEvent(
   return {
     ...project,
     name: nextName,
-    path: nextPath,
     updatedAt: nextUpdatedAt,
   };
 }

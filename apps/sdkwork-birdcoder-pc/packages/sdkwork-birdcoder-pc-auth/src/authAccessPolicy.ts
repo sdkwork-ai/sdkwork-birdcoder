@@ -15,26 +15,30 @@ function readBirdCoderPublicEnvValue(...keys: string[]): string | undefined {
   return undefined;
 }
 
-function normalizeDeploymentMode(value: string | undefined): BirdCoderAuthDeploymentMode | undefined {
-  const normalized = value?.trim().toLowerCase();
-  return normalized === 'local' || normalized === 'private' || normalized === 'saas'
-    ? normalized
-    : undefined;
+function resolveDeploymentModeFromAppScopedEnv(): BirdCoderAuthDeploymentMode | undefined {
+  const profile = readBirdCoderPublicEnvValue(
+    'VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE',
+    'VITE_SDKWORK_DEPLOYMENT_PROFILE',
+  )?.toLowerCase();
+  if (profile === 'cloud') {
+    return 'saas';
+  }
+  if (profile === 'standalone') {
+    const target = readBirdCoderPublicEnvValue(
+      'VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET',
+      'VITE_SDKWORK_RUNTIME_TARGET',
+    )?.toLowerCase();
+    return target === 'desktop' ? 'local' : 'private';
+  }
+  return undefined;
 }
 
 export function resolveBirdCoderAuthDeploymentMode(): BirdCoderAuthDeploymentMode {
-  const resolved =
-    normalizeDeploymentMode(
-      readBirdCoderPublicEnvValue(
-        'VITE_SDKWORK_DEPLOYMENT_MODE',
-        'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE',
-        'VITE_SDKWORK_BIRDCODER_IAM_DEPLOYMENT_MODE',
-      ),
-    ) ?? 'private';
+  const resolved = resolveDeploymentModeFromAppScopedEnv() ?? 'private';
 
   if ((import.meta as ImportMeta & { env?: { PROD?: boolean } }).env?.PROD && resolved === 'local') {
     throw new Error(
-      'Production builds must not ship with VITE_SDKWORK_DEPLOYMENT_MODE=local. Use private or saas.',
+      'Production builds must not ship with a standalone+desktop deployment profile. Use server-private or cloud-saas.',
     );
   }
 

@@ -5,18 +5,16 @@ use serde_json::Value;
 use crate::opencode::build_opencode_tool_command_arguments;
 
 use crate::{
-    build_native_session_id, canonicalize_codeengine_tool_name, extract_native_lookup_id_for_engine, get_opencode_session,
-    get_opencode_session_messages, is_opencode_transport_available,
+    build_native_session_id, canonicalize_codeengine_tool_name,
+    extract_native_lookup_id_for_engine, get_opencode_session, get_opencode_session_messages,
+    is_opencode_transport_available, known_standard_provider_registration,
     list_opencode_session_status_map, list_opencode_sessions,
-    map_codeengine_session_runtime_status,
-    map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
-    map_codeengine_tool_kind, map_codeengine_tool_runtime_status,
-    resolve_codeengine_command_interaction_state, resolve_codeengine_command_text,
-    known_standard_provider_registration,
-    session_id_targets_engine, NativeSessionProviderPlugin,
-    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionSummaryRecord,
-    NativeSessionProviderRegistration,
+    map_codeengine_session_runtime_status, map_codeengine_session_status_from_runtime,
+    map_codeengine_tool_command_status, map_codeengine_tool_kind,
+    map_codeengine_tool_runtime_status, resolve_codeengine_command_interaction_state,
+    resolve_codeengine_command_text, session_id_targets_engine, CodeEngineSessionCommandRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord,
+    NativeSessionProviderPlugin, NativeSessionProviderRegistration,
 };
 
 pub struct OpencodeCodeEngineProvider;

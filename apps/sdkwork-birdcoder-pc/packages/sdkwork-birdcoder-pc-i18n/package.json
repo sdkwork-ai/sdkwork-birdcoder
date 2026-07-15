@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@babel/runtime": "catalog:",
+    "@sdkwork/membership-pc-subscription": "workspace:*",
     "html-parse-stringify": "catalog:",
     "i18next": "catalog:",
     "react-i18next": "catalog:",

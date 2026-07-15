@@ -93,7 +93,6 @@ const codingSessionRepositories = createBirdCoderCodingSessionRepositories({
 });
 const service = new ProviderBackedProjectService({
   codingSessionRepositories,
-  projectContentRepository: appRepositories.projectContents,
   repository: appRepositories.projects,
 });
 
@@ -106,16 +105,6 @@ await appRepositories.projects.save({
   status: 'active',
   updatedAt: timestamp,
   workspaceId,
-});
-await appRepositories.projectContents.save({
-  configData: JSON.stringify({
-    rootPath: 'D:/workspace/session-create-upsert-inventory-laziness',
-  }),
-  contentVersion: '1.0',
-  createdAt: timestamp,
-  id: projectId,
-  projectId,
-  updatedAt: timestamp,
 });
 await codingSessionRepositories.sessions.saveMany([
   existingSession,

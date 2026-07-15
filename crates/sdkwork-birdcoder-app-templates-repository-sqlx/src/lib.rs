@@ -36,7 +36,9 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
             .fetch_one(&self.pool)
             .await
             .map_err(|error| error.to_string())?;
-        let total: i64 = count_row.try_get("total").map_err(|error| error.to_string())?;
+        let total: i64 = count_row
+            .try_get("total")
+            .map_err(|error| error.to_string())?;
 
         let sql = format!(
             r#"
@@ -84,7 +86,9 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
 
         let mut templates = Vec::with_capacity(rows.len());
         for row in rows {
-            let version_id: String = row.try_get("version_id").map_err(|error| error.to_string())?;
+            let version_id: String = row
+                .try_get("version_id")
+                .map_err(|error| error.to_string())?;
             let target_profiles = list_target_profiles(&self.pool, &version_id).await?;
             templates.push(map_template_row(row, target_profiles)?);
         }
@@ -92,7 +96,10 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
         Ok((templates, total))
     }
 
-    async fn find_template_by_id(&self, template_id: &str) -> Result<Option<AppTemplatePayload>, String> {
+    async fn find_template_by_id(
+        &self,
+        template_id: &str,
+    ) -> Result<Option<AppTemplatePayload>, String> {
         let sql = format!(
             r#"
             SELECT
@@ -131,16 +138,18 @@ impl AppTemplateRepository for SqliteAppTemplateRepository {
             "#,
         );
         let row = sqlx::query(&sql)
-        .bind(template_id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|error| error.to_string())?;
+            .bind(template_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|error| error.to_string())?;
 
         let Some(row) = row else {
             return Ok(None);
         };
 
-        let version_id: String = row.try_get("version_id").map_err(|error| error.to_string())?;
+        let version_id: String = row
+            .try_get("version_id")
+            .map_err(|error| error.to_string())?;
         let target_profiles = list_target_profiles(&self.pool, &version_id).await?;
         Ok(Some(map_template_row(row, target_profiles)?))
     }
@@ -158,17 +167,23 @@ async fn list_target_profiles(pool: &AnyPool, version_id: &str) -> Result<Vec<St
         "#,
     );
     let rows = sqlx::query(&sql)
-    .bind(version_id)
-    .fetch_all(pool)
-    .await
-    .map_err(|error| error.to_string())?;
+        .bind(version_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|error| error.to_string())?;
 
     rows.iter()
-        .map(|row| row.try_get::<String, _>("profile_key").map_err(|error| error.to_string()))
+        .map(|row| {
+            row.try_get::<String, _>("profile_key")
+                .map_err(|error| error.to_string())
+        })
         .collect()
 }
 
-fn map_template_row(row: sqlx::any::AnyRow, target_profiles: Vec<String>) -> Result<AppTemplatePayload, String> {
+fn map_template_row(
+    row: sqlx::any::AnyRow,
+    target_profiles: Vec<String>,
+) -> Result<AppTemplatePayload, String> {
     Ok(AppTemplatePayload {
         id: row.try_get("id").map_err(|error| error.to_string())?,
         uuid: row.try_get("uuid").ok(),
@@ -187,8 +202,12 @@ fn map_template_row(row: sqlx::any::AnyRow, target_profiles: Vec<String>) -> Res
         description: row.try_get("description_text").unwrap_or_default(),
         icon: None,
         author: None,
-        version_id: row.try_get("version_id").map_err(|error| error.to_string())?,
-        version_label: row.try_get("version_label").map_err(|error| error.to_string())?,
+        version_id: row
+            .try_get("version_id")
+            .map_err(|error| error.to_string())?,
+        version_label: row
+            .try_get("version_label")
+            .map_err(|error| error.to_string())?,
         preset_key: row.try_get("preset_key").unwrap_or_default(),
         category: row.try_get("category").map_err(|error| error.to_string())?,
         tags: Vec::new(),

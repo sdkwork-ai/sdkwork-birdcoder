@@ -78,6 +78,18 @@ impl CodingSessionService {
         self.repository.get_session(ctx, &session_id).await
     }
 
+    pub async fn resolve_project_working_directory(
+        &self,
+        ctx: &CodingSessionContext,
+        project_id: &str,
+    ) -> Result<Option<String>, CodingSessionError> {
+        let project_id = normalize_required_string(project_id)
+            .ok_or_else(|| CodingSessionError::InvalidInput("project_id is required.".into()))?;
+        self.repository
+            .resolve_project_working_directory(ctx, &project_id)
+            .await
+    }
+
     // ── Create session ───────────────────────────────────────────────────
 
     #[tracing::instrument(
@@ -313,6 +325,7 @@ impl CodingSessionService {
         let input = Self::validate_create_turn_request(request)?;
 
         let session = self.repository.get_session(ctx, &session_id).await?;
+        self.provider.ensure_execution_available()?;
         let project_working_directory = self
             .repository
             .resolve_project_working_directory(ctx, &session.project_id)
@@ -504,6 +517,7 @@ impl CodingSessionService {
         let input = Self::validate_approval_decision_request(request)?;
 
         let session = self.repository.get_session(ctx, &session_id).await?;
+        self.provider.ensure_execution_available()?;
 
         self.provider
             .submit_approval(
@@ -562,6 +576,7 @@ impl CodingSessionService {
         let input = Self::validate_user_question_answer_request(request)?;
 
         let session = self.repository.get_session(ctx, &session_id).await?;
+        self.provider.ensure_execution_available()?;
 
         self.provider
             .submit_question_answer(

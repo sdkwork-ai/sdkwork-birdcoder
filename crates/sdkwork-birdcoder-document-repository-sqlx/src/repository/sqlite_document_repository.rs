@@ -22,8 +22,7 @@ impl SqliteDocumentRepository {
         let Some(value) = tenant_id else {
             return Err("a valid tenant scope is required".to_owned());
         };
-        require_scoped_tenant_id(value)
-            .map_err(|_| "a valid tenant scope is required".to_owned())
+        require_scoped_tenant_id(value).map_err(|_| "a valid tenant scope is required".to_owned())
     }
 
     fn map_row(row: &sqlx::any::AnyRow) -> Result<DocumentPayload, sqlx::Error> {
@@ -55,16 +54,18 @@ impl DocumentRepository for SqliteDocumentRepository {
         project_id: Option<&str>,
         tenant_id: Option<&str>,
         query: &DocumentListQuery,
-    ) -> Result<sdkwork_birdcoder_document_service::service::document_service::DocumentListPage, String> {
+    ) -> Result<
+        sdkwork_birdcoder_document_service::service::document_service::DocumentListPage,
+        String,
+    > {
         let tenant_id = Self::require_tenant_id(tenant_id)?;
         let (offset, limit) = clamp_list_page_size(query.offset, query.page_size);
         let filter_sql = format!(
             " WHERE (?1 IS NULL OR project_id = ?1) AND {IS_NOT_DELETED} AND tenant_id = ?2"
         );
 
-        let count_sql = format!(
-            "SELECT COUNT(*) AS total FROM studio_project_document{filter_sql}"
-        );
+        let count_sql =
+            format!("SELECT COUNT(*) AS total FROM studio_project_document{filter_sql}");
         let total = sqlx::query_scalar::<_, i64>(&any_sql(&count_sql))
             .bind(project_id)
             .bind(tenant_id)
@@ -92,10 +93,12 @@ impl DocumentRepository for SqliteDocumentRepository {
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
 
-        Ok(sdkwork_birdcoder_document_service::service::document_service::DocumentListPage {
-            items,
-            total,
-        })
+        Ok(
+            sdkwork_birdcoder_document_service::service::document_service::DocumentListPage {
+                items,
+                total,
+            },
+        )
     }
 
     async fn find_document_by_id(

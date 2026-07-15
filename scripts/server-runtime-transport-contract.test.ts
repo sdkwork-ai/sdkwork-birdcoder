@@ -119,7 +119,6 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
             workspaceId: 'workspace-server-runtime-contract',
             name: 'Server Runtime Contract Project',
             description: 'Project loaded through server runtime binding.',
-            rootPath: 'D:/workspace/server-runtime-contract-project',
             status: 'active',
             createdAt: '2026-04-10T00:00:01.000Z',
             updatedAt: '2026-04-10T00:00:01.000Z',
@@ -256,9 +255,19 @@ try {
   });
 
   await appClient.listWorkspaces();
-  await appClient.listProjects({
+  const projectSummaries = await appClient.listProjects({
     workspaceId: 'workspace-server-runtime-contract',
   });
+  assert.equal(
+    Object.hasOwn(projectSummaries[0] ?? {}, 'rootPath'),
+    false,
+    'server runtime project responses must not include a browser or desktop filesystem root.',
+  );
+  assert.equal(
+    Object.hasOwn(projectSummaries[0] ?? {}, 'path'),
+    false,
+    'server runtime project responses must not include a device-local working directory.',
+  );
   await appClient.listCodingSessions({
     workspaceId: 'workspace-server-runtime-contract',
   });

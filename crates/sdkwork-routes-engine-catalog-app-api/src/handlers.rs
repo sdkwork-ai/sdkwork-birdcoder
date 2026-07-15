@@ -10,6 +10,8 @@ use sdkwork_birdcoder_codeengine::{
     list_native_session_provider_catalog_entries, CodeEngineSessionDetailRecord,
     CodeEngineSessionSummaryRecord,
 };
+use sdkwork_birdcoder_coding_sessions_service::context::CodingSessionContext;
+use sdkwork_birdcoder_coding_sessions_service::service::coding_session_service::CodingSessionService;
 use sdkwork_birdcoder_engine_catalog_service::service::engine_catalog_service::{
     CodeEngineModelConfigPayload, EngineCapabilityMatrixPayload, EngineCatalogProvider,
     EngineCatalogService, EngineDescriptorPayload, ModelCatalogEntryPayload,
@@ -18,16 +20,20 @@ use sdkwork_birdcoder_engine_catalog_service::service::engine_catalog_service::{
 };
 use sdkwork_birdcoder_native_sessions_service::error::NativeSessionError;
 use sdkwork_birdcoder_native_sessions_service::service::native_session_service::{
-    NativeSessionDetailPayload, NativeSessionLookup, NativeSessionQuery, NativeSessionRepository,
-    NativeSessionService, NativeSessionSummaryPayload, NativeSessionTurnPayload,
+    NativeSessionCommandPayload, NativeSessionDetailPayload, NativeSessionLookup,
+    NativeSessionMessagePayload, NativeSessionQuery, NativeSessionRepository, NativeSessionService,
+    NativeSessionSummaryPayload,
 };
+use sdkwork_birdcoder_project_service::context::ProjectContext;
+use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 
 use sdkwork_birdcoder_errors::{
     build_data_envelope, build_offset_list_envelope, build_unbounded_list_envelope,
     trace_id_from_request_id, ApiDataEnvelope, ApiListEnvelope,
 };
 use sdkwork_birdcoder_router_context::{
-    RequiredIamContext, StrictOffsetListQuery, WebRequestContext,
+    coding_session_context, project_context, RequiredIamContext, StrictOffsetListQuery,
+    WebRequestContext,
 };
 use sdkwork_utils_rust::is_blank;
 
@@ -145,7 +151,11 @@ impl NativeSessionRepository for RealNativeSessionRepository {
                 continue;
             }
             if total >= offset && sessions.len() < limit {
-                sessions.push(map_native_session_summary(record));
+                sessions.push(map_native_session_summary(
+                    record,
+                    query.workspace_id.as_deref(),
+                    query.project_id.as_deref(),
+                ));
             }
             total += 1;
         }
@@ -167,7 +177,11 @@ impl NativeSessionRepository for RealNativeSessionRepository {
         if !matches_native_session_lookup(&detail.summary, lookup) {
             return Ok(None);
         }
-        Ok(Some(map_native_session_detail(detail)))
+        Ok(Some(map_native_session_detail(
+            detail,
+            lookup.workspace_id.as_deref(),
+            lookup.project_id.as_deref(),
+        )))
     }
 
     fn get_session_summary(
@@ -185,7 +199,11 @@ impl NativeSessionRepository for RealNativeSessionRepository {
         if !matches_native_session_lookup(&summary, lookup) {
             return Ok(None);
         }
-        Ok(Some(map_native_session_summary(summary)))
+        Ok(Some(map_native_session_summary(
+            summary,
+            lookup.workspace_id.as_deref(),
+            lookup.project_id.as_deref(),
+        )))
     }
 }
 
@@ -217,6 +235,7 @@ fn matches_native_session_scope(
     record: &CodeEngineSessionSummaryRecord,
     workspace_id: Option<&str>,
     project_id: Option<&str>,
+    project_root: Option<&str>,
 ) -> bool {
     let Some(expected_workspace_id) = workspace_id.filter(|value| !is_blank(Some(*value))) else {
         return false;
@@ -224,7 +243,7 @@ fn matches_native_session_scope(
     let Some(expected_project_id) = project_id.filter(|value| !is_blank(Some(*value))) else {
         return false;
     };
-    match (
+    let identity_matches = match (
         record
             .workspace_id
             .as_deref()
@@ -238,7 +257,47 @@ fn matches_native_session_scope(
             record_workspace_id == expected_workspace_id && record_project_id == expected_project_id
         }
         _ => false,
+    };
+    if identity_matches {
+        return true;
     }
+
+    record.workspace_id.is_none()
+        && record.project_id.is_none()
+        && native_session_cwd_is_within_project(record.native_cwd.as_deref(), project_root)
+}
+
+fn normalize_native_session_path(value: Option<&str>) -> Option<String> {
+    let value = value?.trim();
+    if value.is_empty() {
+        return None;
+    }
+    let normalized = value.replace('\\', "/");
+    let normalized = normalized.trim_end_matches('/');
+    if normalized.is_empty() {
+        None
+    } else if cfg!(windows) || normalized.as_bytes().get(1) == Some(&b':') {
+        Some(normalized.to_ascii_lowercase())
+    } else {
+        Some(normalized.to_owned())
+    }
+}
+
+fn native_session_cwd_is_within_project(
+    native_cwd: Option<&str>,
+    project_root: Option<&str>,
+) -> bool {
+    let Some(native_cwd) = normalize_native_session_path(native_cwd) else {
+        return false;
+    };
+    let Some(project_root) = normalize_native_session_path(project_root) else {
+        return false;
+    };
+
+    native_cwd == project_root
+        || native_cwd
+            .strip_prefix(project_root.as_str())
+            .is_some_and(|suffix| suffix.starts_with('/'))
 }
 
 fn matches_native_session_query(
@@ -263,6 +322,7 @@ fn matches_native_session_query(
         record,
         query.workspace_id.as_deref(),
         query.project_id.as_deref(),
+        query.project_root.as_deref(),
     )
 }
 
@@ -288,12 +348,20 @@ fn matches_native_session_lookup(
         record,
         lookup.workspace_id.as_deref(),
         lookup.project_id.as_deref(),
+        lookup.project_root.as_deref(),
     )
 }
 
 fn map_native_session_summary(
     record: CodeEngineSessionSummaryRecord,
+    workspace_id: Option<&str>,
+    project_id: Option<&str>,
 ) -> NativeSessionSummaryPayload {
+    let native_session_id = sdkwork_birdcoder_codeengine::extract_native_lookup_id_for_engine(
+        record.id.as_str(),
+        record.engine_id.as_str(),
+    )
+    .ok();
     NativeSessionSummaryPayload {
         id: record.id,
         title: record.title,
@@ -301,27 +369,67 @@ fn map_native_session_summary(
         host_mode: record.host_mode,
         engine_id: record.engine_id,
         model_id: record.model_id,
-        workspace_id: record.workspace_id.clone().unwrap_or_default(),
-        project_id: record.project_id.clone().unwrap_or_default(),
+        workspace_id: record
+            .workspace_id
+            .clone()
+            .or_else(|| workspace_id.map(str::to_owned))
+            .unwrap_or_default(),
+        project_id: record
+            .project_id
+            .clone()
+            .or_else(|| project_id.map(str::to_owned))
+            .unwrap_or_default(),
+        native_session_id,
         created_at: record.created_at,
         updated_at: record.updated_at,
         last_turn_at: record.last_turn_at,
         transcript_updated_at: record.transcript_updated_at,
+        sort_timestamp: record.sort_timestamp,
+        kind: record.kind,
+        native_cwd: record.native_cwd,
     }
 }
 
-fn map_native_session_detail(record: CodeEngineSessionDetailRecord) -> NativeSessionDetailPayload {
+fn map_native_session_detail(
+    record: CodeEngineSessionDetailRecord,
+    workspace_id: Option<&str>,
+    project_id: Option<&str>,
+) -> NativeSessionDetailPayload {
+    let summary = map_native_session_summary(record.summary, workspace_id, project_id);
+    let coding_session_id = summary.id.clone();
     NativeSessionDetailPayload {
-        summary: map_native_session_summary(record.summary),
-        turns: record
+        summary,
+        messages: record
             .messages
             .into_iter()
-            .map(|message| NativeSessionTurnPayload {
+            .map(|message| NativeSessionMessagePayload {
                 id: message.id,
+                coding_session_id: coding_session_id.clone(),
+                turn_id: message.turn_id,
                 role: message.role,
                 content: message.content,
                 created_at: message.created_at,
-                ide_context: None,
+                commands: message.commands.map(|commands| {
+                    commands
+                        .into_iter()
+                        .map(|command| NativeSessionCommandPayload {
+                            command: command.command,
+                            status: command.status,
+                            output: command.output,
+                            kind: command.kind,
+                            tool_name: command.tool_name,
+                            tool_call_id: command.tool_call_id,
+                            runtime_status: command.runtime_status,
+                            requires_approval: command.requires_approval,
+                            requires_reply: command.requires_reply,
+                        })
+                        .collect()
+                }),
+                tool_calls: message.tool_calls,
+                tool_call_id: message.tool_call_id,
+                file_changes: message.file_changes,
+                task_progress: message.task_progress,
+                metadata: message.metadata,
             })
             .collect(),
     }
@@ -329,10 +437,81 @@ fn map_native_session_detail(record: CodeEngineSessionDetailRecord) -> NativeSes
 
 // ── State ────────────────────────────────────────────────────────────
 
+async fn resolve_native_project_root(
+    project_service: Option<&ProjectService>,
+    coding_session_service: Option<&CodingSessionService>,
+    coding_context: &CodingSessionContext,
+    context: &ProjectContext,
+    workspace_id: Option<&str>,
+    project_id: Option<&str>,
+    trace_id: Option<&str>,
+) -> Result<Option<String>, error::ProblemJsonBody> {
+    let Some(project_service) = project_service else {
+        return Ok(None);
+    };
+    let Some(workspace_id) = workspace_id.filter(|value| !is_blank(Some(*value))) else {
+        return Ok(None);
+    };
+    let Some(project_id) = project_id.filter(|value| !is_blank(Some(*value))) else {
+        return Ok(None);
+    };
+
+    let project = project_service
+        .get_project(context, project_id)
+        .await
+        .map_err(|project_error| {
+            error::map_native_session_error(
+                NativeSessionError::Repository(project_error.to_string()),
+                trace_id,
+            )
+        })?;
+    if project.workspace_id != workspace_id {
+        return Ok(None);
+    }
+
+    if let Some(coding_session_service) = coding_session_service {
+        if let Some(root) = coding_session_service
+            .resolve_project_working_directory(coding_context, project_id)
+            .await
+            .map_err(|coding_error| {
+                error::map_native_session_error(
+                    NativeSessionError::Repository(coding_error.to_string()),
+                    trace_id,
+                )
+            })?
+        {
+            let root = std::fs::canonicalize(root).map_err(|error| {
+                error::map_native_session_error(
+                    NativeSessionError::Repository(format!(
+                        "project working directory is unavailable: {error}"
+                    )),
+                    trace_id,
+                )
+            })?;
+            if root.is_dir() {
+                return Ok(Some(root.to_string_lossy().into_owned()));
+            }
+        }
+    }
+
+    project_service
+        .resolve_project_root_for_scope(context, workspace_id, project_id)
+        .await
+        .map(|root| Some(root.to_string_lossy().into_owned()))
+        .map_err(|project_error| {
+            error::map_native_session_error(
+                NativeSessionError::Repository(project_error.to_string()),
+                trace_id,
+            )
+        })
+}
+
 #[derive(Clone)]
 pub struct EngineCatalogAppState {
     pub engine_catalog_service: Arc<EngineCatalogService<RealEngineCatalogProvider>>,
     pub native_session_service: Arc<NativeSessionService<RealNativeSessionRepository>>,
+    pub project_service: Option<Arc<ProjectService>>,
+    pub coding_session_service: Option<Arc<CodingSessionService>>,
 }
 
 impl Default for EngineCatalogAppState {
@@ -345,6 +524,8 @@ impl Default for EngineCatalogAppState {
             native_session_service: Arc::new(NativeSessionService::new(
                 RealNativeSessionRepository,
             )),
+            project_service: None,
+            coding_session_service: None,
         }
     }
 }
@@ -399,7 +580,7 @@ pub async fn list_native_session_providers(
 
 pub async fn list_native_sessions(
     web: WebRequestContext,
-    RequiredIamContext(_iam): RequiredIamContext,
+    RequiredIamContext(iam): RequiredIamContext,
     StrictOffsetListQuery(pagination): StrictOffsetListQuery,
     State(state): State<EngineCatalogAppState>,
     Query(params): Query<NativeSessionQueryParams>,
@@ -407,12 +588,25 @@ pub async fn list_native_sessions(
     let trace_id = request_trace_id(&web);
     let offset = pagination.offset as usize;
     let limit = pagination.page_size as usize;
+    let project_context = project_context(&iam);
+    let coding_context = coding_session_context(&iam);
+    let project_root = resolve_native_project_root(
+        state.project_service.as_deref(),
+        state.coding_session_service.as_deref(),
+        &coding_context,
+        &project_context,
+        params.workspace_id.as_deref(),
+        params.project_id.as_deref(),
+        trace_id,
+    )
+    .await?;
     let query = NativeSessionQuery {
-        workspace_id: params.workspace_id,
-        project_id: params.project_id,
+        workspace_id: params.workspace_id.clone(),
+        project_id: params.project_id.clone(),
         engine_id: params.engine_id,
         offset: Some(offset),
         limit: Some(limit),
+        project_root,
     };
     if !native_session_query_is_scoped(&query) {
         return Err(error::map_native_session_error(
@@ -437,7 +631,7 @@ pub async fn list_native_sessions(
 
 pub async fn get_native_session(
     web: WebRequestContext,
-    RequiredIamContext(_iam): RequiredIamContext,
+    RequiredIamContext(iam): RequiredIamContext,
     State(state): State<EngineCatalogAppState>,
     Path(params): Path<NativeSessionPathParams>,
     Query(scope): Query<NativeSessionScopeQuery>,
@@ -452,11 +646,24 @@ pub async fn get_native_session(
         ));
     }
 
+    let project_context = project_context(&iam);
+    let coding_context = coding_session_context(&iam);
+    let project_root = resolve_native_project_root(
+        state.project_service.as_deref(),
+        state.coding_session_service.as_deref(),
+        &coding_context,
+        &project_context,
+        Some(scope.workspace_id.as_str()),
+        Some(scope.project_id.as_str()),
+        trace_id,
+    )
+    .await?;
     let lookup = NativeSessionLookup {
         session_id: params.id,
         engine_id: scope.engine_id,
         workspace_id: Some(scope.workspace_id),
         project_id: Some(scope.project_id),
+        project_root,
     };
     match state.native_session_service.get_session_detail(&lookup) {
         Ok(session) => Ok(Json(build_data_envelope(session, request_id(&web)))),
@@ -504,5 +711,91 @@ pub async fn sync_model_config(
     {
         Ok(result) => Ok(Json(build_data_envelope(result, request_id(&web)))),
         Err(e) => Err(error::map_engine_catalog_error(e, trace_id)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{map_native_session_summary, matches_native_session_scope};
+    use sdkwork_birdcoder_codeengine::{build_native_session_id, CodeEngineSessionSummaryRecord};
+
+    fn native_summary(engine_id: &str, native_cwd: Option<&str>) -> CodeEngineSessionSummaryRecord {
+        CodeEngineSessionSummaryRecord {
+            created_at: "2026-07-15T00:00:00Z".to_owned(),
+            id: build_native_session_id(engine_id, "session-1"),
+            title: "Session".to_owned(),
+            status: "active".to_owned(),
+            runtime_status: Some("completed".to_owned()),
+            host_mode: "desktop".to_owned(),
+            engine_id: engine_id.to_owned(),
+            model_id: "model-1".to_owned(),
+            updated_at: "2026-07-15T00:01:00Z".to_owned(),
+            last_turn_at: Some("2026-07-15T00:01:00Z".to_owned()),
+            kind: "coding".to_owned(),
+            native_cwd: native_cwd.map(str::to_owned),
+            sort_timestamp: 1_752_537_660_123,
+            transcript_updated_at: Some("2026-07-15T00:01:00Z".to_owned()),
+            workspace_id: None,
+            project_id: None,
+        }
+    }
+
+    #[test]
+    fn native_provider_sessions_are_scoped_by_authorized_project_root() {
+        for engine_id in ["codex", "opencode", "claude-code", "gemini"] {
+            let exact = native_summary(engine_id, Some("C:\\workspace\\project"));
+            let descendant = native_summary(engine_id, Some("C:/workspace/project/packages/app"));
+            let sibling = native_summary(engine_id, Some("C:/workspace/project-other"));
+
+            assert!(matches_native_session_scope(
+                &exact,
+                Some("workspace-1"),
+                Some("project-1"),
+                Some("C:/workspace/project"),
+            ));
+            assert!(matches_native_session_scope(
+                &descendant,
+                Some("workspace-1"),
+                Some("project-1"),
+                Some("C:/workspace/project"),
+            ));
+            assert!(!matches_native_session_scope(
+                &sibling,
+                Some("workspace-1"),
+                Some("project-1"),
+                Some("C:/workspace/project"),
+            ));
+        }
+    }
+
+    #[test]
+    fn explicit_native_scope_cannot_be_reassigned_by_cwd() {
+        let mut summary = native_summary("codex", Some("C:/workspace/project"));
+        summary.workspace_id = Some("workspace-other".to_owned());
+        summary.project_id = Some("project-other".to_owned());
+
+        assert!(!matches_native_session_scope(
+            &summary,
+            Some("workspace-1"),
+            Some("project-1"),
+            Some("C:/workspace/project"),
+        ));
+    }
+
+    #[test]
+    fn mapped_native_summary_carries_project_scope_and_lossless_sort_timestamp() {
+        let payload = map_native_session_summary(
+            native_summary("codex", Some("C:/workspace/project")),
+            Some("workspace-1"),
+            Some("project-1"),
+        );
+        let json = serde_json::to_value(payload).expect("serialize native summary");
+
+        assert_eq!(json["workspaceId"], "workspace-1");
+        assert_eq!(json["projectId"], "project-1");
+        assert_eq!(json["nativeSessionId"], "session-1");
+        assert_eq!(json["nativeCwd"], "C:/workspace/project");
+        assert_eq!(json["kind"], "coding");
+        assert_eq!(json["sortTimestamp"], "1752537660123");
     }
 }

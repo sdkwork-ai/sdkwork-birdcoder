@@ -8,7 +8,7 @@ static SMOKE_ENV_LOCK: OnceLock<Arc<Mutex<()>>> = OnceLock::new();
 
 const SMOKE_ENV_VALUES: &[(&str, &str)] = &[
     ("SDKWORK_DEPLOYMENT_ENV", "development"),
-    ("SDKWORK_ENVIRONMENT", "development"),
+    ("SDKWORK_BIRDCODER_ENVIRONMENT", "development"),
     ("SDKWORK_LIFECYCLE_ENVIRONMENT", "development"),
     ("SDKWORK_AGENTS_ENVIRONMENT", "development"),
     ("SDKWORK_AGENTS_CONFIG_PROFILE", "development"),
@@ -148,11 +148,15 @@ fn smoke_config(
     sqlite_name: &str,
 ) -> sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig {
     use sdkwork_birdcoder_standalone_gateway::bootstrap::config::{
-        BirdServerConfig, DEFAULT_RATE_LIMIT_ENABLED, DEFAULT_RATE_LIMIT_MAX_REQUESTS,
+        BirdDeploymentProfile, BirdEnvironment, BirdRuntimeTarget, BirdServerConfig,
+        DEFAULT_RATE_LIMIT_ENABLED, DEFAULT_RATE_LIMIT_MAX_REQUESTS,
         DEFAULT_RATE_LIMIT_WINDOW_SECS,
     };
 
     BirdServerConfig {
+        environment: BirdEnvironment::Development,
+        deployment_profile: BirdDeploymentProfile::Standalone,
+        runtime_target: BirdRuntimeTarget::Server,
         host: "127.0.0.1".to_string(),
         port: 0,
         sqlite_file: std::env::temp_dir().join(sqlite_name),

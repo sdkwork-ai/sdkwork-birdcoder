@@ -12,6 +12,7 @@ type WorkbenchNewSessionButtonVariant = 'topbar' | 'studio' | 'sidebar';
 
 interface WorkbenchNewSessionButtonProps {
   buttonLabel: string;
+  compact?: boolean;
   currentSessionEngineId?: string | null;
   currentSessionModelId?: string | null;
   disabled?: boolean;
@@ -74,6 +75,7 @@ function getVariantStyle(
 
 function WorkbenchNewSessionButtonComponent({
   buttonLabel,
+  compact = false,
   currentSessionEngineId,
   currentSessionModelId,
   disabled = false,
@@ -170,7 +172,7 @@ function WorkbenchNewSessionButtonComponent({
             : variant === 'sidebar'
               ? 'cursor-pointer hover:bg-white/10 hover:text-white'
               : 'text-gray-100 hover:bg-white/10'
-        }`;
+        } ${variant === 'topbar' && compact ? '!gap-0 !px-2' : ''}`;
   const secondaryButtonClassName =
     variant === 'studio'
       ? `${variantStyle.secondaryButton} ${
@@ -193,22 +195,28 @@ function WorkbenchNewSessionButtonComponent({
       : variantStyle.wrapper;
 
   return (
-    <div ref={menuRef} className={variantStyle.container}>
+    <div ref={menuRef} className={`${variantStyle.container} shrink-0 whitespace-nowrap`}>
       <div className={wrapperClassName}>
         <button
           type="button"
           disabled={disabled}
           title={buttonTitle}
+          aria-label={buttonLabel}
           className={primaryButtonClassName}
           onClick={handlePrimaryClick}
         >
-          <WorkbenchCodeEngineIcon engineId={preferredSelection.engine.id} />
-          <span className="truncate">{buttonLabel}</span>
+          <span className="shrink-0">
+            <WorkbenchCodeEngineIcon engineId={preferredSelection.engine.id} />
+          </span>
+          {variant !== 'topbar' || !compact ? (
+            <span className="truncate">{buttonLabel}</span>
+          ) : null}
         </button>
         <button
           type="button"
           disabled={disabled}
           title={buttonTitle}
+          aria-label={resolvedMenuLabel}
           className={secondaryButtonClassName}
           onClick={handleToggleMenu}
         >

@@ -13,7 +13,6 @@ export * from './services/appSdkTransport.ts';
 export * from './services/backendSdkTransport.ts';
 export * from './services/consoleQueries.ts';
 export * from './services/appRuntimeTransport.ts';
-export * from './services/defaultIdeServices.ts';
 export * from './services/defaultIdeServicesRuntime.ts';
 export * from './services/defaultIdeServicesShared.ts';
 export * from './services/lazyDefaultIdeServices.ts';
@@ -25,7 +24,6 @@ export * from './services/sessionService.ts';
 export * from './services/sdkClients.ts';
 export * from './services/sdkTransportShared.ts';
 export * from './services/codingSessionMessageProjection.ts';
-export * from './services/projectContentConfigData.ts';
 export * from './services/workspaceRealtimeClient.ts';
 export type {
   IAdminDeploymentService,

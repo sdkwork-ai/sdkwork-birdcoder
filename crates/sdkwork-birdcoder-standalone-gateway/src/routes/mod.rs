@@ -108,6 +108,9 @@ fn traced_problem_for_code(
         "rate_limited" => {
             traced_platform_problem(SdkWorkResultCode::RateLimitExceeded, message, trace_id)
         }
+        "service_unavailable" => {
+            traced_platform_problem(SdkWorkResultCode::ServiceUnavailable, message, trace_id)
+        }
         _ => traced_legacy_problem(code, message, trace_id),
     }
 }

@@ -5,99 +5,75 @@ const modulePath = new URL(
   import.meta.url,
 );
 
-const { resolveProjectMountRecoverySource } = await import(`${modulePath.href}?t=${Date.now()}`);
 const {
+  createIdleProjectMountRecoveryState,
   createFailedProjectMountRecoveryState,
+  createProjectMountRecoveryStateFromDeviceMount,
   createRecoveredProjectMountRecoveryState,
   createRecoveringProjectMountRecoveryState,
 } = await import(`${modulePath.href}?t=${Date.now()}`);
 
-assert.equal(
-  resolveProjectMountRecoverySource(undefined),
-  null,
-  'project mount recovery should ignore missing project paths.',
-);
+assert.deepEqual(createIdleProjectMountRecoveryState(), {
+  displayName: null,
+  status: 'idle',
+  message: null,
+});
 
-assert.equal(
-  resolveProjectMountRecoverySource('   '),
-  null,
-  'project mount recovery should ignore blank project paths.',
-);
+assert.deepEqual(createRecoveringProjectMountRecoveryState('sample-app'), {
+  displayName: 'sample-app',
+  status: 'recovering',
+  message: null,
+});
 
-assert.equal(
-  resolveProjectMountRecoverySource('/sample-app'),
-  null,
-  'project mount recovery must not treat browser virtual root paths as recoverable desktop mounts.',
-);
+assert.deepEqual(createRecoveredProjectMountRecoveryState('sample-app'), {
+  displayName: 'sample-app',
+  status: 'recovered',
+  message: null,
+});
 
-assert.deepEqual(
-  resolveProjectMountRecoverySource('D:\\repos\\sample-app'),
-  {
-    type: 'tauri',
-    path: 'D:\\repos\\sample-app',
-  },
-  'project mount recovery must restore persisted Windows desktop roots through the tauri mount path.',
-);
+assert.deepEqual(createFailedProjectMountRecoveryState('sample-app'), {
+  displayName: 'sample-app',
+  status: 'failed',
+  message: 'Unable to remount the local project folder. Re-import the folder to restore file access.',
+});
 
-assert.deepEqual(
-  resolveProjectMountRecoverySource('D:/repos/sample-app'),
-  {
-    type: 'tauri',
-    path: 'D:/repos/sample-app',
-  },
-  'project mount recovery must restore normalized Windows desktop roots through the tauri mount path.',
-);
-
-assert.deepEqual(
-  resolveProjectMountRecoverySource('/Users/admin/sample-app'),
-  {
-    type: 'tauri',
-    path: '/Users/admin/sample-app',
-  },
-  'project mount recovery must support POSIX desktop roots for future macOS and Linux hosts.',
-);
-
-assert.deepEqual(
-  createRecoveringProjectMountRecoveryState('D:\\repos\\sample-app'),
-  {
-    status: 'recovering',
-    path: 'D:\\repos\\sample-app',
-    message: null,
-  },
-  'project mount recovery should expose structured recovering state while reopening persisted desktop roots.',
-);
-
-assert.deepEqual(
-  createRecoveredProjectMountRecoveryState('D:\\repos\\sample-app'),
-  {
-    status: 'recovered',
-    path: 'D:\\repos\\sample-app',
-    message: null,
-  },
-  'project mount recovery should expose structured recovered state after remounting a persisted desktop root.',
-);
-
-assert.deepEqual(
-  createFailedProjectMountRecoveryState(
-    'D:\\repos\\sample-app',
-    new Error('Permission denied'),
-  ),
-  {
-    status: 'failed',
-    path: 'D:\\repos\\sample-app',
-    message: 'Permission denied',
-  },
-  'project mount recovery should preserve meaningful runtime errors for user-facing diagnostics.',
-);
-
-assert.deepEqual(
-  createFailedProjectMountRecoveryState('D:\\repos\\sample-app', null),
-  {
-    status: 'failed',
-    path: 'D:\\repos\\sample-app',
-    message: 'Unable to remount the local project folder. Re-import the folder to restore file access.',
-  },
-  'project mount recovery should fall back to a stable remediation message when the runtime error is unknown.',
-);
+for (const [mount, expected] of [
+  [
+    { displayName: 'sample-app', host: 'tauri', status: 'mounted' },
+    { displayName: 'sample-app', status: 'recovered', message: null },
+  ],
+  [
+    { displayName: 'sample-app', host: 'browser', status: 'recoverable' },
+    { displayName: 'sample-app', status: 'recovered', message: null },
+  ],
+  [
+    { displayName: 'sample-app', host: 'browser', status: 'permission_required' },
+    {
+      displayName: 'sample-app',
+      status: 'permission_required',
+      message: 'Folder permission is required. Select the folder again to continue.',
+    },
+  ],
+  [
+    { displayName: null, host: null, status: 'session_required' },
+    {
+      displayName: null,
+      status: 'session_required',
+      message: 'Sign in again before accessing the local project folder.',
+    },
+  ],
+  [
+    { displayName: null, host: null, status: 'mount_required' },
+    {
+      displayName: null,
+      status: 'mount_required',
+      message: 'Select a local folder to access project files on this device.',
+    },
+  ],
+] as const) {
+  const state = createProjectMountRecoveryStateFromDeviceMount(mount);
+  assert.deepEqual(state, expected);
+  assert.equal(Object.hasOwn(state, 'path'), false);
+}
 
 console.log('project mount recovery contract passed.');

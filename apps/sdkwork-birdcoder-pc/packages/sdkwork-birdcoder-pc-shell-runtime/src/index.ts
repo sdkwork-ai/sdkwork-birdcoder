@@ -1,4 +1,5 @@
 export { BootstrapGate, type BootstrapGateMessages, type BootstrapGateProps } from './application/bootstrap/BootstrapGate';
+export { StartupScreen, type StartupScreenProps, type StartupStage } from './application/bootstrap/StartupScreen';
 export {
   bootstrapShellRuntime,
   type BootstrapShellRuntimeOptions,
@@ -10,8 +11,10 @@ export {
   type ResolveBirdCoderBootstrapServerBaseUrlOptions,
 } from './application/bootstrap/bootstrapServerBaseUrl';
 export {
+  BirdCoderApiReadyError,
   isBirdCoderLocalRuntimeApiBaseUrl,
   waitForBirdCoderApiReady,
+  type BirdCoderApiRuntimeTarget,
   type WaitForBirdCoderApiReadyOptions,
 } from './application/bootstrap/bootstrapServerApiReady';
 export {

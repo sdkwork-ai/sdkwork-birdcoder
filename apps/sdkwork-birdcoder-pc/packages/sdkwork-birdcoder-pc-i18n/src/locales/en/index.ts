@@ -24,6 +24,7 @@ import studioWorkspace from './studio/workspace.ts';
 import studioActions from './studio/actions.ts';
 import studioDialogs from './studio/dialogs.ts';
 import uiContentPreview from './ui/content-preview.ts';
+import userTokenPlanCommerce from './user/token-plan/commerce.ts';
 import { buildLocaleResource, type LocaleModule } from '../resource.ts';
 
 export const enModules = [
@@ -53,6 +54,7 @@ export const enModules = [
   studioActions,
   studioDialogs,
   uiContentPreview,
+  userTokenPlanCommerce,
 ] as const satisfies readonly LocaleModule[];
 
 export const enTranslation = buildLocaleResource('en', enModules);

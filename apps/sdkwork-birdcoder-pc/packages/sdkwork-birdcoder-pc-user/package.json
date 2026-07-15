@@ -23,8 +23,6 @@
     "@sdkwork/membership-service": "workspace:*",
     "@sdkwork/membership-pc-membership": "workspace:*",
     "@sdkwork/membership-pc-subscription": "workspace:*",
-    "@sdkwork/promotion-pc-coupon": "workspace:*",
-    "@sdkwork/promotion-service": "workspace:*",
     "@sdkwork/ui-pc-react": "workspace:*",
     "@sdkwork/appbase-pc-react": "workspace:*",
     "lucide-react": "catalog:",

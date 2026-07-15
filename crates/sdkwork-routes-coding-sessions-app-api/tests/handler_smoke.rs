@@ -114,7 +114,7 @@ fn test_iam_context() -> IamAppContext {
     IamAppContext::new(
         "1",
         None,
-        "handler-smoke-user",
+        "1",
         "handler-smoke-session",
         "birdcoder",
         Environment::Dev,
@@ -200,6 +200,7 @@ fn with_request_context(mut request: Request<Body>, iam: Option<IamAppContext>) 
         client_kind: None,
         operation: None,
         trace_id: None,
+        idempotency_key: None,
     });
     if let Some(iam) = iam {
         request.extensions_mut().insert(iam);

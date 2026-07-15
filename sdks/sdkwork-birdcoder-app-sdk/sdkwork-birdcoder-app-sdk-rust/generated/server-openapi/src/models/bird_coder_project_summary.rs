@@ -57,14 +57,6 @@ pub struct BirdCoderProjectSummary {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
-    #[serde(rename = "rootPath")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub root_path: Option<String>,
-
-    #[serde(rename = "sitePath")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub site_path: Option<String>,
-
     #[serde(rename = "domainPrefix")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub domain_prefix: Option<String>,

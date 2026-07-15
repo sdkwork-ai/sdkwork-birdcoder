@@ -1,4 +1,6 @@
-use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::error::NativeSessionError;
 
@@ -15,12 +17,47 @@ pub struct NativeSessionSummaryPayload {
     pub host_mode: String,
     pub engine_id: String,
     pub model_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub native_session_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_turn_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transcript_updated_at: Option<String>,
+    #[serde(serialize_with = "serialize_i64_as_decimal_string")]
+    pub sort_timestamp: i64,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub native_cwd: Option<String>,
+}
+
+fn serialize_i64_as_decimal_string<S>(value: &i64, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&value.to_string())
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeSessionCommandPayload {
+    pub command: String,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runtime_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requires_approval: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub requires_reply: Option<bool>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -58,21 +95,41 @@ pub struct NativeSessionTurnConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NativeSessionTurnPayload {
+pub struct NativeSessionMessagePayload {
     pub id: String,
+    pub coding_session_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub turn_id: Option<String>,
     pub role: String,
     pub content: String,
-    pub created_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ide_context: Option<NativeSessionTurnIdeContext>,
+    pub commands: Option<Vec<NativeSessionCommandPayload>>,
+    #[serde(
+        default,
+        rename = "tool_calls",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub tool_calls: Option<Vec<serde_json::Value>>,
+    #[serde(
+        default,
+        rename = "tool_call_id",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub tool_call_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_changes: Option<Vec<serde_json::Value>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_progress: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<BTreeMap<String, String>>,
+    pub created_at: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NativeSessionDetailPayload {
-    #[serde(flatten)]
     pub summary: NativeSessionSummaryPayload,
-    pub turns: Vec<NativeSessionTurnPayload>,
+    pub messages: Vec<NativeSessionMessagePayload>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -92,6 +149,7 @@ pub struct NativeSessionQuery {
     pub engine_id: Option<String>,
     pub offset: Option<usize>,
     pub limit: Option<usize>,
+    pub project_root: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -100,6 +158,7 @@ pub struct NativeSessionLookup {
     pub engine_id: Option<String>,
     pub workspace_id: Option<String>,
     pub project_id: Option<String>,
+    pub project_root: Option<String>,
 }
 
 // ── Repository trait ─────────────────────────────────────────────────

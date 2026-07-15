@@ -52,6 +52,10 @@ impl SqliteCodingSessionRepository {
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
     }
 
+    fn sort_timestamp_now() -> i64 {
+        (OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000) as i64
+    }
+
     fn append_session_list_filters(sql: &mut String, query: &CodingSessionListQuery) {
         if query.engine_id.is_some() {
             sql.push_str(&format!(" AND s.{} = ?", columns::session::ENGINE_ID));
@@ -200,12 +204,14 @@ impl SqliteCodingSessionRepository {
         session_id: &str,
     ) -> Result<(), CodingSessionError> {
         let now = Self::now_iso();
+        let sort_timestamp = Self::sort_timestamp_now();
 
         sqlx::query(&format!(
-            "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = 0",
+            "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = {} + 1 WHERE {} = ? AND {} = 0",
             columns::session::TABLE,
             columns::session::TRANSCRIPT_UPDATED_AT,
             columns::session::UPDATED_AT,
+            columns::session::SORT_TIMESTAMP,
             columns::session::VERSION,
             columns::session::VERSION,
             columns::session::ID,
@@ -213,6 +219,7 @@ impl SqliteCodingSessionRepository {
         ))
         .bind(&now)
         .bind(&now)
+        .bind(sort_timestamp)
         .bind(session_id)
         .execute(&mut **tx)
         .await
@@ -511,7 +518,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
         let host_mode = input.host_mode.clone();
         let engine_id = input.engine_id.clone();
         let model_id = input.model_id.clone();
-        let sort_timestamp = OffsetDateTime::now_utc().unix_timestamp();
+        let sort_timestamp = Self::sort_timestamp_now();
         let owner_scope = session_owner_scope(ctx)?;
 
         ensure_workspace_in_tenant_scope(&self.pool, ctx, &workspace_id)
@@ -728,7 +735,7 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .title
             .clone()
             .unwrap_or_else(|| format!("{} (fork)", original.title));
-        let sort_timestamp = OffsetDateTime::now_utc().unix_timestamp();
+        let sort_timestamp = Self::sort_timestamp_now();
 
         let mut tx = map_sqlx_error(self.pool.begin().await)?;
 
@@ -988,16 +995,19 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             .await,
         )?;
 
+        let sort_timestamp = Self::sort_timestamp_now();
         map_sqlx_error(
             sqlx::query(&format!(
-                "UPDATE {} SET {} = ?, {} = ? WHERE {} = ?",
+                "UPDATE {} SET {} = ?, {} = ?, {} = ? WHERE {} = ?",
                 columns::session::TABLE,
                 columns::session::LAST_TURN_AT,
                 columns::session::UPDATED_AT,
+                columns::session::SORT_TIMESTAMP,
                 columns::session::ID,
             ))
             .bind(&now)
             .bind(&now)
+            .bind(sort_timestamp)
             .bind(session_id)
             .execute(&mut *tx)
             .await,
@@ -1063,10 +1073,10 @@ impl CodingSessionRepository for SqliteCodingSessionRepository {
             serde_json::Value::String(message.role.clone()),
         );
 
-Self::insert_coding_session_event_on_executor(
-&mut tx,
-session_id,
-message.turn_id.clone(),
+        Self::insert_coding_session_event_on_executor(
+            &mut tx,
+            session_id,
+            message.turn_id.clone(),
             None,
             "message.edited",
             payload,
@@ -1122,10 +1132,10 @@ message.turn_id.clone(),
             serde_json::Value::String(message.role.clone()),
         );
 
-Self::insert_coding_session_event_on_executor(
-&mut tx,
-session_id,
-message.turn_id.clone(),
+        Self::insert_coding_session_event_on_executor(
+            &mut tx,
+            session_id,
+            message.turn_id.clone(),
             None,
             "message.deleted",
             payload,
@@ -2191,17 +2201,18 @@ message.turn_id.clone(),
         let started_at = turn.started_at.clone().unwrap_or_else(|| now.clone());
         let completed_at = turn.completed_at.clone().unwrap_or_else(|| now.clone());
 
-        if let Some(native_session_id) = finalized
+        let native_session_id = finalized
             .native_session_id
             .as_deref()
             .map(str::trim)
-            .filter(|value| !value.is_empty())
-        {
+            .filter(|value| !value.is_empty());
+        if let Some(native_session_id) = native_session_id {
             sqlx::query(&format!(
-                "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 \
+                "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = {} + 1 \
                  WHERE {} = ? AND {} = 0",
                 columns::session::TABLE,
                 columns::session::NATIVE_SESSION_ID,
+                columns::session::TRANSCRIPT_UPDATED_AT,
                 columns::session::UPDATED_AT,
                 columns::session::VERSION,
                 columns::session::VERSION,
@@ -2209,6 +2220,25 @@ message.turn_id.clone(),
                 columns::session::IS_DELETED,
             ))
             .bind(native_session_id)
+            .bind(&now)
+            .bind(&now)
+            .bind(session_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| RepositoryError::Update(e.to_string()))?;
+        } else {
+            sqlx::query(&format!(
+                "UPDATE {} SET {} = ?, {} = ?, {} = {} + 1 \
+                 WHERE {} = ? AND {} = 0",
+                columns::session::TABLE,
+                columns::session::TRANSCRIPT_UPDATED_AT,
+                columns::session::UPDATED_AT,
+                columns::session::VERSION,
+                columns::session::VERSION,
+                columns::session::ID,
+                columns::session::IS_DELETED,
+            ))
+            .bind(&now)
             .bind(&now)
             .bind(session_id)
             .execute(&mut *tx)
@@ -2513,6 +2543,26 @@ mod tests {
             .await
             .expect("create coding turn and durable operation");
         let operation_id = format!("{}:operation", created_turn.id);
+        let activity_after_turn_creation =
+            sqlx::query("SELECT last_turn_at, sort_timestamp FROM ai_coding_session WHERE id = ?")
+                .bind("session-1")
+                .fetch_one(&pool)
+                .await
+                .expect("load session activity after turn creation");
+        let sort_timestamp_after_turn_creation = activity_after_turn_creation
+            .try_get::<i64, _>("sort_timestamp")
+            .expect("turn creation sort timestamp");
+        assert!(
+            sort_timestamp_after_turn_creation >= 1_000_000_000_000,
+            "turn creation must persist a millisecond session sort timestamp",
+        );
+        assert!(
+            activity_after_turn_creation
+                .try_get::<Option<String>, _>("last_turn_at")
+                .expect("turn creation last_turn_at")
+                .is_some(),
+            "turn creation must update last_turn_at",
+        );
         let running_operation = repository
             .get_operation(&context, "session-1", &operation_id)
             .await
@@ -2554,11 +2604,104 @@ mod tests {
             )
             .await
             .expect("finalize coding turn");
+        let activity_after_turn_completion = sqlx::query(
+            "SELECT native_session_id, sort_timestamp, transcript_updated_at, updated_at \
+             FROM ai_coding_session WHERE id = ?",
+        )
+        .bind("session-1")
+        .fetch_one(&pool)
+        .await
+        .expect("load session activity after turn completion");
+        assert_eq!(
+            activity_after_turn_completion
+                .try_get::<i64, _>("sort_timestamp")
+                .expect("turn completion sort timestamp"),
+            sort_timestamp_after_turn_creation,
+            "turn completion must refresh transcript freshness without sorting the session twice",
+        );
+        let transcript_updated_at = activity_after_turn_completion
+            .try_get::<Option<String>, _>("transcript_updated_at")
+            .expect("turn completion transcript_updated_at");
+        assert!(transcript_updated_at.is_some());
+        assert_eq!(
+            transcript_updated_at,
+            activity_after_turn_completion
+                .try_get::<Option<String>, _>("updated_at")
+                .expect("turn completion updated_at"),
+            "turn completion must commit transcript freshness and session updated_at together",
+        );
         let succeeded_operation = repository
             .get_operation(&context, "session-1", &operation_id)
             .await
             .expect("load succeeded operation");
         assert_eq!(succeeded_operation.status, "succeeded");
+
+        let turn_without_native_session = repository
+            .create_turn(
+                &context,
+                "session-1",
+                &CreateCodingSessionTurnInput {
+                    runtime_id: Some("runtime-without-native".to_owned()),
+                    engine_id: Some("codex".to_owned()),
+                    model_id: Some("gpt-5-codex".to_owned()),
+                    request_kind: "user_message".to_owned(),
+                    input_summary: "turn without native session result".to_owned(),
+                    stream: false,
+                    ide_context: None,
+                    options: None,
+                },
+            )
+            .await
+            .expect("create turn without native session result");
+        let activity_before_completion_without_native =
+            sqlx::query("SELECT sort_timestamp FROM ai_coding_session WHERE id = ?")
+                .bind("session-1")
+                .fetch_one(&pool)
+                .await
+                .expect("load activity before completion without native session");
+        let sort_timestamp_before_completion_without_native =
+            activity_before_completion_without_native
+                .try_get::<i64, _>("sort_timestamp")
+                .expect("sort timestamp before completion without native session");
+
+        repository
+            .finalize_turn_execution(
+                &context,
+                "session-1",
+                &FinalizedProjectionTurnExecution {
+                    turn: CodingSessionTurnPayload {
+                        status: "completed".to_owned(),
+                        started_at: Some("2026-07-11T00:00:03Z".to_owned()),
+                        completed_at: Some("2026-07-11T00:00:04Z".to_owned()),
+                        ..turn_without_native_session
+                    },
+                    events: Vec::new(),
+                    native_session_id: None,
+                },
+            )
+            .await
+            .expect("finalize turn without native session result");
+        let activity_after_completion_without_native = sqlx::query(
+            "SELECT sort_timestamp, transcript_updated_at FROM ai_coding_session WHERE id = ?",
+        )
+        .bind("session-1")
+        .fetch_one(&pool)
+        .await
+        .expect("load activity after completion without native session");
+        assert_eq!(
+            activity_after_completion_without_native
+                .try_get::<i64, _>("sort_timestamp")
+                .expect("sort timestamp after completion without native session"),
+            sort_timestamp_before_completion_without_native,
+            "turn completion without a native session id must not sort the session twice",
+        );
+        assert!(
+            activity_after_completion_without_native
+                .try_get::<Option<String>, _>("transcript_updated_at")
+                .expect("transcript timestamp after completion without native session")
+                .is_some(),
+            "turn completion without a native session id must still refresh transcript freshness",
+        );
 
         let failed_turn = repository
             .create_turn(

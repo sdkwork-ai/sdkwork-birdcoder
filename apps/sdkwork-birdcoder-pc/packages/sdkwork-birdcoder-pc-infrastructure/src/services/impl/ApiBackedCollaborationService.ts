@@ -42,13 +42,7 @@ export class ApiBackedCollaborationService implements ICollaborationService {
     projectId: string,
     request: BirdCoderUpsertProjectCollaboratorRequest,
   ): Promise<BirdCoderProjectCollaboratorSummary> {
-    const currentUserId = await this.resolveCurrentUserId();
-    return this.appClient.upsertProjectCollaborator(projectId, {
-      ...request,
-      createdByUserId: request.createdByUserId ?? currentUserId,
-      grantedByUserId:
-        request.grantedByUserId ?? request.createdByUserId ?? currentUserId,
-    });
+    return this.appClient.upsertProjectCollaborator(projectId, request);
   }
 
   async upsertWorkspaceMember(

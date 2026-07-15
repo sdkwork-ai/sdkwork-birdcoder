@@ -26,7 +26,10 @@ impl std::fmt::Display for CatalogError {
                 write!(f, "code engine provider \"{name}\" is already registered")
             }
             Self::ProviderRegistrationFailed { name, source } => {
-                write!(f, "code engine provider \"{name}\" registration failed: {source}")
+                write!(
+                    f,
+                    "code engine provider \"{name}\" registration failed: {source}"
+                )
             }
             Self::ProviderNotFound { name } => {
                 write!(f, "code engine provider \"{name}\" not found in catalog")
@@ -466,9 +469,7 @@ pub fn register_provider(name: &str) -> Result<(), CatalogError> {
     if find_native_session_provider_catalog_entry(&normalized).is_none()
         && find_codeengine_descriptor(&normalized).is_none()
     {
-        return Err(CatalogError::ProviderNotFound {
-            name: normalized,
-        });
+        return Err(CatalogError::ProviderNotFound { name: normalized });
     }
     Ok(())
 }

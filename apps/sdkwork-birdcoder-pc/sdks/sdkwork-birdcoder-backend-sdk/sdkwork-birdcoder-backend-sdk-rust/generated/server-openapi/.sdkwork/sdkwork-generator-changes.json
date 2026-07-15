@@ -9,12 +9,11 @@
     "protocol": "http",
     "packageName": "@sdkwork/birdcoder-backend-sdk"
   },
-  "changeFingerprint": "a9d4ba8cfdefb2954ea5b4b0fd649b3c5d9bc23cf421da942f1004e9ed28cfd5",
+  "changeFingerprint": "5be037870bd0d8ff7d9d262aca8738df163dcf13ce3f68c0f1b0af53ef05b03d",
   "changes": {
     "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [
-      "sdkwork-sdk.json",
-      "src/api/platform.rs"
+      "sdkwork-sdk.json"
     ],
     "unchangedGeneratedFiles": [
       "bin/publish-core.mjs",
@@ -28,6 +27,7 @@
       "src/api/iam.rs",
       "src/api/mod.rs",
       "src/api/paths.rs",
+      "src/api/platform.rs",
       "src/client.rs",
       "src/http/client.rs",
       "src/http/mod.rs",
@@ -113,16 +113,9 @@
   "impact": {
     "schemaVersion": 1,
     "areas": [
-      "api-surface",
       "build-metadata"
     ],
     "details": [
-      {
-        "area": "api-surface",
-        "paths": [
-          "src/api/platform.rs"
-        ]
-      },
       {
         "area": "build-metadata",
         "paths": [
@@ -131,18 +124,18 @@
       }
     ],
     "requiresVerification": true,
-    "summary": "Detected impact areas: api-surface, build-metadata. Verification is required."
+    "summary": "Detected impact areas: build-metadata. Verification is required."
   },
   "verificationPlan": {
     "shouldRun": true,
     "runPhase": "now",
-    "summary": "Detected impact areas: api-surface, build-metadata. Verification is required. Run the required verification commands now against the generated SDK output.",
+    "summary": "Detected impact areas: build-metadata. Verification is required. Run the required verification commands now against the generated SDK output.",
     "steps": [
       {
         "id": "check",
         "title": "Unified package check",
         "required": true,
-        "rationale": "Validate the generated package with the unified publish helper. Triggered by: api-surface, build-metadata.",
+        "rationale": "Validate the generated package with the unified publish helper. Triggered by: build-metadata.",
         "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [
@@ -160,7 +153,7 @@
         "id": "build",
         "title": "Unified package build",
         "required": true,
-        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: api-surface, build-metadata.",
+        "rationale": "Run the full package build because this language uses a lighter check path than the final build. Triggered by: build-metadata.",
         "workingDirectory": "E:\\sdkwork-space\\sdkwork-birdcoder\\sdks\\sdkwork-birdcoder-backend-sdk\\sdkwork-birdcoder-backend-sdk-rust\\generated\\server-openapi",
         "command": "node",
         "args": [

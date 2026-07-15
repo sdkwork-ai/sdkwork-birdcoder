@@ -17,7 +17,6 @@ export interface CodeEditorWorkspacePanelProps {
   loadingDirectoryPaths: Record<string, boolean>;
   openFiles: string[];
   selectedFile?: string | null;
-  currentProjectPath?: string;
   viewingDiff: FileChange | null;
   fileContent: string;
   explorerWidth: number;

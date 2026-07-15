@@ -3,7 +3,7 @@ import { Bot, CheckCircle2, Code2, Loader2, QrCode, Send } from 'lucide-react';
 import QRCode from '../shims/qrcode';
 import { useTranslation } from 'react-i18next';
 
-interface CodeMobileProgrammingPanelProps {
+export interface CodeMobileProgrammingPanelProps {
   isActive: boolean;
   workspaceId?: string;
   projectId?: string;

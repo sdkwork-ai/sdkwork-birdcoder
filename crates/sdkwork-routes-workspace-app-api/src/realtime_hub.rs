@@ -7,13 +7,20 @@ use serde_json::json;
 use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
-use crate::realtime_config::{realtime_backend_from_env, resolve_redis_config, RealtimeBackendKind};
+use crate::realtime_config::{
+    realtime_backend_from_env, resolve_redis_config, RealtimeBackendKind,
+};
 
 const REALTIME_CHANNEL_CAPACITY: usize = 256;
 pub const MAX_WORKSPACE_REALTIME_SUBSCRIBERS: usize = 64;
+pub const MAX_WORKSPACE_REALTIME_CHANNELS: usize = 4_096;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RealtimeSubscriberLimitExceeded;
+
+fn remove_inactive_channels(channels: &mut HashMap<String, broadcast::Sender<String>>) {
+    channels.retain(|_, sender| sender.receiver_count() > 0);
+}
 
 #[derive(Debug)]
 pub enum RealtimeHubBootstrapError {
@@ -106,6 +113,7 @@ impl MemoryHub {
         workspace_id: &str,
     ) -> Result<broadcast::Receiver<String>, RealtimeSubscriberLimitExceeded> {
         let mut channels = self.channels.write().await;
+        remove_inactive_channels(&mut channels);
         if let Some(sender) = channels.get(workspace_id) {
             if sender.receiver_count() >= MAX_WORKSPACE_REALTIME_SUBSCRIBERS {
                 return Err(RealtimeSubscriberLimitExceeded);
@@ -113,13 +121,17 @@ impl MemoryHub {
             return Ok(sender.subscribe());
         }
 
+        if channels.len() >= MAX_WORKSPACE_REALTIME_CHANNELS {
+            return Err(RealtimeSubscriberLimitExceeded);
+        }
         let (sender, receiver) = broadcast::channel(REALTIME_CHANNEL_CAPACITY);
         channels.insert(workspace_id.to_string(), sender);
         Ok(receiver)
     }
 
     async fn publish(&self, workspace_id: &str, message: &str) {
-        let channels = self.channels.read().await;
+        let mut channels = self.channels.write().await;
+        remove_inactive_channels(&mut channels);
         if let Some(sender) = channels.get(workspace_id) {
             let _ = sender.send(message.to_string());
         }
@@ -138,13 +150,14 @@ impl RedisHub {
                 "create Redis client for workspace realtime hub failed: {error}"
             ))
         })?;
-        let mut probe = publish_client.get_multiplexed_async_connection().await.map_err(
-            |error| {
+        let mut probe = publish_client
+            .get_multiplexed_async_connection()
+            .await
+            .map_err(|error| {
                 RealtimeHubBootstrapError::RedisConnect(format!(
                     "connect Redis for workspace realtime hub failed: {error}"
                 ))
-            },
-        )?;
+            })?;
         let _: String = redis::cmd("PING")
             .query_async(&mut probe)
             .await
@@ -178,6 +191,7 @@ impl RedisHub {
         workspace_id: &str,
     ) -> Result<broadcast::Receiver<String>, RealtimeSubscriberLimitExceeded> {
         let mut channels = self.channels.write().await;
+        remove_inactive_channels(&mut channels);
         if let Some(sender) = channels.get(workspace_id) {
             if sender.receiver_count() >= MAX_WORKSPACE_REALTIME_SUBSCRIBERS {
                 return Err(RealtimeSubscriberLimitExceeded);
@@ -185,6 +199,9 @@ impl RedisHub {
             return Ok(sender.subscribe());
         }
 
+        if channels.len() >= MAX_WORKSPACE_REALTIME_CHANNELS {
+            return Err(RealtimeSubscriberLimitExceeded);
+        }
         let (sender, receiver) = broadcast::channel(REALTIME_CHANNEL_CAPACITY);
         channels.insert(workspace_id.to_string(), sender);
         Ok(receiver)
@@ -234,7 +251,8 @@ fn spawn_redis_forwarder(
                     continue;
                 }
 
-                let channels = channels.read().await;
+                let mut channels = channels.write().await;
+                remove_inactive_channels(&mut channels);
                 if let Some(sender) = channels.get(workspace_id) {
                     let _ = sender.send(payload);
                 }
@@ -300,6 +318,20 @@ mod tests {
             hub.subscribe(workspace_id).await,
             Err(RealtimeSubscriberLimitExceeded)
         ));
+    }
+
+    #[tokio::test]
+    async fn removes_channel_after_last_receiver_is_dropped() {
+        let hub = WorkspaceRealtimeHub::new();
+        let receiver = hub.subscribe("workspace-expired").await.expect("subscribe");
+        drop(receiver);
+
+        hub.publish("workspace-expired", "ignored").await;
+
+        let HubBackend::Memory(memory) = &hub.backend else {
+            panic!("test hub must use memory backend");
+        };
+        assert!(memory.channels.read().await.is_empty());
     }
 
     #[test]

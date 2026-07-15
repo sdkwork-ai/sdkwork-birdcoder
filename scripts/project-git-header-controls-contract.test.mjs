@@ -75,6 +75,73 @@ const createBranchDialogSource = readSource(
   'components',
   'ProjectGitCreateBranchDialog.tsx',
 );
+const gitMutationActionsSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-commons',
+  'src',
+  'hooks',
+  'useProjectGitMutationActions.ts',
+);
+const worktreeManagementPanelSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'ProjectGitWorktreeManagementPanel.tsx',
+);
+const worktreeMenuSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'ProjectGitWorktreeMenu.tsx',
+);
+const overviewSurfaceSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'ProjectGitOverviewSurface.tsx',
+);
+const branchMenuSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'ProjectGitBranchMenu.tsx',
+);
+const englishGitLocaleSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-i18n',
+  'src',
+  'locales',
+  'en',
+  'code',
+  'sidebar.ts',
+);
+const chineseGitLocaleSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-i18n',
+  'src',
+  'locales',
+  'zh',
+  'code',
+  'sidebar.ts',
+);
 
 assert.match(
   sharedControlsSource,
@@ -159,5 +226,57 @@ assert.match(
   /const overviewDrawerLabel = isOverviewDrawerOpen \? t\('code\.closeGitOverview'\) : t\('code\.openGitOverview'\);/,
   'Shared ProjectGitHeaderControls must use explicit open and close Git overview labels instead of a static generic title.',
 );
+
+assert.match(
+  gitMutationActionsSource,
+  /await gitService\.createProjectGitWorktree\(nextProjectId, \{\s*branchName: normalizedBranchName,\s*\}\s*,?\s*\)/s,
+  'Git worktree creation must send only the generated SDK branchName request field.',
+);
+
+assert.match(
+  gitMutationActionsSource,
+  /await gitService\.removeProjectGitWorktree\(nextProjectId, \{[\s\S]*worktreeKey,[\s\S]*\}\s*,?\s*\)/s,
+  'Git worktree removal must address the generated SDK worktreeKey identity.',
+);
+
+for (const [sourceName, source] of [
+  ['Git mutation hook', gitMutationActionsSource],
+  ['Git worktree management panel', worktreeManagementPanelSource],
+  ['Git worktree menu', worktreeMenuSource],
+  ['Git overview surface', overviewSurfaceSource],
+  ['Git branch menu', branchMenuSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /repositoryRootPath|currentWorktreePath|worktree\.path|worktree\.label|worktree\.id|worktree\.isLocked|worktree\.isPrunable|upstreamName|\.ahead\b|\.behind\b/,
+    `${sourceName} must not consume retired local-path or pre-migration Git DTO fields.`,
+  );
+}
+
+assert.match(
+  worktreeManagementPanelSource,
+  /await createWorktree\(branchName\)/,
+  'Git worktree management must create worktrees from a branch name without collecting a local path.',
+);
+
+assert.match(
+  worktreeManagementPanelSource,
+  /worktreeKey,/,
+  'Git worktree management must use worktreeKey for removal requests.',
+);
+
+for (const [localeName, source] of [
+  ['English Git locale', englishGitLocaleSource],
+  ['Chinese Git locale', chineseGitLocaleSource],
+]) {
+  assert.match(source, /worktreeKey:/, `${localeName} must name the remote worktree identity.`);
+  assert.match(source, /unstaged:/, `${localeName} must expose the generated unstaged status count.`);
+  assert.match(source, /remoteBranch:/, `${localeName} must expose the generated remote-branch state.`);
+  assert.doesNotMatch(
+    source,
+    /worktreePath|worktreePathPlaceholder|worktreePathHint|modified:|deleted:|conflicted:|ahead:|behind:|locked:/,
+    `${localeName} must not retain retired path or pre-migration Git DTO copy.`,
+  );
+}
 
 console.log('project git header controls contract passed.');

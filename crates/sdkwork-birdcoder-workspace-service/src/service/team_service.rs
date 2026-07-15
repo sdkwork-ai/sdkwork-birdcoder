@@ -57,7 +57,9 @@ impl TeamService {
         limit: usize,
     ) -> Result<(Vec<TeamMemberPayload>, usize), WorkspaceError> {
         if is_blank(Some(team_id)) {
-            return Err(WorkspaceError::InvalidInput("teamId is required.".to_owned()));
+            return Err(WorkspaceError::InvalidInput(
+                "teamId is required.".to_owned(),
+            ));
         }
 
         self.team_repository

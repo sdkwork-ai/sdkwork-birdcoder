@@ -2,127 +2,194 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-07-12
-Specs: `APPLICATION_LAYERED_ARCHITECTURE_SPEC.md`, `APP_PC_ARCHITECTURE_SPEC.md`, `DESKTOP_APP_ARCHITECTURE_SPEC.md`, `ARCHITECTURE_DECISION_SPEC.md`, `API_SPEC.md`, `SDK_SPEC.md`, `DATABASE_SPEC.md`, `SECURITY_SPEC.md`, `DEPLOYMENT_SPEC.md`
+Updated: 2026-07-14
+Specs: `ARCHITECTURE_DECISION_SPEC.md`, `APP_PC_ARCHITECTURE_SPEC.md`, `DESKTOP_APP_ARCHITECTURE_SPEC.md`, `APP_SDK_INTEGRATION_SPEC.md`, `API_SPEC.md`, `CONFIG_SPEC.md`, `RUNTIME_DIRECTORY_SPEC.md`, `SECURITY_SPEC.md`, `DEPLOYMENT_SPEC.md`
 
 ## 1. Architecture Overview
 
-BirdCoder has one product model and two runtime topologies:
+BirdCoder has one PC React renderer and one application-service model. Browser
+and Tauri differ only at the host-capability boundary; they do not fork project
+contracts, API clients, or feature services.
 
 ```text
-standalone desktop
-  React/Tauri -> embedded Rust gateway -> coding-session service/store
-  -> BirdCoder kernel bridge -> sdkwork-agents runtime facade -> sdkwork-kernel provider
-  -> authorized local project
+Browser or Tauri renderer
+  -> PC React features and application services
+  -> Project service -> composed @sdkwork/birdcoder-app-sdk -> BirdCoder server
+  -> Runtime file-system service -> Browser or Tauri device adapter
 
-cloud
-  web/desktop/mobile -> stateless control plane -> durable operation store/scheduler
-  -> isolated workspace runner -> sdkwork-agents runtime facade -> sdkwork-kernel provider
-  -> encrypted workspace volume
+BirdCoder server
+  -> authenticated project/workspace metadata and authorization
+  -> server-derived private workspace root when server-owned storage is needed
+  -> no client path, browser handle, or Tauri mount value
 ```
 
-Only `standalone` and `cloud` are deployment profiles. `local-host` and `cloud-workspace` describe where one session executes.
+The persistent boundary is deliberately split:
+
+| Concept | Owner | May cross the network? | Meaning |
+| --- | --- | --- | --- |
+| Remote Project | BirdCoder server | Yes, through the composed app SDK | Metadata, ACL, workspace identity, lifecycle state, and opaque project id. |
+| Device-private Project Mount | Current browser or Tauri device | No | A user-selected local folder capability for local IDE operations. |
+| Server Project Workspace Root | BirdCoder server | No | A server-private location derived from authenticated scope and opaque server identifiers. |
+| Execution location | Session admission | Yes, as a capability choice | `local-host` or a future isolated remote runner; it is not a deployment profile. |
+| Deployment profile | Deployment configuration | Yes, as public non-secret configuration | `standalone` or `cloud`, with a separate runtime target. |
+
+`rootPath`, `sitePath`, native absolute paths, browser handles, and server
+workspace roots are not remote-project fields. A local folder is not a portable
+project identity and never becomes an implicit upload, remote filesystem, or
+server working directory.
 
 ## 2. Current Implementation Truth
 
-| Area | State |
-| --- | --- |
-| Turn contract | Implemented: cwd, model/options, timeout/output budget, approval/sandbox policy, and provider-native session flow through the BirdCoder bridge. |
-| Persistence | Implemented: turn/session/event finalization and native-session persistence use repository transactions and tenant-scoped project lookup. Event sequence allocation is transaction-safe. Multi-step operations (edit/delete message, approval, question answer) are wrapped in single transactions. Durable operation SQL is validated and correct. |
-| OOM protection | Implemented: Codex CLI stdout capped at 10 MB, stderr at 1 MB, file reads at 8 MB. Process output is truncated or errored before unbounded memory growth. |
-| Provider scope | Implemented: BirdCoder exposes only Codex, Claude Code, Gemini, and OpenCode P0 slots. |
-| Provider honesty | Partially implemented: runtime and desktop CLI checks fail closed, but the server catalog still needs one authoritative runtime-health projection. |
-| Installed runtime | Blocked: current artifacts do not yet contain a complete versioned provider-runtime bundle and must not depend on repository-relative worker paths. |
-| Cloud execution | Blocked: no production durable scheduler, lease/fencing model, or strongly isolated workspace runner is complete yet. |
+| Capability | State | Production truth |
+| --- | --- | --- |
+| Browser and Tauri project control plane | Implemented | Both use the composed BirdCoder app SDK and the same project service contract. |
+| Device-private project mounts | Implemented | Browser handles remain in IndexedDB; Tauri paths remain in host-private SQLite and are never remote project fields. |
+| SQLite standalone persistence | Implemented | Generated SQLite DDL includes inline foreign keys and runtime connections enable foreign-key enforcement. SQLite remains single-node storage. |
+| PostgreSQL control-plane persistence | Implemented, release-gated | Production repositories use SQLx `AnyPool`; CI live smoke covers generated DDL, repository pagination and scope, transactions, and foreign keys against PostgreSQL. |
+| Multi-replica realtime and rate limiting | Implemented, profile-gated | The HA values profile requires Redis for realtime and shared rate-limit counters; Redis failures fail closed for protected commerce traffic. |
+| Cloud execution | Blocked | No production remote runner is enabled. Remote execution remains unavailable until isolation, scheduling, recovery, and capacity evidence pass review. |
+| Public commercial release | Blocked | All four application manifests remain `DRAFT` and `preLaunch`; real signed artifacts, checksums, SBOM, rollback, and capacity evidence are required. |
 
-Route counts, generated SDK output, static catalog status, or synthetic smoke fixtures are contract evidence only. They are not installed-runtime evidence.
+HTTP OpenAPI and route-catalog counts describe contract coverage only. synthetic smoke fixtures are contract evidence only; they are not installed-runtime, capacity, security, or release-artifact evidence.
 
-## 3. Ownership And Dependency Boundaries
+## 3. Unified Renderer And Host Capabilities
 
-- PC/H5/Flutter own presentation, session workflows, and generated SDK consumption.
-- HTTP routes decode/encode SDKWork contracts and delegate to services; they do not own business policy or SQL.
-- Coding-session services own validation and orchestration through repository/provider ports.
-- SQLx repositories own SQLite/PostgreSQL persistence and scoped transactions.
-- The standalone gateway owns process bootstrap and dependency wiring, not durable scheduling.
-- The Tauri host owns native dialogs, filesystem/process/credential adapters, and embedded gateway startup, not business routes.
-- `sdkwork-birdcoder-kernel-bridge` adapts BirdCoder records to `sdkwork-agents-runtime-facade`.
-- `sdkwork-agents` owns managed-agent business behavior; `sdkwork-kernel` owns provider SPI and transports.
-- `SDKWORK_APP_ROOT` or `SDKWORK_BIRDCODER_APP_ROOT` selects the BirdCoder application profile; `SDKWORK_IAM_APP_ROOT` remains the sibling `sdkwork-iam` catalog/database-assets root.
+The renderer calls narrow application ports instead of platform APIs directly.
+Project data flows through the app service and the composed
+`@sdkwork/birdcoder-app-sdk`; file operations flow through
+`RuntimeFileSystemService`. The host adapter is selected at runtime:
 
-BirdCoder application code must not import provider internals, bypass the agents facade, handwrite HTTP around generated SDKs, or persist agents-owned business state locally.
+| Host | Local-folder capability | Durable mount record | Recovery behavior |
+| --- | --- | --- | --- |
+| Browser | File System Access API `FileSystemDirectoryHandle` | IndexedDB structured clone | Read the saved handle, call `queryPermission({ mode: 'readwrite' })`, and restore only when granted. |
+| Tauri | Authorized native directory bridge | Host-private `local_store_*` SQLite KV | Resolve the host-local record and remount through the native bridge. |
 
-## 4. Execution Contract
+Browser persistence never serializes a handle to JSON and never invents a
+native path. Permission recovery does not call `requestPermission`; the user
+must explicitly reauthorize or select a folder again when the browser reports
+that permission is unavailable.
 
-A provider turn carries the authorized working directory, engine/model, provider-native session id, approval and sandbox policies, sampling options, deadline, cancellation, and output budget. The bridge rejects empty output, probes, mocks, stubs, failed live SDK fallbacks, and any other result that cannot prove a real provider completion.
+Tauri stores an absolute path only inside the host-private local-store SQLite
+KV database. The record is scoped by a hash of the deployment realm, tenant,
+organization, user, and project id. It is private to the operating-system
+account and logically isolated by the active IAM scope, but it is plaintext
+data at rest. BirdCoder does not claim encryption at rest for this store. A
+future secure-store/keychain-backed design is required before making an
+encryption claim.
 
-Local paths are canonicalized and must remain inside the selected project root. Cloud requests never provide a server filesystem path; the control plane resolves an opaque workspace id to an authorized runner and volume.
+Only a safe mount status and display name leave the mount registry. Paths and
+handles are excluded from React state intended for project metadata, SDK/API
+DTOs, telemetry, remote caches, and server logs. A session, tenant,
+organization, or user change clears in-memory mounts, watchers, pollers, and
+file caches before a new subject can use the file-system service.
 
-Provider state is split into four facts:
+## 4. Project, API, And Server Ownership
 
-1. cataloged: the product knows the provider contract;
-2. runtime available: required binary/worker/assets exist and authentication can be attempted;
-3. conformance passed: a real installed-artifact test passed;
-4. production enabled: policy allows selection for the current deployment.
+Remote project operations use the generated BirdCoder app SDK through the
+composed consumer facade. SDK construction stays in bootstrap, and feature
+services do not construct raw HTTP requests or manually attach credentials.
+SDKWork-owned API operations use the standard response envelope and typed
+problem details described by `API_SPEC.md`.
 
-Only the fourth state may be presented as ready for production use.
+The server authorizes every remote project and workspace operation with the
+typed IAM context. Tenant, organization, user/membership, workspace, project,
+and worktree identifiers are authorization inputs; a request-supplied path is
+not. When a server operation needs storage, it derives a private root from
+that context and server-issued identifiers under the configured server-owned
+workspace root. It does not accept, return, or log a client filesystem path.
 
-## 5. Data Isolation And Concurrency
+`SDKWORK_APP_ROOT` or `SDKWORK_BIRDCODER_APP_ROOT` selects the BirdCoder
+application profile. `SDKWORK_IAM_APP_ROOT` remains the sibling `sdkwork-iam` catalog/database-assets root; it is never a BirdCoder profile root or project workspace root.
 
-Standalone desktop uses user-private SQLite/runtime files and the selected project directory. It does not upload local source by default.
+This prevents two common errors:
 
-Cloud metadata is scoped by tenant, organization, membership/user, workspace, project, session, and operation. PostgreSQL is authoritative for admission, idempotency, lease/fencing, ordered events, final outcome, and outbox state. Redis may accelerate realtime delivery and queue projections but cannot grant authorization or become the only operation record.
+- a browser directory handle being mistaken for a server filesystem location;
+- a Tauri device path leaking into another device, user, project mirror, SDK
+  response, or server process.
 
-Each active runner binding receives private workspace storage, `HOME`, provider state, credentials, temporary files, process namespace, network policy, and CPU/memory/time budgets. Membership is revalidated before dispatch, attach/resume, secret grant, interaction answer, and continuation. Public arbitrary-code multi-tenancy requires a reviewed strong sandbox such as gVisor, Kata, microVM, or evidenced equivalent.
+## 5. Isolation And Runtime Truth
 
-Initial admission defaults are one active turn per user and four globally, configurable via `BIRDCODER_MAX_CONCURRENT_CODE_ENGINE_TURNS` and `BIRDCODER_MAX_CONCURRENT_CODE_ENGINE_TURNS_PER_USER` environment variables. Leases use fencing tokens so a recovered worker cannot commit after ownership changes. Idle workspaces are suspendable and resume from durable metadata plus encrypted snapshots.
+Remote users have independent project metadata authorization and must have
+independent server workspace and runtime bindings. A server-owned workspace
+root is not a shared client mount: its layout, ACLs, process credentials,
+temporary files, provider state, and logs must be derived from the authorized
+tenant/organization/user/workspace/project binding. User-controlled path
+segments and process-current-directory fallbacks are prohibited.
+
+`SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT` identifies a server-owned project
+workspace base. It is not a client-mount import channel and does not enable
+remote arbitrary-code execution. Current server configuration deliberately
+reports code execution as unavailable for production remote `server` and
+`container` targets, and for the `cloud` profile. A remote execution feature
+may be enabled only after a durable scheduler, authorized runner lifecycle,
+strong isolation, secret boundary, resource limits, and recovery evidence are
+implemented. Until then, remote file, terminal, run, and deployment actions
+must return a typed unavailable outcome rather than falling back to a process
+directory or another user's storage.
 
 ## 6. Runtime Packaging And Readiness
 
-Desktop, server, and container releases need one provider-runtime asset contract containing:
+| Package or runtime | Readiness | Required promotion evidence |
+| --- | --- | --- |
+| Browser bundle | Pre-launch | Production build, SDK contract tests, browser recovery tests, checksum, SBOM, and smoke evidence. |
+| Windows Tauri desktop | Pre-launch | Signed installer, trust verification, mount isolation, local terminal limits, upgrade, and rollback smoke. |
+| Standalone server | Pre-launch | Generated OpenAPI parity, SQLite and PostgreSQL repository tests, backup/restore, security, and sustained-load evidence. |
+| Kubernetes HA control plane | Pre-launch | PostgreSQL and Redis failover, three-replica smoke, HPA/PDB behavior, immutable image digest, backup restore, and capacity evidence. |
+| Cloud execution | Blocked | Isolated runner, durable scheduler, resource quotas, secret brokering, recovery, and abuse testing. |
 
-- Node/runtime executable where a Node worker is required;
-- provider worker scripts and built SDK/CLI dependencies;
-- platform/architecture, versions, checksums, and license/source metadata;
-- an install-root-relative resolver with no compiled repository path fallback;
-- a manifest consumed by startup health, release packaging, and smoke tests.
+Default Kubernetes values intentionally run one control-plane replica. Scale-out
+requires `values-postgresql-ha.yaml`, external PostgreSQL and Redis, protected
+secrets, and successful target-environment live smokes. A route being present in
+OpenAPI does not enable a blocked runtime capability.
 
-Missing assets are a typed unavailable state. Development may use explicit environment overrides; release mode must resolve only packaged or operator-configured assets. A packaged smoke installs or extracts into a clean temporary root, starts the real binary, checks readiness, executes enabled providers, verifies cwd and native-session continuation, and confirms cleanup.
+## 7. Deployment And Runtime Topology
 
-## 7. Deployment Topology
+| Deployment | Runtime target | Supported responsibility | Execution truth |
+| --- | --- | --- | --- |
+| Windows local IDE | `standalone` + `desktop` | Tauri host, same renderer, device-private folder mount, embedded local services | Local-host operations are bounded by the selected local mount. |
+| Browser IDE against a private server | `standalone` + `server` | Remote project metadata/control plane and browser-local folder capabilities | The server must not execute against a client folder; remote execution is unavailable. |
+| Tauri IDE against a private server | `standalone` + `server` | Same remote project/control-plane API plus a device-private Tauri mount | The desktop path stays on the device and is never sent to the server. |
+| Remote cloud control plane | `cloud` + `server` or `container` | Authenticated metadata/control-plane deployment with PostgreSQL and explicit origins | A cloud runner is not currently enabled; no encrypted-workspace claim is made. |
 
-- Standalone desktop: signed Tauri bundle, embedded gateway, SQLite, user-private data, selected local project, packaged runtime manifest, and OS credential integration.
-- Standalone server/appliance: one application unit with PostgreSQL where shared state is required; code execution is disabled unless an approved runtime bundle or isolated runner is configured.
-- Cloud: stateless control services, PostgreSQL, scheduler/workspace manager, strong-isolation runners, encrypted workspace storage, secret broker, Redis projections, autoscaling, observability, backup, and rollback.
+`standalone` and `cloud` are the only deployment profiles. `browser`,
+`desktop`, `server`, and `container` are runtime targets, not additional
+profiles. Cloud validation requires a non-loopback bind, explicit non-wildcard
+origins, PostgreSQL, and a protected database URL. Detailed operator steps are
+in [deployment operations](../../guides/operator/deployment-operations.md) and
+the [Windows Server guide](../../guides/operator/windows-server-control-plane.md).
 
-Cloud and standalone expose the same shared API contract. A topology that cannot execute code returns a typed unavailable capability instead of changing schemas or silently falling back.
+## 8. Security And Privacy
 
-## 8. Architecture Decisions
+- Backend authorization, not client UI state, enforces tenant, organization,
+  membership, project, and workspace isolation.
+- Device mount paths, browser handles, credentials, server roots, and runtime
+  secrets are not API response fields and must be redacted from diagnostics.
+- Browser and Tauri use the same IAM session model, but local mount recovery is
+  scoped to the active authenticated subject and deployment realm.
+- Browser-visible `VITE_*` configuration is public configuration only. Database
+  URLs, tokens, private keys, and provider credentials belong in protected
+  server or host storage.
+- CORS origins are explicit in remote deployments; wildcard origins are not a
+  cloud configuration option.
 
-The product contract is [PRD.md](../../product/prd/PRD.md). Normative API,
-security, deployment, persistence, SDK, and test rules are referenced from the
-relative sdkwork-specs files. Historical ADRs, lane notes, and step documents
-are intentionally not maintained as parallel sources of truth.
+## 9. Architecture Decision Index
 
-## 9. Verification
+- [ADR-20260713: Unified project/runtime boundary](../decisions/ADR-20260713-unified-project-runtime-boundary.md)
+- [Runtime topology contract](../topology-standard.md)
+- [Environment reference](../../reference/environment.md)
+
+## 10. Verification
 
 ```bash
-pnpm run check:arch
-pnpm run check:server
-pnpm run check:kernel-birdcoder-alignment
-pnpm run check:agents-birdcoder-alignment
-cargo test -p sdkwork-birdcoder-kernel-bridge
-cargo test -p sdkwork-birdcoder-standalone-gateway
-cargo test -p sdkwork-birdcoder-coding-sessions-service
-cargo test -p sdkwork-birdcoder-coding-sessions-repository-sqlx
-node ../sdkwork-specs/tools/check-repository-docs-standard.mjs --root . --profile application
+pnpm.cmd check:file-system-boundary
+pnpm.cmd check:project-inventory-standard
+pnpm.cmd check:desktop
+pnpm.cmd check:server
+pnpm.cmd check:multi-mode
+node ..\sdkwork-specs\tools\check-repository-docs-standard.mjs --root . --profile application
+pnpm.cmd docs:build
 ```
 
-## 10. Database Integrity
-
-SQLite and PostgreSQL baselines declare inline `REFERENCES` foreign-key constraints for all session, skill, project, team, workspace, template, deployment, and commerce order tables. SQLite enables `PRAGMA foreign_keys = ON` on every connection. `studio_project_document`, `studio_deployment_target`, and `studio_deployment_record` use `INTEGER`/`BIGINT` `project_id` matching `studio_project.id`. Commerce membership numeric fields (`total_spent`, `growth_value`, `price`) use `NUMERIC`; integer counters (`points`, `remaining_days`, `duration_days`, `sort_weight`) use `INTEGER`.
-
-Rate-limit API key buckets use SHA-256 hash of the bearer token (first 16 bytes, hex-encoded) to avoid storing any part of the secret in the rate limit store.
-
-`list_turns` uses SQL-level `LIMIT`/`OFFSET` pagination with total count, aligned with `PAGINATION_SPEC.md` §2.
-
-Release promotion additionally requires clean-install provider runtime smokes with mock fallback disabled and credential-backed evidence for every enabled provider.
+The API/SDK checks required by `API_SPEC.md` and
+`APP_SDK_INTEGRATION_SPEC.md` remain release gates whenever remote project
+contracts or client service integration change.

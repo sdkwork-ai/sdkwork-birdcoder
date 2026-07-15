@@ -102,6 +102,10 @@ const infrastructureSessionServiceSource = readText(
   rootDir,
   'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/sessionService.ts',
 );
+const infrastructureCurrentSessionSource = readText(
+  rootDir,
+  'apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/iamCurrentSession.ts',
+);
 
 const iamStandardLane = rootPackageJson.scripts?.['check:iam-standard'];
 assert.equal(typeof iamStandardLane, 'string');
@@ -273,13 +277,28 @@ assert.doesNotMatch(
 );
 assert.match(
   vipMembershipServiceSource,
-  /appClient\.commerce\.memberships\.current\.retrieve\(\)/u,
-  'birdcoder vip membership service must read current membership through the generated commerce.memberships.current SDK surface.',
+  /from '@sdkwork\/membership-service'/u,
+  'birdcoder vip membership service must consume the composed SDKWork membership service boundary.',
 );
 assert.match(
   vipMembershipServiceSource,
-  /appClient\.commerce\.memberships\.packageGroups\.list\(\)/u,
-  'birdcoder vip membership service must read membership package groups through the generated commerce.memberships.packageGroups SDK surface.',
+  /hasSdkworkMembershipSession\(\)/u,
+  'birdcoder vip membership service must require the configured membership session before loading protected data.',
+);
+assert.match(
+  vipMembershipServiceSource,
+  /membershipService\.memberships\.current\.retrieve\(\)/u,
+  'birdcoder vip membership service must retrieve the current membership through the composed membership SDK surface.',
+);
+assert.match(
+  vipMembershipServiceSource,
+  /membershipService\.memberships\.packageGroups\.list\(\{\}\)/u,
+  'birdcoder vip membership service must retrieve package groups through the composed membership SDK surface.',
+);
+assert.doesNotMatch(
+  vipMembershipServiceSource,
+  /appClient\.commerce\.memberships/u,
+  'birdcoder vip membership service must not restore a retired direct BirdCoder commerce SDK client dependency.',
 );
 assert.doesNotMatch(
   vipSurfaceLocalSource,
@@ -314,8 +333,18 @@ assert.doesNotMatch(
 );
 assert.match(
   infrastructureSessionServiceSource,
+  /retrieveBirdCoderCurrentSession\(runtime\)/u,
+  'birdcoder infrastructure session consumers must restore app sessions through the current-session authority.',
+);
+assert.match(
+  infrastructureCurrentSessionSource,
   /runtime\.service\.auth\.sessions\.current\.retrieve/u,
-  'birdcoder infrastructure must restore app sessions through the appbase current-session resource.',
+  'birdcoder current-session authority must retain the appbase current-session resource as its fallback retriever.',
+);
+assert.match(
+  infrastructureIamRuntimeSource,
+  /iamAuthorityClient\.auth\.sessions\.current\.retrieve\(\)/u,
+  'birdcoder IAM runtime must bind the raw appbase current-session SDK retriever into the current-session authority.',
 );
 assert.match(
   infrastructureSessionServiceSource,

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-birdcoder-git",
+    "displayName": "SDKWork BirdCoder Git",
+    "version": "0.1.0",
+    "type": "rust-crate",
+    "root": "sdkwork-birdcoder/crates/sdkwork-birdcoder-git",
+    "domain": "workspace",
+    "declaredDomain": null,
+    "capability": "project-git",
+    "surface": "infrastructure",
+    "status": "ACTIVE",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "private": true,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "COMPONENT_SPEC.md",
+      "path": "../../../../sdkwork-specs/COMPONENT_SPEC.md",
+      "purpose": "Component-local contract and discovery rules."
+    },
+    {
+      "file": "MODULE_SPEC.md",
+      "path": "../../../../sdkwork-specs/MODULE_SPEC.md",
+      "purpose": "Reusable Rust module boundary rules."
+    },
+    {
+      "file": "CODE_STYLE_SPEC.md",
+      "path": "../../../../sdkwork-specs/CODE_STYLE_SPEC.md",
+      "purpose": "Authored source structure and generated-code boundaries."
+    },
+    {
+      "file": "NAMING_SPEC.md",
+      "path": "../../../../sdkwork-specs/NAMING_SPEC.md",
+      "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust infrastructure and process adapter rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../../../../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "Workspace-domain ownership rules."
+    },
+    {
+      "file": "SECURITY_SPEC.md",
+      "path": "../../../../sdkwork-specs/SECURITY_SPEC.md",
+      "purpose": "Command execution and filesystem boundary rules."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Git infrastructure verification rules."
+    }
+  ],
+  "contracts": {
+    "layerRole": "backend-infrastructure",
+    "publicExports": [
+      ".",
+      "sdkwork_birdcoder_git::inspect_project_git_overview",
+      "sdkwork_birdcoder_git::create_project_git_branch",
+      "sdkwork_birdcoder_git::switch_project_git_branch",
+      "sdkwork_birdcoder_git::commit_project_git_changes",
+      "sdkwork_birdcoder_git::push_project_git_branch",
+      "sdkwork_birdcoder_git::create_project_git_worktree",
+      "sdkwork_birdcoder_git::remove_project_git_worktree",
+      "sdkwork_birdcoder_git::prune_project_git_worktrees"
+    ],
+    "providedPorts": [
+      {
+        "name": "projectGitProcessOperations",
+        "export": "sdkwork_birdcoder_git::inspect_project_git_overview"
+      }
+    ],
+    "requiredPorts": [],
+    "runtimeEntrypoints": [],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "permissionComposition": {},
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "integration": {
+    "authority": "Owns local Git process execution, repository inspection, branch and worktree validation, and filesystem-safe Git mutations. Project authorization and managed worktree identity remain owned by sdkwork-birdcoder-project-service; process wiring remains owned by the standalone gateway adapter."
+  },
+  "verification": {
+    "commands": [
+      "cargo test --offline -p sdkwork-birdcoder-git -- --nocapture"
+    ]
+  }
+}

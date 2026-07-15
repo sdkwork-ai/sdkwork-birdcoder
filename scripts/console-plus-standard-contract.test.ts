@@ -246,96 +246,28 @@ const createdProject = await queries.createProject({
   workspaceId: createdWorkspace.id,
   name: 'BirdCoder Plus Project',
   description: 'Project aligned with plus-standard fields.',
-  dataScope: 'PRIVATE',
-  title: 'BirdCoder Plus Project',
-  type: 'APP',
-  rootPath: 'D:\\repos\\birdcoder-plus',
-  userId: '100000000000000301',
-  parentId: '0',
-  parentUuid: '0',
-  parentMetadata: {
-    relation: 'root',
-  },
-  sitePath: '/birdcoder-plus',
-  domainPrefix: 'birdcoder-plus',
-  fileId: 'file-1001',
-  conversationId: 'conversation-2001',
-  coverImage: {
-    url: 'https://example.test/cover.png',
-  },
-  startTime: '2026-04-23T10:00:00.000Z',
-  endTime: '2026-05-01T20:00:00.000Z',
-  budgetAmount: '101777208078558105',
-  isTemplate: true,
 });
 
 assert.equal(createdProject.dataScope, 'PRIVATE');
-assert.equal(createdProject.userId, '100000000000000301');
+assert.equal(createdProject.userId, createdWorkspace.createdByUserId);
 assert.equal(createdProject.parentId, '0');
 assert.equal(createdProject.parentUuid, '0');
-assert.deepEqual(createdProject.parentMetadata, {
-  relation: 'root',
-});
-assert.equal(createdProject.sitePath, '/birdcoder-plus');
-assert.equal(createdProject.domainPrefix, 'birdcoder-plus');
-assert.equal(createdProject.fileId, 'file-1001');
-assert.equal(createdProject.conversationId, 'conversation-2001');
-assert.deepEqual(createdProject.coverImage, {
-  url: 'https://example.test/cover.png',
-});
-assert.equal(createdProject.startTime, '2026-04-23T10:00:00.000Z');
-assert.equal(createdProject.endTime, '2026-05-01T20:00:00.000Z');
-assert.equal(
-  createdProject.budgetAmount,
-  '101777208078558105',
-  'project budgetAmount is a Java Long/BIGINT field and must remain an exact decimal string.',
-);
-assert.equal(createdProject.isTemplate, true);
-assert.equal(createdProject.rootPath, 'D:\\repos\\birdcoder-plus');
-
-await assert.rejects(
-  () =>
-    queries.createProject({
-      workspaceId: createdWorkspace.id,
-      name: 'Unsafe Long Project',
-      rootPath: 'D:\\repos\\unsafe-long-project',
-      budgetAmount: Number('101777208078558105') as unknown as string,
-    }),
-  /unsafe JavaScript number/u,
-  'project Long/BIGINT fields must reject unsafe JavaScript numbers instead of dropping the value.',
-);
-
-const createdProjectContent = await repositories.projectContents.findById(createdProject.id);
-assert.ok(
-  createdProjectContent,
-  'project rootPath must be stored in studio_project_content configData rather than non-Java studio_project columns.',
-);
-assert.equal(
-  (await repositories.projects.findById(createdProject.id))?.rootPath,
-  undefined,
-  'studio_project must not retain a rootPath shadow; studio_project_content configData is the canonical project path authority.',
-);
-assert.deepEqual(JSON.parse(createdProjectContent.configData ?? '{}'), {
-  rootPath: 'D:\\repos\\birdcoder-plus',
-});
+assert.deepEqual(createdProject.parentMetadata, {});
+assert.equal(Object.hasOwn(createdProject, 'path'), false);
+assert.equal(Object.hasOwn(createdProject, 'sitePath'), false);
+assert.equal((await repositories.projectContents.list()).length, 0);
 
 const listedProject = await queries.getProject(createdProject.id);
 assert.equal(listedProject?.id, createdProject.id);
-assert.equal(listedProject?.rootPath, 'D:\\repos\\birdcoder-plus');
+assert.equal(Object.hasOwn(listedProject ?? {}, 'path'), false);
 
 const repeatedNameProjectA = await queries.createProject({
   workspaceId: createdWorkspace.id,
   name: 'Repeated Folder',
-  title: 'Repeated Folder',
-  rootPath:
-    'D:\\workspace\\very-long-common-prefix\\that-used-to-truncate-the-project-code-before-the-unique-suffix\\a',
 });
 const repeatedNameProjectB = await queries.createProject({
   workspaceId: createdWorkspace.id,
   name: 'Repeated Folder',
-  title: 'Repeated Folder',
-  rootPath:
-    'D:\\workspace\\very-long-common-prefix\\that-used-to-truncate-the-project-code-before-the-unique-suffix\\b',
 });
 assert.notEqual(
   repeatedNameProjectA.name,
@@ -345,7 +277,7 @@ assert.notEqual(
 assert.notEqual(
   repeatedNameProjectA.code,
   repeatedNameProjectB.code,
-  'console createProject must persist Java-unique studio_project.code values for long common path prefixes.',
+  'console createProject must persist Java-unique studio_project.code values for repeated display names.',
 );
 assert.equal(
   repeatedNameProjectA.title,
@@ -366,19 +298,15 @@ assert.ok(
   'console generated studio_project.code must respect the Java length=64 standard for every project.',
 );
 
-await repositories.projects.save({
-  id: 'project-shadow-only-root-path',
-  workspaceId: createdWorkspace.id,
-  name: 'Shadow Only Root Path Project',
-  rootPath: 'D:\\repos\\shadow-only',
-  status: 'active',
-  createdAt: '2026-04-23T10:01:00.000Z',
-  updatedAt: '2026-04-23T10:01:00.000Z',
+const updatedProject = await queries.updateProject(createdProject.id, {
+  description: 'Updated remote project metadata.',
+  status: 'archived',
 });
 assert.equal(
-  await queries.getProject('project-shadow-only-root-path'),
-  null,
-  'studio_project.rootPath shadow data must not make a project resolvable without studio_project_content configData rootPath.',
+  updatedProject.description,
+  'Updated remote project metadata.',
+  'console project updates must keep working without a device mount.',
 );
+assert.equal(updatedProject.status, 'archived');
 
 console.log('console plus standard contract passed.');

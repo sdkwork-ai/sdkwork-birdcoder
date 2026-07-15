@@ -20,11 +20,9 @@ pub fn map_skill_package_error(
         SkillPackageError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
         }
-        SkillPackageError::InvalidInput(msg) => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            msg,
-            trace_id,
-        ),
+        SkillPackageError::InvalidInput(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
+        }
         SkillPackageError::Conflict(msg) => {
             traced_platform_problem(SdkWorkResultCode::Conflict, msg, trace_id)
         }
@@ -53,18 +51,17 @@ pub fn map_project_error(error: ProjectError, trace_id: Option<&str>) -> Problem
         ProjectError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
         }
-        ProjectError::Forbidden(msg) => traced_platform_problem(
-            SdkWorkResultCode::PermissionRequired,
-            msg,
-            trace_id,
-        ),
-        ProjectError::InvalidInput(msg) => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            msg,
-            trace_id,
-        ),
+        ProjectError::Forbidden(msg) => {
+            traced_platform_problem(SdkWorkResultCode::PermissionRequired, msg, trace_id)
+        }
+        ProjectError::InvalidInput(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
+        }
         ProjectError::Conflict(msg) => {
             traced_platform_problem(SdkWorkResultCode::Conflict, msg, trace_id)
+        }
+        ProjectError::Unavailable(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ServiceUnavailable, msg, trace_id)
         }
         ProjectError::GitOperation(msg) => traced_legacy_problem("git_operation", msg, trace_id),
         ProjectError::Repository(_) => traced_problem_json(
@@ -85,19 +82,14 @@ pub fn map_project_error(error: ProjectError, trace_id: Option<&str>) -> Problem
     }
 }
 
-pub fn map_app_template_error(
-    error: AppTemplateError,
-    trace_id: Option<&str>,
-) -> ProblemJsonBody {
+pub fn map_app_template_error(error: AppTemplateError, trace_id: Option<&str>) -> ProblemJsonBody {
     match error {
         AppTemplateError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
         }
-        AppTemplateError::InvalidInput(msg) => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            msg,
-            trace_id,
-        ),
+        AppTemplateError::InvalidInput(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
+        }
         AppTemplateError::Repository(_) => traced_problem_json(
             StatusCode::INTERNAL_SERVER_ERROR,
             client_safe_data_access_problem(),

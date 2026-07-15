@@ -33,9 +33,8 @@ fn append_required_tenant_filter(
     tenant_column: &str,
     sql: &mut String,
 ) -> Result<i64, DeploymentError> {
-    let tenant_id = require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
-        DeploymentError::Forbidden("A valid tenant scope is required.".to_owned())
-    })?;
+    let tenant_id = require_scoped_tenant_id(&ctx.tenant_id)
+        .map_err(|_| DeploymentError::Forbidden("A valid tenant scope is required.".to_owned()))?;
     sql.push_str(&format!(" AND {tenant_column} = ?"));
     Ok(tenant_id)
 }

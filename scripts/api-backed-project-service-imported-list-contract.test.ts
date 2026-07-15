@@ -13,14 +13,12 @@ import type { IProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkw
 function createLocalProject(
   id: string,
   workspaceId: string,
-  path: string,
 ): BirdCoderProject {
   return {
     id,
     workspaceId,
     name: `${id} local mirror`,
     description: `${id} has been imported into this IDE.`,
-    path,
     createdAt: '2026-04-27T10:00:00.000Z',
     updatedAt: '2026-04-27T10:00:00.000Z',
     codingSessions: [],
@@ -30,39 +28,33 @@ function createLocalProject(
 function createRemoteSummary(
   id: string,
   workspaceId: string,
-  rootPath: string,
 ): BirdCoderProjectSummary {
   return {
     id,
     workspaceId,
     name: `${id} remote summary`,
     description: `${id} exists in the remote catalog.`,
-    rootPath,
     status: 'active',
     createdAt: '2026-04-27T10:00:00.000Z',
     updatedAt: '2026-04-27T10:10:00.000Z',
-  };
+  } as BirdCoderProjectSummary;
 }
 
 const importedSelectedProject = createLocalProject(
   'project-imported-selected',
   'workspace-selected',
-  'D:\\repos\\imported-selected',
 );
 const importedOtherWorkspaceProject = createLocalProject(
   'project-imported-other-workspace',
   'workspace-other',
-  'D:\\repos\\imported-other',
 );
 const remoteOnlySelectedProject = createRemoteSummary(
   'project-remote-only-selected',
   'workspace-selected',
-  'D:\\repos\\remote-only-selected',
 );
 const remoteOnlyOtherWorkspaceProject = createRemoteSummary(
   'project-remote-only-other-workspace',
   'workspace-other',
-  'D:\\repos\\remote-only-other',
 );
 
 const localProjects = [
@@ -70,16 +62,8 @@ const localProjects = [
   importedOtherWorkspaceProject,
 ];
 const remoteSummaries = [
-  createRemoteSummary(
-    importedSelectedProject.id,
-    importedSelectedProject.workspaceId,
-    importedSelectedProject.path!,
-  ),
-  createRemoteSummary(
-    importedOtherWorkspaceProject.id,
-    importedOtherWorkspaceProject.workspaceId,
-    importedOtherWorkspaceProject.path!,
-  ),
+  createRemoteSummary(importedSelectedProject.id, importedSelectedProject.workspaceId),
+  createRemoteSummary(importedOtherWorkspaceProject.id, importedOtherWorkspaceProject.workspaceId),
   remoteOnlySelectedProject,
   remoteOnlyOtherWorkspaceProject,
 ];
@@ -120,7 +104,6 @@ const writeService = {
       workspaceId: summary.workspaceId,
       name: summary.name,
       description: summary.description,
-      path: summary.rootPath,
       createdAt: summary.createdAt,
       updatedAt: summary.updatedAt,
       archived: summary.status === 'archived',
@@ -147,13 +130,13 @@ const visibleSnapshots = await service.getProjectMirrorSnapshots('workspace-sele
 
 assert.deepEqual(
   visibleProjects.map((project) => project.id),
-  ['project-imported-selected'],
-  'project lists must only show projects imported into the selected workspace.',
+  ['project-imported-selected', 'project-remote-only-selected'],
+  'project lists must show every authorized project in the selected workspace, including a remote project without a local mount.',
 );
 assert.deepEqual(
   visibleSnapshots.map((project) => project.id),
-  ['project-imported-selected'],
-  'project mirror snapshot inventory must only show projects imported into the selected workspace.',
+  ['project-imported-selected', 'project-remote-only-selected'],
+  'project mirror snapshot inventory must show every authorized project in the selected workspace, including a remote project without a local mount.',
 );
 assert.equal(
   visibleProjects[0]?.workspaceId,
@@ -165,10 +148,31 @@ assert.equal(
   'workspace-selected',
   'project snapshot lists must never leak projects from unselected workspaces.',
 );
+assert.equal(
+  Object.hasOwn(
+    visibleProjects.find((project) => project.id === remoteOnlySelectedProject.id) ?? {},
+    'path',
+  ),
+  false,
+  'an authorized remote project must remain visible without embedding a client-local path.',
+);
+assert.equal(
+  Object.hasOwn(
+    visibleSnapshots.find((project) => project.id === remoteOnlySelectedProject.id) ?? {},
+    'path',
+  ),
+  false,
+  'an authorized remote project snapshot must remain visible without embedding a client-local path.',
+);
 assert.deepEqual(
   mirroredProjectIds,
-  ['project-imported-selected', 'project-imported-selected'],
-  'project list reads must not auto-import remote catalog-only projects into the local mirror.',
+  [
+    'project-imported-selected',
+    'project-remote-only-selected',
+    'project-imported-selected',
+    'project-remote-only-selected',
+  ],
+  'project list reads must project every authorized selected-workspace project into the device-local mirror without using a local mount as an authorization gate.',
 );
 assert.deepEqual(
   listProjectRequests,

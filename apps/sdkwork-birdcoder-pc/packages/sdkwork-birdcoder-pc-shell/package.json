@@ -16,6 +16,7 @@
     "@sdkwork/birdcoder-pc-code": "workspace:*",
     "@sdkwork/birdcoder-pc-commons": "workspace:*",
     "@sdkwork/birdcoder-pc-settings": "workspace:*",
+    "@sdkwork/birdcoder-pc-shell-runtime": "workspace:*",
     "@sdkwork/birdcoder-pc-studio": "workspace:*",
     "@sdkwork/birdcoder-pc-multiwindow": "workspace:*",
     "@sdkwork/birdcoder-pc-types": "workspace:*",
@@ -40,5 +41,4 @@
     }
   }
 }
-
 

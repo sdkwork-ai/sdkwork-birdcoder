@@ -20,8 +20,8 @@ const studioPageSource = fs.readFileSync(studioPagePath, 'utf8');
 
 assert.match(
   studioPageSource,
-  /<div className="flex-1 min-h-0">\s*<UniversalChat/s,
-  'StudioChatSidebar sidebar chat must be wrapped in a flex-1 min-h-0 container so the chat body fits below the header.',
+  /<div className="flex-1 min-h-0">\s*<DeferredUniversalChat/s,
+  'StudioChatSidebar sidebar chat must keep the deferred chat surface inside a flex-1 min-h-0 container so the chat body fits below the header.',
 );
 
 assert.match(

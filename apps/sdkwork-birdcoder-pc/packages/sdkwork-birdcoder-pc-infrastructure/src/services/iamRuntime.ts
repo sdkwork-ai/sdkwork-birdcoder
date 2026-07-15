@@ -232,13 +232,13 @@ function resolveBirdCoderRuntimeSdkBaseUrl(envNames: readonly string[]): string 
   for (const envName of envNames) {
     const envValue = readBirdCoderRuntimeEnv(envName);
     if (envValue) {
-      return envValue;
+      return resolveBirdCoderBrowserDevelopmentSdkBaseUrl(envValue);
     }
   }
 
   const runtimeConfig = getDefaultBirdCoderIdeServicesRuntimeConfig();
   if (runtimeConfig.apiBaseUrl) {
-    return runtimeConfig.apiBaseUrl;
+    return resolveBirdCoderBrowserDevelopmentSdkBaseUrl(runtimeConfig.apiBaseUrl);
   }
 
   if (typeof window !== 'undefined' && window.location?.origin) {
@@ -246,6 +246,41 @@ function resolveBirdCoderRuntimeSdkBaseUrl(envNames: readonly string[]): string 
   }
 
   return BIRDCODER_DEFAULT_LOCAL_API_BASE_URL;
+}
+
+export function resolveBirdCoderBrowserDevelopmentSdkBaseUrl(baseUrl: string): string {
+  if (typeof window === 'undefined') {
+    return baseUrl;
+  }
+
+  const runtimeWindow = window as Window & {
+    __SDKWORK_PC_REACT_ENV__?: Record<string, unknown>;
+  };
+  const runtimeEnv = runtimeWindow.__SDKWORK_PC_REACT_ENV__;
+  const runtimeMode = String(runtimeEnv?.MODE ?? runtimeEnv?.SDKWORK_VITE_MODE ?? '')
+    .trim()
+    .toLowerCase();
+  const isDevelopmentLike = runtimeEnv?.DEV === 'true'
+    || runtimeMode === 'development'
+    || runtimeMode === 'test';
+  if (!isDevelopmentLike) {
+    return baseUrl;
+  }
+
+  try {
+    const configuredUrl = new URL(baseUrl);
+    const hostname = configuredUrl.hostname.toLowerCase();
+    const isLoopback = hostname === 'localhost'
+      || hostname === '::1'
+      || /^127(?:\.\d{1,3}){3}$/u.test(hostname);
+    if (isLoopback && ['http:', 'https:'].includes(configuredUrl.protocol)) {
+      return window.location.origin;
+    }
+  } catch {
+    // Preserve the configured value so the SDK reports its normal URL error.
+  }
+
+  return baseUrl;
 }
 
 export function getBirdCoderDriveAppClient(): SdkworkDriveAppClient {
@@ -547,11 +582,21 @@ function readRuntimeEnvFromWindow(name: string): string | undefined {
 }
 
 function readIamDeploymentMode(): 'local' | 'private' | 'saas' | undefined {
-  const value = (
-    readBirdCoderRuntimeEnv('VITE_SDKWORK_DEPLOYMENT_MODE') ??
-    readBirdCoderRuntimeEnv('VITE_BIRDCODER_IAM_DEPLOYMENT_MODE')
+  const profile = (
+    readBirdCoderRuntimeEnv('VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE') ??
+    readBirdCoderRuntimeEnv('VITE_SDKWORK_DEPLOYMENT_PROFILE')
   )?.trim().toLowerCase();
-  return value === 'local' || value === 'private' || value === 'saas' ? value : undefined;
+  if (profile === 'cloud') {
+    return 'saas';
+  }
+  if (profile === 'standalone') {
+    const target = (
+      readBirdCoderRuntimeEnv('VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET') ??
+      readBirdCoderRuntimeEnv('VITE_SDKWORK_RUNTIME_TARGET')
+    )?.trim().toLowerCase();
+    return target === 'desktop' ? 'local' : 'private';
+  }
+  return undefined;
 }
 
 function readIamEnvironment(): 'dev' | 'prod' | 'test' | undefined {

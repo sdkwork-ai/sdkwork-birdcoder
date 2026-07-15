@@ -40,17 +40,14 @@
 
       [data-birdcoder-boot-card] {
         width: min(100%, 420px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 20px;
         padding: 24px;
-        background: rgba(17, 19, 26, 0.86);
-        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
-        backdrop-filter: blur(18px);
+        text-align: center;
       }
 
       [data-birdcoder-boot-row] {
         display: flex;
         align-items: center;
+        flex-direction: column;
         gap: 16px;
       }
 
@@ -65,7 +62,7 @@
       }
 
       [data-birdcoder-boot-title] {
-        font-size: 16px;
+        font-size: 24px;
         font-weight: 600;
         line-height: 1.4;
       }
@@ -97,9 +94,9 @@
           <div data-birdcoder-boot-row>
             <div data-birdcoder-boot-spinner aria-hidden="true"></div>
             <div>
-              <div data-birdcoder-boot-title>Loading application</div>
+              <div data-birdcoder-boot-title>SDKWork BirdCoder</div>
               <div data-birdcoder-boot-description>
-                Preparing desktop runtime and application shell.
+                Connecting to the local runtime and preparing your workspace.
               </div>
             </div>
           </div>

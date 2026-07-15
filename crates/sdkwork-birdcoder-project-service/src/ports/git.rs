@@ -11,7 +11,8 @@ pub struct GitBranchSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitWorktreeSummary {
-    pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub worktree_key: Option<String>,
     pub branch: Option<String>,
     pub head: Option<String>,
     pub is_current: bool,
@@ -39,9 +40,7 @@ pub struct GitProjectOverview {
     pub branches: Vec<GitBranchSummary>,
     pub current_branch: Option<String>,
     pub current_revision: Option<String>,
-    pub current_worktree_path: Option<String>,
     pub detached_head: bool,
-    pub repository_root_path: Option<String>,
     pub status: GitOverviewStatus,
     pub status_counts: GitStatusCounts,
     pub worktrees: Vec<GitWorktreeSummary>,

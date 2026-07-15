@@ -28,7 +28,7 @@ use sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineVa
 use sdkwork_birdcoder_coding_sessions_service::ports::provider::CodeEngineProvider;
 use sdkwork_birdcoder_kernel_bridge::BirdcoderKernelHost;
 
-use crate::bootstrap::config::BirdServerConfig;
+use crate::bootstrap::config::{BirdServerConfig, CodeExecutionCapability};
 use crate::bootstrap::runner_isolation::{ProviderRunnerBinding, ProviderRunnerIsolationError};
 
 const DEFAULT_CODE_ENGINE_TURN_TIMEOUT_MS: u64 = 5 * 60 * 1_000;
@@ -125,38 +125,86 @@ fn user_code_engine_turn_admission(
 }
 
 pub fn wire_code_engine_provider(config: &BirdServerConfig) -> Arc<dyn CodeEngineProvider> {
-    let host = match kernel_host() {
-        Ok(host) => Some(host),
-        Err(error) => {
-            tracing::error!(
-                error = %error,
-                "BirdCoder kernel host unavailable; coding session turns will fail until kernel bootstrap succeeds"
-            );
-            None
+    wire_code_engine_provider_with_kernel_host(config, kernel_host)
+}
+
+fn wire_code_engine_provider_with_kernel_host<F>(
+    config: &BirdServerConfig,
+    kernel_host_factory: F,
+) -> Arc<dyn CodeEngineProvider>
+where
+    F: FnOnce() -> Result<Arc<BirdcoderKernelHost>, String>,
+{
+    let execution_capability = config.code_execution_capability();
+    let host = if execution_capability == CodeExecutionCapability::LocalHost {
+        match kernel_host_factory() {
+            Ok(host) => Some(host),
+            Err(error) => {
+                tracing::error!(
+                    error = %error,
+                    "BirdCoder kernel host unavailable; coding session turns will fail until kernel bootstrap succeeds"
+                );
+                None
+            }
         }
+    } else {
+        None
     };
+    let (project_root, runner_root, turn_admission) =
+        if execution_capability == CodeExecutionCapability::LocalHost {
+            (
+                config.project_root.clone(),
+                config.provider_runner_root(),
+                code_engine_turn_admission(),
+            )
+        } else {
+            // The unavailable provider must not retain a local path or runner root.
+            (None, None, Arc::new(Semaphore::new(0)))
+        };
 
     Arc::new(KernelBridgeCodeEngineProvider {
         host,
-        project_root: config.project_root.clone(),
-        runner_root: config.provider_runner_root(),
-        turn_admission: code_engine_turn_admission(),
+        execution_capability,
+        project_root,
+        runner_root,
+        turn_admission,
     })
 }
 
-pub fn wire_engine_validator() -> Arc<dyn EngineValidator> {
-    let host = kernel_host().ok();
-    Arc::new(CatalogEngineValidator { host })
+pub fn wire_engine_validator(config: &BirdServerConfig) -> Arc<dyn EngineValidator> {
+    wire_engine_validator_with_kernel_host(config, kernel_host)
+}
+
+fn wire_engine_validator_with_kernel_host<F>(
+    config: &BirdServerConfig,
+    kernel_host_factory: F,
+) -> Arc<dyn EngineValidator>
+where
+    F: FnOnce() -> Result<Arc<BirdcoderKernelHost>, String>,
+{
+    let execution_capability = config.code_execution_capability();
+    let host = if execution_capability == CodeExecutionCapability::LocalHost {
+        kernel_host_factory().ok()
+    } else {
+        None
+    };
+
+    Arc::new(CatalogEngineValidator {
+        execution_capability,
+        host,
+    })
 }
 
 struct KernelBridgeCodeEngineProvider {
     host: Option<Arc<BirdcoderKernelHost>>,
+    execution_capability: CodeExecutionCapability,
     project_root: Option<String>,
     runner_root: Option<PathBuf>,
     turn_admission: Arc<Semaphore>,
 }
 
 struct CatalogEngineValidator {
+    execution_capability: CodeExecutionCapability,
     host: Option<Arc<BirdcoderKernelHost>>,
 }
 
@@ -171,6 +219,16 @@ fn require_kernel_host(
     host.as_ref().cloned().ok_or_else(|| {
         CodingSessionError::Repository("BirdCoder kernel host is unavailable.".into())
     })
+}
+
+fn ensure_execution_capability_available(
+    execution_capability: CodeExecutionCapability,
+) -> Result<(), CodingSessionError> {
+    if let Some(reason) = execution_capability.unavailable_reason() {
+        return Err(CodingSessionError::Unavailable(reason.to_owned()));
+    }
+
+    Ok(())
 }
 
 async fn execute_admitted_blocking_turn<T, F>(
@@ -192,11 +250,16 @@ where
 
 #[async_trait::async_trait]
 impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
+    fn ensure_execution_available(&self) -> Result<(), CodingSessionError> {
+        ensure_execution_capability_available(self.execution_capability)
+    }
+
     async fn execute_turn(
         &self,
         ctx: &CodingSessionContext,
         pending: &PendingProjectionTurnExecution,
     ) -> Result<FinalizedProjectionTurnExecution, CodingSessionError> {
+        self.ensure_execution_available()?;
         let result = {
             let process_turn_admission =
                 self.turn_admission
@@ -287,6 +350,7 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
             ));
         }
 
+        self.ensure_execution_available()?;
         let host = require_kernel_host(&self.host)?;
         let decision = CodeEngineApprovalDecisionRecord {
             native_session_id: native_session_id.map(str::to_string),
@@ -323,6 +387,7 @@ impl CodeEngineProvider for KernelBridgeCodeEngineProvider {
             ));
         }
 
+        self.ensure_execution_available()?;
         let host = require_kernel_host(&self.host)?;
         let answer = CodeEngineUserQuestionAnswerRecord {
             native_session_id: native_session_id.map(str::to_string),
@@ -350,6 +415,7 @@ impl EngineValidator for CatalogEngineValidator {
         engine_id: &str,
         _host_mode: &str,
     ) -> Result<AuthoritativeEngineRuntimeProfile, CodingSessionError> {
+        ensure_execution_capability_available(self.execution_capability)?;
         require_kernel_host(&self.host)?
             .validate_engine_id(engine_id)
             .map_err(CodingSessionError::InvalidInput)?;
@@ -542,7 +608,7 @@ fn map_projection_event(
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -552,13 +618,19 @@ mod tests {
         CodingSessionPayload, CodingSessionTurnPayload, OperationPayload,
         PendingProjectionTurnExecution,
     };
+    use sdkwork_birdcoder_coding_sessions_service::ports::engine_validator::EngineValidator;
     use tokio::sync::Semaphore;
 
+    use crate::bootstrap::config::{
+        BirdDeploymentProfile, BirdEnvironment, BirdRuntimeTarget, BirdServerConfig,
+        CodeExecutionCapability,
+    };
     use crate::bootstrap::runner_isolation::ProviderRunnerBinding;
 
     use super::{
         build_turn_request, build_turn_request_with_runner_binding, code_engine_turn_admission,
         execute_admitted_blocking_turn, prepare_runner_binding, user_code_engine_turn_admission,
+        wire_code_engine_provider_with_kernel_host, wire_engine_validator_with_kernel_host,
         CodeEngineProvider, CodingSessionError, KernelBridgeCodeEngineProvider,
         TurnAdmissionPermits, CODE_ENGINE_USER_TURN_ADMISSION_SATURATED,
         DEFAULT_CODE_ENGINE_TURN_MAX_OUTPUT_BYTES, DEFAULT_CODE_ENGINE_TURN_TIMEOUT_MS,
@@ -589,6 +661,52 @@ mod tests {
         }
     }
 
+    fn unavailable_cloud_config() -> BirdServerConfig {
+        BirdServerConfig {
+            environment: BirdEnvironment::Production,
+            deployment_profile: BirdDeploymentProfile::Cloud,
+            runtime_target: BirdRuntimeTarget::Container,
+            host: "0.0.0.0".to_owned(),
+            port: 0,
+            sqlite_file: PathBuf::from("target/test/birdcoder.sqlite"),
+            allowed_origins: vec!["https://birdcoder.example.test".to_owned()],
+            project_root: Some("local-project-root-must-not-be-retained".to_owned()),
+            rate_limit_enabled: true,
+            rate_limit_max_requests: 1,
+            rate_limit_window_secs: 1,
+        }
+    }
+
+    #[test]
+    fn unavailable_factories_do_not_bootstrap_the_kernel_host() {
+        let config = unavailable_cloud_config();
+        let provider_factory_called = Arc::new(AtomicBool::new(false));
+        let provider_factory_called_by_closure = provider_factory_called.clone();
+        let provider = wire_code_engine_provider_with_kernel_host(&config, move || {
+            provider_factory_called_by_closure.store(true, Ordering::SeqCst);
+            panic!("unavailable provider must not bootstrap the kernel host");
+        });
+
+        assert!(!provider_factory_called.load(Ordering::SeqCst));
+        assert!(matches!(
+            provider.ensure_execution_available(),
+            Err(CodingSessionError::Unavailable(_))
+        ));
+
+        let validator_factory_called = Arc::new(AtomicBool::new(false));
+        let validator_factory_called_by_closure = validator_factory_called.clone();
+        let validator = wire_engine_validator_with_kernel_host(&config, move || {
+            validator_factory_called_by_closure.store(true, Ordering::SeqCst);
+            panic!("unavailable validator must not bootstrap the kernel host");
+        });
+
+        assert!(!validator_factory_called.load(Ordering::SeqCst));
+        assert!(matches!(
+            validator.validate_engine_runtime_profile("codex", "server"),
+            Err(CodingSessionError::Unavailable(_))
+        ));
+    }
+
     #[tokio::test]
     async fn execute_turn_rejects_a_saturated_admission_gate_before_resolving_the_kernel_host() {
         let turn_admission = Arc::new(Semaphore::new(1));
@@ -598,6 +716,7 @@ mod tests {
             .expect("hold the only code-engine turn admission permit");
         let provider = KernelBridgeCodeEngineProvider {
             host: None,
+            execution_capability: CodeExecutionCapability::LocalHost,
             project_root: None,
             runner_root: None,
             turn_admission,
@@ -625,6 +744,7 @@ mod tests {
         let turn_admission = Arc::new(Semaphore::new(1));
         let provider = KernelBridgeCodeEngineProvider {
             host: None,
+            execution_capability: CodeExecutionCapability::LocalHost,
             project_root: None,
             runner_root: None,
             turn_admission: turn_admission.clone(),
@@ -757,6 +877,7 @@ mod tests {
         let turn_admission = Arc::new(Semaphore::new(1));
         let provider = KernelBridgeCodeEngineProvider {
             host: None,
+            execution_capability: CodeExecutionCapability::LocalHost,
             project_root: None,
             runner_root: None,
             turn_admission: turn_admission.clone(),
@@ -864,7 +985,7 @@ mod tests {
     }
 
     #[test]
-    fn build_turn_request_uses_the_isolated_workspace_root_for_cloud_execution() {
+    fn build_turn_request_uses_the_runner_bound_workspace_root() {
         let runner_root = TestDirectory::new();
         let unrelated_local_project = TestDirectory::new();
         let pending = pending_turn_execution();

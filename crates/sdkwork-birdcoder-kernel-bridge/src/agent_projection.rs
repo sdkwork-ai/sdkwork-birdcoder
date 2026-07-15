@@ -45,13 +45,9 @@ mod tests {
 
     #[test]
     fn projects_model_descriptor_through_facade() {
-        let descriptor = ModelDescriptor::new(
-            "codex-1",
-            "provider.model.codex",
-            "Codex 1",
-            "codex",
-        )
-        .with_response_format(ModelResponseFormat::Text);
+        let descriptor =
+            ModelDescriptor::new("codex-1", "provider.model.codex", "Codex 1", "codex")
+                .with_response_format(ModelResponseFormat::Text);
 
         let entry = kernel_model_descriptor_to_catalog_entry("codex", &descriptor, true);
         assert_eq!(entry.engine_key, "codex");

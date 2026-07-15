@@ -27,8 +27,8 @@ interface UseStudioWorkbenchEventBindingsOptions {
   saveError?: string | null;
   isActive?: boolean;
   currentProjectIdRef: MutableRefObject<string>;
-  defaultWorkingDirectoryRef: MutableRefObject<string>;
   projectsRef: MutableRefObject<BirdCoderProject[]>;
+  resolveLocalWorkingDirectory: (projectId: string) => Promise<string | null>;
   runConfigurationsRef: MutableRefObject<RunConfigurationRecord[]>;
   selectedCodingSessionIdRef: MutableRefObject<string>;
   selectCodingSessionRef: MutableRefObject<
@@ -51,8 +51,8 @@ export function useStudioWorkbenchEventBindings({
   saveError,
   isActive = true,
   currentProjectIdRef,
-  defaultWorkingDirectoryRef,
   projectsRef,
+  resolveLocalWorkingDirectory,
   runConfigurationsRef,
   selectedCodingSessionIdRef,
   selectCodingSessionRef,
@@ -70,6 +70,7 @@ export function useStudioWorkbenchEventBindings({
   const projectCodingSessionIndexProjectsRef = useRef(projectsRef.current);
   const projectCodingSessionIndexRef = useRef<BirdCoderProjectCodingSessionIndex | null>(null);
   const flushPendingAutosaveRef = useRef(flushPendingAutosave);
+  const resolveLocalWorkingDirectoryRef = useRef(resolveLocalWorkingDirectory);
 
   useEffect(() => {
     if (saveError) {
@@ -80,6 +81,10 @@ export function useStudioWorkbenchEventBindings({
   useEffect(() => {
     flushPendingAutosaveRef.current = flushPendingAutosave;
   }, [flushPendingAutosave]);
+
+  useEffect(() => {
+    resolveLocalWorkingDirectoryRef.current = resolveLocalWorkingDirectory;
+  }, [resolveLocalWorkingDirectory]);
 
   const resolveProjectCodingSessionIndex = useCallback(() => {
     if (
@@ -181,16 +186,17 @@ export function useStudioWorkbenchEventBindings({
         ?? getDefaultRunConfigurations()[0];
 
       void (async () => {
-        const activeProject = projectsRef.current.find(
-          (project) => project.id === currentProjectIdRef.current,
-        );
-        const normalizedProjectPath = activeProject?.path?.trim() ?? '';
+        const currentProjectId = currentProjectIdRef.current.trim();
+        const localWorkingDirectory = currentProjectId
+          ? await resolveLocalWorkingDirectoryRef.current(currentProjectId)
+          : null;
+        if (!localWorkingDirectory) {
+          addToast('A local desktop folder must be mounted before running this project.', 'error');
+          return;
+        }
         const launch = await resolveRunConfigurationTerminalLaunch(configuration, {
-          projectDirectory:
-            normalizedProjectPath.length > 0
-              ? normalizedProjectPath
-              : defaultWorkingDirectoryRef.current,
-          workspaceDirectory: defaultWorkingDirectoryRef.current,
+          projectDirectory: localWorkingDirectory,
+          workspaceDirectory: localWorkingDirectory,
         });
 
         if (!launch.request) {
@@ -267,9 +273,9 @@ export function useStudioWorkbenchEventBindings({
   }, [
     addToast,
     currentProjectIdRef,
-    defaultWorkingDirectoryRef,
     isActive,
     projectsRef,
+    resolveLocalWorkingDirectoryRef,
     resolveProjectCodingSessionIndex,
     runConfigurationsRef,
     selectedCodingSessionIdRef,

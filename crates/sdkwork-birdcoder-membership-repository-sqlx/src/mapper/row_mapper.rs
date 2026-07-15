@@ -31,10 +31,7 @@ pub fn membership_row_to_payload(
         points: row.points.clone(),
         growth_value: row.growth_value.clone(),
         upgrade_growth_value: row.upgrade_growth_value.clone(),
-        benefits: benefits
-            .iter()
-            .map(benefit_row_to_payload)
-            .collect(),
+        benefits: benefits.iter().map(benefit_row_to_payload).collect(),
     }
 }
 
@@ -84,4 +81,3 @@ pub fn package_row_to_payload(row: &MembershipPackageRow) -> CommerceMembershipP
         tags: Vec::new(),
     }
 }
-

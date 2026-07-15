@@ -100,13 +100,38 @@ assert.match(
 );
 assert.match(
   configMapSource,
-  /SDKWORK_DEPLOYMENT_PROFILE/u,
+  /SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE/u,
   'Kubernetes config must publish deployment profile runtime env for metrics dimensions.',
 );
 assert.match(
   configMapSource,
-  /SDKWORK_RUNTIME_TARGET/u,
+  /SDKWORK_BIRDCODER_RUNTIME_TARGET/u,
   'Kubernetes config must publish runtime target env for metrics dimensions.',
+);
+assert.match(
+  configMapSource,
+  /SDKWORK_BIRDCODER_ENVIRONMENT/u,
+  'Kubernetes config must publish the canonical environment value used by metrics dimensions.',
+);
+assert.match(
+  routerSource,
+  /with_deployment_profile\(config\.deployment_profile\.as_str\(\)\)/u,
+  'Metrics dimensions must use the validated deployment profile instead of a second legacy environment lookup.',
+);
+assert.match(
+  routerSource,
+  /with_runtime_target\(config\.runtime_target\.as_str\(\)\)/u,
+  'Metrics dimensions must use the validated runtime target instead of a second legacy environment lookup.',
+);
+assert.match(
+  routerSource,
+  /dimensions\.environment = config\.environment\.as_str\(\)\.to_owned\(\)/u,
+  'Metrics dimensions must use the validated environment instead of a second legacy environment lookup.',
+);
+assert.doesNotMatch(
+  routerSource,
+  /std::env::var\("SDKWORK_(?:DEPLOYMENT_PROFILE|RUNTIME_TARGET|ENVIRONMENT)"\)/u,
+  'Metrics dimensions must not bypass the namespaced runtime configuration with retired generic environment variables.',
 );
 assert.match(
   configMapSource,

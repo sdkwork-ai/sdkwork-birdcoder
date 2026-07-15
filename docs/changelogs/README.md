@@ -1,5 +1,9 @@
-# changelogs
+# Changelogs
 
-See `DOCUMENTATION_SPEC.md` section 2.
+This directory records active repository contract changes. Historical release
+evidence remains under `docs/release/`; it is not the current architecture
+authority.
 
-See `DOCUMENTATION_SPEC.md` section 2.
+- [Active changelog](CHANGELOG.md)
+
+Authority: `../../sdkwork-specs/DOCUMENTATION_SPEC.md` section 9.

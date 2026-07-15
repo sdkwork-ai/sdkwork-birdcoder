@@ -120,8 +120,7 @@ impl<R: ChatRepository> ChatService<R> {
     ) -> Result<(), ChatError> {
         let normalized_id = normalize_required(conversation_id)
             .ok_or_else(|| ChatError::InvalidInput("conversationId is required.".to_string()))?;
-        self.ensure_conversation_access(ctx, &normalized_id)
-            .await?;
+        self.ensure_conversation_access(ctx, &normalized_id).await?;
         self.repository
             .delete_conversation(ctx, &normalized_id)
             .await
@@ -136,8 +135,7 @@ impl<R: ChatRepository> ChatService<R> {
     ) -> Result<(Vec<ChatMessagePayload>, i64), ChatError> {
         let normalized_id = normalize_required(conversation_id)
             .ok_or_else(|| ChatError::InvalidInput("conversationId is required.".to_string()))?;
-        self.ensure_conversation_access(ctx, &normalized_id)
-            .await?;
+        self.ensure_conversation_access(ctx, &normalized_id).await?;
         let normalized = normalize_list_query(query);
         self.repository
             .list_messages(ctx, &normalized_id, &normalized)
@@ -153,8 +151,7 @@ impl<R: ChatRepository> ChatService<R> {
     ) -> Result<ChatMessagePayload, ChatError> {
         let normalized_id = normalize_required(conversation_id)
             .ok_or_else(|| ChatError::InvalidInput("conversationId is required.".to_string()))?;
-        self.ensure_conversation_access(ctx, &normalized_id)
-            .await?;
+        self.ensure_conversation_access(ctx, &normalized_id).await?;
         let role = normalize_message_role(&command.role)?;
         let content = normalize_required(&command.content)
             .ok_or_else(|| ChatError::InvalidInput("content is required.".to_string()))?;
@@ -261,7 +258,14 @@ mod tests {
             let total = items.len() as i64;
             let start = usize::try_from(query.offset).unwrap_or(0);
             let end = start.saturating_add(usize::try_from(query.limit).unwrap_or(50));
-            Ok((items.into_iter().skip(start).take(end.saturating_sub(start)).collect(), total))
+            Ok((
+                items
+                    .into_iter()
+                    .skip(start)
+                    .take(end.saturating_sub(start))
+                    .collect(),
+                total,
+            ))
         }
 
         async fn create_conversation(
@@ -310,7 +314,14 @@ mod tests {
             let total = items.len() as i64;
             let start = usize::try_from(query.offset).unwrap_or(0);
             let end = start.saturating_add(usize::try_from(query.limit).unwrap_or(50));
-            Ok((items.into_iter().skip(start).take(end.saturating_sub(start)).collect(), total))
+            Ok((
+                items
+                    .into_iter()
+                    .skip(start)
+                    .take(end.saturating_sub(start))
+                    .collect(),
+                total,
+            ))
         }
 
         async fn create_message(
@@ -347,7 +358,10 @@ mod tests {
     async fn create_conversation_uses_default_title_when_blank() {
         let service = ChatService::new(MemoryChatRepository::new());
         let conversation = service
-            .create_conversation(&owner_context(), CreateChatConversationCommand { title: None })
+            .create_conversation(
+                &owner_context(),
+                CreateChatConversationCommand { title: None },
+            )
             .await
             .expect("conversation should be created");
         assert_eq!(conversation.title, DEFAULT_CONVERSATION_TITLE);
@@ -358,7 +372,10 @@ mod tests {
     async fn create_message_rejects_invalid_role() {
         let service = ChatService::new(MemoryChatRepository::new());
         let conversation = service
-            .create_conversation(&owner_context(), CreateChatConversationCommand { title: None })
+            .create_conversation(
+                &owner_context(),
+                CreateChatConversationCommand { title: None },
+            )
             .await
             .expect("conversation should be created");
         let error = service
@@ -379,7 +396,10 @@ mod tests {
     async fn create_message_forbids_non_owner_access() {
         let service = ChatService::new(MemoryChatRepository::new());
         let conversation = service
-            .create_conversation(&owner_context(), CreateChatConversationCommand { title: None })
+            .create_conversation(
+                &owner_context(),
+                CreateChatConversationCommand { title: None },
+            )
             .await
             .expect("conversation should be created");
         let error = service

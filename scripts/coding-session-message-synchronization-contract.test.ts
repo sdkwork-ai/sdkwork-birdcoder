@@ -793,7 +793,6 @@ const canonicalToolEventProjectedMessages = mergeBirdCoderProjectionMessages({
         toolName: 'run_command',
         toolArguments: JSON.stringify({
           command: 'pnpm lint',
-          cwd: 'D:/workspace/demo',
         }),
       },
       sequence: '2',
@@ -833,7 +832,7 @@ assert.deepEqual(
         {
           command: 'pnpm lint',
           status: 'running',
-          output: '{"command":"pnpm lint","cwd":"D:/workspace/demo"}',
+          output: '{"command":"pnpm lint"}',
           kind: 'command',
           toolName: 'run_command',
           toolCallId: 'tool-run-lint',

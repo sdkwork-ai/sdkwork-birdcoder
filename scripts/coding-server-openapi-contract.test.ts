@@ -633,8 +633,6 @@ for (const [schemaName, properties] of [
 }
 for (const [schemaName, properties] of [
   ['BirdCoderProjectSummary', projectSummaryProperties],
-  ['BirdCoderCreateProjectRequest', createProjectRequestProperties],
-  ['BirdCoderUpdateProjectRequest', updateProjectRequestProperties],
 ] as const) {
   assert.deepEqual(
     (properties.dataScope as { enum?: unknown })?.enum,
@@ -647,6 +645,130 @@ for (const [schemaName, properties] of [
     `${schemaName}.budgetAmount must be a string because it maps to a Java Long/BIGINT field.`,
   );
 }
+
+function assertPublicSchemaShape(
+  schemaName: string,
+  expectedFields: readonly string[],
+  expectedRequiredFields: readonly string[],
+): void {
+  const schema = document.components.schemas?.[schemaName] as
+    | { properties?: Record<string, unknown>; required?: unknown }
+    | undefined;
+  assert.ok(schema, `${schemaName} must be published.`);
+  assert.deepEqual(
+    Object.keys(schema.properties ?? {}).sort(),
+    [...expectedFields].sort(),
+    `${schemaName} must expose exactly the approved public fields.`,
+  );
+  const requiredFields = Array.isArray(schema.required)
+    ? schema.required.map((field) => String(field))
+    : [];
+  assert.deepEqual(
+    requiredFields.sort(),
+    [...expectedRequiredFields].sort(),
+    `${schemaName} must declare exactly the approved required fields.`,
+  );
+}
+
+assertPublicSchemaShape(
+  'BirdCoderProjectSummary',
+  [
+    'author',
+    'budgetAmount',
+    'code',
+    'collaboratorCount',
+    'conversationId',
+    'coverImage',
+    'createdAt',
+    'createdByUserId',
+    'dataScope',
+    'description',
+    'domainPrefix',
+    'endTime',
+    'fileId',
+    'id',
+    'isTemplate',
+    'leaderId',
+    'name',
+    'organizationId',
+    'ownerId',
+    'parentId',
+    'parentMetadata',
+    'parentUuid',
+    'startTime',
+    'status',
+    'tenantId',
+    'title',
+    'type',
+    'updatedAt',
+    'userId',
+    'uuid',
+    'viewerRole',
+    'workspaceId',
+    'workspaceUuid',
+  ],
+  ['createdAt', 'id', 'workspaceId', 'name', 'status', 'updatedAt'],
+);
+assertPublicSchemaShape(
+  'BirdCoderCreateProjectRequest',
+  ['description', 'name', 'workspaceId'],
+  ['name', 'workspaceId'],
+);
+assertPublicSchemaShape(
+  'BirdCoderUpdateProjectRequest',
+  ['description', 'name', 'status'],
+  [],
+);
+assertPublicSchemaShape(
+  'BirdCoderGitStatusCounts',
+  ['staged', 'unstaged', 'untracked'],
+  ['staged', 'unstaged', 'untracked'],
+);
+assertPublicSchemaShape(
+  'BirdCoderGitBranchSummary',
+  ['isCurrent', 'isRemote', 'name'],
+  ['isCurrent', 'isRemote', 'name'],
+);
+assertPublicSchemaShape(
+  'BirdCoderGitWorktreeSummary',
+  ['branch', 'head', 'isCurrent', 'prunableReason', 'worktreeKey'],
+  ['isCurrent'],
+);
+assertPublicSchemaShape(
+  'BirdCoderProjectGitOverview',
+  ['branches', 'currentBranch', 'currentRevision', 'detachedHead', 'status', 'statusCounts', 'worktrees'],
+  ['branches', 'detachedHead', 'status', 'statusCounts', 'worktrees'],
+);
+assertPublicSchemaShape(
+  'BirdCoderCreateProjectGitWorktreeRequest',
+  ['branchName'],
+  ['branchName'],
+);
+assertPublicSchemaShape(
+  'BirdCoderRemoveProjectGitWorktreeRequest',
+  ['force', 'worktreeKey'],
+  ['worktreeKey'],
+);
+assertPublicSchemaShape(
+  'BirdCoderUpsertProjectCollaboratorRequest',
+  ['role', 'status', 'userId'],
+  ['userId'],
+);
+const projectCollaboratorRequestProperties = document.components.schemas
+  .BirdCoderUpsertProjectCollaboratorRequest.properties as Record<string, { enum?: unknown }>;
+assert.deepEqual(
+  projectCollaboratorRequestProperties.status?.enum,
+  ['invited', 'active', 'suspended'],
+  'Project collaborator writes must expose only the Rust repository status whitelist.',
+);
+const projectListParameters = (document.paths['/app/v3/api/projects']?.get?.parameters ?? []) as Array<{
+  name?: string;
+}>;
+assert.equal(
+  projectListParameters.some((parameter) => parameter.name === 'rootPath'),
+  false,
+  'projects.list must not expose a client filesystem rootPath query parameter.',
+);
 assert.equal(
   codingSessionSummaryProperties.sortTimestamp?.type,
   'string',

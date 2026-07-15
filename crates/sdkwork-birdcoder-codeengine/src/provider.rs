@@ -2,10 +2,9 @@ use std::{collections::BTreeMap, sync::OnceLock};
 
 use crate::{
     format_missing_native_session_provider_error, native_session_prefix_for_engine,
-    resolve_native_session_engine_id, resolved_native_session_provider_registration,
-    CatalogError, CodeEngineApprovalDecisionRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord,
-    CodeEngineUserQuestionAnswerRecord, NativeSessionDiscoveryMode,
+    resolve_native_session_engine_id, resolved_native_session_provider_registration, CatalogError,
+    CodeEngineApprovalDecisionRecord, CodeEngineSessionDetailRecord,
+    CodeEngineSessionSummaryRecord, CodeEngineUserQuestionAnswerRecord, NativeSessionDiscoveryMode,
     NativeSessionProviderRegistration,
 };
 
@@ -171,9 +170,7 @@ fn register_provider_into(
     provider: Box<dyn NativeSessionProviderPlugin>,
 ) {
     if let Err(error) = register_catalog_provider(providers, engine_id, provider) {
-        eprintln!(
-            "warning: skipping code engine provider \"{engine_id}\": {error}"
-        );
+        eprintln!("warning: skipping code engine provider \"{engine_id}\": {error}");
     }
 }
 
@@ -199,7 +196,7 @@ fn register_catalog_provider(
 #[cfg(test)]
 mod tests {
     use super::{
-        register_catalog_provider, NativeSessionProviderRegistry, NativeSessionProviderPlugin,
+        register_catalog_provider, NativeSessionProviderPlugin, NativeSessionProviderRegistry,
     };
     use crate::codex_provider::CodexCodeEngineProvider;
     use crate::CatalogError;
@@ -208,11 +205,8 @@ mod tests {
     #[test]
     fn register_catalog_provider_succeeds_for_known_engine() {
         let mut providers: BTreeMap<String, Box<dyn NativeSessionProviderPlugin>> = BTreeMap::new();
-        let result = register_catalog_provider(
-            &mut providers,
-            "codex",
-            Box::new(CodexCodeEngineProvider),
-        );
+        let result =
+            register_catalog_provider(&mut providers, "codex", Box::new(CodexCodeEngineProvider));
         assert!(result.is_ok());
         assert!(providers.contains_key("codex"));
     }

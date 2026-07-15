@@ -70,7 +70,7 @@ function resolveProjectDetail(project: BirdCoderProject | null): string {
     return '-';
   }
 
-  return project.path || project.sitePath || project.domainPrefix || project.id;
+  return project.name || project.domainPrefix || project.id;
 }
 
 function resolveSessionActivityLabel(codingSession: BirdCoderCodingSession): string {

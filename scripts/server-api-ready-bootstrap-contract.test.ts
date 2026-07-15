@@ -5,7 +5,9 @@ const modulePath = new URL(
   import.meta.url,
 );
 
-const { waitForBirdCoderApiReady } = await import(`${modulePath.href}?t=${Date.now()}`);
+const { BirdCoderApiReadyError, waitForBirdCoderApiReady } = await import(
+  `${modulePath.href}?t=${Date.now()}`
+);
 
 const observedDefaultReadinessUrls: string[] = [];
 const observedReadinessUrls: string[] = [];
@@ -78,16 +80,23 @@ globalThis.fetch = (async () => {
 }) as typeof fetch;
 
 try {
-  await assert.rejects(
-    waitForBirdCoderApiReady('http://127.0.0.1:10240', {
-      maxAttempts: 2,
-      paths: ['/app/v3/api/system/health'],
-      requestTimeoutMs: 10,
-      retryDelayMs: 1,
-    }),
-    /BirdCoder local API is unavailable at http:\/\/127\.0\.0\.1:10240/u,
-    'Startup must fail fast when a configured local BirdCoder API cannot be reached, instead of rendering appbase SDK consumers that then flood the browser with ERR_CONNECTION_REFUSED.',
-  );
+  await assert.rejects(async () => {
+    try {
+      await waitForBirdCoderApiReady('http://127.0.0.1:10240', {
+        maxAttempts: 2,
+        paths: ['/app/v3/api/system/health'],
+        requestTimeoutMs: 10,
+        retryDelayMs: 1,
+        runtimeTarget: 'desktop',
+      });
+    } catch (error) {
+      assert.ok(error instanceof BirdCoderApiReadyError);
+      assert.equal(error.apiBaseUrl, 'http://127.0.0.1:10240');
+      assert.equal(error.runtimeTarget, 'desktop');
+      throw error;
+    }
+  }, /BirdCoder embedded API is unavailable at http:\/\/127\.0\.0\.1:10240/u,
+  'Startup must classify an unavailable embedded API as a desktop runtime failure instead of instructing desktop users to start a separate server.');
 } finally {
   if (originalFetch) {
     globalThis.fetch = originalFetch;

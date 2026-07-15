@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { StartupScreen } from './StartupScreen';
+import { BirdCoderApiReadyError } from './bootstrapServerApiReady';
 
 type BootstrapStatus = 'booting' | 'failed' | 'ready';
 const DEFAULT_BOOTSTRAP_TIMEOUT_MS = 30_000;
@@ -6,6 +8,11 @@ const BOOTSTRAP_IDLE_START_TIMEOUT_MS = 250;
 
 export interface BootstrapGateMessages {
   bootingDescription: string;
+  desktopApiUnavailable: (apiBaseUrl: string) => string;
+  localApiUnavailable: (apiBaseUrl: string) => string;
+  runtimeStage: string;
+  sessionStage: string;
+  workspaceStage: string;
   retry: string;
   startingTitle: string;
   startupFailed: string;
@@ -121,6 +128,12 @@ export function BootstrapGate({
   const timeoutSeconds = Math.ceil(normalizeBootstrapTimeoutMs(bootstrapTimeoutMs) / 1000);
 
   const resolveErrorMessage = (bootstrapError: Error) => {
+    if (bootstrapError instanceof BirdCoderApiReadyError) {
+      return bootstrapError.runtimeTarget === 'desktop'
+        ? messages.desktopApiUnavailable(bootstrapError.apiBaseUrl)
+        : messages.localApiUnavailable(bootstrapError.apiBaseUrl);
+    }
+
     if (bootstrapError.message === BOOTSTRAP_TIMEOUT_ERROR) {
       return messages.startupTimeout(timeoutSeconds);
     }
@@ -193,38 +206,20 @@ export function BootstrapGate({
   }
 
   return (
-    <div className="flex h-full w-full items-center justify-center bg-[#0e0e11] px-6 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#18181b] p-6 shadow-2xl">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/10 border-t-white/80" />
-          <div className="min-w-0">
-            <div className="truncate text-base font-semibold">{messages.startingTitle}</div>
-            <div className="mt-1 text-sm text-gray-400">
-              {status === 'failed'
-                ? messages.startupFailed
-                : messages.bootingDescription}
-            </div>
-          </div>
-        </div>
-
-        {error ? (
-          <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">
-            {error ? resolveErrorMessage(error) : null}
-          </div>
-        ) : null}
-
-        {status === 'failed' ? (
-          <div className="mt-4 flex justify-end">
-            <button
-              type="button"
-              className="rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-black transition-colors hover:bg-gray-200"
-              onClick={() => setAttempt((previousAttempt) => previousAttempt + 1)}
-            >
-              {messages.retry}
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </div>
+    <StartupScreen
+      description={messages.bootingDescription}
+      errorMessage={error ? resolveErrorMessage(error) : undefined}
+      onRetry={status === 'failed' ? () => setAttempt((previousAttempt) => previousAttempt + 1) : undefined}
+      progress={34}
+      retryLabel={messages.retry}
+      stage="runtime"
+      stageLabels={{
+        runtime: messages.runtimeStage,
+        session: messages.sessionStage,
+        workspace: messages.workspaceStage,
+      }}
+      startupFailedLabel={messages.startupFailed}
+      title={messages.startingTitle}
+    />
   );
 }

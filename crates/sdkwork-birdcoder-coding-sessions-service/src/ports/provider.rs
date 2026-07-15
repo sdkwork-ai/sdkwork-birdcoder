@@ -5,6 +5,10 @@ use crate::error::CodingSessionError;
 
 #[async_trait::async_trait]
 pub trait CodeEngineProvider: Send + Sync {
+    fn ensure_execution_available(&self) -> Result<(), CodingSessionError> {
+        Ok(())
+    }
+
     async fn execute_turn(
         &self,
         ctx: &CodingSessionContext,

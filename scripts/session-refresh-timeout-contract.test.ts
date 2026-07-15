@@ -50,7 +50,6 @@ function buildProject(session = buildSession()): BirdCoderProject {
     createdAt: timestamp,
     id: session.projectId,
     name: 'Refresh Timeout Project',
-    path: 'D:/workspace/refresh-timeout',
     updatedAt: timestamp,
     workspaceId: session.workspaceId,
   };
@@ -88,9 +87,6 @@ function buildProjectService(
     },
     async getProjectById(candidateProjectId: string) {
       return candidateProjectId === project.id ? project : null;
-    },
-    async getProjectByPath() {
-      return unexpectedProjectServiceCall('getProjectByPath');
     },
     async createProject() {
       return unexpectedProjectServiceCall('createProject');

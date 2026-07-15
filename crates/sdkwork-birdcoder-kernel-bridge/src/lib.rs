@@ -20,14 +20,13 @@ pub use boundaries::{
     AGENTS_OWNED_CAPABILITIES, BIRDCODER_OWNED_CAPABILITIES, KERNEL_OWNED_CAPABILITIES,
     LEGACY_CODEENGINE_SURFACES,
 };
+pub use chat_assistant::generate_mobile_chat_assistant_reply;
 pub use engine_registry::{
     bootstrap_codex_kernel_slot, bootstrap_kernel_slot, canonical_engine_keys,
     is_canonical_engine_key, kernel_agent_id_for_engine, kernel_binding_id_for_engine,
     KernelBootstrapError, KernelEngineSlot,
 };
-pub use host::{
-    submit_approval_decision, submit_user_question_answer, BirdcoderKernelHost,
-};
+pub use host::{submit_approval_decision, submit_user_question_answer, BirdcoderKernelHost};
 pub use kernel_turn_io::{
     read_bounded_turn_request, serialize_bounded_turn_result, KernelTurnIoError,
     MAX_KERNEL_TURN_REQUEST_BYTES, MAX_KERNEL_TURN_RESPONSE_BYTES,
@@ -37,5 +36,4 @@ pub use sdkwork_agents_runtime_facade::{
     CodeEngineTurnInput, CodeEngineTurnOutput, EngineLiveInteraction, LiveInteractionRegistry,
     UserQuestionAnswer,
 };
-pub use chat_assistant::generate_mobile_chat_assistant_reply;
 pub use turn_executor::execute_kernel_turn;

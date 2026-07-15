@@ -3,10 +3,11 @@ kind: ConfigMap
 metadata:
   name: {{ include "sdkwork-birdcoder.fullname" . }}
 data:
-  SDKWORK_BIRD_ACCELERATOR: {{ .Values.runtime.accelerator | quote }}
-  SDKWORK_DEPLOYMENT_PROFILE: {{ .Values.runtime.deploymentProfile | quote }}
-  SDKWORK_RUNTIME_TARGET: {{ .Values.runtime.runtimeTarget | quote }}
-  SDKWORK_ENVIRONMENT: {{ .Values.runtime.environment | quote }}
+  SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: {{ .Values.runtime.deploymentProfile | quote }}
+  SDKWORK_BIRDCODER_RUNTIME_TARGET: {{ .Values.runtime.runtimeTarget | quote }}
+  SDKWORK_BIRDCODER_ENVIRONMENT: {{ .Values.runtime.environment | quote }}
+  SDKWORK_BIRDCODER_ALLOWED_ORIGINS: {{ join "," .Values.runtime.allowedOrigins | quote }}
+  SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT: {{ .Values.runtime.projectWorkspaceRoot | quote }}
   OTEL_SERVICE_NAME: {{ .Values.runtime.otelServiceName | quote }}
   SDKWORK_BIRDCODER_DATABASE_ENGINE: {{ .Values.database.engine | quote }}
   SDKWORK_BIRDCODER_REALTIME_BACKEND: {{ .Values.realtime.backend | quote }}
@@ -16,8 +17,12 @@ data:
   SDKWORK_BIRDCODER_REDIS_DATABASE: {{ .Values.redis.database | quote }}
   SDKWORK_BIRDCODER_REDIS_KEY_PREFIX: {{ .Values.redis.keyPrefix | quote }}
   SDKWORK_BIRDCODER_REDIS_TLS: {{ .Values.redis.tls | quote }}
-  BIRDCODER_SERVER_PORT: {{ .Values.service.port | quote }}
-  BIRDCODER_CODING_SERVER_SQLITE_FILE: "/var/lib/sdkwork-birdcoder/data.sqlite3"
+  # Rate limiting resolves the same SDKWORK_BIRDCODER_REDIS_* configuration as
+  # realtime. Do not materialize a credential-bearing Redis URL in a ConfigMap.
+  SDKWORK_BIRDCODER_SERVER_PORT: {{ .Values.service.port | quote }}
+  {{- if eq .Values.database.engine "sqlite" }}
+  SDKWORK_BIRDCODER_DATABASE_FILE: "/var/lib/sdkwork-birdcoder/data.sqlite3"
+  {{- end }}
   SDKWORK_BIRDCODER_APP_ROOT: "/opt/sdkwork-birdcoder"
   SDKWORK_OPENAPI_SNAPSHOT_PATH: "/opt/sdkwork-birdcoder/openapi/coding-server-v1.json"
   {{- if .Values.observability }}

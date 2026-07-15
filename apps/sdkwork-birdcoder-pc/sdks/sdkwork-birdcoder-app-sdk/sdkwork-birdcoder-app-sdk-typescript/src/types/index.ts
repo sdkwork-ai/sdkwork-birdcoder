@@ -567,40 +567,11 @@ export interface BirdCoderCreateProjectGitBranchRequest {
 
 export interface BirdCoderCreateProjectGitWorktreeRequest {
   branchName: string;
-  path: string;
 }
 
 export interface BirdCoderCreateProjectRequest {
   description?: string;
   name: string;
-  workspaceUuid?: string;
-  tenantId?: string;
-  organizationId?: string;
-  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
-  userId?: string;
-  parentId?: string;
-  parentUuid?: string;
-  parentMetadata?: Record<string, unknown>;
-  code?: string;
-  title?: string;
-  ownerId?: string;
-  leaderId?: string;
-  createdByUserId?: string;
-  author?: string;
-  type?: string;
-  rootPath?: string;
-  sitePath?: string;
-  domainPrefix?: string;
-  fileId?: string;
-  conversationId?: string;
-  startTime?: string;
-  endTime?: string;
-  budgetAmount?: string;
-  coverImage?: Record<string, unknown>;
-  isTemplate?: boolean;
-  appTemplateVersionId?: string;
-  templatePresetKey?: string;
-  status?: "active" | "archived";
   workspaceId: string;
 }
 
@@ -694,8 +665,8 @@ export interface BirdCoderEngineAccessLane {
   strategyKind: "rust-native" | "cli-spawn" | "grpc-bridge" | "remote-control" | "openapi-proxy";
   runtimeOwner: "rust-server" | "typescript-bridge";
   bridgeProtocol: "direct" | "stdio" | "grpc" | "http";
-  transportKind: "sdk-stream" | "cli-jsonl" | "remote-control-http" | "openapi-http";
-  status: "ready";
+  transportKind: "cli-jsonl" | "sdk-stream" | "remote-control-http" | "openapi-http";
+  status: "planned" | "ready";
   enabledByDefault: boolean;
   hostModes: Array<"web" | "desktop" | "server">;
   description: string;
@@ -741,11 +712,11 @@ export interface BirdCoderEngineDescriptor {
   engineKey: "codex" | "claude-code" | "gemini" | "opencode";
   displayName: string;
   vendor: string;
-  installationKind: "embedded-sdk" | "external-cli";
+  installationKind: "external-cli";
   defaultModelId: string;
   homepage?: string;
   supportedHostModes: Array<"web" | "desktop" | "server">;
-  transportKinds: Array<"sdk-stream" | "cli-jsonl" | "remote-control-http" | "openapi-http">;
+  transportKinds: Array<"cli-jsonl" | "sdk-stream" | "remote-control-http" | "openapi-http">;
   capabilityMatrix: BirdCoderEngineCapabilityMatrix;
   status: "active" | "preview" | "deprecated" | "disabled";
   accessPlan?: BirdCoderEngineAccessPlan;
@@ -779,34 +750,23 @@ export interface BirdCoderForkCodingSessionRequest {
 }
 
 export interface BirdCoderGitBranchSummary {
-  ahead: number;
-  behind: number;
   isCurrent: boolean;
-  kind: string;
+  isRemote: boolean;
   name: string;
-  upstreamName?: string;
 }
 
 export interface BirdCoderGitStatusCounts {
-  conflicted: number;
-  deleted: number;
-  modified: number;
   staged: number;
+  unstaged: number;
   untracked: number;
 }
 
 export interface BirdCoderGitWorktreeSummary {
   branch?: string;
   head?: string;
-  id: string;
   isCurrent: boolean;
-  isDetached: boolean;
-  isLocked: boolean;
-  isPrunable: boolean;
-  label: string;
-  lockedReason?: string;
   prunableReason?: string;
-  path: string;
+  worktreeKey?: string;
 }
 
 export interface BirdCoderIamCreateSessionRequest {
@@ -1055,7 +1015,7 @@ export interface BirdCoderModelCatalogEntry {
   providerId?: string;
   status: "active" | "preview" | "deprecated" | "disabled";
   defaultForEngine: boolean;
-  transportKinds: Array<"sdk-stream" | "cli-jsonl" | "remote-control-http" | "openapi-http">;
+  transportKinds: Array<"cli-jsonl" | "sdk-stream" | "remote-control-http" | "openapi-http">;
   capabilityMatrix: Record<string, unknown>;
 }
 
@@ -1107,7 +1067,7 @@ export interface BirdCoderNativeSessionProviderSummary {
   engineId: "codex" | "claude-code" | "gemini" | "opencode";
   displayName: string;
   nativeSessionIdPrefix: string;
-  transportKinds: Array<"sdk-stream" | "cli-jsonl" | "remote-control-http" | "openapi-http">;
+  transportKinds: Array<"cli-jsonl" | "sdk-stream" | "remote-control-http" | "openapi-http">;
   discoveryMode: "explicit-only" | "passive-global";
 }
 
@@ -1213,9 +1173,7 @@ export interface BirdCoderProjectGitOverview {
   branches: Array<BirdCoderGitBranchSummary>;
   currentBranch?: string;
   currentRevision?: string;
-  currentWorktreePath?: string;
   detachedHead: boolean;
-  repositoryRootPath?: string;
   status: "ready" | "not_repository";
   statusCounts: BirdCoderGitStatusCounts;
   worktrees: Array<BirdCoderGitWorktreeSummary>;
@@ -1256,8 +1214,6 @@ export interface BirdCoderProjectSummary {
   title?: string;
   name: string;
   description?: string;
-  rootPath?: string;
-  sitePath?: string;
   domainPrefix?: string;
   ownerId?: string;
   leaderId?: string;
@@ -1321,7 +1277,7 @@ export interface BirdCoderReleaseSummary {
 
 export interface BirdCoderRemoveProjectGitWorktreeRequest {
   force?: boolean;
-  path: string;
+  worktreeKey: string;
 }
 
 export interface BirdCoderSkillCatalogEntrySummary {
@@ -1455,29 +1411,7 @@ export interface BirdCoderUpdateCurrentUserProfileRequest {
 
 export interface BirdCoderUpdateProjectRequest {
   description?: string;
-  dataScope?: "DEFAULT" | "PRIVATE" | "ORGANIZATION" | "TENANT" | "PUBLIC";
-  userId?: string;
-  parentId?: string;
-  parentUuid?: string;
-  parentMetadata?: Record<string, unknown>;
-  code?: string;
-  title?: string;
   name?: string;
-  ownerId?: string;
-  leaderId?: string;
-  createdByUserId?: string;
-  author?: string;
-  type?: string;
-  rootPath?: string;
-  sitePath?: string;
-  domainPrefix?: string;
-  fileId?: string;
-  conversationId?: string;
-  startTime?: string;
-  endTime?: string;
-  budgetAmount?: string;
-  coverImage?: Record<string, unknown>;
-  isTemplate?: boolean;
   status?: "active" | "archived";
 }
 
@@ -1507,13 +1441,9 @@ export interface BirdCoderUpdateWorkspaceRequest {
 }
 
 export interface BirdCoderUpsertProjectCollaboratorRequest {
-  userId?: string;
-  email?: string;
-  teamId?: string;
+  userId: string;
   role?: "owner" | "admin" | "member" | "viewer";
-  status?: "invited" | "active" | "suspended" | "removed";
-  createdByUserId?: string;
-  grantedByUserId?: string;
+  status?: "invited" | "active" | "suspended";
 }
 
 export interface BirdCoderUpsertWorkspaceMemberRequest {
@@ -1841,7 +1771,6 @@ export interface PlatformProjectsGitWorktreesCreatePathParams {
 export interface PlatformProjectsListQuery extends Record<string, BirdcoderSdkQueryValue> {
   userId?: string;
   workspaceId?: string;
-  rootPath?: string;
   page?: number;
   page_size?: number;
 }

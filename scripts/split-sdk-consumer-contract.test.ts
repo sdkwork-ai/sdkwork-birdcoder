@@ -118,17 +118,6 @@ try {
     createdAt: '2026-04-10T19:00:01.000Z',
     updatedAt: '2026-04-10T19:00:01.000Z',
   });
-  await repositories.projectContents.save({
-    id: 'project-content-sdk-contract',
-    projectId: 'project-sdk-contract',
-    projectUuid: 'project-project-sdk-contract',
-    configData: JSON.stringify({
-      rootPath: 'D:/workspace/sdk-contract-project',
-    }),
-    contentVersion: '1.0',
-    createdAt: '2026-04-10T19:00:01.250Z',
-    updatedAt: '2026-04-10T19:00:01.250Z',
-  });
   await repositories.documents.save({
     id: 'doc-sdk-contract',
     projectId: 'project-sdk-contract',
@@ -264,6 +253,16 @@ try {
 
   assert.equal(workspaceSummaries[0]?.id, 'workspace-sdk-contract');
   assert.equal(projectSummaries[0]?.id, 'project-sdk-contract');
+  assert.equal(
+    Object.hasOwn(projectSummaries[0] ?? {}, 'path'),
+    false,
+    'project SDK reads must not expose a client-local working directory.',
+  );
+  assert.equal(
+    Object.hasOwn(projectSummaries[0] ?? {}, 'sitePath'),
+    false,
+    'project SDK reads must not expose a client-local site path.',
+  );
   assert.equal(documentSummaries[0]?.id, 'doc-sdk-contract');
   assert.equal(deploymentSummaries[0]?.id, 'deployment-sdk-contract');
   assert.equal(adminDeploymentSummaries[0]?.id, 'deployment-sdk-contract');
@@ -460,7 +459,7 @@ try {
     createdWorkspace.id,
     'Created Through API Backed Project',
     {
-      path: 'D:/sdkwork/contracts/api-backed-project',
+      description: 'Created through the app API without a device-private mount.',
     },
   );
 

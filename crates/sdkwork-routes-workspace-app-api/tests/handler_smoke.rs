@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -10,6 +11,7 @@ use sdkwork_birdcoder_project_service::ports::events::ProjectEventPublisher;
 use sdkwork_birdcoder_project_service::ports::git::{
     GitMutationError, GitOperations, GitProjectOverview,
 };
+use sdkwork_birdcoder_project_service::ports::project_workspace_root::ProjectWorkspaceRootResolver;
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
 use sdkwork_birdcoder_workspace_repository_sqlx::db::schema::ALL_TABLES_DDL;
 use sdkwork_birdcoder_workspace_repository_sqlx::repository::deployment::SqliteDeploymentRepository;
@@ -162,6 +164,21 @@ impl sdkwork_birdcoder_deployment_service::ports::events::DeploymentEventPublish
 
 struct UnavailableGitOperations;
 
+struct UnavailableProjectWorkspaceRootResolver;
+
+impl ProjectWorkspaceRootResolver for UnavailableProjectWorkspaceRootResolver {
+    fn resolve_project_root(
+        &self,
+        _context: &sdkwork_birdcoder_project_service::context::ProjectContext,
+        _workspace_id: &str,
+        _project_id: &str,
+    ) -> Result<PathBuf, ProjectError> {
+        Err(ProjectError::GitOperation(
+            "server project workspace is unavailable in handler smoke".to_owned(),
+        ))
+    }
+}
+
 #[async_trait]
 impl GitOperations for UnavailableGitOperations {
     async fn inspect_overview(
@@ -304,6 +321,7 @@ async fn test_state() -> WorkspaceAppState {
         Arc::new(SqliteProjectRepository::new(pool.clone())),
         Arc::new(NoopProjectEvents),
         Arc::new(UnavailableGitOperations),
+        Arc::new(UnavailableProjectWorkspaceRootResolver),
     );
     let deployment_service = DeploymentService::new(
         Arc::new(SqliteDeploymentRepository::new(pool)),
@@ -340,6 +358,7 @@ fn with_request_context(mut request: Request<Body>, iam: Option<IamAppContext>) 
         client_kind: None,
         operation: None,
         trace_id: None,
+        idempotency_key: None,
     });
     if let Some(iam) = iam {
         request.extensions_mut().insert(iam);
@@ -397,6 +416,74 @@ async fn list_workspaces_returns_ok_with_empty_inventory() {
     assert_eq!(json["data"]["pageInfo"]["pageSize"], 20);
     assert_eq!(json["data"]["pageInfo"]["page"], 1);
     assert_eq!(json["data"]["pageInfo"]["totalItems"], "0");
+}
+
+#[tokio::test]
+async fn personal_session_can_create_and_list_projects() {
+    let app = build_workspace_app_router().with_state(test_state().await);
+    let workspace_response = app
+        .clone()
+        .oneshot(with_request_context(
+            Request::builder()
+                .method("POST")
+                .uri("/app/v3/api/workspaces")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"name":"Personal workspace"}"#))
+                .expect("build create workspace request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve create workspace request");
+    assert_eq!(workspace_response.status(), StatusCode::OK);
+    let workspace_body = axum::body::to_bytes(workspace_response.into_body(), 64 * 1024)
+        .await
+        .expect("read create workspace body");
+    let workspace_json: serde_json::Value =
+        serde_json::from_slice(&workspace_body).expect("parse create workspace JSON");
+    let workspace_id = workspace_json["data"]["item"]["id"]
+        .as_str()
+        .expect("created workspace id");
+
+    let project_response = app
+        .clone()
+        .oneshot(with_request_context(
+            Request::builder()
+                .method("POST")
+                .uri("/app/v3/api/projects")
+                .header("content-type", "application/json")
+                .body(Body::from(format!(
+                    r#"{{"workspaceId":"{workspace_id}","name":"Personal project"}}"#
+                )))
+                .expect("build create project request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve create project request");
+    assert_eq!(project_response.status(), StatusCode::OK);
+
+    let list_response = app
+        .oneshot(with_request_context(
+            Request::builder()
+                .uri(format!(
+                    "/app/v3/api/projects?workspaceId={workspace_id}&page=1&page_size=20"
+                ))
+                .body(Body::empty())
+                .expect("build list projects request"),
+            Some(test_iam_context()),
+        ))
+        .await
+        .expect("serve list projects request");
+    assert_eq!(list_response.status(), StatusCode::OK);
+    let list_body = axum::body::to_bytes(list_response.into_body(), 64 * 1024)
+        .await
+        .expect("read list projects body");
+    let list_json: serde_json::Value =
+        serde_json::from_slice(&list_body).expect("parse list projects JSON");
+    assert_eq!(list_json["code"], 0);
+    assert_eq!(list_json["data"]["items"].as_array().map(Vec::len), Some(1));
+    assert_eq!(list_json["data"]["items"][0]["name"], "Personal project");
+    assert_eq!(list_json["data"]["items"][0]["organizationId"], "0");
+    assert_eq!(list_json["data"]["pageInfo"]["totalItems"], "1");
 }
 
 #[tokio::test]

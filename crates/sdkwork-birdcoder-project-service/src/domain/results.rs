@@ -32,9 +32,6 @@ pub struct ProjectPayload {
     pub title: Option<String>,
     pub name: String,
     pub description: Option<String>,
-    pub root_path: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub site_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub domain_prefix: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

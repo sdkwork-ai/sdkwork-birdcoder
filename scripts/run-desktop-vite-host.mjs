@@ -251,6 +251,7 @@ function createDesktopViteServerConfig({
     mode: resolvedMode,
     base: './',
     esbuild: false,
+    oxc: false,
     plugins,
     optimizeDeps: {
       noDiscovery: true,

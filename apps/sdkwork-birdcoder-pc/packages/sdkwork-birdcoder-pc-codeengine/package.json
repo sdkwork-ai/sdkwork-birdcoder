@@ -26,6 +26,7 @@
     "@sdkwork/birdcoder-pc-types": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:"
   },

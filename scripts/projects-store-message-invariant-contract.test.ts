@@ -53,7 +53,6 @@ function buildProject(
     workspaceId: 'workspace-1',
     name: 'Invariant Project',
     description: undefined,
-    path: 'D:/workspace/invariant-project',
     createdAt: '2026-04-27T01:00:00.000Z',
     updatedAt: '2026-04-27T01:00:00.000Z',
     archived: false,

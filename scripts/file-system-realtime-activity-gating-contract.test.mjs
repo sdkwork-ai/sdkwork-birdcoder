@@ -58,14 +58,14 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /useFileSystem\(currentProjectId,\s*currentProject\?\.path,\s*\{\s*isActive:\s*isVisible,\s*loadActive:\s*isVisible && activeTab === 'editor',\s*realtimeActive:\s*isVisible && activeTab === 'editor',\s*\}\)/s,
-  'CodePage should only load editor files and keep realtime sync active while the editor tab is active, while still preserving broader page visibility semantics.',
+  /useFileSystem\(currentProjectId,\s*\{\s*isActive:\s*isVisible,\s*loadActive:\s*isVisible && activeTab === 'editor',\s*realtimeActive:\s*isVisible && activeTab === 'editor',\s*\}\)/s,
+  'CodePage should load editor files and keep realtime sync active by project id while the editor tab is active; mount resolution stays inside the device-local file-system boundary.',
 );
 
 assert.match(
   studioPageSource,
-  /useFileSystem\(currentProjectId,\s*currentProject\?\.path,\s*\{\s*isActive:\s*isVisible,\s*loadActive:\s*isVisible && activeTab === 'code',\s*realtimeActive:\s*isVisible && activeTab === 'code',\s*\}\)/s,
-  'StudioPage should only load editor files and keep realtime sync active while the code workspace tab is active.',
+  /useFileSystem\(currentProjectId,\s*\{\s*isActive:\s*isVisible,\s*loadActive:\s*isVisible && activeTab === 'code',\s*realtimeActive:\s*isVisible && activeTab === 'code',\s*\}\)/s,
+  'StudioPage should load editor files and keep realtime sync active by project id while the code workspace tab is active; mount resolution stays inside the device-local file-system boundary.',
 );
 
 console.log('file system realtime activity gating contract passed.');

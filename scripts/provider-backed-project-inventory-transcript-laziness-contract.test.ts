@@ -62,7 +62,6 @@ const codingSessionRepositories = createBirdCoderCodingSessionRepositories({
 });
 const service = new ProviderBackedProjectService({
   codingSessionRepositories,
-  projectContentRepository: appRepositories.projectContents,
   repository: appRepositories.projects,
 });
 
@@ -73,16 +72,6 @@ await appRepositories.projects.save({
   status: 'active',
   updatedAt: timestamp,
   workspaceId,
-});
-await appRepositories.projectContents.save({
-  configData: JSON.stringify({
-    rootPath: 'D:/workspace/project-inventory-laziness',
-  }),
-  contentVersion: '1.0',
-  createdAt: timestamp,
-  id: projectId,
-  projectId,
-  updatedAt: timestamp,
 });
 await codingSessionRepositories.sessions.saveMany([
   buildSession('project-inventory-session-a'),
@@ -183,7 +172,29 @@ assert.match(
   'project inventory refresh should reuse the already isolated cached transcript message array when timestamps match.',
 );
 
-for (const methodName of ['getProjects', 'getProjectById', 'getProjectByPath']) {
+const materializeMethodStart = providerBackedProjectServiceSource.indexOf(
+  'private async materializeProjectRecords(',
+);
+assert.notEqual(
+  materializeMethodStart,
+  -1,
+  'ProviderBackedProjectService must define materializeProjectRecords for bounded project inventory hydration.',
+);
+const materializeMethodEnd = providerBackedProjectServiceSource.indexOf(
+  '\n  private async ',
+  materializeMethodStart + 1,
+);
+const materializeMethodSource = providerBackedProjectServiceSource.slice(
+  materializeMethodStart,
+  materializeMethodEnd === -1 ? providerBackedProjectServiceSource.length : materializeMethodEnd,
+);
+assert.match(
+  materializeMethodSource,
+  /loadPersistedCodingSessionInventorySnapshot/,
+  'project inventory materialization must use the lightweight persisted session inventory snapshot.',
+);
+
+for (const methodName of ['getProjects', 'getProjectById']) {
   const methodStart = providerBackedProjectServiceSource.indexOf(
     `async ${methodName}(`,
   );
@@ -206,11 +217,19 @@ for (const methodName of ['getProjects', 'getProjectById', 'getProjectByPath']) 
     /loadPersistedCodingSessionsSnapshot/,
     `${methodName} must not hydrate full transcripts for project inventory reads.`,
   );
-  assert.match(
-    methodSource,
-    /loadPersistedCodingSessionInventorySnapshot/,
-    `${methodName} must use the lightweight persisted session inventory snapshot.`,
-  );
+  if (methodName === 'getProjects') {
+    assert.match(
+      methodSource,
+      /materializeProjectRecords/,
+      'getProjects must delegate bounded inventory hydration to materializeProjectRecords.',
+    );
+  } else {
+    assert.match(
+      methodSource,
+      /loadPersistedCodingSessionInventorySnapshot/,
+      'getProjectById must use the lightweight persisted session inventory snapshot.',
+    );
+  }
 }
 
 console.log('provider-backed project inventory transcript laziness contract passed.');

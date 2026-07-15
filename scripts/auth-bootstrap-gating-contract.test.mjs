@@ -48,8 +48,8 @@ assert.match(
 
 assert.match(
   authContextSource,
-  /if \(currentUser !== null\) \{[\s\S]*return currentUser;[\s\S]*\}[\s\S]*if \(!sessionPresent\) \{[\s\S]*return null;[\s\S]*\}[\s\S]*return resolveFallbackAwareCurrentUser\(null, previousUser/u,
-  'Auth refresh must fail closed when no validated IAM session remains and only preserve a just-confirmed auth-surface user during active session hydration.',
+  /if \(!\(await authService\.hasStoredSession\(\)\)\) \{[\s\S]*setUser\(null\);[\s\S]*return null;[\s\S]*\}[\s\S]*const currentUser = await authService\.getCurrentUser\(\);/u,
+  'Auth refresh must fail closed when no validated IAM session remains and resolve the current user only after session validation.',
 );
 
 assert.doesNotMatch(

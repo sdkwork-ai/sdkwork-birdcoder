@@ -30,8 +30,8 @@ assert.match(
 
 assert.match(
   workspacePanelSource,
-  /<FileExplorer[\s\S]*isActive=\{isActive\}/s,
-  'CodeEditorWorkspacePanel must forward its activity flag into FileExplorer so hidden editor tabs stop background explorer listeners.',
+  /<DeferredFileExplorer[\s\S]*isActive=\{isActive\}/s,
+  'CodeEditorWorkspacePanel must forward its activity flag into DeferredFileExplorer so hidden editor tabs stop background explorer listeners.',
 );
 
 console.log('file explorer inactive gating performance contract passed.');

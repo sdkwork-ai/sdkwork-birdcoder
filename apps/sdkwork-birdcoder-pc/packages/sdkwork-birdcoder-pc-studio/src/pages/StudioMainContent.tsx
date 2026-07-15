@@ -18,7 +18,6 @@ export interface StudioMainContentModel {
   activeTab: StudioStageHeaderProps['activeTab'];
   codeExplorerWidth: StudioCodeWorkspacePanelProps['explorerWidth'];
   currentProjectId: string;
-  currentProjectPath?: string;
   fileContent: StudioCodeWorkspacePanelProps['fileContent'];
   files: StudioWorkspaceOverlaysProps['files'];
   getLanguageFromPath: StudioCodeWorkspacePanelProps['getLanguageFromPath'];
@@ -94,7 +93,6 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
     activeTab,
     codeExplorerWidth,
     currentProjectId,
-    currentProjectPath,
     fileContent,
     files,
     getLanguageFromPath,
@@ -226,7 +224,6 @@ export function StudioMainContent({ model }: StudioMainContentProps) {
             openFiles={openFiles}
             explorerWidth={codeExplorerWidth}
             selectedFile={selectedFile}
-            currentProjectPath={currentProjectPath}
             viewingDiff={viewingDiff}
             fileContent={fileContent}
             onSelectFile={handleStudioCodePanelSelectFile}

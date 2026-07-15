@@ -67,15 +67,12 @@ impl<R: SkillPackageRepository> SkillPackageService<R> {
         package_id: &str,
         input: &InstallSkillPackageInput,
     ) -> Result<SkillInstallationPayload, SkillPackageError> {
-        let normalized_package_id = normalize_required(package_id).ok_or_else(|| {
-            SkillPackageError::InvalidInput("packageId is required.".to_string())
-        })?;
-        let normalized_scope_id = normalize_required(&input.scope_id).ok_or_else(|| {
-            SkillPackageError::InvalidInput("scopeId is required.".to_string())
-        })?;
-        let normalized_scope_type = normalize_required(&input.scope_type).ok_or_else(|| {
-            SkillPackageError::InvalidInput("scopeType is required.".to_string())
-        })?;
+        let normalized_package_id = normalize_required(package_id)
+            .ok_or_else(|| SkillPackageError::InvalidInput("packageId is required.".to_string()))?;
+        let normalized_scope_id = normalize_required(&input.scope_id)
+            .ok_or_else(|| SkillPackageError::InvalidInput("scopeId is required.".to_string()))?;
+        let normalized_scope_type = normalize_required(&input.scope_type)
+            .ok_or_else(|| SkillPackageError::InvalidInput("scopeType is required.".to_string()))?;
 
         if normalized_scope_type != "workspace" && normalized_scope_type != "project" {
             return Err(SkillPackageError::InvalidInput(

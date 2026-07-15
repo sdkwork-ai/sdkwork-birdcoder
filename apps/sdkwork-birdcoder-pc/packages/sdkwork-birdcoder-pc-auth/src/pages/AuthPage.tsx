@@ -23,6 +23,8 @@ export type AuthPageProps = Omit<
 
 const BIRDCODER_AUTH_METHOD_UNAVAILABLE_MESSAGE =
   "This BirdCoder sign-in method is temporarily unavailable.";
+const BIRDCODER_AUTH_APPEARANCE = resolveBirdCoderAuthAppearance();
+const BIRDCODER_AUTH_RUNTIME_CONFIG = resolveBirdCoderAuthRuntimeConfig();
 
 export function AuthPage({ getRuntime, style, ...props }: AuthPageProps) {
   const { i18n } = useTranslation();
@@ -30,13 +32,13 @@ export function AuthPage({ getRuntime, style, ...props }: AuthPageProps) {
   return (
     <SdkworkIamAuthRoutes
       {...props}
-      appearance={resolveBirdCoderAuthAppearance()}
+      appearance={BIRDCODER_AUTH_APPEARANCE}
       basePath={BIRDCODER_AUTH_BASE_PATH}
       getRuntime={getRuntime}
       homePath="/"
       locale={i18n.language}
       methodUnavailableMessage={BIRDCODER_AUTH_METHOD_UNAVAILABLE_MESSAGE}
-      runtimeConfig={resolveBirdCoderAuthRuntimeConfig()}
+      runtimeConfig={BIRDCODER_AUTH_RUNTIME_CONFIG}
       style={{ height: "100%", minHeight: 0, ...style }}
       viewportMode="flow"
     />

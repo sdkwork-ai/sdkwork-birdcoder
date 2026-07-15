@@ -1,4 +1,4 @@
-import type { LocalFolderMountSource } from '@sdkwork/birdcoder-pc-types';
+import type { LocalFolderPickerResult } from '@sdkwork/birdcoder-pc-types';
 import { isBirdCoderTauriRuntime } from './tauriRuntime.ts';
 
 type DirectoryPickerWindow = Window &
@@ -43,7 +43,20 @@ async function openTauriDirectoryDialog(): Promise<string | null> {
   return typeof selectedPath === 'string' && selectedPath.length > 0 ? selectedPath : null;
 }
 
-export async function openLocalFolder(): Promise<LocalFolderMountSource | null> {
+function createUnsupportedLocalFolderPickerResult(): LocalFolderPickerResult {
+  return {
+    status: 'unsupported',
+    capability: 'local_folder_picker',
+    code: 'browser_file_system_access_unavailable',
+    message: 'Local folder access is not available in this browser.',
+  };
+}
+
+export async function openLocalFolder(): Promise<LocalFolderPickerResult> {
+  if (typeof window === 'undefined') {
+    return createUnsupportedLocalFolderPickerResult();
+  }
+
   const directoryPickerWindow = window as DirectoryPickerWindow;
 
   // Prefer the host-native dialog in Tauri so desktop imports never trigger
@@ -52,14 +65,17 @@ export async function openLocalFolder(): Promise<LocalFolderMountSource | null> 
     try {
       const selectedPath = await openTauriDirectoryDialog();
       if (selectedPath) {
-        return { type: 'tauri', path: selectedPath };
+        return {
+          status: 'selected',
+          source: { type: 'tauri', path: selectedPath },
+        };
       }
 
-      return null;
+      return { status: 'cancelled' };
     } catch (err) {
       const pickerError = err as Error & { name?: string };
       if (pickerError.name === 'AbortError') {
-        return null;
+        return { status: 'cancelled' };
       }
 
       console.error('Error opening directory with BirdCoder desktop folder picker:', pickerError);
@@ -70,11 +86,14 @@ export async function openLocalFolder(): Promise<LocalFolderMountSource | null> 
   if (directoryPickerWindow.showDirectoryPicker) {
     try {
       const directoryHandle = await directoryPickerWindow.showDirectoryPicker();
-      return { type: 'browser', handle: directoryHandle };
+      return {
+        status: 'selected',
+        source: { type: 'browser', handle: directoryHandle },
+      };
     } catch (err) {
       const pickerError = err as Error & { name?: string };
       if (pickerError.name === 'AbortError') {
-        return null;
+        return { status: 'cancelled' };
       }
 
       console.error('Error opening directory with browser File System Access API:', pickerError);
@@ -82,5 +101,5 @@ export async function openLocalFolder(): Promise<LocalFolderMountSource | null> 
     }
   }
 
-  throw new Error('File System Access API is not supported in this browser.');
+  return createUnsupportedLocalFolderPickerResult();
 }

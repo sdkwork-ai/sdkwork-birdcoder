@@ -1,6 +1,8 @@
 use sqlx::{AnyPool, Row};
 
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{any_sql, IS_NOT_DELETED, qualified_is_not_deleted};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{
+    any_sql, qualified_is_not_deleted, IS_NOT_DELETED,
+};
 
 use crate::db::columns;
 use crate::db::rows::{SkillCapabilityRow, SkillInstallationRow, SkillPackageRow, SkillVersionRow};
@@ -54,7 +56,9 @@ pub async fn get_skill_package_by_id(
         .await?;
 
     let Some(row) = row else {
-        return Err(RepositoryError::NotFound(format!("skill package {id} not found")));
+        return Err(RepositoryError::NotFound(format!(
+            "skill package {id} not found"
+        )));
     };
     SkillPackageRow::from_row(&row).map_err(Into::into)
 }
@@ -69,7 +73,10 @@ pub async fn list_skill_versions_by_package(
         ALL_VERSION_COLUMNS,
         columns::skill_version::TABLE,
     );
-    let rows = sqlx::query(&any_sql(&sql)).bind(package_id).fetch_all(pool).await?;
+    let rows = sqlx::query(&any_sql(&sql))
+        .bind(package_id)
+        .fetch_all(pool)
+        .await?;
     rows.iter()
         .map(SkillVersionRow::from_row)
         .collect::<Result<Vec<_>, _>>()
@@ -86,7 +93,10 @@ pub async fn list_skill_capabilities_by_version(
         ALL_CAPABILITY_COLUMNS,
         columns::skill_capability::TABLE,
     );
-    let rows = sqlx::query(&any_sql(&sql)).bind(version_id).fetch_all(pool).await?;
+    let rows = sqlx::query(&any_sql(&sql))
+        .bind(version_id)
+        .fetch_all(pool)
+        .await?;
     rows.iter()
         .map(SkillCapabilityRow::from_row)
         .collect::<Result<Vec<_>, _>>()

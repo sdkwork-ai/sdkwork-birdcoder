@@ -23,8 +23,8 @@ assert.match(
 
 assert.match(
   runtimeSource,
-  /poller\.timerId = setTimeout\(\(\) => \{[\s\S]*void this\.pollProjectFileTreeChanges\(projectId\);[\s\S]*\}, FILE_TREE_POLL_INTERVAL_MS\);/s,
-  'RuntimeFileSystemService should schedule file-tree polling with setTimeout so each cycle can be delayed until the previous poll has completed.',
+  /poller\.timerId = setTimeout\(\(\) => \{[\s\S]*void this\.pollProjectFileTreeChanges\(projectId, poller\);[\s\S]*\}, FILE_TREE_POLL_INTERVAL_MS\);/s,
+  'RuntimeFileSystemService should schedule file-tree polling with setTimeout and its owned poller instance so each cycle can be delayed until the previous poll has completed and cannot cross a subject change.',
 );
 
 assert.doesNotMatch(
@@ -43,6 +43,12 @@ assert.match(
   runtimeSource,
   /currentPoller\.isRunning = false;[\s\S]*this\.scheduleProjectFileTreePoll\(projectId, currentPoller\);/s,
   'RuntimeFileSystemService must schedule the next file-tree poll only after the current async poll releases its running guard.',
+);
+
+assert.match(
+  runtimeSource,
+  /this\.projectFileTreePollers\.get\(projectId\) !== poller[\s\S]*!this\.isProjectMountOwnedByScope\(projectId, poller\.scope\)/s,
+  'RuntimeFileSystemService must reject stale poller callbacks before they can read, mutate, or notify a replacement subject mount.',
 );
 
 console.log('file system poller timeout performance contract passed.');

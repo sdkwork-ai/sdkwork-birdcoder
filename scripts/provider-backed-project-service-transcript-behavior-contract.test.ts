@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 
 import { ProviderBackedProjectService } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/impl/ProviderBackedProjectService.ts';
-import { buildBirdCoderProjectContentConfigData } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/projectContentConfigData.ts';
 import { createBirdCoderConsoleRepositories } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/appConsoleRepository.ts';
 import { createBirdCoderCodingSessionRepositories } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/codingSessionRepository.ts';
 import { createBirdCoderStorageProvider } from '../apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/storage/dataKernel.ts';
@@ -24,24 +23,16 @@ const evidenceRepositories = createBirdCoderPromptSkillTemplateEvidenceRepositor
 const service = new ProviderBackedProjectService({
   codingSessionRepositories,
   evidenceRepositories,
-  projectContentRepository: appRepositories.projectContents,
   repository: appRepositories.projects,
 });
 
-const project = await service.createProject('workspace-provider-contract', 'Provider Contract', {
-  path: 'D:/workspace/provider-contract',
-});
-assert.equal(
-  (await appRepositories.projects.findById(project.id))?.rootPath,
-  undefined,
-  'provider-backed project creation must keep studio_project free of rootPath shadows.',
-);
+const project = await service.createProject('workspace-provider-contract', 'Provider Contract');
 assert.equal(
   (await evidenceRepositories.templateInstantiations.findById(
     `template-instantiation-${project.id}`,
   ))?.outputRoot,
-  'D:/workspace/provider-contract',
-  'provider-backed project creation evidence must keep the canonical content rootPath as outputRoot.',
+  `project:${project.id}`,
+  'provider-backed project creation evidence must use an opaque project reference instead of a device path.',
 );
 const codingSession = await service.createCodingSession(project.id, 'Transcript Contract', {
   engineId: 'codex',
@@ -292,9 +283,6 @@ assert.equal(
 const projectForTranscriptDeletion = await service.createProject(
   'workspace-provider-contract',
   'Provider Transcript Deletion',
-  {
-    path: 'D:/workspace/provider-transcript-deletion',
-  },
 );
 const projectDeleteSessionA = await service.createCodingSession(
   projectForTranscriptDeletion.id,
@@ -351,49 +339,13 @@ assert.equal(
   'provider-backed workspace project listings must stay aligned with the latest persisted transcript snapshot.',
 );
 
-await appRepositories.projects.save({
-  id: 'project-content-authority-existing',
-  workspaceId: 'workspace-content-authority',
-  name: 'Content Authority Existing Project',
-  status: 'active',
-  createdAt: '2026-04-24T00:00:00.000Z',
-  updatedAt: '2026-04-24T00:00:00.000Z',
-});
-await appRepositories.projectContents.save({
-  id: 'project-content-authority-existing',
-  projectId: 'project-content-authority-existing',
-  configData: buildBirdCoderProjectContentConfigData('D:/workspace/content-authority'),
-  contentVersion: '1.0',
-  createdAt: '2026-04-24T00:00:00.000Z',
-  updatedAt: '2026-04-24T00:00:00.000Z',
-});
-
-const existingProjectFromContentAuthority = await service.createProject(
-  'workspace-content-authority',
-  'Duplicate Attempt',
-  {
-    path: 'D:/workspace/content-authority',
-  },
-);
-assert.equal(
-  existingProjectFromContentAuthority.id,
-  'project-content-authority-existing',
-  'provider-backed project creation must detect existing paths from studio_project_content configData, not studio_project.rootPath.',
-);
-
 const repeatedNameProjectA = await service.createProject(
-  'workspace-content-authority',
+  'workspace-project-identity',
   'Repeated Folder',
-  {
-    path: 'D:/workspace/very-long-common-prefix/that-used-to-truncate-the-project-code-before-the-unique-suffix/a',
-  },
 );
 const repeatedNameProjectB = await service.createProject(
-  'workspace-content-authority',
+  'workspace-project-identity',
   'Repeated Folder',
-  {
-    path: 'D:/workspace/very-long-common-prefix/that-used-to-truncate-the-project-code-before-the-unique-suffix/b',
-  },
 );
 const repeatedNameProjectRecordA = await appRepositories.projects.findById(repeatedNameProjectA.id);
 const repeatedNameProjectRecordB = await appRepositories.projects.findById(repeatedNameProjectB.id);
@@ -412,7 +364,7 @@ assert.notEqual(
 assert.notEqual(
   repeatedNameProjectRecordA.code,
   repeatedNameProjectRecordB.code,
-  'provider-backed project creation must persist Java-unique studio_project.code values for long common path prefixes.',
+  'provider-backed project creation must persist Java-unique studio_project.code values for repeated display names.',
 );
 assert.equal(
   repeatedNameProjectRecordA.title,
@@ -433,73 +385,45 @@ assert.ok(
   'provider-backed generated studio_project.code must respect the Java length=64 standard for every project.',
 );
 
-const projectForPathUpdate = await service.createProject(
-  'workspace-content-authority',
-  'Project Path Update Contract',
-  {
-    path: 'D:/workspace/path-update-source',
-  },
+const projectForMetadataUpdate = await service.createProject(
+  'workspace-project-identity',
+  'Project Metadata Update Contract',
 );
-
-await assert.rejects(
-  () => service.updateProject(projectForPathUpdate.id, { path: 'relative/path' }),
-  /absolute path/u,
-  'provider-backed project updates must reject relative project root paths.',
-);
-await assert.rejects(
-  () => service.updateProject(projectForPathUpdate.id, { path: '   ' }),
-  /required/u,
-  'provider-backed project updates must reject blank project root paths.',
-);
-
-await service.updateProject(projectForPathUpdate.id, {
-  path: ' D:/workspace/path-update-target ',
+await service.updateProject(projectForMetadataUpdate.id, {
+  description: 'Metadata is synchronized independently from a device mount.',
 });
-
-const updatedProjectRecord = await appRepositories.projects.findById(projectForPathUpdate.id);
-const updatedProjectContent = await appRepositories.projectContents.findById(projectForPathUpdate.id);
+const updatedProjectRecord = await appRepositories.projects.findById(projectForMetadataUpdate.id);
 assert.equal(
-  updatedProjectRecord?.rootPath,
-  undefined,
-  'provider-backed project updates must keep studio_project free of rootPath shadows.',
-);
-assert.equal(
-  updatedProjectContent &&
-    JSON.parse(updatedProjectContent.configData ?? '{}').rootPath,
-  'D:/workspace/path-update-target',
-  'provider-backed project updates must write the canonical rootPath to studio_project_content configData.',
+  updatedProjectRecord?.description,
+  'Metadata is synchronized independently from a device mount.',
+  'provider-backed project updates must persist remote project metadata without a device path.',
 );
 
 const syncedProject = await service.syncProjectSummary({
-  id: 'project-summary-root-path-normalization',
-  workspaceId: 'workspace-content-authority',
-  name: 'Summary Root Path Normalization',
-  rootPath: ' D:/workspace/summary-root-path ',
+  id: 'project-summary-identity-sync',
+  workspaceId: 'workspace-project-identity',
+  name: 'Summary Identity Sync',
   status: 'active',
   createdAt: '2026-04-24T01:00:00.000Z',
   updatedAt: '2026-04-24T01:01:00.000Z',
 });
-const syncedProjectContent = await appRepositories.projectContents.findById(
-  'project-summary-root-path-normalization',
-);
 const syncedProjectRecord = await appRepositories.projects.findById(
-  'project-summary-root-path-normalization',
+  'project-summary-identity-sync',
 );
 assert.equal(
-  syncedProject.path,
-  'D:/workspace/summary-root-path',
-  'provider-backed summary sync must expose the normalized canonical project path.',
+  syncedProject.id,
+  'project-summary-identity-sync',
+  'provider-backed summary sync must retain the remote project identity.',
 );
 assert.equal(
-  syncedProjectRecord?.rootPath,
-  undefined,
-  'provider-backed summary sync must keep studio_project free of rootPath shadows.',
+  'path' in syncedProject,
+  false,
+  'provider-backed summary sync must not expose a device path in a project mirror.',
 );
 assert.equal(
-  syncedProjectContent &&
-    JSON.parse(syncedProjectContent.configData ?? '{}').rootPath,
-  'D:/workspace/summary-root-path',
-  'provider-backed summary sync must persist the normalized canonical rootPath in studio_project_content.',
+  Object.hasOwn(syncedProjectRecord ?? {}, 'sitePath'),
+  false,
+  'provider-backed project storage must not retain a site-path shadow.',
 );
 
 console.log('provider-backed project service transcript behavior contract passed.');

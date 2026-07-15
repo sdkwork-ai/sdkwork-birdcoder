@@ -14,7 +14,6 @@ import {
   openLocalFolder,
   rebindLocalFolderProject,
   resolveLatestCodingSessionIdForProject,
-  resolveProjectMountRecoverySource,
   restoreWorkbenchCodingSessionMessageFiles,
   type RunConfigurationRecord,
   type TerminalCommandRequest,
@@ -23,6 +22,7 @@ import {
   useCodingSessionPendingInteractionState,
   useFileSystem,
   useIDEServices,
+  useProjectLocalWorkingDirectory,
   useProjects,
   useProjectGitOverview,
   useProjectRunConfigurations,
@@ -102,7 +102,12 @@ function StudioPageComponent({
     isActive: isVisible,
     targetProjectId: projectId,
   });
-  const { collaborationService, appRuntimeReadService, projectService } = useIDEServices();
+  const {
+    collaborationService,
+    appRuntimeReadService,
+    projectService,
+  } = useIDEServices();
+  const resolveProjectLocalWorkingDirectory = useProjectLocalWorkingDirectory();
   const { user } = useAuth();
   const { addToast } = useToast();
   const [sessionId, setSessionId] = useState<string>('');
@@ -274,7 +279,6 @@ function StudioPageComponent({
   const selectedCodingSessionIdRef = useRef(sessionId);
   const currentProjectIdRef = useRef(currentProjectId);
   const runConfigurationsRef = useRef(runConfigurations);
-  const defaultWorkingDirectoryRef = useRef(preferences.defaultWorkingDirectory);
   const selectCodingSessionRef = useRef(selectCodingSession);
 
   useEffect(() => {
@@ -282,11 +286,9 @@ function StudioPageComponent({
     selectedCodingSessionIdRef.current = sessionId;
     currentProjectIdRef.current = currentProjectId;
     runConfigurationsRef.current = runConfigurations;
-    defaultWorkingDirectoryRef.current = preferences.defaultWorkingDirectory;
     selectCodingSessionRef.current = selectCodingSession;
   }, [
     currentProjectId,
-    preferences.defaultWorkingDirectory,
     projects,
     runConfigurations,
     selectCodingSession,
@@ -411,8 +413,7 @@ function StudioPageComponent({
     activeTab,
     addToast,
     currentProjectId,
-    currentProjectPath: currentProject?.path,
-    defaultWorkingDirectory: preferences.defaultWorkingDirectory,
+    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
     previewAppPlatform,
     previewDeviceModel,
     previewIsLandscape,
@@ -458,6 +459,7 @@ function StudioPageComponent({
     void (async () => {
       try {
         const hydratedProject = await hydrateImportedProjectFromAuthority({
+          appRuntimeReadService,
           knownProjects: projects,
           projectId,
           projectService,
@@ -483,14 +485,22 @@ function StudioPageComponent({
         console.error('Failed to refresh imported project sessions', error);
       }
     })();
-  }, [notifyProjectChange, projectService, projects, selectCodingSession, user?.id, workspaceId]);
+  }, [
+    appRuntimeReadService,
+    notifyProjectChange,
+    projectService,
+    projects,
+    selectCodingSession,
+    user?.id,
+    workspaceId,
+  ]);
   const {
     handleInviteCollaborator,
-    inviteEmail,
+    inviteUserId,
     isCollaboratorsLoading,
     isInvitePending,
     projectCollaborators,
-    setInviteEmail,
+    setInviteUserId,
     setShowShareModal,
     showShareModal,
   } = useStudioCollaboration({
@@ -543,8 +553,9 @@ function StudioPageComponent({
     renameNode,
     searchFiles,
     mountFolder,
+    restoreProjectMount,
     flushPendingAutosave,
-  } = useFileSystem(currentProjectId, currentProject?.path, {
+  } = useFileSystem(currentProjectId, {
     isActive: isVisible,
     loadActive: isVisible && activeTab === 'code',
     realtimeActive: isVisible && activeTab === 'code',
@@ -555,8 +566,8 @@ function StudioPageComponent({
     isActive: isVisible,
     saveError,
     currentProjectIdRef,
-    defaultWorkingDirectoryRef,
     projectsRef,
+    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
     runConfigurationsRef,
     selectedCodingSessionIdRef,
     selectCodingSessionRef,
@@ -575,25 +586,22 @@ function StudioPageComponent({
   const previousMountRecoveryStatusRef = useRef(mountRecoveryState.status);
 
   const selectFolderAndImportProject = useCallback(async (fallbackProjectName: string) => {
-    const folderInfo = await openLocalFolder();
-    if (!folderInfo) {
+    const pickerResult = await openLocalFolder();
+    if (pickerResult.status === 'cancelled') {
       return null;
     }
-
-    const normalizedWorkspaceId = workspaceId?.trim() ?? '';
+    if (pickerResult.status === 'unsupported') {
+      addToast(pickerResult.message, 'error');
+      return null;
+    }
 
     return importLocalFolderProject({
       createProject,
       fallbackProjectName,
-      folderInfo,
-      getProjectByPath: (projectPath) =>
-        normalizedWorkspaceId
-          ? projectService.getProjectByPath(normalizedWorkspaceId, projectPath)
-          : Promise.resolve(null),
+      folderInfo: pickerResult.source,
       mountFolder,
-      updateProject,
     });
-  }, [createProject, mountFolder, projectService, updateProject, workspaceId]);
+  }, [addToast, createProject, mountFolder]);
 
   useEffect(() => {
     if (
@@ -1065,16 +1073,19 @@ function StudioPageComponent({
   }, [activateImportedProject, addToast, selectFolderAndImportProject, syncImportedProjectInBackground, t]);
 
   const handleRetryMountRecovery = useCallback(async () => {
-    const recoveryMountSource = resolveProjectMountRecoverySource(currentProject?.path);
-    if (!currentProjectId || !recoveryMountSource) {
-      addToast('No persisted local folder is available to retry.', 'error');
+    if (!currentProjectId) {
+      addToast('Select a project before reconnecting its local folder.', 'error');
       return;
     }
 
     setIsMountRecoveryActionPending(true);
     try {
-      await mountFolder(currentProjectId, recoveryMountSource);
-      addToast(t('studio.openedFolder', { name: currentProject?.name ?? recoveryMountSource.path }), 'success');
+      const recoveredFiles = await restoreProjectMount();
+      if (recoveredFiles.length === 0) {
+        addToast('Select the local folder again to restore file access on this device.', 'error');
+        return;
+      }
+      addToast(t('studio.openedFolder', { name: currentProject?.name ?? 'Local folder' }), 'success');
     } catch (error) {
       console.error('Failed to retry local project folder recovery', error);
       addToast(
@@ -1086,7 +1097,7 @@ function StudioPageComponent({
     } finally {
       setIsMountRecoveryActionPending(false);
     }
-  }, [addToast, currentProject?.name, currentProject?.path, currentProjectId, mountFolder, t]);
+  }, [addToast, currentProject?.name, currentProjectId, restoreProjectMount, t]);
 
   const handleReimportProjectFolder = useCallback(async () => {
     if (!currentProjectId) {
@@ -1096,17 +1107,20 @@ function StudioPageComponent({
 
     setIsMountRecoveryActionPending(true);
     try {
-      const folderInfo = await openLocalFolder();
-      if (!folderInfo) {
+      const pickerResult = await openLocalFolder();
+      if (pickerResult.status === 'cancelled') {
+        return;
+      }
+      if (pickerResult.status === 'unsupported') {
+        addToast(pickerResult.message, 'error');
         return;
       }
 
       const reboundProject = await rebindLocalFolderProject({
         projectId: currentProjectId,
         fallbackProjectName: currentProject?.name ?? t('studio.localFolder'),
-        folderInfo,
+        folderInfo: pickerResult.source,
         mountFolder,
-        updateProject,
       });
 
       syncImportedProjectInBackground(currentProjectId);
@@ -1122,7 +1136,7 @@ function StudioPageComponent({
     } finally {
       setIsMountRecoveryActionPending(false);
     }
-  }, [addToast, currentProject?.name, currentProjectId, mountFolder, syncImportedProjectInBackground, t, updateProject]);
+  }, [addToast, currentProject?.name, currentProjectId, mountFolder, syncImportedProjectInBackground, t]);
 
   const studioChatEmptyState = useMemo(
     () => (isSelectedCodingSessionHydrating ? <StudioSessionTranscriptLoadingState /> : undefined),
@@ -1255,7 +1269,6 @@ function StudioPageComponent({
           activeTab,
           codeExplorerWidth,
           currentProjectId,
-          currentProjectPath: currentProject?.path,
           fileContent,
           files,
           getLanguageFromPath,
@@ -1335,7 +1348,7 @@ function StudioPageComponent({
           handleRunTaskExecution,
           handleSaveDebugConfiguration,
           handleSubmitRunConfiguration,
-          inviteEmail,
+          inviteUserId,
           isAnalyzeModalVisible,
           isCollaboratorsLoading,
           isDebugConfigVisible,
@@ -1345,7 +1358,7 @@ function StudioPageComponent({
           runConfigurationDraft,
           runConfigurations,
           setDeleteConfirmation,
-          setInviteEmail,
+          setInviteUserId,
           setIsAnalyzeModalVisible,
           setIsDebugConfigVisible,
           setIsRunConfigVisible,

@@ -4,7 +4,28 @@ import {
   createBirdcoderCredentialEntryBootstrapPlugin,
   isBirdcoderPublicRuntimeEnvKey,
   resolveBirdcoderPublicRuntimeEnv,
+  resolveBirdcoderDevelopmentApiEnvDefines,
+  resolveBirdcoderViteRuntimeEnvSource,
+  resolveBirdcoderWebRuntimeEnvSource,
 } from './create-birdcoder-vite-plugins.mjs';
+
+const mergedRuntimeEnv = resolveBirdcoderViteRuntimeEnvSource(
+  {
+    SDKWORK_ACCESS_TOKEN: 'file-token',
+    VITE_BIRDCODER_API_BASE_URL: 'http://127.0.0.1:3900',
+  },
+  {
+    SDKWORK_ACCESS_TOKEN: 'process-token',
+    VITE_BIRDCODER_API_BASE_URL: 'http://127.0.0.1:10240',
+  },
+);
+assert.equal(mergedRuntimeEnv.SDKWORK_ACCESS_TOKEN, 'process-token');
+assert.equal(mergedRuntimeEnv.VITE_BIRDCODER_API_BASE_URL, 'http://127.0.0.1:10240');
+assert.equal(
+  resolveBirdcoderDevelopmentApiEnvDefines('test')['import.meta.env.VITE_BIRDCODER_API_BASE_URL'],
+  'undefined',
+);
+assert.deepEqual(resolveBirdcoderDevelopmentApiEnvDefines('production'), {});
 
 const resolved = resolveBirdcoderPublicRuntimeEnv({
   SDKWORK_ACCESS_TOKEN: 'secret-bootstrap-token',
@@ -35,6 +56,26 @@ assert.equal(isBirdcoderPublicRuntimeEnvKey('SDKWORK_ACCESS_TOKEN'), false);
 assert.equal(isBirdcoderPublicRuntimeEnvKey('SDKWORK_SIGNING_KEY'), false);
 assert.equal(isBirdcoderPublicRuntimeEnvKey('VITE_PRIVATE_KEY'), false);
 assert.equal(isBirdcoderPublicRuntimeEnvKey('VITE_SDKWORK_BIRDCODER_API_BASE_URL'), true);
+
+const webDevelopmentRuntimeEnv = resolveBirdcoderWebRuntimeEnvSource({
+  VITE_BIRDCODER_API_BASE_URL: 'http://127.0.0.1:10240',
+  VITE_SDKWORK_APPBASE_APP_API_BASE_URL: 'http://127.0.0.1:3900',
+  VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL: 'http://127.0.0.1:10240',
+  VITE_SDKWORK_RUNTIME_TARGET: 'browser',
+}, 'development');
+assert.equal(webDevelopmentRuntimeEnv.VITE_BIRDCODER_API_BASE_URL, undefined);
+assert.equal(webDevelopmentRuntimeEnv.VITE_SDKWORK_APPBASE_APP_API_BASE_URL, undefined);
+assert.equal(webDevelopmentRuntimeEnv.VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL, undefined);
+assert.equal(webDevelopmentRuntimeEnv.VITE_SDKWORK_RUNTIME_TARGET, 'browser');
+
+const webProductionRuntimeEnv = resolveBirdcoderWebRuntimeEnvSource({
+  VITE_BIRDCODER_API_BASE_URL: 'https://birdcoder.example.test',
+}, 'production');
+assert.equal(
+  webProductionRuntimeEnv.VITE_BIRDCODER_API_BASE_URL,
+  'https://birdcoder.example.test',
+  'Production web builds must preserve the configured public API authority.',
+);
 
 const productionCredentialPlugin = createBirdcoderCredentialEntryBootstrapPlugin({
   mode: 'production',

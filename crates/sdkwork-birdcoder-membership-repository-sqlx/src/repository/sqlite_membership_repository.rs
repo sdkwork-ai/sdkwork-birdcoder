@@ -28,8 +28,12 @@ impl MembershipRepository for SqliteMembershipRepository {
         let scoped_tenant_id = tenant_id
             .and_then(|value| value.parse::<i64>().ok())
             .filter(|value| *value > 0);
-        match membership_repository::get_current_membership(&self.pool, scoped_tenant_id, owner_user_id)
-            .await
+        match membership_repository::get_current_membership(
+            &self.pool,
+            scoped_tenant_id,
+            owner_user_id,
+        )
+        .await
         {
             Ok(row) => Ok(Some(CommerceMembershipCurrentPayload {
                 tenant_id: Some(row.tenant_id.to_string()),
@@ -53,7 +57,9 @@ impl MembershipRepository for SqliteMembershipRepository {
         }
     }
 
-    async fn list_package_groups(&self) -> Result<Vec<CommerceMembershipPackageGroupPayload>, String> {
+    async fn list_package_groups(
+        &self,
+    ) -> Result<Vec<CommerceMembershipPackageGroupPayload>, String> {
         let rows = membership_repository::list_package_groups(&self.pool)
             .await
             .map_err(|e| e.to_string())?;

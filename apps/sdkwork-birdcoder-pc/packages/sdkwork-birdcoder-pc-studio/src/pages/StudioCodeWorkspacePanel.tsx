@@ -3,7 +3,7 @@ import {
   buildBirdCoderEditorModelPath,
   ContentWorkbench,
   DeferredDiffEditor,
-  FileExplorer,
+  DeferredFileExplorer,
   resolveContentPreviewDescriptor,
   type FileNode,
 } from '@sdkwork/birdcoder-pc-ui';
@@ -19,7 +19,6 @@ interface StudioCodeWorkspacePanelProps {
   loadingDirectoryPaths: Record<string, boolean>;
   openFiles: string[];
   selectedFile?: string | null;
-  currentProjectPath?: string;
   viewingDiff: FileChange | null;
   fileContent: string;
   explorerWidth: number;
@@ -56,7 +55,6 @@ function areStudioCodeWorkspacePanelPropsEqual(
     left.loadingDirectoryPaths === right.loadingDirectoryPaths &&
     left.openFiles === right.openFiles &&
     left.selectedFile === right.selectedFile &&
-    left.currentProjectPath === right.currentProjectPath &&
     left.viewingDiff === right.viewingDiff &&
     left.fileContent === right.fileContent &&
     left.explorerWidth === right.explorerWidth &&
@@ -83,7 +81,6 @@ export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
   loadingDirectoryPaths,
   openFiles,
   selectedFile,
-  currentProjectPath,
   viewingDiff,
   fileContent,
   explorerWidth,
@@ -141,15 +138,15 @@ export const StudioCodeWorkspacePanel = memo(function StudioCodeWorkspacePanel({
 
   return (
     <div className={isActive ? 'flex-1 flex h-full overflow-hidden' : 'hidden'}>
-      <FileExplorer
+      <DeferredFileExplorer
         files={files}
         isActive={isActive}
         width={explorerWidth}
         loadingDirectoryPaths={loadingDirectoryPaths}
         onExpandDirectory={onExpandDirectory}
+        projectId={currentProjectId}
         scopeKey={currentProjectId}
         selectedFile={selectedFile || undefined}
-        basePath={currentProjectPath}
         onSelectFile={onSelectFile}
         onCreateFile={onCreateFile}
         onCreateFolder={onCreateFolder}

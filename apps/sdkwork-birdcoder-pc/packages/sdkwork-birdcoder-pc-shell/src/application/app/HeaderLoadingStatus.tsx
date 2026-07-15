@@ -132,7 +132,7 @@ export const HeaderLoadingStatus = React.memo(function HeaderLoadingStatus({
         id: 'project-mount-recovery',
         title: 'Reconnecting local project folder',
         detail:
-          projectMountRecoveryNotice.state.path ??
+          projectMountRecoveryNotice.state.displayName ??
           'Restoring the local folder mount for the active project.',
         meta: [
           projectMountRecoveryNotice.projectName ?? null,

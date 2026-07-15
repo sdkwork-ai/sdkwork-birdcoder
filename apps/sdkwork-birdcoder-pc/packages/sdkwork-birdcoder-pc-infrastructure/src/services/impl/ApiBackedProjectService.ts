@@ -48,6 +48,7 @@ import type {
   CreateProjectOptions,
   GetCodingSessionTranscriptOptions,
   IProjectService,
+  UpdateProjectOptions,
   UpdateCodingSessionOptions,
 } from '../interfaces/IProjectService.ts';
 import type {
@@ -200,7 +201,6 @@ function mergeProjectSummary(
   summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>[number],
   localProject: LocalProjectSnapshot | undefined,
 ): BirdCoderProject {
-  const resolvedProjectPath = summary.rootPath?.trim() || localProject?.path;
   const displayName = summary.title?.trim() || summary.name;
   return {
     id: summary.id,
@@ -218,8 +218,6 @@ function mergeProjectSummary(
     title: summary.title,
     name: displayName,
     description: summary.description,
-    path: resolvedProjectPath,
-    sitePath: summary.sitePath ?? localProject?.sitePath,
     domainPrefix: summary.domainPrefix ?? localProject?.domainPrefix,
     ownerId: summary.ownerId,
     leaderId: summary.leaderId,
@@ -249,7 +247,6 @@ function mergeProjectMirrorSnapshot(
   summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>[number],
   localProject: BirdCoderProjectMirrorSnapshot | undefined,
 ): BirdCoderProjectMirrorSnapshot {
-  const resolvedProjectPath = summary.rootPath?.trim() || localProject?.path;
   const displayName = summary.title?.trim() || summary.name;
   return {
     id: summary.id,
@@ -267,8 +264,6 @@ function mergeProjectMirrorSnapshot(
     title: summary.title,
     name: displayName,
     description: summary.description,
-    path: resolvedProjectPath,
-    sitePath: summary.sitePath ?? localProject?.sitePath,
     domainPrefix: summary.domainPrefix ?? localProject?.domainPrefix,
     ownerId: summary.ownerId,
     leaderId: summary.leaderId,
@@ -483,58 +478,6 @@ function buildAuthoritativeMirrorMessage(
   };
 }
 
-interface ProjectCatalogVisibilityCandidate {
-  description?: string;
-  id: string;
-  name: string;
-  path?: string;
-  rootPath?: string;
-}
-
-interface ProjectCatalogVisibilityFallback {
-  path?: string;
-}
-
-function resolveProjectCatalogPath(
-  candidate: ProjectCatalogVisibilityCandidate,
-): string | undefined {
-  const rawPath = candidate.rootPath ?? candidate.path;
-  if (typeof rawPath !== 'string') {
-    return undefined;
-  }
-
-  const normalizedPath = rawPath.trim();
-  return normalizedPath.length > 0 && isAbsoluteProjectPath(normalizedPath)
-    ? normalizedPath
-    : undefined;
-}
-
-function resolveVisibleProjectCatalogPath(
-  candidate: ProjectCatalogVisibilityCandidate,
-  fallback?: ProjectCatalogVisibilityFallback,
-): string | undefined {
-  const candidatePath = resolveProjectCatalogPath(candidate);
-  if (candidatePath) {
-    return candidatePath;
-  }
-
-  if (typeof fallback?.path !== 'string') {
-    return undefined;
-  }
-
-  const normalizedFallbackPath = fallback.path.trim();
-  return normalizedFallbackPath.length > 0 && isAbsoluteProjectPath(normalizedFallbackPath)
-    ? normalizedFallbackPath
-    : undefined;
-}
-
-function shouldHideProjectFromCatalog(
-  candidate: ProjectCatalogVisibilityCandidate,
-  fallback?: ProjectCatalogVisibilityFallback,
-): boolean {
-  return !resolveVisibleProjectCatalogPath(candidate, fallback);
-}
-
 function resolveLocalProjectUserScope(project: LocalProjectSnapshot): string | undefined {
   const userScopeCandidates = [
     project.userId,
@@ -611,55 +554,6 @@ function buildProjectPageFromLocalMirror(
   };
 }
 
-function isAbsoluteProjectPath(path: string): boolean {
-  return /^[a-zA-Z]:[\\/]/u.test(path) || path.startsWith('\\\\') || path.startsWith('/');
-}
-
-function normalizeProjectPathForComparison(path: string | null | undefined): string | null {
-  if (typeof path !== 'string') {
-    return null;
-  }
-
-  const trimmedPath = path.trim();
-  if (!trimmedPath) {
-    return null;
-  }
-
-  const isWindowsStylePath =
-    /^[a-zA-Z]:/u.test(trimmedPath) ||
-    trimmedPath.includes('\\') ||
-    trimmedPath.startsWith('\\\\');
-  const normalizedSeparators = trimmedPath.replace(/\\/gu, '/');
-  const collapsedPath = normalizedSeparators.startsWith('//')
-    ? `//${normalizedSeparators.slice(2).replace(/\/+/gu, '/')}`
-    : normalizedSeparators.replace(/\/+/gu, '/');
-  const withoutTrailingSeparator =
-    collapsedPath === '/'
-      ? collapsedPath
-      : collapsedPath.replace(/\/+$/u, '') || collapsedPath;
-
-  return isWindowsStylePath
-    ? withoutTrailingSeparator.toLowerCase()
-    : withoutTrailingSeparator;
-}
-
-function normalizeRequiredProjectPathForCreate(path: string | null | undefined): string {
-  if (typeof path !== 'string') {
-    throw new Error('Project root path is required to create a project.');
-  }
-
-  const normalizedPath = path.trim();
-  if (!normalizedPath) {
-    throw new Error('Project root path is required to create a project.');
-  }
-
-  if (!isAbsoluteProjectPath(normalizedPath)) {
-    throw new Error('Project root path must be an absolute path.');
-  }
-
-  return normalizedPath;
-}
-
 function indexLocalCodingSessionsById(
   localProjects: readonly LocalProjectSnapshot[],
 ): Map<string, LocalCodingSessionSnapshot> {
@@ -700,70 +594,6 @@ function groupCodingSessionSummariesByProjectId(
   }
 
   return codingSessionsByProjectId;
-}
-
-function indexCodingSessionCountsByProjectId(
-  projects: readonly LocalProjectSnapshot[],
-): Map<string, number> {
-  return new Map(
-    projects.map((project) => [project.id, project.codingSessions.length] satisfies [string, number]),
-  );
-}
-
-function collectRedundantDuplicateProjectIds(
-  projectSummaries: readonly BirdCoderProjectSummary[],
-  localProjects: readonly LocalProjectSnapshot[],
-  authoritativeCodingSessionsByProjectId: ReadonlyMap<string, readonly BirdCoderCodingSessionSummary[]> | null,
-): string[] {
-  const localSessionCountsByProjectId = indexCodingSessionCountsByProjectId(localProjects);
-  const projectGroupsByNormalizedPath = new Map<string, BirdCoderProjectSummary[]>();
-
-  for (const projectSummary of projectSummaries) {
-    const normalizedRootPath = normalizeProjectPathForComparison(projectSummary.rootPath);
-    if (!normalizedRootPath) {
-      continue;
-    }
-
-    const projectGroup = projectGroupsByNormalizedPath.get(normalizedRootPath) ?? [];
-    projectGroup.push(projectSummary);
-    projectGroupsByNormalizedPath.set(normalizedRootPath, projectGroup);
-  }
-
-  const redundantProjectIds = new Set<string>();
-  for (const projectGroup of projectGroupsByNormalizedPath.values()) {
-    if (projectGroup.length <= 1) {
-      continue;
-    }
-
-    const rankedProjects = [...projectGroup].sort((left, right) => {
-      const leftAuthoritativeCount =
-        authoritativeCodingSessionsByProjectId?.get(left.id)?.length ?? 0;
-      const rightAuthoritativeCount =
-        authoritativeCodingSessionsByProjectId?.get(right.id)?.length ?? 0;
-      const leftLocalCount = localSessionCountsByProjectId.get(left.id) ?? 0;
-      const rightLocalCount = localSessionCountsByProjectId.get(right.id) ?? 0;
-      const leftScore = leftAuthoritativeCount + leftLocalCount;
-      const rightScore = rightAuthoritativeCount + rightLocalCount;
-
-      return (
-        rightScore - leftScore ||
-        Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
-        Date.parse(right.updatedAt) - Date.parse(left.updatedAt) ||
-        left.id.localeCompare(right.id)
-      );
-    });
-
-    for (const redundantProject of rankedProjects.slice(1)) {
-      const authoritativeCount =
-        authoritativeCodingSessionsByProjectId?.get(redundantProject.id)?.length ?? 0;
-      const localCount = localSessionCountsByProjectId.get(redundantProject.id) ?? 0;
-      if (authoritativeCount === 0 && localCount === 0) {
-        redundantProjectIds.add(redundantProject.id);
-      }
-    }
-  }
-
-  return [...redundantProjectIds];
 }
 
 function mergeAuthoritativeProjectSessions(
@@ -1045,8 +875,6 @@ function toProjectMirrorSnapshot(project: BirdCoderProject): BirdCoderProjectMir
     title: project.title,
     name: project.name,
     description: project.description,
-    path: project.path,
-    sitePath: project.sitePath,
     domainPrefix: project.domainPrefix,
     ownerId: project.ownerId,
     leaderId: project.leaderId,
@@ -1509,7 +1337,6 @@ function buildCodingSessionProjectMirrorSummary(
     workspaceId: normalizedWorkspaceId,
     name: title,
     title,
-    rootPath: undefined,
     status: authorityProjectSummary?.status ?? 'active',
     createdAt,
     updatedAt,
@@ -2017,19 +1844,6 @@ export class ApiBackedProjectService implements IProjectService {
 
       if (
         normalizedWorkspaceId &&
-        key.startsWith('getProjectByPath:') &&
-        key.includes(
-          `${JSON.stringify('workspaceId')}:${stableSerializeCacheKeyPart(
-            normalizedWorkspaceId,
-          )}`,
-        )
-      ) {
-        this.readCache.delete(key);
-        continue;
-      }
-
-      if (
-        normalizedWorkspaceId &&
         this.isAuthoritativeCodingSessionSummariesCacheKeyForScope(key, {
           workspaceId: normalizedWorkspaceId,
         })
@@ -2237,8 +2051,7 @@ export class ApiBackedProjectService implements IProjectService {
     const normalizedWorkspaceId = workspaceId?.trim() || '';
     return (await this.writeService.getProjects(normalizedWorkspaceId || undefined)).filter(
       (project) =>
-        (!normalizedWorkspaceId || project.workspaceId === normalizedWorkspaceId) &&
-        !shouldHideProjectFromCatalog(project),
+        !normalizedWorkspaceId || project.workspaceId === normalizedWorkspaceId,
     );
   }
 
@@ -2254,12 +2067,10 @@ export class ApiBackedProjectService implements IProjectService {
       return true;
     }
 
-    const resolvedSummaryPath = summary.rootPath?.trim() || localProject.path;
     return (
       localProject.workspaceId !== summary.workspaceId ||
       localProject.name !== summary.name ||
       (localProject.description ?? undefined) !== (summary.description ?? undefined) ||
-      (localProject.path ?? undefined) !== (resolvedSummaryPath ?? undefined) ||
       localProject.updatedAt !== (summary.updatedAt || localProject.updatedAt) ||
       localProject.archived !== (summary.status === 'archived')
     );
@@ -2412,47 +2223,10 @@ export class ApiBackedProjectService implements IProjectService {
           }
         }
 
-        let visibleProjectSummaries = projectSummaries.filter(
+        const visibleProjectSummaries = projectSummaries.filter(
           (projectSummary) =>
-            localProjectsById.has(projectSummary.id) &&
-            !shouldHideProjectFromCatalog(
-              projectSummary,
-              localProjectsById.get(projectSummary.id),
-            ),
+            !normalizedWorkspaceId || projectSummary.workspaceId === normalizedWorkspaceId,
         );
-
-        const redundantProjectIds = collectRedundantDuplicateProjectIds(
-          visibleProjectSummaries,
-          userScopedLocalProjects,
-          authoritativeCodingSessionsByProjectId,
-        );
-        if (redundantProjectIds.length > 0) {
-          for (const redundantProjectId of redundantProjectIds) {
-            try {
-              await this.appClient.deleteProject(redundantProjectId);
-              await this.writeService.deleteProject(redundantProjectId);
-            } catch (error) {
-              console.error(
-                `Failed to clean redundant duplicate project "${redundantProjectId}" from authority`,
-                error,
-              );
-            }
-          }
-
-          projectSummaries = await this.listAuthoritativeProjectSummaries(
-            normalizedWorkspaceId,
-            currentUserId,
-            pagination,
-          );
-          visibleProjectSummaries = projectSummaries.filter(
-            (projectSummary) =>
-              localProjectsById.has(projectSummary.id) &&
-              !shouldHideProjectFromCatalog(
-                projectSummary,
-                localProjectsById.get(projectSummary.id),
-              ),
-          );
-        }
 
         const mirroredProjectsById = new Map<string, BirdCoderProject>();
         const mirroredProjects = await Promise.all(
@@ -2552,8 +2326,7 @@ export class ApiBackedProjectService implements IProjectService {
             localPage.items
               .filter(
                 (project) =>
-                  (!normalizedWorkspaceId || project.workspaceId === normalizedWorkspaceId) &&
-                  !shouldHideProjectFromCatalog(project),
+                  !normalizedWorkspaceId || project.workspaceId === normalizedWorkspaceId,
               )
               .map(normalizeProjectForInventory),
             currentUserId,
@@ -2669,10 +2442,6 @@ export class ApiBackedProjectService implements IProjectService {
           }
           throw error;
         }
-        if (shouldHideProjectFromCatalog(projectSummary, userScopedLocalProject ?? undefined)) {
-          return null;
-        }
-
         const mirroredProject =
           (await this.syncProjectSummaryToMirror(projectSummary, userScopedLocalProject ?? undefined)) ??
           userScopedLocalProject ??
@@ -2722,114 +2491,6 @@ export class ApiBackedProjectService implements IProjectService {
     );
   }
 
-  async getProjectByPath(workspaceId: string, path: string): Promise<BirdCoderProject | null> {
-    const normalizedWorkspaceId = workspaceId.trim();
-    const normalizedPath = path.trim();
-    if (!normalizedWorkspaceId || !normalizedPath) {
-      return null;
-    }
-
-    const currentUserId = await this.resolveCurrentUserId();
-    return this.readThroughCache(
-      this.buildCacheKey('getProjectByPath', {
-        path: normalizedPath,
-        userId: currentUserId ?? null,
-        workspaceId: normalizedWorkspaceId,
-      }),
-      PROJECT_DETAIL_CACHE_TTL_MS,
-      async () => {
-        const normalizedComparablePath =
-          normalizeProjectPathForComparison(normalizedPath);
-        const cachedProject = normalizedComparablePath
-          ? this.findFreshCachedProjectFromLists(
-              (candidateProject) =>
-                normalizeProjectPathForComparison(candidateProject.path) ===
-                normalizedComparablePath,
-              {
-                userId: currentUserId,
-                workspaceId: normalizedWorkspaceId,
-              },
-            )
-          : null;
-        if (cachedProject) {
-          return structuredClone(cachedProject);
-        }
-
-        const localProject = await this.writeService.getProjectByPath(
-          normalizedWorkspaceId,
-          normalizedPath,
-        );
-        const userScopedLocalProject = isLocalProjectVisibleForUser(
-          localProject,
-          currentUserId,
-        )
-          ? localProject
-          : null;
-        let projectSummary:
-          | Awaited<ReturnType<BirdCoderAppSdkApiClient['listProjects']>>[number]
-          | undefined;
-        try {
-          projectSummary = (
-            await retryBirdCoderTransientApiTask(() =>
-              this.appClient.listProjects({
-                rootPath: normalizedPath,
-                workspaceId: normalizedWorkspaceId,
-              }),
-            )
-          ).find(
-            (candidate) =>
-              !shouldHideProjectFromCatalog(candidate, userScopedLocalProject ?? undefined),
-          );
-        } catch (error) {
-          if (userScopedLocalProject && isBirdCoderTransientApiError(error)) {
-            console.warn(
-              `Falling back to locally mirrored project for path "${normalizedPath}" because the remote project lookup API is temporarily unavailable.`,
-              error,
-            );
-            return normalizeProjectForInventory(userScopedLocalProject);
-          }
-          if (localProject && isBirdCoderTransientApiError(error)) {
-            return null;
-          }
-          throw error;
-        }
-        if (!projectSummary) {
-          return null;
-        }
-
-        const mirroredProject =
-          (await this.syncProjectSummaryToMirror(projectSummary, userScopedLocalProject ?? undefined)) ??
-          userScopedLocalProject ??
-          undefined;
-
-        const localProjects = filterLocalProjectsForUser(
-          await this.listLocalProjects(normalizedWorkspaceId),
-          currentUserId,
-        );
-        const localProjectsForMerge =
-          mirroredProject &&
-          !localProjects.some((candidate) => candidate.id === mirroredProject.id)
-            ? [...localProjects, mirroredProject]
-            : localProjects;
-        const mergedLocalProject =
-          localProjectsForMerge.find((candidate) => candidate.id === projectSummary.id) ??
-          mirroredProject;
-        return {
-          ...mergeProjectSummary(projectSummary, mergedLocalProject),
-          // Path-based lookup is used by import/dedupe flows. Those flows only need
-          // stable project identity and authoritative root-path matching, not a
-          // separate session-summary roundtrip.
-          codingSessions:
-            mergedLocalProject?.codingSessions.map((codingSession) =>
-              toInventoryProjectCodingSession(codingSession, {
-                preserveLocalMessages: false,
-              }),
-            ) ?? [],
-        };
-      },
-    );
-  }
-
   async getProjectMirrorSnapshots(workspaceId?: string): Promise<BirdCoderProjectMirrorSnapshot[]> {
     const normalizedWorkspaceId = workspaceId?.trim() || undefined;
     const localProjects: BirdCoderProjectMirrorSnapshot[] = (
@@ -2840,8 +2501,7 @@ export class ApiBackedProjectService implements IProjectService {
           ))
     ).filter(
       (project) =>
-        (!normalizedWorkspaceId || project.workspaceId === normalizedWorkspaceId) &&
-        !shouldHideProjectFromCatalog(project),
+        !normalizedWorkspaceId || project.workspaceId === normalizedWorkspaceId,
     );
     const currentUserId = await this.resolveCurrentUserId();
     const userScopedLocalProjects = filterLocalProjectsForUser(
@@ -2891,11 +2551,7 @@ export class ApiBackedProjectService implements IProjectService {
     );
     const visibleProjectSummaries = projectSummaries.filter(
       (projectSummary) =>
-        localProjectsById.has(projectSummary.id) &&
-        !shouldHideProjectFromCatalog(
-          projectSummary,
-          localProjectsById.get(projectSummary.id),
-        ),
+        !normalizedWorkspaceId || projectSummary.workspaceId === normalizedWorkspaceId,
     );
     const synchronizedProjectSnapshots = await Promise.all(
       visibleProjectSummaries.map(async (projectSummary) => {
@@ -2960,36 +2616,12 @@ export class ApiBackedProjectService implements IProjectService {
     name: string,
     options?: CreateProjectOptions,
   ): Promise<BirdCoderProject> {
-    const normalizedPath = normalizeRequiredProjectPathForCreate(options?.path);
-    const currentUserId = await this.resolveCurrentUserId();
     const summary = await this.appClient.createProject({
       workspaceId,
       name,
       description: options?.description,
-      dataScope: 'PRIVATE',
-      userId: currentUserId,
-      parentId: '0',
-      parentUuid: '0',
-      parentMetadata: {},
-      ownerId: currentUserId,
-      leaderId: currentUserId,
-      createdByUserId: currentUserId,
-      author: currentUserId,
-      rootPath: normalizedPath,
-      appTemplateVersionId: options?.appTemplateVersionId,
-      templatePresetKey: options?.templatePresetKey,
     });
-    const normalizedSummary: BirdCoderProjectSummary = {
-      ...summary,
-      dataScope: summary.dataScope ?? 'PRIVATE',
-      userId: summary.userId ?? currentUserId,
-      parentId: summary.parentId ?? '0',
-      parentUuid: summary.parentUuid ?? '0',
-      parentMetadata: summary.parentMetadata ?? {},
-      createdByUserId: summary.createdByUserId ?? currentUserId,
-      leaderId: summary.leaderId ?? currentUserId,
-      ownerId: summary.ownerId ?? currentUserId,
-    };
+    const normalizedSummary: BirdCoderProjectSummary = summary;
     const createdProject =
       (await this.projectMirror?.syncProjectSummary(normalizedSummary)) ??
       mergeProjectSummary(normalizedSummary, undefined);
@@ -3017,38 +2649,11 @@ export class ApiBackedProjectService implements IProjectService {
     this.invalidateReadCache();
   }
 
-  async updateProject(projectId: string, updates: Partial<BirdCoderProject>): Promise<void> {
+  async updateProject(projectId: string, updates: UpdateProjectOptions): Promise<void> {
     const summary = await this.appClient.updateProject(projectId, {
       name: updates.name,
       description: updates.description,
-      dataScope: updates.dataScope,
-      userId: updates.userId,
-      parentId: updates.parentId,
-      parentUuid: updates.parentUuid,
-      parentMetadata: updates.parentMetadata,
-      code: updates.code,
-      title: updates.title,
-      ownerId: updates.ownerId,
-      leaderId: updates.leaderId,
-      createdByUserId: updates.createdByUserId,
-      author: updates.author,
-      type: updates.type,
-      rootPath: updates.path,
-      sitePath: updates.sitePath,
-      domainPrefix: updates.domainPrefix,
-      fileId: updates.fileId,
-      conversationId: updates.conversationId,
-      startTime: updates.startTime,
-      endTime: updates.endTime,
-      budgetAmount: updates.budgetAmount,
-      coverImage: updates.coverImage,
-      isTemplate: updates.isTemplate,
-      status:
-        updates.archived === undefined
-          ? undefined
-          : updates.archived
-            ? 'archived'
-            : 'active',
+      status: updates.status,
     });
     await this.projectMirror?.syncProjectSummary(summary);
     this.invalidateReadCache();

@@ -58,6 +58,7 @@ fn with_request_context(mut request: Request<Body>, iam: Option<IamAppContext>) 
         client_kind: None,
         operation: None,
         trace_id: None,
+        idempotency_key: None,
     });
     if let Some(iam) = iam {
         request.extensions_mut().insert(iam);

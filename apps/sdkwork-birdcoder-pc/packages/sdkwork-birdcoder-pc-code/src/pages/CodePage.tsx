@@ -1,34 +1,35 @@
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { buildProjectCodingSessionIndex } from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionSelection';
 import {
-  buildProjectCodingSessionIndex,
   buildWorkbenchCodingSessionTurnContext,
   buildWorkbenchCodingSessionTurnModelSelectionMetadata,
-  createIdleProjectMountRecoveryState,
-  emitProjectMountRecoveryState,
-  globalEventBus,
-  hydrateImportedProjectFromAuthority,
   ensureWorkbenchCodingSessionForMessage,
-  openLocalFolder,
-  rebindLocalFolderProject,
   regenerateWorkbenchCodingSessionFromLastUserMessage,
-  resolveProjectMountRecoverySource,
   restoreWorkbenchCodingSessionMessageFiles,
-  type TerminalCommandRequest,
-  useCodingSessionActions,
-  useCodingSessionEngineModelSelection,
-  useFileSystem,
-  useIDEServices,
-  useProjectGitOverview,
-  useProjects,
-  useSelectedCodingSessionMessages,
-  useSessionRefreshActions,
-  useWorkbenchCodingSessionMessageEditAction,
-  useWorkbenchCodingSessionCreationActions,
-  useWorkbenchChatSelection,
-  useWorkbenchPreferences,
-  useAuth,
-  useToast,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-commons/workbench/codingSessionCreation';
+import { createIdleProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-commons/workbench/projectMountRecovery';
+import { hydrateImportedProjectFromAuthority } from '@sdkwork/birdcoder-pc-commons/workbench/importedProjectHydration';
+import { rebindLocalFolderProject } from '@sdkwork/birdcoder-pc-commons/workbench/localFolderProjectImport';
+import { openLocalFolder } from '@sdkwork/birdcoder-pc-commons/utils/fileSystem';
+import { emitRevealProjectInFileManager } from '@sdkwork/birdcoder-pc-commons/events/projectDeviceMountEvents';
+import { emitProjectMountRecoveryState } from '@sdkwork/birdcoder-pc-commons/events/projectMountRecoveryEvents';
+import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
+import type { TerminalCommandRequest } from '@sdkwork/birdcoder-pc-commons/terminal/runtime';
+import { useCodingSessionActions } from '@sdkwork/birdcoder-pc-commons/hooks/useCodingSessionActions';
+import { useCodingSessionEngineModelSelection } from '@sdkwork/birdcoder-pc-commons/hooks/useCodingSessionEngineModelSelection';
+import { useFileSystem } from '@sdkwork/birdcoder-pc-commons/hooks/useFileSystem';
+import { useIDEServices } from '@sdkwork/birdcoder-pc-commons/context/IDEContext';
+import { useProjectLocalWorkingDirectory } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectLocalWorkingDirectory';
+import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
+import { useProjects } from '@sdkwork/birdcoder-pc-commons/hooks/useProjects';
+import { useSelectedCodingSessionMessages } from '@sdkwork/birdcoder-pc-commons/hooks/useSelectedCodingSessionMessages';
+import { useSessionRefreshActions } from '@sdkwork/birdcoder-pc-commons/hooks/useSessionRefreshActions';
+import { useWorkbenchCodingSessionMessageEditAction } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchCodingSessionMessageEditAction';
+import { useWorkbenchCodingSessionCreationActions } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchCodingSessionCreationActions';
+import { useWorkbenchChatSelection } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchChatSelection';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchPreferences';
+import { useAuth } from '@sdkwork/birdcoder-pc-commons/context/AuthContext';
+import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
 import {
   isBirdCoderCodingSessionEngineBusy,
   isBirdCoderCodingSessionExecuting,
@@ -95,6 +96,7 @@ function CodePageComponent({
     targetProjectId: projectId,
   });
   const { appRuntimeReadService, projectService } = useIDEServices();
+  const resolveProjectLocalWorkingDirectory = useProjectLocalWorkingDirectory();
   const { user } = useAuth();
 
   const { addToast } = useToast();
@@ -235,18 +237,6 @@ function CodePageComponent({
     currentSessionEngineId: session?.engineId,
     currentSessionModelId: session?.modelId,
   });
-  const handleTopBarTerminalVisibilityChange = useCallback((nextIsOpen: boolean) => {
-    if (nextIsOpen) {
-      const normalizedProjectPath = currentProject?.path?.trim() ?? '';
-      setTerminalRequest({
-        surface: 'embedded',
-        path: normalizedProjectPath || undefined,
-        timestamp: Date.now(),
-      });
-    }
-
-    setIsTerminalOpen(nextIsOpen);
-  }, [currentProject?.path]);
   const handleToggleProjectGitOverviewDrawer = useCallback(() => {
     setIsProjectGitOverviewDrawerOpen((previousState) => !previousState);
   }, []);
@@ -343,8 +333,7 @@ function CodePageComponent({
     handleSaveDebugConfiguration,
   } = useCodeRunEntryActions({
     currentProjectId,
-    currentProjectPath: currentProject?.path,
-    defaultWorkingDirectory: preferences.defaultWorkingDirectory,
+    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
     isRunConfigVisible,
     setIsRunConfigVisible,
     setIsDebugConfigVisible,
@@ -382,8 +371,9 @@ function CodePageComponent({
     renameNode,
     searchFiles,
     mountFolder,
+    restoreProjectMount,
     flushPendingAutosave,
-  } = useFileSystem(currentProjectId, currentProject?.path, {
+  } = useFileSystem(currentProjectId, {
     isActive: isVisible,
     loadActive: isVisible && activeTab === 'editor',
     realtimeActive: isVisible && activeTab === 'editor',
@@ -394,8 +384,7 @@ function CodePageComponent({
     projects,
     selectedCodingSessionId: sessionId,
     selectedProjectId: currentProjectId || null,
-    currentProjectPath: currentProject?.path,
-    defaultWorkingDirectory: preferences.defaultWorkingDirectory,
+    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
     selectCodingSession: selectSession,
     setViewingDiff,
     setIsTerminalOpen,
@@ -456,7 +445,7 @@ function CodePageComponent({
     };
   }, [currentProject?.name, currentProjectId, isVisible, mountRecoveryState]);
 
-  const resolveProjectActionTarget = useCallback((project?: { name: string; path?: string } | null) => {
+  const resolveProjectActionTarget = useCallback((project?: { id: string; name: string } | null) => {
     return resolveCodeProjectActionTarget(project, addToast);
   }, [addToast]);
 
@@ -465,9 +454,9 @@ function CodePageComponent({
     createWorkspace,
     effectiveWorkspaceId,
     mountFolder,
+    onLocalFolderPickerUnsupported: (message) => addToast(message, 'error'),
     projectService,
     refreshWorkspaces,
-    updateProject,
   });
 
   const activateImportedProject = useCallback((projectId: string) => {
@@ -489,6 +478,7 @@ function CodePageComponent({
     void (async () => {
       try {
         const hydratedProject = await hydrateImportedProjectFromAuthority({
+          appRuntimeReadService,
           knownProjects: projects,
           projectId,
           projectService,
@@ -507,7 +497,7 @@ function CodePageComponent({
         console.error('Failed to refresh imported project sessions', error);
       }
     })();
-  }, [projectService, projects, selectSession, user?.id]);
+  }, [appRuntimeReadService, projectService, projects, selectSession, user?.id]);
   const {
     handleRefreshCodingSessionMessages,
     handleRefreshProjectSessions,
@@ -631,16 +621,19 @@ function CodePageComponent({
   }, [addToast, activateImportedProject, selectFolderAndImportProject, syncImportedProjectInBackground]);
 
   const handleRetryMountRecovery = useCallback(async () => {
-    const recoveryMountSource = resolveProjectMountRecoverySource(currentProject?.path);
-    if (!currentProjectId || !recoveryMountSource) {
-      addToast('No persisted local folder is available to retry.', 'error');
+    if (!currentProjectId) {
+      addToast('Select a project before reconnecting its local folder.', 'error');
       return;
     }
 
     setIsMountRecoveryActionPending(true);
     try {
-      await mountFolder(currentProjectId, recoveryMountSource);
-      addToast(`Reconnected folder: ${currentProject?.name ?? recoveryMountSource.path}`, 'success');
+      const recoveredFiles = await restoreProjectMount();
+      if (recoveredFiles.length === 0) {
+        addToast('Select the local folder again to restore file access on this device.', 'error');
+        return;
+      }
+      addToast(`Reconnected folder: ${currentProject?.name ?? 'Local folder'}`, 'success');
     } catch (error) {
       console.error('Failed to retry local project folder recovery', error);
       addToast(
@@ -652,7 +645,7 @@ function CodePageComponent({
     } finally {
       setIsMountRecoveryActionPending(false);
     }
-  }, [addToast, currentProject?.name, currentProject?.path, currentProjectId, mountFolder]);
+  }, [addToast, currentProject?.name, currentProjectId, restoreProjectMount]);
 
   const handleReimportProjectFolder = useCallback(async () => {
     if (!currentProjectId) {
@@ -662,17 +655,20 @@ function CodePageComponent({
 
     setIsMountRecoveryActionPending(true);
     try {
-      const folderInfo = await openLocalFolder();
-      if (!folderInfo) {
+      const pickerResult = await openLocalFolder();
+      if (pickerResult.status === 'cancelled') {
+        return;
+      }
+      if (pickerResult.status === 'unsupported') {
+        addToast(pickerResult.message, 'error');
         return;
       }
 
       const reboundProject = await rebindLocalFolderProject({
         projectId: currentProjectId,
         fallbackProjectName: currentProject?.name ?? 'Local Folder',
-        folderInfo,
+        folderInfo: pickerResult.source,
         mountFolder,
-        updateProject,
       });
 
       syncImportedProjectInBackground(
@@ -699,13 +695,14 @@ function CodePageComponent({
     effectiveWorkspaceId,
     mountFolder,
     syncImportedProjectInBackground,
-    updateProject,
   ]);
 
   const handleArchiveProject = useCallback(async (projectId: string) => {
     const project = resolveProjectById(projectId);
     if (project) {
-      await updateProject(projectId, { archived: !project.archived });
+      await updateProject(projectId, {
+        status: project.archived ? 'active' : 'archived',
+      });
       addToast(`${!project.archived ? 'Archived' : 'Unarchived'} project: ${project.name}`, 'info');
     }
   }, [addToast, resolveProjectById, updateProject]);
@@ -718,6 +715,7 @@ function CodePageComponent({
   } = useCodePageClipboardActions({
     addToast,
     resolveProjectActionTarget,
+    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
     resolveProjectById,
     resolveSession: resolveSessionActionLocation,
     t,
@@ -728,22 +726,27 @@ function CodePageComponent({
     handleOpenCodingSessionInTerminal,
     handleOpenInTerminal,
     handleCopySessionResumeCommand,
+    handleTopBarTerminalVisibilityChange,
   } = useCodePageTerminalActions({
     addToast,
+    currentProjectId,
     resolveCodingSessionNativeSessionId,
     resolveProjectActionTarget,
+    resolveLocalWorkingDirectory: resolveProjectLocalWorkingDirectory,
     resolveProjectById,
     resolveSession: resolveSessionActionLocation,
+    setIsTerminalOpen,
+    setTerminalRequest,
     t,
   });
 
   const handleOpenInFileExplorer = useCallback((projectId: string) => {
-    const target = resolveProjectActionTarget(resolveProjectById(projectId));
-    if (!target) {
+    const project = resolveProjectActionTarget(resolveProjectById(projectId));
+    if (!project) {
       return;
     }
 
-    globalEventBus.emit('revealInExplorer', target.projectPath);
+    emitRevealProjectInFileManager({ projectId: project.id });
   }, [resolveProjectById]);
 
   const handlePinSession = useCallback(async (
@@ -1189,7 +1192,6 @@ function CodePageComponent({
     projectId: currentProject?.id,
     projectGitOverviewState,
     projectName: currentProject?.name,
-    projectPath: currentProject?.path,
     deleteConfirmation,
     editorChatEmptyState,
     editorExplorerWidth,

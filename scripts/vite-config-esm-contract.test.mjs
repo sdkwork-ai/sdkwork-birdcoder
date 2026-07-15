@@ -22,6 +22,9 @@ const expectedDependencyFsAllowList = [
   dependencyPath('sdkwork-search'),
   dependencyPath('sdkwork-ui'),
   dependencyPath('sdkwork-terminal'),
+  dependencyPath('sdkwork-membership'),
+  dependencyPath('sdkwork-promotion'),
+  dependencyPath('sdkwork-order'),
 ];
 const sharedCoreBrowserFacadePath = path.resolve(
   workspaceRootDir,
@@ -405,6 +408,12 @@ assert.doesNotMatch(
   'SDKWork models middleware must not rely on an unsafe string prefix containment check.',
 );
 assert.equal(webConfig.esbuild, false);
+for (const apiPrefix of ['/app', '/backend', '/api', '/readyz', '/healthz', '/livez', '/metrics', '/openapi.json']) {
+  assert.ok(
+    webConfig.server?.proxy?.[apiPrefix],
+    `Web Vite config must proxy ${apiPrefix} through the same-origin development gateway.`,
+  );
+}
 assertSharedCoreBrowserFacadeAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertXtermCssAlias(webConfig.resolve?.alias, 'Web Vite config');
 assertTauriApiAlias(webConfig.resolve?.alias, 'Web Vite config');
@@ -439,28 +448,22 @@ assert.equal(
 );
 const webTerminalBareAlias = findAliasEntry(
   webConfig.resolve?.alias,
-  (candidate) =>
-    candidate?.find instanceof RegExp
-    && candidate.find.test('@sdkwork/terminal-shell')
-    && !candidate.find.test('@sdkwork/terminal-shell/runtime'),
+  (candidate) => candidate?.find === '@sdkwork/terminal-pc-shell',
   'Web Vite config should expose a bare sdkwork-terminal package alias.',
 );
 assert.equal(
   webTerminalBareAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src'),
   'Web Vite config should resolve bare sdkwork-terminal aliases from the workspace dependency root.',
 );
 const webTerminalSubpathAlias = findAliasEntry(
   webConfig.resolve?.alias,
-  (candidate) =>
-    candidate?.find instanceof RegExp
-    && !candidate.find.test('@sdkwork/terminal-shell')
-    && candidate.find.test('@sdkwork/terminal-shell/runtime'),
+  (candidate) => candidate?.find === '@sdkwork/terminal-pc-core',
   'Web Vite config should expose a sdkwork-terminal package subpath alias.',
 );
 assert.equal(
   webTerminalSubpathAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src', '$2'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-core/src'),
   'Web Vite config should resolve sdkwork-terminal subpath aliases from the workspace dependency root.',
 );
 assert.equal(
@@ -563,7 +566,6 @@ for (const serviceCoreModuleId of [
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/runtimeApiRetry.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionSelection.ts',
   '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/codingSessionMessageProjection.ts',
-  '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-infrastructure/src/services/projectContentConfigData.ts',
 ]) {
   assert.equal(
     webManualChunks(serviceCoreModuleId),
@@ -696,8 +698,97 @@ for (const productSurfaceModule of [
     chunkName: 'birdcoder-code-surface',
     moduleIds: [
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/index.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-runtime',
+    moduleIds: [
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePage.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-project-runtime',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeLocalFolderProjectImport.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-session-location-runtime',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeProjectSessionResolution.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-search-runtime',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/codeFileSearch.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-session-runtime',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageSessionSelection.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-clipboard-runtime',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageClipboardActions.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-terminal-runtime',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodePageTerminalActions.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-run-runtime',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeRunEntryActions.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-commands-runtime',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/useCodeWorkbenchCommands.ts',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-sidebar',
+    moduleIds: [
       '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/Sidebar.tsx',
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/ProjectExplorer.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-topbar',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/components/TopBar.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-workbench',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeEditorWorkspacePanel.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-mobile',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeMobileProgrammingPanel.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-dialogs',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodePageDialogs.tsx',
+    ],
+  },
+  {
+    chunkName: 'birdcoder-code-overlays',
+    moduleIds: [
+      '/repo/apps/sdkwork-birdcoder-pc/packages/sdkwork-birdcoder-pc-code/src/pages/CodeWorkspaceOverlays.tsx',
     ],
   },
   {
@@ -857,28 +948,22 @@ assert.equal(
 );
 const desktopTerminalBareAlias = findAliasEntry(
   desktopConfig.resolve?.alias,
-  (candidate) =>
-    candidate?.find instanceof RegExp
-    && candidate.find.test('@sdkwork/terminal-shell')
-    && !candidate.find.test('@sdkwork/terminal-shell/runtime'),
+  (candidate) => candidate?.find === '@sdkwork/terminal-pc-shell',
   'Desktop Vite config should expose a bare sdkwork-terminal package alias.',
 );
 assert.equal(
   desktopTerminalBareAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-shell/src'),
   'Desktop Vite config should resolve bare sdkwork-terminal aliases from the workspace dependency root.',
 );
 const desktopTerminalSubpathAlias = findAliasEntry(
   desktopConfig.resolve?.alias,
-  (candidate) =>
-    candidate?.find instanceof RegExp
-    && !candidate.find.test('@sdkwork/terminal-shell')
-    && candidate.find.test('@sdkwork/terminal-shell/runtime'),
+  (candidate) => candidate?.find === '@sdkwork/terminal-pc-core',
   'Desktop Vite config should expose a sdkwork-terminal package subpath alias.',
 );
 assert.equal(
   desktopTerminalSubpathAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src', '$2'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-core/src'),
   'Desktop Vite config should resolve sdkwork-terminal subpath aliases from the workspace dependency root.',
 );
 assert.equal(

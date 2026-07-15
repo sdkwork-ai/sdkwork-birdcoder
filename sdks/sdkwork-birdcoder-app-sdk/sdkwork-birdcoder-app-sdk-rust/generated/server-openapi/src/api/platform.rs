@@ -22,11 +22,10 @@ impl PlatformApi {
     }
 
     /// List projects
-    pub async fn projects_list(&self, user_id: Option<&str>, workspace_id: Option<&str>, root_path: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderProjectSummaryListEnvelope, SdkworkError> {
+    pub async fn projects_list(&self, user_id: Option<&str>, workspace_id: Option<&str>, page: Option<i64>, page_size: Option<i64>) -> Result<BirdCoderProjectSummaryListEnvelope, SdkworkError> {
         let query = build_query_string(&[
             QueryParameterSpec::new("userId", user_id, "form", true, false, None),
             QueryParameterSpec::new("workspaceId", workspace_id, "form", true, false, None),
-            QueryParameterSpec::new("rootPath", root_path, "form", true, false, None),
             QueryParameterSpec::new("page", page, "form", true, false, None),
             QueryParameterSpec::new("page_size", page_size, "form", true, false, None),
         ]);

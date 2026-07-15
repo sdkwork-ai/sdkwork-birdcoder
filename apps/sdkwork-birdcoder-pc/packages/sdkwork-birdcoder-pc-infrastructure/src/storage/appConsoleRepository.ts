@@ -100,9 +100,7 @@ export interface BirdCoderRepresentativeProjectRecord {
   parentMetadata?: Record<string, unknown>;
   code?: string;
   title?: string;
-  sitePath?: string;
   domainPrefix?: string;
-  rootPath?: string;
   ownerId?: string;
   leaderId?: string;
   createdByUserId?: string;
@@ -756,9 +754,7 @@ function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectR
       code: typeof value.code === 'string' ? value.code : undefined,
       title: typeof value.title === 'string' ? value.title : undefined,
       description: typeof value.description === 'string' ? value.description : undefined,
-      sitePath: normalizeOptionalTextValue(value.sitePath),
       domainPrefix: normalizeOptionalTextValue(value.domainPrefix),
-      rootPath: undefined,
       ownerId,
       leaderId:
         typeof value.leaderId === 'string' && value.leaderId.trim().length > 0
@@ -837,9 +833,7 @@ function normalizeProjectRecord(value: unknown): BirdCoderRepresentativeProjectR
     code: typeof row.code === 'string' ? row.code : undefined,
     title: typeof row.title === 'string' ? row.title : undefined,
     description: typeof row.description === 'string' ? row.description : undefined,
-    sitePath: normalizeOptionalTextValue((row as { site_path?: unknown }).site_path),
     domainPrefix: normalizeOptionalTextValue((row as { domain_prefix?: unknown }).domain_prefix),
-    rootPath: undefined,
     ownerId,
     leaderId:
       typeof row.leader_id === 'string' && row.leader_id.trim().length > 0
@@ -896,11 +890,9 @@ function projectToRow(value: BirdCoderRepresentativeProjectRecord): Record<strin
       buildBirdCoderProjectBusinessCode({
         name: value.name,
         projectId: value.id,
-        rootPath: value.rootPath,
       }),
     title: value.title ?? value.name,
     description: value.description ?? null,
-    site_path: value.sitePath ?? null,
     domain_prefix: value.domainPrefix ?? null,
     cover_image: serializeOptionalJsonRecord(value.coverImage),
     leader_id: (value.leaderId ?? value.ownerId ?? ownerId) || null,

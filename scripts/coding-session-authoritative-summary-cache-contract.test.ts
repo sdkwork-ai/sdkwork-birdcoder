@@ -121,18 +121,6 @@ try {
     createdAt: '2026-04-20T12:01:00.000Z',
     updatedAt: '2026-04-20T12:01:00.000Z',
   });
-  await repositories.projectContents.save({
-    id: 'project-content-summary-cache-contract',
-    projectId: 'project-summary-cache-contract',
-    projectUuid: 'project-project-summary-cache-contract',
-    configData: JSON.stringify({
-      rootPath: 'D:/workspace/summary-cache-contract',
-    }),
-    contentVersion: '1.0',
-    createdAt: '2026-04-20T12:01:00.250Z',
-    updatedAt: '2026-04-20T12:01:00.250Z',
-  });
-
   const appClient: BirdCoderAppSdkApiClient = createBirdCoderAppSdkApiClient({
     transport: createBirdCoderInProcessAppSdkTransport({
       queries,
@@ -269,6 +257,16 @@ try {
   });
 
   const initialProjects = await services.projectService.getProjects('workspace-summary-cache-contract');
+  assert.equal(
+    Object.hasOwn(initialProjects[0] ?? {}, 'path'),
+    false,
+    'authoritative project summaries must remain independent from device-local working directories.',
+  );
+  assert.equal(
+    Object.hasOwn(initialProjects[0] ?? {}, 'sitePath'),
+    false,
+    'authoritative project summaries must not expose a device-local site path.',
+  );
   assert.deepEqual(
     initialProjects[0]?.codingSessions ?? [],
     [],

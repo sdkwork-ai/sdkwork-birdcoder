@@ -4,6 +4,4 @@ use serde::{Deserialize, Serialize};
 pub struct BirdCoderCreateProjectGitWorktreeRequest {
     #[serde(rename = "branchName")]
     pub branch_name: String,
-
-    pub path: String,
 }

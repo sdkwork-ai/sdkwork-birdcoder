@@ -114,8 +114,8 @@ export function resolveBirdCoderBootstrapServerBaseUrl({
   storedApiBaseUrl,
 }: ResolveBirdCoderBootstrapServerBaseUrlOptions): string | undefined {
   return (
-    normalizeBirdCoderServerBaseUrl(storedApiBaseUrl) ??
     normalizeBirdCoderServerBaseUrl(runtimeApiBaseUrl) ??
+    normalizeBirdCoderServerBaseUrl(storedApiBaseUrl) ??
     normalizeBirdCoderServerBaseUrl(configuredApiBaseUrl)
   );
 }

@@ -1,8 +1,5 @@
 export interface BirdCoderGitBranchSummary {
-  ahead: number;
-  behind: number;
   isCurrent: boolean;
-  kind: string;
+  isRemote: boolean;
   name: string;
-  upstreamName?: string;
 }

@@ -236,10 +236,8 @@ export type BirdCoderLongIdString = BirdCoderLongIntegerString;
 
 export type BirdCoderCanonicalEntityId = BirdCoderLongIdString;
 
-export const BIRDCODER_DATA_SCOPES = ['DEFAULT', 'PRIVATE', 'ORGANIZATION', 'TENANT', 'PUBLIC'] as const;
-
-export type BirdCoderDataScope =
-  (typeof BIRDCODER_DATA_SCOPES)[number] | (string & {});
+export { BIRDCODER_DATA_SCOPES } from './dataScopes.ts';
+export type { BirdCoderDataScope } from './dataScopes.ts';
 
 export interface BirdCoderRecordEnvelope {
   id: BirdCoderCanonicalEntityId;
@@ -438,21 +436,6 @@ function defineExactEntity(
 }
 
 export const BIRDCODER_SCHEMA_MIGRATION_HISTORY_TABLE = 'ops_schema_migration_history';
-
-const APPBASE_IAM_LONG_INTEGER_JSON_SCALAR_KEYS = [
-  'availablePoints',
-  'available_points',
-  'frozenPoints',
-  'frozen_points',
-  'frozenToken',
-  'frozen_token',
-  'pointBalance',
-  'point_balance',
-  'tokenBalance',
-  'token_balance',
-  'totalRechargedPoints',
-  'total_recharged_points',
-];
 
 export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefinition[] = [
   defineEntity(
@@ -6246,37 +6229,7 @@ export const BIRDCODER_DATA_ENTITY_DEFINITIONS: readonly BirdCoderEntityDefiniti
   ),
 ];
 
-function toBirdCoderLowerCamelCaseColumnName(columnName: string): string {
-  return columnName.replace(/_([a-z0-9])/gu, (_match, character: string) =>
-    character.toUpperCase(),
-  );
-}
-
-function createBirdCoderLongIntegerJsonScalarKeys(): ReadonlySet<string> {
-  const keys = new Set<string>();
-
-  for (const definition of BIRDCODER_DATA_ENTITY_DEFINITIONS) {
-    for (const column of definition.columns) {
-      if (column.logicalType !== 'bigint') {
-        continue;
-      }
-
-      keys.add(column.name);
-      keys.add(toBirdCoderLowerCamelCaseColumnName(column.name));
-    }
-  }
-
-  keys.add('sequence');
-  keys.add('sourceSequence');
-  for (const key of APPBASE_IAM_LONG_INTEGER_JSON_SCALAR_KEYS) {
-    keys.add(key);
-  }
-
-  return keys;
-}
-
-export const BIRDCODER_LONG_INTEGER_JSON_SCALAR_KEYS =
-  createBirdCoderLongIntegerJsonScalarKeys();
+export { BIRDCODER_LONG_INTEGER_JSON_SCALAR_KEYS } from './jsonScalarKeys.ts';
 
 export function getBirdCoderEntityDefinition(
   entityName: BirdCoderEntityName,

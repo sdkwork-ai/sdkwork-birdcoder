@@ -1,12 +1,16 @@
 import { memo, useEffect, useRef } from 'react';
 import type { UseProjectGitOverviewResult } from '@sdkwork/birdcoder-pc-commons';
 import {
+  getProjectGitWorktreeDisplayName,
+  getProjectGitWorktreeKey,
+  isProjectGitWorktreePrunable,
+} from '@sdkwork/birdcoder-pc-commons';
+import {
   AlertCircle,
   Check,
   ChevronDown,
   FolderGit2,
   Loader2,
-  Lock,
   RefreshCw,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -94,7 +98,7 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
   const rootRef = useRef<HTMLDivElement>(null);
   const variantStyle = getVariantStyle(variant);
   const isCompactTopbar = variant === 'topbar' && compact;
-  const hasPrunableWorktrees = worktrees.some((worktree) => worktree.isPrunable);
+  const hasPrunableWorktrees = worktrees.some(isProjectGitWorktreePrunable);
   const buttonValue = loadErrorMessage
     ? t('code.gitOverviewUnavailable')
     : currentWorktreeLabel || (isLoading ? '...' : t('app.menu.noRepository'));
@@ -188,7 +192,7 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
                 {t('app.menu.worktree')}
               </div>
               <div className="mt-0.5 truncate text-[11px] text-gray-600">
-                {currentWorktree?.path || overview?.repositoryRootPath || ''}
+                {currentWorktree?.head?.trim() || overview?.currentRevision?.slice(0, 12) || ''}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -236,60 +240,57 @@ export const ProjectGitWorktreeMenu = memo(function ProjectGitWorktreeMenu({
             </div>
           ) : (
             <div className="mt-1 max-h-80 space-y-1 overflow-y-auto py-1 pr-1">
-              {worktrees.map((worktree) => (
-                <div
-                  key={worktree.id}
-                  className={`group rounded-lg px-3 py-2 transition-colors ${
-                    worktree.isCurrent
-                      ? 'bg-blue-500/[0.13]'
-                      : 'hover:bg-white/[0.055]'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        {worktree.isCurrent ? (
-                          <Check size={14} className="mt-0.5 shrink-0 text-blue-300" />
+              {worktrees.map((worktree, index) => {
+                const worktreeKey = getProjectGitWorktreeKey(worktree);
+                const displayName = getProjectGitWorktreeDisplayName(worktree);
+                const listItemKey =
+                  worktreeKey
+                  || `${worktree.branch?.trim() || 'worktree'}:${worktree.head?.trim() || index}`;
+
+                return (
+                  <div
+                    key={listItemKey}
+                    className={`group rounded-lg px-3 py-2 transition-colors ${
+                      worktree.isCurrent
+                        ? 'bg-blue-500/[0.13]'
+                        : 'hover:bg-white/[0.055]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          {worktree.isCurrent ? (
+                            <Check size={14} className="mt-0.5 shrink-0 text-blue-300" />
+                          ) : null}
+                          <div className="truncate text-[12px] font-medium text-gray-100">
+                            {displayName || 'N/A'}
+                          </div>
+                        </div>
+                        {worktreeKey && displayName !== worktreeKey ? (
+                          <div className="truncate pl-6 font-mono text-[11px] text-gray-500 group-hover:text-gray-400">
+                            {t('code.worktreeKey')}: {worktreeKey}
+                          </div>
                         ) : null}
-                        <div className="truncate text-[12px] font-medium text-gray-100">
-                          {worktree.label}
-                        </div>
+                        {worktree.head ? (
+                          <div className="truncate pl-6 text-[11px] text-gray-400 group-hover:text-gray-300">
+                            {worktree.head}
+                          </div>
+                        ) : null}
+                        {worktree.prunableReason ? (
+                          <div className="truncate pl-6 text-[11px] text-red-200/80">
+                            {worktree.prunableReason}
+                          </div>
+                        ) : null}
                       </div>
-                      <div className="truncate pl-6 text-[11px] text-gray-500 group-hover:text-gray-400">
-                        {worktree.path}
-                      </div>
-                      {worktree.branch || worktree.head ? (
-                        <div className="truncate pl-6 text-[11px] text-gray-400 group-hover:text-gray-300">
-                          {worktree.branch || worktree.head}
-                        </div>
-                      ) : null}
-                      {worktree.prunableReason ? (
-                        <div className="truncate pl-6 text-[11px] text-red-200/80">
-                          {worktree.prunableReason}
-                        </div>
-                      ) : null}
-                      {worktree.lockedReason ? (
-                        <div className="truncate pl-6 text-[11px] text-gray-500">
-                          {worktree.lockedReason}
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1 text-[10px] text-gray-400">
-                      {worktree.isLocked ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.07] px-1.5 py-0.5 text-gray-300">
-                          <Lock size={10} />
-                          {t('code.locked')}
-                        </span>
-                      ) : null}
-                      {worktree.isPrunable ? (
-                        <span className="rounded-full bg-red-500/[0.13] px-1.5 py-0.5 text-red-200">
+                      {isProjectGitWorktreePrunable(worktree) ? (
+                        <span className="shrink-0 rounded-full bg-red-500/[0.13] px-1.5 py-0.5 text-[10px] text-red-200">
                           {t('code.prunable')}
                         </span>
                       ) : null}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

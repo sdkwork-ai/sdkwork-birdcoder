@@ -128,7 +128,6 @@ function createProjectMirror() {
         name: String(summary.name),
         description:
           typeof summary.description === 'string' ? summary.description : undefined,
-        path: typeof summary.rootPath === 'string' ? summary.rootPath : undefined,
         createdAt,
         updatedAt:
           typeof summary.updatedAt === 'string' ? summary.updatedAt : createdAt,
@@ -217,7 +216,6 @@ globalThis.fetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
             workspaceId: 'workspace-runtime-contract',
             name: 'Runtime Contract Project',
             description: 'Project loaded through shell runtime app client.',
-            rootPath: 'D:/workspace/runtime-contract-project',
             status: 'active',
             createdAt: '2026-04-10T00:00:01.000Z',
             updatedAt: '2026-04-10T00:00:01.000Z',

@@ -1,4 +1,4 @@
-use axum::extract::{Request, State};
+use axum::extract::{MatchedPath, Request, State};
 use axum::http::StatusCode;
 use axum::middleware::{from_fn_with_state, Next};
 use axum::response::{IntoResponse, Response};
@@ -37,14 +37,18 @@ pub async fn metrics_middleware(
     request: Request,
     next: Next,
 ) -> Response {
-    let path = request.uri().path().to_owned();
+    let route = request
+        .extensions()
+        .get::<MatchedPath>()
+        .map(|matched| matched.as_str().to_owned())
+        .unwrap_or_else(|| "unmatched".to_owned());
     let method = request.method().to_string();
     let start = Instant::now();
 
     let response = next.run(request).await;
 
-    if !is_observability_infra_path(&path) {
-        business.record_api_request(&method, &path, response.status().as_u16(), start.elapsed());
+    if !is_observability_infra_path(&route) {
+        business.record_api_request(&method, &route, response.status().as_u16(), start.elapsed());
     }
 
     response

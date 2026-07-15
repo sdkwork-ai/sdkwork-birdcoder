@@ -8,7 +8,7 @@ import {
   type CodeWorkspaceSearchResult,
 } from './codeFileSearch';
 
-interface CodeWorkspaceOverlaysProps {
+export interface CodeWorkspaceOverlaysProps {
   currentProjectId?: string;
   files: FileNode[];
   mountRecoveryState: ProjectMountRecoveryState;
@@ -129,9 +129,9 @@ export const CodeWorkspaceOverlays = memo(function CodeWorkspaceOverlays({
                 <div className="mt-1 text-sm leading-6 text-blue-50/90">
                   Restoring file access for the current project.
                 </div>
-                {mountRecoveryState.path && (
+                {mountRecoveryState.displayName && (
                   <div className="mt-2 break-all font-mono text-xs text-blue-100/80">
-                    {mountRecoveryState.path}
+                    {mountRecoveryState.displayName}
                   </div>
                 )}
               </div>
@@ -152,9 +152,9 @@ export const CodeWorkspaceOverlays = memo(function CodeWorkspaceOverlays({
                 <div className="mt-1 text-sm leading-6 text-amber-50/90">
                   {mountRecoveryState.message}
                 </div>
-                {mountRecoveryState.path && (
+                {mountRecoveryState.displayName && (
                   <div className="mt-2 break-all font-mono text-xs text-amber-100/80">
-                    {mountRecoveryState.path}
+                    {mountRecoveryState.displayName}
                   </div>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">

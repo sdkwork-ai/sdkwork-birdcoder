@@ -3612,14 +3612,6 @@
             }
           },
           {
-            "name": "rootPath",
-            "in": "query",
-            "description": "Filter projects to a single absolute root path.",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "page",
             "in": "query",
             "description": "One-based page number used for offset-mode pagination.",
@@ -9832,14 +9824,10 @@
         "properties": {
           "branchName": {
             "type": "string"
-          },
-          "path": {
-            "type": "string"
           }
         },
         "required": [
-          "branchName",
-          "path"
+          "branchName"
         ],
         "additionalProperties": false
       },
@@ -9851,107 +9839,6 @@
           },
           "name": {
             "type": "string"
-          },
-          "workspaceUuid": {
-            "type": "string"
-          },
-          "tenantId": {
-            "type": "string"
-          },
-          "organizationId": {
-            "type": "string"
-          },
-          "dataScope": {
-            "type": "string",
-            "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
-            ],
-            "description": "DATABASE_SPEC.md standard data scope."
-          },
-          "userId": {
-            "type": "string"
-          },
-          "parentId": {
-            "type": "string"
-          },
-          "parentUuid": {
-            "type": "string"
-          },
-          "parentMetadata": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
-          },
-          "code": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "ownerId": {
-            "type": "string"
-          },
-          "leaderId": {
-            "type": "string"
-          },
-          "createdByUserId": {
-            "type": "string"
-          },
-          "author": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          },
-          "rootPath": {
-            "type": "string"
-          },
-          "sitePath": {
-            "type": "string"
-          },
-          "domainPrefix": {
-            "type": "string"
-          },
-          "fileId": {
-            "type": "string"
-          },
-          "conversationId": {
-            "type": "string"
-          },
-          "startTime": {
-            "type": "string"
-          },
-          "endTime": {
-            "type": "string"
-          },
-          "budgetAmount": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "coverImage": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
-          },
-          "isTemplate": {
-            "type": "boolean"
-          },
-          "appTemplateVersionId": {
-            "type": "string"
-          },
-          "templatePresetKey": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "archived"
-            ]
           },
           "workspaceId": {
             "type": "string"
@@ -10749,32 +10636,19 @@
       "BirdCoderGitBranchSummary": {
         "type": "object",
         "properties": {
-          "ahead": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "behind": {
-            "type": "integer",
-            "minimum": 0
-          },
           "isCurrent": {
             "type": "boolean"
           },
-          "kind": {
-            "type": "string"
+          "isRemote": {
+            "type": "boolean"
           },
           "name": {
-            "type": "string"
-          },
-          "upstreamName": {
             "type": "string"
           }
         },
         "required": [
-          "ahead",
-          "behind",
           "isCurrent",
-          "kind",
+          "isRemote",
           "name"
         ],
         "additionalProperties": false
@@ -10782,19 +10656,11 @@
       "BirdCoderGitStatusCounts": {
         "type": "object",
         "properties": {
-          "conflicted": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "deleted": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "modified": {
-            "type": "integer",
-            "minimum": 0
-          },
           "staged": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unstaged": {
             "type": "integer",
             "minimum": 0
           },
@@ -10804,10 +10670,8 @@
           }
         },
         "required": [
-          "conflicted",
-          "deleted",
-          "modified",
           "staged",
+          "unstaged",
           "untracked"
         ],
         "additionalProperties": false
@@ -10821,42 +10685,18 @@
           "head": {
             "type": "string"
           },
-          "id": {
-            "type": "string"
-          },
           "isCurrent": {
             "type": "boolean"
-          },
-          "isDetached": {
-            "type": "boolean"
-          },
-          "isLocked": {
-            "type": "boolean"
-          },
-          "isPrunable": {
-            "type": "boolean"
-          },
-          "label": {
-            "type": "string"
-          },
-          "lockedReason": {
-            "type": "string"
           },
           "prunableReason": {
             "type": "string"
           },
-          "path": {
+          "worktreeKey": {
             "type": "string"
           }
         },
         "required": [
-          "id",
-          "isCurrent",
-          "isDetached",
-          "isLocked",
-          "isPrunable",
-          "label",
-          "path"
+          "isCurrent"
         ],
         "additionalProperties": false
       },
@@ -12735,14 +12575,8 @@
           "currentRevision": {
             "type": "string"
           },
-          "currentWorktreePath": {
-            "type": "string"
-          },
           "detachedHead": {
             "type": "boolean"
-          },
-          "repositoryRootPath": {
-            "type": "string"
           },
           "status": {
             "type": "string",
@@ -12906,12 +12740,6 @@
             "type": "string"
           },
           "description": {
-            "type": "string"
-          },
-          "rootPath": {
-            "type": "string"
-          },
-          "sitePath": {
             "type": "string"
           },
           "domainPrefix": {
@@ -13154,12 +12982,12 @@
           "force": {
             "type": "boolean"
           },
-          "path": {
+          "worktreeKey": {
             "type": "string"
           }
         },
         "required": [
-          "path"
+          "worktreeKey"
         ],
         "additionalProperties": false
       },
@@ -13663,87 +13491,8 @@
           "description": {
             "type": "string"
           },
-          "dataScope": {
-            "type": "string",
-            "enum": [
-              "DEFAULT",
-              "PRIVATE",
-              "ORGANIZATION",
-              "TENANT",
-              "PUBLIC"
-            ],
-            "description": "DATABASE_SPEC.md standard data scope."
-          },
-          "userId": {
-            "type": "string"
-          },
-          "parentId": {
-            "type": "string"
-          },
-          "parentUuid": {
-            "type": "string"
-          },
-          "parentMetadata": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
-          },
-          "code": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
           "name": {
             "type": "string"
-          },
-          "ownerId": {
-            "type": "string"
-          },
-          "leaderId": {
-            "type": "string"
-          },
-          "createdByUserId": {
-            "type": "string"
-          },
-          "author": {
-            "type": "string"
-          },
-          "type": {
-            "type": "string"
-          },
-          "rootPath": {
-            "type": "string"
-          },
-          "sitePath": {
-            "type": "string"
-          },
-          "domainPrefix": {
-            "type": "string"
-          },
-          "fileId": {
-            "type": "string"
-          },
-          "conversationId": {
-            "type": "string"
-          },
-          "startTime": {
-            "type": "string"
-          },
-          "endTime": {
-            "type": "string"
-          },
-          "budgetAmount": {
-            "type": "string",
-            "description": "Java Long/BIGINT value serialized as an exact decimal string."
-          },
-          "coverImage": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": true
-          },
-          "isTemplate": {
-            "type": "boolean"
           },
           "status": {
             "type": "string",
@@ -13852,12 +13601,6 @@
           "userId": {
             "type": "string"
           },
-          "email": {
-            "type": "string"
-          },
-          "teamId": {
-            "type": "string"
-          },
           "role": {
             "type": "string",
             "enum": [
@@ -13872,30 +13615,14 @@
             "enum": [
               "invited",
               "active",
-              "suspended",
-              "removed"
+              "suspended"
             ]
-          },
-          "createdByUserId": {
-            "type": "string"
-          },
-          "grantedByUserId": {
-            "type": "string"
           }
         },
-        "additionalProperties": false,
-        "oneOf": [
-          {
-            "required": [
-              "userId"
-            ]
-          },
-          {
-            "required": [
-              "email"
-            ]
-          }
-        ]
+        "required": [
+          "userId"
+        ],
+        "additionalProperties": false
       },
       "BirdCoderUpsertWorkspaceMemberRequest": {
         "type": "object",

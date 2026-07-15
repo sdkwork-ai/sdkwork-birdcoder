@@ -110,18 +110,6 @@ try {
     createdAt: '2026-04-11T12:01:00.000Z',
     updatedAt: '2026-04-11T12:01:00.000Z',
   });
-  await repositories.projectContents.save({
-    id: 'project-content-app-runtime-turn-contract',
-    projectId: 'project-app-runtime-turn-contract',
-    projectUuid: 'project-project-app-runtime-turn-contract',
-    configData: JSON.stringify({
-      rootPath: 'D:/workspace/app-runtime-turn-contract',
-    }),
-    contentVersion: '1.0',
-    createdAt: '2026-04-11T12:01:00.250Z',
-    updatedAt: '2026-04-11T12:01:00.250Z',
-  });
-
   const appClient = createBirdCoderAppSdkApiClient({
     transport: createBirdCoderInProcessAppSdkTransport({
       queries,

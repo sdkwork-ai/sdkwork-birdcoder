@@ -2,8 +2,13 @@ import type { BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 import { upsertProjectIntoProjectsStore } from '../stores/projectsStore.ts';
 import type { IProjectService } from '../services/interfaces/IProjectService.ts';
 import { resolveLatestCodingSessionIdForProject } from './codingSessionSelection.ts';
+import {
+  synchronizeProjectSessionsFromAuthority,
+  type SynchronizeProjectSessionsFromAuthorityOptions,
+} from './projectSessionSynchronization.ts';
 
 export interface HydrateImportedProjectFromAuthorityOptions {
+  appRuntimeReadService?: SynchronizeProjectSessionsFromAuthorityOptions['appRuntimeReadService'];
   hydrationTimeoutMs?: number;
   knownProjects?: readonly BirdCoderProject[];
   projectId: string;
@@ -126,7 +131,7 @@ export async function hydrateImportedProjectFromAuthority(
     normalizedWorkspaceId,
     normalizedProjectId,
   );
-  if (knownProject && knownProject.codingSessions.length > 0) {
+  if (knownProject && knownProject.codingSessions.length > 0 && !options.appRuntimeReadService) {
     upsertProjectIntoProjectsStore(
       normalizedWorkspaceId,
       knownProject,
@@ -178,17 +183,22 @@ export async function hydrateImportedProjectFromAuthority(
         return null;
       }
 
+      const synchronizedProject = await synchronizeProjectSessionsFromAuthority({
+        appRuntimeReadService: options.appRuntimeReadService,
+        project: authoritativeProject,
+        projectService: options.projectService,
+      });
       upsertProjectIntoProjectsStore(
         normalizedWorkspaceId,
-        authoritativeProject,
+        synchronizedProject.project,
         options.userScope,
       );
       return {
         latestCodingSessionId: resolveLatestCodingSessionIdForProject(
-          [authoritativeProject],
+          [synchronizedProject.project],
           normalizedProjectId,
         ),
-        project: authoritativeProject,
+        project: synchronizedProject.project,
       };
     },
   ).finally(() => {

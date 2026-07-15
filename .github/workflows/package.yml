@@ -108,6 +108,18 @@ on:
         description: sdkwork-sdk-generator commit/ref.
         required: false
         default: 0b0e984ffbdec49a28c2da3edebcdddab4087e62
+      sdkwork_membership_ref:
+        description: sdkwork-membership commit/ref.
+        required: false
+        default: 32d1f981b3be085e93aaca3de177d482c2f75fe7
+      sdkwork_promotion_ref:
+        description: sdkwork-promotion commit/ref.
+        required: false
+        default: f1238eda5ef661641cf7445fec3103a45b3c55e8
+      sdkwork_order_ref:
+        description: sdkwork-order commit/ref.
+        required: false
+        default: 5f4c1fa702d37b9226072483fc4686a115c53fb8
       sdkwork_web_framework_ref:
         description: sdkwork-web-framework commit/ref.
         required: false
@@ -213,6 +225,9 @@ jobs:
           "SDKWORK_SEARCH_REF": "${{ github.event.inputs.sdkwork_search_ref || vars.SDKWORK_SEARCH_REF }}",
           "SDKWORK_TERMINAL_REF": "${{ github.event.inputs.sdkwork_terminal_ref || vars.SDKWORK_TERMINAL_REF }}",
           "SDKWORK_SDK_GENERATOR_REF": "${{ github.event.inputs.sdkwork_sdk_generator_ref || vars.SDKWORK_SDK_GENERATOR_REF }}",
+          "SDKWORK_MEMBERSHIP_REF": "${{ github.event.inputs.sdkwork_membership_ref || vars.SDKWORK_MEMBERSHIP_REF }}",
+          "SDKWORK_PROMOTION_REF": "${{ github.event.inputs.sdkwork_promotion_ref || vars.SDKWORK_PROMOTION_REF }}",
+          "SDKWORK_ORDER_REF": "${{ github.event.inputs.sdkwork_order_ref || vars.SDKWORK_ORDER_REF }}",
           "SDKWORK_WEB_FRAMEWORK_REF": "${{ github.event.inputs.sdkwork_web_framework_ref || vars.SDKWORK_WEB_FRAMEWORK_REF }}",
           "SDKWORK_DATABASE_REF": "${{ github.event.inputs.sdkwork_database_ref || vars.SDKWORK_DATABASE_REF }}",
           "SDKWORK_UTILS_REF": "${{ github.event.inputs.sdkwork_utils_ref || vars.SDKWORK_UTILS_REF }}",

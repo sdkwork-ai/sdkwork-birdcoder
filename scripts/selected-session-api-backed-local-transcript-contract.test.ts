@@ -70,7 +70,6 @@ const transcriptProject: BirdCoderProject = {
   createdAt: timestamp,
   id: projectId,
   name: 'API-backed local transcript project',
-  path: 'D:/workspace/api-backed-local-transcript',
   updatedAt: timestamp,
   workspaceId,
 };
@@ -82,9 +81,6 @@ const writeService = {
   },
   async getProjectById(candidateProjectId: string) {
     return candidateProjectId === projectId ? transcriptProject : null;
-  },
-  async getProjectByPath() {
-    return null;
   },
   async getCodingSessionTranscript(candidateProjectId: string, candidateCodingSessionId: string) {
     delegatedTranscriptReads += 1;

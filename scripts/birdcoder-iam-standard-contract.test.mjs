@@ -269,13 +269,15 @@ assert.deepEqual(
     BIRDCODER_IAM_DEPLOYMENT_MODE: 'desktop-local',
     VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD: 'dev123456',
     SDKWORK_IAM_MODE: 'local',
-    VITE_SDKWORK_DEPLOYMENT_MODE: 'local',
+    VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
+    VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET: 'desktop',
   }),
   {
     BIRDCODER_IAM_DEPLOYMENT_MODE: 'desktop-local',
     VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD: '***',
     SDKWORK_IAM_MODE: 'local',
-    VITE_SDKWORK_DEPLOYMENT_MODE: 'local',
+    VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE: 'standalone',
+    VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET: 'desktop',
   },
   'IAM env inspector must include standard SDKWORK_IAM_* values while masking secrets.',
 );
@@ -287,6 +289,12 @@ const desktopLocalIamReport = createBirdcoderIamEnvReport({
   viteMode: 'development',
 });
 assert.equal(desktopLocalIamReport.managedEnv.SDKWORK_IAM_MODE, 'local');
-assert.equal(desktopLocalIamReport.managedEnv.VITE_SDKWORK_DEPLOYMENT_MODE, 'local');
+assert.equal(desktopLocalIamReport.managedEnv.VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE, 'standalone');
+assert.equal(desktopLocalIamReport.managedEnv.VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET, 'desktop');
+assert.equal(
+  desktopLocalIamReport.managedEnv.VITE_SDKWORK_DEPLOYMENT_MODE,
+  undefined,
+  'IAM env inspector must not surface the retired VITE_SDKWORK_DEPLOYMENT_MODE var.',
+);
 
 console.log('birdcoder iam standard contract passed.');

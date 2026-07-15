@@ -277,7 +277,6 @@ export class PlatformProjectsCollaboratorsApi {
 export interface PlatformProjectsListParams {
   userId?: string;
   workspaceId?: string;
-  rootPath?: string;
   page?: number;
   pageSize?: number;
 }
@@ -308,7 +307,6 @@ export class PlatformProjectsApi {
     const query = buildQueryString([
       { name: 'userId', value: params?.userId, style: 'form', explode: true, allowReserved: false },
       { name: 'workspaceId', value: params?.workspaceId, style: 'form', explode: true, allowReserved: false },
-      { name: 'rootPath', value: params?.rootPath, style: 'form', explode: true, allowReserved: false },
       { name: 'page', value: params?.page, style: 'form', explode: true, allowReserved: false },
       { name: 'page_size', value: params?.pageSize, style: 'form', explode: true, allowReserved: false },
     ]);

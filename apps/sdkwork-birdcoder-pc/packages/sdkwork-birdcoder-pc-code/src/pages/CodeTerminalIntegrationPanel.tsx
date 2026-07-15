@@ -9,7 +9,7 @@ import { DesktopTerminalApp } from '@sdkwork/terminal-pc-desktop';
 import { X } from 'lucide-react';
 import { memo, useCallback } from 'react';
 
-interface CodeTerminalIntegrationPanelProps {
+export interface CodeTerminalIntegrationPanelProps {
   isOpen: boolean;
   height: number;
   terminalRequest?: TerminalCommandRequest;

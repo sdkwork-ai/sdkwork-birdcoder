@@ -1,70 +1,65 @@
 # BirdCoder Operator Guide
 
-Status: active  
-Owner: SDKWork maintainers  
-Updated: 2026-06-29  
-Specs: `DEPLOYMENT_SPEC.md`, `OBSERVABILITY_SPEC.md`, `DATABASE_FRAMEWORK_SPEC.md`, `RELEASE_SPEC.md`
+Status: active
+Owner: SDKWork maintainers
+Updated: 2026-07-14
+Specs: `DEPLOYMENT_SPEC.md`, `RUNTIME_DIRECTORY_SPEC.md`, `SECURITY_SPEC.md`, `OBSERVABILITY_SPEC.md`, `RELEASE_SPEC.md`
 
-This guide is the production operator entrypoint for SDKWork BirdCoder. It replaces stub placeholders and must stay aligned with `sdkwork.app.config.json` commercial readiness metadata.
+This directory is the active operations entrypoint for the BirdCoder control
+plane. It documents deployed behavior, required safeguards, and recovery
+steps. It does not promote historical release notes, route counts, or static
+catalogs into proof that a remote execution capability is enabled.
 
-## Scope
+## Current Operating Boundary
 
-| Surface | Default profile | HA profile |
-| --- | --- | --- |
-| API server | Docker / Helm single replica + SQLite PVC | Helm overlay + PostgreSQL + Redis realtime |
-| PC web/desktop | Remote `coding-server` API | Same API with IAM session refresh |
-| Metrics | `/metrics` (Prometheus text) | ServiceMonitor scrape |
-| Health | `/healthz` liveness and `/readyz` readiness (unauthenticated) | `/readyz` includes configured DB/IAM/Redis readiness checks |
+- Browser and Tauri clients use the same remote Project API through the
+  composed app SDK.
+- A Browser folder handle or Tauri path is device-private and never becomes a
+  server project root, API field, or log value.
+- The server derives any server-owned workspace storage from authenticated
+  tenant, organization, user/membership, workspace, and project context.
+- Current remote `server`, `container`, and `cloud` profiles do not enable
+  remote code execution merely because server workspace storage is configured.
+  They must report a typed unavailable capability until isolated-runner evidence
+  exists.
 
-## Quick links
+## Active Guides
 
 - [Deployment operations](deployment-operations.md)
+- [Windows Server control plane](windows-server-control-plane.md)
 - [Backup and restore](backup-restore.md)
 - [Monitoring and alerting](monitoring.md)
 - [Incident response](incident-response.md)
 - [First governed release checklist](first-governed-release.md)
 
-## Commercial readiness truth (2026-06-29)
+## Minimum Release Evidence
 
-| Lane | Status | Evidence |
-| --- | --- | --- |
-| OpenAPI contract | **Complete** | HTTP OpenAPI 161 operations implemented, 0 deferred (`specs/coding-server-openapi-rust-defer-registry.json`); route catalog 162 entries including workspace realtime WebSocket |
-| PC private beta | **Ready** | Session auth redirect, structured HTTP 401, proactive IAM refresh, workspace WS reconnect, Universal chat + Drive |
-| Mobile chat | **API-backed** | H5 + Flutter persist through generated app SDK; Flutter Drive attachments deferred until Dart `drive-app-sdk` consumer |
-| Enterprise K8s | **Pending env smoke** | PostgreSQL HA overlay + AnyPool repositories wired; requires DSN-backed smoke in target cluster |
-| SaaS public cloud | **Rehearsal aligned** | `release:fixture:ready` + `release:candidate:dry-run` + `release:plan` in CI; production signing/SBOM pending first real publish |
-| Mobile parity | **CI smoke aligned** | H5 typecheck/build, Capacitor sync, Android `assembleDebug`, Flutter analyze/test (`mobile-surfaces` CI job) |
-| Manifest honesty | **Four surfaces gated** | Root + PC + H5 + Flutter `sdkwork.app.config.json` stay DRAFT/preLaunch with disabled install packages (`surface-manifest-parity-contract`) |
+HTTP OpenAPI 161 operations and route catalog 162 entries are aligned. These
+numbers prove catalog alignment, not successful execution against every
+deployment dependency. Four surfaces gated by
+`surface-manifest-parity` remain pre-launch: root, PC, H5, and Flutter Mobile.
 
-## Mandatory verification before production cutover
+Run the checks that match the modified surface before promotion:
 
 ```bash
-pnpm lint
-pnpm check:server
-pnpm check:arch
-pnpm server:build
-pnpm release:smoke:server
+pnpm.cmd check:server
+pnpm.cmd check:desktop
+pnpm.cmd check:multi-mode
+pnpm.cmd release:smoke:server
+pnpm.cmd release:smoke:postgresql-live
+pnpm.cmd docs:build
 ```
 
-When PostgreSQL is the production engine:
+For PostgreSQL-backed deployment, run the live smoke against the target
+database only in an authorized environment. Preserve the resulting evidence
+with the deployment record; do not add credentials or filesystem paths to the
+record.
 
-```bash
-pnpm release:smoke:postgresql-live
-helm upgrade --install sdkwork-birdcoder ./deployments/kubernetes \
-  -f deployments/kubernetes/values.yaml \
-  -f deployments/kubernetes/values-postgresql-ha.yaml
-```
+## Support Escalation
 
-Mobile native host verification (after H5 build):
-
-```bash
-pnpm h5:build
-pnpm cap:sync
-pnpm cap:android:assemble
-```
-
-## Support escalation
-
-1. Collect `/healthz`, `/readyz`, `/metrics`, and application logs from the failing pod or host.
-2. Run rollback using the release manifest `rollbackRunbookRef` when error budget is exhausted.
-3. File an incident record with request IDs from Problem JSON responses.
+1. Collect `/healthz`, `/readyz`, `/metrics`, redacted server logs, and request
+   trace identifiers.
+2. Establish the affected tenant, organization, user, project, deployment
+   profile, and runtime target without collecting a user-local mount path.
+3. Use the release manifest rollback reference when the approved error budget
+   is exceeded, then open an incident record with the redacted evidence.

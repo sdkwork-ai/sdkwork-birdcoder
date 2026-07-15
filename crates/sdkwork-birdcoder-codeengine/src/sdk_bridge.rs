@@ -1,4 +1,7 @@
-use std::{env, fs, path::{Path, PathBuf}};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -61,7 +64,6 @@ struct SdkBridgeStoredMessage {
     task_progress: Option<serde_json::Value>,
     created_at: String,
 }
-
 
 pub fn list_sdk_bridge_session_summaries(
     engine_id: &str,
@@ -138,7 +140,6 @@ pub fn get_sdk_bridge_session_detail(
         .collect();
     Ok(Some(CodeEngineSessionDetailRecord { summary, messages }))
 }
-
 
 fn sdk_bridge_session_engine_directory(engine_id: &str) -> PathBuf {
     sdk_bridge_session_home_directory().join(sanitize_bridge_session_filename(engine_id))
@@ -286,7 +287,6 @@ fn resolve_sdk_bridge_command_runtime_status(
         command.requires_reply == Some(true),
     )
 }
-
 
 fn sanitize_bridge_session_filename(value: &str) -> String {
     let sanitized = value

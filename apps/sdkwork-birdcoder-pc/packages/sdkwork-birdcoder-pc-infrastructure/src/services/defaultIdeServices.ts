@@ -21,7 +21,6 @@ import { createUnavailableReleaseService } from './impl/UnavailableReleaseServic
 import { ApiBackedTeamService } from './impl/ApiBackedTeamService.ts';
 import { ApiBackedVipMembershipService } from './impl/ApiBackedVipMembershipService.ts';
 import { ApiBackedWorkspaceService } from './impl/ApiBackedWorkspaceService.ts';
-import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
 import {
   createBirdCoderDefaultIdeSharedRuntime,
   type BirdCoderDefaultIdeServices,
@@ -187,7 +186,7 @@ export function createDefaultBirdCoderIdeServices(
     documentService: new ApiBackedDocumentService({
       appClient,
     }),
-    fileSystemService: new RuntimeFileSystemService(),
+    fileSystemService: runtime.fileSystemService,
     gitService: new ApiBackedGitService({
       appClient,
     }),

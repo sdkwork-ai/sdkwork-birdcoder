@@ -51,8 +51,8 @@ assert.match(
 );
 assert.match(
   valuesSource,
-  /database:\s*\n\s*engine: sqlite/u,
-  'Kubernetes values must default database.engine to sqlite for single-replica production.',
+  /replicaCount: 1[\s\S]*database:\s*\n\s*engine: postgresql[\s\S]*realtime:\s*\n\s*backend: memory/u,
+  'Default Kubernetes values must use PostgreSQL while remaining an explicit single-replica profile.',
 );
 assert.match(
   configMapSource,
@@ -68,6 +68,21 @@ assert.match(
   readText('crates/sdkwork-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
   /pub struct RedisRateLimitStore/u,
   'HA commerce rate limiting must ship a Redis-backed RateLimitStore.',
+);
+assert.match(
+  readText('crates/sdkwork-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
+  /SDKWORK_BIRDCODER_REDIS_ENABLED/u,
+  'HA commerce rate limiting must consume the shared Redis configuration.',
+);
+assert.match(
+  readText('crates/sdkwork-birdcoder-standalone-gateway/src/server/middleware/rate_limit.rs'),
+  /rejecting request/u,
+  'HA commerce rate limiting must fail closed when Redis is unavailable.',
+);
+assert.match(
+  readText('deployments/kubernetes/values-postgresql-ha.yaml'),
+  /replicaCount: 3[\s\S]*backend: redis[\s\S]*minReplicas: 3/u,
+  'PostgreSQL HA values must enable three replicas, Redis realtime, and autoscaling.',
 );
 assert.match(
   readText('crates/sdkwork-birdcoder-standalone-gateway/src/health.rs'),

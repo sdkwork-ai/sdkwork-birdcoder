@@ -270,10 +270,13 @@ async function restoreBirdCoderStoredSession(
   }
 
   const storedSession = persistedSession ?? runtimeSession;
-  const managerTokens = runtime.tokenManager.getTokens();
+  const managerTokens = runtime.tokenManager?.getTokens();
   if (
-    managerTokens.authToken !== authToken
-    || managerTokens.accessToken !== accessToken
+    runtime.tokenManager
+    && (
+      managerTokens?.authToken !== authToken
+      || managerTokens?.accessToken !== accessToken
+    )
   ) {
     runtime.tokenManager.setTokens({
       authToken,
@@ -396,7 +399,7 @@ async function clearAuthoritySession(
   state.requestId += 1;
   state.cache = null;
   state.inFlight = null;
-  runtime.tokenManager.clearTokens();
+  runtime.tokenManager?.clearTokens();
   getBirdCoderGlobalTokenManager().clearTokens();
   try {
     await runtime.tokenStore.clear();
@@ -414,19 +417,8 @@ async function clearAuthoritySession(
 }
 
 async function clearStaleRuntimeCredentials(runtime: IamRuntime): Promise<void> {
-  runtime.tokenManager.clearTokens();
+  runtime.tokenManager?.clearTokens();
   getBirdCoderGlobalTokenManager().clearTokens();
-  try {
-    await runtime.tokenStore.clear();
-  } catch {
-    // Storage may be unavailable during bootstrap; manager clearing still
-    // prevents stale credentials from being attached to requests.
-  }
-  try {
-    await runtime.contextStore.clear();
-  } catch {
-    // No context is a valid anonymous state.
-  }
 }
 
 function isCurrentRequest(
@@ -439,10 +431,10 @@ function isCurrentRequest(
 
 function resolveRuntimeScope(runtime: IamRuntime): string {
   return [
-    runtime.config.appId,
-    runtime.config.environment,
-    runtime.config.deploymentMode,
-    normalizeScopeUrl(runtime.config.appApiBaseUrl),
+    runtime.config?.appId ?? '',
+    runtime.config?.environment ?? '',
+    runtime.config?.deploymentMode ?? '',
+    normalizeScopeUrl(runtime.config?.appApiBaseUrl),
   ].join(KEY_SEPARATOR);
 }
 

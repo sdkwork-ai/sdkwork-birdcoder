@@ -11,6 +11,7 @@ import {
   areBirdCoderChatMessagesEquivalent,
   areBirdCoderChatMessagesLogicallyMatched,
   mergeBirdCoderComparableChatMessages,
+  stringifyBirdCoderLongInteger,
 } from '@sdkwork/birdcoder-pc-types';
 import {
   canSubscribeBirdCoderWorkspaceRealtime,
@@ -48,7 +49,9 @@ import type {
   CreateCodingSessionOptions,
   CreateProjectOptions,
   UpdateCodingSessionOptions,
+  UpdateProjectOptions,
 } from '../services/interfaces/IProjectService.ts';
+import { synchronizeProjectsSessionsFromAuthority } from '../workbench/projectSessionSynchronization.ts';
 
 function fuzzyScore(pattern: string, value: string): number {
   if (!pattern) {
@@ -74,6 +77,13 @@ function fuzzyScore(pattern: string, value: string): number {
   }
 
   return patternIndex === pattern.length ? score : 0;
+}
+
+function resolveMessageActivitySortTimestamp(timestamp: string): string | undefined {
+  const parsedTimestamp = Date.parse(timestamp);
+  return Number.isNaN(parsedTimestamp)
+    ? undefined
+    : stringifyBirdCoderLongInteger(parsedTimestamp);
 }
 
 type EditableCodingSessionMessage = Omit<
@@ -545,6 +555,7 @@ async function fetchProjectsForWorkspace(
   projectService: ReturnType<typeof useIDEServices>['projectService'],
   pageRequest: BirdCoderServicePageRequest,
   mode: 'append' | 'replace' = 'replace',
+  appRuntimeReadService?: ReturnType<typeof useIDEServices>['appRuntimeReadService'],
 ): Promise<BirdCoderProject[]> {
   const requestKey = `${mode}:${pageRequest.page}:${pageRequest.pageSize}`;
   if (store.inflight) {
@@ -553,7 +564,14 @@ async function fetchProjectsForWorkspace(
     }
 
     await store.inflight.catch(() => undefined);
-    return fetchProjectsForWorkspace(store, workspaceId, projectService, pageRequest, mode);
+    return fetchProjectsForWorkspace(
+      store,
+      workspaceId,
+      projectService,
+      pageRequest,
+      mode,
+      appRuntimeReadService,
+    );
   }
 
   updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
@@ -569,7 +587,7 @@ async function fetchProjectsForWorkspace(
     pageRequest,
     PROJECTS_FETCH_TIMEOUT_MS,
   )
-    .then((page) => {
+    .then(async (page) => {
       if (store.inventoryVersion !== requestInventoryVersion) {
         updateProjectsStoreSnapshot(store, (previousSnapshot) => ({
           ...previousSnapshot,
@@ -579,7 +597,20 @@ async function fetchProjectsForWorkspace(
         return store.snapshot.projects;
       }
 
-      const incomingProjects = normalizeProjectsForInventoryStore(page.items.filter(Boolean));
+      const fetchedProjects = normalizeProjectsForInventoryStore(page.items.filter(Boolean));
+      let incomingProjects = fetchedProjects;
+      if (appRuntimeReadService) {
+        try {
+          incomingProjects = await synchronizeProjectsSessionsFromAuthority({
+            appRuntimeReadService,
+            projects: fetchedProjects,
+            projectService,
+            workspaceId,
+          });
+        } catch (error) {
+          console.warn('Failed to synchronize project session inventory from runtime authority', error);
+        }
+      }
       const nextProjects = mergeProjectsForStore(
         store.snapshot.projects,
         mode === 'append'
@@ -831,7 +862,7 @@ export interface UseProjectsOptions {
 }
 
 export function useProjects(workspaceId?: string, options?: UseProjectsOptions) {
-  const { projectService } = useIDEServices();
+  const { appRuntimeReadService, projectService } = useIDEServices();
   const { user } = useAuth();
   const normalizedUserScope = normalizeProjectsStoreUserScope(user?.id);
   const normalizedWorkspaceId = workspaceId?.trim() ?? '';
@@ -903,7 +934,14 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         (!!store.snapshot.error && store.snapshot.projects.length === 0 && !hadActiveListeners)) &&
       !store.inflight
     ) {
-      void fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService, pageRequest).catch(() => {
+      void fetchProjectsForWorkspace(
+        store,
+        normalizedWorkspaceId,
+        projectService,
+        pageRequest,
+        'replace',
+        appRuntimeReadService,
+      ).catch(() => {
         // Error state is already propagated through the shared store snapshot.
       });
     }
@@ -914,6 +952,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     };
   }, [
     normalizedWorkspaceId,
+    appRuntimeReadService,
     projectService,
     shouldEnableRealtime,
     shouldFetchOnMount,
@@ -933,8 +972,21 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     await projectService.invalidateProjectReadCache?.({
       workspaceId: normalizedWorkspaceId,
     });
-    return fetchProjectsForWorkspace(store, normalizedWorkspaceId, projectService, pageRequest);
-  }, [normalizedWorkspaceId, projectService, storeScopeKey, pageRequest]);
+    return fetchProjectsForWorkspace(
+      store,
+      normalizedWorkspaceId,
+      projectService,
+      pageRequest,
+      'replace',
+      appRuntimeReadService,
+    );
+  }, [
+    appRuntimeReadService,
+    normalizedWorkspaceId,
+    projectService,
+    storeScopeKey,
+    pageRequest,
+  ]);
 
   const loadMoreProjects = useCallback(async () => {
     if (!normalizedWorkspaceId || !storeScopeKey) {
@@ -956,8 +1008,9 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         pageSize: pageInfo.pageSize,
       },
       'append',
+      appRuntimeReadService,
     );
-  }, [normalizedWorkspaceId, projectService, storeScopeKey]);
+  }, [appRuntimeReadService, normalizedWorkspaceId, projectService, storeScopeKey]);
 
   useEffect(() => {
     if (
@@ -980,11 +1033,14 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         page: 1,
         pageSize: pageRequest.pageSize,
       },
+      'replace',
+      appRuntimeReadService,
     ).catch(() => {
       // Error state is already propagated through the shared store snapshot.
     });
   }, [
     isActive,
+    appRuntimeReadService,
     normalizedWorkspaceId,
     pageRequest.pageSize,
     projectService,
@@ -1225,11 +1281,18 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
     }
   };
 
-  const updateProject = async (projectId: string, updates: Partial<BirdCoderProject>) => {
+  const updateProject = async (projectId: string, updates: UpdateProjectOptions) => {
     try {
       await projectService.updateProject(projectId, updates);
+      const projectPatch: Partial<BirdCoderProject> = {
+        ...(updates.name === undefined ? {} : { name: updates.name }),
+        ...(updates.description === undefined ? {} : { description: updates.description }),
+        ...(updates.status === undefined
+          ? {}
+          : { archived: updates.status === 'archived' }),
+      };
       mutateProjectsStore(normalizedUserScope, normalizedWorkspaceId, (projects) =>
-        updateProjectInCollection(projects, projectId, updates),
+        updateProjectInCollection(projects, projectId, projectPatch),
         { invalidatePagination: true },
       );
     } catch (error: unknown) {
@@ -1438,6 +1501,9 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
           ),
           updatedAt: newMessage.createdAt,
           lastTurnAt: newMessage.createdAt,
+          sortTimestamp:
+            resolveMessageActivitySortTimestamp(newMessage.createdAt) ??
+            codingSession.sortTimestamp,
           transcriptUpdatedAt: newMessage.createdAt,
         })),
       );
@@ -1479,7 +1545,8 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
             editableUpdates,
           ),
           updatedAt,
-          lastTurnAt: updatedAt,
+          sortTimestamp:
+            resolveMessageActivitySortTimestamp(updatedAt) ?? codingSession.sortTimestamp,
           transcriptUpdatedAt: updatedAt,
         })),
       );
@@ -1512,7 +1579,8 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
             messageId,
           ),
           updatedAt,
-          lastTurnAt: updatedAt,
+          sortTimestamp:
+            resolveMessageActivitySortTimestamp(updatedAt) ?? codingSession.sortTimestamp,
           transcriptUpdatedAt: updatedAt,
         })),
       );
@@ -1557,6 +1625,9 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
         runtimeStatus: 'streaming',
         updatedAt: optimisticMessage.createdAt,
         lastTurnAt: optimisticMessage.createdAt,
+        sortTimestamp:
+          resolveMessageActivitySortTimestamp(optimisticMessage.createdAt) ??
+          codingSession.sortTimestamp,
         transcriptUpdatedAt: optimisticMessage.createdAt,
       })),
     );
@@ -1625,6 +1696,8 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
               runtimeStatus: previousCodingSession?.runtimeStatus,
               updatedAt: previousCodingSession?.updatedAt ?? codingSession.updatedAt,
               lastTurnAt: previousCodingSession?.lastTurnAt,
+              sortTimestamp:
+                previousCodingSession?.sortTimestamp ?? codingSession.sortTimestamp,
               transcriptUpdatedAt:
                 previousCodingSession?.transcriptUpdatedAt ?? codingSession.transcriptUpdatedAt,
             })),
@@ -1642,7 +1715,7 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
           ),
           runtimeStatus: 'streaming',
           updatedAt: newMessage.createdAt,
-          lastTurnAt: newMessage.createdAt,
+          sortTimestamp: codingSession.sortTimestamp,
           transcriptUpdatedAt: newMessage.createdAt,
         })),
       );
@@ -1658,6 +1731,8 @@ export function useProjects(workspaceId?: string, options?: UseProjectsOptions) 
           runtimeStatus: previousCodingSession?.runtimeStatus,
           updatedAt: previousCodingSession?.updatedAt ?? codingSession.updatedAt,
           lastTurnAt: previousCodingSession?.lastTurnAt,
+          sortTimestamp:
+            previousCodingSession?.sortTimestamp ?? codingSession.sortTimestamp,
           transcriptUpdatedAt:
             previousCodingSession?.transcriptUpdatedAt ?? codingSession.transcriptUpdatedAt,
         })),

@@ -70,6 +70,12 @@ import {
   BIRDCODER_STREAM_KINDS,
   BIRDCODER_WORKSPACE_RESOURCE_STATUSES,
 } from './serverConstants.ts';
+
+const BIRDCODER_PROJECT_COLLABORATOR_MUTATION_STATUSES = [
+  'invited',
+  'active',
+  'suspended',
+] as const;
 import type { BirdCoderOpenApiSchema } from './openApiDocumentTypes.ts';
 import { listBirdCoderCodingServerEngines } from './domainQueries.ts';
 import {
@@ -1827,8 +1833,6 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         title: createOpenApiStringSchema(),
         name: createOpenApiStringSchema(),
         description: createOpenApiStringSchema(),
-        rootPath: createOpenApiStringSchema(),
-        sitePath: createOpenApiStringSchema(),
         domainPrefix: createOpenApiStringSchema(),
         ownerId: createOpenApiStringSchema(),
         leaderId: createOpenApiStringSchema(),
@@ -1853,53 +1857,34 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     ),
     BirdCoderGitStatusCounts: createOpenApiObjectSchema(
       {
-        conflicted: createOpenApiIntegerSchema(0),
-        deleted: createOpenApiIntegerSchema(0),
-        modified: createOpenApiIntegerSchema(0),
         staged: createOpenApiIntegerSchema(0),
+        unstaged: createOpenApiIntegerSchema(0),
         untracked: createOpenApiIntegerSchema(0),
       },
       {
-        required: ['conflicted', 'deleted', 'modified', 'staged', 'untracked'],
+        required: ['staged', 'unstaged', 'untracked'],
       },
     ),
     BirdCoderGitBranchSummary: createOpenApiObjectSchema(
       {
-        ahead: createOpenApiIntegerSchema(0),
-        behind: createOpenApiIntegerSchema(0),
         isCurrent: createOpenApiBooleanSchema(),
-        kind: createOpenApiStringSchema(),
+        isRemote: createOpenApiBooleanSchema(),
         name: createOpenApiStringSchema(),
-        upstreamName: createOpenApiStringSchema(),
       },
       {
-        required: ['ahead', 'behind', 'isCurrent', 'kind', 'name'],
+        required: ['isCurrent', 'isRemote', 'name'],
       },
     ),
     BirdCoderGitWorktreeSummary: createOpenApiObjectSchema(
       {
         branch: createOpenApiStringSchema(),
         head: createOpenApiStringSchema(),
-        id: createOpenApiStringSchema(),
         isCurrent: createOpenApiBooleanSchema(),
-        isDetached: createOpenApiBooleanSchema(),
-        isLocked: createOpenApiBooleanSchema(),
-        isPrunable: createOpenApiBooleanSchema(),
-        label: createOpenApiStringSchema(),
-        lockedReason: createOpenApiStringSchema(),
         prunableReason: createOpenApiStringSchema(),
-        path: createOpenApiStringSchema(),
+        worktreeKey: createOpenApiStringSchema(),
       },
       {
-        required: [
-          'id',
-          'isCurrent',
-          'isDetached',
-          'isLocked',
-          'isPrunable',
-          'label',
-          'path',
-        ],
+        required: ['isCurrent'],
       },
     ),
     BirdCoderProjectGitOverview: createOpenApiObjectSchema(
@@ -1909,9 +1894,7 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
         ),
         currentBranch: createOpenApiStringSchema(),
         currentRevision: createOpenApiStringSchema(),
-        currentWorktreePath: createOpenApiStringSchema(),
         detachedHead: createOpenApiBooleanSchema(),
-        repositoryRootPath: createOpenApiStringSchema(),
         status: createOpenApiStringEnumSchema(BIRDCODER_GIT_OVERVIEW_STATUSES),
         statusCounts: createOpenApiSchemaReference('BirdCoderGitStatusCounts'),
         worktrees: createOpenApiArraySchema(
@@ -1959,53 +1942,24 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     BirdCoderCreateProjectGitWorktreeRequest: createOpenApiObjectSchema(
       {
         branchName: createOpenApiStringSchema(),
-        path: createOpenApiStringSchema(),
       },
       {
-        required: ['branchName', 'path'],
+        required: ['branchName'],
       },
     ),
     BirdCoderRemoveProjectGitWorktreeRequest: createOpenApiObjectSchema(
       {
         force: createOpenApiBooleanSchema(),
-        path: createOpenApiStringSchema(),
+        worktreeKey: createOpenApiStringSchema(),
       },
       {
-        required: ['path'],
+        required: ['worktreeKey'],
       },
     ),
     BirdCoderCreateProjectRequest: createOpenApiObjectSchema(
       {
         description: createOpenApiStringSchema(),
         name: createOpenApiStringSchema(),
-        workspaceUuid: createOpenApiStringSchema(),
-        tenantId: createOpenApiStringSchema(),
-        organizationId: createOpenApiStringSchema(),
-        dataScope: createOpenApiDataScopeSchema(),
-        userId: createOpenApiStringSchema(),
-        parentId: createOpenApiStringSchema(),
-        parentUuid: createOpenApiStringSchema(),
-        parentMetadata: createOpenApiObjectSchema({}, { additionalProperties: true }),
-        code: createOpenApiStringSchema(),
-        title: createOpenApiStringSchema(),
-        ownerId: createOpenApiStringSchema(),
-        leaderId: createOpenApiStringSchema(),
-        createdByUserId: createOpenApiStringSchema(),
-        author: createOpenApiStringSchema(),
-        type: createOpenApiStringSchema(),
-        rootPath: createOpenApiStringSchema(),
-        sitePath: createOpenApiStringSchema(),
-        domainPrefix: createOpenApiStringSchema(),
-        fileId: createOpenApiStringSchema(),
-        conversationId: createOpenApiStringSchema(),
-        startTime: createOpenApiStringSchema(),
-        endTime: createOpenApiStringSchema(),
-        budgetAmount: createOpenApiLongIntegerStringSchema(),
-        coverImage: createOpenApiObjectSchema({}, { additionalProperties: true }),
-        isTemplate: createOpenApiBooleanSchema(),
-        appTemplateVersionId: createOpenApiStringSchema(),
-        templatePresetKey: createOpenApiStringSchema(),
-        status: createOpenApiStringEnumSchema(BIRDCODER_WORKSPACE_RESOURCE_STATUSES),
         workspaceId: createOpenApiStringSchema(),
       },
       {
@@ -2014,29 +1968,7 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     ),
     BirdCoderUpdateProjectRequest: createOpenApiObjectSchema({
       description: createOpenApiStringSchema(),
-      dataScope: createOpenApiDataScopeSchema(),
-      userId: createOpenApiStringSchema(),
-      parentId: createOpenApiStringSchema(),
-      parentUuid: createOpenApiStringSchema(),
-      parentMetadata: createOpenApiObjectSchema({}, { additionalProperties: true }),
-      code: createOpenApiStringSchema(),
-      title: createOpenApiStringSchema(),
       name: createOpenApiStringSchema(),
-      ownerId: createOpenApiStringSchema(),
-      leaderId: createOpenApiStringSchema(),
-      createdByUserId: createOpenApiStringSchema(),
-      author: createOpenApiStringSchema(),
-      type: createOpenApiStringSchema(),
-      rootPath: createOpenApiStringSchema(),
-      sitePath: createOpenApiStringSchema(),
-      domainPrefix: createOpenApiStringSchema(),
-      fileId: createOpenApiStringSchema(),
-      conversationId: createOpenApiStringSchema(),
-      startTime: createOpenApiStringSchema(),
-      endTime: createOpenApiStringSchema(),
-      budgetAmount: createOpenApiLongIntegerStringSchema(),
-      coverImage: createOpenApiObjectSchema({}, { additionalProperties: true }),
-      isTemplate: createOpenApiBooleanSchema(),
       status: createOpenApiStringEnumSchema(BIRDCODER_WORKSPACE_RESOURCE_STATUSES),
     }),
     BirdCoderSkillCatalogEntrySummary: createOpenApiObjectSchema(
@@ -2344,18 +2276,16 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
       }),
       oneOf: [{ required: ['userId'] }, { required: ['email'] }],
     },
-    BirdCoderUpsertProjectCollaboratorRequest: {
-      ...createOpenApiObjectSchema({
+    BirdCoderUpsertProjectCollaboratorRequest: createOpenApiObjectSchema(
+      {
         userId: createOpenApiStringSchema(),
-        email: createOpenApiStringSchema(),
-        teamId: createOpenApiStringSchema(),
         role: createOpenApiStringEnumSchema(BIRDCODER_COLLABORATION_ROLES),
-        status: createOpenApiStringEnumSchema(BIRDCODER_COLLABORATION_STATUSES),
-        createdByUserId: createOpenApiStringSchema(),
-        grantedByUserId: createOpenApiStringSchema(),
-      }),
-      oneOf: [{ required: ['userId'] }, { required: ['email'] }],
-    },
+        status: createOpenApiStringEnumSchema(BIRDCODER_PROJECT_COLLABORATOR_MUTATION_STATUSES),
+      },
+      {
+        required: ['userId'],
+      },
+    ),
     BirdCoderDeploymentTargetSummary: createOpenApiObjectSchema(
       {
         id: createOpenApiStringSchema(),

@@ -42,7 +42,7 @@ pnpm server:dev:cloud
 `pnpm server:dev` starts the governed private BirdCoder server loop with SDKWork IAM private authority and local sqlite persistence.
 `pnpm server:dev:private` is the explicit private-server alias for the same governed native-server loop.
 `pnpm server:dev:cloud` starts the governed BirdCoder server loop in cloud IAM mode and requires `SDKWORK_IAM_APP_API_BASE_URL`.
-All of these development commands keep the frontend contract on the same BirdCoder facade routes, including `/app/v3/api/auth/*`, `/app/v3/api/iam/users/current`, `/app/v3/api/memberships/current`, and `/app/v3/api/memberships/package_groups`, across local, private, and cloud IAM modes. `VITE_BIRDCODER_IAM_DEPLOYMENT_MODE` and `VITE_SDKWORK_DEPLOYMENT_MODE` publish only deployment mode; runtime auth state and commerce membership state come from the generated app SDK and SDKWork IAM runtime.
+All of these development commands keep the frontend contract on the same BirdCoder facade routes, including `/app/v3/api/auth/*`, `/app/v3/api/iam/users/current`, `/app/v3/api/memberships/current`, and `/app/v3/api/memberships/package_groups`, across local, private, and cloud IAM modes. `VITE_BIRDCODER_IAM_DEPLOYMENT_MODE`, `VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE`, and `VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET` publish only deployment mode; runtime auth state and commerce membership state come from the generated app SDK and SDKWork IAM runtime.
 
 ## Build
 

@@ -12,9 +12,9 @@ import {
 import {
   deduplicateBirdCoderCodingSessionsForRender,
   deduplicateBirdCoderProjectsForRender,
-  useToast,
-  useWorkbenchPreferences,
-} from '@sdkwork/birdcoder-pc-commons';
+} from '@sdkwork/birdcoder-pc-commons/workbench/projectInventoryRender';
+import { useWorkbenchPreferences } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkbenchPreferences';
+import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
 import { useFixedSizeWindowedRange, useRelativeMinuteNow } from '@sdkwork/birdcoder-pc-ui-shell';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';

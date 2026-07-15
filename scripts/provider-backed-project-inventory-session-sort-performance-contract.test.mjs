@@ -40,13 +40,28 @@ assert.doesNotMatch(
   'mapProjectRecord must not always copy-map-sort session inventories.',
 );
 
-for (const methodName of ['getProjects', 'getProjectById', 'getProjectByPath']) {
+const materializeProjectRecordsSource = readMethodBody('materializeProjectRecords', 'private async');
+assert.match(
+  materializeProjectRecordsSource,
+  /sessionsSortedByActivity:\s*true/,
+  'project inventory materialization must tell mapProjectRecord that persisted/cache-backed sessions are already sorted.',
+);
+
+for (const methodName of ['getProjects', 'getProjectById']) {
   const methodSource = readMethodBody(methodName);
-  assert.match(
-    methodSource,
-    /sessionsSortedByActivity:\s*true/,
-    `${methodName} must tell mapProjectRecord that persisted/cache-backed inventory sessions are already sorted.`,
-  );
+  if (methodName === 'getProjects') {
+    assert.match(
+      methodSource,
+      /materializeProjectRecords/,
+      'getProjects must delegate inventory mapping to materializeProjectRecords.',
+    );
+  } else {
+    assert.match(
+      methodSource,
+      /sessionsSortedByActivity:\s*true/,
+      'getProjectById must tell mapProjectRecord that persisted/cache-backed inventory sessions are already sorted.',
+    );
+  }
 }
 
 console.log('provider-backed project inventory session sort performance contract passed.');

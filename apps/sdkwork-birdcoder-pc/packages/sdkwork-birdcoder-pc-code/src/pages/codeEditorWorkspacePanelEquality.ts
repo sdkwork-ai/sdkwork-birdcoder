@@ -10,7 +10,6 @@ export function areCodeEditorWorkspacePanelRenderInputsEqual(
     left.loadingDirectoryPaths === right.loadingDirectoryPaths &&
     left.openFiles === right.openFiles &&
     left.selectedFile === right.selectedFile &&
-    left.currentProjectPath === right.currentProjectPath &&
     left.viewingDiff === right.viewingDiff &&
     left.fileContent === right.fileContent &&
     left.explorerWidth === right.explorerWidth &&

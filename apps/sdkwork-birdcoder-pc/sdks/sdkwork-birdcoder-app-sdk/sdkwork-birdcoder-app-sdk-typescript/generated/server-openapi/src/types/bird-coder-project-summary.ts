@@ -16,8 +16,6 @@ export interface BirdCoderProjectSummary {
   title?: string;
   name: string;
   description?: string;
-  rootPath?: string;
-  sitePath?: string;
   domainPrefix?: string;
   ownerId?: string;
   leaderId?: string;

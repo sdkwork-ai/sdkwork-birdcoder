@@ -16,6 +16,8 @@ use std::time::Duration;
 const LATENCY_BUCKETS_SECONDS: &[f64] = &[
     0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
 ];
+const MAX_LABEL_SERIES_PER_METRIC: usize = 2_048;
+const OVERFLOW_LABELS: &str = "overflow=\"true\"";
 
 #[derive(Default)]
 struct HistogramStats {
@@ -48,10 +50,8 @@ struct LabeledHistogram {
 impl LabeledHistogram {
     fn observe(&self, labels: &str, value_seconds: f64) {
         let mut stats = self.stats.lock().expect("business metrics histogram mutex");
-        stats
-            .entry(labels.to_owned())
-            .or_default()
-            .observe(value_seconds);
+        let labels = bounded_labels(&stats, labels);
+        stats.entry(labels).or_default().observe(value_seconds);
     }
 
     fn render(&self, name: &str, help: &str) -> String {
@@ -85,7 +85,8 @@ struct LabeledCounter {
 impl LabeledCounter {
     fn inc(&self, labels: &str) {
         let mut counts = self.counts.lock().expect("business metrics counter mutex");
-        *counts.entry(labels.to_owned()).or_insert(0) += 1;
+        let labels = bounded_labels(&counts, labels);
+        *counts.entry(labels).or_insert(0) += 1;
     }
 
     fn render(&self, name: &str, help: &str) -> String {
@@ -98,6 +99,14 @@ impl LabeledCounter {
             output.push_str(&format!("{name}{{{labels}}} {count}\n"));
         }
         output
+    }
+}
+
+fn bounded_labels<T>(series: &HashMap<String, T>, labels: &str) -> String {
+    if series.contains_key(labels) || series.len() < MAX_LABEL_SERIES_PER_METRIC - 1 {
+        labels.to_owned()
+    } else {
+        OVERFLOW_LABELS.to_owned()
     }
 }
 
@@ -121,11 +130,11 @@ impl MetricLabels {
         )
     }
 
-    pub fn api_request(method: &str, path: &str, status: u16) -> String {
+    pub fn api_request(method: &str, route: &str, status: u16) -> String {
         format!(
-            "method=\"{}\",path=\"{}\",status=\"{}\"",
+            "method=\"{}\",route=\"{}\",status=\"{}\"",
             escape_label(method),
-            escape_label(path),
+            escape_label(route),
             status
         )
     }
@@ -186,6 +195,7 @@ impl BusinessMetricsRegistry {
             .counts
             .lock()
             .expect("business metrics counter mutex");
+        let labels = bounded_labels(&counts, &labels);
         *counts.entry(labels).or_insert(0) += count;
     }
 
@@ -196,9 +206,9 @@ impl BusinessMetricsRegistry {
     }
 
     /// Records an API request: total counter plus latency histogram, keyed by
-    /// `method`, `path`, and `status`.
-    pub fn record_api_request(&self, method: &str, path: &str, status: u16, duration: Duration) {
-        let labels = MetricLabels::api_request(method, path, status);
+    /// `method`, route template, and `status`.
+    pub fn record_api_request(&self, method: &str, route: &str, status: u16, duration: Duration) {
+        let labels = MetricLabels::api_request(method, route, status);
         self.api_request_total.inc(&labels);
         self.api_request_duration_seconds
             .observe(&labels, duration.as_secs_f64());
@@ -321,9 +331,21 @@ mod tests {
             Duration::from_millis(3000),
         );
         let rendered = registry.render_prometheus();
-        assert!(rendered.contains("birdcoder_api_request_total{method=\"GET\",path=\"/app/v3/api/intelligence/coding_sessions\",status=\"200\"} 1"));
-        assert!(rendered.contains("birdcoder_api_request_duration_seconds_count{method=\"POST\",path=\"/app/v3/api/intelligence/coding_sessions\",status=\"500\"} 1"));
-        assert!(rendered.contains("birdcoder_api_request_duration_seconds_bucket{method=\"GET\",path=\"/app/v3/api/intelligence/coding_sessions\",status=\"200\",le=\"0.05\"} 1"));
+        assert!(rendered.contains("birdcoder_api_request_total{method=\"GET\",route=\"/app/v3/api/intelligence/coding_sessions\",status=\"200\"} 1"));
+        assert!(rendered.contains("birdcoder_api_request_duration_seconds_count{method=\"POST\",route=\"/app/v3/api/intelligence/coding_sessions\",status=\"500\"} 1"));
+        assert!(rendered.contains("birdcoder_api_request_duration_seconds_bucket{method=\"GET\",route=\"/app/v3/api/intelligence/coding_sessions\",status=\"200\",le=\"0.05\"} 1"));
+    }
+
+    #[test]
+    fn caps_metric_label_series_and_aggregates_overflow() {
+        let counter = LabeledCounter::default();
+        for index in 0..=MAX_LABEL_SERIES_PER_METRIC {
+            counter.inc(&format!("series=\"{index}\""));
+        }
+
+        let counts = counter.counts.lock().expect("counter lock");
+        assert_eq!(counts.len(), MAX_LABEL_SERIES_PER_METRIC);
+        assert_eq!(counts.get(OVERFLOW_LABELS), Some(&2));
     }
 
     #[test]

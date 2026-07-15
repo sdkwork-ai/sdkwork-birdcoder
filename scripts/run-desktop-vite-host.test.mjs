@@ -51,6 +51,7 @@ assert.equal(config.root, desktopRootDir);
 assert.equal(config.mode, 'test');
 assert.equal(config.base, './');
 assert.equal(config.esbuild, false);
+assert.equal(config.oxc, false);
 assert.deepEqual(config.plugins, ['react-plugin', 'tailwind-plugin']);
 assert.ok(!('disabled' in config.optimizeDeps));
 assert.equal(config.optimizeDeps.noDiscovery, true);
@@ -276,33 +277,20 @@ assert.equal(
   ),
 );
 
-const terminalPackageSubpathAlias = findAlias(
-  (entry) => entry.find instanceof RegExp
-    && entry.find.test('@sdkwork/terminal-core/runtime/session'),
-  'Desktop host config must keep the terminal package-subpath alias.',
-);
-assert.equal(
-  terminalPackageSubpathAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src/$2'),
-);
-assert.equal(
-  terminalPackageSubpathAlias.find.test('@sdkwork/terminal-local-runtime-app-sdk'),
-  false,
-  'Terminal package aliases must not shadow the dedicated terminal local runtime app SDK alias.',
-);
-
 const terminalPackageRootAlias = findAlias(
-  (entry) => entry.find instanceof RegExp && entry.find.test('@sdkwork/terminal-core'),
+  (entry) => entry.find === '@sdkwork/terminal-pc-core',
   'Desktop host config must keep the terminal package-root alias.',
 );
 assert.equal(
   terminalPackageRootAlias.replacement,
-  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
+  dependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-core/src'),
 );
-assert.equal(
-  terminalPackageRootAlias.find.test('@sdkwork/terminal-local-runtime-app-sdk'),
-  false,
-  'Terminal package root aliases must not shadow the dedicated terminal local runtime app SDK alias.',
+assert.ok(
+  config.resolve.alias.every(
+    (entry) => !(entry.find instanceof RegExp)
+      || !entry.find.test('@sdkwork/terminal-local-runtime-app-sdk'),
+  ),
+  'Terminal package aliases must not shadow the dedicated terminal local runtime app SDK alias.',
 );
 assert.notEqual(
   birdcoderPackageSubpathAlias.replacement,
@@ -324,6 +312,9 @@ assert.deepEqual(config.server.fs.allow, [
   dependencyPath('sdkwork-search'),
   dependencyPath('sdkwork-ui'),
   dependencyPath('sdkwork-terminal'),
+  dependencyPath('sdkwork-membership'),
+  dependencyPath('sdkwork-promotion'),
+  dependencyPath('sdkwork-order'),
 ]);
 
 const uiRequire = createRequire(path.join(rootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-ui', 'package.json'));

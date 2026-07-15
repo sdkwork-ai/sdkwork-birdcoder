@@ -8,7 +8,10 @@ pub trait AppTemplateRepository: Send + Sync {
         offset: usize,
         limit: usize,
     ) -> Result<(Vec<AppTemplatePayload>, i64), String>;
-    async fn find_template_by_id(&self, template_id: &str) -> Result<Option<AppTemplatePayload>, String>;
+    async fn find_template_by_id(
+        &self,
+        template_id: &str,
+    ) -> Result<Option<AppTemplatePayload>, String>;
 }
 
 #[derive(Clone)]
@@ -32,10 +35,12 @@ impl<R: AppTemplateRepository> AppTemplateService<R> {
             .map_err(AppTemplateError::Repository)
     }
 
-    pub async fn get_template(&self, template_id: &str) -> Result<AppTemplatePayload, AppTemplateError> {
-        let normalized_id = normalize_required(template_id).ok_or_else(|| {
-            AppTemplateError::InvalidInput("templateId is required.".to_string())
-        })?;
+    pub async fn get_template(
+        &self,
+        template_id: &str,
+    ) -> Result<AppTemplatePayload, AppTemplateError> {
+        let normalized_id = normalize_required(template_id)
+            .ok_or_else(|| AppTemplateError::InvalidInput("templateId is required.".to_string()))?;
 
         self.repository
             .find_template_by_id(&normalized_id)

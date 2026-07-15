@@ -1,9 +1,9 @@
-use axum::routing::{delete, get, post, patch};
+use axum::routing::{delete, get, patch, post};
 use axum::Router;
 
+use crate::handlers;
 use crate::handlers::CodingSessionsAppState;
 use crate::paths;
-use crate::handlers;
 
 pub fn build_coding_sessions_app_api_router() -> Router<CodingSessionsAppState> {
     Router::new()
@@ -14,12 +14,21 @@ pub fn build_coding_sessions_app_api_router() -> Router<CodingSessionsAppState> 
         .route(paths::SESSION, delete(handlers::delete_session))
         .route(paths::SESSION_FORK, post(handlers::fork_session))
         .route(paths::SESSION_TURNS, post(handlers::create_turn))
-        .route(paths::SESSION_MESSAGE, patch(handlers::edit_coding_session_message))
-        .route(paths::SESSION_MESSAGE, delete(handlers::delete_coding_session_message))
+        .route(
+            paths::SESSION_MESSAGE,
+            patch(handlers::edit_coding_session_message),
+        )
+        .route(
+            paths::SESSION_MESSAGE,
+            delete(handlers::delete_coding_session_message),
+        )
         .route(paths::SESSION_EVENTS, get(handlers::list_events))
         .route(paths::SESSION_ARTIFACTS, get(handlers::list_artifacts))
         .route(paths::SESSION_CHECKPOINTS, get(handlers::list_checkpoints))
-        .route(paths::APPROVAL_DECISION, post(handlers::submit_approval_decision))
+        .route(
+            paths::APPROVAL_DECISION,
+            post(handlers::submit_approval_decision),
+        )
         .route(
             paths::USER_QUESTION_ANSWER,
             post(handlers::submit_user_question_answer),

@@ -69,7 +69,6 @@ const localProject: BirdCoderProject = {
   createdAt: timestamp,
   id: projectId,
   name: 'API-backed inventory laziness',
-  path: 'D:/workspace/api-backed-inventory-laziness',
   updatedAt: transcriptTimestamp,
   workspaceId,
 };
@@ -78,7 +77,6 @@ const projectSummary: BirdCoderProjectSummary = {
   createdAt: timestamp,
   id: projectId,
   name: localProject.name,
-  rootPath: localProject.path,
   status: 'active',
   updatedAt: transcriptTimestamp,
   workspaceId,
@@ -110,9 +108,6 @@ const writeService = {
   },
   async getProjectById(candidateProjectId: string) {
     return candidateProjectId === projectId ? structuredClone(localProject) : null;
-  },
-  async getProjectByPath() {
-    return null;
   },
   async getCodingSessionTranscript(candidateProjectId: string, candidateCodingSessionId: string) {
     transcriptReads += 1;

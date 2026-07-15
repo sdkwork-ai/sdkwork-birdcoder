@@ -2,6 +2,8 @@ import type {
   FileRevisionLookupResult,
   IFileNode,
   LocalFolderMountSource,
+  ProjectDeviceMountRecoveryResult,
+  ProjectDeviceMountState,
   ProjectFileSystemChangeEvent,
   WorkspaceFileSearchExecutionResult,
   WorkspaceFileSearchOptions,
@@ -131,6 +133,37 @@ export interface IFileSystemService {
     listener: (event: ProjectFileSystemChangeEvent) => void,
     options?: FileSystemChangeSubscriptionOptions,
   ): () => void;
+
+  /**
+   * Returns the current device-local mount state without exposing a native
+   * filesystem path or browser directory handle.
+   */
+  getProjectMountState(projectId: string): Promise<ProjectDeviceMountState>;
+
+  /**
+   * Attempts to restore a device-private mount. Browser recovery only queries
+   * persisted permission and never prompts; callers must explicitly rebind
+   * when permission is required.
+   */
+  restoreProjectMount(projectId: string): Promise<ProjectDeviceMountRecoveryResult>;
+
+  /**
+   * Resolves a host-local working directory for an active Tauri mount. Browser
+   * mounts deliberately return null because they do not grant an OS path.
+   * The returned value is device-private and must not enter project DTOs,
+   * remote requests, mirrors, or logs.
+   */
+  resolveLocalWorkingDirectory(
+    projectId: string,
+    mountedPath?: string,
+  ): Promise<string | null>;
+
+  /**
+   * Reveals an active Tauri-mounted project target in the native file manager.
+   * Browser mounts deliberately return false because the browser has no native
+   * file-manager capability.
+   */
+  revealProjectInFileManager(projectId: string, mountedPath?: string): Promise<boolean>;
 
   /**
    * Mounts a local folder to the project's file system.

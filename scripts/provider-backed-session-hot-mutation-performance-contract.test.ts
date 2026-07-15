@@ -24,16 +24,12 @@ const codingSessionRepositories = createBirdCoderCodingSessionRepositories({
 });
 const service = new ProviderBackedProjectService({
   codingSessionRepositories,
-  projectContentRepository: appRepositories.projectContents,
   repository: appRepositories.projects,
 });
 
 const project = await service.createProject(
   'workspace-hot-mutation-performance',
   'Hot Mutation Performance',
-  {
-    path: 'D:/workspace/hot-mutation-performance',
-  },
 );
 const session = await service.createCodingSession(project.id, 'Hot Mutation Session', {
   engineId: 'codex',
@@ -49,6 +45,55 @@ await service.addCodingSessionMessage(project.id, session.id, {
   id: 'hot-mutation-message-delete',
   role: 'assistant',
 });
+await service.addCodingSessionMessage(project.id, session.id, {
+  content: 'streaming response',
+  id: 'hot-mutation-stream-start',
+  metadata: { streamRevision: 1 },
+  role: 'assistant',
+  turnId: 'hot-mutation-stream-turn',
+});
+
+const sessionBeforeStreamingMerge = await service.getCodingSessionTranscript(
+  project.id,
+  session.id,
+);
+assert.ok(sessionBeforeStreamingMerge);
+
+sqlExecutor.history.length = 0;
+await service.addCodingSessionMessage(project.id, session.id, {
+  content: 'streaming response',
+  id: 'hot-mutation-stream-update',
+  metadata: { streamRevision: 2 },
+  role: 'assistant',
+  turnId: 'hot-mutation-stream-turn',
+});
+const sessionAfterStreamingMerge = await service.getCodingSessionTranscript(
+  project.id,
+  session.id,
+);
+assert.ok(sessionAfterStreamingMerge);
+assert.equal(
+  sessionAfterStreamingMerge.updatedAt,
+  sessionBeforeStreamingMerge.updatedAt,
+  'merging another revision of the same logical message must not touch session updatedAt.',
+);
+assert.equal(
+  sessionAfterStreamingMerge.transcriptUpdatedAt,
+  sessionBeforeStreamingMerge.transcriptUpdatedAt,
+  'merging another revision of the same logical message must not touch transcript activity.',
+);
+assert.equal(
+  sessionAfterStreamingMerge.sortTimestamp,
+  sessionBeforeStreamingMerge.sortTimestamp,
+  'merging another revision of the same logical message must not reorder the session.',
+);
+assert.equal(
+  sqlExecutor.history.some(
+    (plan) => plan.intent === 'write' && plan.meta?.tableName === 'ai_coding_session',
+  ),
+  false,
+  'merging another revision of the same logical message must not persist the session summary again.',
+);
 
 sqlExecutor.history.length = 0;
 await service.renameCodingSession(project.id, session.id, 'Hot Mutation Session Renamed');
@@ -87,7 +132,10 @@ assert.equal(
 const hydratedTranscript = await service.getCodingSessionTranscript(project.id, session.id);
 assert.deepEqual(
   hydratedTranscript?.messages.map((message) => [message.id, message.content]),
-  [['hot-mutation-message-edit', 'message after edit']],
+  [
+    ['hot-mutation-message-edit', 'message after edit'],
+    ['hot-mutation-stream-update', 'streaming response'],
+  ],
   'hot edit/delete operations must keep the selected transcript cache correct.',
 );
 

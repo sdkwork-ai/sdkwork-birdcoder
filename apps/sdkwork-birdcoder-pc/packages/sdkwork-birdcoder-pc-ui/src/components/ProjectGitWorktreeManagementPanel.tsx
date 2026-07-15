@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { GitBranch, Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import {
+  getProjectGitWorktreeDisplayName,
+  getProjectGitWorktreeKey,
+  isProjectGitWorktreePrunable,
+  isProjectGitWorktreeRemovable,
   useProjectGitMutationActions,
   useProjectGitOverview,
   useToast,
@@ -12,61 +16,10 @@ interface ProjectGitWorktreeManagementPanelProps {
   currentProjectId?: string;
 }
 
-function normalizeDisplayPath(path?: string | null): string {
-  return (path ?? '').trim().replace(/\\/g, '/').replace(/\/+$/g, '');
-}
-
-function sanitizeWorktreeSegment(value: string): string {
-  return value
-    .trim()
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^[-.]+|[-.]+$/g, '')
-    .toLowerCase();
-}
-
-function joinDisplayPath(parentPath: string, childName: string): string {
-  if (!parentPath) {
-    return childName;
-  }
-
-  return parentPath.endsWith(':') ? `${parentPath}/${childName}` : `${parentPath}/${childName}`;
-}
-
-function buildSuggestedWorktreePath(
-  repositoryRootPath: string | undefined,
-  branchName: string,
-): string {
-  const normalizedRepositoryRoot = normalizeDisplayPath(repositoryRootPath);
-  const branchSegment = sanitizeWorktreeSegment(branchName) || 'worktree';
-  if (!normalizedRepositoryRoot) {
-    return '';
-  }
-
-  const lastSeparatorIndex = normalizedRepositoryRoot.lastIndexOf('/');
-  if (lastSeparatorIndex < 0) {
-    return '';
-  }
-
-  const parentPath = normalizedRepositoryRoot.slice(0, lastSeparatorIndex);
-  const repositoryName = normalizedRepositoryRoot.slice(lastSeparatorIndex + 1);
-  if (!repositoryName) {
-    return '';
-  }
-
-  return joinDisplayPath(parentPath, `${repositoryName}-${branchSegment}`);
-}
-
 function resolveManageableWorktrees(
   worktrees: readonly BirdCoderGitWorktreeSummary[],
-  repositoryRootPath?: string,
 ): BirdCoderGitWorktreeSummary[] {
-  const normalizedRepositoryRoot = normalizeDisplayPath(repositoryRootPath);
-  return worktrees.filter(
-    (worktree) =>
-      !worktree.isCurrent
-      && normalizeDisplayPath(worktree.path) !== normalizedRepositoryRoot,
-  );
+  return worktrees.filter(isProjectGitWorktreeRemovable);
 }
 
 export function ProjectGitWorktreeManagementPanel({
@@ -92,46 +45,27 @@ export function ProjectGitWorktreeManagementPanel({
     projectId: currentProjectId,
   });
   const [branchName, setBranchName] = useState('');
-  const [worktreePath, setWorktreePath] = useState('');
-  const [isPathCustomized, setIsPathCustomized] = useState(false);
-  const [removingWorktreePath, setRemovingWorktreePath] = useState('');
-
-  const suggestedWorktreePath = useMemo(
-    () => buildSuggestedWorktreePath(overview?.repositoryRootPath, branchName),
-    [branchName, overview?.repositoryRootPath],
-  );
+  const [removingWorktreeKey, setRemovingWorktreeKey] = useState('');
   const manageableWorktrees = useMemo(
-    () => resolveManageableWorktrees(overview?.worktrees ?? [], overview?.repositoryRootPath),
-    [overview?.repositoryRootPath, overview?.worktrees],
+    () => resolveManageableWorktrees(overview?.worktrees ?? []),
+    [overview?.worktrees],
   );
   const isRepositoryReady = overview?.status === 'ready';
 
   useEffect(() => {
     setBranchName('');
-    setWorktreePath('');
-    setIsPathCustomized(false);
-    setRemovingWorktreePath('');
+    setRemovingWorktreeKey('');
   }, [normalizedProjectId]);
 
-  useEffect(() => {
-    if (isPathCustomized && worktreePath.trim()) {
-      return;
-    }
-
-    setWorktreePath(suggestedWorktreePath);
-  }, [isPathCustomized, suggestedWorktreePath, worktreePath]);
-
   const handleCreateWorktree = async () => {
-    if (!normalizedProjectId || !branchName.trim() || !worktreePath.trim()) {
+    if (!normalizedProjectId || !branchName.trim()) {
       return;
     }
 
     try {
-      const createdWorktree = await createWorktree(branchName, worktreePath);
+      const createdWorktree = await createWorktree(branchName);
       addToast(t('code.worktreeCreated', { branch: createdWorktree.branchName }), 'success');
       setBranchName('');
-      setWorktreePath('');
-      setIsPathCustomized(false);
     } catch (error) {
       addToast(
         error instanceof Error && error.message.trim()
@@ -147,13 +81,22 @@ export function ProjectGitWorktreeManagementPanel({
       return;
     }
 
-    setRemovingWorktreePath(worktree.path);
+    const worktreeKey = getProjectGitWorktreeKey(worktree);
+    if (!worktreeKey) {
+      addToast(t('code.worktreeIdentifierUnavailable'), 'error');
+      return;
+    }
+
+    setRemovingWorktreeKey(worktreeKey);
     try {
       await removeWorktree({
         force: false,
-        path: worktree.path,
+        worktreeKey,
       });
-      addToast(t('code.worktreeRemoved', { label: worktree.label }), 'success');
+      addToast(
+        t('code.worktreeRemoved', { name: getProjectGitWorktreeDisplayName(worktree) }),
+        'success',
+      );
     } catch (error) {
       addToast(
         error instanceof Error && error.message.trim()
@@ -162,7 +105,7 @@ export function ProjectGitWorktreeManagementPanel({
         'error',
       );
     } finally {
-      setRemovingWorktreePath('');
+      setRemovingWorktreeKey('');
     }
   };
 
@@ -210,7 +153,7 @@ export function ProjectGitWorktreeManagementPanel({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto]">
+      <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
         <label className="flex min-w-0 flex-col gap-2 text-sm text-gray-300">
           <span>{t('code.worktreeBranchName')}</span>
           <input
@@ -223,34 +166,17 @@ export function ProjectGitWorktreeManagementPanel({
             className="h-11 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white outline-none transition placeholder:text-gray-600 focus:border-blue-400/40 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </label>
-        <label className="flex min-w-0 flex-col gap-2 text-sm text-gray-300">
-          <span>{t('code.worktreePath')}</span>
-          <input
-            value={worktreePath}
-            onChange={(event) => {
-              setWorktreePath(event.target.value);
-              setIsPathCustomized(true);
-            }}
-            placeholder={t('code.worktreePathPlaceholder')}
-            disabled={!normalizedProjectId || !isRepositoryReady || isCreatingWorktree}
-            className="h-11 rounded-lg border border-white/10 bg-black/20 px-3 text-sm text-white outline-none transition placeholder:text-gray-600 focus:border-blue-400/40 disabled:cursor-not-allowed disabled:opacity-50"
-          />
-        </label>
         <button
           type="button"
           onClick={() => {
             void handleCreateWorktree();
           }}
-          disabled={!normalizedProjectId || !isRepositoryReady || !branchName.trim() || !worktreePath.trim() || isCreatingWorktree}
+          disabled={!normalizedProjectId || !isRepositoryReady || !branchName.trim() || isCreatingWorktree}
           className="inline-flex h-11 items-center justify-center gap-2 self-end rounded-lg bg-blue-500 px-4 text-sm font-medium text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:bg-blue-500/50"
         >
           {isCreatingWorktree ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           <span>{t('code.createWorktreeAction')}</span>
         </button>
-      </div>
-
-      <div className="mt-2 text-xs text-gray-500">
-        {t('code.worktreePathHint')}
       </div>
 
       {!normalizedProjectId ? (
@@ -268,32 +194,32 @@ export function ProjectGitWorktreeManagementPanel({
       ) : (
         <div className="mt-4 space-y-2">
           {manageableWorktrees.map((worktree) => {
-            const isRemoving = removingWorktreePath === worktree.path;
+            const worktreeKey = getProjectGitWorktreeKey(worktree);
+            const displayName = getProjectGitWorktreeDisplayName(worktree);
+            const isPrunable = isProjectGitWorktreePrunable(worktree);
+            const isRemoving = removingWorktreeKey === worktreeKey;
             return (
               <div
-                key={worktree.id}
+                key={worktreeKey}
                 className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="truncate text-sm font-medium text-gray-100">
-                      {worktree.label}
+                      {displayName}
                     </div>
-                    {worktree.isLocked ? (
-                      <span className="rounded-full border border-white/10 bg-white/[0.05] px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-gray-400">
-                        {t('code.locked')}
-                      </span>
-                    ) : null}
-                    {worktree.isPrunable ? (
+                    {isPrunable ? (
                       <span className="rounded-full border border-red-400/20 bg-red-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-red-200">
                         {t('code.prunable')}
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-1 break-all text-xs text-gray-500">{worktree.path}</div>
-                  {worktree.branch || worktree.head ? (
+                  <div className="mt-1 break-all font-mono text-xs text-gray-500">
+                    {t('code.worktreeKey')}: {worktreeKey}
+                  </div>
+                  {worktree.head ? (
                     <div className="mt-1 text-xs text-gray-400">
-                      {worktree.branch || worktree.head}
+                      {worktree.head}
                     </div>
                   ) : null}
                   {worktree.prunableReason ? (
@@ -305,7 +231,7 @@ export function ProjectGitWorktreeManagementPanel({
                   onClick={() => {
                     void handleRemoveWorktree(worktree);
                   }}
-                  disabled={isRemoving || worktree.isLocked}
+                  disabled={isRemoving}
                   className="inline-flex items-center gap-2 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2 text-sm text-red-100 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isRemoving ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}

@@ -43,14 +43,20 @@ assert.match(
 
 assert.match(
   serviceSource,
-  /if \(this\.projectTauriMounts\[projectId\]\) \{\s*this\.stopProjectFileTreePoller\(projectId\);\s*void this\.ensureProjectTauriFileWatcher\(projectId\);\s*return;\s*\}/s,
-  'RuntimeFileSystemService must route active Tauri-mounted projects through watcher-first realtime orchestration and stop the fixed interval poller on that path.',
+  /if \(this\.projectTauriMounts\[projectId\]\) \{\s*this\.stopProjectFileTreePoller\(projectId\);\s*void this\.ensureProjectTauriFileWatcher\(projectId, scope\);\s*return;\s*\}/s,
+  'RuntimeFileSystemService must route active Tauri-mounted projects through watcher-first realtime orchestration with the active subject scope and stop the fixed interval poller on that path.',
 );
 
 assert.match(
   serviceSource,
   /const dispose = await this\.tauriRuntime\.watchProjectTree\(\s*mountState\.rootSystemPath,/s,
   'RuntimeFileSystemService must bind desktop realtime sync to the shared Tauri watcher runtime instead of probing mounted directory revisions on a fixed timer.',
+);
+
+assert.match(
+  serviceSource,
+  /watcherStart\.cancelled \|\|\s*!this\.isProjectMountOwnedByScope\(projectId, scope\) \|\|\s*this\.projectTauriMounts\[projectId\] !== mountState/s,
+  'A completed or late Tauri watcher callback must verify its cancellation flag, subject scope, and exact mount object before it can enqueue an event.',
 );
 
 console.log('file system tauri watch contract passed.');

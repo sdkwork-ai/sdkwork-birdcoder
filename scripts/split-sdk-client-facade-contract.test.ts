@@ -64,7 +64,6 @@ const transport = {
             workspaceId: String(request.query?.workspaceId ?? ''),
             name: 'Generated Facade Project',
             description: 'Project served through shared generated app SDK facade.',
-            rootPath: 'D:/workspace/generated-facade-project',
             status: 'active',
             createdAt: '2026-04-10T23:30:01.000Z',
             updatedAt: '2026-04-10T23:30:01.000Z',
@@ -218,6 +217,16 @@ const policies = await backendClient.listPolicies();
 
 assert.equal(workspaces[0]?.id, 'workspace-generated-facade');
 assert.equal(projects[0]?.workspaceId, 'workspace-generated-facade');
+assert.equal(
+  Object.hasOwn(projects[0] ?? {}, 'rootPath'),
+  false,
+  'the composed app SDK facade must not expose a device filesystem root on remote project summaries.',
+);
+assert.equal(
+  Object.hasOwn(projects[0] ?? {}, 'path'),
+  false,
+  'the composed app SDK facade must not expose a device working directory on remote project summaries.',
+);
 assert.equal(documents[0]?.projectId, 'project-generated-facade');
 assert.equal(deployments[0]?.id, 'deployment-generated-facade');
 assert.equal(deployments[0]?.targetId, 'target-generated-facade');

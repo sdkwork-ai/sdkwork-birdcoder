@@ -135,6 +135,24 @@ function resolveIsoTimestamp(value: string | null | undefined): number {
   return Number.isNaN(parsedValue) ? 0 : parsedValue;
 }
 
+function resolveLatestIsoTimestamp(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): string | undefined {
+  if (!left) {
+    return right ?? undefined;
+  }
+  if (!right) {
+    return left;
+  }
+
+  return resolveIsoTimestamp(right) > resolveIsoTimestamp(left) ? right : left;
+}
+
+function resolveLatestSortTimestamp(left: string, right: string): string {
+  return compareBirdCoderLongIntegers(right, left) > 0 ? right : left;
+}
+
 function normalizeCodingSessionStatus(value: unknown): BirdCoderCodingSessionStatus {
   return typeof value === 'string' && CODING_SESSION_STATUS_SET.has(value) ? value as BirdCoderCodingSessionStatus : 'draft';
 }
@@ -368,9 +386,21 @@ async function listAuthorityBackedCodingSessions(
         ...record,
         nativeSessionId: matchingNativeRecord.nativeSessionId ?? record.nativeSessionId,
         nativeCwd: matchingNativeRecord.nativeCwd ?? record.nativeCwd ?? null,
-        sortTimestamp: matchingNativeRecord.sortTimestamp || record.sortTimestamp,
-        transcriptUpdatedAt:
-          matchingNativeRecord.transcriptUpdatedAt ?? record.transcriptUpdatedAt ?? null,
+        updatedAt:
+          resolveLatestIsoTimestamp(record.updatedAt, matchingNativeRecord.updatedAt) ??
+          record.updatedAt,
+        lastTurnAt: resolveLatestIsoTimestamp(
+          record.lastTurnAt,
+          matchingNativeRecord.lastTurnAt,
+        ),
+        sortTimestamp: resolveLatestSortTimestamp(
+          record.sortTimestamp,
+          matchingNativeRecord.sortTimestamp,
+        ),
+        transcriptUpdatedAt: resolveLatestIsoTimestamp(
+          record.transcriptUpdatedAt,
+          matchingNativeRecord.transcriptUpdatedAt,
+        ) ?? null,
       };
     });
   const projectedIdentityKeys = new Set(

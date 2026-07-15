@@ -99,8 +99,11 @@ await withWindow(
       'desktop folder import must bypass browser directory permission prompts entirely.',
     );
     assert.deepEqual(selectedFolder, {
-      type: 'tauri',
-      path: 'D:/workspace/desktop-project',
+      status: 'selected',
+      source: {
+        type: 'tauri',
+        path: 'D:/workspace/desktop-project',
+      },
     });
   },
 );
@@ -133,8 +136,11 @@ await withWindow(
       'desktop folder import must not fall back to the browser permission prompt just because only __TAURI_INTERNALS__ is available.',
     );
     assert.deepEqual(selectedFolder, {
-      type: 'tauri',
-      path: 'D:/workspace/desktop-project-from-internals',
+      status: 'selected',
+      source: {
+        type: 'tauri',
+        path: 'D:/workspace/desktop-project-from-internals',
+      },
     });
   },
 );
@@ -184,8 +190,11 @@ await withWindow(
     const selectedFolder = await openLocalFolder();
     assert.equal(browserPickerCalls, 1);
     assert.deepEqual(selectedFolder, {
-      type: 'browser',
-      handle: { name: 'browser-project' },
+      status: 'selected',
+      source: {
+        type: 'browser',
+        handle: { name: 'browser-project' },
+      },
     });
   },
 );

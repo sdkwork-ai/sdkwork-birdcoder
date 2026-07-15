@@ -5,8 +5,9 @@ SDKWork BirdCoder is a multi-surface AI IDE workspace aligned with the SDKWork a
 ## Start here
 
 - [Getting Started](./guide/getting-started.md)
-- [Architecture](./core/architecture.md)
-- [Release And Deployment](./core/release-and-deployment.md)
+- [Technical Architecture](./architecture/tech/TECH_ARCHITECTURE.md)
+- [Deployment Operations](./guides/operator/deployment-operations.md)
+- [Windows Server Control Plane](./guides/operator/windows-server-control-plane.md)
 - [Product Requirements](./product/prd/PRD.md)
 
 ## Delivery modes
@@ -20,3 +21,7 @@ SDKWork BirdCoder is a multi-surface AI IDE workspace aligned with the SDKWork a
 ## Product boundary
 
 BirdCoder owns its AI IDE business modules (code, studio, terminal, skills, templates, settings) and follows the SDKWork architecture standard for host, release, CI, and deployment layers.
+
+Remote project metadata, device-private folder mounts, and server workspace
+roots are separate boundaries. A folder selected in Browser or Tauri is never
+implicitly uploaded or used as a server workspace path.

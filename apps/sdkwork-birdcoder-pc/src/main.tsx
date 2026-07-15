@@ -4,6 +4,7 @@ import { createBootstrapGateMessages } from '@sdkwork/birdcoder-pc-commons';
 import {
   BootstrapGate,
   bootstrapShellRuntime,
+  isBirdCoderLocalRuntimeApiBaseUrl,
   normalizeBirdCoderServerBaseUrl,
   readStoredBirdCoderServerBaseUrl,
   resolveBirdCoderBootstrapServerBaseUrl,
@@ -12,8 +13,22 @@ import {
 import './index.css';
 
 interface BirdCoderPublicRuntimeEnv {
+  DEV?: string;
   VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL?: string;
   VITE_BIRDCODER_API_BASE_URL?: string;
+}
+
+function resolveDevelopmentApiBaseUrl(apiBaseUrl?: string): string | undefined {
+  const runtimeGlobal = globalThis as typeof globalThis & BirdCoderRuntimeGlobal;
+  if (
+    !apiBaseUrl
+    || runtimeGlobal.__SDKWORK_PC_REACT_ENV__?.DEV !== 'true'
+    || typeof window === 'undefined'
+    || !isBirdCoderLocalRuntimeApiBaseUrl(apiBaseUrl)
+  ) {
+    return apiBaseUrl;
+  }
+  return window.location.origin;
 }
 
 interface BirdCoderRuntimeGlobal {
@@ -31,10 +46,10 @@ function readConfiguredApiBaseUrl(): string | undefined {
 async function bootstrapRuntime() {
   const configuredApiBaseUrl = readConfiguredApiBaseUrl();
   const storedApiBaseUrl = await readStoredBirdCoderServerBaseUrl();
-  const resolvedApiBaseUrl = resolveBirdCoderBootstrapServerBaseUrl({
+  const resolvedApiBaseUrl = resolveDevelopmentApiBaseUrl(resolveBirdCoderBootstrapServerBaseUrl({
     configuredApiBaseUrl,
     storedApiBaseUrl,
-  });
+  }));
 
   await waitForBirdCoderApiReady(resolvedApiBaseUrl);
   await bootstrapShellRuntime({

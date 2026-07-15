@@ -1,33 +1,43 @@
 import type { ComponentProps, RefObject } from 'react';
-import { ProjectGitOverviewDrawer, UniversalChat } from '@sdkwork/birdcoder-pc-ui';
+import {
+  DeferredUniversalChat,
+  ProjectGitOverviewDrawer,
+  type UniversalChatProps,
+} from '@sdkwork/birdcoder-pc-ui';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
-import { ProjectExplorer, type ProjectExplorerProps } from '../components/ProjectExplorer';
-import { TopBar } from '../components/TopBar';
+import { DeferredProjectExplorer } from '../components/DeferredProjectExplorer';
+import type { ProjectExplorerProps } from '../components/ProjectExplorer';
+import { DeferredTopBar } from '../components/DeferredTopBar';
+import type { TopBarProps } from '../components/TopBar';
 import { CodeEditorWorkspacePanel } from './CodeEditorWorkspacePanel';
-import { CodeMobileProgrammingPanel } from './CodeMobileProgrammingPanel';
-import { CodePageDialogs } from './CodePageDialogs';
-import { CodeTerminalIntegrationPanel } from './CodeTerminalIntegrationPanel';
-import { CodeWorkspaceOverlays } from './CodeWorkspaceOverlays';
+import { DeferredCodeMobileProgrammingPanel } from './DeferredCodeMobileProgrammingPanel';
+import { DeferredCodePageDialogs } from './DeferredCodePageDialogs';
+import { DeferredCodeTerminalIntegrationPanel } from './DeferredCodeTerminalIntegrationPanel';
+import { DeferredCodeWorkspaceOverlays } from './DeferredCodeWorkspaceOverlays';
+import type { CodeTerminalIntegrationPanelProps } from './CodeTerminalIntegrationPanel';
+import type { CodeMobileProgrammingPanelProps } from './CodeMobileProgrammingPanel';
+import type { CodePageDialogsProps } from './CodePageDialogs';
+import type { CodeWorkspaceOverlaysProps } from './CodeWorkspaceOverlays';
 import { memo } from 'react';
 
 interface CodePageSurfaceProps {
   activeTab: 'ai' | 'editor' | 'mobile';
-  dialogProps: ComponentProps<typeof CodePageDialogs>;
+  dialogProps: CodePageDialogsProps;
   editorWorkspaceHostRef: RefObject<HTMLDivElement | null>;
   gitOverviewDrawerProps: ComponentProps<typeof ProjectGitOverviewDrawer>;
   isSidebarVisible: boolean;
-  mainChatProps: ComponentProps<typeof UniversalChat>;
-  mobileProgrammingProps: Omit<ComponentProps<typeof CodeMobileProgrammingPanel>, 'isActive'>;
+  mainChatProps: UniversalChatProps;
+  mobileProgrammingProps: Omit<CodeMobileProgrammingPanelProps, 'isActive'>;
   onSidebarResize: (delta: number) => void;
-  overlayProps: ComponentProps<typeof CodeWorkspaceOverlays>;
+  overlayProps: CodeWorkspaceOverlaysProps;
   projectExplorerProps: ProjectExplorerProps;
-  terminalProps: ComponentProps<typeof CodeTerminalIntegrationPanel>;
-  topBarProps: ComponentProps<typeof TopBar>;
+  terminalProps: CodeTerminalIntegrationPanelProps;
+  topBarProps: TopBarProps;
   workspaceProps: Omit<ComponentProps<typeof CodeEditorWorkspacePanel>, 'isActive'>;
 }
 
 interface CodePageMainChatPanelProps {
-  chatProps: ComponentProps<typeof UniversalChat>;
+  chatProps: UniversalChatProps;
   isActive: boolean;
 }
 
@@ -58,7 +68,7 @@ const CodePageMainChatPanel = memo(function CodePageMainChatPanel({
 }: CodePageMainChatPanelProps) {
   return (
     <div className={isActive ? 'flex flex-1 min-h-0 w-full overflow-hidden' : 'hidden'}>
-      <UniversalChat {...chatProps} isActive={isActive} />
+      <DeferredUniversalChat {...chatProps} isActive={isActive} />
     </div>
   );
 }, (left, right) => {
@@ -94,24 +104,27 @@ export const CodePageSurface = memo(function CodePageSurface({
     <div className="flex h-full w-full bg-[#0e0e11] text-gray-100 font-sans selection:bg-white/10 selection:text-white">
       {isSidebarVisible && (
         <>
-          <ProjectExplorer {...projectExplorerProps} />
+          <DeferredProjectExplorer {...projectExplorerProps} />
           <ResizeHandle direction="horizontal" onResize={onSidebarResize} />
         </>
       )}
 
       <div className="flex-1 flex flex-col relative bg-[#0e0e11] shadow-[-4px_0_24px_-4px_rgba(0,0,0,0.5)] overflow-hidden">
-        <CodeWorkspaceOverlays {...overlayProps} />
-        <CodePageDialogs {...dialogProps} />
-        <TopBar {...topBarProps} />
+        <DeferredCodeWorkspaceOverlays {...overlayProps} />
+        <DeferredCodePageDialogs {...dialogProps} />
+        <DeferredTopBar {...topBarProps} />
 
         <div ref={editorWorkspaceHostRef} className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
           <CodePageMainChatPanel chatProps={mainChatProps} isActive={activeTab === 'ai'} />
           <CodeEditorWorkspacePanel {...workspaceProps} isActive={activeTab === 'editor'} />
-          <CodeMobileProgrammingPanel {...mobileProgrammingProps} isActive={activeTab === 'mobile'} />
+          <DeferredCodeMobileProgrammingPanel
+            {...mobileProgrammingProps}
+            isActive={activeTab === 'mobile'}
+          />
           <ProjectGitOverviewDrawer {...gitOverviewDrawerProps} />
         </div>
 
-        <CodeTerminalIntegrationPanel {...terminalProps} />
+        <DeferredCodeTerminalIntegrationPanel {...terminalProps} />
       </div>
     </div>
   );

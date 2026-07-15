@@ -61,7 +61,6 @@ const inventoryProject: BirdCoderProject = {
   createdAt: timestamp,
   id: projectId,
   name: 'Core selected transcript project',
-  path: 'D:/workspace/app-runtime-selected-transcript',
   updatedAt: timestamp,
   workspaceId,
 };

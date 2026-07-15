@@ -15,7 +15,9 @@ async function bootstrapRuntime() {
   await hydrateBirdCoderDesktopAppSessionPersistence();
   const { apiBaseUrl } = await readDesktopEmbeddedRuntimeConfig();
   publishBirdCoderEmbeddedSdkRuntimeEnv(apiBaseUrl);
-  await waitForBirdCoderApiReady(apiBaseUrl);
+  await waitForBirdCoderApiReady(apiBaseUrl, {
+    runtimeTarget: 'desktop',
+  });
   await bootstrapShellRuntime({
     host: resolveDesktopRuntime('global', {
       apiBaseUrl,

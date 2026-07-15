@@ -18,6 +18,21 @@ const __dirname = path.dirname(__filename);
 const workspaceRootDir = path.resolve(__dirname, '..');
 const defaultBirdcoderToolingRootDir = path.join(workspaceRootDir, 'apps', 'sdkwork-birdcoder-pc', 'packages', 'sdkwork-birdcoder-pc-desktop');
 const defaultBirdcoderAppRootDir = defaultBirdcoderToolingRootDir;
+const terminalPcPackageIds = [
+  'terminal-pc-ai-cli',
+  'terminal-pc-commons',
+  'terminal-pc-contracts',
+  'terminal-pc-core',
+  'terminal-pc-diagnostics',
+  'terminal-pc-i18n',
+  'terminal-pc-resources',
+  'terminal-pc-sessions',
+  'terminal-pc-settings',
+  'terminal-pc-shell',
+  'terminal-pc-types',
+  'terminal-pc-ui',
+  'terminal-pc-workbench',
+];
 const defaultBirdcoderNamespace = 'sdkwork-birdcoder-pc-desktop';
 
 const BIRDCODER_VITE_DEDUPE_PACKAGES = [
@@ -87,7 +102,6 @@ const BIRDCODER_PUBLIC_RUNTIME_ENV_ALLOWED_KEYS = new Set([
   'VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET',
   'VITE_SDKWORK_BIRDCODER_SUPPORT_URL',
   'VITE_SDKWORK_BIRDCODER_TERMS_OF_SERVICE_URL',
-  'VITE_SDKWORK_DEPLOYMENT_MODE',
   'VITE_SDKWORK_DEPLOYMENT_PROFILE',
   'VITE_SDKWORK_DRIVE_APP_API_BASE_URL',
   'VITE_SDKWORK_ENVIRONMENT',
@@ -121,6 +135,35 @@ const BIRDCODER_PUBLIC_RUNTIME_ENV_DEV_ONLY_KEYS = new Set([
   'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE_ENABLED',
   'VITE_SDKWORK_AUTH_DEV_VERIFICATION_CODE_PREFILL_ENABLED',
 ]);
+const BIRDCODER_PUBLIC_RUNTIME_ENV_API_ORIGIN_KEYS = new Set([
+  'SDKWORK_BIRDCODER_APP_API_BASE_URL',
+  'SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
+  'VITE_BIRDCODER_API_BASE_URL',
+  'VITE_BIRDCODER_APP_API_BASE_URL',
+  'VITE_SDKWORK_APPBASE_APP_API_BASE_URL',
+  'VITE_SDKWORK_APP_API_BASE_URL',
+  'VITE_SDKWORK_BACKEND_API_BASE_URL',
+  'VITE_SDKWORK_BIRDCODER_API_BASE_URL',
+  'VITE_SDKWORK_BIRDCODER_APP_API_BASE_URL',
+  'VITE_SDKWORK_BIRDCODER_APPLICATION_PUBLIC_HTTP_URL',
+  'VITE_SDKWORK_BIRDCODER_BACKEND_API_BASE_URL',
+  'VITE_SDKWORK_DRIVE_APP_API_BASE_URL',
+  'VITE_SDKWORK_IAM_APP_API_BASE_URL',
+  'VITE_SDKWORK_MESSAGING_APP_API_BASE_URL',
+]);
+
+export function resolveBirdcoderDevelopmentApiEnvDefines(mode = 'development') {
+  if (mode !== 'development' && mode !== 'test') {
+    return {};
+  }
+
+  return Object.fromEntries(
+    [...BIRDCODER_PUBLIC_RUNTIME_ENV_API_ORIGIN_KEYS].map((key) => [
+      `import.meta.env.${key}`,
+      'undefined',
+    ]),
+  );
+}
 
 export function isBirdcoderPublicRuntimeEnvKey(key) {
   if (typeof key !== 'string' || key.length === 0) {
@@ -579,14 +622,13 @@ function createBirdcoderWorkspaceAliasEntries(appRootDir = defaultBirdcoderAppRo
       find: '@sdkwork/terminal-pc-desktop',
       replacement: resolveSdkworkTerminalDesktopEntryPath(appRootDir),
     },
-    {
-      find: /^@sdkwork\/terminal-(?!local-runtime-app-sdk$|pc-desktop$)([^/]+)\/(.+)$/u,
-      replacement: resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src/$2'),
-    },
-    {
-      find: /^@sdkwork\/terminal-(?!local-runtime-app-sdk$|pc-desktop$)([^/]+)$/u,
-      replacement: resolveDependencyPath('sdkwork-terminal', 'apps/sdkwork-terminal-pc/packages/sdkwork-terminal-$1/src'),
-    },
+    ...terminalPcPackageIds.map((packageId) => ({
+      find: `@sdkwork/${packageId}`,
+      replacement: resolveDependencyPath(
+        'sdkwork-terminal',
+        `apps/sdkwork-terminal-pc/packages/sdkwork-${packageId}/src`,
+      ),
+    })),
   ];
 }
 
@@ -843,11 +885,67 @@ function shouldIgnoreBirdcoderRollupWarning(warning) {
   const isUnresolvedExternalImport =
     warningCode === 'UNRESOLVED_IMPORT'
     && warningMessage.includes('treating it as an external dependency');
+  const isQrCodeCompatDynamicImport =
+    warningCode === 'INEFFECTIVE_DYNAMIC_IMPORT'
+    && warningMessage.includes('qrcode/lib/browser.js')
+    && warningMessage.includes('src/shims/qrcode.ts')
+    && warningMessage.includes('qrcode-compat.mjs');
+  const isSharedAuthRouteDynamicImport =
+    warningCode === 'INEFFECTIVE_DYNAMIC_IMPORT'
+    && ((warningMessage.includes('sdkwork-auth-pc-react/src/index.ts')
+      && warningMessage.includes('TerminalAuthRoutes.tsx')
+      && warningMessage.includes('sdkwork-birdcoder-pc-auth'))
+      || (warningMessage.includes('sdkwork-birdcoder-pc-auth/src/index.ts')
+        && warningMessage.includes('iamIntegration.ts')
+        && warningMessage.includes('BirdCoderAuthGate.tsx')));
+  const isTauriCoreDynamicImport =
+    warningCode === 'INEFFECTIVE_DYNAMIC_IMPORT'
+    && warningMessage.includes('@tauri-apps/api/')
+    && (warningMessage.includes('tauriFileManager.ts')
+      || warningMessage.includes('tauriFileSystemRuntime.ts'))
+    && warningMessage.includes('@tauri-apps/api');
+  const isTerminalInfrastructureDynamicImport =
+    warningCode === 'INEFFECTIVE_DYNAMIC_IMPORT'
+    && warningMessage.includes('sdkwork-terminal-pc-infrastructure/src/index.ts')
+    && warningMessage.includes('src/terminal/sessions.ts');
+  const isRolldownPluginTimingDiagnostic =
+    warningCode === 'PLUGIN_TIMINGS'
+    && warningMessage.includes('sdkwork-birdcoder-pc-web-');
   return isLucideUseClientNoise
     || isKnownSharedUiUseClientNoise
     || isSharedReactRouterUseClientNoise
     || isSmolTomlSelfCycle
-    || isUnresolvedExternalImport;
+    || isUnresolvedExternalImport
+    || isQrCodeCompatDynamicImport
+    || isSharedAuthRouteDynamicImport
+    || isTauriCoreDynamicImport
+    || isTerminalInfrastructureDynamicImport
+    || isRolldownPluginTimingDiagnostic;
+}
+
+export function resolveBirdcoderWebRuntimeEnvSource(
+  runtimeEnvSource = {},
+  mode = 'development',
+) {
+  const resolvedRuntimeEnvSource = { ...runtimeEnvSource };
+  if (mode !== 'development' && mode !== 'test') {
+    return resolvedRuntimeEnvSource;
+  }
+
+  for (const key of BIRDCODER_PUBLIC_RUNTIME_ENV_API_ORIGIN_KEYS) {
+    delete resolvedRuntimeEnvSource[key];
+  }
+  return resolvedRuntimeEnvSource;
+}
+
+export function resolveBirdcoderViteRuntimeEnvSource(
+  fileRuntimeEnvSource = {},
+  processRuntimeEnvSource = process.env,
+) {
+  return {
+    ...fileRuntimeEnvSource,
+    ...processRuntimeEnvSource,
+  };
 }
 
 function onBirdcoderRollupWarning(warning, warn) {

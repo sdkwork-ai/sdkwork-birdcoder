@@ -3,7 +3,9 @@ use std::sync::Arc;
 use sdkwork_utils_rust::is_blank;
 
 use crate::context::WorkspaceContext;
-use crate::domain::commands::{CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest};
+use crate::domain::commands::{
+    CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest,
+};
 use crate::domain::models::WorkspaceScopedQuery;
 use crate::domain::results::{DeleteEntityPayload, WorkspaceMemberPayload, WorkspacePayload};
 use crate::error::WorkspaceError;
@@ -123,9 +125,7 @@ impl WorkspaceService {
 
         self.repository.delete_workspace(ctx, id).await?;
 
-        self.event_publisher
-            .publish_workspace_deleted(id)
-            .await?;
+        self.event_publisher.publish_workspace_deleted(id).await?;
 
         Ok(DeleteEntityPayload { id: id.to_owned() })
     }
@@ -159,7 +159,10 @@ impl WorkspaceService {
             ));
         }
 
-        let workspace = self.repository.find_workspace_by_id(ctx, workspace_id).await?;
+        let workspace = self
+            .repository
+            .find_workspace_by_id(ctx, workspace_id)
+            .await?;
         if workspace.is_none() {
             return Err(WorkspaceError::NotFound(
                 "Workspace was not found.".to_owned(),

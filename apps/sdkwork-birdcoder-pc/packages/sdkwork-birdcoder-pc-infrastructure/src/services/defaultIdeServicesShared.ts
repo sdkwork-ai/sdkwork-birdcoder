@@ -14,6 +14,9 @@ import { ProviderBackedProjectService } from './impl/ProviderBackedProjectServic
 import { ProviderBackedPromptService } from './impl/ProviderBackedPromptService.ts';
 import { ProviderBackedWorkspaceService } from './impl/ProviderBackedWorkspaceService.ts';
 import { createBirdCoderRuntimeAuthService } from './impl/RuntimeAuthService.ts';
+import { RuntimeFileSystemService } from './impl/RuntimeFileSystemService.ts';
+import { ProjectDeviceMountRegistry } from './ProjectDeviceMountRegistry.ts';
+import { createProjectDeviceMountSubjectProvider } from './projectDeviceMountSubject.ts';
 import type { IAuthService } from './interfaces/IAuthService.ts';
 import type {
   IAdminDeploymentService,
@@ -87,7 +90,9 @@ export interface BirdCoderDefaultIdeSharedRuntime {
   hasBoundAppClient: boolean;
   hasBoundBackendClient: boolean;
   hasExplicitBackendClient: boolean;
+  fileSystemService: IFileSystemService;
   promptService: ProviderBackedPromptService;
+  projectDeviceMountRegistry: ProjectDeviceMountRegistry;
   providerBackedProjectService: ProviderBackedProjectService;
   providerBackedWorkspaceService: ProviderBackedWorkspaceService;
 }
@@ -270,7 +275,6 @@ export function createBirdCoderDefaultIdeSharedRuntime(
   const providerBackedProjectService = new ProviderBackedProjectService({
     codingSessionRepositories,
     evidenceRepositories: promptSkillTemplateEvidenceRepositories,
-    projectContentRepository: repositories.projectContents,
     repository: repositories.projects,
   });
   const hasBoundAppClient = hasConfiguredRemoteAppAccess(runtimeConfig, options);
@@ -299,6 +303,12 @@ export function createBirdCoderDefaultIdeSharedRuntime(
         : createInProcessBirdCoderBackendClient(queries)
       : createUnavailableBirdCoderBackendClient());
   const authService = createBirdCoderRuntimeAuthService();
+  const projectDeviceMountRegistry = new ProjectDeviceMountRegistry({
+    subjectProvider: createProjectDeviceMountSubjectProvider(),
+  });
+  const fileSystemService = new RuntimeFileSystemService({
+    mountRegistry: projectDeviceMountRegistry,
+  });
 
   return {
     appClient,
@@ -308,7 +318,9 @@ export function createBirdCoderDefaultIdeSharedRuntime(
     hasBoundAppClient,
     hasBoundBackendClient,
     hasExplicitBackendClient,
+    fileSystemService,
     promptService,
+    projectDeviceMountRegistry,
     providerBackedProjectService,
     providerBackedWorkspaceService,
   };

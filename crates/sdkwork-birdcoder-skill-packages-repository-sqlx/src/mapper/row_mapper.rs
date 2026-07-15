@@ -1,6 +1,4 @@
-use crate::db::rows::{
-    SkillCapabilityRow, SkillInstallationRow, SkillPackageRow, SkillVersionRow,
-};
+use crate::db::rows::{SkillCapabilityRow, SkillInstallationRow, SkillPackageRow, SkillVersionRow};
 use sdkwork_birdcoder_skill_packages_service::domain::results::{
     SkillCatalogEntryPayload, SkillInstallationPayload, SkillPackagePayload,
 };
@@ -134,4 +132,3 @@ fn extract_author_from_manifest(manifest_json: &str) -> Option<String> {
         .ok()
         .and_then(|v| v.get("author").and_then(|n| n.as_str()).map(String::from))
 }
-

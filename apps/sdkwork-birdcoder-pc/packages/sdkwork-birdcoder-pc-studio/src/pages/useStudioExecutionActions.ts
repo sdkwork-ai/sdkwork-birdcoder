@@ -40,8 +40,7 @@ interface UseStudioExecutionActionsOptions {
   activeTab: StudioTab;
   addToast: (message: string, variant: ToastVariant) => void;
   currentProjectId: string;
-  currentProjectPath?: string | null;
-  defaultWorkingDirectory: string;
+  resolveLocalWorkingDirectory: (projectId: string) => Promise<string | null>;
   previewAppPlatform: PreviewAppPlatform;
   previewDeviceModel: string;
   previewIsLandscape: boolean;
@@ -73,17 +72,11 @@ function resolveDefaultRunConfiguration(runConfigurations: RunConfigurationRecor
   );
 }
 
-function resolveProjectDirectory(currentProjectPath: string | null | undefined, workspaceDirectory: string) {
-  const normalizedProjectPath = currentProjectPath?.trim() ?? '';
-  return normalizedProjectPath.length > 0 ? normalizedProjectPath : workspaceDirectory;
-}
-
 export function useStudioExecutionActions({
   activeTab,
   addToast,
   currentProjectId,
-  currentProjectPath,
-  defaultWorkingDirectory,
+  resolveLocalWorkingDirectory,
   previewAppPlatform,
   previewDeviceModel,
   previewIsLandscape,
@@ -101,7 +94,20 @@ export function useStudioExecutionActions({
   setPreviewUrl,
   t,
 }: UseStudioExecutionActionsOptions) {
-  const projectDirectory = resolveProjectDirectory(currentProjectPath, defaultWorkingDirectory);
+  const resolveProjectDirectory = useCallback(async (): Promise<string | null> => {
+    if (!currentProjectId.trim()) {
+      addToast('Select a project before starting a local execution.', 'error');
+      return null;
+    }
+
+    const localWorkingDirectory = await resolveLocalWorkingDirectory(currentProjectId);
+    if (!localWorkingDirectory) {
+      addToast('A local desktop folder must be mounted before starting a local execution.', 'error');
+      return null;
+    }
+
+    return localWorkingDirectory;
+  }, [addToast, currentProjectId, resolveLocalWorkingDirectory]);
 
   const dispatchBlockedLaunch = useCallback(
     (
@@ -124,9 +130,13 @@ export function useStudioExecutionActions({
 
   const dispatchRunConfiguration = useCallback(
     async (configuration: RunConfigurationRecord) => {
+      const projectDirectory = await resolveProjectDirectory();
+      if (!projectDirectory) {
+        return;
+      }
       const launch = await resolveRunConfigurationTerminalLaunch(configuration, {
         projectDirectory,
-        workspaceDirectory: defaultWorkingDirectory,
+        workspaceDirectory: projectDirectory,
       });
 
       if (!launch.request) {
@@ -136,11 +146,15 @@ export function useStudioExecutionActions({
 
       emitOpenTerminalRequest(launch.request);
     },
-    [defaultWorkingDirectory, dispatchBlockedLaunch, projectDirectory],
+    [dispatchBlockedLaunch, resolveProjectDirectory],
   );
 
   const dispatchBuildRunConfiguration = useCallback(
     async (configuration: RunConfigurationRecord) => {
+      const projectDirectory = await resolveProjectDirectory();
+      if (!projectDirectory) {
+        return;
+      }
       const buildProfile = resolveStudioBuildProfile({
         platform: previewPlatform,
         webDevice: previewWebDevice,
@@ -151,7 +165,7 @@ export function useStudioExecutionActions({
         projectId: currentProjectId || null,
         runConfigurationId: configuration.id,
         projectDirectory,
-        workspaceDirectory: defaultWorkingDirectory,
+        workspaceDirectory: projectDirectory,
         timestamp: Date.now(),
       });
 
@@ -173,24 +187,27 @@ export function useStudioExecutionActions({
     [
       addToast,
       currentProjectId,
-      defaultWorkingDirectory,
       dispatchBlockedLaunch,
       previewAppPlatform,
       previewMpPlatform,
       previewPlatform,
       previewWebDevice,
-      projectDirectory,
+      resolveProjectDirectory,
       t,
     ],
   );
 
   const dispatchTestRunConfiguration = useCallback(
     async (configuration: RunConfigurationRecord) => {
+      const projectDirectory = await resolveProjectDirectory();
+      if (!projectDirectory) {
+        return;
+      }
       const launch = await resolveStudioTestExecutionLaunch(configuration, {
         projectId: currentProjectId || null,
         runConfigurationId: configuration.id,
         projectDirectory,
-        workspaceDirectory: defaultWorkingDirectory,
+        workspaceDirectory: projectDirectory,
         timestamp: Date.now(),
       });
 
@@ -212,9 +229,8 @@ export function useStudioExecutionActions({
     [
       addToast,
       currentProjectId,
-      defaultWorkingDirectory,
       dispatchBlockedLaunch,
-      projectDirectory,
+      resolveProjectDirectory,
       t,
     ],
   );
@@ -224,6 +240,10 @@ export function useStudioExecutionActions({
       openExternal = false,
       configuration: RunConfigurationRecord = resolveDefaultRunConfiguration(runConfigurations),
     ) => {
+      const projectDirectory = await resolveProjectDirectory();
+      if (!projectDirectory) {
+        return;
+      }
       const previewSession = resolveHostStudioPreviewSession({
         url: resolveStudioPreviewUrl(previewUrl),
         platform: previewPlatform,
@@ -237,7 +257,7 @@ export function useStudioExecutionActions({
         projectId: currentProjectId || null,
         runConfigurationId: configuration.id,
         projectDirectory,
-        workspaceDirectory: defaultWorkingDirectory,
+        workspaceDirectory: projectDirectory,
         timestamp: Date.now(),
       });
 
@@ -266,7 +286,6 @@ export function useStudioExecutionActions({
     [
       addToast,
       currentProjectId,
-      defaultWorkingDirectory,
       dispatchBlockedLaunch,
       previewAppPlatform,
       previewDeviceModel,
@@ -275,7 +294,7 @@ export function useStudioExecutionActions({
       previewPlatform,
       previewUrl,
       previewWebDevice,
-      projectDirectory,
+      resolveProjectDirectory,
       runConfigurations,
       setPreviewKey,
       setPreviewUrl,
@@ -287,6 +306,10 @@ export function useStudioExecutionActions({
     async (
       configuration: RunConfigurationRecord = resolveDefaultRunConfiguration(runConfigurations),
     ) => {
+      const projectDirectory = await resolveProjectDirectory();
+      if (!projectDirectory) {
+        return;
+      }
       const simulatorSession = resolveHostStudioSimulatorSession({
         platform: previewPlatform,
         webDevice: previewWebDevice,
@@ -299,7 +322,7 @@ export function useStudioExecutionActions({
         projectId: currentProjectId || null,
         runConfigurationId: configuration.id,
         projectDirectory,
-        workspaceDirectory: defaultWorkingDirectory,
+        workspaceDirectory: projectDirectory,
         timestamp: Date.now(),
       });
 
@@ -322,7 +345,6 @@ export function useStudioExecutionActions({
     [
       addToast,
       currentProjectId,
-      defaultWorkingDirectory,
       dispatchBlockedLaunch,
       previewAppPlatform,
       previewDeviceModel,
@@ -330,7 +352,7 @@ export function useStudioExecutionActions({
       previewMpPlatform,
       previewPlatform,
       previewWebDevice,
-      projectDirectory,
+      resolveProjectDirectory,
       runConfigurations,
       setPreviewKey,
       t,

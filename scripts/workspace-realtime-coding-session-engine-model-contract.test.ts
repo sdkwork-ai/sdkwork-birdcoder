@@ -14,12 +14,22 @@ const baseProject: BirdCoderProject = {
   workspaceId: 'workspace-realtime-contract',
   name: 'Realtime Contract Project',
   description: undefined,
-  path: 'D:/workspace/realtime-contract',
   createdAt: '2026-04-20T10:00:00.000Z',
   updatedAt: '2026-04-20T10:00:00.000Z',
   archived: false,
   codingSessions: [],
 };
+
+assert.equal(
+  Object.hasOwn(baseProject, 'path'),
+  false,
+  'workspace realtime project fixtures must not carry a device-local working directory.',
+);
+assert.equal(
+  Object.hasOwn(baseProject, 'sitePath'),
+  false,
+  'workspace realtime project fixtures must not carry a device-local site path.',
+);
 
 function createRealtimeEvent(
   overrides: Partial<BirdCoderWorkspaceRealtimeEvent>,
@@ -426,7 +436,6 @@ const liveToolAppliedProjects = applyWorkspaceRealtimeEventToProjects(
       toolCallId: 'tool-run-lint',
       toolArguments: {
         command: 'pnpm lint',
-        cwd: 'D:/workspace/demo',
       },
       status: 'running',
       requiresApproval: false,
@@ -443,7 +452,7 @@ assert.deepEqual(
   {
     command: 'pnpm lint',
     status: 'running',
-    output: '{"command":"pnpm lint","cwd":"D:/workspace/demo"}',
+    output: '{"command":"pnpm lint"}',
     kind: 'command',
     toolName: 'run_command',
     toolCallId: 'tool-run-lint',

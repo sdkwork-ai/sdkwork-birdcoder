@@ -18,7 +18,7 @@ export interface StudioDialogSurfaceModel {
   handleRunTaskExecution: StudioPageDialogsProps['onRunTask'];
   handleSaveDebugConfiguration: StudioPageDialogsProps['onSaveDebugConfig'];
   handleSubmitRunConfiguration: () => void | Promise<void>;
-  inviteEmail: StudioPageDialogsProps['inviteEmail'];
+  inviteUserId: StudioPageDialogsProps['inviteUserId'];
   isAnalyzeModalVisible: StudioPageDialogsProps['isAnalyzeModalVisible'];
   isCollaboratorsLoading: StudioPageDialogsProps['isCollaboratorsLoading'];
   isDebugConfigVisible: StudioPageDialogsProps['isDebugConfigVisible'];
@@ -28,7 +28,7 @@ export interface StudioDialogSurfaceModel {
   runConfigurationDraft: StudioPageDialogsProps['runConfigurationDraft'];
   runConfigurations: StudioPageDialogsProps['runConfigurations'];
   setDeleteConfirmation: Dispatch<SetStateAction<StudioDeleteConfirmation | null>>;
-  setInviteEmail: StudioPageDialogsProps['onInviteEmailChange'];
+  setInviteUserId: StudioPageDialogsProps['onInviteUserIdChange'];
   setIsAnalyzeModalVisible: Dispatch<SetStateAction<boolean>>;
   setIsDebugConfigVisible: Dispatch<SetStateAction<boolean>>;
   setIsRunConfigVisible: Dispatch<SetStateAction<boolean>>;
@@ -56,7 +56,7 @@ export function StudioDialogSurface({ model }: StudioDialogSurfaceProps) {
     handleRunTaskExecution,
     handleSaveDebugConfiguration,
     handleSubmitRunConfiguration,
-    inviteEmail,
+    inviteUserId,
     isAnalyzeModalVisible,
     isCollaboratorsLoading,
     isDebugConfigVisible,
@@ -66,7 +66,7 @@ export function StudioDialogSurface({ model }: StudioDialogSurfaceProps) {
     runConfigurationDraft,
     runConfigurations,
     setDeleteConfirmation,
-    setInviteEmail,
+    setInviteUserId,
     setIsAnalyzeModalVisible,
     setIsDebugConfigVisible,
     setIsRunConfigVisible,
@@ -102,11 +102,11 @@ export function StudioDialogSurface({ model }: StudioDialogSurfaceProps) {
       onConfirmDelete={handleConfirmDelete}
       showShareModal={showShareModal}
       collaborators={collaborators}
-      inviteEmail={inviteEmail}
+      inviteUserId={inviteUserId}
       isCollaboratorsLoading={isCollaboratorsLoading}
       isInvitePending={isInvitePending}
       onCloseShare={() => setShowShareModal(false)}
-      onInviteEmailChange={setInviteEmail}
+      onInviteUserIdChange={setInviteUserId}
       onInviteCollaborator={handleInviteCollaborator}
       showPublishModal={showPublishModal}
       publishProjectId={currentProjectId}

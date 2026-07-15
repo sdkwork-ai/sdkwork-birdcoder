@@ -71,7 +71,7 @@ interface AppWorkspaceMenuProps {
   onCommitProjectRename: (projectId: string, nextName: string) => void | Promise<void>;
   onCreateProjectSession: (projectId: string, requestedEngineId?: string) => void | Promise<void>;
   onToggleProjectActionsMenu: (projectId: string) => void;
-  onOpenProjectInExplorer: (projectPath?: string, projectName?: string) => void;
+  onOpenProjectInExplorer: (projectId: string, projectName?: string) => void;
   onConfirmDeleteProject: (event: MouseEvent<HTMLButtonElement>, projectId: string) => void;
   onStartCreatingWorkspace: () => void;
   onCancelCreatingWorkspace: () => void;
@@ -434,7 +434,7 @@ export const AppWorkspaceMenu = memo(function AppWorkspaceMenu({
                             type="button"
                             onClick={(event) => {
                               event.stopPropagation();
-                              onOpenProjectInExplorer(project.path, project.name);
+                              onOpenProjectInExplorer(project.id, project.name);
                               onToggleProjectActionsMenu(project.id);
                               onCloseMenuSurface();
                             }}

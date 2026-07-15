@@ -11,17 +11,21 @@ import {
   onBirdcoderRollupWarning,
   resolveBirdcoderProductionCssMinify,
   resolveBirdcoderProductionMinify,
+  resolveBirdcoderViteRuntimeEnvSource,
 } from '../../../../scripts/create-birdcoder-vite-plugins.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
-  const runtimeEnvSource = loadEnv(mode, __dirname, '');
+  const runtimeEnvSource = resolveBirdcoderViteRuntimeEnvSource(
+    loadEnv(mode, __dirname, ''),
+  );
 
   return {
     base: './',
     esbuild: false,
+    oxc: false,
     plugins: createDesktopVitePlugins({
       desktopRootDir: __dirname,
       mode,

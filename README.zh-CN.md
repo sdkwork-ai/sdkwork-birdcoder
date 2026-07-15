@@ -53,7 +53,7 @@ pnpm check:iam:sample
 | `server-private` | `pnpm tauri:dev:private` | `pnpm server:dev` 或 `pnpm server:dev:private` | `private` | 私有 BirdCoder server 和本地 SDKWork IAM |
 | `cloud-saas` | `pnpm tauri:dev:cloud` | `pnpm server:dev:cloud` | `saas` | BirdCoder server 对接 SDKWork cloud app-api IAM |
 
-包装脚本会加载 `.env`、`.env.local`、`.env.development`、`.env.development.local`、`.env.production`、`.env.production.local`，然后按模式补齐 sqlite、远端 API base URL、`SDKWORK_IAM_MODE`、`VITE_SDKWORK_DEPLOYMENT_MODE`、OAuth 样板配置和开发登录预填值。
+包装脚本会加载 `.env`、`.env.local`、`.env.development`、`.env.development.local`、`.env.production`、`.env.production.local`，然后按模式补齐 sqlite、远端 API base URL、`SDKWORK_IAM_MODE`、`VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE`、`VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET`、OAuth 样板配置和开发登录预填值。
 
 本地开发请通过标准 SDKWork IAM 登录/注册流程获取会话。`tenant_id`、`organization_id`、`user_id`、`session_id` 和 `app_id` 必须来自双 token JWT claims，不能通过 bootstrap 环境变量注入固定身份。
 

@@ -62,9 +62,8 @@ impl<R: DocumentRepository> DocumentService<R> {
         document_id: &str,
         tenant_id: Option<&str>,
     ) -> Result<DocumentPayload, DocumentError> {
-        let normalized_id = normalize_required(document_id).ok_or_else(|| {
-            DocumentError::InvalidInput("documentId is required.".to_string())
-        })?;
+        let normalized_id = normalize_required(document_id)
+            .ok_or_else(|| DocumentError::InvalidInput("documentId is required.".to_string()))?;
 
         self.repository
             .find_document_by_id(&normalized_id, tenant_id)

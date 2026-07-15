@@ -38,4 +38,3 @@ impl From<RepositoryError> for sdkwork_birdcoder_skill_packages_service::error::
         Self::Repository(err.to_string())
     }
 }
-

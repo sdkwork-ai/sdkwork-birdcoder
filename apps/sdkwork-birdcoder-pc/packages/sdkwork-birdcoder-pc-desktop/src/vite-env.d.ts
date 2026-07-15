@@ -11,7 +11,6 @@ interface ImportMetaEnv {
   readonly VITE_BIRDCODER_IAM_DEPLOYMENT_MODE?: string;
   readonly VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE?: string;
   readonly VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET?: string;
-  readonly VITE_SDKWORK_DEPLOYMENT_MODE?: string;
   readonly VITE_SDKWORK_DEPLOYMENT_PROFILE?: string;
   readonly VITE_SDKWORK_RUNTIME_TARGET?: string;
 }

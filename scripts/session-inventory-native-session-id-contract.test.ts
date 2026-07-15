@@ -102,6 +102,8 @@ const mergedNativeRecords = await listInventoryFor(
     buildNativeSummary({
       id: 'birdcoder-session-1',
       nativeSessionId: 'codex-native:merged-native-session',
+      updatedAt: '2026-04-27T00:02:00.000Z',
+      lastTurnAt: '2026-04-27T00:02:00.000Z',
     }),
   ],
 );
@@ -114,6 +116,53 @@ assert.equal(
   mergedNativeSession?.nativeSessionId,
   'merged-native-session',
   'authority-backed session inventory must merge nativeSessionId from the native session list when projection summaries do not carry it.',
+);
+assert.equal(
+  mergedNativeSession?.sortTimestamp,
+  String(Date.parse('2026-04-27T00:02:00.000Z')),
+  'a newer native activity timestamp must advance the merged session order.',
+);
+assert.equal(
+  mergedNativeSession?.updatedAt,
+  '2026-04-27T00:02:00.000Z',
+  'a newer native update time must advance the merged session activity.',
+);
+
+const projectionNewerRecords = await listInventoryFor(
+  [
+    buildCodingSummary({
+      nativeSessionId: 'projection-newer-session',
+      updatedAt: '2026-04-27T00:04:00.000Z',
+      lastTurnAt: '2026-04-27T00:04:00.000Z',
+      sortTimestamp: String(Date.parse('2026-04-27T00:04:00.000Z')),
+      transcriptUpdatedAt: '2026-04-27T00:04:00.000Z',
+    }),
+  ],
+  [
+    buildNativeSummary({
+      id: 'codex-native:projection-newer-session',
+      nativeSessionId: 'codex-native:projection-newer-session',
+      updatedAt: '2026-04-27T00:03:00.000Z',
+      lastTurnAt: '2026-04-27T00:03:00.000Z',
+      sortTimestamp: String(Date.parse('2026-04-27T00:03:00.000Z')),
+      transcriptUpdatedAt: '2026-04-27T00:03:00.000Z',
+    }),
+  ],
+);
+const projectionNewerSession = projectionNewerRecords.find(
+  (record): record is StoredCodingSessionInventoryRecord =>
+    isCodingInventoryRecord(record) && record.id === 'birdcoder-session-1',
+);
+
+assert.equal(
+  projectionNewerSession?.sortTimestamp,
+  String(Date.parse('2026-04-27T00:04:00.000Z')),
+  'a newer projection message activity timestamp must not be replaced by an older native snapshot.',
+);
+assert.equal(
+  projectionNewerSession?.transcriptUpdatedAt,
+  '2026-04-27T00:04:00.000Z',
+  'a newer projection transcript timestamp must survive native session merging.',
 );
 
 const nativeOnlyRecords = await listInventoryFor(

@@ -4,27 +4,33 @@ import type {
   TerminalCommandRequest,
 } from '@sdkwork/birdcoder-pc-commons';
 import type { BirdCoderChatMessage, BirdCoderProject, FileChange } from '@sdkwork/birdcoder-pc-types';
-import { ProjectGitOverviewDrawer, UniversalChat, type FileNode } from '@sdkwork/birdcoder-pc-ui';
+import {
+  ProjectGitOverviewDrawer,
+  type FileNode,
+  type UniversalChatProps,
+} from '@sdkwork/birdcoder-pc-ui';
 import type { ProjectExplorerProps } from '../components/ProjectExplorer.types';
-import { TopBar } from '../components/TopBar';
-import { CodeMobileProgrammingPanel } from './CodeMobileProgrammingPanel';
-import { CodePageDialogs, type CodeDeleteConfirmation } from './CodePageDialogs';
+import type { TopBarProps } from '../components/TopBar';
+import type { CodeMobileProgrammingPanelProps } from './CodeMobileProgrammingPanel';
+import type {
+  CodeDeleteConfirmation,
+  CodePageDialogsProps,
+} from './CodePageDialogs';
 import { CodeTerminalIntegrationPanel } from './CodeTerminalIntegrationPanel';
-import { CodeWorkspaceOverlays } from './CodeWorkspaceOverlays';
+import type { CodeWorkspaceOverlaysProps } from './CodeWorkspaceOverlays';
 import { getLanguageFromPath } from './CodePageShared';
 import type { CodeEditorWorkspacePanelProps } from './codeEditorWorkspacePanel.types';
 import { useCodePendingInteractions } from './useCodePendingInteractions';
 
 type CodePageTab = 'ai' | 'editor' | 'mobile';
 
-type UniversalChatComponentProps = ComponentProps<typeof UniversalChat>;
-type TopBarComponentProps = ComponentProps<typeof TopBar>;
-type CodePageDialogsComponentProps = ComponentProps<typeof CodePageDialogs>;
-type CodeWorkspaceOverlaysComponentProps = ComponentProps<typeof CodeWorkspaceOverlays>;
+type UniversalChatComponentProps = UniversalChatProps;
+type TopBarComponentProps = TopBarProps;
+type CodePageDialogsComponentProps = CodePageDialogsProps;
+type CodeWorkspaceOverlaysComponentProps = CodeWorkspaceOverlaysProps;
 type CodeTerminalIntegrationPanelComponentProps =
   ComponentProps<typeof CodeTerminalIntegrationPanel>;
-type CodeMobileProgrammingPanelComponentProps =
-  ComponentProps<typeof CodeMobileProgrammingPanel>;
+type CodeMobileProgrammingPanelComponentProps = CodeMobileProgrammingPanelProps;
 
 const EMPTY_CHAT_MESSAGES: BirdCoderChatMessage[] = [];
 
@@ -47,7 +53,6 @@ interface UseCodePageSurfacePropsOptions {
   projectId?: string;
   projectGitOverviewState?: ProjectGitOverviewViewState;
   projectName?: string;
-  projectPath?: string;
   deleteConfirmation: CodeDeleteConfirmation | null;
   editorChatEmptyState?: ReactNode;
   editorExplorerWidth: number;
@@ -186,7 +191,6 @@ export function useCodePageSurfaceProps({
   projectId,
   projectGitOverviewState,
   projectName,
-  projectPath,
   deleteConfirmation,
   editorChatEmptyState,
   editorExplorerWidth,
@@ -589,7 +593,6 @@ export function useCodePageSurfaceProps({
     loadingDirectoryPaths,
     openFiles,
     selectedFile,
-    currentProjectPath: projectPath,
     viewingDiff,
     fileContent,
     explorerWidth: editorExplorerWidth,
@@ -669,7 +672,6 @@ export function useCodePageSurfaceProps({
     openFiles,
     pendingApprovals,
     pendingUserQuestions,
-    projectPath,
     selectedEngineId,
     selectedFile,
     selectedModelId,

@@ -1,4 +1,4 @@
-﻿# Development
+# Development
 
 BirdCoder development follows the package-first SDKWork application workflow while keeping IAM on the canonical SDKWork IAM contract.
 
@@ -69,7 +69,7 @@ They then normalize mode-specific defaults for:
 - `BIRDCODER_CODING_SERVER_SQLITE_FILE`
 - `VITE_BIRDCODER_AUTH_DEV_*` quick-login hints
 
-`VITE_SDKWORK_DEPLOYMENT_MODE` is the public renderer-side deployment hint, while SDKWork IAM runtime settings remain authoritative after `/app/v3/api/system/iam/runtime` is loaded. BirdCoder keeps the frontend service contract on the same app API facade in every deployment mode:
+`VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE` and `VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET` are the public renderer-side deployment hints, while SDKWork IAM runtime settings remain authoritative after `/app/v3/api/system/iam/runtime` is loaded. BirdCoder keeps the frontend service contract on the same app API facade in every deployment mode:
 
 - `/app/v3/api/auth/*`
 - `/app/v3/api/iam/users/current`

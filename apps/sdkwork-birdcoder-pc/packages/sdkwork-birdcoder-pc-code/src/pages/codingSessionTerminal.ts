@@ -15,7 +15,7 @@ export interface CodingSessionTerminalLaunchPlan {
 
 export function buildCodingSessionTerminalLaunchPlan(input: {
   codingSession: Pick<BirdCoderCodingSession, 'engineId' | 'nativeSessionId'>;
-  projectPath: string;
+  localWorkingDirectory: string;
   timestamp?: number;
 }): CodingSessionTerminalLaunchPlan {
   const terminalProfileId =
@@ -29,7 +29,7 @@ export function buildCodingSessionTerminalLaunchPlan(input: {
   return {
     request: {
       surface: 'workspace',
-      path: input.projectPath,
+      path: input.localWorkingDirectory,
       command: resumeCommand,
       profileId: terminalProfile.id,
       timestamp: input.timestamp ?? Date.now(),

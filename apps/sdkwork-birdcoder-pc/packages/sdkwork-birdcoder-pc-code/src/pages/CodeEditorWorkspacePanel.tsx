@@ -1,4 +1,4 @@
-import { FileExplorer, UniversalChat } from '@sdkwork/birdcoder-pc-ui';
+import { DeferredFileExplorer, DeferredUniversalChat } from '@sdkwork/birdcoder-pc-ui';
 import { ResizeHandle } from '@sdkwork/birdcoder-pc-ui-shell';
 import { memo } from 'react';
 import { areCodeEditorWorkspacePanelRenderInputsEqual } from './codeEditorWorkspacePanelEquality';
@@ -33,7 +33,7 @@ const CodeEditorWorkspaceChatPanel = memo(function CodeEditorWorkspaceChatPanel(
   onViewChanges,
 }: WorkspaceChatProps) {
   return (
-    <UniversalChat
+    <DeferredUniversalChat
       sessionId={selectedCodingSessionId || undefined}
       sessionScopeKey={selectedCodingSessionScopeKey || undefined}
       isActive={isActive}
@@ -84,7 +84,6 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   loadingDirectoryPaths,
   openFiles,
   selectedFile,
-  currentProjectPath,
   viewingDiff,
   fileContent,
   explorerWidth,
@@ -129,15 +128,15 @@ export const CodeEditorWorkspacePanel = memo(function CodeEditorWorkspacePanel({
   return (
     <div className={isActive ? 'flex flex-1 min-h-0 overflow-hidden' : 'hidden'}>
       <div className="flex-1 flex h-full min-w-0 overflow-hidden">
-        <FileExplorer
+        <DeferredFileExplorer
           files={files}
           isActive={isActive}
           width={explorerWidth}
           loadingDirectoryPaths={loadingDirectoryPaths}
           onExpandDirectory={onExpandDirectory}
+          projectId={currentProjectId}
           scopeKey={currentProjectId}
           selectedFile={selectedFile || undefined}
-          basePath={currentProjectPath}
           onSelectFile={onSelectFile}
           onCreateFile={onCreateFile}
           onCreateFolder={onCreateFolder}

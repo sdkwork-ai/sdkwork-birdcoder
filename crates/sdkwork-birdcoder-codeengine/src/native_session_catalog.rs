@@ -1,6 +1,6 @@
 use crate::{
-    session_id_targets_engine, standard_native_session_provider_registry, CodeEngineSessionDetailRecord,
-    CodeEngineSessionSummaryRecord,
+    session_id_targets_engine, standard_native_session_provider_registry,
+    CodeEngineSessionDetailRecord, CodeEngineSessionSummaryRecord,
 };
 
 pub fn list_codeengine_native_session_summaries(
@@ -12,6 +12,12 @@ pub fn list_codeengine_native_session_summaries(
     for provider in providers {
         sessions.extend(provider.list_sessions()?);
     }
+    sessions.sort_by(|left, right| {
+        right
+            .sort_timestamp
+            .cmp(&left.sort_timestamp)
+            .then_with(|| left.id.cmp(&right.id))
+    });
     Ok(sessions)
 }
 

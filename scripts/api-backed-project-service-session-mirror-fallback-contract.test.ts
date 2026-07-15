@@ -12,7 +12,6 @@ const project: BirdCoderProject = {
   id: 'project-session-mirror-fallback',
   workspaceId: 'workspace-session-mirror-fallback',
   name: 'Session Mirror Fallback Project',
-  path: 'D:/workspace/session-mirror-fallback',
   createdAt: '2026-04-27T09:00:00.000Z',
   updatedAt: '2026-04-27T09:00:00.000Z',
   codingSessions: [],
@@ -78,6 +77,7 @@ assert.equal(
 let defaultMirrorProject: BirdCoderProject | null = null;
 let defaultMirrorSessionUpsertCount = 0;
 let defaultMirrorProjectSyncCount = 0;
+let shouldRejectFirstDefaultMirrorSync = true;
 
 const defaultProviderLikeMirror = {
   async getProjectById(projectId: string): Promise<BirdCoderProject | null> {
@@ -88,15 +88,15 @@ const defaultProviderLikeMirror = {
   },
   async syncProjectSummary(summary: Awaited<ReturnType<BirdCoderAppSdkApiClient['getProject']>>) {
     defaultMirrorProjectSyncCount += 1;
-    if (summary.rootPath && !/^[a-zA-Z]:[\\/]/u.test(summary.rootPath)) {
-      throw new Error('Project root path must be an absolute path.');
+    if (shouldRejectFirstDefaultMirrorSync) {
+      shouldRejectFirstDefaultMirrorSync = false;
+      throw new Error('Initial authoritative project mirror synchronization failed.');
     }
 
     defaultMirrorProject = {
       id: summary.id,
       workspaceId: summary.workspaceId,
       name: summary.name,
-      path: summary.rootPath,
       createdAt: summary.createdAt,
       updatedAt: summary.updatedAt,
       archived: summary.status === 'archived',
@@ -126,7 +126,6 @@ const defaultComposedService = new ApiBackedProjectService({
         id: 'project-default-mirror-missing',
         workspaceId: 'workspace-session-mirror-fallback',
         name: 'Default Mirror Missing Project',
-        rootPath: 'relative/path/from-authority',
         status: 'active',
         createdAt: '2026-04-27T09:10:00.000Z',
         updatedAt: '2026-04-27T09:10:00.000Z',
@@ -206,7 +205,6 @@ const idMismatchProviderLikeMirror = {
       id: summary.id,
       workspaceId: summary.workspaceId,
       name: summary.name,
-      path: summary.rootPath,
       createdAt: summary.createdAt,
       updatedAt: summary.updatedAt,
       archived: summary.status === 'archived',
@@ -237,7 +235,6 @@ const idMismatchComposedService = new ApiBackedProjectService({
         id: authorityProjectId,
         workspaceId: 'workspace-session-mirror-fallback',
         name: 'Authority Id Project',
-        rootPath: 'D:/workspace/authority-id-project',
         status: 'active',
         createdAt: '2026-04-27T09:20:00.000Z',
         updatedAt: '2026-04-27T09:20:00.000Z',
@@ -288,7 +285,6 @@ const isolatedProjectMirror = {
       id: summary.id,
       workspaceId: summary.workspaceId,
       name: summary.name,
-      path: summary.rootPath,
       createdAt: summary.createdAt,
       updatedAt: summary.updatedAt,
       archived: summary.status === 'archived',
@@ -314,7 +310,6 @@ const isolatedWriteService = {
       id: summary.id,
       workspaceId: summary.workspaceId,
       name: summary.name,
-      path: summary.rootPath,
       createdAt: summary.createdAt,
       updatedAt: summary.updatedAt,
       archived: summary.status === 'archived',
@@ -345,7 +340,6 @@ const isolatedMirrorComposedService = new ApiBackedProjectService({
         id: 'project-isolated-session-writer',
         workspaceId: 'workspace-session-mirror-fallback',
         name: 'Isolated Session Writer Project',
-        rootPath: 'D:/workspace/isolated-session-writer',
         status: 'active',
         createdAt: '2026-04-27T09:30:00.000Z',
         updatedAt: '2026-04-27T09:30:00.000Z',

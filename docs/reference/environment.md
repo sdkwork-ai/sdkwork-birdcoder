@@ -1,73 +1,103 @@
-﻿# Environment
+# Environment
 
-BirdCoder uses the SDKWork IAM environment model directly. The app does not define a second identity provider, user bridge, or compatibility mode.
+BirdCoder normalizes deployment profile, runtime target, environment, IAM
+binding, and public API origin separately. The active templates are under
+`configs/topology/`; source-controlled examples contain no real credentials.
+Global behavior is governed by `CONFIG_SPEC.md`, `ENVIRONMENT_SPEC.md`, and
+`RUNTIME_DIRECTORY_SPEC.md`.
 
-## Deployment Selectors
+## Runtime Selectors
 
-- `BIRDCODER_IAM_DEPLOYMENT_MODE`
-- `SDKWORK_IAM_MODE`
-- `BIRDCODER_API_BASE_URL`
-- `VITE_BIRDCODER_API_BASE_URL`
-- `VITE_BIRDCODER_IAM_DEPLOYMENT_MODE`
-- `VITE_SDKWORK_DEPLOYMENT_MODE`
-- `BIRDCODER_CODING_SERVER_SQLITE_FILE`
+| Variable | Scope | Allowed / purpose |
+| --- | --- | --- |
+| `SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE` | Server, desktop host | `standalone` or `cloud`. |
+| `SDKWORK_BIRDCODER_RUNTIME_TARGET` | Server, desktop host | Explicit target such as `desktop`, `server`, or `container`. |
+| `SDKWORK_BIRDCODER_ENVIRONMENT` | Server, desktop host | `development`, `test`, `staging`, or `production`. |
+| `VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE` | Browser renderer | Public mirror of the selected deployment profile. |
+| `VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET` | Browser renderer | Public mirror of the renderer target. |
+| `BIRDCODER_IAM_DEPLOYMENT_MODE` | Development wrappers | `desktop-local`, `server-private`, or `cloud-saas` IAM binding selection. |
+| `SDKWORK_IAM_MODE` | IAM runtime | `local`, `private`, or `cloud`. |
 
-Supported deployment modes:
+`SDKWORK_DEPLOYMENT_MODE` and `VITE_SDKWORK_DEPLOYMENT_MODE` are retired and
+the native server rejects them. Do not introduce a third deployment profile to
+represent a local folder, a server workspace, or an execution location.
 
-- `desktop-local`: embedded BirdCoder server, local SDKWork IAM authority, local SQLite storage
-- `server-private`: browser or desktop client targets a private BirdCoder server with SDKWork IAM private authority
-- `cloud-saas`: BirdCoder server delegates IAM to SDKWork cloud app API
+## Server Configuration
 
-Public frontend mode uses `VITE_SDKWORK_DEPLOYMENT_MODE=local`, `private`, or `saas`. Server-side SDKWork IAM mode uses `SDKWORK_IAM_MODE=local`, `private`, or `cloud`.
+| Variable | Purpose | Security boundary |
+| --- | --- | --- |
+| `SDKWORK_BIRDCODER_SERVER_HOST` / `SDKWORK_BIRDCODER_SERVER_PORT` | Native server bind address and port. The native default is loopback `127.0.0.1:10240`; deployment bundles may set their own port. | Cloud deployments cannot bind loopback-only. |
+| `SDKWORK_BIRDCODER_ALLOWED_ORIGINS` | Comma-separated browser origins. | Required to be explicit and non-wildcard for cloud. |
+| `SDKWORK_BIRDCODER_DATABASE_ENGINE` | `sqlite` or `postgresql`. | Cloud requires PostgreSQL. |
+| `SDKWORK_BIRDCODER_DATABASE_URL` | Protected PostgreSQL connection string. | Inject from a secret-bearing host configuration or secret manager; never expose to Vite. |
+| `SDKWORK_BIRDCODER_DATABASE_FILE` | Server/desktop SQLite file when SQLite is an approved profile. | Keep it under the applicable SDKWork private/runtime data directory. |
+| `SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT` | Server-owned project workspace base. | Not a Browser/Tauri mount, not a client API field, and not an execution-enable flag. |
+| `SDKWORK_BIRDCODER_APP_ROOT` | Read-only installed application asset root. | Never use it as mutable user/project data. |
 
-## Local Developer Prefill
+A `server` or `container` target accepts remote project control-plane traffic;
+it must not use a client-provided path as its filesystem root. In the current
+implementation, remote code execution remains unavailable even when
+`SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT` is configured. The variable reserves
+server-owned storage for authorized project source and Git workflows only.
 
-- `SDKWORK_IAM_DEV_FIXED_VERIFY_CODE`
-- `SDKWORK_IAM_OAUTH_PROVIDERS`
-- `BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT`
-- `VITE_BIRDCODER_AUTH_DEV_PREFILL_ENABLED`
-- `VITE_BIRDCODER_AUTH_DEV_DEFAULT_ACCOUNT`
-- `VITE_BIRDCODER_AUTH_DEV_DEFAULT_EMAIL`
-- `VITE_BIRDCODER_AUTH_DEV_DEFAULT_PHONE`
-- `VITE_BIRDCODER_AUTH_DEV_DEFAULT_PASSWORD`
-- `VITE_BIRDCODER_AUTH_DEV_DEFAULT_LOGIN_METHOD`
-- `VITE_BIRDCODER_AUTH_LEFT_RAIL_MODE`
+## Client API Configuration
 
-`desktop-local` and `server-private` may set `SDKWORK_IAM_DEV_FIXED_VERIFY_CODE` for deterministic verification-code flows during development. Optional auth-form prefill uses explicit `VITE_BIRDCODER_AUTH_DEV_*` values only; IAM identity still comes from register/login APIs and JWT dual tokens.
+`BIRDCODER_API_BASE_URL` and `VITE_BIRDCODER_API_BASE_URL` select a remote
+BirdCoder server for private or cloud-backed Browser/Tauri clients. Packaged
+remote clients require an explicit base URL so they do not silently fall back
+to localhost. `VITE_*` values are public build/runtime configuration and must
+not contain database URLs, access tokens, provider credentials, native paths,
+or server workspace roots.
 
-## Cloud IAM App API
+The IAM app API configuration (`SDKWORK_IAM_APP_API_BASE_URL`,
+`SDKWORK_IAM_APP_API_TIMEOUT_MS`, `SDKWORK_IAM_APP_ID`,
+`SDKWORK_IAM_SECRET_ID`, and `SDKWORK_IAM_SHARED_SECRET`) is server or host
+configuration. Cloud IAM fails closed when required values are missing; it
+does not create a local identity fallback.
 
-- `SDKWORK_IAM_APP_API_BASE_URL`
-- `SDKWORK_IAM_APP_API_TIMEOUT_MS`
-- `SDKWORK_IAM_APP_ID`
-- `SDKWORK_IAM_SECRET_ID`
-- `SDKWORK_IAM_SHARED_SECRET`
-- `SDKWORK_IAM_APP_API_OAUTH_PROVIDERS`
+## Device-Private Folder Mounts
 
-Cloud mode is fail-closed. If the SDKWork IAM app API base URL or credentials are incomplete, cloud doctor/startup checks must report the configuration gap instead of creating local fallback identity data.
+No environment variable represents a user-selected project folder.
 
-## Common Release Variables
+- Browser stores a `FileSystemDirectoryHandle` in IndexedDB with structured
+  cloning. On recovery it queries permission and requires explicit rebind when
+  permission is not granted.
+- Tauri stores a native path only in its host-private `local_store_*` SQLite KV
+  namespace. It is scoped to the active deployment realm and IAM
+  tenant/organization/user/project. It is plaintext at rest.
+- `BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT` is a development/local-host bootstrap
+  convenience only. It must not be set as a remote server project root and must
+  never be returned by a remote project API.
 
-- `SDKWORK_RELEASE_TAG`
-- `SDKWORK_RELEASE_OUTPUT_DIR`
-- `SDKWORK_RELEASE_ASSETS_DIR`
-- `SDKWORK_RELEASE_PLATFORM`
-- `SDKWORK_RELEASE_ARCH`
-- `SDKWORK_RELEASE_TARGET`
-- `SDKWORK_RELEASE_ACCELERATOR`
-- `SDKWORK_RELEASE_IMAGE_REPOSITORY`
-- `SDKWORK_RELEASE_IMAGE_TAG`
-- `SDKWORK_RELEASE_IMAGE_DIGEST`
+## Safe Production Baseline
+
+```dotenv
+SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE=standalone
+SDKWORK_BIRDCODER_ENVIRONMENT=production
+SDKWORK_BIRDCODER_RUNTIME_TARGET=server
+SDKWORK_BIRDCODER_SERVER_HOST=0.0.0.0
+SDKWORK_BIRDCODER_SERVER_PORT=10240
+SDKWORK_BIRDCODER_ALLOWED_ORIGINS=https://ide.example.invalid
+SDKWORK_BIRDCODER_DATABASE_ENGINE=postgresql
+# Inject SDKWORK_BIRDCODER_DATABASE_URL through a protected secret source.
+SDKWORK_BIRDCODER_PROVIDER_RUNNER_ROOT=<server-private-project-workspace-root>
+```
+
+For `cloud`, retain the same explicit `server` or `container` target, use
+PostgreSQL, a non-loopback bind, and exact origins. The profile validates those
+requirements at startup but still does not enable a cloud runner.
 
 ## Inspection Commands
 
 ```bash
-pnpm iam:show:desktop:local
-pnpm iam:show:web:private
-pnpm iam:show:server:cloud
-pnpm iam:doctor:desktop:local
-pnpm iam:doctor:web:private
-pnpm iam:doctor:server:cloud
+pnpm.cmd iam:show:desktop:local
+pnpm.cmd iam:show:web:private
+pnpm.cmd iam:show:server:cloud
+pnpm.cmd iam:doctor:desktop:local
+pnpm.cmd iam:doctor:web:private
+pnpm.cmd iam:doctor:server:cloud
 ```
 
-Use workspace defaults for normal development. Override variables only when validating a specific deployment lane, pointing at a real SDKWork IAM cloud authority, or packaging a release artifact.
+Use local overrides only for development or explicit deployment validation.
+The inspection commands mask secret-like values; do not add paths, tokens, or
+database credentials to diagnostic output.

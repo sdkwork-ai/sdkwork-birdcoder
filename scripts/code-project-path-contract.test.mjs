@@ -49,9 +49,9 @@ assert.equal(
 );
 
 assert.equal(
-  codePageSource.includes('const folderInfo = await openLocalFolder();'),
+  codePageSource.includes("selectFolderAndImportProject('New Project')"),
   true,
-  'New project creation must open a folder picker first so the project binds to a real directory.',
+  'New project creation must delegate folder selection and device-mount registration to the shared local-folder import hook.',
 );
 
 assert.equal(
@@ -87,7 +87,7 @@ assert.equal(
 assert.equal(
   codePageSource.includes('/workspace/${project.name}'),
   false,
-  'CodePage project path actions must use the real project.path instead of a synthetic /workspace/<name> path.',
+  'CodePage project actions must not fabricate a project path from remote project metadata.',
 );
 
 assert.equal(
@@ -98,14 +98,14 @@ assert.equal(
 
 assert.equal(
   workspacePanelTypesSource.includes('currentProjectPath?: string;'),
-  true,
-  'Code editor workspace panel must accept the real current project path.',
+  false,
+  'Code editor workspace panel must not accept an OS project path from the page layer.',
 );
 
 assert.equal(
   workspacePanelSource.includes('basePath={currentProjectPath}'),
-  true,
-  'File explorer must receive the real project path from the active project.',
+  false,
+  'File explorer must not receive a project OS path from the active remote project.',
 );
 
 assert.equal(
@@ -124,6 +124,18 @@ assert.equal(
   fileExplorerSource.includes("basePath = '/workspace/project'"),
   false,
   'File explorer must not default to a synthetic workspace root path.',
+);
+
+assert.equal(
+  fileExplorerSource.includes('emitRevealProjectInFileManager'),
+  true,
+  'File explorer must request project reveal through the shell-owned device-mount event boundary.',
+);
+
+assert.equal(
+  /\b(basePath|currentProjectPath)\b/.test(fileExplorerSource),
+  false,
+  'File explorer must not retain a project-root path prop after device-mount separation.',
 );
 
 console.log('code project path contract passed.');

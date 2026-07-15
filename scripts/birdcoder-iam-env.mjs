@@ -37,8 +37,6 @@ const BIRDCODER_IAM_DEPLOYMENT_MODE_ENV =
   'BIRDCODER_IAM_DEPLOYMENT_MODE';
 const VITE_BIRDCODER_IAM_DEPLOYMENT_MODE_ENV =
   'VITE_BIRDCODER_IAM_DEPLOYMENT_MODE';
-const VITE_SDKWORK_DEPLOYMENT_MODE_ENV = 'VITE_SDKWORK_DEPLOYMENT_MODE';
-const SDKWORK_DEPLOYMENT_MODE_ENV = 'SDKWORK_DEPLOYMENT_MODE';
 const SDKWORK_IM_ENVIRONMENT_ENV = 'SDKWORK_IM_ENVIRONMENT';
 const SDKWORK_ENV_ENV = 'SDKWORK_ENV';
 const SDKWORK_ENVIRONMENT_ENV = 'SDKWORK_ENVIRONMENT';
@@ -243,18 +241,6 @@ function resolveDefaultIamMode(target) {
 function resolveSdkworkIamMode(iamDeploymentMode) {
   if (iamDeploymentMode === 'cloud-saas') {
     return 'cloud';
-  }
-
-  if (iamDeploymentMode === 'server-private') {
-    return 'private';
-  }
-
-  return 'local';
-}
-
-function resolvePublicDeploymentMode(iamDeploymentMode) {
-  if (iamDeploymentMode === 'cloud-saas') {
-    return 'saas';
   }
 
   if (iamDeploymentMode === 'server-private') {
@@ -766,11 +752,6 @@ function applyIamDevEnvironmentDefaults({
   setEnvDefault(env, SDKWORK_IM_ENVIRONMENT_ENV, 'dev');
   setEnvDefault(env, SDKWORK_ENV_ENV, 'dev');
   setEnvDefault(env, SDKWORK_ENVIRONMENT_ENV, 'development');
-
-  // SDKWORK_DEPLOYMENT_MODE is already set from resolvePublicDeploymentMode,
-  // but ensure it is present for the Rust server (non-VITE variant).
-  const publicDeploymentMode = resolvePublicDeploymentMode(iamMode);
-  setEnvDefault(env, SDKWORK_DEPLOYMENT_MODE_ENV, publicDeploymentMode);
 }
 
 function applyLocalVerifyCodeDefaults({
@@ -900,17 +881,6 @@ export function resolveBirdcoderIamCommandEnv({
     nextEnv,
     VITE_BIRDCODER_IAM_DEPLOYMENT_MODE_ENV,
     resolvedIamMode,
-  );
-    const publicDeploymentMode = resolvePublicDeploymentMode(resolvedIamMode);
-  setEnvValue(
-    nextEnv,
-    VITE_SDKWORK_DEPLOYMENT_MODE_ENV,
-    publicDeploymentMode,
-  );
-  setEnvValue(
-    nextEnv,
-    SDKWORK_DEPLOYMENT_MODE_ENV,
-    publicDeploymentMode,
   );
   applyIamDevEnvironmentDefaults({
     env: nextEnv,

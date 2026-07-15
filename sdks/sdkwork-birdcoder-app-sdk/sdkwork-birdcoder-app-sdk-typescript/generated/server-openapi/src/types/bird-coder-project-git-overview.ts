@@ -6,9 +6,7 @@ export interface BirdCoderProjectGitOverview {
   branches: BirdCoderGitBranchSummary[];
   currentBranch?: string;
   currentRevision?: string;
-  currentWorktreePath?: string;
   detachedHead: boolean;
-  repositoryRootPath?: string;
   status: 'ready' | 'not_repository';
   statusCounts: BirdCoderGitStatusCounts;
   worktrees: BirdCoderGitWorktreeSummary[];

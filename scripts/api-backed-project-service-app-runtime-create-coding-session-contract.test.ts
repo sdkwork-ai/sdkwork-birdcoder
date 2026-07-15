@@ -106,18 +106,6 @@ try {
     createdAt: '2026-04-11T11:31:00.000Z',
     updatedAt: '2026-04-11T11:31:00.000Z',
   });
-  await repositories.projectContents.save({
-    id: 'project-content-app-runtime-write-contract',
-    projectId: 'project-app-runtime-write-contract',
-    projectUuid: 'project-project-app-runtime-write-contract',
-    configData: JSON.stringify({
-      rootPath: 'D:/workspace/app-runtime-write-contract',
-    }),
-    contentVersion: '1.0',
-    createdAt: '2026-04-11T11:31:00.250Z',
-    updatedAt: '2026-04-11T11:31:00.250Z',
-  });
-
   const appClient: BirdCoderAppSdkApiClient = createBirdCoderAppSdkApiClient({
     transport: createBirdCoderInProcessAppSdkTransport({
       queries,

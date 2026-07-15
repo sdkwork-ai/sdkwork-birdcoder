@@ -52,7 +52,6 @@ const project: BirdCoderProject = {
   createdAt: '2026-04-24T00:00:00.000Z',
   id: projectId,
   name: 'Stale local mirror project',
-  path: 'D:/workspace/stale-local-mirror-project',
   updatedAt: '2026-04-24T00:00:00.000Z',
   workspaceId,
 };
@@ -88,9 +87,6 @@ const projectService: RefreshProjectService = {
   },
   invalidateProjectReadCache(scope) {
     invalidateScope = scope ?? null;
-  },
-  async getProjectByPath() {
-    return unexpectedProjectServiceCall('getProjectByPath');
   },
   async createProject() {
     return unexpectedProjectServiceCall('createProject');
@@ -172,6 +168,63 @@ assert.equal(projectRehydrationAttempts, 1);
 assert.equal(result.status, 'refreshed');
 assert.equal(result.projectId, projectId);
 assert.equal(result.codingSession?.id, codingSessionId);
+
+const locallyNewerTimestamp = '2026-04-24T00:05:00.000Z';
+const staleAuthorityTimestamp = '2026-04-24T00:04:00.000Z';
+const locallyNewerSession: BirdCoderCodingSession = {
+  ...existingSession,
+  lastTurnAt: locallyNewerTimestamp,
+  runtimeStatus: 'streaming',
+  sortTimestamp: String(Date.parse(locallyNewerTimestamp)),
+  transcriptUpdatedAt: locallyNewerTimestamp,
+  updatedAt: locallyNewerTimestamp,
+};
+const staleAuthoritySummary: BirdCoderCodingSessionSummary = {
+  ...summary,
+  lastTurnAt: staleAuthorityTimestamp,
+  runtimeStatus: 'completed',
+  sortTimestamp: String(Date.parse(staleAuthorityTimestamp)),
+  transcriptUpdatedAt: staleAuthorityTimestamp,
+  updatedAt: staleAuthorityTimestamp,
+};
+const locallyNewerResult = await refreshCodingSessionMessages({
+  codingSessionId,
+  appRuntimeReadService: {
+    ...appRuntimeReadService,
+    async getCodingSession() {
+      return staleAuthoritySummary;
+    },
+  },
+  projectService: {
+    ...projectService,
+    async upsertCodingSession(_candidateProjectId: string, candidateSession: BirdCoderCodingSession) {
+      assert.equal(candidateSession.updatedAt, locallyNewerTimestamp);
+      assert.equal(candidateSession.lastTurnAt, locallyNewerTimestamp);
+      assert.equal(candidateSession.transcriptUpdatedAt, locallyNewerTimestamp);
+      assert.equal(
+        candidateSession.sortTimestamp,
+        String(Date.parse(locallyNewerTimestamp)),
+      );
+    },
+  },
+  resolvedLocation: {
+    codingSession: locallyNewerSession,
+    project: {
+      ...project,
+      codingSessions: [locallyNewerSession],
+    },
+    summary: staleAuthoritySummary,
+  },
+  workspaceId,
+});
+assert.equal(locallyNewerResult.status, 'refreshed');
+assert.equal(locallyNewerResult.codingSession?.updatedAt, locallyNewerTimestamp);
+assert.equal(locallyNewerResult.codingSession?.lastTurnAt, locallyNewerTimestamp);
+assert.equal(
+  locallyNewerResult.codingSession?.transcriptUpdatedAt,
+  locallyNewerTimestamp,
+  'selected-session refresh must not roll local activity backwards when the authority summary is stale.',
+);
 
 const staleLocationProjectId = 'project-stale-location-cache';
 const staleLocationWorkspaceId = 'workspace-stale-location';

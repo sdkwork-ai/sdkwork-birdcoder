@@ -32,10 +32,6 @@ import {
   BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
   ensureBirdCoderBootstrapWorkspace,
 } from '../storage/bootstrapConsoleCatalog.ts';
-import {
-  buildBirdCoderProjectContentConfigData,
-  readBirdCoderProjectRootPathFromConfigData,
-} from './projectContentConfigData.ts';
 import { createBirdCoderLocalBusinessUuid } from './localBusinessUuid.ts';
 import { createBirdCoderLocalEntityId } from './localEntityId.ts';
 
@@ -256,154 +252,6 @@ function normalizeRequiredText(value: string | null | undefined, fieldName: stri
     throw new Error(`${fieldName} is required.`);
   }
   return normalizedValue;
-}
-
-function isAbsoluteProjectPath(path: string): boolean {
-  return /^[a-zA-Z]:[\\/]/u.test(path) || path.startsWith('\\\\') || path.startsWith('/');
-}
-
-function normalizeRequiredProjectRootPath(rootPath: string | null | undefined): string {
-  const normalizedRootPath = normalizeRequiredText(rootPath, 'project rootPath');
-  if (!isAbsoluteProjectPath(normalizedRootPath)) {
-    throw new Error('project rootPath must be an absolute path.');
-  }
-  return normalizedRootPath;
-}
-
-function normalizeProjectRootPathForComparison(
-  rootPath: string | null | undefined,
-): string | undefined {
-  const normalizedRootPath = normalizeOptionalText(rootPath);
-  if (!normalizedRootPath) {
-    return undefined;
-  }
-
-  const windowsPath =
-    /^[a-zA-Z]:/u.test(normalizedRootPath) ||
-    normalizedRootPath.includes('\\') ||
-    normalizedRootPath.startsWith('\\\\');
-  const normalizedSeparators = normalizedRootPath.replace(/\\/gu, '/');
-  const collapsedPath = normalizedSeparators.startsWith('//')
-    ? `//${normalizedSeparators.slice(2).replace(/\/+/gu, '/')}`
-    : normalizedSeparators.replace(/\/+/gu, '/');
-  const withoutTrailingSlash =
-    collapsedPath === '/' ? collapsedPath : collapsedPath.replace(/\/+$/u, '') || collapsedPath;
-
-  return windowsPath ? withoutTrailingSlash.toLowerCase() : withoutTrailingSlash;
-}
-
-async function findProjectContentByProjectId(
-  repositories: BirdCoderConsoleRepositories,
-  projectId: string,
-) {
-  return (
-    (await repositories.projectContents.list()).find(
-      (content) => content.projectId === projectId,
-    ) ?? null
-  );
-}
-
-function omitProjectRootPathShadow(
-  projectRecord: BirdCoderRepresentativeProjectRecord,
-): BirdCoderRepresentativeProjectRecord {
-  const { rootPath, ...projectRecordWithoutRootPath } = projectRecord;
-  void rootPath;
-  return projectRecordWithoutRootPath;
-}
-
-async function upsertProjectRootPathContent(
-  repositories: BirdCoderConsoleRepositories,
-  project: BirdCoderRepresentativeProjectRecord,
-  rootPath: string,
-): Promise<void> {
-  const existingContent = await findProjectContentByProjectId(repositories, project.id);
-  await repositories.projectContents.save({
-    id: existingContent?.id ?? project.id,
-    uuid: existingContent?.uuid ?? createUuid(),
-    tenantId: project.tenantId,
-    organizationId: project.organizationId,
-    dataScope: project.dataScope,
-    userId: project.userId ?? project.createdByUserId ?? project.ownerId,
-    parentId: project.parentId ?? '0',
-    projectId: project.id,
-    projectUuid: project.uuid ?? existingContent?.projectUuid ?? `project-${project.id}`,
-    configData: buildBirdCoderProjectContentConfigData(rootPath, {
-      existingConfigData: existingContent?.configData,
-    }),
-    contentData: existingContent?.contentData,
-    metadata: existingContent?.metadata,
-    contentVersion: existingContent?.contentVersion ?? '1.0',
-    contentHash: existingContent?.contentHash,
-    createdAt: existingContent?.createdAt ?? project.createdAt,
-    updatedAt: project.updatedAt,
-  });
-}
-
-async function resolveProjectRootPathsById(
-  repositories: BirdCoderConsoleRepositories,
-  projectIds: readonly string[],
-): Promise<Map<string, string>> {
-  const projectIdSet = new Set(projectIds);
-  const rootPathsByProjectId = new Map<string, string>();
-  const projectContents = await repositories.projectContents.list();
-  for (const projectContent of projectContents) {
-    if (!projectIdSet.has(projectContent.projectId)) {
-      continue;
-    }
-
-    const rootPath = readBirdCoderProjectRootPathFromConfigData(projectContent.configData);
-    if (rootPath && !rootPathsByProjectId.has(projectContent.projectId)) {
-      rootPathsByProjectId.set(projectContent.projectId, rootPath);
-    }
-  }
-
-  return rootPathsByProjectId;
-}
-
-async function hydrateProjectRootPaths(
-  repositories: BirdCoderConsoleRepositories,
-  projects: readonly BirdCoderRepresentativeProjectRecord[],
-): Promise<BirdCoderRepresentativeProjectRecord[]> {
-  if (projects.length === 0) {
-    return [];
-  }
-
-  const rootPathsByProjectId = await resolveProjectRootPathsById(
-    repositories,
-    projects.map((project) => project.id),
-  );
-  return projects.map((project) => {
-    const projectRecord = omitProjectRootPathShadow(project);
-    const rootPath = rootPathsByProjectId.get(project.id);
-    return rootPath
-      ? {
-          ...projectRecord,
-          rootPath,
-        }
-      : projectRecord;
-  });
-}
-
-async function findProjectByWorkspaceAndRootPath(
-  repositories: BirdCoderConsoleRepositories,
-  workspaceId: string,
-  rootPath: string,
-  excludedProjectId?: string,
-): Promise<BirdCoderRepresentativeProjectRecord | null> {
-  const normalizedRootPath = normalizeProjectRootPathForComparison(rootPath);
-  if (!normalizedRootPath) {
-    return null;
-  }
-
-  const projects = await hydrateProjectRootPaths(repositories, await repositories.projects.list());
-  return (
-    projects.find((project) => {
-      if (project.workspaceId !== workspaceId || project.id === excludedProjectId) {
-        return false;
-      }
-      return normalizeProjectRootPathForComparison(project.rootPath) === normalizedRootPath;
-    }) ?? null
-  );
 }
 
 async function deleteProjectsForWorkspace(
@@ -669,18 +517,7 @@ export function createBirdCoderConsoleQueries({
     async getProject(projectId: string): Promise<BirdCoderRepresentativeProjectRecord | null> {
       await ensureBirdCoderBootstrapWorkspace({ repositories });
       const normalizedProjectId = normalizeRequiredText(projectId, 'projectId');
-      const project = await repositories.projects.findById(normalizedProjectId);
-      if (!project) {
-        return null;
-      }
-
-      const hydratedProject = (
-        await hydrateProjectRootPaths(repositories, [project])
-      )[0];
-      const rootPath = hydratedProject?.rootPath?.trim();
-      return hydratedProject && rootPath && isAbsoluteProjectPath(rootPath)
-        ? hydratedProject
-        : null;
+      return repositories.projects.findById(normalizedProjectId);
     },
     async listProjectPage({ page, pageSize, workspaceId }): Promise<BirdCoderProjectListPage> {
       await ensureBirdCoderBootstrapWorkspace({ repositories });
@@ -692,7 +529,7 @@ export function createBirdCoderConsoleQueries({
       );
 
       return {
-        items: await hydrateProjectRootPaths(repositories, storagePage.items),
+        items: storagePage.items,
         total: storagePage.total,
       };
     },
@@ -706,23 +543,11 @@ export function createBirdCoderConsoleQueries({
         throw new Error(`Workspace ${workspaceId} was not found.`);
       }
 
-      const rootPath = normalizeRequiredProjectRootPath(request.rootPath);
-      const existingProject = await findProjectByWorkspaceAndRootPath(
-        repositories,
-        workspaceId,
-        rootPath,
-      );
-      if (existingProject) {
-        return existingProject;
-      }
-
       const name = normalizeRequiredText(request.name, 'name');
       const ownerId =
-        normalizeOptionalText(request.ownerId) ??
         workspaceRecord.ownerId ??
         BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID;
       const createdByUserId =
-        normalizeOptionalText(request.createdByUserId) ??
         workspaceRecord.createdByUserId ??
         ownerId;
       const now = createTimestamp();
@@ -731,58 +556,33 @@ export function createBirdCoderConsoleQueries({
         name,
         projectId,
       });
-      const projectRecord = await repositories.projects.save(omitProjectRootPathShadow({
+      return repositories.projects.save({
         id: projectId,
         uuid: createUuid(),
-        tenantId:
-          normalizeOptionalText(request.tenantId) ?? workspaceRecord.tenantId,
+        tenantId: workspaceRecord.tenantId ?? BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
         organizationId:
-          normalizeOptionalText(request.organizationId) ?? workspaceRecord.organizationId,
-        dataScope:
-          normalizeOptionalText(request.dataScope) ??
-          workspaceRecord.dataScope ??
-          'PRIVATE',
+          workspaceRecord.organizationId ?? BIRDCODER_DEFAULT_LOCAL_ORGANIZATION_ID,
+        dataScope: workspaceRecord.dataScope ?? 'PRIVATE',
         workspaceId,
-        workspaceUuid:
-          normalizeOptionalText(request.workspaceUuid) ?? workspaceRecord.uuid,
-        userId: normalizeOptionalText(request.userId) ?? createdByUserId,
-        parentId: normalizeOptionalText(request.parentId) ?? '0',
-        parentUuid: normalizeOptionalText(request.parentUuid) ?? '0',
-        parentMetadata: normalizeOptionalObject(request.parentMetadata),
+        workspaceUuid: workspaceRecord.uuid,
+        userId: createdByUserId,
+        parentId: '0',
+        parentUuid: '0',
+        parentMetadata: {},
         name: projectBusinessName,
-        code:
-          normalizeOptionalText(request.code) ??
-          buildBirdCoderProjectBusinessCode({
-            name,
-            projectId,
-            rootPath,
-          }),
-        title: normalizeOptionalText(request.title) ?? name,
+        code: buildBirdCoderProjectBusinessCode({ name, projectId }),
+        title: name,
         description: normalizeOptionalText(request.description),
-        sitePath: normalizeOptionalText(request.sitePath),
-        domainPrefix: normalizeOptionalText(request.domainPrefix),
-        rootPath,
         ownerId,
-        leaderId: normalizeOptionalText(request.leaderId) ?? ownerId,
+        leaderId: ownerId,
         createdByUserId,
-        author: normalizeOptionalText(request.author) ?? createdByUserId,
-        fileId: normalizeOptionalText(request.fileId),
-        conversationId: normalizeOptionalText(request.conversationId),
-        type: normalizeOptionalText(request.type) ?? 'CODE',
-        coverImage: normalizeOptionalObject(request.coverImage),
-        startTime: normalizeOptionalText(request.startTime),
-        endTime: normalizeOptionalText(request.endTime),
-        budgetAmount: normalizeOptionalLongInteger('budgetAmount', request.budgetAmount),
-        isTemplate: normalizeOptionalBoolean(request.isTemplate) ?? false,
-        status: normalizeOptionalText(request.status) ?? 'active',
+        author: createdByUserId,
+        type: 'CODE',
+        isTemplate: false,
+        status: 'active',
         createdAt: now,
         updatedAt: now,
-      }));
-      await upsertProjectRootPathContent(repositories, projectRecord, rootPath);
-      return {
-        ...projectRecord,
-        rootPath,
-      };
+      });
     },
     async updateProject(
       projectId: string,
@@ -793,116 +593,26 @@ export function createBirdCoderConsoleQueries({
       if (!existingProject) {
         throw new Error(`Project ${normalizedProjectId} was not found.`);
       }
-      const hydratedExistingProject = (
-        await hydrateProjectRootPaths(repositories, [existingProject])
-      )[0] ?? existingProject;
 
-      const nextRootPath =
-        request.rootPath === undefined
-          ? hydratedExistingProject.rootPath
-          : normalizeRequiredProjectRootPath(request.rootPath);
-      const conflictingProject = nextRootPath
-        ? await findProjectByWorkspaceAndRootPath(
-            repositories,
-            hydratedExistingProject.workspaceId,
-            nextRootPath,
-            normalizedProjectId,
-          )
-        : null;
-      if (conflictingProject) {
-        throw new Error(
-          `Workspace already contains project "${conflictingProject.name}" for rootPath "${nextRootPath}".`,
-        );
-      }
-
-      const updatedProject = await repositories.projects.save(omitProjectRootPathShadow({
-        ...hydratedExistingProject,
+      return repositories.projects.save({
+        ...existingProject,
         name:
           request.name === undefined
-            ? hydratedExistingProject.name
+            ? existingProject.name
             : buildBirdCoderProjectBusinessName({
-                name: normalizeOptionalText(request.name) ?? hydratedExistingProject.title ?? hydratedExistingProject.name,
-                projectId: hydratedExistingProject.id,
+                name: normalizeOptionalText(request.name) ?? existingProject.title ?? existingProject.name,
+                projectId: existingProject.id,
               }),
         description:
           request.description === undefined
-            ? hydratedExistingProject.description
+            ? existingProject.description
             : normalizeOptionalText(request.description),
-        dataScope: normalizeOptionalText(request.dataScope) ?? hydratedExistingProject.dataScope,
-        userId:
-          request.userId === undefined
-            ? hydratedExistingProject.userId
-            : normalizeOptionalText(request.userId),
-        parentId:
-          request.parentId === undefined
-            ? hydratedExistingProject.parentId
-            : normalizeOptionalText(request.parentId),
-        parentUuid:
-          request.parentUuid === undefined
-            ? hydratedExistingProject.parentUuid
-            : normalizeOptionalText(request.parentUuid),
-        parentMetadata:
-          request.parentMetadata === undefined
-            ? hydratedExistingProject.parentMetadata
-            : normalizeOptionalObject(request.parentMetadata),
-        code: normalizeOptionalText(request.code) ?? hydratedExistingProject.code,
         title:
-          normalizeOptionalText(request.title) ??
           normalizeOptionalText(request.name) ??
-          hydratedExistingProject.title,
-        sitePath:
-          request.sitePath === undefined
-            ? hydratedExistingProject.sitePath
-            : normalizeOptionalText(request.sitePath),
-        domainPrefix:
-          request.domainPrefix === undefined
-            ? hydratedExistingProject.domainPrefix
-            : normalizeOptionalText(request.domainPrefix),
-        rootPath: nextRootPath,
-        ownerId: normalizeOptionalText(request.ownerId) ?? hydratedExistingProject.ownerId,
-        leaderId: normalizeOptionalText(request.leaderId) ?? hydratedExistingProject.leaderId,
-        createdByUserId:
-          normalizeOptionalText(request.createdByUserId) ?? hydratedExistingProject.createdByUserId,
-        author: normalizeOptionalText(request.author) ?? hydratedExistingProject.author,
-        fileId:
-          request.fileId === undefined
-            ? hydratedExistingProject.fileId
-            : normalizeOptionalText(request.fileId),
-        conversationId:
-          request.conversationId === undefined
-            ? hydratedExistingProject.conversationId
-            : normalizeOptionalText(request.conversationId),
-        type: normalizeOptionalText(request.type) ?? hydratedExistingProject.type,
-        coverImage:
-          request.coverImage === undefined
-            ? hydratedExistingProject.coverImage
-            : normalizeOptionalObject(request.coverImage),
-        startTime:
-          request.startTime === undefined
-            ? hydratedExistingProject.startTime
-            : normalizeOptionalText(request.startTime),
-        endTime:
-          request.endTime === undefined
-            ? hydratedExistingProject.endTime
-            : normalizeOptionalText(request.endTime),
-        budgetAmount:
-          request.budgetAmount === undefined
-            ? hydratedExistingProject.budgetAmount
-            : normalizeOptionalLongInteger('budgetAmount', request.budgetAmount),
-        isTemplate:
-          request.isTemplate === undefined
-            ? hydratedExistingProject.isTemplate
-            : normalizeOptionalBoolean(request.isTemplate),
-        status: normalizeOptionalText(request.status) ?? hydratedExistingProject.status,
+          existingProject.title,
+        status: request.status ?? existingProject.status,
         updatedAt: createTimestamp(),
-      }));
-      if (nextRootPath) {
-        await upsertProjectRootPathContent(repositories, updatedProject, nextRootPath);
-      }
-      return {
-        ...updatedProject,
-        rootPath: nextRootPath,
-      };
+      });
     },
     async deleteProject(projectId: string): Promise<{ id: string }> {
       const normalizedProjectId = normalizeRequiredText(projectId, 'projectId');

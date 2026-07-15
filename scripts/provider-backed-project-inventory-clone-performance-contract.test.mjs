@@ -16,28 +16,43 @@ function readPublicMethodBody(methodName) {
 
 const getProjectsSource = readPublicMethodBody('getProjects');
 const getProjectByIdSource = readPublicMethodBody('getProjectById');
-const getProjectByPathSource = readPublicMethodBody('getProjectByPath');
+const materializeProjectRecordsStart = source.indexOf('private async materializeProjectRecords(');
+assert.notEqual(
+  materializeProjectRecordsStart,
+  -1,
+  'ProviderBackedProjectService must define materializeProjectRecords for project inventory reads.',
+);
+const materializeProjectRecordsEnd = source.indexOf(
+  '\n  private async ',
+  materializeProjectRecordsStart + 1,
+);
+const materializeProjectRecordsSource = source.slice(
+  materializeProjectRecordsStart,
+  materializeProjectRecordsEnd === -1 ? source.length : materializeProjectRecordsEnd,
+);
 
 assert.match(
-  getProjectsSource,
+  materializeProjectRecordsSource,
   /return projects\.sort\(compareBirdCoderProjectsByActivity\);/,
-  'getProjects must sort and return the already materialized project records without a second whole-tree clone.',
+  'project materialization must sort and return the already materialized project records without a second whole-tree clone.',
 );
 assert.doesNotMatch(
-  getProjectsSource,
+  materializeProjectRecordsSource,
   /cloneProjects\(/,
-  'getProjects must not deep-clone the full project tree after mapProjectRecord already built public records.',
+  'project materialization must not deep-clone the full project tree after mapProjectRecord already built public records.',
 );
 assert.doesNotMatch(
-  getProjectsSource,
+  materializeProjectRecordsSource,
   /structuredClone\(/,
-  'getProjects must not run structuredClone across all projects and sessions on every inventory refresh.',
+  'project materialization must not run structuredClone across all projects and sessions on every inventory refresh.',
+);
+assert.match(
+  getProjectsSource,
+  /return this\.materializeProjectRecords\(page\.items\);/,
+  'getProjects must delegate bounded result mapping to materializeProjectRecords.',
 );
 
-for (const [methodName, methodSource] of [
-  ['getProjectById', getProjectByIdSource],
-  ['getProjectByPath', getProjectByPathSource],
-]) {
+for (const [methodName, methodSource] of [['getProjectById', getProjectByIdSource]]) {
   assert.match(
     methodSource,
     /return this\.mapProjectRecord\(record, sessions, \{\s*sessionsSortedByActivity:\s*true,\s*\}\);/s,

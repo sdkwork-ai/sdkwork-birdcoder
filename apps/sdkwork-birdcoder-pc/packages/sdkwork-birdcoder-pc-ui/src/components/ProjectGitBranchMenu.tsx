@@ -180,7 +180,7 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
                 {t('code.branches')}
               </div>
               <div className="mt-0.5 truncate text-[11px] text-gray-600">
-                {overview?.currentRevision?.slice(0, 12) || overview?.repositoryRootPath || ''}
+                {overview?.currentRevision?.slice(0, 12) || ''}
               </div>
             </div>
             <button
@@ -212,12 +212,16 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
                 <button
                   key={branch.name}
                   type="button"
+                  disabled={branch.isCurrent}
                   className={`group flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors ${
                     branch.isCurrent
-                      ? 'bg-blue-500/[0.13]'
+                      ? 'cursor-default bg-blue-500/[0.13]'
                       : 'hover:bg-white/[0.055]'
                   }`}
                   onClick={() => {
+                    if (branch.isCurrent) {
+                      return;
+                    }
                     onOpenChange(false);
                     void onSelectBranch(branch.name);
                   }}
@@ -231,24 +235,12 @@ export const ProjectGitBranchMenu = memo(function ProjectGitBranchMenu({
                         {branch.name}
                       </div>
                     </div>
-                    {branch.upstreamName ? (
-                      <div className="truncate pl-6 text-[11px] text-gray-500 group-hover:text-gray-400">
-                        {branch.upstreamName}
-                      </div>
-                    ) : null}
                   </div>
-                  <div className="flex shrink-0 items-center gap-1 text-[10px] text-gray-400">
-                    {branch.ahead > 0 ? (
-                      <span className="rounded-full bg-emerald-500/[0.13] px-1.5 py-0.5 text-emerald-200">
-                        {t('code.ahead')} {branch.ahead}
-                      </span>
-                    ) : null}
-                    {branch.behind > 0 ? (
-                      <span className="rounded-full bg-amber-500/[0.13] px-1.5 py-0.5 text-amber-200">
-                        {t('code.behind')} {branch.behind}
-                      </span>
-                    ) : null}
-                  </div>
+                  {branch.isRemote ? (
+                    <span className="shrink-0 rounded-full bg-white/[0.07] px-1.5 py-0.5 text-[10px] text-gray-300">
+                      {t('code.remoteBranch')}
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>

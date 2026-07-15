@@ -4,15 +4,22 @@ use uuid::Uuid;
 
 use crate::db::columns::project as col;
 use crate::db::columns::project_collaborator as collab_col;
+use crate::db::columns::workspace as workspace_col;
+use crate::db::columns::workspace_member as workspace_member_col;
 use crate::db::rows::{ProjectCollaboratorRow, ProjectRow};
 use crate::mapper::row_mapper;
-use crate::repository::scope::{data_scope_to_i64, project_scoped_tenant_id};
+use crate::repository::scope::{
+    project_scoped_organization_id, project_scoped_tenant_id, project_scoped_user_id,
+};
+use sdkwork_birdcoder_project_service::business_code::build_project_business_code;
 use sdkwork_birdcoder_project_service::domain::commands::{
     CreateProjectRequest, UpdateProjectRequest, UpsertProjectCollaboratorRequest,
 };
-use sdkwork_birdcoder_project_service::domain::results::{ProjectCollaboratorPayload, ProjectPayload};
+use sdkwork_birdcoder_project_service::domain::results::{
+    ProjectCollaboratorPayload, ProjectPayload,
+};
 use sdkwork_birdcoder_project_service::error::ProjectError;
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{inserted_row_id, IS_NOT_DELETED, SET_SOFT_DELETED};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{inserted_row_id, SET_SOFT_DELETED};
 
 #[derive(Clone)]
 pub struct SqliteProjectRepository {
@@ -29,6 +36,183 @@ impl SqliteProjectRepository {
             .format(&time::format_description::well_known::Iso8601::DEFAULT)
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
     }
+
+    fn scoped_user_id(ctx: &ProjectContext) -> Result<i64, ProjectError> {
+        project_scoped_user_id(ctx)
+    }
+
+    fn parse_positive_id(value: &str, field_name: &str) -> Result<i64, ProjectError> {
+        let parsed = value
+            .parse::<i64>()
+            .map_err(|_| ProjectError::InvalidInput(format!("invalid {field_name}: {value}")))?;
+        if parsed <= 0 {
+            return Err(ProjectError::InvalidInput(format!(
+                "invalid {field_name}: {value}"
+            )));
+        }
+        Ok(parsed)
+    }
+
+    fn workspace_access_predicate(workspace_alias: &str) -> String {
+        format!(
+            "({workspace_alias}.{owner_id} = ? OR EXISTS (\
+                SELECT 1 FROM {member_table} m \
+                WHERE m.{member_workspace_id} = {workspace_alias}.{workspace_id} \
+                  AND m.{member_tenant_id} = {workspace_alias}.{workspace_tenant_id} \
+                  AND m.{member_organization_id} = {workspace_alias}.{workspace_organization_id} \
+                  AND m.{member_user_id} = ? \
+                  AND m.{member_is_deleted} = 0 \
+                  AND LOWER(m.{member_status}) = 'active'\
+            ))",
+            owner_id = workspace_col::OWNER_ID,
+            member_table = workspace_member_col::TABLE,
+            member_workspace_id = workspace_member_col::WORKSPACE_ID,
+            workspace_id = workspace_col::ID,
+            member_tenant_id = workspace_member_col::TENANT_ID,
+            workspace_tenant_id = workspace_col::TENANT_ID,
+            member_organization_id = workspace_member_col::ORGANIZATION_ID,
+            workspace_organization_id = workspace_col::ORGANIZATION_ID,
+            member_user_id = workspace_member_col::USER_ID,
+            member_is_deleted = workspace_member_col::IS_DELETED,
+            member_status = workspace_member_col::STATUS,
+        )
+    }
+
+    fn project_read_access_predicate(project_alias: &str) -> String {
+        format!(
+            "({project_alias}.{project_user_id} = ? OR EXISTS (\
+                SELECT 1 FROM {collaborator_table} c \
+                WHERE c.{collaborator_project_id} = {project_alias}.{project_id} \
+                  AND c.{collaborator_tenant_id} = {project_alias}.{project_tenant_id} \
+                  AND c.{collaborator_organization_id} = {project_alias}.{project_organization_id} \
+                  AND c.{collaborator_user_id} = ? \
+                  AND c.{collaborator_is_deleted} = 0 \
+                  AND LOWER(c.{collaborator_status}) = 'active'\
+            ))",
+            project_user_id = col::USER_ID,
+            collaborator_table = collab_col::TABLE,
+            collaborator_project_id = collab_col::PROJECT_ID,
+            project_id = col::ID,
+            collaborator_tenant_id = collab_col::TENANT_ID,
+            project_tenant_id = col::TENANT_ID,
+            collaborator_organization_id = collab_col::ORGANIZATION_ID,
+            project_organization_id = col::ORGANIZATION_ID,
+            collaborator_user_id = collab_col::USER_ID,
+            collaborator_is_deleted = collab_col::IS_DELETED,
+            collaborator_status = collab_col::STATUS,
+        )
+    }
+
+    fn project_write_access_predicate(project_alias: &str) -> String {
+        format!(
+            "({project_alias}.{project_user_id} = ? OR EXISTS (\
+                SELECT 1 FROM {collaborator_table} c \
+                WHERE c.{collaborator_project_id} = {project_alias}.{project_id} \
+                  AND c.{collaborator_tenant_id} = {project_alias}.{project_tenant_id} \
+                  AND c.{collaborator_organization_id} = {project_alias}.{project_organization_id} \
+                  AND c.{collaborator_user_id} = ? \
+                  AND c.{collaborator_is_deleted} = 0 \
+                  AND LOWER(c.{collaborator_status}) = 'active' \
+                  AND LOWER(c.{collaborator_role}) IN ('owner', 'admin')\
+            ))",
+            project_user_id = col::USER_ID,
+            collaborator_table = collab_col::TABLE,
+            collaborator_project_id = collab_col::PROJECT_ID,
+            project_id = col::ID,
+            collaborator_tenant_id = collab_col::TENANT_ID,
+            project_tenant_id = col::TENANT_ID,
+            collaborator_organization_id = collab_col::ORGANIZATION_ID,
+            project_organization_id = col::ORGANIZATION_ID,
+            collaborator_user_id = collab_col::USER_ID,
+            collaborator_is_deleted = collab_col::IS_DELETED,
+            collaborator_status = collab_col::STATUS,
+            collaborator_role = collab_col::ROLE,
+        )
+    }
+
+    fn project_manage_access_predicate(project_alias: &str) -> String {
+        Self::project_write_access_predicate(project_alias)
+    }
+
+    fn normalize_collaborator_role(value: Option<&str>) -> Result<&'static str, ProjectError> {
+        let value = value.unwrap_or("member").trim();
+        if value.len() > 32 {
+            return Err(ProjectError::InvalidInput(
+                "invalid collaborator role.".to_owned(),
+            ));
+        }
+        if value.eq_ignore_ascii_case("owner") {
+            Ok("owner")
+        } else if value.eq_ignore_ascii_case("admin") {
+            Ok("admin")
+        } else if value.eq_ignore_ascii_case("member") {
+            Ok("member")
+        } else if value.eq_ignore_ascii_case("viewer") {
+            Ok("viewer")
+        } else {
+            Err(ProjectError::InvalidInput(
+                "role must be owner, admin, member, or viewer.".to_owned(),
+            ))
+        }
+    }
+
+    fn normalize_collaborator_status(value: Option<&str>) -> Result<&'static str, ProjectError> {
+        let value = value.unwrap_or("active").trim();
+        if value.len() > 32 {
+            return Err(ProjectError::InvalidInput(
+                "invalid collaborator status.".to_owned(),
+            ));
+        }
+        if value.eq_ignore_ascii_case("invited") {
+            Ok("invited")
+        } else if value.eq_ignore_ascii_case("active") {
+            Ok("active")
+        } else if value.eq_ignore_ascii_case("suspended") {
+            Ok("suspended")
+        } else {
+            Err(ProjectError::InvalidInput(
+                "status must be invited, active, or suspended.".to_owned(),
+            ))
+        }
+    }
+
+    async fn ensure_project_access(
+        &self,
+        ctx: &ProjectContext,
+        project_id: &str,
+        access_predicate: String,
+    ) -> Result<(), ProjectError> {
+        let project_id = Self::parse_positive_id(project_id, "project_id")?;
+        let tenant_id = project_scoped_tenant_id(ctx)?;
+        let organization_id = project_scoped_organization_id(ctx)?;
+        let user_id = Self::scoped_user_id(ctx)?;
+        let sql = format!(
+            "SELECT 1 FROM {table} p WHERE p.{id} = ? \
+             AND p.{tenant_id_column} = ? \
+             AND p.{organization_id_column} = ? \
+             AND p.{is_deleted} = 0 \
+             AND {access_predicate}",
+            table = col::TABLE,
+            id = col::ID,
+            tenant_id_column = col::TENANT_ID,
+            organization_id_column = col::ORGANIZATION_ID,
+            is_deleted = col::IS_DELETED,
+        );
+        let found = sqlx::query_scalar::<_, i64>(&sql)
+            .bind(project_id)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .bind(user_id)
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|error| ProjectError::Repository(error.to_string()))?;
+
+        if found.is_none() {
+            return Err(ProjectError::NotFound("project not found".to_owned()));
+        }
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
@@ -40,24 +224,33 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         ctx: &ProjectContext,
         id: &str,
     ) -> Result<Option<ProjectPayload>, ProjectError> {
-        let id_num: i64 = id
-            .parse()
-            .map_err(|_| ProjectError::InvalidInput(format!("invalid id: {id}")))?;
+        let id_num = Self::parse_positive_id(id, "project_id")?;
         let tenant_id = project_scoped_tenant_id(ctx)?;
+        let organization_id = project_scoped_organization_id(ctx)?;
+        let user_id = Self::scoped_user_id(ctx)?;
+        let access_predicate = Self::project_read_access_predicate("p");
         let sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} AND {} = ?",
-            col::TABLE,
-            col::ID,
-            IS_NOT_DELETED,
-            col::TENANT_ID,
+            "SELECT p.* FROM {table} p WHERE p.{id} = ? \
+             AND p.{tenant_id_column} = ? \
+             AND p.{organization_id_column} = ? \
+             AND p.{is_deleted} = 0 \
+             AND {access_predicate}",
+            table = col::TABLE,
+            id = col::ID,
+            tenant_id_column = col::TENANT_ID,
+            organization_id_column = col::ORGANIZATION_ID,
+            is_deleted = col::IS_DELETED,
         );
 
         let row = sqlx::query(&sql)
             .bind(id_num)
             .bind(tenant_id)
+            .bind(organization_id)
+            .bind(user_id)
+            .bind(user_id)
             .fetch_optional(&self.pool)
             .await
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
         match row {
             Some(row) => {
@@ -73,51 +266,50 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         &self,
         ctx: &ProjectContext,
         workspace_id: &str,
-        root_path: Option<&str>,
         user_id: Option<&str>,
         offset: usize,
         limit: usize,
     ) -> Result<(Vec<ProjectPayload>, usize), ProjectError> {
-        let wid: i64 = workspace_id.parse().map_err(|_| {
-            ProjectError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
-        })?;
+        let wid = Self::parse_positive_id(workspace_id, "workspace_id")?;
         let tenant_id = project_scoped_tenant_id(ctx)?;
-        let uid = user_id
-            .map(|value| {
-                value.parse::<i64>().map_err(|_| {
-                    ProjectError::InvalidInput(format!("invalid user_id: {value}"))
-                })
-            })
+        let organization_id = project_scoped_organization_id(ctx)?;
+        let authenticated_user_id = Self::scoped_user_id(ctx)?;
+        let requested_user_id = user_id
+            .map(|value| Self::parse_positive_id(value, "user_id"))
             .transpose()?;
 
         // PAGINATION_SPEC.md §2/§5: push `LIMIT`/`OFFSET` and filter
         // predicates down to SQL — never collect-then-slice in process
         // memory. The route strictly validates page/page_size before service
-        // access. `root_path` maps to the `site_path` column (see
-        // `update_project`).
-        let mut sql = format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} AND {} = ?",
-            col::TABLE,
-            col::WORKSPACE_ID,
-            IS_NOT_DELETED,
-            col::TENANT_ID,
+        let access_predicate = Self::project_read_access_predicate("p");
+        let mut where_clause = format!(
+            "p.{workspace_id_column} = ? \
+             AND p.{tenant_id_column} = ? \
+             AND p.{organization_id_column} = ? \
+             AND p.{is_deleted} = 0 \
+             AND {access_predicate}",
+            workspace_id_column = col::WORKSPACE_ID,
+            tenant_id_column = col::TENANT_ID,
+            organization_id_column = col::ORGANIZATION_ID,
+            is_deleted = col::IS_DELETED,
         );
-        if root_path.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::SITE_PATH));
+        if requested_user_id.is_some() {
+            where_clause.push_str(&format!(" AND p.{} = ?", col::USER_ID));
         }
-        if uid.is_some() {
-            sql.push_str(&format!(" AND {} = ?", col::USER_ID));
-        }
-        // Append LIMIT/OFFSET last so bind order stays: workspace_id,
-        // tenant_id, [site_path], [user_id], limit, offset.
-        sql.push_str(" ORDER BY id DESC LIMIT ? OFFSET ?");
+        let sql = format!(
+            "SELECT p.* FROM {table} p WHERE {where_clause} ORDER BY p.{id} DESC LIMIT ? OFFSET ?",
+            table = col::TABLE,
+            id = col::ID,
+        );
 
-        let mut q = sqlx::query(&sql).bind(wid).bind(tenant_id);
-        if let Some(rp) = root_path {
-            q = q.bind(rp);
-        }
-        if let Some(parsed_uid) = uid {
-            q = q.bind(parsed_uid);
+        let mut q = sqlx::query(&sql)
+            .bind(wid)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .bind(authenticated_user_id)
+            .bind(authenticated_user_id);
+        if let Some(requested_user_id) = requested_user_id {
+            q = q.bind(requested_user_id);
         }
         q = q.bind(limit as i64).bind(offset as i64);
 
@@ -139,27 +331,18 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         // predicates (minus the LIMIT/OFFSET). This keeps
         // `pageInfo.totalItems` accurate without materializing the full
         // result set.
-        let mut count_sql = format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} AND {} = ?",
-            col::TABLE,
-            col::WORKSPACE_ID,
-            IS_NOT_DELETED,
-            col::TENANT_ID,
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM {table} p WHERE {where_clause}",
+            table = col::TABLE,
         );
-        if root_path.is_some() {
-            count_sql.push_str(&format!(" AND {} = ?", col::SITE_PATH));
-        }
-        if uid.is_some() {
-            count_sql.push_str(&format!(" AND {} = ?", col::USER_ID));
-        }
         let mut count_q = sqlx::query_scalar::<_, i64>(&count_sql)
             .bind(wid)
-            .bind(tenant_id);
-        if let Some(rp) = root_path {
-            count_q = count_q.bind(rp);
-        }
-        if let Some(parsed_uid) = uid {
-            count_q = count_q.bind(parsed_uid);
+            .bind(tenant_id)
+            .bind(organization_id)
+            .bind(authenticated_user_id)
+            .bind(authenticated_user_id);
+        if let Some(requested_user_id) = requested_user_id {
+            count_q = count_q.bind(requested_user_id);
         }
         let total: i64 = count_q
             .fetch_one(&self.pool)
@@ -168,52 +351,79 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         Ok((items, total.max(0) as usize))
     }
 
+    async fn ensure_workspace_access(
+        &self,
+        ctx: &ProjectContext,
+        workspace_id: &str,
+    ) -> Result<(), ProjectError> {
+        let workspace_id = Self::parse_positive_id(workspace_id, "workspace_id")?;
+        let tenant_id = project_scoped_tenant_id(ctx)?;
+        let organization_id = project_scoped_organization_id(ctx)?;
+        let user_id = Self::scoped_user_id(ctx)?;
+        let access_predicate = Self::workspace_access_predicate("w");
+        let sql = format!(
+            "SELECT 1 FROM {table} w WHERE w.{id} = ? \
+             AND w.{tenant_id_column} = ? \
+             AND w.{organization_id_column} = ? \
+             AND w.{is_deleted} = 0 \
+             AND {access_predicate}",
+            table = workspace_col::TABLE,
+            id = workspace_col::ID,
+            tenant_id_column = workspace_col::TENANT_ID,
+            organization_id_column = workspace_col::ORGANIZATION_ID,
+            is_deleted = workspace_col::IS_DELETED,
+        );
+        let found = sqlx::query_scalar::<_, i64>(&sql)
+            .bind(workspace_id)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .bind(user_id)
+            .bind(user_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|error| ProjectError::Repository(error.to_string()))?;
+
+        if found.is_none() {
+            return Err(ProjectError::NotFound("workspace not found".to_owned()));
+        }
+        Ok(())
+    }
+
+    async fn ensure_project_write_access(
+        &self,
+        ctx: &ProjectContext,
+        project_id: &str,
+    ) -> Result<(), ProjectError> {
+        self.ensure_project_access(ctx, project_id, Self::project_write_access_predicate("p"))
+            .await
+    }
+
+    async fn ensure_project_manage_access(
+        &self,
+        ctx: &ProjectContext,
+        project_id: &str,
+    ) -> Result<(), ProjectError> {
+        self.ensure_project_access(ctx, project_id, Self::project_manage_access_predicate("p"))
+            .await
+    }
+
     async fn create_project(
         &self,
         ctx: &ProjectContext,
         req: &CreateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError> {
+        self.ensure_workspace_access(ctx, &req.workspace_id).await?;
+
         let now = Self::now_iso();
         let uuid = Uuid::new_v4().to_string();
         let tenant_id = project_scoped_tenant_id(ctx)?;
-        let organization_id: i64 = req
-            .organization_id
-            .as_deref()
-            .unwrap_or("0")
-            .parse()
-            .unwrap_or(0);
-        let data_scope: i64 = data_scope_to_i64(req.data_scope.as_deref());
-        let workspace_id: i64 = req.workspace_id.parse().map_err(|_| {
-            ProjectError::InvalidInput(format!("invalid workspace_id: {}", req.workspace_id))
-        })?;
-        let entity_type: i64 = req
-            .entity_type
-            .as_deref()
-            .unwrap_or("0")
-            .parse()
-            .unwrap_or(0);
-        let status: i64 = req
-            .status
-            .as_deref()
-            .unwrap_or("0")
-            .parse()
-            .unwrap_or(0);
-        let parent_metadata = req
-            .parent_metadata
-            .as_ref()
-            .and_then(|v| serde_json::to_string(v).ok());
-        let cover_image = req
-            .cover_image
-            .as_ref()
-            .and_then(|v| serde_json::to_string(v).ok());
-        let parent_id = req.parent_id.as_deref().and_then(|s| s.parse::<i64>().ok());
-        let user_id = req.user_id.as_deref().and_then(|s| s.parse::<i64>().ok());
-        let title = req.title.as_deref().unwrap_or(&req.name);
-        let code = req.code.as_deref().unwrap_or("");
-        let is_template = req.is_template.map(|b| if b { 1i64 } else { 0i64 }).unwrap_or(0);
+        let organization_id = project_scoped_organization_id(ctx)?;
+        let user_id = Self::scoped_user_id(ctx)?;
+        let workspace_id = Self::parse_positive_id(&req.workspace_id, "workspace_id")?;
+        let code = build_project_business_code(uuid.as_str(), req.name.as_str(), None);
 
         let id_row = sqlx::query(&format!(
-            "INSERT INTO {t} (uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope, parent_id, parent_uuid, parent_metadata, user_id, name, title, cover_image, author, code, type, site_path, domain_prefix, description, status, workspace_id, workspace_uuid, is_deleted, is_template) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+            "INSERT INTO {t} (uuid, created_at, updated_at, v, tenant_id, organization_id, data_scope, user_id, name, title, code, type, description, status, workspace_id, is_deleted, is_template) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
             t = col::TABLE,
         ))
         .bind(&uuid)
@@ -222,41 +432,25 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         .bind(0i64)
         .bind(tenant_id)
         .bind(organization_id)
-        .bind(data_scope)
-        .bind(parent_id)
-        .bind(&req.parent_uuid)
-        .bind(&parent_metadata)
+        .bind(1i64)
         .bind(user_id)
         .bind(&req.name)
-        .bind(title)
-        .bind(&cover_image)
-        .bind(&req.author)
+        .bind(&req.name)
         .bind(code)
-        .bind(entity_type)
-        .bind(&req.site_path)
-        .bind(&req.domain_prefix)
-        .bind(&req.description)
-        .bind(status)
-        .bind(workspace_id)
-        .bind(&req.workspace_uuid)
         .bind(0i64)
-        .bind(is_template)
+        .bind(req.description.as_deref())
+        .bind(0i64)
+        .bind(workspace_id)
+        .bind(0i64)
+        .bind(0i64)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
         let id = inserted_row_id(&id_row).map_err(|e| ProjectError::Repository(e.to_string()))?;
-        let row = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ?",
-            col::TABLE,
-            col::ID,
-        ))
-        .bind(id)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        let r = ProjectRow::from_row(&row).map_err(|e| ProjectError::Repository(e.to_string()))?;
-        Ok(row_mapper::project_row_to_payload(&r))
+        self.find_project_by_id(ctx, &id.to_string())
+            .await?
+            .ok_or_else(|| ProjectError::NotFound("project not found".to_owned()))
     }
 
     async fn update_project(
@@ -265,10 +459,11 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         id: &str,
         req: &UpdateProjectRequest,
     ) -> Result<ProjectPayload, ProjectError> {
-        let id_num: i64 = id
-            .parse()
-            .map_err(|_| ProjectError::InvalidInput(format!("invalid id: {id}")))?;
+        let id_num = Self::parse_positive_id(id, "project_id")?;
+        self.ensure_project_write_access(ctx, id).await?;
         let tenant_id = project_scoped_tenant_id(ctx)?;
+        let organization_id = project_scoped_organization_id(ctx)?;
+        let user_id = Self::scoped_user_id(ctx)?;
         let now = Self::now_iso();
 
         let mut builder: QueryBuilder<Any> =
@@ -278,87 +473,26 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             sep.push(format!("{} = ", col::UPDATED_AT));
             sep.push_bind_unseparated(&now);
 
-            macro_rules! add_opt {
-                ($field:expr, $col:expr) => {
-                    if let Some(ref v) = $field {
-                        sep.push(format!("{} = ", $col));
-                        sep.push_bind_unseparated(v.as_str());
+            if let Some(name) = req.name.as_deref() {
+                sep.push(format!("{} = ", col::NAME));
+                sep.push_bind_unseparated(name);
+            }
+            if let Some(description) = req.description.as_deref() {
+                sep.push(format!("{} = ", col::DESCRIPTION));
+                sep.push_bind_unseparated(description);
+            }
+            if let Some(status) = req.status.as_deref() {
+                let status_code = match status.trim().to_ascii_lowercase().as_str() {
+                    "active" => 0i64,
+                    "archived" => 1i64,
+                    _ => {
+                        return Err(ProjectError::InvalidInput(
+                            "status must be active or archived.".to_owned(),
+                        ));
                     }
                 };
-            }
-
-            add_opt!(req.name, col::NAME);
-            add_opt!(req.description, col::DESCRIPTION);
-            add_opt!(req.code, col::CODE);
-            add_opt!(req.title, col::TITLE);
-            add_opt!(req.author, col::AUTHOR);
-            add_opt!(req.site_path, col::SITE_PATH);
-            add_opt!(req.domain_prefix, col::DOMAIN_PREFIX);
-            add_opt!(req.parent_uuid, col::PARENT_UUID);
-            add_opt!(req.root_path, col::SITE_PATH);
-
-            if let Some(ref v) = req.entity_type {
-                if let Ok(n) = v.parse::<i64>() {
-                    sep.push(format!("{} = ", col::TYPE));
-                    sep.push_bind_unseparated(n);
-                }
-            }
-            if let Some(ref v) = req.status {
-                if let Ok(n) = v.parse::<i64>() {
-                    sep.push(format!("{} = ", col::STATUS));
-                    sep.push_bind_unseparated(n);
-                }
-            }
-            if let Some(ref v) = req.data_scope {
-                let n = data_scope_to_i64(Some(v.as_str()));
-                sep.push(format!("{} = ", col::DATA_SCOPE));
-                sep.push_bind_unseparated(n);
-            }
-            if let Some(ref v) = req.user_id {
-                if let Ok(n) = v.parse::<i64>() {
-                    sep.push(format!("{} = ", col::USER_ID));
-                    sep.push_bind_unseparated(n);
-                }
-            }
-            if let Some(ref v) = req.parent_id {
-                if let Ok(n) = v.parse::<i64>() {
-                    sep.push(format!("{} = ", col::PARENT_ID));
-                    sep.push_bind_unseparated(n);
-                }
-            }
-            if let Some(ref v) = req.file_id {
-                if let Ok(n) = v.parse::<i64>() {
-                    sep.push(format!("{} = ", col::FILE_ID));
-                    sep.push_bind_unseparated(n);
-                }
-            }
-            if let Some(ref v) = req.conversation_id {
-                if let Ok(n) = v.parse::<i64>() {
-                    sep.push(format!("{} = ", col::CONVERSATION_ID));
-                    sep.push_bind_unseparated(n);
-                }
-            }
-            if let Some(ref v) = req.budget_amount {
-                if let Ok(n) = v.parse::<i64>() {
-                    sep.push(format!("{} = ", col::BUDGET_AMOUNT));
-                    sep.push_bind_unseparated(n);
-                }
-            }
-            if let Some(v) = req.is_template {
-                sep.push(format!("{} = ", col::IS_TEMPLATE));
-                sep.push_bind_unseparated(if v { 1i64 } else { 0i64 });
-            }
-            if let Some(ref v) = req.cover_image {
-                if let Ok(json) = serde_json::to_string(v) {
-                    sep.push(format!("{} = ", col::COVER_IMAGE));
-                    sep.push_bind_unseparated(json);
-                }
-            }
-            if let Some(ref v) = req.parent_metadata {
-                if let Ok(json) = serde_json::to_string(v) {
-                    sep.push(format!("{} = ", col::PARENT_METADATA));
-                    sep.push_bind_unseparated(json);
-                }
+                sep.push(format!("{} = ", col::STATUS));
+                sep.push_bind_unseparated(status_code);
             }
         }
 
@@ -366,6 +500,12 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         builder.push_bind(id_num);
         builder.push(format!(" AND {} = ", col::TENANT_ID));
         builder.push_bind(tenant_id);
+        builder.push(format!(" AND {} = ", col::ORGANIZATION_ID));
+        builder.push_bind(organization_id);
+        builder.push(format!(" AND {} IS NOT TRUE AND ", col::IS_DELETED));
+        builder.push(Self::project_write_access_predicate(col::TABLE));
+        builder.push_bind(user_id);
+        builder.push_bind(user_id);
 
         let result = builder
             .build()
@@ -373,47 +513,48 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .await
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
         if result.rows_affected() == 0 {
-            return Err(ProjectError::NotFound(format!("project {id} not found")));
+            return Err(ProjectError::NotFound("project not found".to_owned()));
         }
 
-        let row = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ?",
-            col::TABLE,
-            col::ID,
-        ))
-        .bind(id_num)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
-        let r = ProjectRow::from_row(&row).map_err(|e| ProjectError::Repository(e.to_string()))?;
-        Ok(row_mapper::project_row_to_payload(&r))
+        self.find_project_by_id(ctx, id)
+            .await?
+            .ok_or_else(|| ProjectError::NotFound("project not found".to_owned()))
     }
 
     async fn delete_project(&self, ctx: &ProjectContext, id: &str) -> Result<(), ProjectError> {
-        let id_num: i64 = id
-            .parse()
-            .map_err(|_| ProjectError::InvalidInput(format!("invalid id: {id}")))?;
+        let id_num = Self::parse_positive_id(id, "project_id")?;
+        self.ensure_project_write_access(ctx, id).await?;
         let tenant_id = project_scoped_tenant_id(ctx)?;
+        let organization_id = project_scoped_organization_id(ctx)?;
+        let user_id = Self::scoped_user_id(ctx)?;
         let now = Self::now_iso();
+        let access_predicate = Self::project_write_access_predicate(col::TABLE);
         let sql = format!(
-            "UPDATE {} SET {}, {} = ? WHERE {} = ? AND {} = ? AND {}",
-            col::TABLE,
-            SET_SOFT_DELETED,
-            col::UPDATED_AT,
-            col::ID,
-            col::TENANT_ID,
-            IS_NOT_DELETED,
+            "UPDATE {table} SET {soft_deleted}, {updated_at} = ? \
+             WHERE {id} = ? AND {tenant_id_column} = ? \
+             AND {organization_id_column} = ? AND {is_deleted} IS NOT TRUE \
+             AND {access_predicate}",
+            table = col::TABLE,
+            soft_deleted = SET_SOFT_DELETED,
+            updated_at = col::UPDATED_AT,
+            id = col::ID,
+            tenant_id_column = col::TENANT_ID,
+            organization_id_column = col::ORGANIZATION_ID,
+            is_deleted = col::IS_DELETED,
         );
 
         let result = sqlx::query(&sql)
             .bind(&now)
             .bind(id_num)
             .bind(tenant_id)
+            .bind(organization_id)
+            .bind(user_id)
+            .bind(user_id)
             .execute(&self.pool)
             .await
-        .map_err(|e| ProjectError::Repository(e.to_string()))?;
+            .map_err(|e| ProjectError::Repository(e.to_string()))?;
         if result.rows_affected() == 0 {
-            return Err(ProjectError::NotFound(format!("project {id} not found")));
+            return Err(ProjectError::NotFound("project not found".to_owned()));
         }
         Ok(())
     }
@@ -425,23 +566,24 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         offset: usize,
         limit: usize,
     ) -> Result<(Vec<ProjectCollaboratorPayload>, usize), ProjectError> {
-        if self.find_project_by_id(ctx, project_id).await?.is_none() {
-            return Err(ProjectError::NotFound(format!(
-                "project {project_id} not found"
-            )));
-        }
-        let pid: i64 = project_id.parse().map_err(|_| {
-            ProjectError::InvalidInput(format!("invalid project_id: {project_id}"))
-        })?;
+        self.ensure_project_access(ctx, project_id, Self::project_read_access_predicate("p"))
+            .await?;
+        let pid = Self::parse_positive_id(project_id, "project_id")?;
+        let tenant_id = project_scoped_tenant_id(ctx)?;
+        let organization_id = project_scoped_organization_id(ctx)?;
         // PAGINATION_SPEC.md §2/§5: push LIMIT/OFFSET to SQL.
         let rows = sqlx::query(&format!(
-            "SELECT * FROM {} WHERE {} = ? AND {} ORDER BY {} DESC LIMIT ? OFFSET ?",
+            "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE ORDER BY {} DESC LIMIT ? OFFSET ?",
             collab_col::TABLE,
             collab_col::PROJECT_ID,
-            IS_NOT_DELETED,
+            collab_col::TENANT_ID,
+            collab_col::ORGANIZATION_ID,
+            collab_col::IS_DELETED,
             collab_col::ID,
         ))
         .bind(pid)
+        .bind(tenant_id)
+        .bind(organization_id)
         .bind(limit as i64)
         .bind(offset as i64)
         .fetch_all(&self.pool)
@@ -458,12 +600,16 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             .collect::<Result<_, _>>()?;
 
         let total: i64 = sqlx::query_scalar(&format!(
-            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {}",
+            "SELECT COUNT(*) FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
             collab_col::TABLE,
             collab_col::PROJECT_ID,
-            IS_NOT_DELETED,
+            collab_col::TENANT_ID,
+            collab_col::ORGANIZATION_ID,
+            collab_col::IS_DELETED,
         ))
         .bind(pid)
+        .bind(tenant_id)
+        .bind(organization_id)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
@@ -476,62 +622,87 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
         project_id: &str,
         req: &UpsertProjectCollaboratorRequest,
     ) -> Result<ProjectCollaboratorPayload, ProjectError> {
-        if self.find_project_by_id(ctx, project_id).await?.is_none() {
-            return Err(ProjectError::NotFound(format!(
-                "project {project_id} not found"
-            )));
-        }
-        let pid: i64 = project_id.parse().map_err(|_| {
-            ProjectError::InvalidInput(format!("invalid project_id: {project_id}"))
-        })?;
-        let uid: i64 = req
-            .user_id
-            .as_deref()
-            .unwrap_or(&ctx.user_id)
-            .parse()
-            .map_err(|_| ProjectError::InvalidInput("invalid user_id".into()))?;
+        self.ensure_project_manage_access(ctx, project_id).await?;
+        let project = self
+            .find_project_by_id(ctx, project_id)
+            .await?
+            .ok_or_else(|| ProjectError::NotFound("project not found".to_owned()))?;
+        let pid = Self::parse_positive_id(project_id, "project_id")?;
+        let uid = Self::parse_positive_id(&req.user_id, "user_id")?;
         let now = Self::now_iso();
         let uuid = Uuid::new_v4().to_string();
         let tenant_id = project_scoped_tenant_id(ctx)?;
-        let role = req.role.as_deref().unwrap_or("member");
-        let status = req.status.as_deref().unwrap_or("active");
+        let organization_id = project_scoped_organization_id(ctx)?;
+        let actor_user_id = Self::scoped_user_id(ctx)?;
+        let workspace_id = Self::parse_positive_id(&project.workspace_id, "workspace_id")?;
+        let role = Self::normalize_collaborator_role(req.role.as_deref())?;
+        let status = Self::normalize_collaborator_status(req.status.as_deref())?;
 
         let existing: Option<i64> = sqlx::query_scalar(&format!(
-            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {}",
+            "SELECT {} FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
             collab_col::ID,
             collab_col::TABLE,
             collab_col::PROJECT_ID,
+            collab_col::TENANT_ID,
+            collab_col::ORGANIZATION_ID,
             collab_col::USER_ID,
-            IS_NOT_DELETED,
+            collab_col::IS_DELETED,
         ))
         .bind(pid)
+        .bind(tenant_id)
+        .bind(organization_id)
         .bind(uid)
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
 
         if let Some(existing_id) = existing {
-            sqlx::query(&format!(
-                "UPDATE {} SET {} = ?, {} = ?, {} = ? WHERE {} = ?",
+            let result = sqlx::query(&format!(
+                "UPDATE {} SET {} = ?, {} = ?, {} = ?, {} = ? WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
                 collab_col::TABLE,
                 collab_col::ROLE,
                 collab_col::STATUS,
+                collab_col::GRANTED_BY_USER_ID,
                 collab_col::UPDATED_AT,
                 collab_col::ID,
+                collab_col::TENANT_ID,
+                collab_col::ORGANIZATION_ID,
+                collab_col::PROJECT_ID,
+                collab_col::USER_ID,
+                collab_col::IS_DELETED,
             ))
             .bind(role)
             .bind(status)
+            .bind(actor_user_id)
             .bind(&now)
             .bind(existing_id)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .bind(pid)
+            .bind(uid)
             .execute(&self.pool)
             .await
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
+            if result.rows_affected() == 0 {
+                return Err(ProjectError::NotFound(
+                    "project collaborator not found".to_owned(),
+                ));
+            }
             let row = sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ?",
+                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
                 collab_col::TABLE,
                 collab_col::ID,
+                collab_col::TENANT_ID,
+                collab_col::ORGANIZATION_ID,
+                collab_col::PROJECT_ID,
+                collab_col::USER_ID,
+                collab_col::IS_DELETED,
             ))
             .bind(existing_id)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .bind(pid)
+            .bind(uid)
             .fetch_one(&self.pool)
             .await
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
@@ -539,40 +710,23 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
                 .map_err(|e| ProjectError::Repository(e.to_string()))?;
             Ok(row_mapper::project_collaborator_row_to_payload(&r))
         } else {
-            let wid: i64 = req
-                .team_id
-                .as_deref()
-                .unwrap_or("0")
-                .parse()
-                .unwrap_or(0);
-            let team_id = req.team_id.as_deref().and_then(|s| s.parse::<i64>().ok());
-            let created_by = req
-                .created_by_user_id
-                .as_deref()
-                .and_then(|s| s.parse::<i64>().ok());
-            let granted_by = req
-                .granted_by_user_id
-                .as_deref()
-                .and_then(|s| s.parse::<i64>().ok());
-
             let id_row = sqlx::query(&format!(
-                "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, project_id, workspace_id, user_id, team_id, role, created_by_user_id, granted_by_user_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
+                "INSERT INTO {t} (uuid, tenant_id, organization_id, created_at, updated_at, version, is_deleted, project_id, workspace_id, user_id, role, created_by_user_id, granted_by_user_id, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
                 t = collab_col::TABLE,
             ))
             .bind(&uuid)
             .bind(tenant_id)
-            .bind(0i64)
+            .bind(organization_id)
             .bind(&now)
             .bind(&now)
             .bind(0i64)
             .bind(0i64)
             .bind(pid)
-            .bind(wid)
+            .bind(workspace_id)
             .bind(uid)
-            .bind(team_id)
             .bind(role)
-            .bind(created_by)
-            .bind(granted_by)
+            .bind(actor_user_id)
+            .bind(actor_user_id)
             .bind(status)
             .fetch_one(&self.pool)
             .await
@@ -581,11 +735,20 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
             let new_id =
                 inserted_row_id(&id_row).map_err(|e| ProjectError::Repository(e.to_string()))?;
             let row = sqlx::query(&format!(
-                "SELECT * FROM {} WHERE {} = ?",
+                "SELECT * FROM {} WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
                 collab_col::TABLE,
                 collab_col::ID,
+                collab_col::TENANT_ID,
+                collab_col::ORGANIZATION_ID,
+                collab_col::PROJECT_ID,
+                collab_col::USER_ID,
+                collab_col::IS_DELETED,
             ))
             .bind(new_id)
+            .bind(tenant_id)
+            .bind(organization_id)
+            .bind(pid)
+            .bind(uid)
             .fetch_one(&self.pool)
             .await
             .map_err(|e| ProjectError::Repository(e.to_string()))?;
@@ -597,32 +760,41 @@ impl sdkwork_birdcoder_project_service::ports::repository::ProjectRepository
 
     async fn remove_project_collaborator(
         &self,
-        _ctx: &ProjectContext,
+        ctx: &ProjectContext,
         project_id: &str,
         user_id: &str,
     ) -> Result<(), ProjectError> {
-        let pid: i64 = project_id.parse().map_err(|_| {
-            ProjectError::InvalidInput(format!("invalid project_id: {project_id}"))
-        })?;
-        let uid: i64 = user_id
-            .parse()
-            .map_err(|_| ProjectError::InvalidInput(format!("invalid user_id: {user_id}")))?;
+        self.ensure_project_manage_access(ctx, project_id).await?;
+
+        let project_id = Self::parse_positive_id(project_id, "project_id")?;
+        let user_id = Self::parse_positive_id(user_id, "user_id")?;
+        let tenant_id = project_scoped_tenant_id(ctx)?;
+        let organization_id = project_scoped_organization_id(ctx)?;
         let now = Self::now_iso();
-        sqlx::query(&format!(
-            "UPDATE {} SET {}, {} = ? WHERE {} = ? AND {} = ? AND {}",
+        let result = sqlx::query(&format!(
+            "UPDATE {} SET {}, {} = ? WHERE {} = ? AND {} = ? AND {} = ? AND {} = ? AND {} IS NOT TRUE",
             collab_col::TABLE,
             SET_SOFT_DELETED,
             collab_col::UPDATED_AT,
             collab_col::PROJECT_ID,
             collab_col::USER_ID,
-            IS_NOT_DELETED,
+            collab_col::TENANT_ID,
+            collab_col::ORGANIZATION_ID,
+            collab_col::IS_DELETED,
         ))
         .bind(&now)
-        .bind(pid)
-        .bind(uid)
+        .bind(project_id)
+        .bind(user_id)
+        .bind(tenant_id)
+        .bind(organization_id)
         .execute(&self.pool)
         .await
         .map_err(|e| ProjectError::Repository(e.to_string()))?;
+        if result.rows_affected() == 0 {
+            return Err(ProjectError::NotFound(
+                "project collaborator not found".to_owned(),
+            ));
+        }
         Ok(())
     }
 }

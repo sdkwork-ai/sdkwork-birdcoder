@@ -1,7 +1,7 @@
 import {
   DeferredRunConfigurationDialog,
   DeferredRunTaskDialog,
-} from '@sdkwork/birdcoder-pc-ui';
+} from '@sdkwork/birdcoder-pc-ui/components/DeferredRunDialogs';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import type { RunConfigurationRecord } from '@sdkwork/birdcoder-pc-commons';
 import { X } from 'lucide-react';
@@ -16,7 +16,7 @@ export interface CodeDeleteConfirmation {
   projectId?: string;
 }
 
-interface CodePageDialogsProps {
+export interface CodePageDialogsProps {
   isRunConfigVisible: boolean;
   runConfigurationDraft: RunConfigurationRecord;
   onRunConfigurationDraftChange: (draft: RunConfigurationRecord) => void;

@@ -15,9 +15,8 @@ pub fn lookup_standard_native_session_provider_registration(
 pub fn resolved_native_session_provider_registration(
     engine_id: &str,
 ) -> Result<&'static NativeSessionProviderRegistration, String> {
-    lookup_standard_native_session_provider_registration(engine_id).ok_or_else(|| {
-        format_missing_native_session_provider_error(engine_id)
-    })
+    lookup_standard_native_session_provider_registration(engine_id)
+        .ok_or_else(|| format_missing_native_session_provider_error(engine_id))
 }
 
 /// Returns the catalog registration for a built-in provider implementation.
@@ -51,7 +50,9 @@ fn degraded_provider_registration(
 
     match engine_id {
         "codex" => CODEX.get_or_init(|| build_degraded_provider_registration("codex")),
-        "claude-code" => CLAUDE_CODE.get_or_init(|| build_degraded_provider_registration("claude-code")),
+        "claude-code" => {
+            CLAUDE_CODE.get_or_init(|| build_degraded_provider_registration("claude-code"))
+        }
         "gemini" => GEMINI.get_or_init(|| build_degraded_provider_registration("gemini")),
         "opencode" => OPENCODE.get_or_init(|| build_degraded_provider_registration("opencode")),
         _ => {

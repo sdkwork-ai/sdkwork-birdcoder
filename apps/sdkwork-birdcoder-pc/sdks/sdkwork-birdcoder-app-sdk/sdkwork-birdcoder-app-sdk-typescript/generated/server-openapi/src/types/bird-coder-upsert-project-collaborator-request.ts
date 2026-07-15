@@ -1,9 +1,5 @@
 export interface BirdCoderUpsertProjectCollaboratorRequest {
-  userId?: string;
-  email?: string;
-  teamId?: string;
+  userId: string;
   role?: 'owner' | 'admin' | 'member' | 'viewer';
-  status?: 'invited' | 'active' | 'suspended' | 'removed';
-  createdByUserId?: string;
-  grantedByUserId?: string;
+  status?: 'invited' | 'active' | 'suspended';
 }

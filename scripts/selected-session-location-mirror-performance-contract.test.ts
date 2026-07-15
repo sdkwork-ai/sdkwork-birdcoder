@@ -38,7 +38,6 @@ const mirrorProject: BirdCoderProject = {
   createdAt: '2026-04-29T00:00:00.000Z',
   id: projectId,
   name: 'Selected Session Mirror Project',
-  path: 'D:/workspace/selected-session-mirror-project',
   updatedAt: '2026-04-29T00:01:00.000Z',
   workspaceId,
 };
@@ -54,9 +53,6 @@ const projectService: RefreshProjectService = {
   },
   async getProjectById() {
     return unexpectedFullProjectRead('getProjectById');
-  },
-  async getProjectByPath() {
-    return unexpectedFullProjectRead('getProjectByPath');
   },
   async getProjectMirrorSnapshots(requestedWorkspaceId?: string) {
     mirrorSnapshotReads += 1;

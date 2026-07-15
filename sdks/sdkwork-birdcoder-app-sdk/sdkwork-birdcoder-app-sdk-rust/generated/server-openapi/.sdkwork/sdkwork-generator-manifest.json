@@ -40,7 +40,7 @@
     },
     {
       "path": "sdkwork-sdk.json",
-      "sha256": "76a4b54cbb480eeb84e809910f81ca3076e4cd1e8d06ae07e7c970b968c96425"
+      "sha256": "52131b0574c5aea3c31e73a9a980e3e0929522db4be728f5b35f5559aa8b1595"
     },
     {
       "path": "src/api/auth.rs",
@@ -84,7 +84,7 @@
     },
     {
       "path": "src/api/platform.rs",
-      "sha256": "f74ca7d57b9f76e3e329125632f7bacd076ab3ae8d232506fa83e23a304f50d1"
+      "sha256": "3093c071425fdb662c47bb348f4edd7595747567528cdfab363ee1cd1063a2bd"
     },
     {
       "path": "src/api/runtime.rs",
@@ -388,11 +388,11 @@
     },
     {
       "path": "src/models/bird_coder_create_project_git_worktree_request.rs",
-      "sha256": "63850b2b98b575d593ca202bbc33c8c05245e0e911923cfd464ea2a46a21e6c1"
+      "sha256": "28ca320122ca430f360e9f6ff1fb910f87e37f63db0dd29505a7d4ef037f3ae6"
     },
     {
       "path": "src/models/bird_coder_create_project_request.rs",
-      "sha256": "65f01e8b5b5b1c998bfb9bdf7b0f0e044451ec45347a4f00ef2aaaa7cd5d5da4"
+      "sha256": "3de6e0c6225cdaa1f3454b940b3e6ae1a3d3d4338a63657d0b5186d392dfafff"
     },
     {
       "path": "src/models/bird_coder_create_workspace_request.rs",
@@ -464,15 +464,15 @@
     },
     {
       "path": "src/models/bird_coder_git_branch_summary.rs",
-      "sha256": "b0acf169b2cc8bd61482a77f88d7f7bb969a97e59d10c789368f4d014c64479b"
+      "sha256": "b81900fb43f3f8d5c98563f28e0f2162adaa063af1d80e3a479451bb3321f177"
     },
     {
       "path": "src/models/bird_coder_git_status_counts.rs",
-      "sha256": "ff296811ef5fb2813c058ad2bd7fa92443a225b2c72d2c8186ca36d19f7acf72"
+      "sha256": "b384fb9f25b7666f5b6a4c764f76f32cceebd1cd59a9eea383dbbab1599eba8f"
     },
     {
       "path": "src/models/bird_coder_git_worktree_summary.rs",
-      "sha256": "a6504bcb35e806e2df33b34a0a52cb0215df627a10f1371cd8899bc626387bb4"
+      "sha256": "8771363e173beb2805018db116eca667a290b8c25d70533deff2ef9cf10cf643"
     },
     {
       "path": "src/models/bird_coder_iam_create_session_request.rs",
@@ -672,7 +672,7 @@
     },
     {
       "path": "src/models/bird_coder_project_git_overview.rs",
-      "sha256": "d63cdf350d8eb05f0af2fa59b3e9d4b9eac4cf149628c08c31f41a22c5a6d70e"
+      "sha256": "aa1abe0b4c8995759d3b11d3755169e1514abea5fa66fb5d435f12b587fcbdae"
     },
     {
       "path": "src/models/bird_coder_project_publish_result_envelope.rs",
@@ -692,7 +692,7 @@
     },
     {
       "path": "src/models/bird_coder_project_summary.rs",
-      "sha256": "df52e48e06e66ae9cc86caeb37d230a929e7b7e85d4cd5effcfef62b22d759b4"
+      "sha256": "228ecf5dd24870a94392a01f6fc74f16562c4ef06c0ce4c82143a1753d05c0f5"
     },
     {
       "path": "src/models/bird_coder_publish_project_request.rs",
@@ -708,7 +708,7 @@
     },
     {
       "path": "src/models/bird_coder_remove_project_git_worktree_request.rs",
-      "sha256": "be670b78446d6e215a3ee26c49fcd9dee9b6a002cf1e961ec64a0cf2aaab2ea4"
+      "sha256": "d324ffa7f6e6b138e4361dfe9ab824317210ed88b9bffba9b906bc783de481dd"
     },
     {
       "path": "src/models/bird_coder_skill_catalog_entry_summary.rs",
@@ -764,7 +764,7 @@
     },
     {
       "path": "src/models/bird_coder_update_project_request.rs",
-      "sha256": "ca00f7f18e2e4ea12ec7849407f9b2cdeb024586a5b09023c45f3a77f664db97"
+      "sha256": "9266ee4be6f8c5b8d54428db3686566dd0f34a031417a96204844f242341978a"
     },
     {
       "path": "src/models/bird_coder_update_workspace_request.rs",
@@ -772,7 +772,7 @@
     },
     {
       "path": "src/models/bird_coder_upsert_project_collaborator_request.rs",
-      "sha256": "ed14537d408dc2fe5f6eb9212055d0a1809a80a2d62721e3c68cd8bddcef3e18"
+      "sha256": "afa76671899a880fa082e6b7604e6fa08dd88d9845f6648433bbd1eea50d8093"
     },
     {
       "path": "src/models/bird_coder_upsert_workspace_member_request.rs",

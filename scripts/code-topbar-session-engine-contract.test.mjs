@@ -54,7 +54,7 @@ assert.match(
 
 assert.match(
   codePageSurfacePropsSource,
-  /selectedSessionTitle,[\s\S]*selectedSessionEngineId,[\s\S]*selectedSessionModelId,[\s\S]*isSelectedSessionEngineBusy,/s,
+  /isEngineBusyCurrentSession,[\s\S]*selectedEngineId,[\s\S]*selectedModelId,[\s\S]*selectedSessionEngineId,[\s\S]*selectedSessionModelId,[\s\S]*selectedSessionTitle,/s,
   'Code page must pass only the active session title and engine metadata that the top bar renders so message list mutations do not bubble a large session object through the header.',
 );
 
@@ -66,44 +66,38 @@ assert.match(
 
 assert.match(
   codePageSource,
-  /isSelectedSessionEngineBusy,\s*selectedEngineId,\s*selectedModelId,/s,
-  'Code page must pass the preferred engine and model selection separately from scalar session metadata so the top bar can keep session truth for display and preferences truth for new-session flows.',
+  /isEngineBusyCurrentSession:\s*isSelectedSessionEngineBusy,/s,
+  'Code page must pass its selected-session engine-busy state through a scalar top-bar prop so the header does not receive a session object.',
 );
 
 assert.match(
   topBarSource,
-  /projectId\?: string;[\s\S]*projectName\?: string;[\s\S]*projectPath\?: string;[\s\S]*selectedSessionTitle\?: string;[\s\S]*selectedSessionEngineId\?: string;[\s\S]*selectedSessionModelId\?: string;[\s\S]*isSelectedSessionEngineBusy: boolean;/,
-  'Code top bar props must be scalar metadata so the header stays insulated from full project and session object churn.',
-);
-
-assert.match(
-  topBarSource,
-  /const headerEngineSummary = selectedSessionEngineId\?\.trim\(\)\s*\?\s*getWorkbenchCodeEngineSessionSummary\(/s,
-  'Code top bar must resolve its displayed engine summary from strict session-aware metadata when a session exists.',
-);
-
-assert.match(
-  topBarSource,
-  /selectedSessionModelId,\s*preferences,\s*\)\s*:\s*getWorkbenchCodeEngineSessionSummary\(selectedEngineId,\s*selectedModelId,\s*preferences\);/s,
-  'Code top bar must fall back to the preferred engine summary only when there is no selected session.',
-);
-
-assert.match(
-  topBarSource,
-  /getWorkbenchCodeEngineSessionSummary/,
-  'Code top bar must use the strict session summary helper instead of the default-model fallback path.',
+  /projectId\?: string;[\s\S]*projectName\?: string;[\s\S]*isEngineBusyCurrentSession\?: boolean;[\s\S]*selectedSessionEngineId\?: string;[\s\S]*selectedSessionModelId\?: string;[\s\S]*selectedSessionTitle\?: string;/,
+  'Code top bar props must contain only scalar remote project metadata and selected-session state so the header stays insulated from object churn and device-local mount details.',
 );
 
 assert.doesNotMatch(
   topBarSource,
-  /<WorkbenchCodeEngineIcon engineId=\{headerEngine\.id\} \/>/,
-  'Code top bar should not render an engine icon once the engine is shown as a fixed single-line label.',
+  /projectPath\?: string/,
+  'Code top bar must not accept a device-local project path through remote project presentation props.',
 );
 
 assert.match(
   topBarSource,
-  /<span className="truncate whitespace-nowrap font-medium text-gray-200">\s*\{headerEngineSummary\}\s*<\/span>/,
-  'Code top bar should render the session-aware engine summary as a single-line truncated label.',
+  /<WorkbenchNewSessionButton[\s\S]*currentSessionEngineId=\{selectedSessionEngineId\}[\s\S]*currentSessionModelId=\{selectedSessionModelId\}/s,
+  'Code top bar must pass strict session-aware engine and model metadata into the new-session action without retaining a device-local project path.',
+);
+
+assert.match(
+  topBarSource,
+  /isEngineBusyCurrentSession && \(/,
+  'Code top bar must render current-session execution state from the scalar busy flag supplied by the page.',
+);
+
+assert.doesNotMatch(
+  topBarSource,
+  /getWorkbenchCodeEngineSessionSummary|projectPath/,
+  'Code top bar must not retain deprecated engine-summary plumbing or a device-local project path prop.',
 );
 
 assert.doesNotMatch(

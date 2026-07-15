@@ -6,14 +6,18 @@ pub const PROJECTS_PATH: &str = "/app/v3/api/projects";
 pub const PROJECT_DETAIL_PATH: &str = "/app/v3/api/projects/{projectId}";
 pub const PROJECT_GIT_OVERVIEW_PATH: &str = "/app/v3/api/projects/{projectId}/git/overview";
 pub const PROJECT_GIT_BRANCHES_PATH: &str = "/app/v3/api/projects/{projectId}/git/branches";
-pub const PROJECT_GIT_BRANCH_SWITCH_PATH: &str = "/app/v3/api/projects/{projectId}/git/branch_switch";
+pub const PROJECT_GIT_BRANCH_SWITCH_PATH: &str =
+    "/app/v3/api/projects/{projectId}/git/branch_switch";
 pub const PROJECT_GIT_COMMITS_PATH: &str = "/app/v3/api/projects/{projectId}/git/commits";
 pub const PROJECT_GIT_PUSHES_PATH: &str = "/app/v3/api/projects/{projectId}/git/pushes";
 pub const PROJECT_GIT_WORKTREES_PATH: &str = "/app/v3/api/projects/{projectId}/git/worktrees";
-pub const PROJECT_GIT_WORKTREE_REMOVALS_PATH: &str = "/app/v3/api/projects/{projectId}/git/worktree_removals";
-pub const PROJECT_GIT_WORKTREE_PRUNE_PATH: &str = "/app/v3/api/projects/{projectId}/git/worktree_prune";
+pub const PROJECT_GIT_WORKTREE_REMOVALS_PATH: &str =
+    "/app/v3/api/projects/{projectId}/git/worktree_removals";
+pub const PROJECT_GIT_WORKTREE_PRUNE_PATH: &str =
+    "/app/v3/api/projects/{projectId}/git/worktree_prune";
 pub const PROJECT_COLLABORATORS_PATH: &str = "/app/v3/api/projects/{projectId}/collaborators";
 pub const PROJECT_PUBLISH_PATH: &str = "/app/v3/api/projects/{projectId}/publish";
-pub const PROJECT_DEPLOYMENT_TARGETS_PATH: &str = "/app/v3/api/projects/{projectId}/deployment_targets";
+pub const PROJECT_DEPLOYMENT_TARGETS_PATH: &str =
+    "/app/v3/api/projects/{projectId}/deployment_targets";
 pub const DEPLOYMENTS_PATH: &str = "/app/v3/api/deployments";
 pub const TEAMS_PATH: &str = "/app/v3/api/teams";

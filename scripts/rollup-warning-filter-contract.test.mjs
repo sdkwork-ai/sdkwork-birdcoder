@@ -63,6 +63,66 @@ assert.equal(
 
 assert.equal(
   shouldIgnoreBirdcoderRollupWarning({
+    code: 'PLUGIN_TIMINGS',
+    message:
+      'Your build spent significant time in plugins: sdkwork-birdcoder-pc-web-cjs-default-compat',
+  }),
+  true,
+  'BirdCoder may govern Rolldown plugin timing diagnostics; bundle budgets remain the release performance gate.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
+    code: 'INEFFECTIVE_DYNAMIC_IMPORT',
+    message:
+      'sdkwork-birdcoder-pc-auth/src/index.ts is dynamically imported by iamIntegration.ts but also statically imported by BirdCoderAuthGate.tsx',
+  }),
+  true,
+  'BirdCoder may govern the IAM integration eager/dynamic import overlap.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
+    code: 'INEFFECTIVE_DYNAMIC_IMPORT',
+    message:
+      'sdkwork-terminal-pc-infrastructure/src/index.ts is dynamically imported by src/terminal/sessions.ts but also statically imported by sdkwork-terminal-pc-shell/src/model.ts',
+  }),
+  true,
+  'BirdCoder may govern the terminal infrastructure eager/dynamic import overlap.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
+    code: 'INEFFECTIVE_DYNAMIC_IMPORT',
+    message:
+      '@tauri-apps/api/event.js is dynamically imported by tauriFileSystemRuntime.ts but also statically imported by @tauri-apps/api/window.js',
+  }),
+  true,
+  'BirdCoder may govern the Tauri API core eager/dynamic import overlap between native adapters and the Tauri package.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
+    code: 'INEFFECTIVE_DYNAMIC_IMPORT',
+    message:
+      'sdkwork-auth-pc-react/src/index.ts is dynamically imported by sdkwork-terminal-pc-core/src/bootstrap/TerminalAuthRoutes.tsx but also statically imported by sdkwork-birdcoder-pc-auth/src/auth.ts',
+  }),
+  true,
+  'BirdCoder may govern the shared auth route eager/dynamic import overlap across terminal and BirdCoder shells.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
+    code: 'INEFFECTIVE_DYNAMIC_IMPORT',
+    message:
+      'qrcode/lib/browser.js is dynamically imported by src/shims/qrcode.ts but also statically imported by scripts/vite-shims/qrcode-compat.mjs',
+  }),
+  true,
+  'BirdCoder may govern the known qrcode browser compatibility eager/dynamic import overlap.',
+);
+
+assert.equal(
+  shouldIgnoreBirdcoderRollupWarning({
     code: 'CIRCULAR_DEPENDENCY',
     message:
       'Circular dependency: ../../node_modules/.pnpm/smol-toml@1.6.1/node_modules/smol-toml/dist/struct.js -> ../../node_modules/.pnpm/smol-toml@1.6.1/node_modules/smol-toml/dist/extract.js -> ../../node_modules/.pnpm/smol-toml@1.6.1/node_modules/smol-toml/dist/struct.js',

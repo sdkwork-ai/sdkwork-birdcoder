@@ -87,8 +87,6 @@ function areProjectScalarsEqual(
     left.title === right.title &&
     left.name === right.name &&
     left.description === right.description &&
-    left.path === right.path &&
-    left.sitePath === right.sitePath &&
     left.domainPrefix === right.domainPrefix &&
     left.ownerId === right.ownerId &&
     left.leaderId === right.leaderId &&

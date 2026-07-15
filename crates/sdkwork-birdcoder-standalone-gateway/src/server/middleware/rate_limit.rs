@@ -24,15 +24,17 @@ use async_trait::async_trait;
 use axum::extract::{ConnectInfo, Request, State};
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 
+use sdkwork_routes_workspace_app_api::resolve_redis_config;
 use sdkwork_utils_rust::trusted_proxy::{
     extract_client_ip as resolve_trusted_client_ip, TrustedProxyConfig,
 };
 
 use crate::bootstrap::config::BirdServerConfig;
+use crate::routes::problem_response;
 
 pub const DEFAULT_GLOBAL_PER_IP_PER_MIN: u32 = 100;
 pub const DEFAULT_PER_TENANT_PER_MIN: u32 = 1000;
@@ -53,7 +55,7 @@ pub struct RateLimitSubject {
     pub api_key_id: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RateLimitConfig {
     pub enabled: bool,
     pub global_per_ip_per_min: u32,
@@ -63,6 +65,20 @@ pub struct RateLimitConfig {
     /// [`RateLimitState::new`]. Wire a custom [`RateLimitStore`] via
     /// [`RateLimitState::with_store`] to override.
     pub redis_url: Option<String>,
+    pub redis_required: bool,
+}
+
+impl std::fmt::Debug for RateLimitConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RateLimitConfig")
+            .field("enabled", &self.enabled)
+            .field("global_per_ip_per_min", &self.global_per_ip_per_min)
+            .field("per_tenant_per_min", &self.per_tenant_per_min)
+            .field("per_api_key_per_min", &self.per_api_key_per_min)
+            .field("redis_configured", &self.redis_url.is_some())
+            .field("redis_required", &self.redis_required)
+            .finish()
+    }
 }
 
 impl Default for RateLimitConfig {
@@ -73,6 +89,7 @@ impl Default for RateLimitConfig {
             per_tenant_per_min: DEFAULT_PER_TENANT_PER_MIN,
             per_api_key_per_min: DEFAULT_PER_API_KEY_PER_MIN,
             redis_url: None,
+            redis_required: false,
         }
     }
 }
@@ -95,10 +112,20 @@ impl RateLimitConfig {
                 .and_then(|value| value.trim().parse().ok())
                 .unwrap_or(default)
         };
-        let redis_url = std::env::var("BIRDCODER_RATE_LIMIT_REDIS_URL")
+        let explicit_redis_url = std::env::var("BIRDCODER_RATE_LIMIT_REDIS_URL")
             .ok()
             .map(|value| value.trim().to_string())
             .filter(|value| !value.is_empty());
+        let shared_redis_enabled = std::env::var("SDKWORK_BIRDCODER_REDIS_ENABLED")
+            .ok()
+            .is_some_and(|value| value == "1" || value.eq_ignore_ascii_case("true"));
+        let redis_required = explicit_redis_url.is_some() || shared_redis_enabled;
+        let redis_url = explicit_redis_url.or_else(|| {
+            shared_redis_enabled
+                .then(resolve_redis_config)
+                .and_then(Result::ok)
+                .map(|config| config.url)
+        });
 
         Self {
             enabled,
@@ -115,6 +142,7 @@ impl RateLimitConfig {
                 DEFAULT_PER_API_KEY_PER_MIN,
             ),
             redis_url,
+            redis_required,
         }
     }
 
@@ -319,8 +347,8 @@ impl RateLimitStore for RedisRateLimitStore {
         let mut connection = match self.client.get_multiplexed_async_connection().await {
             Ok(connection) => connection,
             Err(error) => {
-                tracing::warn!(error = %error, "Redis rate-limit check failed; allowing request");
-                return (true, limit, limit, reset_in_secs);
+                tracing::error!(error = %error, "Redis rate-limit check failed; rejecting request");
+                return (false, limit, 0, reset_in_secs);
             }
         };
 
@@ -331,8 +359,8 @@ impl RateLimitStore for RedisRateLimitStore {
         {
             Ok(count) => count,
             Err(error) => {
-                tracing::warn!(error = %error, "Redis rate-limit INCR failed; allowing request");
-                return (true, limit, limit, reset_in_secs);
+                tracing::error!(error = %error, "Redis rate-limit INCR failed; rejecting request");
+                return (false, limit, 0, reset_in_secs);
             }
         };
 
@@ -382,28 +410,28 @@ impl std::fmt::Debug for RateLimitState {
 impl RateLimitState {
     /// Builds state from the rate limit config. When `config.redis_url` is set,
     /// [`RedisRateLimitStore`] is used; connection failures fall back to the
-    /// in-memory store with a startup warning.
+    /// closed store so malformed distributed configuration cannot silently
+    /// weaken multi-replica abuse protection.
     pub fn new(config: RateLimitConfig) -> Self {
         let store: Arc<dyn RateLimitStore> = if let Some(redis_url) = config.redis_url.clone() {
             match RedisRateLimitStore::try_new(&redis_url) {
                 Ok(store) => {
-                    tracing::info!(
-                        redis_url = %redis_url,
-                        "BIRDCODER rate limit store using Redis"
-                    );
+                    tracing::info!("BIRDCODER rate limit store using Redis");
                     Arc::new(store)
                 }
                 Err(error) => {
-                    tracing::warn!(
-                        redis_url = %redis_url,
+                    tracing::error!(
                         error = %error,
-                        "BIRDCODER_RATE_LIMIT_REDIS_URL is set but Redis rate-limit store failed to initialize. \
-                         Falling back to InMemoryRateLimitStore; multi-replica deployments will NOT share \
-                         rate-limit counters.",
+                        "Redis rate-limit configuration is invalid; requests will fail closed",
                     );
-                    Arc::new(InMemoryRateLimitStore::new())
+                    Arc::new(UnavailableRateLimitStore)
                 }
             }
+        } else if config.redis_required {
+            tracing::error!(
+                "Redis rate limiting is required but shared Redis configuration is invalid; requests will fail closed"
+            );
+            Arc::new(UnavailableRateLimitStore)
         } else {
             Arc::new(InMemoryRateLimitStore::new())
         };
@@ -422,6 +450,18 @@ impl RateLimitState {
     pub fn from_server_config(config: &BirdServerConfig) -> Self {
         Self::new(RateLimitConfig::from_server_config(config))
     }
+}
+
+#[derive(Debug)]
+struct UnavailableRateLimitStore;
+
+#[async_trait]
+impl RateLimitStore for UnavailableRateLimitStore {
+    async fn check(&self, _dimension: RateLimitDimension<'_>, limit: u32) -> RateLimitDecision {
+        (false, limit, 0, RATE_LIMIT_WINDOW_SECS)
+    }
+
+    async fn evict_expired(&self) {}
 }
 
 /// Returns true for paths that must never be rate limited.
@@ -506,7 +546,7 @@ pub async fn rate_limit_middleware(
         )
         .await;
     if !ip_decision.0 {
-        return too_many_requests(ip_decision.1, ip_decision.2, ip_decision.3);
+        return too_many_requests(&request, ip_decision.1, ip_decision.2, ip_decision.3);
     }
 
     let mut most_restrictive = DimensionDecision {
@@ -525,29 +565,7 @@ pub async fn rate_limit_middleware(
             )
             .await;
         if !decision.0 {
-            return too_many_requests(decision.1, decision.2, decision.3);
-        }
-        if decision.2 < most_restrictive.remaining {
-            most_restrictive = DimensionDecision {
-                limit: decision.1,
-                remaining: decision.2,
-                reset_in_secs: decision.3,
-            };
-        }
-    }
-
-    // Per-tenant dimension: cooperative, applied when an auth middleware has
-    // populated `RateLimitSubject` in extensions.
-    if let Some(subject) = request.extensions().get::<RateLimitSubject>().cloned() {
-        let decision = state
-            .store
-            .check(
-                RateLimitDimension::Tenant(&subject.tenant_id),
-                state.config.per_tenant_per_min,
-            )
-            .await;
-        if !decision.0 {
-            return too_many_requests(decision.1, decision.2, decision.3);
+            return too_many_requests(&request, decision.1, decision.2, decision.3);
         }
         if decision.2 < most_restrictive.remaining {
             most_restrictive = DimensionDecision {
@@ -568,6 +586,39 @@ pub async fn rate_limit_middleware(
     response
 }
 
+/// Enforces the authenticated tenant bucket after API-key authentication.
+pub async fn tenant_rate_limit_middleware(
+    State(state): State<RateLimitState>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if !state.config.enabled || is_rate_limit_excluded(request.uri().path()) {
+        return next.run(request).await;
+    }
+
+    let Some(subject) = request.extensions().get::<RateLimitSubject>().cloned() else {
+        return problem_response(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "service_unavailable",
+            "authenticated rate-limit subject is unavailable",
+            true,
+            &request,
+        );
+    };
+    let decision = state
+        .store
+        .check(
+            RateLimitDimension::Tenant(&subject.tenant_id),
+            state.config.per_tenant_per_min,
+        )
+        .await;
+    if !decision.0 {
+        return too_many_requests(&request, decision.1, decision.2, decision.3);
+    }
+
+    next.run(request).await
+}
+
 fn insert_rate_limit_headers(
     response: &mut Response,
     limit: u32,
@@ -586,9 +637,20 @@ fn insert_rate_limit_headers(
     }
 }
 
-fn too_many_requests(limit: u32, remaining: u32, reset_in_secs: u64) -> Response {
+fn too_many_requests(
+    request: &Request,
+    limit: u32,
+    remaining: u32,
+    reset_in_secs: u64,
+) -> Response {
     let retry_after = reset_in_secs.max(1);
-    let mut response = StatusCode::TOO_MANY_REQUESTS.into_response();
+    let mut response = problem_response(
+        StatusCode::TOO_MANY_REQUESTS,
+        "rate_limited",
+        "request rate limit exceeded",
+        true,
+        request,
+    );
     let headers = response.headers_mut();
     if let Ok(value) = HeaderValue::from_str(&retry_after.to_string()) {
         headers.insert(HEADER_RETRY_AFTER, value);
@@ -618,6 +680,7 @@ mod tests {
             per_tenant_per_min: limit,
             per_api_key_per_min: limit,
             redis_url: None,
+            redis_required: false,
         }
     }
 
@@ -715,6 +778,7 @@ mod tests {
             per_tenant_per_min: DEFAULT_PER_TENANT_PER_MIN,
             per_api_key_per_min: DEFAULT_PER_API_KEY_PER_MIN,
             redis_url: None,
+            redis_required: false,
         };
         assert_eq!(config.global_per_ip_per_min, 100);
         assert_eq!(config.per_tenant_per_min, 1000);
@@ -722,7 +786,8 @@ mod tests {
 
     #[test]
     fn too_many_requests_carries_headers() {
-        let response = too_many_requests(100, 0, 30);
+        let request = HttpRequest::builder().body(Body::empty()).unwrap();
+        let response = too_many_requests(&request, 100, 0, 30);
         assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
         assert_eq!(response.headers().get(HEADER_RETRY_AFTER).unwrap(), "30");
         assert_eq!(

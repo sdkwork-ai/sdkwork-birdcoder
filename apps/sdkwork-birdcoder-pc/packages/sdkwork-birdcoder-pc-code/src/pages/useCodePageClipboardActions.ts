@@ -1,16 +1,11 @@
 import { useCallback } from 'react';
-import type { ToastType } from '@sdkwork/birdcoder-pc-commons';
-import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui';
+import type { ToastType } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
+import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
 
 interface CodePageClipboardProjectLike {
+  id: string;
   name: string;
-  path?: string;
   workspaceId?: string;
-}
-
-interface CodePageClipboardProjectTarget {
-  project: CodePageClipboardProjectLike;
-  projectPath: string;
 }
 
 interface CodePageClipboardSessionLocation {
@@ -21,7 +16,8 @@ interface UseCodePageClipboardActionsOptions {
   addToast: (message: string, type?: ToastType) => void;
   resolveProjectActionTarget: (
     project?: CodePageClipboardProjectLike | null,
-  ) => CodePageClipboardProjectTarget | null;
+  ) => CodePageClipboardProjectLike | null;
+  resolveLocalWorkingDirectory: (projectId: string) => Promise<string | null>;
   resolveProjectById: (projectId: string) => CodePageClipboardProjectLike | null;
   resolveSession: (
     codingSessionId: string,
@@ -33,6 +29,7 @@ interface UseCodePageClipboardActionsOptions {
 export function useCodePageClipboardActions({
   addToast,
   resolveProjectActionTarget,
+  resolveLocalWorkingDirectory,
   resolveProjectById,
   resolveSession,
   t,
@@ -43,14 +40,18 @@ export function useCodePageClipboardActions({
       return;
     }
 
-    const didCopy = await copyTextToClipboard(target.projectPath);
+    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.id);
+    if (!localWorkingDirectory) {
+      addToast('A local desktop folder must be mounted before copying its directory.', 'error');
+      return;
+    }
+
+    const didCopy = await copyTextToClipboard(localWorkingDirectory);
     addToast(
-      didCopy
-        ? `Copied workspace directory: ${target.projectPath}`
-        : 'Unable to copy workspace directory',
+      didCopy ? 'Copied workspace directory' : 'Unable to copy workspace directory',
       didCopy ? 'success' : 'error',
     );
-  }, [addToast, resolveProjectActionTarget, resolveProjectById]);
+  }, [addToast, resolveLocalWorkingDirectory, resolveProjectActionTarget, resolveProjectById]);
 
   const handleCopyProjectPath = useCallback(async (projectId: string) => {
     const target = resolveProjectActionTarget(resolveProjectById(projectId));
@@ -58,12 +59,18 @@ export function useCodePageClipboardActions({
       return;
     }
 
-    const didCopy = await copyTextToClipboard(target.projectPath);
+    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.id);
+    if (!localWorkingDirectory) {
+      addToast('A local desktop folder must be mounted before copying its path.', 'error');
+      return;
+    }
+
+    const didCopy = await copyTextToClipboard(localWorkingDirectory);
     addToast(
-      didCopy ? `Copied path: ${target.projectPath}` : 'Unable to copy project path',
+      didCopy ? 'Copied local path' : 'Unable to copy local path',
       didCopy ? 'success' : 'error',
     );
-  }, [addToast, resolveProjectActionTarget, resolveProjectById]);
+  }, [addToast, resolveLocalWorkingDirectory, resolveProjectActionTarget, resolveProjectById]);
 
   const handleCopySessionWorkingDirectory = useCallback(async (
     codingSessionId: string,
@@ -76,14 +83,18 @@ export function useCodePageClipboardActions({
       return;
     }
 
-    const didCopy = await copyTextToClipboard(target.projectPath);
+    const localWorkingDirectory = await resolveLocalWorkingDirectory(target.id);
+    if (!localWorkingDirectory) {
+      addToast('A local desktop folder must be mounted before copying its directory.', 'error');
+      return;
+    }
+
+    const didCopy = await copyTextToClipboard(localWorkingDirectory);
     addToast(
-      didCopy
-        ? t('code.copiedSessionWorkspaceDir', { path: target.projectPath })
-        : 'Unable to copy session workspace directory',
+      didCopy ? 'Copied session workspace directory' : 'Unable to copy session workspace directory',
       didCopy ? 'success' : 'error',
     );
-  }, [addToast, resolveProjectActionTarget, resolveSession, t]);
+  }, [addToast, resolveLocalWorkingDirectory, resolveProjectActionTarget, resolveSession]);
 
   const handleCopySessionDeeplink = useCallback(async (
     codingSessionId: string,

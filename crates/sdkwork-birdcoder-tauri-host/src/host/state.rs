@@ -310,6 +310,11 @@ pub fn start_embedded_coding_server(app: &AppHandle) -> Result<DesktopRuntimeCon
 
     let database_path = local_database_path(app)?;
     let config = sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdServerConfig {
+        environment: sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdEnvironment::Development,
+        deployment_profile:
+            sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdDeploymentProfile::Standalone,
+        runtime_target:
+            sdkwork_birdcoder_standalone_gateway::bootstrap::config::BirdRuntimeTarget::Desktop,
         host: DEFAULT_EMBEDDED_API_HOST.to_string(),
         port: DEFAULT_EMBEDDED_API_PORT,
         sqlite_file: database_path,

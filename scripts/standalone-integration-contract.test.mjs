@@ -111,6 +111,30 @@ for (const envExamplePath of ['.env.example', 'apps/sdkwork-birdcoder-pc/.env.ex
     /^VITE_SDKWORK_DEPLOYMENT_MODE=(?:local|private|saas)$/mu,
     `${envExamplePath} must not publish local/private/saas as SDKWork deployment profile values.`,
   );
+  assert.doesNotMatch(
+    envExampleSource,
+    /^VITE_SDKWORK_DEPLOYMENT_MODE=/mu,
+    `${envExamplePath} must not publish the retired VITE_SDKWORK_DEPLOYMENT_MODE env var; use VITE_SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE and VITE_SDKWORK_BIRDCODER_RUNTIME_TARGET instead.`,
+  );
+  assert.doesNotMatch(
+    envExampleSource,
+    /^SDKWORK_DEPLOYMENT_MODE=/mu,
+    `${envExamplePath} must not publish the retired SDKWORK_DEPLOYMENT_MODE env var; use SDKWORK_BIRDCODER_DEPLOYMENT_PROFILE and SDKWORK_BIRDCODER_RUNTIME_TARGET instead.`,
+  );
+}
+
+for (const topologyEnvPath of [
+  'configs/topology/cloud.development.env',
+  'configs/topology/standalone.development.env',
+  'configs/topology/cloud.production.env',
+  'configs/topology/standalone.production.env',
+]) {
+  const topologyEnvSource = readText(topologyEnvPath);
+  assert.doesNotMatch(
+    topologyEnvSource,
+    /^SDKWORK_DEPLOYMENT_MODE=/mu,
+    `${topologyEnvPath} must not set the retired SDKWORK_DEPLOYMENT_MODE env var; the standalone gateway rejects it at startup.`,
+  );
 }
 
 {

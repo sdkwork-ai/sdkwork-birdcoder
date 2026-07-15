@@ -12,23 +12,28 @@ packages:
   - "apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-app-sdk/sdkwork-birdcoder-app-sdk-typescript"
   - "apps/sdkwork-birdcoder-pc/sdks/sdkwork-birdcoder-backend-sdk/sdkwork-birdcoder-backend-sdk-typescript"
   - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-contracts"
-  - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry"
   - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-runtime"
-  - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-adapter"
   - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-ports"
+  - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-sdk-adapter"
   - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-service"
+  - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-application-bootstrap"
+  - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react"
+  - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react"
+  - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-iam-react"
   - "../sdkwork-iam/sdks/sdkwork-iam-app-sdk/sdkwork-iam-app-sdk-typescript"
   - "../sdkwork-iam/sdks/sdkwork-iam-backend-sdk/sdkwork-iam-backend-sdk-typescript"
-  - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-runtime-pc-react"
-  - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-auth-pc-react"
-  - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react"
+  - "../sdkwork-iam/sdks/sdkwork-iam-open-sdk/sdkwork-iam-open-sdk-typescript"
+  - "../sdkwork-iam/apps/sdkwork-iam-common/packages/sdkwork-iam-credential-entry"
   - "../sdkwork-appbase/packages/common/foundation/sdkwork-runtime-bootstrap"
   - "../sdkwork-appbase/packages/pc-react/foundation/sdkwork-appbase-pc-react"
   - "../sdkwork-appbase/packages/pc-react/foundation/sdkwork-i18n-pc-react"
-  - "../sdkwork-search/apps/sdkwork-search-common/packages/sdkwork-search-contracts"
-  - "../sdkwork-search/apps/sdkwork-search-pc/packages/sdkwork-search-pc-react"
   - "../sdkwork-core/sdkwork-core-pc-react"
   - "../sdkwork-ui/sdkwork-ui-pc-react"
+  - "../sdkwork-sdk-commons/sdkwork-sdk-common-typescript"
+  - "../sdkwork-utils/packages/sdkwork-utils-typescript"
+  - "../sdkwork-iam/apps/sdkwork-iam-pc/packages/sdkwork-user-pc-react"
+  - "../sdkwork-search/apps/sdkwork-search-common/packages/sdkwork-search-contracts"
+  - "../sdkwork-search/apps/sdkwork-search-pc/packages/sdkwork-search-pc-react"
   - "../sdkwork-terminal/apps/sdkwork-terminal-pc"
   - "../sdkwork-terminal/apps/sdkwork-terminal-pc/packages/sdkwork-terminal-pc-*"
   - "../sdkwork-terminal/apps/sdkwork-terminal-pc/sdks/sdkwork-terminal-local-runtime-app-sdk/sdkwork-terminal-local-runtime-app-sdk-typescript"
@@ -36,92 +41,29 @@ packages:
   - "../sdkwork-messaging/sdks/sdkwork-messaging-app-sdk/sdkwork-messaging-app-sdk-typescript"
   - "../sdkwork-agents/sdks/sdkwork-agents-app-sdk/sdkwork-agents-app-sdk-typescript"
   - "../sdkwork-models/sdks/sdkwork-models-sdk/sdkwork-models-sdk-typescript"
-  - "../sdkwork-sdk-commons/sdkwork-sdk-common-typescript"
-  - "../sdkwork-utils/packages/sdkwork-utils-typescript"
+  - "../sdkwork-sdk-generator"
   - "../sdkwork-app-topology"
-  # --- sdkwork-membership (membership app SDK, service, PC components) ---
   - "../sdkwork-membership/sdks/sdkwork-membership-app-sdk/sdkwork-membership-app-sdk-typescript"
   - "../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-contracts"
   - "../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-sdk-ports"
   - "../sdkwork-membership/apps/sdkwork-membership-common/packages/sdkwork-membership-service"
   - "../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-membership"
   - "../sdkwork-membership/apps/sdkwork-membership-pc/packages/sdkwork-membership-pc-subscription"
-  # --- sdkwork-promotion (promotion PC coupon + service, dependency of membership-pc-subscription) ---
   - "../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-core"
   - "../sdkwork-promotion/apps/sdkwork-promotion-pc/packages/sdkwork-promotion-pc-coupon"
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-contracts"
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-sdk-ports"
   - "../sdkwork-promotion/apps/sdkwork-promotion-common/packages/sdkwork-promotion-service"
-  # --- sdkwork-order (order app SDK, dependency of membership-service) ---
   - "../sdkwork-order/sdks/sdkwork-order-app-sdk/sdkwork-order-app-sdk-typescript"
-  # ===========================================================================
-  # BirdCoder-owned workspace packages (this repository)
-  # ===========================================================================
-  # Shared cross-surface packages at repository root
-  # PC app root packages
-  # H5 app root packages
-  # PC app root SDKs
-
-  # ===========================================================================
-  # SDKWork platform workspace federation (external sibling monorepos)
-  # ===========================================================================
-  # The following entries are EXTERNAL workspace dependencies from sibling
-  # SDKWork platform repositories use a sibling relative-path workspace federation model.
-  # convention because SDKWork follows a workspace-federation model: each
-  # platform capability (IAM, appbase, UI, terminal, drive, messaging, models,
-  # utils, search, core) lives in its own governed monorepo, and application
-  # workspaces (like BirdCoder) consume them via pnpm workspace globs rather
-  # than published npm packages.
-  #
-  # COMPLETE BUILD PREREQUISITE:
-  #   To build this repository end-to-end, clone all required SDKWork platform
-  #   repositories as siblings of this directory:
-  #
-  #     sdkwork-space/
-  #     ├── sdkwork-birdcoder/         <- this repository
-  #     ├── sdkwork-iam/               # IAM runtime, contracts, SDK, auth/user PC
-  #     ├── sdkwork-appbase/           # Application base runtime + i18n for PC React
-  #     ├── sdkwork-core/              # Core PC React runtime
-  #     ├── sdkwork-ui/                # UI component library for PC React
-  #     ├── sdkwork-search/            # Search contracts + PC React foundation
-  #     ├── sdkwork-terminal/          # Terminal PC packages + runtime SDK
-  #     ├── sdkwork-drive/             # Drive app SDK
-  #     ├── sdkwork-messaging/         # Messaging app SDK
-  #     ├── sdkwork-models/            # Models SDK
-  #     ├── sdkwork-sdk-commons/       # Common TypeScript SDK utilities
-  #     └── sdkwork-utils/             # Shared utilities
-  #
-  # PARTIAL / READ-ONLY INSPECTION:
-  #   If you only need to inspect BirdCoder-owned code without building, you
-  #   can comment out the external paths below. TypeScript type resolution
-  #   and pnpm install will then fail for any package that imports
-  #   `@sdkwork/iam-*`, `@sdkwork/appbase-*`, `@sdkwork/ui`, `@sdkwork/core`,
-  #   `@sdkwork/search-*`, `@sdkwork/terminal-*`, `@sdkwork/drive-*`,
-  #   `@sdkwork/messaging-*`, `@sdkwork/models-*`, `@sdkwork/sdk-commons`, or
-  #   `@sdkwork/utils`. Use this mode only for source reading.
-  #
-  # CI handles the full federation automatically by checking out all required
-  # platform repositories before running `pnpm install --frozen-lockfile`.
-  # See `.github/workflows/ci.yml` for the canonical checkout order.
-  # ============================================================================
-
-  # --- sdkwork-iam (IAM runtime, contracts, SDK, auth/user PC packages) ---
-
-  # --- sdkwork-appbase (application base runtime + i18n for PC React) ---
-
-  # --- sdkwork-search (search contracts + PC React foundation) ---
-
-  # --- sdkwork-core, sdkwork-ui (PC React runtime + UI library) ---
-
-  # --- sdkwork-terminal (terminal PC packages + runtime SDK) ---
-
-  # --- sdkwork-drive, sdkwork-messaging, sdkwork-models (app SDKs) ---
-
-  # --- sdkwork-sdk-commons, sdkwork-utils (shared utilities) ---
-
-  # --- sdkwork-app-topology (runtime topology profiles and gateway bundles) ---
+  - "../sdkwork-order/apps/sdkwork-order-pc/packages/sdkwork-order-pc-checkout"
 
 catalog:
+  react: ^19.2.4
+  react-dom: ^19.2.4
+  typescript: ~6.0.2
+  vite: ^8.0.3
+  "@types/react": ^19.2.14
+  "@types/react-dom": ^19.2.3
   "@babel/runtime": ^7.29.2
   "@capacitor/android": ^6.0.0
   "@capacitor/app": ^6.0.0
@@ -130,7 +72,7 @@ catalog:
   "@capacitor/ios": ^6.0.0
   "@capacitor/preferences": ^6.0.0
   "@monaco-editor/react": ^4.7.0
-  '@playwright/test': ^1.52.0
+  "@playwright/test": ^1.52.0
   "@radix-ui/react-avatar": ^1.1.11
   "@radix-ui/react-checkbox": ^1.3.3
   "@radix-ui/react-context-menu": ^2.2.16
@@ -191,8 +133,6 @@ catalog:
   "@types/markdown-it": ^14.1.2
   "@types/node": ^25.9.2
   "@types/qrcode": ^1.5.6
-  "@types/react": ^19.2.14
-  "@types/react-dom": ^19.2.3
   "@ungap/structured-clone": ^1.3.0
   "@vitejs/plugin-react": ^6.0.1
   "@xterm/addon-canvas": ^0.7.0
@@ -205,10 +145,10 @@ catalog:
   "@xterm/addon-web-links": ^0.12.0
   "@xterm/addon-webgl": ^0.19.0
   "@xterm/xterm": ^6.0.0
-  '@anthropic-ai/claude-agent-sdk': ^0.2.87
-  '@google/gemini-cli-sdk': 0.39.0-nightly.20260408.e77b22e63
-  '@openai/codex-sdk': 0.0.0-dev
-  '@opencode-ai/sdk': ^1.4.1
+  "@anthropic-ai/claude-agent-sdk": ^0.2.87
+  "@google/gemini-cli-sdk": 0.39.0-nightly.20260408.e77b22e63
+  "@openai/codex-sdk": 0.0.0-dev
+  "@opencode-ai/sdk": ^1.4.1
   autoprefixer: ^10.4.21
   bail: ^2.0.2
   ccount: ^2.0.1
@@ -265,8 +205,6 @@ catalog:
   postcss: ^8.5.8
   property-information: ^7.1.0
   qrcode: ^1.5.4
-  react: ^19.2.4
-  react-dom: ^19.2.4
   react-hook-form: ^7.72.1
   react-i18next: ^17.0.7
   react-markdown: ^10.1.0
@@ -288,7 +226,6 @@ catalog:
   trough: ^2.2.0
   tsup: ^8.5.0
   tsx: ^4.21.0
-  typescript: ~6.0.2
   unified: ^11.0.5
   unist-util-is: ^6.0.1
   unist-util-position: ^5.0.0
@@ -298,7 +235,6 @@ catalog:
   use-sync-external-store: ^1.6.0
   vfile: ^6.0.3
   vfile-message: ^4.0.3
-  vite: ^8.0.3
   vite-plugin-dts: ^4.5.4
   vitest: ^4.1.8
   yaml: ^2.4.2

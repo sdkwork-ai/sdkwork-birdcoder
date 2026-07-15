@@ -39,6 +39,32 @@ interface ReleaseManifestShape {
   codingServerOpenApiEvidence?: ReleaseManifestCodingServerOpenApiEvidence;
 }
 
+interface DeploymentOpenApiSidecar {
+  artifactRelativePath: string;
+  manifestRelativePath: string;
+  openApiRelativePath: string;
+}
+
+interface DeploymentReleaseAssetManifest {
+  artifacts?: Array<{
+    relativePath?: string;
+    size?: number;
+  }>;
+}
+
+const DEPLOYMENT_OPENAPI_SIDECARS: readonly DeploymentOpenApiSidecar[] = [
+  {
+    artifactRelativePath: 'server/windows/x64/openapi/coding-server-v1.json',
+    manifestRelativePath: 'deployments/server-windows/x64/release-asset-manifest.json',
+    openApiRelativePath: 'deployments/server-windows/x64/openapi/coding-server-v1.json',
+  },
+  {
+    artifactRelativePath: 'server/win32/x64/openapi/coding-server-v1.json',
+    manifestRelativePath: 'deployments/server-win32/x64/release-asset-manifest.json',
+    openApiRelativePath: 'deployments/server-win32/x64/openapi/coding-server-v1.json',
+  },
+];
+
 function resolveSnapshotFileName(): string {
   return path.posix.basename(BIRDCODER_CODING_SERVER_OPENAPI_PATH) || 'coding-server-v1.json';
 }
@@ -52,16 +78,50 @@ function normalizeRelativeReleasePath(value: string | undefined): string | null 
   return normalizedValue.length > 0 ? normalizedValue : null;
 }
 
-function syncDeploymentOpenApiMirrors(rootDir: string, serializedDocument: string): void {
-  const mirrorPaths = [
-    'deployments/server-windows/x64/openapi/coding-server-v1.json',
-    'deployments/server-win32/x64/openapi/coding-server-v1.json',
-  ];
+function refreshDeploymentOpenApiSidecarManifest(
+  rootDir: string,
+  sidecar: DeploymentOpenApiSidecar,
+): void {
+  const manifestPath = path.join(rootDir, sidecar.manifestRelativePath);
+  if (!fs.existsSync(manifestPath)) {
+    return;
+  }
 
-  for (const relativePath of mirrorPaths) {
-    const absolutePath = path.join(rootDir, relativePath);
+  const manifestSource = fs.readFileSync(manifestPath, 'utf8').replace(/^\uFEFF/u, '');
+  const manifest = JSON.parse(manifestSource) as DeploymentReleaseAssetManifest;
+  if (!Array.isArray(manifest.artifacts)) {
+    throw new Error(`Deployment release manifest is missing artifacts: ${manifestPath}`);
+  }
+
+  const expectedArtifactPath = normalizeRelativeReleasePath(sidecar.artifactRelativePath);
+  if (!expectedArtifactPath) {
+    throw new Error(`Deployment OpenAPI sidecar has no artifact path: ${sidecar.openApiRelativePath}`);
+  }
+  const matchingArtifacts = manifest.artifacts.filter(
+    (artifact) => normalizeRelativeReleasePath(artifact.relativePath) === expectedArtifactPath,
+  );
+  if (matchingArtifacts.length !== 1) {
+    throw new Error(
+      `Deployment release manifest must contain one OpenAPI sidecar artifact: ${manifestPath}`,
+    );
+  }
+
+  const [openApiArtifact] = matchingArtifacts;
+  if (!openApiArtifact) {
+    throw new Error(`Deployment release manifest OpenAPI sidecar is unavailable: ${manifestPath}`);
+  }
+
+  const openApiPath = path.join(rootDir, sidecar.openApiRelativePath);
+  openApiArtifact.size = fs.statSync(openApiPath).size;
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+}
+
+function syncDeploymentOpenApiMirrors(rootDir: string, serializedDocument: string): void {
+  for (const sidecar of DEPLOYMENT_OPENAPI_SIDECARS) {
+    const absolutePath = path.join(rootDir, sidecar.openApiRelativePath);
     fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
     fs.writeFileSync(absolutePath, serializedDocument, 'utf8');
+    refreshDeploymentOpenApiSidecarManifest(rootDir, sidecar);
   }
 }
 

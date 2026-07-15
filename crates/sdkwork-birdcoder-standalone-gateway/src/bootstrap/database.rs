@@ -5,6 +5,7 @@ use sdkwork_database_sqlx::{create_pool_from_config, DatabasePool};
 use sqlx::SqlitePool;
 
 use crate::bootstrap::config::BirdServerConfig;
+use crate::bootstrap::legacy_sqlite::upgrade_legacy_sqlite_schema;
 
 pub fn resolve_birdcoder_database_config(config: &BirdServerConfig) -> DatabaseConfig {
     let url = config.resolved_database_url();
@@ -31,14 +32,15 @@ pub async fn bootstrap_database(
     let db_config = resolve_birdcoder_database_config(config);
     let pool = create_pool_from_config(db_config.clone()).await?;
 
-    sdkwork_birdcoder_database_host::bootstrap_birdcoder_database(pool.clone())
-        .await
-        .map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
-
     if db_config.engine == DatabaseEngine::Sqlite {
         let sqlite = require_sqlite_pool(&pool)?;
         apply_sqlite_pragmas(&sqlite).await?;
+        upgrade_legacy_sqlite_schema(&sqlite).await?;
     }
+
+    sdkwork_birdcoder_database_host::bootstrap_birdcoder_database(pool.clone())
+        .await
+        .map_err(|error| -> Box<dyn std::error::Error> { error.into() })?;
 
     tracing::info!("sdkwork-database pool ready for BIRDCODER");
     Ok(Arc::new(pool))

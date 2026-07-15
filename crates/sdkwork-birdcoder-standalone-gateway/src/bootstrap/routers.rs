@@ -26,24 +26,16 @@ use crate::routes::api_keys::build_api_keys_router;
 use crate::routes::notifications::build_notifications_router;
 use crate::routes::usage::build_usage_router;
 use crate::routes::{commerce_auth_middleware, CommerceAppState};
-use crate::server::middleware::rate_limit::{rate_limit_middleware, RateLimitState};
+use crate::server::middleware::rate_limit::{
+    rate_limit_middleware, tenant_rate_limit_middleware, RateLimitState,
+};
 
-fn resolve_http_metrics_dimensions() -> HttpMetricsDimensions {
+fn resolve_http_metrics_dimensions(config: &BirdServerConfig) -> HttpMetricsDimensions {
     let mut dimensions = HttpMetricsDimensions::default()
         .with_service("sdkwork-birdcoder-standalone-gateway")
-        .with_deployment_profile(
-            std::env::var("SDKWORK_DEPLOYMENT_PROFILE").unwrap_or_else(|_| "standalone".into()),
-        )
-        .with_runtime_target(
-            std::env::var("SDKWORK_RUNTIME_TARGET").unwrap_or_else(|_| "server".into()),
-        );
-
-    if let Ok(environment) = std::env::var("SDKWORK_ENVIRONMENT") {
-        let normalized = environment.trim();
-        if !normalized.is_empty() {
-            dimensions.environment = normalized.to_owned();
-        }
-    }
+        .with_deployment_profile(config.deployment_profile.as_str())
+        .with_runtime_target(config.runtime_target.as_str());
+    dimensions.environment = config.environment.as_str().to_owned();
 
     dimensions
 }
@@ -71,12 +63,17 @@ fn build_commerce_router(state: &AppState, config: &BirdServerConfig) -> Router 
         .merge(build_usage_router())
         .merge(build_notifications_router())
         .with_state(commerce_state.clone())
-        // Inner layer: validate the API key and inject CommercePrincipal.
+        // Tenant quota runs after authentication has inserted RateLimitSubject.
+        .layer(middleware::from_fn_with_state(
+            rate_limit_state.clone(),
+            tenant_rate_limit_middleware,
+        ))
+        // Validate the API key and inject CommercePrincipal.
         .layer(middleware::from_fn_with_state(
             commerce_state,
             commerce_auth_middleware,
         ))
-        // Outermost layer: enforce per-IP / per-API-key / per-tenant rate limits.
+        // IP and API-key buckets run before authentication to protect the key lookup.
         .layer(middleware::from_fn_with_state(
             rate_limit_state,
             rate_limit_middleware,
@@ -87,7 +84,7 @@ pub async fn build_router(
     state: AppState,
     config: &BirdServerConfig,
 ) -> Result<Router, Box<dyn std::error::Error>> {
-    let metrics = HttpMetricsRegistry::with_dimensions(resolve_http_metrics_dimensions());
+    let metrics = HttpMetricsRegistry::with_dimensions(resolve_http_metrics_dimensions(config));
     let business_metrics = BusinessMetricsRegistry::new();
     let product_routes = birdcoder_product_app_api_routes();
     let system_router = sdkwork_routes_system_app_api::build_system_app_router().with_state(
@@ -112,8 +109,13 @@ pub async fn build_router(
         });
 
     let engine_catalog_router =
-        sdkwork_routes_engine_catalog_app_api::build_engine_catalog_app_router()
-            .with_state(EngineCatalogAppState::default());
+        sdkwork_routes_engine_catalog_app_api::build_engine_catalog_app_router().with_state(
+            EngineCatalogAppState {
+                coding_session_service: Some(Arc::new(state.services.coding_session.clone())),
+                project_service: Some(Arc::new(state.services.project.clone())),
+                ..EngineCatalogAppState::default()
+            },
+        );
 
     let document_router = sdkwork_routes_document_app_api::build_document_app_router()
         .with_state(DocumentAppState::new(state.repositories.any_pool.clone()));

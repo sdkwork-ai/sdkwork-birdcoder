@@ -31,6 +31,18 @@
       "import": "./src/contexts/*.ts",
       "types": "./src/contexts/*.ts"
     },
+    "./utils/*": {
+      "import": "./src/utils/*.ts",
+      "types": "./src/utils/*.ts"
+    },
+    "./events/*": {
+      "import": "./src/events/*.ts",
+      "types": "./src/events/*.ts"
+    },
+    "./workbench/*": {
+      "import": "./src/workbench/*.ts",
+      "types": "./src/workbench/*.ts"
+    },
     "./theme/*": {
       "import": "./src/theme/*.ts",
       "types": "./src/theme/*.ts"

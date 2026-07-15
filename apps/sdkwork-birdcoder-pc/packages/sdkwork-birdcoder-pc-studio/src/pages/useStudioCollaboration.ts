@@ -9,7 +9,7 @@ type CollaborationServiceLike = {
   upsertProjectCollaborator(
     projectId: string,
     request: {
-      email: string;
+      userId: string;
       role: 'member';
       status: 'invited';
     },
@@ -37,7 +37,7 @@ export function useStudioCollaboration({
   messages,
 }: UseStudioCollaborationOptions) {
   const [showShareModal, setShowShareModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteUserId, setInviteUserId] = useState('');
   const [projectCollaborators, setProjectCollaborators] = useState<
     BirdCoderProjectCollaboratorSummary[]
   >([]);
@@ -78,29 +78,29 @@ export function useStudioCollaboration({
 
   useEffect(() => {
     if (!showShareModal) {
-      setInviteEmail('');
+      setInviteUserId('');
     }
   }, [showShareModal]);
 
   const handleInviteCollaborator = useCallback(async () => {
     const normalizedProjectId = currentProjectId.trim();
-    const email = inviteEmail.trim();
+    const userId = inviteUserId.trim();
     if (!normalizedProjectId) {
       addToast(messages.noProjectSelected, 'error');
       return;
     }
-    if (!email || isInvitePending) {
+    if (!userId || isInvitePending) {
       return;
     }
 
     setIsInvitePending(true);
     try {
       await collaborationService.upsertProjectCollaborator(normalizedProjectId, {
-        email,
+        userId,
         role: 'member',
         status: 'invited',
       });
-      setInviteEmail('');
+      setInviteUserId('');
       addToast(messages.invitationSent, 'success');
       await loadProjectCollaborators();
     } catch (error) {
@@ -118,7 +118,7 @@ export function useStudioCollaboration({
     addToast,
     collaborationService,
     currentProjectId,
-    inviteEmail,
+    inviteUserId,
     isInvitePending,
     loadProjectCollaborators,
     messages.failedToInvite,
@@ -128,11 +128,11 @@ export function useStudioCollaboration({
 
   return {
     handleInviteCollaborator,
-    inviteEmail,
+    inviteUserId,
     isCollaboratorsLoading,
     isInvitePending,
     projectCollaborators,
-    setInviteEmail,
+    setInviteUserId,
     setShowShareModal,
     showShareModal,
   } as const;

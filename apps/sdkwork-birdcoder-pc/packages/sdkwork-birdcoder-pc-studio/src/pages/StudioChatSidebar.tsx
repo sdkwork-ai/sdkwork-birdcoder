@@ -6,7 +6,7 @@ import {
 } from '@sdkwork/birdcoder-pc-commons';
 import { getWorkbenchCodeEngineSessionSummary } from '@sdkwork/birdcoder-pc-codeengine';
 import {
-  UniversalChat,
+  DeferredUniversalChat,
   WorkbenchNewSessionButton,
   type UniversalChatComposerSelection,
 } from '@sdkwork/birdcoder-pc-ui';
@@ -917,7 +917,7 @@ export const StudioChatSidebar = memo(function StudioChatSidebar({
         </div>
 
         <div className="flex-1 min-h-0">
-          <UniversalChat
+          <DeferredUniversalChat
             sessionId={selectedCodingSessionId || undefined}
             sessionScopeKey={transcriptSessionScopeKey}
             messages={messages}

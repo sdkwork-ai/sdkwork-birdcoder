@@ -1,108 +1,87 @@
-import type { LocalFolderMountSource } from '@sdkwork/birdcoder-pc-types';
+import type { ProjectDeviceMountState } from '@sdkwork/birdcoder-pc-types';
 
-export type ProjectMountRecoveryStatus = 'idle' | 'recovering' | 'recovered' | 'failed';
+export type ProjectMountRecoveryStatus =
+  | 'idle'
+  | 'recovering'
+  | 'recovered'
+  | 'permission_required'
+  | 'mount_required'
+  | 'session_required'
+  | 'failed';
 
 export interface ProjectMountRecoveryState {
+  displayName: string | null;
   status: ProjectMountRecoveryStatus;
-  path: string | null;
   message: string | null;
 }
 
 const UNKNOWN_PROJECT_MOUNT_RECOVERY_ERROR_MESSAGE =
   'Unable to remount the local project folder. Re-import the folder to restore file access.';
 
-function isWindowsDrivePath(projectPath: string): boolean {
-  return /^[a-zA-Z]:[\\/]/.test(projectPath);
-}
-
-function isWindowsUncPath(projectPath: string): boolean {
-  return /^\\\\[^\\]+\\[^\\]+/.test(projectPath);
-}
-
-function isPosixNativePath(projectPath: string): boolean {
-  if (!projectPath.startsWith('/')) {
-    return false;
-  }
-
-  const segments = projectPath.split('/').filter(Boolean);
-  return segments.length >= 2;
-}
-
-function resolveProjectMountRecoveryErrorMessage(error: unknown): string {
-  if (typeof error === 'string' && error.trim()) {
-    return error.trim();
-  }
-
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    'message' in error &&
-    typeof error.message === 'string' &&
-    error.message.trim()
-  ) {
-    return error.message.trim();
-  }
-
-  return UNKNOWN_PROJECT_MOUNT_RECOVERY_ERROR_MESSAGE;
-}
-
 export function createIdleProjectMountRecoveryState(): ProjectMountRecoveryState {
   return {
+    displayName: null,
     status: 'idle',
-    path: null,
     message: null,
   };
 }
 
 export function createRecoveringProjectMountRecoveryState(
-  projectPath: string,
+  displayName: string | null,
 ): ProjectMountRecoveryState {
   return {
+    displayName,
     status: 'recovering',
-    path: projectPath,
     message: null,
   };
 }
 
 export function createRecoveredProjectMountRecoveryState(
-  projectPath: string,
+  displayName: string | null,
 ): ProjectMountRecoveryState {
   return {
+    displayName,
     status: 'recovered',
-    path: projectPath,
     message: null,
   };
 }
 
 export function createFailedProjectMountRecoveryState(
-  projectPath: string,
-  error: unknown,
+  displayName: string | null,
 ): ProjectMountRecoveryState {
   return {
+    displayName,
     status: 'failed',
-    path: projectPath,
-    message: resolveProjectMountRecoveryErrorMessage(error),
+    message: UNKNOWN_PROJECT_MOUNT_RECOVERY_ERROR_MESSAGE,
   };
 }
 
-export function resolveProjectMountRecoverySource(
-  projectPath?: string,
-): LocalFolderMountSource | null {
-  const normalizedProjectPath = projectPath?.trim();
-  if (!normalizedProjectPath) {
-    return null;
+export function createProjectMountRecoveryStateFromDeviceMount(
+  mount: ProjectDeviceMountState,
+): ProjectMountRecoveryState {
+  switch (mount.status) {
+    case 'mounted':
+    case 'recoverable':
+      return createRecoveredProjectMountRecoveryState(mount.displayName);
+    case 'permission_required':
+      return {
+        displayName: mount.displayName,
+        status: 'permission_required',
+        message: 'Folder permission is required. Select the folder again to continue.',
+      };
+    case 'session_required':
+      return {
+        displayName: mount.displayName,
+        status: 'session_required',
+        message: 'Sign in again before accessing the local project folder.',
+      };
+    case 'mount_required':
+      return {
+        displayName: mount.displayName,
+        status: 'mount_required',
+        message: 'Select a local folder to access project files on this device.',
+      };
+    default:
+      return createFailedProjectMountRecoveryState(mount.displayName);
   }
-
-  if (
-    isWindowsDrivePath(normalizedProjectPath) ||
-    isWindowsUncPath(normalizedProjectPath) ||
-    isPosixNativePath(normalizedProjectPath)
-  ) {
-    return {
-      type: 'tauri',
-      path: normalizedProjectPath,
-    };
-  }
-
-  return null;
 }

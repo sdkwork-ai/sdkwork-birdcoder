@@ -60,6 +60,8 @@ type CurrentUserAuthorityHost = typeof globalThis & {
 };
 
 let listenerInitialized = false;
+let runtimeInstanceSequence = 0;
+const runtimeInstanceKeys = new WeakMap<IamRuntime, string>();
 
 (globalThis as CurrentUserAuthorityHost)
   .__SDKWORK_BIRDCODER_CURRENT_USER_RETRIEVE_DELEGATE__ = retrieveBirdCoderCurrentUser;
@@ -322,11 +324,22 @@ function isCurrentRequest(
 }
 
 function createAuthorityKey(runtime: IamRuntime, sessionKey: string): string {
+  const runtimeConfig = runtime.config;
+  if (!runtimeConfig) {
+    let runtimeInstanceKey = runtimeInstanceKeys.get(runtime);
+    if (!runtimeInstanceKey) {
+      runtimeInstanceSequence += 1;
+      runtimeInstanceKey = `runtime-${runtimeInstanceSequence}`;
+      runtimeInstanceKeys.set(runtime, runtimeInstanceKey);
+    }
+    return `${runtimeInstanceKey}${KEY_SEPARATOR}${sessionKey}`;
+  }
+
   return [
-    runtime.config.appId,
-    runtime.config.environment,
-    runtime.config.deploymentMode,
-    (runtime.config.appApiBaseUrl ?? '').trim().replace(/\/+$/u, '').toLowerCase(),
+    runtimeConfig.appId,
+    runtimeConfig.environment,
+    runtimeConfig.deploymentMode,
+    (runtimeConfig.appApiBaseUrl ?? '').trim().replace(/\/+$/u, '').toLowerCase(),
     sessionKey,
   ].join(KEY_SEPARATOR);
 }

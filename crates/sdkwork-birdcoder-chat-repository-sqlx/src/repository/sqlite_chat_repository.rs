@@ -32,7 +32,9 @@ impl SqliteChatRepository {
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
     }
 
-    fn map_conversation_row(row: &sqlx::any::AnyRow) -> Result<ChatConversationPayload, sqlx::Error> {
+    fn map_conversation_row(
+        row: &sqlx::any::AnyRow,
+    ) -> Result<ChatConversationPayload, sqlx::Error> {
         Ok(ChatConversationPayload {
             id: row.try_get("id")?,
             title: row.try_get("title")?,

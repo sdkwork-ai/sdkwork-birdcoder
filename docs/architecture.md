@@ -1,18 +1,22 @@
 # Architecture
 
-Status: active canon pointer  
-Updated: 2026-07-04
+Status: active Canon pointer
+Updated: 2026-07-14
 
-This file is the repository-level architecture entrypoint required by SDKWork structure checks. Detailed architecture lives in the canon shards below.
+The current architecture authority is the
+[technical architecture Canon](architecture/tech/TECH_ARCHITECTURE.md). It
+defines the Browser/Tauri renderer boundary, remote Project versus
+device-private Project Mount, server workspace isolation, and deployment truth.
 
-## Authoritative documents
+Supporting current documents:
 
-| Topic | Path |
-| --- | --- |
-| Technical architecture index | [architecture/tech/TECH_ARCHITECTURE.md](architecture/tech/TECH_ARCHITECTURE.md) |
-| Commercial readiness snapshot | [architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md](architecture/tech/TECH-2026-06-24-commercial-readiness-alignment.md) |
-| Installation, deployment, release | [architecture/tech/TECH-09-installation-deployment-releasestandard.md](architecture/tech/TECH-09-installation-deployment-releasestandard.md) |
-| Performance and security | [architecture/tech/TECH-08-performance-security-standard.md](architecture/tech/TECH-08-performance-security-standard.md) |
-| Documentation index | [README.md](README.md) |
+- [Architecture decisions](architecture/decisions/)
+- [Runtime topology](architecture/topology-standard.md)
+- [Deployment operations](guides/operator/deployment-operations.md)
+- [Windows Server control plane](guides/operator/windows-server-control-plane.md)
 
-Do not duplicate spec bodies here. Follow `sdkwork-specs/DOCUMENTATION_SPEC.md` and update shard documents when architecture truth changes.
+Historical route, release, and migration material is not current architecture
+authority. Do not add parallel architecture shards here.
+
+Authority: `../sdkwork-specs/DOCUMENTATION_SPEC.md` and
+`../sdkwork-specs/ARCHITECTURE_DECISION_SPEC.md`.

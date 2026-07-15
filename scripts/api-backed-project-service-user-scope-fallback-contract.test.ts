@@ -16,7 +16,6 @@ function createLocalProject(
     workspaceId: 'workspace-1',
     name,
     description: `${name} local fallback fixture.`,
-    path: `D:\\repos\\${id}`,
     userId,
     ownerId: userId,
     createdByUserId: userId,
@@ -63,15 +62,6 @@ const writeService = {
       return structuredClone(userAProject);
     }
     if (projectId === userBProject.id) {
-      return structuredClone(userBProject);
-    }
-    return null;
-  },
-  async getProjectByPath(_workspaceId: string, projectPath: string): Promise<BirdCoderProject | null> {
-    if (projectPath === userAProject.path) {
-      return structuredClone(userAProject);
-    }
-    if (projectPath === userBProject.path) {
       return structuredClone(userBProject);
     }
     return null;
@@ -156,12 +146,6 @@ try {
     null,
     'project detail transient fallback must not return another user local project from a stale selected id.',
   );
-  assert.equal(
-    await service.getProjectByPath('workspace-1', userAProject.path),
-    null,
-    'project path transient fallback must not return another user local project from a stale path.',
-  );
-
   const userBDetail = await service.getProjectById('project-user-b');
   assert.equal(
     userBDetail?.id,

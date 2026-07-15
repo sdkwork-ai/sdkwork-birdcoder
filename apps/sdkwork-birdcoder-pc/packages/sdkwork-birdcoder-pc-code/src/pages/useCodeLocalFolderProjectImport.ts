@@ -1,17 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  importLocalFolderProject,
-  openLocalFolder,
-  resolveEffectiveWorkspaceId,
-  resolveLocalFolderImportWorkspaceId as resolveSharedLocalFolderImportWorkspaceId,
-  useWorkspaces,
-} from '@sdkwork/birdcoder-pc-commons';
+import { importLocalFolderProject } from '@sdkwork/birdcoder-pc-commons/workbench/localFolderProjectImport';
+import { LocalFolderPickerUnsupportedError, openLocalFolder } from '@sdkwork/birdcoder-pc-commons/utils/fileSystem';
+import { resolveEffectiveWorkspaceId } from '@sdkwork/birdcoder-pc-commons/workbench/workspaceBootstrap';
+import { resolveLocalFolderImportWorkspaceId as resolveSharedLocalFolderImportWorkspaceId } from '@sdkwork/birdcoder-pc-commons/workbench/localFolderProjectWorkspace';
+import { useWorkspaces } from '@sdkwork/birdcoder-pc-commons/hooks/useWorkspaces';
 import type { BirdCoderProject, LocalFolderMountSource } from '@sdkwork/birdcoder-pc-types';
 
 type CreateProjectOptions = {
   appTemplateVersionId?: string;
   description?: string;
-  path?: string;
   templatePresetKey?: string;
 };
 
@@ -21,8 +18,6 @@ type ProjectServiceForLocalFolderImport = {
     name: string,
     options?: CreateProjectOptions,
   ): Promise<BirdCoderProject>;
-  getProjectByPath(workspaceId: string, path: string): Promise<BirdCoderProject | null>;
-  updateProject(projectId: string, updates: Partial<BirdCoderProject>): Promise<void>;
 };
 
 type WorkspaceIdentity = {
@@ -134,17 +129,18 @@ export function useCodeLocalFolderProjectImport({
   createWorkspace,
   effectiveWorkspaceId,
   mountFolder,
+  onLocalFolderPickerUnsupported,
   projectService,
   refreshWorkspaces,
-  updateProject,
 }: {
   createProject: (name: string, options?: CreateProjectOptions) => Promise<BirdCoderProject>;
   createWorkspace: (name: string, description?: string) => Promise<WorkspaceIdentity>;
   effectiveWorkspaceId: string;
   mountFolder: (projectId: string, folderInfo: LocalFolderMountSource) => Promise<void> | void;
+  onLocalFolderPickerUnsupported?: (message: string) => void;
   projectService: ProjectServiceForLocalFolderImport;
   refreshWorkspaces: () => Promise<Array<{ id: string }>>;
-  updateProject: (projectId: string, updates: Partial<BirdCoderProject>) => Promise<void> | void;
+  updateProject?: (projectId: string, updates: Partial<BirdCoderProject>) => Promise<void> | void;
 }) {
   const resolveLocalFolderImportWorkspaceId = useCallback(
     () =>
@@ -157,10 +153,20 @@ export function useCodeLocalFolderProjectImport({
   );
 
   const selectFolderAndImportProject = useCallback(async (fallbackProjectName: string) => {
-    const folderInfo = await openLocalFolder();
-    if (!folderInfo) {
+    const pickerResult = await openLocalFolder();
+    if (pickerResult.status === 'cancelled') {
       return null;
     }
+    if (pickerResult.status === 'unsupported') {
+      if (onLocalFolderPickerUnsupported) {
+        onLocalFolderPickerUnsupported(pickerResult.message);
+        return null;
+      }
+
+      throw new LocalFolderPickerUnsupportedError(pickerResult);
+    }
+
+    const folderInfo = pickerResult.source;
 
     const targetWorkspaceId = await resolveLocalFolderImportWorkspaceId();
     const createProjectForTargetWorkspace = (name: string, options?: CreateProjectOptions) => {
@@ -170,28 +176,12 @@ export function useCodeLocalFolderProjectImport({
 
       return projectService.createProject(targetWorkspaceId, name, options);
     };
-    const updateProjectForTargetWorkspace = (
-      projectId: string,
-      updates: Partial<BirdCoderProject>,
-    ) => {
-      if (targetWorkspaceId === effectiveWorkspaceId) {
-        return updateProject(projectId, updates);
-      }
-
-      return projectService.updateProject(projectId, updates);
-    };
-
     const importedProject = await importLocalFolderProject({
       createProject: createProjectForTargetWorkspace,
       fallbackProjectName,
       folderInfo,
-      getProjectByPath: (projectPath) =>
-        projectService.getProjectByPath(targetWorkspaceId, projectPath),
       mountFolder: async (projectId, nextFolderInfo) => {
         await mountFolder(projectId, nextFolderInfo);
-      },
-      updateProject: async (projectId, updates) => {
-        await updateProjectForTargetWorkspace(projectId, updates);
       },
     });
 
@@ -203,9 +193,9 @@ export function useCodeLocalFolderProjectImport({
     createProject,
     effectiveWorkspaceId,
     mountFolder,
+    onLocalFolderPickerUnsupported,
     projectService,
     resolveLocalFolderImportWorkspaceId,
-    updateProject,
   ]);
 
   return {

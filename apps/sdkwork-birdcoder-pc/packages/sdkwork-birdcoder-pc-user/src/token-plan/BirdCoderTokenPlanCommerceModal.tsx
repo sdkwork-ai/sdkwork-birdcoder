@@ -89,7 +89,7 @@ function BirdCoderTokenPlanCommerceModal({
       {isOpen ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <button
-            aria-label={t('close', '关闭')}
+            aria-label={t('user.tokenPlan.commerce.close')}
             className="token-plan-overlay absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
             type="button"
@@ -129,12 +129,12 @@ function BirdCoderTokenPlanCommerceModal({
 
               <div className="flex items-center gap-2 rounded-2xl border border-zinc-800/70 bg-zinc-900/70 px-4 py-3 text-sm text-zinc-300">
                 <Sparkles aria-hidden="true" className="h-4 w-4 shrink-0 text-sky-400" />
-                <span>{t('token_plan_console_wallet_hint', '点击下方按钮将直接完成操作。')}</span>
+                <span>{t('user.tokenPlan.commerce.walletHint')}</span>
               </div>
 
               <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <Button onClick={onClose} type="button" variant="ghost">
-                  {t('cancel', '取消')}
+                  {t('user.tokenPlan.commerce.cancel')}
                 </Button>
                 <Button onClick={handleContinue} type="button" variant="secondary">
                   {t(copy.ctaKey, copy.ctaDefault)}

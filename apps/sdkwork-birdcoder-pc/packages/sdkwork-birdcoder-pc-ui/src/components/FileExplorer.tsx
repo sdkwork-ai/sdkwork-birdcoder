@@ -1,7 +1,13 @@
 import React, { useState, useMemo, useEffect, useCallback, useDeferredValue, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronRight, ChevronDown, File, Folder, Search, X, Plus, FilePlus, FolderPlus, Trash2, FileJson, FileCode2, FileImage, FileText, FileType2, ListCollapse, Copy, Terminal, ExternalLink, FileEdit, Loader2 } from 'lucide-react';
-import { emitOpenTerminalRequest, globalEventBus, useToast } from '@sdkwork/birdcoder-pc-commons';
+import {
+  emitCopyProjectLocalPath,
+  emitOpenProjectTerminal,
+  emitRevealProjectInFileManager,
+  globalEventBus,
+  useToast,
+} from '@sdkwork/birdcoder-pc-commons';
 import { copyTextToClipboard } from './clipboard';
 import {
   buildVisibleFileExplorerRows,
@@ -24,12 +30,13 @@ export interface FileNode {
   children?: FileNode[];
 }
 
-interface FileExplorerProps {
+export interface FileExplorerProps {
   files: FileNode[];
   isActive?: boolean;
   width?: number;
   loadingDirectoryPaths?: Record<string, boolean>;
   onExpandDirectory?: (path: string) => void | Promise<void>;
+  projectId?: string;
   scopeKey?: string;
   onSelectFile: (path: string) => void;
   selectedFile?: string;
@@ -38,7 +45,6 @@ interface FileExplorerProps {
   onDeleteFile?: (path: string) => void;
   onDeleteFolder?: (path: string) => void;
   onRenameNode?: (oldPath: string, newPath: string) => void | Promise<void>;
-  basePath?: string;
 }
 
 type FileExplorerRenameDraft = {
@@ -307,36 +313,8 @@ function createFileExplorerSearchTask({
   };
 }
 
-function trimTrailingPathSeparators(path: string): string {
-  const trimmedPath = path.trim();
-  if (!trimmedPath) {
-    return '';
-  }
-
-  if (/^[a-zA-Z]:[\\/]?$/.test(trimmedPath)) {
-    return `${trimmedPath[0].toUpperCase()}:`;
-  }
-
-  return trimmedPath.replace(/[\\/]+$/, '');
-}
-
 function normalizeRelativeNodePath(path: string): string {
   return path.trim().replace(/^[/\\]+/, '').replace(/[\\/]+/g, '/');
-}
-
-function resolveAbsoluteExplorerPath(basePath: string | undefined, nodePath: string): string | null {
-  const normalizedBasePath = trimTrailingPathSeparators(basePath ?? '');
-  if (!normalizedBasePath) {
-    return null;
-  }
-
-  const normalizedNodePath = normalizeRelativeNodePath(nodePath);
-  if (!normalizedNodePath) {
-    return normalizedBasePath;
-  }
-
-  const separator = normalizedBasePath.includes('\\') ? '\\' : '/';
-  return `${normalizedBasePath}${separator}${normalizedNodePath.split('/').join(separator)}`;
 }
 
 function resolveRelativeParentPath(path: string): string {
@@ -347,6 +325,16 @@ function resolveRelativeParentPath(path: string): string {
   }
 
   return normalizedPath.slice(0, lastSeparatorIndex);
+}
+
+function resolveMountedDirectoryPath(node: FileNode): string {
+  if (node.type === 'directory') {
+    return node.path;
+  }
+
+  const normalizedPath = node.path.trim().replace(/\\/gu, '/').replace(/\/+/gu, '/');
+  const lastSeparatorIndex = normalizedPath.lastIndexOf('/');
+  return lastSeparatorIndex > 0 ? normalizedPath.slice(0, lastSeparatorIndex) : normalizedPath;
 }
 
 function resolveFileExplorerChildrenForParent(
@@ -704,6 +692,7 @@ export const FileExplorer = React.memo(function FileExplorer({
   width = 256,
   loadingDirectoryPaths = {},
   onExpandDirectory,
+  projectId = '',
   scopeKey = '',
   onSelectFile,
   selectedFile,
@@ -712,7 +701,6 @@ export const FileExplorer = React.memo(function FileExplorer({
   onDeleteFile,
   onDeleteFolder,
   onRenameNode,
-  basePath = '',
 }: FileExplorerProps) {
   const { t } = useTranslation();
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
@@ -738,13 +726,18 @@ export const FileExplorer = React.memo(function FileExplorer({
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const mutationGenerationRef = useRef(0);
 
-  const resolveProjectBasePath = () => resolveAbsoluteExplorerPath(basePath, '');
-  const resolveNodeAbsolutePath = (nodePath: string) => resolveAbsoluteExplorerPath(basePath, nodePath);
-  const resolveNodeDirectoryPath = (node: FileNode) =>
-    node.type === 'directory'
-      ? resolveNodeAbsolutePath(node.path)
-      : resolveAbsoluteExplorerPath(basePath, resolveRelativeParentPath(node.path));
-  const notifyMissingProjectPath = () => addToast(t('code.projectFolderUnavailable'), 'error');
+  const resolveProjectMountTarget = (mountedPath?: string) => {
+    const normalizedProjectId = projectId.trim();
+    if (!normalizedProjectId) {
+      return null;
+    }
+
+    return {
+      projectId: normalizedProjectId,
+      ...(mountedPath?.trim() ? { mountedPath: mountedPath.trim() } : {}),
+    };
+  };
+  const notifyUnavailableLocalFolder = () => addToast(t('code.projectFolderUnavailable'), 'error');
   const rootCreationParentPath = useMemo(() => resolveRootCreationParentPath(files), [files]);
   const singleRootDirectoryPath = useMemo(() => resolveSingleRootDirectoryPath(files), [files]);
   const startCreatingRootNode = useCallback((type: 'file' | 'directory') => {
@@ -1520,17 +1513,12 @@ export const FileExplorer = React.memo(function FileExplorer({
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
-              const projectBasePath = resolveProjectBasePath();
-              if (!projectBasePath) {
-                notifyMissingProjectPath();
+              const target = resolveProjectMountTarget();
+              if (!target || !emitOpenProjectTerminal(target)) {
+                notifyUnavailableLocalFolder();
                 setRootContextMenu(null);
                 return;
               }
-              emitOpenTerminalRequest({
-                surface: 'workspace',
-                path: projectBasePath,
-                timestamp: Date.now(),
-              });
               setRootContextMenu(null);
             }}
           >
@@ -1540,13 +1528,12 @@ export const FileExplorer = React.memo(function FileExplorer({
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
-              const projectBasePath = resolveProjectBasePath();
-              if (!projectBasePath) {
-                notifyMissingProjectPath();
+              const target = resolveProjectMountTarget();
+              if (!target || !emitRevealProjectInFileManager(target)) {
+                notifyUnavailableLocalFolder();
                 setRootContextMenu(null);
                 return;
               }
-              globalEventBus.emit('revealInExplorer', projectBasePath);
               setRootContextMenu(null);
             }}
           >
@@ -1612,19 +1599,12 @@ export const FileExplorer = React.memo(function FileExplorer({
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
-              const fullPath = resolveNodeAbsolutePath(contextMenu.node.path);
-              if (!fullPath) {
-                notifyMissingProjectPath();
+              const target = resolveProjectMountTarget(contextMenu.node.path);
+              if (!target || !emitCopyProjectLocalPath(target)) {
+                notifyUnavailableLocalFolder();
                 setContextMenu(null);
                 return;
               }
-              void copyTextToClipboard(fullPath).then((didCopy) => {
-                if (!didCopy) {
-                  addToast('Unable to copy full path', 'error');
-                  return;
-                }
-                addToast('Copied full path', 'success');
-              });
               setContextMenu(null);
             }}
           >
@@ -1656,17 +1636,12 @@ export const FileExplorer = React.memo(function FileExplorer({
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
-              const targetPath = resolveNodeDirectoryPath(contextMenu.node);
-              if (!targetPath) {
-                notifyMissingProjectPath();
+              const target = resolveProjectMountTarget(resolveMountedDirectoryPath(contextMenu.node));
+              if (!target || !emitOpenProjectTerminal(target)) {
+                notifyUnavailableLocalFolder();
                 setContextMenu(null);
                 return;
               }
-              emitOpenTerminalRequest({
-                surface: 'workspace',
-                path: targetPath,
-                timestamp: Date.now(),
-              });
               setContextMenu(null);
             }}
           >
@@ -1676,13 +1651,12 @@ export const FileExplorer = React.memo(function FileExplorer({
           <div 
             className="px-4 py-1.5 hover:bg-white/10 hover:text-white cursor-pointer transition-colors flex items-center gap-2"
             onClick={() => {
-              const targetPath = resolveNodeDirectoryPath(contextMenu.node);
-              if (!targetPath) {
-                notifyMissingProjectPath();
+              const target = resolveProjectMountTarget(contextMenu.node.path);
+              if (!target || !emitRevealProjectInFileManager(target)) {
+                notifyUnavailableLocalFolder();
                 setContextMenu(null);
                 return;
               }
-              globalEventBus.emit('revealInExplorer', targetPath);
               setContextMenu(null);
             }}
           >

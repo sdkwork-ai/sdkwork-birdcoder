@@ -6,15 +6,19 @@ use crate::db::columns::workspace_member as member_col;
 use crate::db::rows::{WorkspaceMemberRow, WorkspaceRow};
 use crate::mapper::row_mapper;
 use crate::repository::scope;
+use sdkwork_birdcoder_errors::{require_scoped_tenant_id, require_scoped_user_id};
+use sdkwork_birdcoder_sqlx_repository_pool::dialect::{
+    inserted_row_id, IS_NOT_DELETED, SET_SOFT_DELETED,
+};
 use sdkwork_birdcoder_workspace_service::context::WorkspaceContext;
 use sdkwork_birdcoder_workspace_service::domain::commands::{
     CreateWorkspaceRequest, UpdateWorkspaceRequest, UpsertWorkspaceMemberRequest,
 };
 use sdkwork_birdcoder_workspace_service::domain::models::WorkspaceScopedQuery;
-use sdkwork_birdcoder_workspace_service::domain::results::{WorkspaceMemberPayload, WorkspacePayload};
+use sdkwork_birdcoder_workspace_service::domain::results::{
+    WorkspaceMemberPayload, WorkspacePayload,
+};
 use sdkwork_birdcoder_workspace_service::error::WorkspaceError;
-use sdkwork_birdcoder_errors::{require_scoped_tenant_id, require_scoped_user_id};
-use sdkwork_birdcoder_sqlx_repository_pool::dialect::{inserted_row_id, IS_NOT_DELETED, SET_SOFT_DELETED};
 
 #[derive(Clone)]
 pub struct SqliteWorkspaceRepository {
@@ -33,15 +37,13 @@ impl SqliteWorkspaceRepository {
     }
 
     fn scoped_tenant_id(ctx: &WorkspaceContext) -> Result<i64, WorkspaceError> {
-        require_scoped_tenant_id(&ctx.tenant_id).map_err(|_| {
-            WorkspaceError::Forbidden("A valid tenant scope is required.".to_owned())
-        })
+        require_scoped_tenant_id(&ctx.tenant_id)
+            .map_err(|_| WorkspaceError::Forbidden("A valid tenant scope is required.".to_owned()))
     }
 
     fn scoped_user_id(ctx: &WorkspaceContext) -> Result<i64, WorkspaceError> {
-        require_scoped_user_id(&ctx.user_id).map_err(|_| {
-            WorkspaceError::Forbidden("A valid user scope is required.".to_owned())
-        })
+        require_scoped_user_id(&ctx.user_id)
+            .map_err(|_| WorkspaceError::Forbidden("A valid user scope is required.".to_owned()))
     }
 
     fn workspace_access_predicate(table_alias: Option<&str>) -> String {
@@ -92,7 +94,7 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             .bind(tenant_id)
             .fetch_optional(&self.pool)
             .await
-        .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
 
         match row {
             Some(row) => {
@@ -203,9 +205,9 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         let uuid = Uuid::new_v4().to_string();
         let tenant_id = Self::scoped_tenant_id(ctx)?;
         let owner_id = if let Some(ref value) = req.owner_id {
-            value.parse::<i64>().map_err(|_| {
-                WorkspaceError::InvalidInput("invalid owner_id".to_owned())
-            })?
+            value
+                .parse::<i64>()
+                .map_err(|_| WorkspaceError::InvalidInput("invalid owner_id".to_owned()))?
         } else {
             Self::scoped_user_id(ctx)?
         };
@@ -226,7 +228,10 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             .as_deref()
             .and_then(|s| s.parse::<i64>().ok());
         let is_public = req.is_public.map(|b| if b { 1i64 } else { 0 }).unwrap_or(0);
-        let is_template = req.is_template.map(|b| if b { 1i64 } else { 0 }).unwrap_or(0);
+        let is_template = req
+            .is_template
+            .map(|b| if b { 1i64 } else { 0 })
+            .unwrap_or(0);
 
         let id_row = sqlx::query(&format!(
             "INSERT INTO {t} (uuid, tenant_id, organization_id, data_scope, created_at, updated_at, version, is_deleted, name, code, title, description, owner_id, leader_id, created_by_user_id, icon, color, type, start_time, end_time, max_members, settings_json, is_public, is_template, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
@@ -271,8 +276,8 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         .fetch_one(&self.pool)
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let r = WorkspaceRow::from_row(&row)
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let r =
+            WorkspaceRow::from_row(&row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         Ok(row_mapper::workspace_row_to_payload(&r))
     }
 
@@ -372,7 +377,9 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             .await
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         if result.rows_affected() == 0 {
-            return Err(WorkspaceError::NotFound(format!("workspace {id} not found")));
+            return Err(WorkspaceError::NotFound(format!(
+                "workspace {id} not found"
+            )));
         }
 
         let row = sqlx::query(&format!(
@@ -384,8 +391,8 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
         .fetch_one(&self.pool)
         .await
         .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
-        let r = WorkspaceRow::from_row(&row)
-            .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
+        let r =
+            WorkspaceRow::from_row(&row).map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         Ok(row_mapper::workspace_row_to_payload(&r))
     }
 
@@ -418,7 +425,9 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             .await
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         if result.rows_affected() == 0 {
-            return Err(WorkspaceError::NotFound(format!("workspace {id} not found")));
+            return Err(WorkspaceError::NotFound(format!(
+                "workspace {id} not found"
+            )));
         }
         Ok(())
     }
@@ -623,7 +632,9 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
     ) -> Result<(), WorkspaceError> {
         let workspace_id = workspace_id.trim();
         if workspace_id.is_empty() {
-            return Err(WorkspaceError::NotFound("Workspace was not found.".to_owned()));
+            return Err(WorkspaceError::NotFound(
+                "Workspace was not found.".to_owned(),
+            ));
         }
         let id_num: i64 = workspace_id.parse().map_err(|_| {
             WorkspaceError::InvalidInput(format!("invalid workspace_id: {workspace_id}"))
@@ -647,7 +658,9 @@ impl sdkwork_birdcoder_workspace_service::ports::repository::WorkspaceRepository
             .await
             .map_err(|e| WorkspaceError::Repository(e.to_string()))?;
         if row.is_none() {
-            return Err(WorkspaceError::NotFound("Workspace was not found.".to_owned()));
+            return Err(WorkspaceError::NotFound(
+                "Workspace was not found.".to_owned(),
+            ));
         }
         Ok(())
     }

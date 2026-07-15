@@ -3,6 +3,7 @@ import {
   type BirdcoderAppSdkClient,
   type BirdCoderCreateCodingSessionRequest as GeneratedBirdCoderCreateCodingSessionRequest,
   type BirdCoderCreateCodingSessionTurnRequest as GeneratedBirdCoderCreateCodingSessionTurnRequest,
+  type BirdCoderCreateProjectGitWorktreeRequest as GeneratedBirdCoderCreateProjectGitWorktreeRequest,
   type BirdCoderCreateProjectRequest as GeneratedBirdCoderCreateProjectRequest,
   type BirdCoderCreateWorkspaceRequest as GeneratedBirdCoderCreateWorkspaceRequest,
   type BirdCoderForkCodingSessionRequest as GeneratedBirdCoderForkCodingSessionRequest,
@@ -10,6 +11,8 @@ import {
   type BirdCoderUpdateCodingSessionRequest as GeneratedBirdCoderUpdateCodingSessionRequest,
   type BirdCoderUpdateProjectRequest as GeneratedBirdCoderUpdateProjectRequest,
   type BirdCoderUpdateWorkspaceRequest as GeneratedBirdCoderUpdateWorkspaceRequest,
+  type BirdCoderRemoveProjectGitWorktreeRequest as GeneratedBirdCoderRemoveProjectGitWorktreeRequest,
+  type BirdCoderUpsertProjectCollaboratorRequest as GeneratedBirdCoderUpsertProjectCollaboratorRequest,
   type CollaborationWorkspaceTeamsListQuery,
   type ContentDocumentsListQuery,
   type IntelligenceCodingSessionsListQuery,
@@ -110,7 +113,7 @@ import type {
   BirdCoderWorkspaceMemberSummary,
   BirdCoderWorkspaceSummary,
 } from '@sdkwork/birdcoder-pc-types';
-import { BIRDCODER_DATA_SCOPES } from '@sdkwork/birdcoder-pc-types';
+import { BIRDCODER_DATA_SCOPES } from '@sdkwork/birdcoder-pc-types/dataScopes';
 import { clearStoredAppSessionToken } from './appSessionToken.ts';
 import {
   buildBirdCoderProtectedLoginBrowserUrl,
@@ -129,9 +132,7 @@ export interface BirdCoderWorkspaceScopedListRequest {
   offset?: number;
 }
 
-export interface BirdCoderProjectListRequest extends BirdCoderWorkspaceScopedListRequest {
-  rootPath?: string;
-}
+export type BirdCoderProjectListRequest = BirdCoderWorkspaceScopedListRequest;
 
 export interface BirdCoderProjectPageRequest {
   page: number;
@@ -564,18 +565,52 @@ function toGeneratedUpdateWorkspaceRequest(
 function toGeneratedCreateProjectRequest(
   request: BirdCoderCreateProjectRequest,
 ): GeneratedBirdCoderCreateProjectRequest {
+  const { description, name, workspaceId } = request;
   return {
-    ...request,
-    dataScope: toGeneratedDataScope(request.dataScope),
+    ...(description === undefined ? {} : { description }),
+    name,
+    workspaceId,
   };
 }
 
 function toGeneratedUpdateProjectRequest(
   request: BirdCoderUpdateProjectRequest,
 ): GeneratedBirdCoderUpdateProjectRequest {
+  const { description, name, status } = request;
   return {
-    ...request,
-    dataScope: toGeneratedDataScope(request.dataScope),
+    ...(description === undefined ? {} : { description }),
+    ...(name === undefined ? {} : { name }),
+    ...(status === undefined ? {} : { status }),
+  };
+}
+
+function toGeneratedCreateProjectGitWorktreeRequest(
+  request: BirdCoderCreateProjectGitWorktreeRequest,
+): GeneratedBirdCoderCreateProjectGitWorktreeRequest {
+  return { branchName: request.branchName };
+}
+
+function toGeneratedRemoveProjectGitWorktreeRequest(
+  request: BirdCoderRemoveProjectGitWorktreeRequest,
+): GeneratedBirdCoderRemoveProjectGitWorktreeRequest {
+  return {
+    ...(request.force === undefined ? {} : { force: request.force }),
+    worktreeKey: request.worktreeKey,
+  };
+}
+
+function toGeneratedUpsertProjectCollaboratorRequest(
+  request: BirdCoderUpsertProjectCollaboratorRequest,
+): GeneratedBirdCoderUpsertProjectCollaboratorRequest {
+  const userId = request.userId.trim();
+  if (!userId) {
+    throw new Error('Project collaborator userId must not be blank.');
+  }
+
+  return {
+    ...(request.role === undefined ? {} : { role: request.role }),
+    ...(request.status === undefined ? {} : { status: request.status }),
+    userId,
   };
 }
 
@@ -597,7 +632,6 @@ function toGeneratedProjectQuery(
   // The server resolves the authenticated user from the IAM context; the
   // client must not supply `userId` as a query parameter.
   return {
-    ...(scoped.rootPath ? { rootPath: scoped.rootPath } : {}),
     ...(scoped.workspaceId ? { workspaceId: scoped.workspaceId } : {}),
     ...toGeneratedPageQuery(scoped),
   };
@@ -1169,7 +1203,12 @@ export function createBirdCoderAppSdkApiClient({
       return readData(await client.platform.projects.git.branches.create({ projectId }, request));
     },
     async createProjectGitWorktree(projectId, request) {
-      return readData(await client.platform.projects.git.worktrees.create({ projectId }, request));
+      return readData(
+        await client.platform.projects.git.worktrees.create(
+          { projectId },
+          toGeneratedCreateProjectGitWorktreeRequest(request),
+        ),
+      );
     },
     async switchProjectGitBranch(projectId, request) {
       return readData(await client.platform.projects.git.branchSwitch.create({ projectId }, request));
@@ -1181,7 +1220,12 @@ export function createBirdCoderAppSdkApiClient({
       return readData(await client.platform.projects.git.pushes.create({ projectId }, request));
     },
     async removeProjectGitWorktree(projectId, request) {
-      return readData(await client.platform.projects.git.worktreeRemovals.create({ projectId }, request));
+      return readData(
+        await client.platform.projects.git.worktreeRemovals.create(
+          { projectId },
+          toGeneratedRemoveProjectGitWorktreeRequest(request),
+        ),
+      );
     },
     async pruneProjectGitWorktrees(projectId) {
       return readData(await client.platform.projects.git.worktreePrune.create({ projectId }));
@@ -1230,7 +1274,12 @@ export function createBirdCoderAppSdkApiClient({
       );
     },
     async upsertProjectCollaborator(projectId, request) {
-      return readData(await client.platform.projects.collaborators.create({ projectId }, request));
+      return readData(
+        await client.platform.projects.collaborators.create(
+          { projectId },
+          toGeneratedUpsertProjectCollaboratorRequest(request),
+        ),
+      );
     },
     async listSkillPackages(options = {}) {
       return readItems(await client.skills.skillPackages.list(toGeneratedSkillPackageQuery(options)));

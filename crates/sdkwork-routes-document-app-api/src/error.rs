@@ -14,11 +14,9 @@ pub fn map_service_error(error: DocumentError, trace_id: Option<&str>) -> Proble
         DocumentError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
         }
-        DocumentError::InvalidInput(msg) => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            msg,
-            trace_id,
-        ),
+        DocumentError::InvalidInput(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
+        }
         DocumentError::Conflict(msg) => {
             traced_platform_problem(SdkWorkResultCode::Conflict, msg, trace_id)
         }

@@ -5,6 +5,7 @@ import type {
 } from '@sdkwork/birdcoder-pc-types';
 import { useIDEServices } from '../context/ideServices.ts';
 import { subscribeProjectGitOverviewRefresh } from '../workbench/projectGitOverview.ts';
+import { getProjectGitWorktreeDisplayName } from '../workbench/gitWorktrees.ts';
 
 interface ProjectGitOverviewSnapshot {
   isLoading: boolean;
@@ -294,13 +295,12 @@ export function useProjectGitOverview({
 
   const currentWorktree =
     overview?.worktrees.find((worktree) => worktree.isCurrent)
-    ?? overview?.worktrees[0]
     ?? null;
   const branches = overview?.branches.map((branch) => branch.name) ?? [];
   const currentBranchLabel =
     overview?.currentBranch?.trim() || overview?.currentRevision?.slice(0, 8) || branches[0] || '';
   const worktrees = overview?.worktrees ?? [];
-  const currentWorktreeLabel = currentWorktree?.label?.trim() || currentWorktree?.path || '';
+  const currentWorktreeLabel = getProjectGitWorktreeDisplayName(currentWorktree);
   const isGitRepositoryReady = overview?.status === 'ready';
 
   return useMemo(

@@ -18,11 +18,9 @@ pub fn map_service_error(error: MembershipError, trace_id: Option<&str>) -> Prob
         MembershipError::NotFound(msg) => {
             traced_platform_problem(SdkWorkResultCode::NotFound, msg, trace_id)
         }
-        MembershipError::InvalidInput(msg) => traced_platform_problem(
-            SdkWorkResultCode::ValidationError,
-            msg,
-            trace_id,
-        ),
+        MembershipError::InvalidInput(msg) => {
+            traced_platform_problem(SdkWorkResultCode::ValidationError, msg, trace_id)
+        }
         MembershipError::Conflict(msg) => {
             traced_platform_problem(SdkWorkResultCode::Conflict, msg, trace_id)
         }

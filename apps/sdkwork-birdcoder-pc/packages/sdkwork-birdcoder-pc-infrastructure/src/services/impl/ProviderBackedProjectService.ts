@@ -33,11 +33,10 @@ import type {
   CreateProjectOptions,
   GetCodingSessionTranscriptOptions,
   IProjectService,
+  UpdateProjectOptions,
   UpdateCodingSessionOptions,
 } from '../interfaces/IProjectService.ts';
 import type {
-  BirdCoderProjectContentRepository,
-  BirdCoderProjectContentRecord,
   BirdCoderProjectListPage,
   BirdCoderProjectRepository,
   BirdCoderRepresentativeProjectRecord,
@@ -54,10 +53,6 @@ import {
   BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
 } from '../../storage/bootstrapConsoleCatalog.ts';
 import { resolveRequiredCodingSessionSelection } from '../codingSessionSelection.ts';
-import {
-  buildBirdCoderProjectContentConfigData,
-  readBirdCoderProjectRootPathFromConfigData,
-} from '../projectContentConfigData.ts';
 import { createBirdCoderLocalBusinessUuid } from '../localBusinessUuid.ts';
 import { createBirdCoderLocalEntityId } from '../localEntityId.ts';
 import {
@@ -79,112 +74,6 @@ const CACHED_CODING_SESSION_MESSAGE_INDEX_MAX_ENTRIES = 128;
 
 function createUuid(): string {
   return createBirdCoderLocalBusinessUuid();
-}
-
-function normalizeProjectPathForComparison(path: string | null | undefined): string | null {
-  if (typeof path !== 'string') {
-    return null;
-  }
-
-  const trimmedPath = path.trim();
-  if (!trimmedPath) {
-    return null;
-  }
-
-  const isWindowsStylePath =
-    /^[a-zA-Z]:/u.test(trimmedPath) ||
-    trimmedPath.includes('\\') ||
-    trimmedPath.startsWith('\\\\');
-  const normalizedSeparators = trimmedPath.replace(/\\/gu, '/');
-  const collapsedPath = normalizedSeparators.startsWith('//')
-    ? `//${normalizedSeparators.slice(2).replace(/\/+/gu, '/')}`
-    : normalizedSeparators.replace(/\/+/gu, '/');
-  const withoutTrailingSeparator =
-    collapsedPath === '/'
-      ? collapsedPath
-      : collapsedPath.replace(/\/+$/u, '') || collapsedPath;
-
-  return isWindowsStylePath
-    ? withoutTrailingSeparator.toLowerCase()
-    : withoutTrailingSeparator;
-}
-
-function findMatchingProjectRecordByPath(
-  records: readonly BirdCoderRepresentativeProjectRecord[],
-  workspaceId: string,
-  path: string,
-): BirdCoderRepresentativeProjectRecord | null {
-  const normalizedWorkspaceId = workspaceId.trim();
-  const normalizedPath = normalizeProjectPathForComparison(path);
-  if (!normalizedWorkspaceId || !normalizedPath) {
-    return null;
-  }
-
-  return (
-    records.find((record) => {
-      if (record.workspaceId !== normalizedWorkspaceId) {
-        return false;
-      }
-
-      return normalizeProjectPathForComparison(record.rootPath) === normalizedPath;
-    }) ?? null
-  );
-}
-
-function isAbsoluteProjectPath(path: string): boolean {
-  return /^[a-zA-Z]:[\\/]/u.test(path) || path.startsWith('\\\\') || path.startsWith('/');
-}
-
-function normalizeRequiredProjectPath(
-  path: string | null | undefined,
-  action: 'create' | 'update',
-): string {
-  if (typeof path !== 'string') {
-    throw new Error(`Project root path is required to ${action} a project.`);
-  }
-
-  const normalizedPath = path.trim();
-  if (!normalizedPath) {
-    throw new Error(`Project root path is required to ${action} a project.`);
-  }
-
-  if (!isAbsoluteProjectPath(normalizedPath)) {
-    throw new Error('Project root path must be an absolute path.');
-  }
-
-  return normalizedPath;
-}
-
-function normalizeRequiredProjectPathForCreate(path: string | null | undefined): string {
-  return normalizeRequiredProjectPath(path, 'create');
-}
-
-function normalizeProjectPathForUpdate(path: string | null | undefined): string | undefined {
-  return path === undefined ? undefined : normalizeRequiredProjectPath(path, 'update');
-}
-
-function resolveProjectSummaryRootPath(
-  rootPath: string | null | undefined,
-  fallbackRootPath: string | undefined,
-): string | undefined {
-  const normalizedRootPath = rootPath?.trim();
-  if (!normalizedRootPath) {
-    return fallbackRootPath;
-  }
-
-  if (!isAbsoluteProjectPath(normalizedRootPath)) {
-    throw new Error('Project root path must be an absolute path.');
-  }
-
-  return normalizedRootPath;
-}
-
-function omitProjectRootPathShadow(
-  projectRecord: BirdCoderRepresentativeProjectRecord,
-): BirdCoderRepresentativeProjectRecord {
-  const { rootPath, ...projectRecordWithoutRootPath } = projectRecord;
-  void rootPath;
-  return projectRecordWithoutRootPath;
 }
 
 function cloneCodingSession(value: BirdCoderCodingSession): BirdCoderCodingSession {
@@ -769,7 +658,6 @@ export interface ProviderBackedProjectServiceOptions {
   codingSessionRepositories?: BirdCoderCodingSessionRepositories;
   defaultOwnerUserId?: string;
   evidenceRepositories?: BirdCoderPromptSkillTemplateEvidenceRepositories;
-  projectContentRepository: BirdCoderProjectContentRepository;
   repository: BirdCoderProjectRepository;
 }
 
@@ -777,7 +665,6 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   private readonly codingSessionRepositories?: BirdCoderCodingSessionRepositories;
   private readonly defaultOwnerUserId: string;
   private readonly evidenceRepositories?: BirdCoderPromptSkillTemplateEvidenceRepositories;
-  private readonly projectContentRepository: BirdCoderProjectContentRepository;
   private readonly publicTranscriptSnapshotsBySessionKey = new Map<
     string,
     {
@@ -796,13 +683,11 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     codingSessionRepositories,
     defaultOwnerUserId = BIRDCODER_DEFAULT_LOCAL_OWNER_USER_ID,
     evidenceRepositories,
-    projectContentRepository,
     repository,
   }: ProviderBackedProjectServiceOptions) {
     this.codingSessionRepositories = codingSessionRepositories;
     this.defaultOwnerUserId = defaultOwnerUserId;
     this.evidenceRepositories = evidenceRepositories;
-    this.projectContentRepository = projectContentRepository;
     this.repository = repository;
   }
 
@@ -855,13 +740,12 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   private async materializeProjectRecords(
     records: readonly BirdCoderRepresentativeProjectRecord[],
   ): Promise<BirdCoderProject[]> {
-    const hydratedRecords = await this.hydrateProjectRecords(records);
     const persistedSessionsByProjectId = this.codingSessionRepositories
       ? await this.loadPersistedCodingSessionInventorySnapshot(
-          hydratedRecords.map((record) => record.id),
+          records.map((record) => record.id),
         )
       : undefined;
-    const projects = hydratedRecords.map((record) => {
+    const projects = records.map((record) => {
       const sessions = this.mergeLocallyMutatedTranscriptSessions(
         record.id,
         persistedSessionsByProjectId?.get(record.id) ??
@@ -873,121 +757,6 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       });
     });
     return projects.sort(compareBirdCoderProjectsByActivity);
-  }
-
-  private async findProjectContentByProjectId(
-    projectId: string,
-  ): Promise<BirdCoderProjectContentRecord | null> {
-    const directProjectContent = await this.projectContentRepository.findById(projectId);
-    if (directProjectContent?.projectId === projectId) {
-      return directProjectContent;
-    }
-
-    return (
-      (await this.projectContentRepository.list()).find(
-        (content) => content.projectId === projectId,
-      ) ?? null
-    );
-  }
-
-  private async resolveProjectRootPathsById(
-    projectIds: readonly string[],
-  ): Promise<Map<string, string>> {
-    const rootPathsByProjectId = new Map<string, string>();
-    if (projectIds.length === 0) {
-      return rootPathsByProjectId;
-    }
-
-    if (projectIds.length === 1) {
-      const projectContent = await this.projectContentRepository.findById(projectIds[0]!);
-      if (projectContent?.projectId === projectIds[0]) {
-        const rootPath = readBirdCoderProjectRootPathFromConfigData(projectContent.configData);
-        if (rootPath) {
-          rootPathsByProjectId.set(projectContent.projectId, rootPath);
-          return rootPathsByProjectId;
-        }
-      }
-    }
-
-    const projectContents = this.projectContentRepository.listProjectContentsByProjectIds
-      ? await this.projectContentRepository.listProjectContentsByProjectIds(projectIds)
-      : await this.projectContentRepository.list();
-    const projectIdSet = new Set(projectIds);
-    for (const projectContent of projectContents) {
-      if (!projectIdSet.has(projectContent.projectId)) {
-        continue;
-      }
-
-      const rootPath = readBirdCoderProjectRootPathFromConfigData(projectContent.configData);
-      if (rootPath && !rootPathsByProjectId.has(projectContent.projectId)) {
-        rootPathsByProjectId.set(projectContent.projectId, rootPath);
-      }
-    }
-
-    return rootPathsByProjectId;
-  }
-
-  private async hydrateProjectRecords(
-    records: readonly BirdCoderRepresentativeProjectRecord[],
-  ): Promise<BirdCoderRepresentativeProjectRecord[]> {
-    const rootPathsByProjectId = await this.resolveProjectRootPathsById(
-      records.map((record) => record.id),
-    );
-    return records.map((record) => {
-      const projectRecord = omitProjectRootPathShadow(record);
-      const rootPath = rootPathsByProjectId.get(record.id);
-      return rootPath
-        ? {
-            ...projectRecord,
-            rootPath,
-          }
-        : projectRecord;
-    });
-  }
-
-  private async hydrateProjectRecord(
-    record: BirdCoderRepresentativeProjectRecord,
-  ): Promise<BirdCoderRepresentativeProjectRecord> {
-    return (await this.hydrateProjectRecords([record]))[0] ?? record;
-  }
-
-  private async upsertProjectRootPathContent(
-    record: BirdCoderRepresentativeProjectRecord,
-    rootPath: string | undefined,
-  ): Promise<void> {
-    const normalizedRootPath = rootPath?.trim();
-    if (!normalizedRootPath) {
-      return;
-    }
-
-    const existingContent = await this.findProjectContentByProjectId(record.id);
-    await this.projectContentRepository.save({
-      id: existingContent?.id ?? record.id,
-      uuid: existingContent?.uuid ?? createUuid(),
-      tenantId: record.tenantId,
-      organizationId: record.organizationId,
-      dataScope: record.dataScope,
-      userId: record.userId ?? record.createdByUserId ?? record.ownerId,
-      parentId: record.parentId ?? '0',
-      projectId: record.id,
-      projectUuid: record.uuid ?? existingContent?.projectUuid ?? `project-${record.id}`,
-      configData: buildBirdCoderProjectContentConfigData(normalizedRootPath, {
-        existingConfigData: existingContent?.configData,
-      }),
-      contentData: existingContent?.contentData,
-      metadata: existingContent?.metadata,
-      contentVersion: existingContent?.contentVersion ?? '1.0',
-      contentHash: existingContent?.contentHash,
-      createdAt: existingContent?.createdAt ?? record.createdAt,
-      updatedAt: record.updatedAt,
-    });
-  }
-
-  private async deleteProjectRootPathContent(projectId: string): Promise<void> {
-    const projectContent = await this.findProjectContentByProjectId(projectId);
-    if (projectContent) {
-      await this.projectContentRepository.delete(projectContent.id);
-    }
   }
 
   async getProjects(
@@ -1062,27 +831,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       return null;
     }
 
-    const record = await this.hydrateProjectRecord(storedRecord);
-    let sessions = this.codingSessionRepositories
-      ? (await this.loadPersistedCodingSessionInventorySnapshot([record.id])).get(record.id) ??
-        this.sessionsByProjectId.get(record.id) ??
-        []
-      : this.sessionsByProjectId.get(record.id) ?? [];
-    sessions = this.mergeLocallyMutatedTranscriptSessions(record.id, sessions);
-    return this.mapProjectRecord(record, sessions, {
-      sessionsSortedByActivity: true,
-    });
-  }
-
-  async getProjectByPath(workspaceId: string, path: string): Promise<BirdCoderProject | null> {
-    const records = await this.hydrateProjectRecords(
-      await this.listProjectRecordsByWorkspaceId(workspaceId),
-    );
-    const record = findMatchingProjectRecordByPath(records, workspaceId, path);
-    if (!record) {
-      return null;
-    }
-
+    const record = storedRecord;
     let sessions = this.codingSessionRepositories
       ? (await this.loadPersistedCodingSessionInventorySnapshot([record.id])).get(record.id) ??
         this.sessionsByProjectId.get(record.id) ??
@@ -1098,12 +847,11 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     const filteredRecords = workspaceId
       ? await this.listProjectRecordsByWorkspaceId(workspaceId)
       : await this.repository.list();
-    const hydratedRecords = await this.hydrateProjectRecords(filteredRecords);
 
     const persistedSessionSnapshotsByProjectId = this.codingSessionRepositories
-      ? await this.loadPersistedCodingSessionMirrorSnapshot(hydratedRecords.map((record) => record.id))
+      ? await this.loadPersistedCodingSessionMirrorSnapshot(filteredRecords.map((record) => record.id))
       : undefined;
-    return hydratedRecords
+    return filteredRecords
       .map((record) =>
         this.mapProjectRecordToMirrorSnapshot(
           record,
@@ -1191,17 +939,6 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     if (!normalizedName) {
       throw new Error('Project name is required');
     }
-    const normalizedPath = normalizeRequiredProjectPathForCreate(options?.path);
-
-    const existingProjectByPath = await this.findProjectByWorkspaceAndPath(workspaceId, normalizedPath);
-    if (existingProjectByPath) {
-      const sessions = await this.readProjectSessions(existingProjectByPath.id, {
-        refresh: true,
-      });
-      return this.mapProjectRecord(existingProjectByPath, sessions, {
-        sessionsSortedByActivity: true,
-      });
-    }
 
     const now = createTimestamp();
     const projectId = createBirdCoderLocalEntityId('project');
@@ -1209,7 +946,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       name: normalizedName,
       projectId,
     });
-    const record = await this.repository.save(omitProjectRootPathShadow({
+    const record = await this.repository.save({
       id: projectId,
       uuid: createUuid(),
       tenantId: BIRDCODER_DEFAULT_LOCAL_TENANT_ID,
@@ -1223,12 +960,10 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       code: buildBirdCoderProjectBusinessCode({
         name: normalizedName,
         projectId,
-        rootPath: normalizedPath,
       }),
       title: normalizedName,
       name: projectBusinessName,
       description: options?.description?.trim() || undefined,
-      rootPath: normalizedPath,
       ownerId: this.defaultOwnerUserId,
       leaderId: this.defaultOwnerUserId,
       createdByUserId: this.defaultOwnerUserId,
@@ -1237,24 +972,11 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       status: 'active',
       createdAt: now,
       updatedAt: now,
-    }));
+    });
 
-    await this.recordTemplateInstantiationEvidence(
-      {
-        ...record,
-        rootPath: normalizedPath,
-      },
-      options,
-    );
-    await this.upsertProjectRootPathContent(record, normalizedPath);
+    await this.recordTemplateInstantiationEvidence(record, options);
     this.setProjectSessionsCache(record.id, []);
-    return this.mapProjectRecord(
-      {
-        ...record,
-        rootPath: normalizedPath,
-      },
-      [],
-    );
+    return this.mapProjectRecord(record, []);
   }
 
   async recordProjectCreationEvidence(
@@ -1262,18 +984,17 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     options?: CreateProjectOptions,
     projectSnapshot?: Pick<
       BirdCoderProject,
-      'createdAt' | 'id' | 'path' | 'updatedAt'
+      'createdAt' | 'id' | 'updatedAt'
     >,
   ): Promise<void> {
     const record: Pick<
       BirdCoderRepresentativeProjectRecord,
-      'createdAt' | 'id' | 'rootPath' | 'updatedAt'
+      'createdAt' | 'id' | 'updatedAt'
     > = projectSnapshot
       ? {
           id: projectSnapshot.id,
           createdAt: projectSnapshot.createdAt,
           updatedAt: projectSnapshot.updatedAt,
-          rootPath: projectSnapshot.path,
         }
       : await this.readProjectRecord(projectId);
     await this.recordTemplateInstantiationEvidence(record, options);
@@ -1281,14 +1002,8 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
 
   async syncProjectSummary(summary: BirdCoderProjectSummary): Promise<BirdCoderProject> {
     const storedExistingRecord = await this.repository.findById(summary.id);
-    const existingRecord = storedExistingRecord
-      ? await this.hydrateProjectRecord(storedExistingRecord)
-      : null;
-    const nextRootPath = resolveProjectSummaryRootPath(
-      summary.rootPath,
-      existingRecord?.rootPath,
-    );
-    const record = await this.repository.save(omitProjectRootPathShadow({
+    const existingRecord = storedExistingRecord ?? null;
+    const record = await this.repository.save({
       id: summary.id,
       uuid: summary.uuid ?? existingRecord?.uuid ?? createUuid(),
       tenantId: summary.tenantId ?? existingRecord?.tenantId,
@@ -1304,9 +1019,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       code: summary.code?.trim() || existingRecord?.code,
       title: summary.title?.trim() || existingRecord?.title || summary.name,
       description: summary.description?.trim() || existingRecord?.description,
-      sitePath: summary.sitePath?.trim() || existingRecord?.sitePath,
       domainPrefix: summary.domainPrefix?.trim() || existingRecord?.domainPrefix,
-      rootPath: nextRootPath,
       ownerId: summary.ownerId?.trim() || existingRecord?.ownerId,
       leaderId: summary.leaderId?.trim() || existingRecord?.leaderId,
       createdByUserId:
@@ -1323,29 +1036,21 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       status: summary.status,
       createdAt: existingRecord?.createdAt || summary.createdAt || createTimestamp(),
       updatedAt: summary.updatedAt || createTimestamp(),
-    }));
-    await this.upsertProjectRootPathContent(record, nextRootPath);
+    });
     const sessions = this.codingSessionRepositories
       ? (await this.loadPersistedCodingSessionInventorySnapshot([summary.id])).get(summary.id) ??
         this.sessionsByProjectId.get(summary.id) ??
         []
       : this.sessionsByProjectId.get(summary.id) ?? [];
-    return this.mapProjectRecord(
-      {
-        ...record,
-        rootPath: nextRootPath,
-      },
-      sessions,
-      {
-        sessionsSortedByActivity: true,
-      },
-    );
+    return this.mapProjectRecord(record, sessions, {
+      sessionsSortedByActivity: true,
+    });
   }
 
   async renameProject(projectId: string, name: string): Promise<void> {
     const record = await this.readProjectRecord(projectId);
     const normalizedName = name.trim();
-    await this.repository.save(omitProjectRootPathShadow({
+    await this.repository.save({
       ...record,
       name: normalizedName
         ? buildBirdCoderProjectBusinessName({
@@ -1355,24 +1060,12 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
         : record.name,
       title: normalizedName || record.title,
       updatedAt: createTimestamp(),
-    }));
+    });
   }
 
-  async updateProject(projectId: string, updates: Partial<BirdCoderProject>): Promise<void> {
+  async updateProject(projectId: string, updates: UpdateProjectOptions): Promise<void> {
     const record = await this.readProjectRecord(projectId);
-    const nextRootPath = normalizeProjectPathForUpdate(updates.path) ?? record.rootPath;
-    const conflictingProject = await this.findProjectByWorkspaceAndPath(
-      record.workspaceId,
-      nextRootPath,
-      projectId,
-    );
-    if (conflictingProject) {
-      throw new Error(
-        `Workspace already contains project "${conflictingProject.name}" for path "${nextRootPath}".`,
-      );
-    }
-
-    const updatedRecord = await this.repository.save(omitProjectRootPathShadow({
+    await this.repository.save({
       ...record,
       name: updates.name?.trim()
         ? buildBirdCoderProjectBusinessName({
@@ -1380,66 +1073,19 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
             projectId: record.id,
           })
         : record.name,
-      code: updates.code?.trim() || record.code,
-      title: updates.title?.trim() || updates.name?.trim() || record.title,
+      title: updates.name?.trim() || record.title,
       description: updates.description ?? record.description,
-      dataScope: updates.dataScope ?? record.dataScope,
-      userId: updates.userId ?? record.userId,
-      parentId: updates.parentId ?? record.parentId,
-      parentUuid: updates.parentUuid ?? record.parentUuid,
-      parentMetadata: updates.parentMetadata ?? record.parentMetadata,
-      sitePath: updates.sitePath?.trim() || record.sitePath,
-      domainPrefix: updates.domainPrefix?.trim() || record.domainPrefix,
-      rootPath: nextRootPath,
-      ownerId: updates.ownerId ?? record.ownerId,
-      leaderId: updates.leaderId ?? record.leaderId,
-      createdByUserId: updates.createdByUserId ?? record.createdByUserId,
-      author: updates.author ?? record.author,
-      fileId: updates.fileId ?? record.fileId,
-      conversationId: updates.conversationId ?? record.conversationId,
-      type: updates.type ?? record.type,
-      coverImage: updates.coverImage ?? record.coverImage,
-      startTime: updates.startTime ?? record.startTime,
-      endTime: updates.endTime ?? record.endTime,
-      budgetAmount: updates.budgetAmount ?? record.budgetAmount,
-      isTemplate: updates.isTemplate ?? record.isTemplate,
-      status: updates.archived === true ? 'archived' : updates.archived === false ? 'active' : record.status,
+      status: updates.status ?? record.status,
       updatedAt: createTimestamp(),
-    }));
-    await this.upsertProjectRootPathContent(updatedRecord, nextRootPath);
+    });
   }
 
   async deleteProject(projectId: string): Promise<void> {
     await this.repository.delete(projectId);
-    await this.deleteProjectRootPathContent(projectId);
     await this.deletePersistedProjectSessions(projectId);
     this.clearProjectSessionsCache(projectId);
     this.clearLocallyMutatedTranscriptSessionsForProject(projectId);
     this.deletePublicTranscriptSnapshotsForProject(projectId);
-  }
-
-  private async findProjectByWorkspaceAndPath(
-    workspaceId: string,
-    path: string | null | undefined,
-    excludedProjectId?: string,
-  ): Promise<BirdCoderRepresentativeProjectRecord | null> {
-    const normalizedPath = normalizeProjectPathForComparison(path);
-    if (!normalizedPath) {
-      return null;
-    }
-
-    const records = await this.hydrateProjectRecords(
-      await this.listProjectRecordsByWorkspaceId(workspaceId),
-    );
-    return (
-      records.find((candidate) => {
-        if (candidate.workspaceId !== workspaceId || candidate.id === excludedProjectId) {
-          return false;
-        }
-
-        return normalizeProjectPathForComparison(candidate.rootPath) === normalizedPath;
-      }) ?? null
-    );
   }
 
   async createCodingSession(
@@ -1621,14 +1267,13 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
         mergedMessage,
         existingLogicalMessageIndex,
       );
-      const nextCodingSession = this.touchCodingSessionTranscript({
+      const nextCodingSession = {
         ...codingSession,
         messages: nextMessages,
-      });
+      };
       this.replaceCachedCodingSession(projectId, nextCodingSession);
       this.markLocallyMutatedTranscriptSession(projectId, codingSessionId);
       this.setCachedCodingSessionMessageIndex(projectId, codingSessionId, nextMessageIndex);
-      await this.persistCodingSessionSummary(nextCodingSession);
       await this.persistCodingSessionMessage(mergedMessage);
       return cloneChatMessage(mergedMessage);
     }
@@ -1639,10 +1284,13 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       nextMessages,
       newMessage,
     );
-    const nextCodingSession = this.touchCodingSessionTranscript({
-      ...codingSession,
-      messages: nextMessages,
-    });
+    const nextCodingSession = this.touchCodingSessionTranscript(
+      {
+        ...codingSession,
+        messages: nextMessages,
+      },
+      { updateLastTurnAt: false },
+    );
     this.replaceCachedCodingSession(projectId, nextCodingSession);
     this.markLocallyMutatedTranscriptSession(projectId, codingSessionId);
     this.setCachedCodingSessionMessageIndex(projectId, codingSessionId, nextMessageIndex);
@@ -1689,10 +1337,13 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       nextMessage,
       messageIndex,
     );
-    const nextCodingSession = this.touchCodingSessionTranscript({
-      ...codingSession,
-      messages: nextMessages,
-    });
+    const nextCodingSession = this.touchCodingSessionTranscript(
+      {
+        ...codingSession,
+        messages: nextMessages,
+      },
+      { updateLastTurnAt: false },
+    );
     this.replaceCachedCodingSession(projectId, nextCodingSession);
     this.markLocallyMutatedTranscriptSession(projectId, codingSessionId);
     this.setCachedCodingSessionMessageIndex(projectId, codingSessionId, nextMessageIndex);
@@ -1769,8 +1420,6 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       title: record.title,
       name: displayName,
       description: record.description,
-      path: record.rootPath,
-      sitePath: record.sitePath,
       domainPrefix: record.domainPrefix,
       ownerId: record.ownerId,
       leaderId: record.leaderId,
@@ -1912,8 +1561,6 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       title: record.title,
       name: displayName,
       description: record.description,
-      path: record.rootPath,
-      sitePath: record.sitePath,
       domainPrefix: record.domainPrefix,
       ownerId: record.ownerId,
       leaderId: record.leaderId,
@@ -2039,13 +1686,14 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       throw new Error(`Project ${projectId} not found`);
     }
 
-    return this.hydrateProjectRecord(storedRecord);
+    return storedRecord;
   }
 
   private applyCodingSessionActivityState(
     codingSession: BirdCoderCodingSession,
     nextState: {
       lastTurnAt?: string;
+      sortTimestamp?: string;
       transcriptUpdatedAt?: string | null;
       updatedAt: string;
     },
@@ -2054,12 +1702,9 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     const lastTurnAt = nextState.lastTurnAt ?? codingSession.lastTurnAt;
     const transcriptUpdatedAt =
       nextState.transcriptUpdatedAt ?? codingSession.transcriptUpdatedAt ?? null;
-    const sortTimestamp = resolveBirdCoderSessionSortTimestampString({
-      ...codingSession,
-      updatedAt,
-      lastTurnAt,
-      transcriptUpdatedAt,
-    });
+    const sortTimestamp =
+      nextState.sortTimestamp ??
+      stringifyBirdCoderLongInteger(Date.parse(updatedAt));
     const displayTime = formatBirdCoderSessionActivityDisplayTime({
       ...codingSession,
       updatedAt,
@@ -2083,11 +1728,17 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
     });
   }
 
-  private touchCodingSessionTranscript(codingSession: BirdCoderCodingSession): BirdCoderCodingSession {
+  private touchCodingSessionTranscript(
+    codingSession: BirdCoderCodingSession,
+    options: { updateLastTurnAt?: boolean } = {},
+  ): BirdCoderCodingSession {
     const updatedAt = createTimestamp();
     return this.applyCodingSessionActivityState(codingSession, {
       updatedAt,
-      lastTurnAt: updatedAt,
+      lastTurnAt: options.updateLastTurnAt === false
+        ? codingSession.lastTurnAt
+        : updatedAt,
+      sortTimestamp: stringifyBirdCoderLongInteger(Date.parse(updatedAt)),
       transcriptUpdatedAt: updatedAt,
     });
   }
@@ -2781,7 +2432,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
   private async recordTemplateInstantiationEvidence(
     projectRecord: Pick<
       BirdCoderRepresentativeProjectRecord,
-      'createdAt' | 'id' | 'rootPath' | 'updatedAt'
+      'createdAt' | 'id' | 'updatedAt'
     >,
     options?: CreateProjectOptions,
   ): Promise<void> {
@@ -2795,7 +2446,7 @@ export class ProviderBackedProjectService implements IProjectService, IProjectSe
       appTemplateVersionId: options?.appTemplateVersionId?.trim() || 'manual-project',
       presetKey: options?.templatePresetKey?.trim() || 'default',
       status: 'planned',
-      outputRoot: projectRecord.rootPath ?? '',
+      outputRoot: `project:${projectRecord.id}`,
       createdAt: projectRecord.createdAt,
       updatedAt: projectRecord.updatedAt,
     });

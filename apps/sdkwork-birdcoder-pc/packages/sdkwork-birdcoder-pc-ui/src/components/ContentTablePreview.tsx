@@ -31,7 +31,7 @@ export function ContentTablePreview({
       <div className="shrink-0 border-b border-white/10 bg-[#0b0d12]/95 px-5 py-3 backdrop-blur">
         <div className="text-sm font-medium text-gray-100">Table Preview</div>
         <div className="text-xs text-gray-500">
-          {sourceLabel} ¡¤ {columnLabels.length} columns ¡¤ {bodyRows.length} rows
+          {sourceLabel} Â· {columnLabels.length} columns Â· {bodyRows.length} rows
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-auto custom-scrollbar">

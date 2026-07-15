@@ -82,8 +82,8 @@ assert.match(
 
 assert.match(
   runtimeFileSystemServiceSource,
-  /await this\.getSearchFileTree\(projectId, options\.signal\);/s,
-  'RuntimeFileSystemService.searchFiles must pass AbortSignal into cached search tree creation so stale searches can be cancelled before full snapshots finish.',
+  /await this\.getSearchFileTree\(projectId, options\.signal, scope\);/s,
+  'RuntimeFileSystemService.searchFiles must pass AbortSignal and the active subject scope into cached search tree creation so stale searches are cancelled and cannot commit to a replacement session.',
 );
 
 const searchFilesBlock = runtimeFileSystemServiceSource.match(
@@ -98,8 +98,8 @@ assert.doesNotMatch(
 
 assert.match(
   runtimeFileSystemServiceSource,
-  /private async getSearchFileTree\(\s*projectId: string,\s*signal\?: AbortSignal,\s*\): Promise<SearchFileTreeSnapshot> \{[\s\S]*browserMount\.cachedSearchTree[\s\S]*tauriMount\.cachedSearchTree/s,
-  'RuntimeFileSystemService must centralize cached browser and desktop search tree creation while accepting AbortSignal for first-snapshot cancellation.',
+  /private async getSearchFileTree\(\s*projectId: string,\s*signal\?: AbortSignal,\s*scope\?: MountedProjectSubjectScope,\s*\): Promise<SearchFileTreeSnapshot> \{[\s\S]*browserMount\.cachedSearchTree[\s\S]*tauriMount\.cachedSearchTree/s,
+  'RuntimeFileSystemService must centralize cached browser and desktop search tree creation while accepting AbortSignal and subject scope for first-snapshot cancellation.',
 );
 
 assert.match(
@@ -164,8 +164,8 @@ assert.match(
 
 assert.match(
   runtimeFileSystemServiceSource,
-  /private invalidateProjectSearchTree\(projectId: string\): void \{[\s\S]*browserMount\.cachedSearchTree = undefined;[\s\S]*browserMount\.cachedSearchTreeLimitReached = undefined;[\s\S]*tauriMount\.cachedSearchTree = undefined;[\s\S]*tauriMount\.cachedSearchTreeLimitReached = undefined;/s,
-  'RuntimeFileSystemService must invalidate cached search trees when mounted file trees change.',
+  /private invalidateProjectSearchTree\(\s*projectId: string,\s*scope\?: MountedProjectSubjectScope,\s*\): void \{[\s\S]*browserMount\.cachedSearchTree = undefined;[\s\S]*browserMount\.cachedSearchTreeLimitReached = undefined;[\s\S]*tauriMount\.cachedSearchTree = undefined;[\s\S]*tauriMount\.cachedSearchTreeLimitReached = undefined;/s,
+  'RuntimeFileSystemService must invalidate cached search trees only for the active mounted subject when file trees change.',
 );
 
 assert.match(
@@ -199,8 +199,8 @@ for (const mutationMethod of [
   );
   assert.match(
     methodSource,
-    /this\.invalidateProjectSearchTree\(projectId\);/,
-    `RuntimeFileSystemService.${mutationMethod} must invalidate cached search trees after tree mutations.`,
+    /this\.invalidateProjectSearchTree\(projectId, scope\);/,
+    `RuntimeFileSystemService.${mutationMethod} must invalidate cached search trees after tree mutations without crossing the active subject boundary.`,
   );
 }
 

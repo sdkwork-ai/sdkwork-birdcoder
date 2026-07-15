@@ -11,12 +11,13 @@ service:
   type: ClusterIP
   port: 18989
 
-# SQLite persistence is single-writer. Use values-postgresql-ha.yaml for horizontal scale.
+# Cloud control-plane baseline. PostgreSQL and a pre-provisioned runtime Secret
+# are required; this chart intentionally does not start against a SQLite fallback.
 replicaCount: 1
 
 database:
-  engine: sqlite
-  # When engine is postgresql, provide database.url via secret and apply values-postgresql-ha.yaml.
+  engine: postgresql
+  # Inject SDKWORK_BIRDCODER_DATABASE_URL through auth.existingSecret.
   url: ""
 
 realtime:
@@ -33,6 +34,8 @@ redis:
   password: ""
 
 ingress:
+  # Leave disabled until a real public host, TLS secret, and matching explicit
+  # runtime.allowedOrigins value are supplied by an operator.
   enabled: false
 
 persistence:
@@ -41,22 +44,26 @@ persistence:
   storageClass: ""
 
 runtime:
-  accelerator: cpu
   deploymentProfile: cloud
   runtimeTarget: container
   environment: production
   otelServiceName: sdkwork-birdcoder-standalone-gateway
+  # Replace the reserved hostname before enabling browser traffic. Wildcards
+  # are rejected by the server's cloud runtime validation.
+  allowedOrigins:
+    - "https://birdcoder.example.invalid"
+  # Server-owned project source and Git root. It is not a client mount or a
+  # cloud code-execution runner volume.
+  projectWorkspaceRoot: /var/lib/sdkwork-birdcoder/project-workspaces
 
 auth:
-  manageUsername: sdkwork-birdcoder-admin
+  manageUsername: ""
   managePassword: ""
-  # existingSecret: when set, the Helm chart will NOT create a Secret resource.
-  # Instead, the deployment references a pre-provisioned secret (e.g. created
-  # by External Secrets Operator, Sealed Secrets, or cloud KMS). The secret
-  # must contain keys: manageUsername, managePassword, and optionally
-  # SDKWORK_BIRDCODER_DATABASE_URL, SDKWORK_BIRDCODER_REDIS_USERNAME,
-  # SDKWORK_BIRDCODER_REDIS_PASSWORD.
-  existingSecret: ""
+  # The deployment references an operator-provisioned Secret (External
+  # Secrets Operator, Sealed Secrets, or cloud KMS). It must contain
+  # manageUsername, managePassword, SDKWORK_BIRDCODER_DATABASE_URL, and any
+  # enabled Redis credential keys. The database URL is never stored in values.
+  existingSecret: sdkwork-birdcoder-runtime
 
 podSecurityContext:
   runAsNonRoot: true

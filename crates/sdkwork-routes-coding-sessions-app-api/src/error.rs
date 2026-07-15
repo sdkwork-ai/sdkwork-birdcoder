@@ -7,8 +7,8 @@ use sdkwork_utils_rust::SdkWorkResultCode;
 
 use sdkwork_birdcoder_errors::{
     client_safe_data_access_problem, client_safe_event_publish_problem,
-    client_safe_internal_problem, client_safe_provider_problem, legacy_problem,
-    platform_problem, resolve_trace_id,
+    client_safe_internal_problem, client_safe_provider_problem, legacy_problem, platform_problem,
+    resolve_trace_id,
 };
 
 pub use sdkwork_birdcoder_errors::ProblemDetailsPayload;
@@ -77,6 +77,17 @@ impl AppError {
         }
     }
 
+    pub fn service_unavailable() -> Self {
+        Self {
+            status: StatusCode::SERVICE_UNAVAILABLE,
+            body: platform_problem(
+                SdkWorkResultCode::ServiceUnavailable,
+                SdkWorkResultCode::ServiceUnavailable.title(),
+                None,
+            ),
+        }
+    }
+
     pub fn quota_exceeded(message: impl Into<String>) -> Self {
         Self {
             status: StatusCode::PAYMENT_REQUIRED,
@@ -86,13 +97,13 @@ impl AppError {
 
     pub fn from_quota_error(error: QuotaError) -> Self {
         match error {
-            QuotaError::Exceeded { metric_type } => Self::quota_exceeded(format!(
-                "usage quota for {metric_type} has been exhausted"
-            )),
+            QuotaError::Exceeded { metric_type } => {
+                Self::quota_exceeded(format!("usage quota for {metric_type} has been exhausted"))
+            }
             QuotaError::Internal => Self::internal("failed to check usage quota"),
-            QuotaError::InvalidTenantId => Self::bad_request(
-                "tenant_id must be numeric for commerce quota checks",
-            ),
+            QuotaError::InvalidTenantId => {
+                Self::bad_request("tenant_id must be numeric for commerce quota checks")
+            }
         }
     }
 
@@ -109,6 +120,7 @@ impl From<CodingSessionError> for AppError {
             CodingSessionError::InvalidInput(msg) => Self::bad_request(msg),
             CodingSessionError::Conflict(msg) => Self::conflict(msg),
             CodingSessionError::RateLimited(msg) => Self::rate_limited(msg),
+            CodingSessionError::Unavailable(_) => Self::service_unavailable(),
             CodingSessionError::Repository(_) => Self {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 body: client_safe_data_access_problem(),
@@ -166,7 +178,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rate_limited_coding_session_error_maps_to_overload_problem_without_unproven_retry_after() {
+    async fn rate_limited_coding_session_error_maps_to_overload_problem_without_unproven_retry_after(
+    ) {
         let error = AppError::from(CodingSessionError::RateLimited(
             "code-engine turn admission is saturated".into(),
         ))
@@ -198,6 +211,44 @@ mod tests {
         let body: serde_json::Value =
             serde_json::from_slice(&body).expect("the Problem Details body must be JSON");
         assert_eq!(body["code"], 42901);
+        assert_eq!(body["traceId"], "0195f2a0-7c44-7b2e-9f3a-2a6f5d8e91ab");
+    }
+
+    #[tokio::test]
+    async fn unavailable_coding_session_error_maps_to_a_client_safe_service_unavailable_problem() {
+        let internal_detail =
+            "remote code execution is unavailable until a strongly isolated runner is configured";
+        let expected_detail = ProblemDetailsPayload::client_safe_detail(
+            SdkWorkResultCode::ServiceUnavailable,
+            internal_detail,
+        );
+        let error = AppError::from(CodingSessionError::Unavailable(internal_detail.into()))
+            .with_trace_id(Some("0195f2a0-7c44-7b2e-9f3a-2a6f5d8e91ab"));
+
+        assert_eq!(error.status, StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            error.body.code,
+            SdkWorkResultCode::ServiceUnavailable.as_i32()
+        );
+        assert_eq!(error.body.detail.as_deref(), Some(expected_detail.as_str()));
+        assert_eq!(error.body.trace_id, "0195f2a0-7c44-7b2e-9f3a-2a6f5d8e91ab");
+
+        let response = error.into_response();
+        assert_eq!(
+            response
+                .headers()
+                .get(header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok()),
+            Some("application/problem+json")
+        );
+
+        let body = axum::body::to_bytes(response.into_body(), 16 * 1024)
+            .await
+            .expect("the bounded Problem Details body must be readable");
+        let body: serde_json::Value =
+            serde_json::from_slice(&body).expect("the Problem Details body must be JSON");
+        assert_eq!(body["code"], SdkWorkResultCode::ServiceUnavailable.as_i32());
+        assert_eq!(body["detail"], expected_detail);
         assert_eq!(body["traceId"], "0195f2a0-7c44-7b2e-9f3a-2a6f5d8e91ab");
     }
 }

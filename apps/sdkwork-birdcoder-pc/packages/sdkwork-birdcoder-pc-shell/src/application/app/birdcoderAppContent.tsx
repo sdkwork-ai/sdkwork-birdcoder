@@ -12,6 +12,10 @@ import {
   buildProjectCodingSessionIndex,
   buildWorkbenchRecoveryAnnouncement,
   buildWorkbenchRecoverySnapshot,
+  emitRevealProjectInFileManager,
+  subscribeCopyProjectLocalPath,
+  subscribeOpenProjectTerminal,
+  subscribeRevealProjectInFileManager,
   emitOpenTerminalRequest,
   globalEventBus,
   hydrateImportedProjectFromAuthority,
@@ -31,6 +35,7 @@ import {
   resolveWorkbenchRecoveryPersistenceSelection,
   ToastProvider,
   type TerminalCommandRequest,
+  type ProjectDeviceMountTarget,
   useIDEServices,
   usePersistedState,
   useProjects,
@@ -45,6 +50,7 @@ import {
   subscribeProjectMountRecoveryState,
 } from '@sdkwork/birdcoder-pc-commons';
 import { Button, TopMenu, type TopMenuItem } from '@sdkwork/birdcoder-pc-ui-shell';
+import { copyTextToClipboard } from '@sdkwork/birdcoder-pc-ui/components/clipboard';
 import type { AppTab, BirdCoderProject } from '@sdkwork/birdcoder-pc-types';
 import { resolveWorkbenchNewSessionEngineCatalog } from '@sdkwork/birdcoder-pc-codeengine';
 import { useTranslation } from 'react-i18next';
@@ -80,7 +86,7 @@ import {
 
 export function AppContent() {
   const { t } = useTranslation();
-  const { fileSystemService, projectService } = useIDEServices();
+  const { appRuntimeReadService, fileSystemService, projectService } = useIDEServices();
   const { user, isLoading: isAuthLoading, logout } = useAuth();
   const { addToast } = useToast();
   const { preferences, updatePreferences } = useWorkbenchPreferences();
@@ -562,6 +568,7 @@ export function AppContent() {
           }
 
           const hydratedProject = await hydrateImportedProjectFromAuthority({
+            appRuntimeReadService,
             knownProjects:
               workspaceId === effectiveWorkspaceId
                 ? activeProjects
@@ -590,6 +597,7 @@ export function AppContent() {
     },
     [
       activeProjects,
+      appRuntimeReadService,
       effectiveMenuWorkspaceId,
       effectiveWorkspaceId,
       menuProjects,
@@ -908,6 +916,49 @@ export function AppContent() {
         addToast(t('app.revealInExplorerDesktopOnly'), 'info');
       }
     };
+    const copyLocalPath = copyTextToClipboard;
+    const handleOpenProjectTerminal = async (target: ProjectDeviceMountTarget) => {
+      const localWorkingDirectory = await fileSystemService.resolveLocalWorkingDirectory(
+        target.projectId,
+        target.mountedPath,
+      );
+      if (!localWorkingDirectory) {
+        addToast(t('app.revealInExplorerDesktopOnly'), 'info');
+        return;
+      }
+
+      emitOpenTerminalRequest({
+        path: localWorkingDirectory,
+        surface: 'workspace',
+        timestamp: Date.now(),
+      });
+      focusTerminalSurface({ forceWorkspace: true });
+    };
+    const handleRevealProjectInFileManager = async (target: ProjectDeviceMountTarget) => {
+      if (
+        !(await fileSystemService.revealProjectInFileManager(
+          target.projectId,
+          target.mountedPath,
+        ))
+      ) {
+        addToast(t('app.revealInExplorerDesktopOnly'), 'info');
+        return;
+      }
+
+      addToast(t('app.revealedInExplorer', { path: 'project' }), 'info');
+    };
+    const handleCopyProjectLocalPath = async (target: ProjectDeviceMountTarget) => {
+      const localWorkingDirectory = await fileSystemService.resolveLocalWorkingDirectory(
+        target.projectId,
+        target.mountedPath,
+      );
+      if (!localWorkingDirectory || !(await copyLocalPath(localWorkingDirectory))) {
+        addToast(t('code.projectFolderUnavailable'), 'error');
+        return;
+      }
+
+      addToast('Copied local path', 'success');
+    };
     const handleOpenSettings = () => {
       setActiveTab('settings');
     };
@@ -936,11 +987,11 @@ export function AppContent() {
       }
 
       projectMountRecoveryActiveSurfaceRef.current = payload.surface;
-      const recoveryIdentity = [
-        payload.surface,
-        payload.projectId ?? '',
-        payload.state.path ?? '',
-      ].join('::');
+        const recoveryIdentity = [
+          payload.surface,
+          payload.projectId ?? '',
+          payload.state.displayName ?? '',
+        ].join('::');
       if (projectMountRecoveryIdentityRef.current !== recoveryIdentity) {
         projectMountRecoveryIdentityRef.current = recoveryIdentity;
         setProjectMountRecoveryStartedAt(Date.now());
@@ -950,16 +1001,24 @@ export function AppContent() {
     });
     const unsubscribeTerminal = globalEventBus.on('openTerminal', handleOpenTerminal);
     const unsubscribeReveal = globalEventBus.on('revealInExplorer', handleRevealInExplorer);
+    const unsubscribeProjectTerminal = subscribeOpenProjectTerminal(handleOpenProjectTerminal);
+    const unsubscribeProjectReveal = subscribeRevealProjectInFileManager(
+      handleRevealProjectInFileManager,
+    );
+    const unsubscribeProjectPathCopy = subscribeCopyProjectLocalPath(handleCopyProjectLocalPath);
     const unsubscribeSettings = globalEventBus.on('openSettings', handleOpenSettings);
     const unsubscribeTerminalReq = globalEventBus.on('terminalRequest', handleTerminalRequest);
     return () => {
       unsubscribeProjectMountRecovery();
       unsubscribeTerminal();
       unsubscribeReveal();
+      unsubscribeProjectTerminal();
+      unsubscribeProjectReveal();
+      unsubscribeProjectPathCopy();
       unsubscribeSettings();
       unsubscribeTerminalReq();
     };
-  }, [addToast, t]);
+  }, [addToast, fileSystemService, t]);
 
   const hasOpenWorkspaceMenuSurface =
     showWorkspaceMenu ||
@@ -1061,8 +1120,12 @@ export function AppContent() {
   }, []);
 
   const selectFolderAndImportProject = async (fallbackProjectName: string) => {
-    const folderInfo = await openLocalFolder();
-    if (!folderInfo) {
+    const pickerResult = await openLocalFolder();
+    if (pickerResult.status === 'cancelled') {
+      return null;
+    }
+    if (pickerResult.status === 'unsupported') {
+      addToast(pickerResult.message, 'error');
       return null;
     }
 
@@ -1095,28 +1158,12 @@ export function AppContent() {
       }
       return projectService.createProject(normalizedTargetWorkspaceId, name, options);
     };
-    const updateProjectForTargetWorkspace = (
-      projectId: string,
-      updates: Parameters<typeof updateMenuProject>[1],
-    ) => {
-      if (normalizedTargetWorkspaceId === menuProjectsScopeWorkspaceId) {
-        return updateMenuProject(projectId, updates);
-      }
-      if (normalizedTargetWorkspaceId === projectsWorkspaceId) {
-        return updateActiveProject(projectId, updates);
-      }
-      return projectService.updateProject(projectId, updates);
-    };
-
     const importedProject = await importLocalFolderProject({
       createProject: createProjectForTargetWorkspace,
       fallbackProjectName,
-      folderInfo,
-      getProjectByPath: (projectPath) =>
-        projectService.getProjectByPath(normalizedTargetWorkspaceId, projectPath),
+      folderInfo: pickerResult.source,
       mountFolder: (projectId, nextFolderInfo) =>
         fileSystemService.mountFolder(projectId, nextFolderInfo),
-      updateProject: updateProjectForTargetWorkspace,
     });
 
     return {
@@ -1250,14 +1297,14 @@ export function AppContent() {
   };
 
   const handleOpenProjectInExplorer = useCallback(
-    (projectPath?: string, projectName?: string) => {
-      const normalizedProjectPath = projectPath?.trim() ?? '';
-      if (!normalizedProjectPath) {
+    (projectId: string, projectName?: string) => {
+      const normalizedProjectId = projectId.trim();
+      if (!normalizedProjectId) {
         addToast(t('app.projectPathUnavailable', { name: projectName ?? 'project' }), 'error');
         return;
       }
 
-      globalEventBus.emit('revealInExplorer', normalizedProjectPath);
+      emitRevealProjectInFileManager({ projectId: normalizedProjectId });
     },
     [addToast, t],
   );

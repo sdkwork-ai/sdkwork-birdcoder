@@ -6,14 +6,15 @@
  * from `@sdkwork/membership-pc-subscription/catalog`, following the same
  * integration pattern as sdkwork-clawrouter's `ClawRouterTokenPlanPage`.
  *
- * The `SdkworkSubscriptionCatalogPage` provides a rich subscription catalog
- * with plan grid, tier comparison, checkout modal, points purchase, and
- * redeem flows. Custom host components (modals) are styled to match the
- * BirdCoder dark IDE shell, aligned with clawrouter's dark theme.
+ * The `SdkworkSubscriptionCatalogPage` owns the subscription catalog and its
+ * checkout payment state. BirdCoder supplies only non-payment host modals
+ * that are specific to the IDE shell.
  */
 
-import { SdkworkSubscriptionCatalogPage } from '@sdkwork/membership-pc-subscription/catalog';
-import { BirdCoderTokenPlanCheckoutModal } from './BirdCoderTokenPlanCheckoutModal.tsx';
+import {
+  SdkworkSubscriptionCatalogPage,
+  sdkworkSubscriptionCatalogHostComponents,
+} from '@sdkwork/membership-pc-subscription/catalog';
 import {
   BirdCoderTokenPlanPointsDetailsModal,
   BirdCoderTokenPlanPointsPurchaseModal,
@@ -41,14 +42,14 @@ export function BirdCoderTokenPlanPage({
       <div className="mx-auto w-full max-w-7xl">
         <SdkworkSubscriptionCatalogPage
           components={{
-            checkoutModal: BirdCoderTokenPlanCheckoutModal,
+            ...sdkworkSubscriptionCatalogHostComponents,
             pointsDetailsModal: BirdCoderTokenPlanPointsDetailsModal,
             pointsPurchaseModal: BirdCoderTokenPlanPointsPurchaseModal,
             redeemModal: BirdCoderTokenPlanRedeemModal,
           }}
           memberSummary={memberSummary}
           notifyOutlet={NotifyOutlet}
-          onMembershipTierUpdated={(membershipTierKey, _durationDays) => {
+          onMembershipTierUpdated={(membershipTierKey: string) => {
             setMembershipTierKey(membershipTierKey);
             void refreshMembership().catch(() => undefined);
           }}

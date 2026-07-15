@@ -1,6 +1,7 @@
 # Application Modes
 
-BirdCoder keeps one product surface while separating delivery topology from SDKWork IAM deployment mode.
+BirdCoder keeps one renderer and project service model while separating
+delivery topology, IAM deployment binding, and device-local folder capability.
 
 ## Delivery Modes
 
@@ -31,4 +32,20 @@ Each delivery mode shares the same release profile, checksum finalization, relea
 
 That route invariant is the core standard for the sample app: deployment topology may change, but the BirdCoder UI and service layer stay branch-free and consume SDKWork IAM through the generated app SDK surface.
 
-For local startup, BirdCoder also seeds one starter project under a deterministic absolute directory beside the sqlite authority file unless `BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT` overrides the location.
+## Project And Folder Modes
+
+The remote Project always remains server metadata with an opaque id. Browser
+and Tauri may bind that id to a folder on the current device, but the binding
+never becomes a server path or remote project field.
+
+- Browser uses a `FileSystemDirectoryHandle` stored with IndexedDB structured
+  cloning. Recovery checks permission without prompting; denied permission
+  requires explicit rebind.
+- Tauri keeps the native path in its host-private local-store SQLite KV
+  registry. The record is scoped to the active IAM tenant, organization, user,
+  realm, and project, and is plaintext at rest.
+- A remote `server` or `cloud` deployment receives neither kind of mount. It
+  derives server-owned storage from trusted authorization context.
+
+`BIRDCODER_LOCAL_BOOTSTRAP_PROJECT_ROOT` is a local development bootstrap
+option only. It is not a remote project API field or a server workspace root.

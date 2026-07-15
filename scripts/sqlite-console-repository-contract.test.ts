@@ -76,7 +76,7 @@ try {
     projectId: SQLITE_PROJECT_ID,
     projectUuid: `project-${SQLITE_PROJECT_ID}`,
     configData: JSON.stringify({
-      rootPath: 'D:/workspace/sqlite-repository-project',
+      buildProfile: 'debug',
     }),
     contentVersion: '1.0',
     createdAt: '2026-04-10T16:00:00.250Z',
@@ -195,7 +195,7 @@ try {
       (await repositories.projectContents.findById(SQLITE_PROJECT_CONTENT_ID))?.configData ?? '{}',
     ),
     {
-      rootPath: 'D:/workspace/sqlite-repository-project',
+      buildProfile: 'debug',
     },
   );
   assert.equal(

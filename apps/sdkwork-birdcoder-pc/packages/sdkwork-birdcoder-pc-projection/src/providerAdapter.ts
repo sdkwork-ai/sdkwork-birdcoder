@@ -55,9 +55,11 @@ interface NodeModuleModule {
   };
 }
 
+export type RuntimeEnvironment = Readonly<Record<string, string | undefined>>;
+
 interface NodeRuntimeProcess {
   cwd(): string;
-  env: NodeJS.ProcessEnv;
+  env: RuntimeEnvironment;
   platform: string;
   versions?: {
     node?: string;
@@ -191,7 +193,7 @@ export interface DetectedHealthReportInput {
   authConfigured?: boolean;
   fallbackRuntimeMode?: ChatEngineRuntimeMode | null;
   fallbackAvailable?: boolean;
-  env?: NodeJS.ProcessEnv;
+  env?: RuntimeEnvironment;
 }
 
 export interface CapabilitySnapshotInput {
@@ -278,7 +280,7 @@ function getWorkingDirectory(): string {
   return getRuntimeProcess()?.cwd() ?? '.';
 }
 
-function getRuntimeEnv(): NodeJS.ProcessEnv {
+function getRuntimeEnv(): RuntimeEnvironment {
   return getRuntimeProcess()?.env ?? {};
 }
 
@@ -797,7 +799,7 @@ export function resolvePackagePresence(
 
 export function resolveExecutablePresence(
   executable: string,
-  env: NodeJS.ProcessEnv = getRuntimeEnv(),
+  env: RuntimeEnvironment = getRuntimeEnv(),
 ): boolean {
   const fsModule = getFsModule();
   const pathModule = getPathModule();

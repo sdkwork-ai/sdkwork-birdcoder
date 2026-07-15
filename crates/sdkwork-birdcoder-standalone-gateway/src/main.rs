@@ -12,7 +12,7 @@ async fn main() {
 async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     sdkwork_web_bootstrap::init_tracing_from_env();
 
-    let config = bootstrap::config::BirdServerConfig::from_env();
+    let config = bootstrap::config::BirdServerConfig::from_env()?;
     let app = bootstrap::build_app(&config).await.map_err(
         |error| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(std::io::Error::other(error.to_string()))

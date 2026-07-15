@@ -61,7 +61,6 @@ try {
   await Promise.all([
     repositories.workspaces.clear(),
     repositories.projects.clear(),
-    repositories.projectContents.clear(),
     repositories.documents.clear(),
     repositories.deployments.clear(),
     repositories.targets.clear(),
@@ -87,17 +86,6 @@ try {
     status: 'active',
     createdAt: '2026-04-10T18:00:01.000Z',
     updatedAt: '2026-04-10T18:00:01.000Z',
-  });
-  await repositories.projectContents.save({
-    id: 'project-content-console-contract',
-    projectId: 'project-console-contract',
-    projectUuid: 'project-project-console-contract',
-    configData: JSON.stringify({
-      rootPath: 'D:/workspace/console-contract-project',
-    }),
-    contentVersion: '1.0',
-    createdAt: '2026-04-10T18:00:01.250Z',
-    updatedAt: '2026-04-10T18:00:01.250Z',
   });
   await repositories.documents.save({
     id: 'doc-console-contract',
@@ -207,9 +195,7 @@ try {
     'Persisted Workspace',
     'Created through the default IDE service factory.',
   );
-  await services.projectService.createProject(createdWorkspace.id, 'Persisted Project', {
-    path: 'D:/sdkwork/contracts/provider-backed-console-project',
-  });
+  await services.projectService.createProject(createdWorkspace.id, 'Persisted Project');
 
   const reloadedServices = createDefaultBirdCoderIdeServices();
   const persistedWorkspaces = await reloadedServices.workspaceService.getWorkspaces();

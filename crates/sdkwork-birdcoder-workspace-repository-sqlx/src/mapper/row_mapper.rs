@@ -23,6 +23,15 @@ fn i64_to_bool(v: i64) -> bool {
     v != 0
 }
 
+fn project_status_to_payload_status(value: i64) -> &'static str {
+    match value {
+        0 => "active",
+        1 => "archived",
+        // Never expose an unknown legacy storage value as an active project.
+        _ => "archived",
+    }
+}
+
 pub fn workspace_row_to_payload(row: &WorkspaceRow) -> WorkspacePayload {
     WorkspacePayload {
         id: i64_to_string(row.id),
@@ -87,10 +96,7 @@ pub fn project_row_to_payload(row: &ProjectRow) -> ProjectPayload {
         tenant_id: Some(i64_to_string(row.tenant_id)),
         organization_id: Some(i64_to_string(row.organization_id)),
         data_scope: Some(i64_to_string(row.data_scope)),
-        workspace_id: row
-            .workspace_id
-            .map(i64_to_string)
-            .unwrap_or_default(),
+        workspace_id: row.workspace_id.map(i64_to_string).unwrap_or_default(),
         workspace_uuid: row.workspace_uuid.clone(),
         user_id: opt_i64_to_opt_string(row.user_id),
         parent_id: opt_i64_to_opt_string(row.parent_id),
@@ -103,8 +109,6 @@ pub fn project_row_to_payload(row: &ProjectRow) -> ProjectPayload {
         title: Some(row.title.clone()),
         name: row.name.clone(),
         description: row.description.clone(),
-        root_path: None,
-        site_path: row.site_path.clone(),
         domain_prefix: row.domain_prefix.clone(),
         owner_id: None,
         leader_id: opt_i64_to_opt_string(row.leader_id),
@@ -122,13 +126,15 @@ pub fn project_row_to_payload(row: &ProjectRow) -> ProjectPayload {
             .and_then(|s| serde_json::from_str(s).ok()),
         is_template: Some(i64_to_bool(row.is_template)),
         collaborator_count: None,
-        status: row.status.to_string(),
+        status: project_status_to_payload_status(row.status).to_owned(),
         updated_at: Some(row.updated_at.clone()),
         viewer_role: None,
     }
 }
 
-pub fn project_collaborator_row_to_payload(row: &ProjectCollaboratorRow) -> ProjectCollaboratorPayload {
+pub fn project_collaborator_row_to_payload(
+    row: &ProjectCollaboratorRow,
+) -> ProjectCollaboratorPayload {
     ProjectCollaboratorPayload {
         id: i64_to_string(row.id),
         uuid: row.uuid.clone(),
@@ -274,4 +280,3 @@ pub fn team_member_row_to_payload(row: &TeamMemberRow) -> TeamMemberPayload {
         updated_at: Some(row.updated_at.clone()),
     }
 }
-

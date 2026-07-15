@@ -2,12 +2,15 @@ import {
   DEFAULT_MAX_SEARCHABLE_FILE_CONTENT_CHARACTERS,
   searchProjectFiles,
   type FileRevisionLookupResult,
+  type ProjectDeviceMountRecoveryResult,
+  type ProjectDeviceMountState,
   type ProjectFileSystemChangeEvent,
   type IFileNode,
   type LocalFolderMountSource,
   type WorkspaceFileSearchExecutionResult,
   type WorkspaceFileSearchOptions,
 } from '@sdkwork/birdcoder-pc-types';
+import { APP_SESSION_CHANGE_EVENT_NAME } from '@sdkwork/birdcoder-pc-core/appSessionEvents';
 import {
   createBirdCoderTauriFileSystemRuntime,
   type BirdCoderTauriDirectoryListing,
@@ -19,6 +22,10 @@ import type {
   FileSystemChangeSubscriptionOptions,
   IFileSystemService,
 } from '../interfaces/IFileSystemService.ts';
+import {
+  ProjectDeviceMountRegistry,
+  type ProjectDeviceMountSubjectProvider,
+} from '../ProjectDeviceMountRegistry.ts';
 
 interface BrowserWritableLike {
   abort?(): Promise<void>;
@@ -145,10 +152,16 @@ type LoadedDirectoryMountState = {
   loadedDirectoryPaths: Set<string>;
 };
 
+interface MountedProjectSubjectScope {
+  generation: number;
+  key: string | null;
+}
+
 type FileSystemChangeListener = (event: ProjectFileSystemChangeEvent) => void;
 type ProjectFileTreePoller = {
   directoryPollCursor: number;
   isRunning: boolean;
+  scope: MountedProjectSubjectScope;
   timerId: ReturnType<typeof setTimeout> | null;
   trackedFileKnownPaths: Set<string>;
   trackedFilePollCursor: number;
@@ -156,15 +169,18 @@ type ProjectFileTreePoller = {
 };
 type ProjectTauriFileWatcher = {
   rootSystemPath: string;
+  scope: MountedProjectSubjectScope;
   stop: () => void;
 };
 type ProjectTauriFileWatcherStart = {
   cancelled: boolean;
   rootSystemPath: string;
+  scope: MountedProjectSubjectScope;
 };
 type ProjectTauriWatchQueue = {
   events: ProjectFileSystemChangeEvent[];
   isFlushing: boolean;
+  scope: MountedProjectSubjectScope;
   timerId: ReturnType<typeof setTimeout> | null;
 };
 interface SearchTreeSnapshotContext {
@@ -191,6 +207,8 @@ const MAX_RUNTIME_FILE_SEARCH_TREE_NODES = 20_000;
 const SEARCH_TREE_SNAPSHOT_YIELD_INTERVAL = 128;
 
 export interface RuntimeFileSystemServiceOptions {
+  mountRegistry?: ProjectDeviceMountRegistry;
+  mountSubjectProvider?: ProjectDeviceMountSubjectProvider;
   tauriRuntime?: BirdCoderTauriFileSystemRuntime;
 }
 
@@ -776,6 +794,57 @@ function normalizeDirectoryRefreshPaths(
   return [...normalizedPaths];
 }
 
+function normalizeMountedVirtualPath(path: string): string | null {
+  const normalizedPath = path.trim().replace(/\\/gu, '/').replace(/\/+/gu, '/');
+  if (!normalizedPath.startsWith('/')) {
+    return null;
+  }
+
+  const normalizedSegments = normalizedPath
+    .split('/')
+    .filter(Boolean);
+  if (normalizedSegments.some((segment) => segment === '.' || segment === '..')) {
+    return null;
+  }
+
+  return `/${normalizedSegments.join('/')}`;
+}
+
+function resolveMountedTauriSystemPath(
+  mount: TauriMountState,
+  mountedPath: string | undefined,
+): string | null {
+  const normalizedRootVirtualPath = normalizeMountedVirtualPath(mount.rootVirtualPath);
+  if (!normalizedRootVirtualPath) {
+    return null;
+  }
+
+  const normalizedTargetVirtualPath = mountedPath
+    ? normalizeMountedVirtualPath(mountedPath)
+    : normalizedRootVirtualPath;
+  if (!normalizedTargetVirtualPath) {
+    return null;
+  }
+
+  const rootPrefix = `${normalizedRootVirtualPath}/`;
+  if (
+    normalizedTargetVirtualPath !== normalizedRootVirtualPath &&
+    !normalizedTargetVirtualPath.startsWith(rootPrefix)
+  ) {
+    return null;
+  }
+
+  const relativePath = normalizedTargetVirtualPath.slice(normalizedRootVirtualPath.length)
+    .replace(/^\/+/, '');
+  if (!relativePath) {
+    return mount.rootSystemPath;
+  }
+
+  const pathSeparator = mount.rootSystemPath.includes('\\') ? '\\' : '/';
+  const normalizedRootSystemPath = mount.rootSystemPath.replace(/[\\/]+$/u, '');
+  return `${normalizedRootSystemPath}${pathSeparator}${relativePath.replace(/\//gu, pathSeparator)}`;
+}
+
 export class RuntimeFileSystemService implements IFileSystemService {
   private readonly projectBrowserMounts: Record<string, BrowserMountState> = {};
   private readonly projectTauriMounts: Record<string, TauriMountState> = {};
@@ -789,12 +858,37 @@ export class RuntimeFileSystemService implements IFileSystemService {
   private readonly projectTauriFileWatchers = new Map<string, ProjectTauriFileWatcher>();
   private readonly projectTauriFileWatcherStarts = new Map<string, ProjectTauriFileWatcherStart>();
   private readonly projectTauriWatchQueues = new Map<string, ProjectTauriWatchQueue>();
+  private readonly projectMountSubjectScopes = new Map<string, MountedProjectSubjectScope>();
+  private readonly mountRegistry: ProjectDeviceMountRegistry;
+  private mountedProjectSubjectGeneration = 0;
+  private mountedProjectSubjectKey: string | null = null;
+  private mountedProjectSubjectReconcileRequest = 0;
+  private mountedProjectSubjectAppliedRequest = 0;
+  private mountedProjectSubjectInitialized = false;
 
   constructor(options: RuntimeFileSystemServiceOptions = {}) {
+    this.mountRegistry =
+      options.mountRegistry ??
+      new ProjectDeviceMountRegistry({ subjectProvider: options.mountSubjectProvider });
     this.tauriRuntime = options.tauriRuntime ?? createBirdCoderTauriFileSystemRuntime();
+    globalThis.addEventListener?.(APP_SESSION_CHANGE_EVENT_NAME, () => {
+      void this.reconcileMountedProjectSubject();
+    });
   }
 
   async getFiles(projectId: string): Promise<IFileNode[]> {
+    const scope = await this.reconcileMountedProjectSubject();
+    return this.getFilesForSubjectScope(projectId, scope);
+  }
+
+  private getFilesForSubjectScope(
+    projectId: string,
+    scope: MountedProjectSubjectScope,
+  ): IFileNode[] {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return [];
+    }
+
     const browserMount = this.projectBrowserMounts[projectId];
     if (browserMount) {
       if (!browserMount.cachedTree) {
@@ -814,15 +908,124 @@ export class RuntimeFileSystemService implements IFileSystemService {
     return [];
   }
 
-  async loadDirectory(projectId: string, path: string): Promise<IFileNode[]> {
-    if (this.isBrowserMountedPath(projectId, path)) {
-      await this.loadBrowserMountedDirectory(projectId, path);
-      return this.getFiles(projectId);
+  async getProjectMountState(projectId: string): Promise<ProjectDeviceMountState> {
+    const scope = await this.reconcileMountedProjectSubject();
+    const mountedState = this.createMountedProjectState(projectId, scope);
+    if (mountedState) {
+      return mountedState;
     }
 
-    if (this.isTauriMountedPath(projectId, path)) {
-      await this.loadTauriMountedDirectory(projectId, path);
-      return this.getFiles(projectId);
+    try {
+      return await this.mountRegistry.inspect(projectId, scope.key);
+    } catch {
+      return {
+        displayName: null,
+        host: null,
+        status: 'session_required',
+      };
+    }
+  }
+
+  async restoreProjectMount(projectId: string): Promise<ProjectDeviceMountRecoveryResult> {
+    const scope = await this.reconcileMountedProjectSubject();
+    const mountedState = this.createMountedProjectState(projectId, scope);
+    if (mountedState) {
+      return {
+        restored: false,
+        state: mountedState,
+      };
+    }
+
+    let recovery;
+    try {
+      recovery = await this.mountRegistry.resolveRecoverySource(projectId, scope.key);
+    } catch {
+      return {
+        restored: false,
+        state: {
+          displayName: null,
+          host: null,
+          status: 'session_required',
+        },
+      };
+    }
+    if (!recovery.source) {
+      return {
+        restored: false,
+        state: recovery.state,
+      };
+    }
+
+    try {
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      await this.mountFolderForSubjectScope(projectId, recovery.source, scope);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      return {
+        restored: true,
+        state: this.createMountedProjectState(projectId, scope) ?? recovery.state,
+      };
+    } catch {
+      return {
+        restored: false,
+        state: {
+          displayName: recovery.state.displayName,
+          host: recovery.state.host,
+          status: 'mount_required',
+        },
+      };
+    }
+  }
+
+  async resolveLocalWorkingDirectory(
+    projectId: string,
+    mountedPath?: string,
+  ): Promise<string | null> {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return null;
+    }
+
+    const mount = this.projectTauriMounts[projectId];
+    return mount ? resolveMountedTauriSystemPath(mount, mountedPath) : null;
+  }
+
+  async revealProjectInFileManager(
+    projectId: string,
+    mountedPath?: string,
+  ): Promise<boolean> {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
+    const mount = this.projectTauriMounts[projectId];
+    const targetPath = mount ? resolveMountedTauriSystemPath(mount, mountedPath) : null;
+    if (!targetPath) {
+      return false;
+    }
+
+    try {
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      await this.tauriRuntime.revealInFileManager(targetPath);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async loadDirectory(projectId: string, path: string): Promise<IFileNode[]> {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (this.isBrowserMountedPath(projectId, path, scope)) {
+      await this.loadBrowserMountedDirectory(projectId, path, scope);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      return this.getFilesForSubjectScope(projectId, scope);
+    }
+
+    if (this.isTauriMountedPath(projectId, path, scope)) {
+      await this.loadTauriMountedDirectory(projectId, path, undefined, scope);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      return this.getFilesForSubjectScope(projectId, scope);
     }
 
     throw new Error(`Directory "${path}" is not available because project "${projectId}" is not mounted.`);
@@ -833,13 +1036,18 @@ export class RuntimeFileSystemService implements IFileSystemService {
   }
 
   async refreshDirectories(projectId: string, paths: readonly string[]): Promise<IFileNode[]> {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return [];
+    }
+
     const browserMount = this.projectBrowserMounts[projectId];
     if (browserMount) {
       const targetPaths = normalizeDirectoryRefreshPaths(paths, browserMount.rootPath);
       const refreshResults = await runBatchedTasks(
         targetPaths,
         DIRECTORY_REFRESH_BATCH_SIZE,
-        async (directoryPath) => this.refreshBrowserDirectory(projectId, directoryPath),
+        async (directoryPath) => this.refreshBrowserDirectory(projectId, directoryPath, scope),
       );
       refreshResults.forEach((result, index) => {
         if (result.status === 'rejected') {
@@ -849,7 +1057,8 @@ export class RuntimeFileSystemService implements IFileSystemService {
           );
         }
       });
-      return this.getFiles(projectId);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      return this.getFilesForSubjectScope(projectId, scope);
     }
 
     const tauriMount = this.projectTauriMounts[projectId];
@@ -858,7 +1067,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
       const refreshResults = await runBatchedTasks(
         targetPaths,
         DIRECTORY_REFRESH_BATCH_SIZE,
-        async (directoryPath) => this.refreshTauriDirectory(projectId, directoryPath),
+        async (directoryPath) => this.refreshTauriDirectory(projectId, directoryPath, scope),
       );
       refreshResults.forEach((result, index) => {
         if (result.status === 'rejected') {
@@ -868,7 +1077,8 @@ export class RuntimeFileSystemService implements IFileSystemService {
           );
         }
       });
-      return this.getFiles(projectId);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      return this.getFilesForSubjectScope(projectId, scope);
     }
 
     return [];
@@ -879,39 +1089,95 @@ export class RuntimeFileSystemService implements IFileSystemService {
     listener: (event: ProjectFileSystemChangeEvent) => void,
     options: FileSystemChangeSubscriptionOptions = {},
   ): () => void {
+    let disposed = false;
+    const requestedScope = this.mountedProjectSubjectInitialized
+      ? this.getMountedProjectSubjectScope()
+      : null;
+    let registeredScope = requestedScope;
+    void this.registerFileChangeSubscription(
+      projectId,
+      listener,
+      options,
+      () => disposed,
+      requestedScope,
+      (scope) => {
+        registeredScope = scope;
+      },
+    ).catch(
+      (error) => {
+        console.error(`Failed to register file-system subscription for project "${projectId}"`, error);
+      },
+    );
+
+    return () => {
+      disposed = true;
+      this.removeFileChangeSubscription(projectId, listener, registeredScope);
+    };
+  }
+
+  private async registerFileChangeSubscription(
+    projectId: string,
+    listener: (event: ProjectFileSystemChangeEvent) => void,
+    options: FileSystemChangeSubscriptionOptions,
+    isDisposed: () => boolean,
+    expectedScope: MountedProjectSubjectScope | null,
+    onRegistered: (scope: MountedProjectSubjectScope) => void,
+  ): Promise<void> {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (
+      isDisposed() ||
+      (expectedScope !== null &&
+        (expectedScope.generation !== scope.generation || expectedScope.key !== scope.key))
+    ) {
+      return;
+    }
+
     const projectListeners =
       this.fileChangeListeners.get(projectId) ??
       new Map<FileSystemChangeListener, FileSystemChangeSubscriptionOptions>();
     projectListeners.set(listener, options);
     this.fileChangeListeners.set(projectId, projectListeners);
-    this.ensureProjectFileTreeRealtime(projectId);
+    onRegistered(scope);
+    this.ensureProjectFileTreeRealtime(projectId, scope);
 
-    return () => {
-      const currentListeners = this.fileChangeListeners.get(projectId);
-      if (!currentListeners) {
-        return;
-      }
+  }
 
-      currentListeners.delete(listener);
-      if (currentListeners.size === 0) {
-        this.fileChangeListeners.delete(projectId);
-        this.stopProjectFileTreePoller(projectId);
-        this.stopProjectTauriFileWatcher(projectId);
-        this.clearProjectTauriWatchQueue(projectId);
-      }
-    };
+  private removeFileChangeSubscription(
+    projectId: string,
+    listener: (event: ProjectFileSystemChangeEvent) => void,
+    scope: MountedProjectSubjectScope | null,
+  ): void {
+    if (scope && !this.isMountedProjectSubjectScopeActive(scope)) {
+      return;
+    }
+
+    const currentListeners = this.fileChangeListeners.get(projectId);
+    if (!currentListeners) {
+      return;
+    }
+
+    currentListeners.delete(listener);
+    if (currentListeners.size === 0) {
+      this.fileChangeListeners.delete(projectId);
+      this.stopProjectFileTreePoller(projectId);
+      this.stopProjectTauriFileWatcher(projectId);
+      this.clearProjectTauriWatchQueue(projectId);
+    }
   }
 
   async getFileContent(projectId: string, path: string): Promise<string> {
-    if (this.isBrowserMountedPath(projectId, path)) {
-      const mountedContent = await this.readBrowserMountedFileContent(projectId, path);
+    const scope = await this.reconcileMountedProjectSubject();
+    if (this.isBrowserMountedPath(projectId, path, scope)) {
+      const mountedContent = await this.readBrowserMountedFileContent(projectId, path, scope);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       if (mountedContent !== null) {
         return mountedContent;
       }
     }
 
-    if (this.isTauriMountedPath(projectId, path)) {
-      const mountedContent = await this.readTauriMountedFileContent(projectId, path);
+    if (this.isTauriMountedPath(projectId, path, scope)) {
+      const mountedContent = await this.readTauriMountedFileContent(projectId, path, scope);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       if (mountedContent !== null) {
         return mountedContent;
       }
@@ -921,15 +1187,18 @@ export class RuntimeFileSystemService implements IFileSystemService {
   }
 
   async getFileRevision(projectId: string, path: string): Promise<string> {
-    if (this.isBrowserMountedPath(projectId, path)) {
-      const mountedRevision = await this.readBrowserMountedFileRevision(projectId, path);
+    const scope = await this.reconcileMountedProjectSubject();
+    if (this.isBrowserMountedPath(projectId, path, scope)) {
+      const mountedRevision = await this.readBrowserMountedFileRevision(projectId, path, scope);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       if (mountedRevision !== null) {
         return mountedRevision;
       }
     }
 
-    if (this.isTauriMountedPath(projectId, path)) {
-      const mountedRevision = await this.readTauriMountedFileRevision(projectId, path);
+    if (this.isTauriMountedPath(projectId, path, scope)) {
+      const mountedRevision = await this.readTauriMountedFileRevision(projectId, path, scope);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       if (mountedRevision !== null) {
         return mountedRevision;
       }
@@ -942,13 +1211,22 @@ export class RuntimeFileSystemService implements IFileSystemService {
     projectId: string,
     paths: readonly string[],
   ): Promise<ReadonlyArray<FileRevisionLookupResult>> {
+    const scope = await this.reconcileMountedProjectSubject();
+    return this.getFileRevisionsForSubjectScope(projectId, paths, scope);
+  }
+
+  private async getFileRevisionsForSubjectScope(
+    projectId: string,
+    paths: readonly string[],
+    scope: MountedProjectSubjectScope,
+  ): Promise<ReadonlyArray<FileRevisionLookupResult>> {
     if (paths.length === 0) {
       return [];
     }
 
-    if (this.projectBrowserMounts[projectId]) {
+    if (this.isProjectMountOwnedByScope(projectId, scope) && this.projectBrowserMounts[projectId]) {
       const lookups = await runBatchedTasks(paths, DIRECTORY_POLL_BATCH_SIZE, async (path) => {
-        const revision = await this.readBrowserMountedFileRevision(projectId, path);
+        const revision = await this.readBrowserMountedFileRevision(projectId, path, scope);
         return {
           path,
           revision,
@@ -956,6 +1234,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
         } satisfies FileRevisionLookupResult;
       });
 
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       return lookups.map((lookup, index) => {
         if (lookup.status === 'fulfilled') {
           return lookup.value;
@@ -970,13 +1249,17 @@ export class RuntimeFileSystemService implements IFileSystemService {
       });
     }
 
-    const tauriMount = this.projectTauriMounts[projectId];
+    const tauriMount = this.isProjectMountOwnedByScope(projectId, scope)
+      ? this.projectTauriMounts[projectId]
+      : undefined;
     if (tauriMount) {
-      return this.tauriRuntime.getFileRevisions(
+      const revisions = await this.tauriRuntime.getFileRevisions(
         tauriMount.rootSystemPath,
         tauriMount.rootVirtualPath,
         paths,
       );
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      return revisions;
     }
 
     return paths.map((path) => ({
@@ -988,21 +1271,24 @@ export class RuntimeFileSystemService implements IFileSystemService {
   }
 
   async saveFileContent(projectId: string, path: string, content: string): Promise<void> {
-    if (this.isBrowserMountedPath(projectId, path)) {
-      if (!(await this.writeBrowserMountedFile(projectId, path, content))) {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (this.isBrowserMountedPath(projectId, path, scope)) {
+      if (!(await this.writeBrowserMountedFile(projectId, path, content, scope))) {
         throw new Error(`Unable to persist browser-mounted file "${path}".`);
       }
 
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       this.projectFileContent[projectId] ??= {};
       this.projectFileContent[projectId][path] = content;
       return;
     }
 
-    if (this.isTauriMountedPath(projectId, path)) {
-      if (!(await this.writeTauriMountedFile(projectId, path, content))) {
+    if (this.isTauriMountedPath(projectId, path, scope)) {
+      if (!(await this.writeTauriMountedFile(projectId, path, content, scope))) {
         throw new Error(`Unable to persist desktop-mounted file "${path}".`);
       }
 
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       this.projectFileContent[projectId] ??= {};
       this.projectFileContent[projectId][path] = content;
       return;
@@ -1012,17 +1298,20 @@ export class RuntimeFileSystemService implements IFileSystemService {
   }
 
   async createFile(projectId: string, path: string): Promise<void> {
-    if (this.isBrowserMountedPath(projectId, path)) {
-      if (!(await this.createBrowserMountedFile(projectId, path))) {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (this.isBrowserMountedPath(projectId, path, scope)) {
+      if (!(await this.createBrowserMountedFile(projectId, path, scope))) {
         throw new Error(`Unable to create browser-mounted file "${path}".`);
       }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       return;
     }
 
-    if (this.isTauriMountedPath(projectId, path)) {
-      if (!(await this.createTauriMountedFile(projectId, path))) {
+    if (this.isTauriMountedPath(projectId, path, scope)) {
+      if (!(await this.createTauriMountedFile(projectId, path, scope))) {
         throw new Error(`Unable to create desktop-mounted file "${path}".`);
       }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       return;
     }
 
@@ -1030,17 +1319,20 @@ export class RuntimeFileSystemService implements IFileSystemService {
   }
 
   async createFolder(projectId: string, path: string): Promise<void> {
-    if (this.isBrowserMountedPath(projectId, path)) {
-      if (!(await this.createBrowserMountedDirectory(projectId, path))) {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (this.isBrowserMountedPath(projectId, path, scope)) {
+      if (!(await this.createBrowserMountedDirectory(projectId, path, scope))) {
         throw new Error(`Unable to create browser-mounted directory "${path}".`);
       }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       return;
     }
 
-    if (this.isTauriMountedPath(projectId, path)) {
-      if (!(await this.createTauriMountedDirectory(projectId, path))) {
+    if (this.isTauriMountedPath(projectId, path, scope)) {
+      if (!(await this.createTauriMountedDirectory(projectId, path, scope))) {
         throw new Error(`Unable to create desktop-mounted directory "${path}".`);
       }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       return;
     }
 
@@ -1048,18 +1340,21 @@ export class RuntimeFileSystemService implements IFileSystemService {
   }
 
   async deleteFile(projectId: string, path: string): Promise<void> {
-    if (this.isBrowserMountedPath(projectId, path)) {
-      if (!(await this.deleteBrowserMountedEntry(projectId, path, false))) {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (this.isBrowserMountedPath(projectId, path, scope)) {
+      if (!(await this.deleteBrowserMountedEntry(projectId, path, false, scope))) {
         throw new Error(`Unable to delete browser-mounted file "${path}".`);
       }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       deleteStoredPathContent(this.projectFileContent[projectId], path, false);
       return;
     }
 
-    if (this.isTauriMountedPath(projectId, path)) {
-      if (!(await this.deleteTauriMountedEntry(projectId, path, false))) {
+    if (this.isTauriMountedPath(projectId, path, scope)) {
+      if (!(await this.deleteTauriMountedEntry(projectId, path, false, scope))) {
         throw new Error(`Unable to delete desktop-mounted file "${path}".`);
       }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       deleteStoredPathContent(this.projectFileContent[projectId], path, false);
       return;
     }
@@ -1068,18 +1363,21 @@ export class RuntimeFileSystemService implements IFileSystemService {
   }
 
   async deleteFolder(projectId: string, path: string): Promise<void> {
-    if (this.isBrowserMountedPath(projectId, path)) {
-      if (!(await this.deleteBrowserMountedEntry(projectId, path, true))) {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (this.isBrowserMountedPath(projectId, path, scope)) {
+      if (!(await this.deleteBrowserMountedEntry(projectId, path, true, scope))) {
         throw new Error(`Unable to delete browser-mounted directory "${path}".`);
       }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       deleteStoredPathContent(this.projectFileContent[projectId], path, true);
       return;
     }
 
-    if (this.isTauriMountedPath(projectId, path)) {
-      if (!(await this.deleteTauriMountedEntry(projectId, path, true))) {
+    if (this.isTauriMountedPath(projectId, path, scope)) {
+      if (!(await this.deleteTauriMountedEntry(projectId, path, true, scope))) {
         throw new Error(`Unable to delete desktop-mounted directory "${path}".`);
       }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       deleteStoredPathContent(this.projectFileContent[projectId], path, true);
       return;
     }
@@ -1088,22 +1386,31 @@ export class RuntimeFileSystemService implements IFileSystemService {
   }
 
   async renameNode(projectId: string, oldPath: string, newPath: string): Promise<void> {
-    if (this.isBrowserMountedPath(projectId, oldPath) || this.isBrowserMountedPath(projectId, newPath)) {
-      if (!(await this.renameBrowserMountedNode(projectId, oldPath, newPath))) {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (
+      this.isBrowserMountedPath(projectId, oldPath, scope) ||
+      this.isBrowserMountedPath(projectId, newPath, scope)
+    ) {
+      if (!(await this.renameBrowserMountedNode(projectId, oldPath, newPath, scope))) {
         throw new Error(
           `Unable to rename browser-mounted entry from "${oldPath}" to "${newPath}".`,
         );
       }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       renameStoredPathContent(this.projectFileContent[projectId], oldPath, newPath);
       return;
     }
 
-    if (this.isTauriMountedPath(projectId, oldPath) || this.isTauriMountedPath(projectId, newPath)) {
-      if (!(await this.renameTauriMountedNode(projectId, oldPath, newPath))) {
+    if (
+      this.isTauriMountedPath(projectId, oldPath, scope) ||
+      this.isTauriMountedPath(projectId, newPath, scope)
+    ) {
+      if (!(await this.renameTauriMountedNode(projectId, oldPath, newPath, scope))) {
         throw new Error(
           `Unable to rename desktop-mounted entry from "${oldPath}" to "${newPath}".`,
         );
       }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       renameStoredPathContent(this.projectFileContent[projectId], oldPath, newPath);
       return;
     }
@@ -1117,6 +1424,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
     projectId: string,
     options: WorkspaceFileSearchOptions,
   ): Promise<WorkspaceFileSearchExecutionResult> {
+    const scope = await this.reconcileMountedProjectSubject();
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return createEmptyRuntimeFileSearchResult();
+    }
+
     const signal = options.signal;
     if (signal?.aborted) {
       return createEmptyRuntimeFileSearchResult();
@@ -1127,7 +1439,8 @@ export class RuntimeFileSystemService implements IFileSystemService {
     );
     let searchTreeSnapshot: SearchFileTreeSnapshot;
     try {
-      searchTreeSnapshot = await this.getSearchFileTree(projectId, options.signal);
+      searchTreeSnapshot = await this.getSearchFileTree(projectId, options.signal, scope);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
     } catch (error) {
       if (isSearchTreeSnapshotAbortError(error)) {
         return createEmptyRuntimeFileSearchResult();
@@ -1149,16 +1462,22 @@ export class RuntimeFileSystemService implements IFileSystemService {
       signal,
       readFileContent: async (path: string) => {
         try {
+          if (!(await this.isMountedProjectSubjectScopeCurrent(scope))) {
+            return '';
+          }
+
           return await this.readSearchFileContent(
             projectId,
             path,
             searchMaxFileContentCharacters,
+            scope,
           );
         } catch {
           return '';
         }
       },
     });
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
     return {
       ...searchResult,
       limitReached: searchResult.limitReached || searchTreeSnapshot.limitReached,
@@ -1166,47 +1485,228 @@ export class RuntimeFileSystemService implements IFileSystemService {
   }
 
   async mountFolder(projectId: string, folderInfo: LocalFolderMountSource): Promise<void> {
+    const scope = await this.reconcileMountedProjectSubject();
+    await this.mountFolderForSubjectScope(projectId, folderInfo, scope);
+  }
+
+  private async mountFolderForSubjectScope(
+    projectId: string,
+    folderInfo: LocalFolderMountSource,
+    scope: MountedProjectSubjectScope,
+  ): Promise<void> {
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
     if (folderInfo.type === 'browser') {
       const existingBrowserMount = this.projectBrowserMounts[projectId];
-      if (existingBrowserMount?.rootHandle === folderInfo.handle) {
+      if (
+        this.isProjectMountOwnedByScope(projectId, scope) &&
+        existingBrowserMount?.rootHandle === folderInfo.handle
+      ) {
+        await this.mountRegistry.register(projectId, folderInfo, scope.key);
+        await this.assertMountedProjectSubjectScopeCurrent(scope);
         delete this.projectTauriMounts[projectId];
-        this.ensureProjectFileTreeRealtime(projectId);
+        this.setProjectMountSubjectScope(projectId, scope);
+        this.ensureProjectFileTreeRealtime(projectId, scope);
         return;
       }
 
       const mountState = await this.buildBrowserMountState(
         folderInfo.handle as unknown as BrowserDirectoryHandleLike,
       );
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      await this.mountRegistry.register(projectId, folderInfo, scope.key);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       this.projectBrowserMounts[projectId] = mountState;
       delete this.projectTauriMounts[projectId];
       this.projectFileContent[projectId] = {};
-      this.ensureProjectFileTreeRealtime(projectId);
+      this.setProjectMountSubjectScope(projectId, scope);
+      this.ensureProjectFileTreeRealtime(projectId, scope);
       return;
     }
 
     const existingTauriMount = this.projectTauriMounts[projectId];
     if (
+      this.isProjectMountOwnedByScope(projectId, scope) &&
       existingTauriMount &&
       normalizeComparableLocalFolderPath(existingTauriMount.rootSystemPath) ===
         normalizeComparableLocalFolderPath(folderInfo.path)
     ) {
+      await this.mountRegistry.register(projectId, folderInfo, scope.key);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
       delete this.projectBrowserMounts[projectId];
-      this.ensureProjectFileTreeRealtime(projectId);
+      this.setProjectMountSubjectScope(projectId, scope);
+      this.ensureProjectFileTreeRealtime(projectId, scope);
       return;
     }
 
     const mountState = await this.buildTauriMountState(folderInfo.path);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    await this.mountRegistry.register(projectId, folderInfo, scope.key);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
     this.projectTauriMounts[projectId] = mountState;
     delete this.projectBrowserMounts[projectId];
     this.projectFileContent[projectId] = {};
-    this.ensureProjectFileTreeRealtime(projectId);
+    this.setProjectMountSubjectScope(projectId, scope);
+    this.ensureProjectFileTreeRealtime(projectId, scope);
+  }
+
+  private createMountedProjectState(
+    projectId: string,
+    scope: MountedProjectSubjectScope,
+  ): ProjectDeviceMountState | null {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return null;
+    }
+
+    const browserMount = this.projectBrowserMounts[projectId];
+    if (browserMount) {
+      return {
+        displayName: browserMount.rootHandle.name || null,
+        host: 'browser',
+        status: 'mounted',
+      };
+    }
+
+    const tauriMount = this.projectTauriMounts[projectId];
+    if (!tauriMount) {
+      return null;
+    }
+
+    const rootSegments = tauriMount.rootVirtualPath.split('/').filter(Boolean);
+    return {
+      displayName: rootSegments[rootSegments.length - 1] ?? null,
+      host: 'tauri',
+      status: 'mounted',
+    };
+  }
+
+  private async reconcileMountedProjectSubject(): Promise<MountedProjectSubjectScope> {
+    const reconcileRequest = ++this.mountedProjectSubjectReconcileRequest;
+    let subjectKey: string | null;
+    try {
+      subjectKey = await this.mountRegistry.getCurrentSubjectKey();
+    } catch {
+      subjectKey = null;
+    }
+
+    // Subject providers may resolve out of order while IAM is committing a new
+    // session. Only the newest reconciliation is allowed to change ownership.
+    if (reconcileRequest < this.mountedProjectSubjectAppliedRequest) {
+      return this.getMountedProjectSubjectScope();
+    }
+
+    this.mountedProjectSubjectAppliedRequest = reconcileRequest;
+    if (!this.mountedProjectSubjectInitialized) {
+      this.mountedProjectSubjectInitialized = true;
+      this.mountedProjectSubjectKey = subjectKey;
+      this.mountedProjectSubjectGeneration += 1;
+      return this.getMountedProjectSubjectScope();
+    }
+
+    if (this.mountedProjectSubjectKey === subjectKey) {
+      return this.getMountedProjectSubjectScope();
+    }
+
+    this.mountedProjectSubjectKey = subjectKey;
+    this.mountedProjectSubjectGeneration += 1;
+    this.clearMountedProjectState();
+    return this.getMountedProjectSubjectScope();
+  }
+
+  private getMountedProjectSubjectScope(): MountedProjectSubjectScope {
+    return {
+      generation: this.mountedProjectSubjectGeneration,
+      key: this.mountedProjectSubjectKey,
+    };
+  }
+
+  private isMountedProjectSubjectScopeActive(scope: MountedProjectSubjectScope): boolean {
+    return (
+      this.mountedProjectSubjectInitialized &&
+      this.mountedProjectSubjectGeneration === scope.generation &&
+      this.mountedProjectSubjectKey === scope.key
+    );
+  }
+
+  private async isMountedProjectSubjectScopeCurrent(
+    scope: MountedProjectSubjectScope,
+  ): Promise<boolean> {
+    const currentScope = await this.reconcileMountedProjectSubject();
+    return (
+      currentScope.generation === scope.generation &&
+      currentScope.key === scope.key
+    );
+  }
+
+  private async assertMountedProjectSubjectScopeCurrent(
+    scope: MountedProjectSubjectScope,
+  ): Promise<void> {
+    if (await this.isMountedProjectSubjectScopeCurrent(scope)) {
+      return;
+    }
+
+    throw new Error('The active session changed while accessing the device-local project folder.');
+  }
+
+  private isProjectMountOwnedByScope(
+    projectId: string,
+    scope: MountedProjectSubjectScope,
+  ): boolean {
+    const mountScope = this.projectMountSubjectScopes.get(projectId);
+    return (
+      this.isMountedProjectSubjectScopeActive(scope) &&
+      mountScope?.generation === scope.generation &&
+      mountScope.key === scope.key
+    );
+  }
+
+  private setProjectMountSubjectScope(
+    projectId: string,
+    scope: MountedProjectSubjectScope,
+  ): void {
+    if (!this.isMountedProjectSubjectScopeActive(scope)) {
+      throw new Error('The active session changed while mounting the device-local project folder.');
+    }
+
+    this.projectMountSubjectScopes.set(projectId, scope);
+  }
+
+  private clearMountedProjectState(): void {
+    const mountedProjectIds = new Set([
+      ...Object.keys(this.projectBrowserMounts),
+      ...Object.keys(this.projectTauriMounts),
+      ...Object.keys(this.projectFileContent),
+      ...this.fileChangeListeners.keys(),
+      ...this.projectFileTreePollers.keys(),
+      ...this.projectTauriFileWatchers.keys(),
+      ...this.projectTauriFileWatcherStarts.keys(),
+      ...this.projectTauriWatchQueues.keys(),
+    ]);
+    mountedProjectIds.forEach((projectId) => {
+      this.stopProjectFileTreePoller(projectId);
+      this.stopProjectTauriFileWatcher(projectId);
+      this.clearProjectTauriWatchQueue(projectId);
+      delete this.projectBrowserMounts[projectId];
+      delete this.projectTauriMounts[projectId];
+      delete this.projectFileContent[projectId];
+      this.projectMountSubjectScopes.delete(projectId);
+    });
+    this.projectMountSubjectScopes.clear();
+    this.fileChangeListeners.clear();
   }
 
   private async getSearchFileTree(
     projectId: string,
     signal?: AbortSignal,
+    scope?: MountedProjectSubjectScope,
   ): Promise<SearchFileTreeSnapshot> {
     throwIfSearchTreeSnapshotAborted(signal);
+
+    if (!scope || !this.isProjectMountOwnedByScope(projectId, scope)) {
+      return {
+        files: [],
+        limitReached: false,
+      };
+    }
 
     const browserMount = this.projectBrowserMounts[projectId];
     if (browserMount) {
@@ -1226,6 +1726,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
           browserSearchTreeSnapshotContext,
         );
         throwIfSearchTreeSnapshotAborted(signal);
+        await this.assertMountedProjectSubjectScopeCurrent(scope);
+        if (this.projectBrowserMounts[projectId] !== browserMount) {
+          throw new Error('The active session changed while reading the device-local project folder.');
+        }
         browserMount.cachedSearchTree = createReadonlyMountedTree(browserSearchTreeSnapshot);
         browserMount.cachedSearchTreeLimitReached = browserSearchTreeSnapshotContext.limitReached;
       }
@@ -1244,6 +1748,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
           MAX_RUNTIME_FILE_SEARCH_TREE_NODES,
         );
         throwIfSearchTreeSnapshotAborted(signal);
+        await this.assertMountedProjectSubjectScopeCurrent(scope);
+        if (this.projectTauriMounts[projectId] !== tauriMount) {
+          throw new Error('The active session changed while reading the device-local project folder.');
+        }
         tauriMount.cachedSearchTree = createReadonlyMountedTree(
           tauriSearchTreeSnapshot.tree,
         );
@@ -1257,12 +1765,19 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
 
     return {
-      files: await this.getFiles(projectId),
+      files: [],
       limitReached: false,
     };
   }
 
-  private invalidateProjectSearchTree(projectId: string): void {
+  private invalidateProjectSearchTree(
+    projectId: string,
+    scope?: MountedProjectSubjectScope,
+  ): void {
+    if (scope && !this.isProjectMountOwnedByScope(projectId, scope)) {
+      return;
+    }
+
     const browserMount = this.projectBrowserMounts[projectId];
     if (browserMount) {
       browserMount.cachedSearchTree = undefined;
@@ -1388,7 +1903,12 @@ export class RuntimeFileSystemService implements IFileSystemService {
   private async loadBrowserMountedDirectory(
     projectId: string,
     directoryPath: string,
+    scope: MountedProjectSubjectScope,
   ): Promise<void> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return;
+    }
+
     const mountState = this.projectBrowserMounts[projectId];
     if (!mountState) {
       return;
@@ -1405,6 +1925,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.directoryHandles,
       mountState.fileHandles,
     );
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return;
+    }
+
     this.pruneRemovedBrowserMountedEntries(
       projectId,
       mountState,
@@ -1414,11 +1939,15 @@ export class RuntimeFileSystemService implements IFileSystemService {
     mountState.tree = replaceDirectoryChildren(mountState.tree, directoryPath, children);
     markLoadedDirectoryPath(mountState, directoryPath);
     mountState.cachedTree = undefined;
-    this.invalidateProjectSearchTree(projectId);
+    this.invalidateProjectSearchTree(projectId, scope);
   }
 
-  private async refreshBrowserDirectory(projectId: string, directoryPath: string): Promise<void> {
-    await this.loadBrowserMountedDirectory(projectId, directoryPath);
+  private async refreshBrowserDirectory(
+    projectId: string,
+    directoryPath: string,
+    scope: MountedProjectSubjectScope,
+  ): Promise<void> {
+    await this.loadBrowserMountedDirectory(projectId, directoryPath, scope);
   }
 
   private async buildTauriMountState(rootSystemPath: string): Promise<TauriMountState> {
@@ -1462,7 +1991,12 @@ export class RuntimeFileSystemService implements IFileSystemService {
     projectId: string,
     directoryPath: string,
     knownDirectoryRevision?: BirdCoderTauriPathRevisionLookupResult,
+    scope?: MountedProjectSubjectScope,
   ): Promise<void> {
+    if (!scope || !this.isProjectMountOwnedByScope(projectId, scope)) {
+      return;
+    }
+
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState) {
       return;
@@ -1473,6 +2007,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.rootVirtualPath,
       directoryPath,
     );
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== mountState) {
+      return;
+    }
+
     pruneRemovedLoadedDirectoryPaths(
       mountState,
       listing.directory.path,
@@ -1493,14 +2032,27 @@ export class RuntimeFileSystemService implements IFileSystemService {
               [listing.directory.path],
             )
           )[0];
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== mountState) {
+      return;
+    }
+
     updateTauriDirectoryRevision(mountState, listing.directory.path, directoryRevision);
     markLoadedDirectoryPath(mountState, listing.directory.path);
     pruneTauriDirectoryRevisionMap(mountState);
     mountState.cachedTree = undefined;
-    this.invalidateProjectSearchTree(projectId);
+    this.invalidateProjectSearchTree(projectId, scope);
   }
 
-  private async refreshTauriDirectory(projectId: string, directoryPath: string): Promise<void> {
+  private async refreshTauriDirectory(
+    projectId: string,
+    directoryPath: string,
+    scope: MountedProjectSubjectScope,
+  ): Promise<void> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return;
+    }
+
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState) {
       return;
@@ -1511,6 +2063,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.rootVirtualPath,
       [directoryPath],
     );
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== mountState) {
+      return;
+    }
+
     const directoryRevision = directoryRevisions[0];
     if (
       directoryRevision &&
@@ -1522,10 +2079,17 @@ export class RuntimeFileSystemService implements IFileSystemService {
       return;
     }
 
-    await this.loadTauriMountedDirectory(projectId, directoryPath, directoryRevision);
+    await this.loadTauriMountedDirectory(projectId, directoryPath, directoryRevision, scope);
   }
 
-  private ensureProjectFileTreeRealtime(projectId: string): void {
+  private ensureProjectFileTreeRealtime(
+    projectId: string,
+    scope: MountedProjectSubjectScope,
+  ): void {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return;
+    }
+
     if (!this.fileChangeListeners.has(projectId)) {
       this.stopProjectFileTreePoller(projectId);
       this.stopProjectTauriFileWatcher(projectId);
@@ -1535,29 +2099,40 @@ export class RuntimeFileSystemService implements IFileSystemService {
 
     if (this.projectTauriMounts[projectId]) {
       this.stopProjectFileTreePoller(projectId);
-      void this.ensureProjectTauriFileWatcher(projectId);
+      void this.ensureProjectTauriFileWatcher(projectId, scope);
       return;
     }
 
     this.stopProjectTauriFileWatcher(projectId);
     this.clearProjectTauriWatchQueue(projectId);
     if (this.projectBrowserMounts[projectId]) {
-      this.ensureProjectFileTreePoller(projectId);
+      this.ensureProjectFileTreePoller(projectId, scope);
       return;
     }
 
     this.stopProjectFileTreePoller(projectId);
   }
 
-  private async ensureProjectTauriFileWatcher(projectId: string): Promise<void> {
+  private async ensureProjectTauriFileWatcher(
+    projectId: string,
+    scope: MountedProjectSubjectScope,
+  ): Promise<void> {
     const mountState = this.projectTauriMounts[projectId];
-    if (!mountState || !this.fileChangeListeners.has(projectId)) {
+    if (
+      !this.isProjectMountOwnedByScope(projectId, scope) ||
+      !mountState ||
+      !this.fileChangeListeners.has(projectId)
+    ) {
       return;
     }
 
     const activeWatcher = this.projectTauriFileWatchers.get(projectId);
     if (activeWatcher) {
-      if (activeWatcher.rootSystemPath === mountState.rootSystemPath) {
+      if (
+        activeWatcher.rootSystemPath === mountState.rootSystemPath &&
+        activeWatcher.scope.generation === scope.generation &&
+        activeWatcher.scope.key === scope.key
+      ) {
         return;
       }
 
@@ -1566,7 +2141,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
 
     const startingWatcher = this.projectTauriFileWatcherStarts.get(projectId);
     if (startingWatcher) {
-      if (startingWatcher.rootSystemPath === mountState.rootSystemPath) {
+      if (
+        startingWatcher.rootSystemPath === mountState.rootSystemPath &&
+        startingWatcher.scope.generation === scope.generation &&
+        startingWatcher.scope.key === scope.key
+      ) {
         return;
       }
 
@@ -1576,6 +2155,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
     const watcherStart: ProjectTauriFileWatcherStart = {
       cancelled: false,
       rootSystemPath: mountState.rootSystemPath,
+      scope,
     };
     this.projectTauriFileWatcherStarts.set(projectId, watcherStart);
 
@@ -1583,21 +2163,30 @@ export class RuntimeFileSystemService implements IFileSystemService {
       const dispose = await this.tauriRuntime.watchProjectTree(
         mountState.rootSystemPath,
         (event) => {
-          if (watcherStart.cancelled) {
+          if (
+            watcherStart.cancelled ||
+            !this.isProjectMountOwnedByScope(projectId, scope) ||
+            this.projectTauriMounts[projectId] !== mountState
+          ) {
             return;
           }
 
-          this.enqueueProjectTauriWatchEvent(projectId, event);
+          this.enqueueProjectTauriWatchEvent(projectId, event, scope);
         },
       );
 
-      if (watcherStart.cancelled) {
+      if (
+        watcherStart.cancelled ||
+        !this.isProjectMountOwnedByScope(projectId, scope) ||
+        this.projectTauriMounts[projectId] !== mountState
+      ) {
         await dispose();
         return;
       }
 
       this.projectTauriFileWatchers.set(projectId, {
         rootSystemPath: mountState.rootSystemPath,
+        scope,
         stop: () => {
           if (watcherStart.cancelled) {
             return;
@@ -1620,9 +2209,10 @@ export class RuntimeFileSystemService implements IFileSystemService {
         );
         if (
           this.fileChangeListeners.has(projectId) &&
+          this.isProjectMountOwnedByScope(projectId, scope) &&
           this.projectTauriMounts[projectId]?.rootSystemPath === mountState.rootSystemPath
         ) {
-          this.ensureProjectFileTreePoller(projectId);
+          this.ensureProjectFileTreePoller(projectId, scope);
         }
       }
     } finally {
@@ -1650,15 +2240,29 @@ export class RuntimeFileSystemService implements IFileSystemService {
   private enqueueProjectTauriWatchEvent(
     projectId: string,
     event: BirdCoderTauriFileSystemWatchEvent,
+    scope: MountedProjectSubjectScope,
   ): void {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return;
+    }
+
     const normalizedPaths = [...new Set(event.paths.map((path) => path.trim()).filter(Boolean))];
     if (normalizedPaths.length === 0) {
       return;
     }
 
-    const queue = this.projectTauriWatchQueues.get(projectId) ?? {
+    const existingQueue = this.projectTauriWatchQueues.get(projectId);
+    if (
+      existingQueue &&
+      (existingQueue.scope.generation !== scope.generation || existingQueue.scope.key !== scope.key)
+    ) {
+      return;
+    }
+
+    const queue = existingQueue ?? {
       events: [],
       isFlushing: false,
+      scope,
       timerId: null,
     };
     queue.events.push({
@@ -1679,7 +2283,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
 
     queue.timerId = setTimeout(() => {
       queue.timerId = null;
-      void this.flushProjectTauriWatchQueue(projectId);
+      void this.flushProjectTauriWatchQueue(projectId, queue);
     }, TAURI_WATCH_FLUSH_DELAY_MS);
   }
 
@@ -1731,9 +2335,15 @@ export class RuntimeFileSystemService implements IFileSystemService {
     return [...refreshPaths];
   }
 
-  private async flushProjectTauriWatchQueue(projectId: string): Promise<void> {
-    const queue = this.projectTauriWatchQueues.get(projectId);
-    if (!queue || queue.isFlushing) {
+  private async flushProjectTauriWatchQueue(
+    projectId: string,
+    queue: ProjectTauriWatchQueue,
+  ): Promise<void> {
+    if (
+      this.projectTauriWatchQueues.get(projectId) !== queue ||
+      queue.isFlushing ||
+      !this.isProjectMountOwnedByScope(projectId, queue.scope)
+    ) {
       return;
     }
 
@@ -1756,18 +2366,39 @@ export class RuntimeFileSystemService implements IFileSystemService {
       });
 
       if (refreshPaths.size > 0) {
-        await this.refreshDirectories(projectId, [...refreshPaths]);
+        const browserMount = this.projectBrowserMounts[projectId];
+        if (browserMount) {
+          await runBatchedTasks(
+            [...refreshPaths],
+            DIRECTORY_REFRESH_BATCH_SIZE,
+            async (directoryPath) =>
+              this.refreshBrowserDirectory(projectId, directoryPath, queue.scope),
+          );
+        } else if (this.projectTauriMounts[projectId]) {
+          await runBatchedTasks(
+            [...refreshPaths],
+            DIRECTORY_REFRESH_BATCH_SIZE,
+            async (directoryPath) =>
+              this.refreshTauriDirectory(projectId, directoryPath, queue.scope),
+          );
+        }
       }
 
-      if (changedPaths.size > 0) {
+      if (
+        changedPaths.size > 0 &&
+        (await this.isMountedProjectSubjectScopeCurrent(queue.scope))
+      ) {
         this.emitFileSystemChange(projectId, {
           kind: 'other',
           paths: [...changedPaths],
-        });
+        }, queue.scope);
       }
     } finally {
       const currentQueue = this.projectTauriWatchQueues.get(projectId);
-      if (!currentQueue) {
+      if (
+        currentQueue !== queue ||
+        !this.isProjectMountOwnedByScope(projectId, queue.scope)
+      ) {
         return;
       }
 
@@ -1783,14 +2414,31 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
   }
 
-  private ensureProjectFileTreePoller(projectId: string): void {
-    if (this.projectFileTreePollers.has(projectId)) {
+  private ensureProjectFileTreePoller(
+    projectId: string,
+    scope: MountedProjectSubjectScope,
+  ): void {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
       return;
+    }
+
+    const currentPoller = this.projectFileTreePollers.get(projectId);
+    if (
+      currentPoller &&
+      currentPoller.scope.generation === scope.generation &&
+      currentPoller.scope.key === scope.key
+    ) {
+      return;
+    }
+
+    if (currentPoller) {
+      this.stopProjectFileTreePoller(projectId);
     }
 
     const poller: ProjectFileTreePoller = {
       directoryPollCursor: 0,
       isRunning: false,
+      scope,
       timerId: null,
       trackedFileKnownPaths: new Set(),
       trackedFilePollCursor: 0,
@@ -1810,7 +2458,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
 
     poller.timerId = setTimeout(() => {
       poller.timerId = null;
-      void this.pollProjectFileTreeChanges(projectId);
+      void this.pollProjectFileTreeChanges(projectId, poller);
     }, FILE_TREE_POLL_INTERVAL_MS);
   }
 
@@ -1827,31 +2475,54 @@ export class RuntimeFileSystemService implements IFileSystemService {
     this.projectFileTreePollers.delete(projectId);
   }
 
-  private async pollProjectFileTreeChanges(projectId: string): Promise<void> {
-    const poller = this.projectFileTreePollers.get(projectId);
-    if (!poller || poller.isRunning) {
+  private async pollProjectFileTreeChanges(
+    projectId: string,
+    poller: ProjectFileTreePoller,
+  ): Promise<void> {
+    if (
+      this.projectFileTreePollers.get(projectId) !== poller ||
+      poller.isRunning ||
+      !this.isProjectMountOwnedByScope(projectId, poller.scope)
+    ) {
       return;
     }
 
     poller.isRunning = true;
     try {
-      const directoryChangePaths = this.projectBrowserMounts[projectId]
-        ? await this.pollBrowserMountedDirectories(projectId)
-        : this.projectTauriMounts[projectId]
-          ? await this.pollTauriMountedDirectories(projectId)
+      const browserMount = this.projectBrowserMounts[projectId];
+      const tauriMount = this.projectTauriMounts[projectId];
+      const directoryChangePaths = browserMount
+        ? await this.pollBrowserMountedDirectories(projectId, browserMount, poller)
+        : tauriMount
+          ? await this.pollTauriMountedDirectories(projectId, tauriMount, poller)
           : [];
-      const trackedFileChangePaths = await this.pollTrackedProjectFiles(projectId);
+      if (!(await this.isMountedProjectSubjectScopeCurrent(poller.scope))) {
+        return;
+      }
+
+      const trackedFileChangePaths = await this.pollTrackedProjectFiles(projectId, poller);
+      if (!(await this.isMountedProjectSubjectScopeCurrent(poller.scope))) {
+        return;
+      }
+
       const changedPaths = [...directoryChangePaths, ...trackedFileChangePaths];
 
       if (changedPaths.length > 0) {
         this.emitFileSystemChange(projectId, {
           kind: 'other',
           paths: [...new Set(changedPaths)],
-        });
+        }, poller.scope);
+      }
+    } catch (error) {
+      if (this.isProjectMountOwnedByScope(projectId, poller.scope)) {
+        console.error(`Failed to poll mounted project file tree "${projectId}"`, error);
       }
     } finally {
       const currentPoller = this.projectFileTreePollers.get(projectId);
-      if (currentPoller) {
+      if (
+        currentPoller === poller &&
+        this.isProjectMountOwnedByScope(projectId, poller.scope)
+      ) {
         currentPoller.isRunning = false;
         this.scheduleProjectFileTreePoll(projectId, currentPoller);
       }
@@ -1910,9 +2581,14 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
   }
 
-  private async pollTrackedProjectFiles(projectId: string): Promise<string[]> {
-    const poller = this.projectFileTreePollers.get(projectId);
-    if (!poller) {
+  private async pollTrackedProjectFiles(
+    projectId: string,
+    poller: ProjectFileTreePoller,
+  ): Promise<string[]> {
+    if (
+      this.projectFileTreePollers.get(projectId) !== poller ||
+      !this.isProjectMountOwnedByScope(projectId, poller.scope)
+    ) {
       return [];
     }
 
@@ -1932,7 +2608,18 @@ export class RuntimeFileSystemService implements IFileSystemService {
       return [];
     }
 
-    const revisionLookups = await this.getFileRevisions(projectId, selectedTrackedFilePollBatch.paths);
+    const revisionLookups = await this.getFileRevisionsForSubjectScope(
+      projectId,
+      selectedTrackedFilePollBatch.paths,
+      poller.scope,
+    );
+    if (
+      this.projectFileTreePollers.get(projectId) !== poller ||
+      !(await this.isMountedProjectSubjectScopeCurrent(poller.scope))
+    ) {
+      return [];
+    }
+
     const changedPaths: string[] = [];
     revisionLookups.forEach((lookup) => {
       if (lookup.error) {
@@ -1963,28 +2650,45 @@ export class RuntimeFileSystemService implements IFileSystemService {
     return changedPaths;
   }
 
-  private async pollBrowserMountedDirectories(projectId: string): Promise<string[]> {
-    const mountState = this.projectBrowserMounts[projectId];
-    if (!mountState) {
+  private async pollBrowserMountedDirectories(
+    projectId: string,
+    mountState: BrowserMountState,
+    poller: ProjectFileTreePoller,
+  ): Promise<string[]> {
+    if (
+      this.projectFileTreePollers.get(projectId) !== poller ||
+      !this.isProjectMountOwnedByScope(projectId, poller.scope) ||
+      this.projectBrowserMounts[projectId] !== mountState
+    ) {
       return [];
     }
 
     const loadedDirectoryPaths = [...mountState.loadedDirectoryPaths];
-    const poller = this.projectFileTreePollers.get(projectId);
     const selectedDirectoryPollBatch = selectLoadedDirectoryPollPaths(
       loadedDirectoryPaths,
       MAX_LOADED_DIRECTORY_REVISIONS_PER_POLL,
-      poller?.directoryPollCursor ?? 0,
+      poller.directoryPollCursor,
     );
-    if (poller) {
-      poller.directoryPollCursor = selectedDirectoryPollBatch.nextCursor;
-    }
+    poller.directoryPollCursor = selectedDirectoryPollBatch.nextCursor;
     const changedPaths: string[] = [];
     const refreshResults = await runBatchedTasks(
       selectedDirectoryPollBatch.paths,
       DIRECTORY_POLL_BATCH_SIZE,
-      async (directoryPath) => this.maybeRefreshBrowserMountedDirectory(projectId, directoryPath),
+      async (directoryPath) =>
+        this.maybeRefreshBrowserMountedDirectory(
+          projectId,
+          directoryPath,
+          mountState,
+          poller.scope,
+        ),
     );
+    if (
+      this.projectFileTreePollers.get(projectId) !== poller ||
+      !(await this.isMountedProjectSubjectScopeCurrent(poller.scope))
+    ) {
+      return [];
+    }
+
     refreshResults.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         if (result.value) {
@@ -2002,22 +2706,26 @@ export class RuntimeFileSystemService implements IFileSystemService {
     return changedPaths;
   }
 
-  private async pollTauriMountedDirectories(projectId: string): Promise<string[]> {
-    const mountState = this.projectTauriMounts[projectId];
-    if (!mountState) {
+  private async pollTauriMountedDirectories(
+    projectId: string,
+    mountState: TauriMountState,
+    poller: ProjectFileTreePoller,
+  ): Promise<string[]> {
+    if (
+      this.projectFileTreePollers.get(projectId) !== poller ||
+      !this.isProjectMountOwnedByScope(projectId, poller.scope) ||
+      this.projectTauriMounts[projectId] !== mountState
+    ) {
       return [];
     }
 
     const loadedDirectoryPaths = [...mountState.loadedDirectoryPaths];
-    const poller = this.projectFileTreePollers.get(projectId);
     const selectedDirectoryPollBatch = selectLoadedDirectoryPollPaths(
       loadedDirectoryPaths,
       MAX_LOADED_DIRECTORY_REVISIONS_PER_POLL,
-      poller?.directoryPollCursor ?? 0,
+      poller.directoryPollCursor,
     );
-    if (poller) {
-      poller.directoryPollCursor = selectedDirectoryPollBatch.nextCursor;
-    }
+    poller.directoryPollCursor = selectedDirectoryPollBatch.nextCursor;
     if (selectedDirectoryPollBatch.paths.length === 0) {
       return [];
     }
@@ -2026,6 +2734,14 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.rootVirtualPath,
       selectedDirectoryPollBatch.paths,
     );
+    if (
+      this.projectFileTreePollers.get(projectId) !== poller ||
+      !(await this.isMountedProjectSubjectScopeCurrent(poller.scope)) ||
+      this.projectTauriMounts[projectId] !== mountState
+    ) {
+      return [];
+    }
+
     const changedDirectoryLookups = revisionLookups
       .filter((lookup) => {
         if (lookup.missing || lookup.error || lookup.revision === null) {
@@ -2038,8 +2754,21 @@ export class RuntimeFileSystemService implements IFileSystemService {
     const refreshResults = await runBatchedTasks(
       changedDirectoryLookups,
       DIRECTORY_POLL_BATCH_SIZE,
-      async (lookup) => this.maybeRefreshTauriMountedDirectory(projectId, lookup),
+      async (lookup) =>
+        this.maybeRefreshTauriMountedDirectory(
+          projectId,
+          lookup,
+          mountState,
+          poller.scope,
+        ),
     );
+    if (
+      this.projectFileTreePollers.get(projectId) !== poller ||
+      !(await this.isMountedProjectSubjectScopeCurrent(poller.scope))
+    ) {
+      return [];
+    }
+
     refreshResults.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         if (result.value) {
@@ -2060,9 +2789,13 @@ export class RuntimeFileSystemService implements IFileSystemService {
   private async maybeRefreshBrowserMountedDirectory(
     projectId: string,
     directoryPath: string,
+    mountState: BrowserMountState,
+    scope: MountedProjectSubjectScope,
   ): Promise<boolean> {
-    const mountState = this.projectBrowserMounts[projectId];
-    if (!mountState) {
+    if (
+      !this.isProjectMountOwnedByScope(projectId, scope) ||
+      this.projectBrowserMounts[projectId] !== mountState
+    ) {
       return false;
     }
 
@@ -2078,6 +2811,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.directoryHandles,
       mountState.fileHandles,
     );
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
+
     if (areDirectoryChildrenEquivalent(currentNode.children, nextChildren)) {
       markLoadedDirectoryPath(mountState, directoryPath);
       return false;
@@ -2092,16 +2830,20 @@ export class RuntimeFileSystemService implements IFileSystemService {
     mountState.tree = replaceDirectoryChildren(mountState.tree, directoryPath, nextChildren);
     markLoadedDirectoryPath(mountState, directoryPath);
     mountState.cachedTree = undefined;
-    this.invalidateProjectSearchTree(projectId);
+    this.invalidateProjectSearchTree(projectId, scope);
     return true;
   }
 
   private async maybeRefreshTauriMountedDirectory(
     projectId: string,
     directoryRevision: BirdCoderTauriPathRevisionLookupResult,
+    tauriMount: TauriMountState,
+    scope: MountedProjectSubjectScope,
   ): Promise<boolean> {
-    const tauriMount = this.projectTauriMounts[projectId];
-    if (!tauriMount) {
+    if (
+      !this.isProjectMountOwnedByScope(projectId, scope) ||
+      this.projectTauriMounts[projectId] !== tauriMount
+    ) {
       return false;
     }
 
@@ -2117,6 +2859,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
       tauriMount.rootVirtualPath,
       directoryPath,
     );
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== tauriMount) {
+      return false;
+    }
+
     if (
       areDirectoryChildrenEquivalent(
         currentNode.children,
@@ -2141,7 +2888,7 @@ export class RuntimeFileSystemService implements IFileSystemService {
     markLoadedDirectoryPath(tauriMount, listing.directory.path);
     pruneTauriDirectoryRevisionMap(tauriMount);
     tauriMount.cachedTree = undefined;
-    this.invalidateProjectSearchTree(projectId);
+    this.invalidateProjectSearchTree(projectId, scope);
     return true;
   }
 
@@ -2228,7 +2975,12 @@ export class RuntimeFileSystemService implements IFileSystemService {
   private emitFileSystemChange(
     projectId: string,
     event: ProjectFileSystemChangeEvent,
+    scope: MountedProjectSubjectScope,
   ): void {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return;
+    }
+
     const projectListeners = this.fileChangeListeners.get(projectId);
     if (!projectListeners || projectListeners.size === 0) {
       return;
@@ -2242,8 +2994,13 @@ export class RuntimeFileSystemService implements IFileSystemService {
   private async readBrowserMountedFileContent(
     projectId: string,
     path: string,
+    scope: MountedProjectSubjectScope,
     options: { maxCharacters?: number } = {},
   ): Promise<string | null> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return null;
+    }
+
     const mountState = this.projectBrowserMounts[projectId];
     const fileHandle = mountState?.fileHandles.get(path);
     if (!fileHandle) {
@@ -2262,6 +3019,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
     const content = shouldReadPrefix && typeof file.slice === 'function'
       ? await file.slice(0, Math.floor(maxCharacters)).text()
       : await file.text();
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return null;
+    }
+
     if (!shouldReadPrefix) {
       this.projectFileContent[projectId] ??= {};
       this.projectFileContent[projectId][path] = content;
@@ -2272,7 +3034,12 @@ export class RuntimeFileSystemService implements IFileSystemService {
   private async readBrowserMountedFileRevision(
     projectId: string,
     path: string,
+    scope: MountedProjectSubjectScope,
   ): Promise<string | null> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return null;
+    }
+
     const mountState = this.projectBrowserMounts[projectId];
     const fileHandle = mountState?.fileHandles.get(path);
     if (!fileHandle) {
@@ -2280,6 +3047,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
 
     const file = await fileHandle.getFile();
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return null;
+    }
+
     return buildBrowserFileRevision(file);
   }
 
@@ -2287,18 +3059,22 @@ export class RuntimeFileSystemService implements IFileSystemService {
     projectId: string,
     path: string,
     maxFileContentCharacters: number,
+    scope: MountedProjectSubjectScope,
   ): Promise<string> {
-    if (this.isBrowserMountedPath(projectId, path)) {
-      const mountedContent = await this.readBrowserMountedFileContent(projectId, path, {
-        maxCharacters: maxFileContentCharacters,
-      });
+    if (this.isBrowserMountedPath(projectId, path, scope)) {
+      const mountedContent = await this.readBrowserMountedFileContent(
+        projectId,
+        path,
+        scope,
+        { maxCharacters: maxFileContentCharacters },
+      );
       if (mountedContent !== null) {
         return mountedContent;
       }
     }
 
-    if (this.isTauriMountedPath(projectId, path)) {
-      const mountedContent = await this.readTauriMountedFileContent(projectId, path, {
+    if (this.isTauriMountedPath(projectId, path, scope)) {
+      const mountedContent = await this.readTauriMountedFileContent(projectId, path, scope, {
         maxBytes: maxFileContentCharacters,
       });
       if (mountedContent !== null) {
@@ -2306,14 +3082,19 @@ export class RuntimeFileSystemService implements IFileSystemService {
       }
     }
 
-    return this.getFileContent(projectId, path);
+    return '';
   }
 
   private async readTauriMountedFileContent(
     projectId: string,
     path: string,
+    scope: MountedProjectSubjectScope,
     options: { maxBytes?: number } = {},
   ): Promise<string | null> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return null;
+    }
+
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState || !isPathWithinRoot(mountState.rootVirtualPath, path, false)) {
       return null;
@@ -2325,6 +3106,11 @@ export class RuntimeFileSystemService implements IFileSystemService {
       path,
       options.maxBytes ? { maxBytes: options.maxBytes } : undefined,
     );
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== mountState) {
+      return null;
+    }
+
     if (!options.maxBytes) {
       this.projectFileContent[projectId] ??= {};
       this.projectFileContent[projectId][path] = content;
@@ -2332,24 +3118,39 @@ export class RuntimeFileSystemService implements IFileSystemService {
     return content;
   }
 
-  private async readTauriMountedFileRevision(projectId: string, path: string): Promise<string | null> {
+  private async readTauriMountedFileRevision(
+    projectId: string,
+    path: string,
+    scope: MountedProjectSubjectScope,
+  ): Promise<string | null> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return null;
+    }
+
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState || !isPathWithinRoot(mountState.rootVirtualPath, path, false)) {
       return null;
     }
 
-    return this.tauriRuntime.getFileRevision(
+    const revision = await this.tauriRuntime.getFileRevision(
       mountState.rootSystemPath,
       mountState.rootVirtualPath,
       path,
     );
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    return this.projectTauriMounts[projectId] === mountState ? revision : null;
   }
 
   private async writeBrowserMountedFile(
     projectId: string,
     path: string,
     content: string,
+    scope: MountedProjectSubjectScope,
   ): Promise<boolean> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
     const mountState = this.projectBrowserMounts[projectId];
     if (!mountState) {
       return false;
@@ -2358,8 +3159,16 @@ export class RuntimeFileSystemService implements IFileSystemService {
     const existingHandle = mountState.fileHandles.get(path);
     if (existingHandle?.createWritable) {
       const writable = await existingHandle.createWritable();
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        return false;
+      }
       await writable.write(content);
       await writable.close();
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        return false;
+      }
       return true;
     }
 
@@ -2371,18 +3180,42 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
 
     const createdHandle = await parentHandle.getFileHandle(fileName, { create: true });
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
     if (!createdHandle.createWritable) {
       return false;
     }
 
     const writable = await createdHandle.createWritable();
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
     await writable.write(content);
     await writable.close();
-    await this.refreshBrowserDirectory(projectId, parentPath);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
+    await this.refreshBrowserDirectory(projectId, parentPath, scope);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
     return true;
   }
 
-  private async createBrowserMountedFile(projectId: string, path: string): Promise<boolean> {
+  private async createBrowserMountedFile(
+    projectId: string,
+    path: string,
+    scope: MountedProjectSubjectScope,
+  ): Promise<boolean> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
     const mountState = this.projectBrowserMounts[projectId];
     if (!mountState) {
       return false;
@@ -2398,9 +3231,21 @@ export class RuntimeFileSystemService implements IFileSystemService {
     if (await browserDirectoryEntryExists(parentHandle, fileName)) {
       throw new Error(`A browser-mounted entry already exists at "${path}".`);
     }
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
 
     await parentHandle.getFileHandle(fileName, { create: true });
-    await this.refreshBrowserDirectory(projectId, parentPath);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
+    await this.refreshBrowserDirectory(projectId, parentPath, scope);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
     this.projectFileContent[projectId] ??= {};
     this.projectFileContent[projectId][path] = '';
     return true;
@@ -2410,7 +3255,12 @@ export class RuntimeFileSystemService implements IFileSystemService {
     projectId: string,
     path: string,
     content: string,
+    scope: MountedProjectSubjectScope,
   ): Promise<boolean> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState || !isPathWithinRoot(mountState.rootVirtualPath, path, false)) {
       return false;
@@ -2422,10 +3272,22 @@ export class RuntimeFileSystemService implements IFileSystemService {
       path,
       content,
     );
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== mountState) {
+      return false;
+    }
     return true;
   }
 
-  private async createTauriMountedFile(projectId: string, path: string): Promise<boolean> {
+  private async createTauriMountedFile(
+    projectId: string,
+    path: string,
+    scope: MountedProjectSubjectScope,
+  ): Promise<boolean> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState || !isPathWithinRoot(mountState.rootVirtualPath, path, false)) {
       return false;
@@ -2436,13 +3298,29 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.rootVirtualPath,
       path,
     );
-    await this.refreshTauriDirectory(projectId, getParentPath(path));
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== mountState) {
+      return false;
+    }
+    await this.refreshTauriDirectory(projectId, getParentPath(path), scope);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== mountState) {
+      return false;
+    }
     this.projectFileContent[projectId] ??= {};
     this.projectFileContent[projectId][path] = '';
     return true;
   }
 
-  private async createBrowserMountedDirectory(projectId: string, path: string): Promise<boolean> {
+  private async createBrowserMountedDirectory(
+    projectId: string,
+    path: string,
+    scope: MountedProjectSubjectScope,
+  ): Promise<boolean> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
     const mountState = this.projectBrowserMounts[projectId];
     if (!mountState) {
       return false;
@@ -2458,13 +3336,30 @@ export class RuntimeFileSystemService implements IFileSystemService {
     if (await browserDirectoryEntryExists(parentHandle, directoryName)) {
       throw new Error(`A browser-mounted entry already exists at "${path}".`);
     }
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
 
     await parentHandle.getDirectoryHandle(directoryName, { create: true });
-    await this.refreshBrowserDirectory(projectId, parentPath);
-    return true;
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
+    await this.refreshBrowserDirectory(projectId, parentPath, scope);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    return this.projectBrowserMounts[projectId] === mountState;
   }
 
-  private async createTauriMountedDirectory(projectId: string, path: string): Promise<boolean> {
+  private async createTauriMountedDirectory(
+    projectId: string,
+    path: string,
+    scope: MountedProjectSubjectScope,
+  ): Promise<boolean> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState || !isPathWithinRoot(mountState.rootVirtualPath, path, false)) {
       return false;
@@ -2475,15 +3370,25 @@ export class RuntimeFileSystemService implements IFileSystemService {
       mountState.rootVirtualPath,
       path,
     );
-    await this.refreshTauriDirectory(projectId, getParentPath(path));
-    return true;
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== mountState) {
+      return false;
+    }
+    await this.refreshTauriDirectory(projectId, getParentPath(path), scope);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    return this.projectTauriMounts[projectId] === mountState;
   }
 
   private async deleteBrowserMountedEntry(
     projectId: string,
     path: string,
     recursive: boolean,
+    scope: MountedProjectSubjectScope,
   ): Promise<boolean> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
     const mountState = this.projectBrowserMounts[projectId];
     if (!mountState) {
       return false;
@@ -2497,15 +3402,25 @@ export class RuntimeFileSystemService implements IFileSystemService {
     }
 
     await parentHandle.removeEntry(entryName, recursive ? { recursive: true } : undefined);
-    await this.refreshBrowserDirectory(projectId, parentPath);
-    return true;
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
+    await this.refreshBrowserDirectory(projectId, parentPath, scope);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    return this.projectBrowserMounts[projectId] === mountState;
   }
 
   private async deleteTauriMountedEntry(
     projectId: string,
     path: string,
     recursive: boolean,
+    scope: MountedProjectSubjectScope,
   ): Promise<boolean> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
     const mountState = this.projectTauriMounts[projectId];
     if (!mountState || !isPathWithinRoot(mountState.rootVirtualPath, path, false)) {
       return false;
@@ -2517,15 +3432,25 @@ export class RuntimeFileSystemService implements IFileSystemService {
       path,
       recursive ? { recursive: true } : undefined,
     );
-    await this.refreshTauriDirectory(projectId, getParentPath(path));
-    return true;
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== mountState) {
+      return false;
+    }
+    await this.refreshTauriDirectory(projectId, getParentPath(path), scope);
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    return this.projectTauriMounts[projectId] === mountState;
   }
 
   private async renameBrowserMountedNode(
     projectId: string,
     oldPath: string,
     newPath: string,
+    scope: MountedProjectSubjectScope,
   ): Promise<boolean> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
     const mountState = this.projectBrowserMounts[projectId];
     if (!mountState) {
       return false;
@@ -2544,35 +3469,65 @@ export class RuntimeFileSystemService implements IFileSystemService {
     if (await browserDirectoryEntryExists(newParent, newName)) {
       throw new Error(`A browser-mounted entry already exists at "${newPath}".`);
     }
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectBrowserMounts[projectId] !== mountState) {
+      return false;
+    }
 
     const fileHandle = mountState.fileHandles.get(oldPath);
     if (fileHandle?.getFile && newParent.getFileHandle) {
       const file = await fileHandle.getFile();
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        return false;
+      }
       const createdHandle = await newParent.getFileHandle(newName, { create: true });
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        return false;
+      }
       if (!createdHandle.createWritable) {
         return false;
       }
 
       const writable = await createdHandle.createWritable();
       await copyBrowserFileSnapshot(file, writable);
-      await oldParent.removeEntry(oldName);
-      await this.refreshBrowserDirectory(projectId, getParentPath(oldPath));
-      if (getParentPath(newPath) !== getParentPath(oldPath)) {
-        await this.refreshBrowserDirectory(projectId, getParentPath(newPath));
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        return false;
       }
-      return true;
+      await oldParent.removeEntry(oldName);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        return false;
+      }
+      await this.refreshBrowserDirectory(projectId, getParentPath(oldPath), scope);
+      if (getParentPath(newPath) !== getParentPath(oldPath)) {
+        await this.refreshBrowserDirectory(projectId, getParentPath(newPath), scope);
+      }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      return this.projectBrowserMounts[projectId] === mountState;
     }
 
     const directoryHandle = mountState.directoryHandles.get(oldPath);
     if (directoryHandle && newParent.getDirectoryHandle) {
       const nextDirectory = await newParent.getDirectoryHandle(newName, { create: true });
-      await this.copyBrowserDirectoryContents(directoryHandle, nextDirectory);
-      await oldParent.removeEntry(oldName, { recursive: true });
-      await this.refreshBrowserDirectory(projectId, getParentPath(oldPath));
-      if (getParentPath(newPath) !== getParentPath(oldPath)) {
-        await this.refreshBrowserDirectory(projectId, getParentPath(newPath));
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        return false;
       }
-      return true;
+      await this.copyBrowserDirectoryContents(projectId, mountState, scope, directoryHandle, nextDirectory);
+      await oldParent.removeEntry(oldName, { recursive: true });
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        return false;
+      }
+      await this.refreshBrowserDirectory(projectId, getParentPath(oldPath), scope);
+      if (getParentPath(newPath) !== getParentPath(oldPath)) {
+        await this.refreshBrowserDirectory(projectId, getParentPath(newPath), scope);
+      }
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      return this.projectBrowserMounts[projectId] === mountState;
     }
 
     return false;
@@ -2582,7 +3537,12 @@ export class RuntimeFileSystemService implements IFileSystemService {
     projectId: string,
     oldPath: string,
     newPath: string,
+    scope: MountedProjectSubjectScope,
   ): Promise<boolean> {
+    if (!this.isProjectMountOwnedByScope(projectId, scope)) {
+      return false;
+    }
+
     const mountState = this.projectTauriMounts[projectId];
     if (
       !mountState ||
@@ -2598,25 +3558,42 @@ export class RuntimeFileSystemService implements IFileSystemService {
       oldPath,
       newPath,
     );
-    await this.refreshTauriDirectory(projectId, getParentPath(oldPath));
-    if (getParentPath(newPath) !== getParentPath(oldPath)) {
-      await this.refreshTauriDirectory(projectId, getParentPath(newPath));
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    if (this.projectTauriMounts[projectId] !== mountState) {
+      return false;
     }
-    return true;
+    await this.refreshTauriDirectory(projectId, getParentPath(oldPath), scope);
+    if (getParentPath(newPath) !== getParentPath(oldPath)) {
+      await this.refreshTauriDirectory(projectId, getParentPath(newPath), scope);
+    }
+    await this.assertMountedProjectSubjectScopeCurrent(scope);
+    return this.projectTauriMounts[projectId] === mountState;
   }
 
   private async copyBrowserDirectoryContents(
+    projectId: string,
+    mountState: BrowserMountState,
+    scope: MountedProjectSubjectScope,
     sourceDirectory: BrowserDirectoryHandleLike,
     targetDirectory: BrowserDirectoryHandleLike,
   ): Promise<void> {
     for await (const entry of listBrowserDirectoryEntries(sourceDirectory)) {
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        throw new Error('The active session changed while copying the device-local project folder.');
+      }
+
       if (isBrowserDirectoryHandle(entry)) {
         if (!targetDirectory.getDirectoryHandle) {
           throw new Error('Target directory handle does not support creating child directories.');
         }
 
         const nextTarget = await targetDirectory.getDirectoryHandle(entry.name, { create: true });
-        await this.copyBrowserDirectoryContents(entry, nextTarget);
+        await this.assertMountedProjectSubjectScopeCurrent(scope);
+        if (this.projectBrowserMounts[projectId] !== mountState) {
+          throw new Error('The active session changed while copying the device-local project folder.');
+        }
+        await this.copyBrowserDirectoryContents(projectId, mountState, scope, entry, nextTarget);
         continue;
       }
 
@@ -2625,23 +3602,51 @@ export class RuntimeFileSystemService implements IFileSystemService {
       }
 
       const file = await entry.getFile();
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        throw new Error('The active session changed while copying the device-local project folder.');
+      }
       const nextFile = await targetDirectory.getFileHandle(entry.name, { create: true });
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        throw new Error('The active session changed while copying the device-local project folder.');
+      }
       if (!nextFile.createWritable) {
         throw new Error('Target file handle does not support writing.');
       }
 
       const writable = await nextFile.createWritable();
       await copyBrowserFileSnapshot(file, writable);
+      await this.assertMountedProjectSubjectScopeCurrent(scope);
+      if (this.projectBrowserMounts[projectId] !== mountState) {
+        throw new Error('The active session changed while copying the device-local project folder.');
+      }
     }
   }
 
-  private isBrowserMountedPath(projectId: string, path: string): boolean {
+  private isBrowserMountedPath(
+    projectId: string,
+    path: string,
+    scope: MountedProjectSubjectScope,
+  ): boolean {
     const mountState = this.projectBrowserMounts[projectId];
-    return !!mountState && isPathWithinRoot(mountState.rootPath, path);
+    return (
+      this.isProjectMountOwnedByScope(projectId, scope) &&
+      !!mountState &&
+      isPathWithinRoot(mountState.rootPath, path)
+    );
   }
 
-  private isTauriMountedPath(projectId: string, path: string): boolean {
+  private isTauriMountedPath(
+    projectId: string,
+    path: string,
+    scope: MountedProjectSubjectScope,
+  ): boolean {
     const mountState = this.projectTauriMounts[projectId];
-    return !!mountState && isPathWithinRoot(mountState.rootVirtualPath, path);
+    return (
+      this.isProjectMountOwnedByScope(projectId, scope) &&
+      !!mountState &&
+      isPathWithinRoot(mountState.rootVirtualPath, path)
+    );
   }
 }

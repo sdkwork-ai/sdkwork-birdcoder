@@ -15,14 +15,13 @@ const remoteProject = {
   workspaceId: 'workspace-1',
   name: 'Authoritative project [project-authoritative-create]',
   title: 'Authoritative project',
-  rootPath: 'D:\\repos\\birdcoder',
   status: 'active',
   createdAt,
   updatedAt: createdAt,
 } satisfies Awaited<ReturnType<BirdCoderAppSdkApiClient['createProject']>>;
 
 let capturedEvidenceSnapshot:
-  | Pick<BirdCoderProject, 'createdAt' | 'id' | 'path' | 'updatedAt'>
+  | Pick<BirdCoderProject, 'createdAt' | 'id' | 'updatedAt'>
   | undefined;
 let evidenceCallCount = 0;
 
@@ -30,7 +29,7 @@ const writeService = {
   async recordProjectCreationEvidence(
     _projectId: string,
     _options?: CreateProjectOptions,
-    projectSnapshot?: Pick<BirdCoderProject, 'createdAt' | 'id' | 'path' | 'updatedAt'>,
+    projectSnapshot?: Pick<BirdCoderProject, 'createdAt' | 'id' | 'updatedAt'>,
   ): Promise<void> {
     evidenceCallCount += 1;
     capturedEvidenceSnapshot = projectSnapshot;
@@ -49,16 +48,14 @@ const service = new ApiBackedProjectService({
   writeService,
 });
 
-const project = await service.createProject('workspace-1', 'Authoritative project', {
-  path: 'D:\\repos\\birdcoder',
-});
+const project = await service.createProject('workspace-1', 'Authoritative project');
 
 assert.equal(evidenceCallCount, 1);
 assert.ok(capturedEvidenceSnapshot);
 assert.equal(capturedEvidenceSnapshot.id, 'project-authoritative-create');
 assert.equal(capturedEvidenceSnapshot.createdAt, createdAt);
 assert.equal(capturedEvidenceSnapshot.updatedAt, createdAt);
-assert.equal(capturedEvidenceSnapshot.path, 'D:\\repos\\birdcoder');
+assert.equal(Object.hasOwn(capturedEvidenceSnapshot, 'path'), false);
 assert.equal(project.id, 'project-authoritative-create');
 assert.equal(
   project.name,
@@ -76,7 +73,7 @@ const resilientService = new ApiBackedProjectService({
     async recordProjectCreationEvidence(
       _projectId: string,
       _options?: CreateProjectOptions,
-      projectSnapshot?: Pick<BirdCoderProject, 'createdAt' | 'id' | 'path' | 'updatedAt'>,
+      projectSnapshot?: Pick<BirdCoderProject, 'createdAt' | 'id' | 'updatedAt'>,
     ): Promise<void> {
       assert.ok(projectSnapshot);
       throw new Error('simulated evidence persistence failure');
@@ -87,9 +84,6 @@ const resilientService = new ApiBackedProjectService({
 const resilientProject = await resilientService.createProject(
   'workspace-1',
   'Authoritative project',
-  {
-    path: 'D:\\repos\\birdcoder',
-  },
 );
 
 assert.equal(

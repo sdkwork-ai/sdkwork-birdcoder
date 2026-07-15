@@ -4,76 +4,45 @@ import path from 'node:path';
 import process from 'node:process';
 
 const rootDir = process.cwd();
+const retiredGitHostPackageName = ['sdkwork', 'birdcoder', 'pc', 'git'].join('-');
+const retiredGitHostDirectoryName = ['src', 'host'].join('-');
 
 function readSource(...segments) {
   return fs.readFileSync(path.join(rootDir, ...segments), 'utf8');
 }
 
-const gitPackageCargoSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-git',
-  'src-host',
-  'Cargo.toml',
+function getExportedInterface(source, interfaceName) {
+  const match = source.match(
+    new RegExp(`export interface ${interfaceName}\\s*\\{([\\s\\S]*?)\\n\\}`, 'u'),
+  );
+
+  assert.ok(match, `${interfaceName} must remain an exported shared contract.`);
+  return match[0];
+}
+
+const appSdkPackage = JSON.parse(
+  readSource(
+    'apps',
+    'sdkwork-birdcoder-pc',
+    'sdks',
+    'sdkwork-birdcoder-app-sdk',
+    'sdkwork-birdcoder-app-sdk-typescript',
+    'package.json',
+  ),
 );
-const gitPackageSource = readSource(
+const composedAppSdkIndexSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-git',
-  'src-host',
+  'sdks',
+  'sdkwork-birdcoder-app-sdk',
+  'sdkwork-birdcoder-app-sdk-typescript',
   'src',
-  'lib.rs',
-);
-const serverCargoSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-server',
-  'src-host',
-  'Cargo.toml',
-);
-const serverSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-server',
-  'src-host',
-  'src',
-  'lib.rs',
-);
-const defaultIdeServicesSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-infrastructure',
-  'src',
-  'services',
-  'defaultIdeServices.ts',
+  'index.ts',
 );
 const gitServiceInterfaceSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
@@ -82,357 +51,257 @@ const gitServiceInterfaceSource = readSource(
 );
 const apiBackedGitServiceSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-infrastructure',
   'src',
   'services',
   'impl',
   'ApiBackedGitService.ts',
 );
+const sdkClientsSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-infrastructure',
+  'src',
+  'services',
+  'sdkClients.ts',
+);
+const defaultIdeServicesSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-infrastructure',
+  'src',
+  'services',
+  'defaultIdeServices.ts',
+);
+const lazyDefaultIdeServicesSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-infrastructure',
+  'src',
+  'services',
+  'lazyDefaultIdeServices.ts',
+);
 const serverApiSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-types',
   'src',
   'server-api.ts',
 );
-const codeWorkspacePanelSource = readSource(
+const gitWorktreeHelpersSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
-  'sdkwork-birdcoder-pc-code',
+  'sdkwork-birdcoder-pc-commons',
   'src',
-  'pages',
-  'CodeEditorWorkspacePanel.tsx',
+  'workbench',
+  'gitWorktrees.ts',
 );
-const codePageSurfaceSource = readSource(
+const gitMutationActionsSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
-  'sdkwork-birdcoder-pc-code',
+  'sdkwork-birdcoder-pc-commons',
   'src',
-  'pages',
-  'CodePageSurface.tsx',
+  'hooks',
+  'useProjectGitMutationActions.ts',
 );
-const studioWorkspacePanelSource = readSource(
+const gitWorktreeManagementPanelSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
-  'sdkwork-birdcoder-pc-studio',
-  'src',
-  'pages',
-  'StudioCodeWorkspacePanel.tsx',
-);
-const studioPageSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-studio',
-  'src',
-  'pages',
-  'StudioPage.tsx',
-);
-const studioMainContentSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
-  'sdkwork-birdcoder-pc-studio',
-  'src',
-  'pages',
-  'StudioMainContent.tsx',
-);
-const gitOverviewPanelSource = readSource(
-  'apps',
-  
-  'sdkwork-birdcoder-pc',
-  
-  'packages',
-  
   'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
-  'ProjectGitOverviewPanel.tsx',
+  'ProjectGitWorktreeManagementPanel.tsx',
+);
+const gitWorktreeMenuSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'ProjectGitWorktreeMenu.tsx',
 );
 const gitOverviewSurfaceSource = readSource(
   'apps',
-  
   'sdkwork-birdcoder-pc',
-  
   'packages',
-  
   'sdkwork-birdcoder-pc-ui',
   'src',
   'components',
   'ProjectGitOverviewSurface.tsx',
 );
 
+assert.equal(
+  appSdkPackage.name,
+  '@sdkwork/birdcoder-app-sdk',
+  'Remote Git operations must use the scoped composed BirdCoder app SDK package.',
+);
+assert.equal(
+  appSdkPackage.exports?.['.'],
+  './src/index.ts',
+  'The composed BirdCoder app SDK must expose a stable package-root entry point.',
+);
 assert.match(
-  gitPackageCargoSource,
-  /name = "sdkwork-birdcoder-pc-git"/,
-  'Git runtime must live in a dedicated Rust package instead of being embedded directly in the server host.',
+  composedAppSdkIndexSource,
+  /export \{ createBirdcoderAppSdkClient \} from '\.\/sdk\.ts';/,
+  'The composed BirdCoder app SDK must export its app client from the package root.',
 );
 
 assert.match(
-  gitPackageSource,
-  /Command::new\("git"\)/,
-  'Git runtime package must use the system git CLI adapter so native checks stay repeatable in restricted offline SDKWork runners.',
+  sdkClientsSource,
+  /import \{[\s\S]*\bcreateBirdcoderAppSdkClient\b[\s\S]*\} from '@sdkwork\/birdcoder-app-sdk';/s,
+  'Infrastructure must consume the composed BirdCoder app SDK instead of a generated transport deep import.',
 );
-
+assert.match(
+  sdkClientsSource,
+  /const client: BirdcoderAppSdkClient = createBirdcoderAppSdkClient\(\{[\s\S]*transport,[\s\S]*\}\);/s,
+  'The infrastructure app client facade must be constructed from the composed app SDK client.',
+);
 assert.doesNotMatch(
-  gitPackageCargoSource,
-  /git2|libgit2-sys/,
-  'Git runtime package must not depend on git2 or libgit2-sys because those vendored registry crates are not available in restricted offline SDKWork runners.',
-);
-
-assert.doesNotMatch(
-  gitPackageSource,
-  /use git2::|git2::|Repository::/,
-  'Git runtime implementation must not import raw git2 APIs after the CLI adapter migration.',
-);
-
-assert.match(
-  gitPackageSource,
-  /pub fn inspect_project_git_overview\(/,
-  'Git runtime package must expose project overview inspection.',
-);
-
-assert.match(
-  gitPackageSource,
-  /pub fn create_project_git_branch\(/,
-  'Git runtime package must expose branch creation.',
-);
-
-assert.match(
-  gitPackageSource,
-  /pub fn switch_project_git_branch\(/,
-  'Git runtime package must expose branch switching.',
-);
-
-assert.match(
-  gitPackageSource,
-  /pub fn commit_project_git_changes\(/,
-  'Git runtime package must expose commit creation.',
-);
-
-assert.match(
-  gitPackageSource,
-  /pub fn push_project_git_branch\(/,
-  'Git runtime package must expose push execution.',
-);
-
-assert.match(
-  gitPackageSource,
-  /pub fn create_project_git_worktree\(/,
-  'Git runtime package must expose worktree creation.',
-);
-
-assert.match(
-  gitPackageSource,
-  /pub fn remove_project_git_worktree\(/,
-  'Git runtime package must expose worktree removal.',
-);
-
-assert.match(
-  gitPackageSource,
-  /pub fn prune_project_git_worktrees\(/,
-  'Git runtime package must expose worktree prune operations.',
-);
-
-assert.match(
-  serverCargoSource,
-  /sdkwork-birdcoder-pc-git = \{ path = "\.\.\/\.\.\/sdkwork-birdcoder-pc-git\/src-host" \}/,
-  'Server host must depend on the dedicated sdkwork-birdcoder-pc-git Rust package.',
-);
-
-assert.match(
-  serverSource,
-  /use sdkwork_birdcoder_git::\{\s*commit_project_git_changes,\s*create_project_git_branch,\s*create_project_git_worktree,\s*inspect_project_git_overview,\s*prune_project_git_worktrees,\s*push_project_git_branch,\s*remove_project_git_worktree,\s*switch_project_git_branch,\s*GitMutationError,\s*GitProjectOverview,\s*\};/s,
-  'Server host must import Git runtime operations from the dedicated Rust package instead of reimplementing them inline.',
-);
-
-assert.doesNotMatch(
-  serverSource,
-  /use git2::/,
-  'Server host must not depend on raw git2 directly once Git runtime logic is standardized into the dedicated package.',
-);
-
-assert.match(
-  serverSource,
-  /\.route\(\s*"\/api\/app\/v1\/projects\/\{project_id\}\/git\/overview",\s*get\(app_project_git_overview\),\s*\)/s,
-  'Server host must expose the authoritative Git overview route.',
-);
-
-assert.match(
-  serverSource,
-  /\.route\(\s*"\/api\/app\/v1\/projects\/\{project_id\}\/git\/branches",\s*post\(app_create_project_git_branch\),\s*\)/s,
-  'Server host must expose the authoritative create-branch route.',
-);
-
-assert.match(
-  serverSource,
-  /\.route\(\s*"\/api\/app\/v1\/projects\/\{project_id\}\/git\/worktrees",\s*post\(app_create_project_git_worktree\),\s*\)/s,
-  'Server host must expose the authoritative create-worktree route.',
+  sdkClientsSource,
+  /generated\/server-openapi|sdkwork-birdcoder-app-sdk-generated-typescript/,
+  'Infrastructure consumers must not bypass the composed app SDK with generator-owned transport imports.',
 );
 
 assert.match(
   gitServiceInterfaceSource,
   /export interface IGitService \{/,
-  'Infrastructure must expose a dedicated Git service boundary.',
+  'Infrastructure must expose a dedicated Git service port.',
 );
-
-assert.match(
-  gitServiceInterfaceSource,
-  /getProjectGitOverview\(projectId: string\): Promise<BirdCoderProjectGitOverview>;/,
-  'Git service boundary must expose authoritative overview loading.',
-);
-
-assert.match(
-  gitServiceInterfaceSource,
-  /createProjectGitBranch\([\s\S]*Promise<BirdCoderProjectGitOverview>;/,
-  'Git service boundary must expose branch creation.',
-);
-
-assert.match(
-  gitServiceInterfaceSource,
-  /createProjectGitWorktree\([\s\S]*Promise<BirdCoderProjectGitOverview>;/,
-  'Git service boundary must expose worktree creation.',
-);
-
 assert.match(
   apiBackedGitServiceSource,
   /export class ApiBackedGitService implements IGitService/,
-  'Infrastructure must provide an API-backed Git service implementation.',
+  'The remote Git adapter must implement the IGitService port.',
 );
 
-assert.match(
-  apiBackedGitServiceSource,
-  /return this\.client\.getProjectGitOverview\(projectId\);/,
-  'API-backed Git service must proxy authoritative Git overview reads through the generated app SDK client.',
-);
+const gitOperations = [
+  ['getProjectGitOverview', 'overview.retrieve'],
+  ['createProjectGitBranch', 'branches.create'],
+  ['createProjectGitWorktree', 'worktrees.create'],
+  ['switchProjectGitBranch', 'branchSwitch.create'],
+  ['commitProjectGitChanges', 'commits.create'],
+  ['pushProjectGitBranch', 'pushes.create'],
+  ['removeProjectGitWorktree', 'worktreeRemovals.create'],
+  ['pruneProjectGitWorktrees', 'worktreePrune.create'],
+];
+
+for (const [operationName, composedSdkOperation] of gitOperations) {
+  assert.match(
+    gitServiceInterfaceSource,
+    new RegExp(`\\b${operationName}\\s*\\(`, 'u'),
+    `IGitService must expose ${operationName} through the renderer service port.`,
+  );
+  assert.match(
+    apiBackedGitServiceSource,
+    new RegExp(
+      `async\\s+${operationName}\\s*\\([\\s\\S]*?return this\\.appClient\\.${operationName}\\(`,
+      'u',
+    ),
+    `ApiBackedGitService must delegate ${operationName} to its injected app SDK client.`,
+  );
+  assert.match(
+    sdkClientsSource,
+    new RegExp(
+      `async\\s+${operationName}\\s*\\([\\s\\S]*?client\\.platform\\.projects\\.git\\.${composedSdkOperation.replaceAll('.', '\\.')}`,
+      'u',
+    ),
+    `The BirdCoder app SDK facade must route ${operationName} through platform.projects.git.${composedSdkOperation}.`,
+  );
+}
 
 assert.match(
   defaultIdeServicesSource,
-  /gitService: new ApiBackedGitService\(\{\s*appClient: appClient,\s*\}\),/s,
-  'Default IDE services must compose the dedicated Git service from the authoritative app SDK client.',
+  /gitService: new ApiBackedGitService\(\{\s*appClient,\s*\}\),/s,
+  'The eager IDE composition must bind Git to the shared API-backed service.',
+);
+assert.match(
+  lazyDefaultIdeServicesSource,
+  /case 'gitService': \{[\s\S]*return new ApiBackedGitService\(\{\s*appClient: runtime\.appClient,\s*\}\);[\s\S]*\}/s,
+  'The lazy IDE composition must bind Git to the same API-backed service contract.',
 );
 
-assert.match(
+for (const [sourceName, source] of [
+  ['Git service port', gitServiceInterfaceSource],
+  ['API-backed Git service', apiBackedGitServiceSource],
+  ['App SDK facade', sdkClientsSource],
+  ['Eager IDE composition', defaultIdeServicesSource],
+  ['Lazy IDE composition', lazyDefaultIdeServicesSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    new RegExp(`${retiredGitHostPackageName}|${retiredGitHostDirectoryName}`, 'u'),
+    `${sourceName} must not depend on the retired dedicated Rust Git host.`,
+  );
+}
+
+const gitWorktreeSummarySource = getExportedInterface(serverApiSource, 'BirdCoderGitWorktreeSummary');
+const removeGitWorktreeRequestSource = getExportedInterface(
   serverApiSource,
-  /export interface BirdCoderProjectGitOverview \{/,
-  'Shared server API types must define a canonical project Git overview model.',
+  'BirdCoderRemoveProjectGitWorktreeRequest',
 );
 
 assert.match(
-  serverApiSource,
-  /async getProjectGitOverview\(projectId: string\): Promise<BirdCoderProjectGitOverview> \{/,
-  'Generated server API client facade must expose Git overview loading.',
+  gitWorktreeSummarySource,
+  /worktreeKey\?: string;/,
+  'Remote Git worktree summaries must expose the opaque worktreeKey identity.',
 );
+assert.match(
+  removeGitWorktreeRequestSource,
+  /worktreeKey: string;/,
+  'Remote Git worktree removal must require the opaque worktreeKey identity.',
+);
+
+for (const [sourceName, source] of [
+  ['Git worktree DTO', gitWorktreeSummarySource],
+  ['Git worktree removal DTO', removeGitWorktreeRequestSource],
+  ['Git worktree helper', gitWorktreeHelpersSource],
+  ['Git mutation hook', gitMutationActionsSource],
+  ['Git worktree management panel', gitWorktreeManagementPanelSource],
+  ['Git worktree menu', gitWorktreeMenuSource],
+  ['Git overview surface', gitOverviewSurfaceSource],
+]) {
+  assert.doesNotMatch(
+    source,
+    /repositoryRootPath|currentWorktreePath|projectRootPath|worktreePath|worktree\.path|worktree\.label|worktree\.id/,
+    `${sourceName} must not expose or consume remote filesystem path identities.`,
+  );
+}
 
 assert.match(
-  serverApiSource,
-  /async createProjectGitBranch\([\s\S]*'app\.createProjectGitBranch'/,
-  'Generated server API client facade must expose create-branch through the app surface.',
+  gitWorktreeHelpersSource,
+  /worktree\?\.worktreeKey\?\.trim\(\)/,
+  'Shared Git worktree helpers must normalize the opaque worktreeKey identity.',
 );
-
 assert.match(
-  serverApiSource,
-  /async createProjectGitWorktree\([\s\S]*'app\.createProjectGitWorktree'/,
-  'Generated server API client facade must expose create-worktree through the app surface.',
+  gitMutationActionsSource,
+  /const worktreeKey = request\.worktreeKey\.trim\(\);/,
+  'Git mutations must validate the opaque worktreeKey before removal.',
 );
-
 assert.match(
-  serverApiSource,
-  /async pruneProjectGitWorktrees\([\s\S]*'app\.pruneProjectGitWorktrees'/,
-  'Generated server API client facade must expose worktree prune through the app surface.',
+  gitMutationActionsSource,
+  /removeProjectGitWorktree\(nextProjectId, \{[\s\S]*worktreeKey,[\s\S]*\}\s*,?\s*\)/s,
+  'Git mutations must send worktreeKey rather than a local filesystem path.',
 );
 
-assert.match(
-  gitOverviewPanelSource,
-  /import \{ useProjectGitOverview \} from '@sdkwork\/birdcoder-pc-commons';/,
-  'Shared Git overview panel must source state from the shared Git overview hook.',
-);
-
-assert.match(
-  gitOverviewPanelSource,
-  /import[\s\S]*ProjectGitOverviewSurface[\s\S]*from '\.\/ProjectGitOverviewSurface';/,
-  'Shared Git overview panel must reuse the shared Git overview surface.',
-);
-
-assert.match(
-  codePageSurfaceSource,
-  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-pc-ui';/s,
-  'Code page surface must import the shared Git overview drawer from the shared UI package.',
-);
-
-assert.match(
-  codePageSurfaceSource,
-  /<ProjectGitOverviewDrawer \{\.\.\.gitOverviewDrawerProps\} \/>/,
-  'Code page surface must mount the authoritative Git overview drawer at the page level instead of inside the editor chat rail.',
-);
-
-assert.doesNotMatch(
-  codeWorkspacePanelSource,
-  /ProjectGitOverviewPanel|projectGitOverviewState/,
-  'Code editor workspace must not inline Git overview UI or accept Git overview state; the drawer preserves stable editor and chat layout.',
-);
-
-assert.match(
-  studioPageSource,
-  /from '\.\/StudioMainContent';/,
-  'Studio page must delegate code workspace presentation into StudioMainContent.',
-);
-
-assert.match(
-  studioMainContentSource,
-  /import \{[\s\S]*ProjectGitOverviewDrawer[\s\S]*\} from '@sdkwork\/birdcoder-pc-ui';/s,
-  'Studio main content must import the shared Git overview drawer from the shared UI package.',
-);
-
-assert.match(
-  studioMainContentSource,
-  /<ProjectGitOverviewDrawer[\s\S]*projectId=\{currentProjectId \|\| undefined\}[\s\S]*projectGitOverviewState=\{projectGitOverviewState\}/s,
-  'Studio main content must mount the authoritative Git overview drawer at the page level instead of inside the code workspace.',
-);
-
-assert.doesNotMatch(
-  studioWorkspacePanelSource,
-  /ProjectGitOverviewPanel|projectGitOverviewState/,
-  'Studio code workspace must not inline Git overview UI or accept Git overview state; the drawer preserves stable code workspace layout.',
-);
-
-assert.match(
-  gitOverviewSurfaceSource,
-  /export type ProjectGitOverviewSectionId =[\s\S]*'branches'[\s\S]*'worktrees';/s,
-  'Shared Git overview surface must support both branch and worktree sections.',
-);
-
-assert.match(
-  gitOverviewSurfaceSource,
-  /visibleSections = DEFAULT_VISIBLE_SECTIONS/,
-  'Shared Git overview surface must default to showing the full authoritative Git overview.',
-);
+for (const [sourceName, source] of [
+  ['Git worktree management panel', gitWorktreeManagementPanelSource],
+  ['Git worktree menu', gitWorktreeMenuSource],
+  ['Git overview surface', gitOverviewSurfaceSource],
+]) {
+  assert.match(
+    source,
+    /getProjectGitWorktreeKey/,
+    `${sourceName} must render worktree identity through the shared opaque-key helper.`,
+  );
+}
 
 console.log('git runtime architecture contract passed.');

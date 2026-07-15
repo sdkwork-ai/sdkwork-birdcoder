@@ -1,5 +1,5 @@
-export { FileExplorer } from './components/FileExplorer';
-export type { FileNode } from './components/FileExplorer';
+export type { FileExplorerProps, FileNode } from './components/FileExplorer';
+export { DeferredFileExplorer } from './components/DeferredFileExplorer';
 
 export { WorkbenchNewSessionButton } from './components/WorkbenchNewSessionButton';
 export { copyTextToClipboard } from './components/clipboard';
@@ -30,7 +30,7 @@ export { buildBirdCoderEditorModelPath } from './components/editorModelPath';
 export { DeferredDiffEditor } from './components/DeferredDiffEditor';
 export { DeferredRunConfigurationDialog, DeferredRunTaskDialog } from './components/DeferredRunDialogs';
 
-export { UniversalChat } from './components/UniversalChat';
+export { DeferredUniversalChat } from './components/DeferredUniversalChat';
 export type {
   ChatSkill,
   UniversalChatComposerSelection,

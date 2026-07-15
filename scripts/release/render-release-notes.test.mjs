@@ -165,7 +165,7 @@ assert.match(
 assert.match(markdown, /Release kind: `canary`/);
 assert.match(markdown, /Rollout stage: `ring-1`/);
 assert.match(markdown, /Monitoring window: `45` minutes/);
-assert.match(markdown, /Rollback runbook: `docs\/step\/13-发布就绪-github-flow-灰度回滚闭环\.md`/);
+assert.match(markdown, /Rollback runbook: `docs\/guides\/operator\/incident-response\.md`/);
 assert.match(markdown, /Rollback command: `gh workflow run rollback\.yml --ref main`/);
 assert.match(markdown, /smoke: `passed`/);
 assert.match(markdown, /startup readiness: `ready`/);

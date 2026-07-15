@@ -103,7 +103,6 @@ function buildProject(session: BirdCoderCodingSession): BirdCoderProject {
     createdAt: timestamp,
     id: session.projectId,
     name: `${session.title} project`,
-    path: `D:/workspace/${session.title.replace(/\s+/g, '-').toLowerCase()}`,
     updatedAt: timestamp,
     workspaceId: session.workspaceId,
   };
@@ -137,9 +136,6 @@ function buildProjectService(
     },
     async getProjectById(candidateProjectId: string) {
       return candidateProjectId === project.id ? project : null;
-    },
-    async getProjectByPath() {
-      return unexpectedProjectServiceCall('getProjectByPath');
     },
     async createProject() {
       return unexpectedProjectServiceCall('createProject');
