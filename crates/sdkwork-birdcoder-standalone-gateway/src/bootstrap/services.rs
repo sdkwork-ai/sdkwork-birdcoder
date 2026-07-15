@@ -49,7 +49,9 @@ pub async fn wire_services(
 
     let project_workspace_root_resolver: Arc<dyn ProjectWorkspaceRootResolver> = Arc::new(
         ServerProjectWorkspaceRootResolver::new(config.provider_runner_root())
-            .with_deployment_project_root(config.project_root.clone().map(std::path::PathBuf::from)),
+            .with_deployment_project_root(
+                config.project_root.clone().map(std::path::PathBuf::from),
+            ),
     );
     let project = ProjectService::new(
         repos.project.clone(),
