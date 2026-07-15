@@ -123,8 +123,8 @@ assert.match(
 
 assert.match(
   codeTerminalPanelSource,
-  /<>\s*\{isOpen \? <ResizeHandle direction="vertical" onResize=\{onResize\} \/> : null\}\s*<div[\s\S]*<DesktopTerminalApp/s,
-  'Code terminal integration panel must inline the lightweight resize frame and render DesktopTerminalApp directly inside it.',
+  /<>\s*\{isOpen \? <ResizeHandle direction="vertical" onResize=\{onResize\} \/> : null\}\s*<div[\s\S]*<BirdcoderTerminalApp/s,
+  'Code terminal integration panel must inline the lightweight resize frame and render the shared BirdCoder terminal host directly inside it.',
 );
 
 assert.doesNotMatch(
@@ -170,8 +170,8 @@ assert.match(
 
 assert.match(
   studioTerminalPanelSource,
-  /<>\s*\{isOpen \? <ResizeHandle direction="vertical" onResize=\{onResize\} \/> : null\}\s*<div[\s\S]*<DesktopTerminalApp/s,
-  'Studio terminal integration panel must inline the lightweight resize frame and render DesktopTerminalApp directly inside it.',
+  /<>\s*\{isOpen \? <ResizeHandle direction="vertical" onResize=\{onResize\} \/> : null\}\s*<div[\s\S]*<BirdcoderTerminalApp/s,
+  'Studio terminal integration panel must inline the lightweight resize frame and render the shared BirdCoder terminal host directly inside it.',
 );
 
 assert.doesNotMatch(
