@@ -9,7 +9,7 @@
     "protocol": "http",
     "packageName": "@sdkwork/birdcoder-app-sdk"
   },
-  "changeFingerprint": "12d4ee12a69e1a301a793c224f59abbfcecc6537abaa01fc88a2312dcd15ffcd",
+  "changeFingerprint": "f5c34cd287cf47758ca3ebae325c2018820dcfadf108da75fc74145235854028",
   "changes": {
     "createdGeneratedFiles": [],
     "updatedGeneratedFiles": [],
@@ -166,6 +166,7 @@
       "src/types/bird-coder-install-skill-package-request.ts",
       "src/types/bird-coder-model-catalog-entry-list-envelope.ts",
       "src/types/bird-coder-model-catalog-entry.ts",
+      "src/types/bird-coder-native-session-attributes.ts",
       "src/types/bird-coder-native-session-command.ts",
       "src/types/bird-coder-native-session-detail-envelope.ts",
       "src/types/bird-coder-native-session-detail.ts",

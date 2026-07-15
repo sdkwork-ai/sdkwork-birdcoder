@@ -4,7 +4,8 @@ use std::path::{Component, Path, PathBuf};
 use sdkwork_birdcoder_codeengine::{
     extract_native_lookup_id_for_engine, get_codeengine_native_session_detail,
     list_codeengine_native_session_summaries, CodeEngineSessionDetailRecord,
-    CodeEngineSessionMessageRecord, CodeEngineSessionSummaryRecord,
+    CodeEngineSessionMessageRecord, CodeEngineSessionNativeAttributesRecord,
+    CodeEngineSessionSummaryRecord,
 };
 use serde::{Deserialize, Serialize};
 
@@ -271,6 +272,7 @@ pub struct DesktopNativeSessionSummarySnapshot {
     pub sort_timestamp: String,
     pub kind: String,
     pub native_cwd: Option<String>,
+    pub native_attributes: CodeEngineSessionNativeAttributesRecord,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -401,6 +403,7 @@ fn map_native_session_summary(
 ) -> DesktopNativeSessionSummarySnapshot {
     let native_session_id =
         extract_native_lookup_id_for_engine(&summary.id, &summary.engine_id).ok();
+    let native_attributes = summary.native_attributes;
     DesktopNativeSessionSummarySnapshot {
         id: summary.id,
         workspace_id: workspace_id.to_owned(),
@@ -419,6 +422,7 @@ fn map_native_session_summary(
         sort_timestamp: summary.sort_timestamp.to_string(),
         kind: summary.kind,
         native_cwd: summary.native_cwd,
+        native_attributes,
     }
 }
 
@@ -653,7 +657,9 @@ mod tests {
         map_native_session_summary, native_session_belongs_to_project,
         DesktopNativeSessionSummarySnapshot,
     };
-    use sdkwork_birdcoder_codeengine::CodeEngineSessionSummaryRecord;
+    use sdkwork_birdcoder_codeengine::{
+        CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
+    };
     use std::path::Path;
 
     fn summary(native_cwd: Option<&str>) -> CodeEngineSessionSummaryRecord {
@@ -674,6 +680,11 @@ mod tests {
             transcript_updated_at: Some("2026-07-15T00:01:00.000Z".to_owned()),
             workspace_id: None,
             project_id: None,
+            native_attributes: CodeEngineSessionNativeAttributesRecord {
+                model_provider: Some("openai".to_owned()),
+                title: Some("Native Codex thread".to_owned()),
+                ..Default::default()
+            },
         }
     }
 
@@ -710,5 +721,13 @@ mod tests {
         assert_eq!(mapped.workspace_id, "workspace-1");
         assert_eq!(mapped.project_id, "project-1");
         assert_eq!(mapped.sort_timestamp, "1752537660123");
+        assert_eq!(
+            mapped.native_attributes.model_provider.as_deref(),
+            Some("openai")
+        );
+        assert_eq!(
+            mapped.native_attributes.title.as_deref(),
+            Some("Native Codex thread")
+        );
     }
 }

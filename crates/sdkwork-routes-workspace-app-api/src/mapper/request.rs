@@ -120,6 +120,7 @@ pub struct SwitchGitBranchBody {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitGitChangesBody {
+    pub include_unstaged: Option<bool>,
     pub message: String,
 }
 

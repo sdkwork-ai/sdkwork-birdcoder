@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::models::{BirdCoderNativeSessionAttributes};
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct BirdCoderNativeSessionSummary {
     pub id: String,
@@ -27,6 +29,10 @@ pub struct BirdCoderNativeSessionSummary {
     #[serde(rename = "nativeSessionId")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub native_session_id: Option<String>,
+
+    #[serde(rename = "nativeAttributes")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub native_attributes: Option<BirdCoderNativeSessionAttributes>,
 
     #[serde(rename = "createdAt")]
     pub created_at: String,

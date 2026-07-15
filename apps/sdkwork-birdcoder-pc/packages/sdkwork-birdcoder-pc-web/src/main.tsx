@@ -34,8 +34,7 @@ function readConfiguredApiBaseUrl(): string | undefined {
 
 function isDevelopmentBrowserRuntime(): boolean {
   const runtimeGlobal = globalThis as typeof globalThis & BirdCoderRuntimeGlobal;
-  return import.meta.env.DEV ||
-    runtimeGlobal.__SDKWORK_PC_REACT_ENV__?.DEV === 'true';
+  return runtimeGlobal.__SDKWORK_PC_REACT_ENV__?.DEV === 'true';
 }
 
 async function bootstrapRuntime() {

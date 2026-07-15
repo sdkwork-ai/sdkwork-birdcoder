@@ -20,9 +20,9 @@ use sdkwork_birdcoder_engine_catalog_service::service::engine_catalog_service::{
 };
 use sdkwork_birdcoder_native_sessions_service::error::NativeSessionError;
 use sdkwork_birdcoder_native_sessions_service::service::native_session_service::{
-    NativeSessionCommandPayload, NativeSessionDetailPayload, NativeSessionLookup,
-    NativeSessionAttributesPayload, NativeSessionMessagePayload, NativeSessionQuery,
-    NativeSessionRepository, NativeSessionService, NativeSessionSummaryPayload,
+    NativeSessionAttributesPayload, NativeSessionCommandPayload, NativeSessionDetailPayload,
+    NativeSessionLookup, NativeSessionMessagePayload, NativeSessionQuery, NativeSessionRepository,
+    NativeSessionService, NativeSessionSummaryPayload,
 };
 use sdkwork_birdcoder_project_service::context::ProjectContext;
 use sdkwork_birdcoder_project_service::service::project_service::ProjectService;
@@ -836,7 +836,10 @@ mod tests {
         map_native_session_summary, matches_native_session_scope,
         normalize_native_session_path_lexically,
     };
-    use sdkwork_birdcoder_codeengine::{build_native_session_id, CodeEngineSessionSummaryRecord};
+    use sdkwork_birdcoder_codeengine::{
+        build_native_session_id, CodeEngineSessionNativeAttributesRecord,
+        CodeEngineSessionSummaryRecord,
+    };
 
     fn native_summary(engine_id: &str, native_cwd: Option<&str>) -> CodeEngineSessionSummaryRecord {
         CodeEngineSessionSummaryRecord {
@@ -856,7 +859,11 @@ mod tests {
             transcript_updated_at: Some("2026-07-15T00:01:00Z".to_owned()),
             workspace_id: None,
             project_id: None,
-            native_attributes: Default::default(),
+            native_attributes: CodeEngineSessionNativeAttributesRecord {
+                model_provider: Some("openai".to_owned()),
+                title: Some("Native provider title".to_owned()),
+                ..Default::default()
+            },
         }
     }
 
@@ -965,6 +972,8 @@ mod tests {
         assert_eq!(json["nativeCwd"], "C:/workspace/project");
         assert_eq!(json["kind"], "coding");
         assert_eq!(json["sortTimestamp"], "1752537660123");
+        assert_eq!(json["nativeAttributes"]["modelProvider"], "openai");
+        assert_eq!(json["nativeAttributes"]["title"], "Native provider title");
     }
 
     #[test]

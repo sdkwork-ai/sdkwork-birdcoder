@@ -186,9 +186,11 @@ fn resolve_cached_native_provider_sessions(
         }
         Err(error) => {
             if let Some(sessions) = stale_sessions {
-                if let Some(snapshot) = cache.providers.get_mut(provider_id).filter(|snapshot| {
-                    snapshot.environment_signature == environment_signature
-                }) {
+                if let Some(snapshot) = cache
+                    .providers
+                    .get_mut(provider_id)
+                    .filter(|snapshot| snapshot.environment_signature == environment_signature)
+                {
                     // Back off repeated provider retries for the same TTL
                     // window while retaining the last complete snapshot.
                     snapshot.refreshed_at_millis = now_millis;

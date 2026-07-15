@@ -603,7 +603,11 @@ mod tests {
             transcript_updated_at: Some("2026-07-15T08:01:00.000Z".to_owned()),
             workspace_id: None,
             project_id: None,
-            native_attributes: Default::default(),
+            native_attributes: CodeEngineSessionNativeAttributesRecord {
+                model_provider: Some("openai".to_owned()),
+                title: Some("Native Codex thread".to_owned()),
+                ..Default::default()
+            },
         }
     }
 
@@ -645,5 +649,13 @@ mod tests {
         assert_eq!(mapped.workspace_id, "1");
         assert_eq!(mapped.project_id, "2");
         assert_eq!(mapped.engine_id, "codex");
+        assert_eq!(
+            mapped.native_attributes.model_provider.as_deref(),
+            Some("openai")
+        );
+        assert_eq!(
+            mapped.native_attributes.title.as_deref(),
+            Some("Native Codex thread")
+        );
     }
 }

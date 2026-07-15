@@ -6,6 +6,8 @@ import {
 import {
   ProjectGitDiffDialog,
   ProjectGitHeaderControls,
+  ProjectGitSubmitDialog,
+  type ProjectGitSubmitMode,
 } from '@sdkwork/birdcoder-pc-ui';
 import {
   Button,
@@ -214,10 +216,12 @@ export const StudioStageHeader = memo(function StudioStageHeader({
   const { t } = useTranslation();
   const normalizedProjectId = projectId?.trim() ?? '';
   const [showGitDiffDialog, setShowGitDiffDialog] = useState(false);
+  const [gitSubmitMode, setGitSubmitMode] = useState<ProjectGitSubmitMode | null>(null);
 
   useEffect(() => {
     if (activeTab !== 'code') {
       setShowGitDiffDialog(false);
+      setGitSubmitMode(null);
       return undefined;
     }
     return globalEventBus.on('toggleDiffPanel', () => {
@@ -475,6 +479,8 @@ export const StudioStageHeader = memo(function StudioStageHeader({
             <div className="flex items-center gap-2 lg:hidden">
               <ProjectGitHeaderControls
                 isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
+                onRequestCommit={() => setGitSubmitMode('commit')}
+                onRequestPush={() => setGitSubmitMode('commitAndPush')}
                 onRequestViewDiff={() => setShowGitDiffDialog(true)}
                 onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
                 projectId={normalizedProjectId}
@@ -488,6 +494,8 @@ export const StudioStageHeader = memo(function StudioStageHeader({
             <div className="hidden max-w-[42vw] items-center gap-2 lg:flex">
               <ProjectGitHeaderControls
                 isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
+                onRequestCommit={() => setGitSubmitMode('commit')}
+                onRequestPush={() => setGitSubmitMode('commitAndPush')}
                 onRequestViewDiff={() => setShowGitDiffDialog(true)}
                 onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
                 projectId={normalizedProjectId}
@@ -541,6 +549,13 @@ export const StudioStageHeader = memo(function StudioStageHeader({
       <ProjectGitDiffDialog
         isOpen={showGitDiffDialog}
         onClose={() => setShowGitDiffDialog(false)}
+        projectId={normalizedProjectId}
+      />
+      <ProjectGitSubmitDialog
+        initialMode={gitSubmitMode ?? 'commit'}
+        isOpen={gitSubmitMode !== null}
+        onClose={() => setGitSubmitMode(null)}
+        projectGitOverviewState={projectGitOverviewState}
         projectId={normalizedProjectId}
       />
     </>

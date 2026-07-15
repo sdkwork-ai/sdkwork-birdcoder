@@ -12,7 +12,7 @@
   "mode": "apply",
   "hasChanges": false,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "12d4ee12a69e1a301a793c224f59abbfcecc6537abaa01fc88a2312dcd15ffcd",
+  "changeFingerprint": "f5c34cd287cf47758ca3ebae325c2018820dcfadf108da75fc74145235854028",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [],
@@ -56,10 +56,10 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 213,
-    "models": 178,
+    "totalFiles": 214,
+    "models": 179,
     "apis": 12,
-    "types": 180
+    "types": 181
   },
   "warnings": [],
   "syncSummary": {
@@ -67,10 +67,10 @@
     "controlPlaneEnabled": true,
     "writtenFiles": 0,
     "skippedScaffoldFiles": 2,
-    "skippedUnchangedGeneratedFiles": 211,
+    "skippedUnchangedGeneratedFiles": 212,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "12d4ee12a69e1a301a793c224f59abbfcecc6537abaa01fc88a2312dcd15ffcd",
+    "changeFingerprint": "f5c34cd287cf47758ca3ebae325c2018820dcfadf108da75fc74145235854028",
     "changes": {
       "createdGeneratedFiles": [],
       "updatedGeneratedFiles": [],
@@ -227,6 +227,7 @@
         "src/types/bird-coder-install-skill-package-request.ts",
         "src/types/bird-coder-model-catalog-entry-list-envelope.ts",
         "src/types/bird-coder-model-catalog-entry.ts",
+        "src/types/bird-coder-native-session-attributes.ts",
         "src/types/bird-coder-native-session-command.ts",
         "src/types/bird-coder-native-session-detail-envelope.ts",
         "src/types/bird-coder-native-session-detail.ts",

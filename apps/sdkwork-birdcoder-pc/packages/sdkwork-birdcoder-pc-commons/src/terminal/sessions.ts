@@ -3,15 +3,6 @@ import type {
   DesktopRuntimeBridgeClient,
   DesktopTerminalSessionInventorySnapshot,
 } from './contracts/sdkworkTerminalInfrastructure.d.ts';
-import {
-  getDefaultBirdCoderIdeServicesRuntimeConfig,
-  getBirdCoderGlobalTokenManager,
-  readBirdCoderRuntimePublicEnv,
-} from '@sdkwork/birdcoder-pc-infrastructure';
-import {
-  createWebRuntimeBridgeClient,
-  resolveWebRuntimeBridgeAuthToken,
-} from '@sdkwork/terminal-pc-infrastructure';
 import { isBirdcoderTauriRuntime } from './birdcoderTerminalRuntime.ts';
 
 export type TerminalSessionStatus = 'idle' | 'running' | 'error' | 'closed';
@@ -48,62 +39,8 @@ async function resolveDesktopRuntimeClient(): Promise<DesktopRuntimeBridgeClient
   }
 }
 
-interface BrowserRuntimeSessionDescriptor {
-  sessionId: string;
-  workspaceId: string;
-  state: string;
-  lastActiveAt: string;
-  tags: string[];
-}
-
-function readTaggedValue(tags: readonly string[], prefix: string): string {
-  return tags.find((tag) => tag.startsWith(prefix))?.slice(prefix.length).trim() ?? '';
-}
-
 async function listBrowserRuntimeSessions(): Promise<TerminalSessionRecord[]> {
-  try {
-    const baseUrl = readBirdCoderRuntimePublicEnv(
-      'VITE_SDKWORK_BIRDCODER_TERMINAL_RUNTIME_BASE_URL',
-    ) ?? readBirdCoderRuntimePublicEnv('VITE_SDKWORK_TERMINAL_RUNTIME_BASE_URL') ??
-      getDefaultBirdCoderIdeServicesRuntimeConfig().apiBaseUrl;
-    const tokenManager = getBirdCoderGlobalTokenManager();
-    const authToken = resolveWebRuntimeBridgeAuthToken(
-      tokenManager.getAuthToken() || tokenManager.getAccessToken(),
-    );
-    const accessToken = tokenManager.getAccessToken()?.trim() || undefined;
-    if (!authToken || !accessToken) {
-      return [];
-    }
-    const snapshot = await createWebRuntimeBridgeClient({
-      baseUrl,
-      authToken,
-      accessToken,
-    }).sessionIndex() as {
-      sessions?: BrowserRuntimeSessionDescriptor[];
-    };
-    return (snapshot.sessions ?? [])
-      .filter((session) => session.tags.includes('birdcoder'))
-      .map((session) => {
-        const profileId = getTerminalProfile(
-          readTaggedValue(session.tags, 'profile:') || 'bash',
-        ).id;
-        return {
-          id: session.sessionId,
-          title: readTaggedValue(session.tags, 'title:') || getTerminalProfile(profileId).title,
-          profileId,
-          cwd: readTaggedValue(session.tags, 'cwd:'),
-          updatedAt: Number.isNaN(Date.parse(session.lastActiveAt))
-            ? 0
-            : Date.parse(session.lastActiveAt),
-          workspaceId: session.workspaceId,
-          projectId: readTaggedValue(session.tags, 'project:'),
-          status: normalizeTerminalSessionStatus(session.state),
-          lastExitCode: null,
-        };
-      });
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 function normalizeTerminalSessionStatus(value: string): TerminalSessionStatus {

@@ -476,8 +476,8 @@ fn observe_claude_native_session_attributes(
     .or_else(|| attributes.source.clone());
     attributes.provider_version = normalize_value_string(envelope.get("version"))
         .or_else(|| attributes.provider_version.clone());
-    attributes.git_branch = normalize_value_string(envelope.get("gitBranch"))
-        .or_else(|| attributes.git_branch.clone());
+    attributes.git_branch =
+        normalize_value_string(envelope.get("gitBranch")).or_else(|| attributes.git_branch.clone());
     attributes.agent_name = normalize_value_string(
         envelope
             .get("agentName")
@@ -1016,7 +1016,11 @@ mod tests {
                     "parentUuid": null,
                     "isSidechain": false,
                     "cwd": "E:/workspace/birdcoder",
+                    "entrypoint": "cli",
+                    "gitBranch": "feature/native-session-attributes",
                     "sessionId": session_id,
+                    "slug": "native-history",
+                    "version": "2.1.172",
                     "type": "user",
                     "message": {
                         "role": "user",
@@ -1094,6 +1098,20 @@ mod tests {
         assert_eq!(summary.id, session_id);
         assert_eq!(summary.title, "Native Claude history");
         assert_eq!(summary.model_id, "claude-sonnet-4-6");
+        assert_eq!(
+            summary.native_attributes.session_tree_id.as_deref(),
+            Some(session_id)
+        );
+        assert_eq!(summary.native_attributes.source.as_deref(), Some("cli"));
+        assert_eq!(
+            summary.native_attributes.provider_version.as_deref(),
+            Some("2.1.172")
+        );
+        assert_eq!(
+            summary.native_attributes.git_branch.as_deref(),
+            Some("feature/native-session-attributes")
+        );
+        assert_eq!(summary.native_attributes.metadata["slug"], "native-history");
         assert_eq!(
             summary.native_cwd.as_deref(),
             Some("E:/workspace/birdcoder")

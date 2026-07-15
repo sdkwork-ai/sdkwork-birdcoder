@@ -12,7 +12,7 @@
   "mode": "apply",
   "hasChanges": true,
   "hasDestructiveChanges": false,
-  "changeFingerprint": "09e1b0e95c5763d88ea10bae8a04d8c663b0408ff18147505372c9327f881820",
+  "changeFingerprint": "236d79a02e3381661ef0eda1479ec654cbbeaf2533e9b1d53c6cf66e19b39df8",
   "changeImpact": {
     "schemaVersion": 1,
     "areas": [
@@ -141,10 +141,10 @@
     "localVersions": []
   },
   "stats": {
-    "totalFiles": 208,
-    "models": 178,
+    "totalFiles": 209,
+    "models": 179,
     "apis": 12,
-    "types": 180
+    "types": 181
   },
   "warnings": [],
   "syncSummary": {
@@ -152,10 +152,10 @@
     "controlPlaneEnabled": true,
     "writtenFiles": 1,
     "skippedScaffoldFiles": 1,
-    "skippedUnchangedGeneratedFiles": 206,
+    "skippedUnchangedGeneratedFiles": 207,
     "deletedGeneratedFiles": 0,
     "changeSummaryPath": ".sdkwork/sdkwork-generator-changes.json",
-    "changeFingerprint": "09e1b0e95c5763d88ea10bae8a04d8c663b0408ff18147505372c9327f881820",
+    "changeFingerprint": "236d79a02e3381661ef0eda1479ec654cbbeaf2533e9b1d53c6cf66e19b39df8",
     "changes": {
       "createdGeneratedFiles": [],
       "updatedGeneratedFiles": [
@@ -310,6 +310,7 @@
         "src/models/bird_coder_install_skill_package_request.rs",
         "src/models/bird_coder_model_catalog_entry_list_envelope.rs",
         "src/models/bird_coder_model_catalog_entry.rs",
+        "src/models/bird_coder_native_session_attributes.rs",
         "src/models/bird_coder_native_session_command.rs",
         "src/models/bird_coder_native_session_detail_envelope.rs",
         "src/models/bird_coder_native_session_detail.rs",

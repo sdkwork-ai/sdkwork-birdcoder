@@ -8,6 +8,8 @@ export { resolveSafeMarkdownHref } from './components/markdownLinkSecurity';
 export { ProjectGitOverviewPanel } from './components/ProjectGitOverviewPanel';
 export { ProjectGitOverviewDrawer } from './components/ProjectGitOverviewDrawer';
 export { ProjectGitDiffDialog } from './components/ProjectGitDiffDialog';
+export { ProjectGitSubmitDialog } from './components/ProjectGitSubmitDialog';
+export type { ProjectGitSubmitMode } from './components/ProjectGitSubmitDialog';
 export { ProjectGitOverviewSurface } from './components/ProjectGitOverviewSurface';
 export type { ProjectGitOverviewSectionId } from './components/ProjectGitOverviewSurface';
 

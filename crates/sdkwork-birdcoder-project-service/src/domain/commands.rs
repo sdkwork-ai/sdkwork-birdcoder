@@ -35,6 +35,7 @@ pub struct SwitchProjectGitBranchRequest {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitProjectGitChangesRequest {
+    pub include_unstaged: Option<bool>,
     pub message: String,
 }
 

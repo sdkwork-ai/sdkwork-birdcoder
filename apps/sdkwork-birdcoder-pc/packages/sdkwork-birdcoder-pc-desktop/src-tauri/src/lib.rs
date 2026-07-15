@@ -158,6 +158,76 @@ async fn fs_rename_entry(
 }
 
 #[tauri::command]
+async fn git_project_overview(
+    root_path: String,
+) -> Result<host::DesktopGitProjectOverview, String> {
+    host::git_project_overview(root_path).await
+}
+
+#[tauri::command]
+async fn git_project_diff(root_path: String) -> Result<host::DesktopGitProjectDiff, String> {
+    host::git_project_diff(root_path).await
+}
+
+#[tauri::command]
+async fn git_create_branch(
+    root_path: String,
+    branch_name: String,
+) -> Result<host::DesktopGitProjectOverview, String> {
+    host::git_create_branch(root_path, branch_name).await
+}
+
+#[tauri::command]
+async fn git_switch_branch(
+    root_path: String,
+    branch_name: String,
+) -> Result<host::DesktopGitProjectOverview, String> {
+    host::git_switch_branch(root_path, branch_name).await
+}
+
+#[tauri::command]
+async fn git_commit_changes(
+    root_path: String,
+    message: String,
+    include_unstaged: bool,
+) -> Result<host::DesktopGitProjectOverview, String> {
+    host::git_commit_changes(root_path, message, include_unstaged).await
+}
+
+#[tauri::command]
+async fn git_push_branch(
+    root_path: String,
+    branch_name: Option<String>,
+    remote_name: Option<String>,
+) -> Result<host::DesktopGitProjectOverview, String> {
+    host::git_push_branch(root_path, branch_name, remote_name).await
+}
+
+#[tauri::command]
+async fn git_create_worktree(
+    root_path: String,
+    branch_name: String,
+) -> Result<host::DesktopGitProjectOverview, String> {
+    host::git_create_worktree(root_path, branch_name).await
+}
+
+#[tauri::command]
+async fn git_remove_worktree(
+    root_path: String,
+    worktree_key: String,
+    force: bool,
+) -> Result<host::DesktopGitProjectOverview, String> {
+    host::git_remove_worktree(root_path, worktree_key, force).await
+}
+
+#[tauri::command]
+async fn git_prune_worktrees(
+    root_path: String,
+) -> Result<host::DesktopGitProjectOverview, String> {
+    host::git_prune_worktrees(root_path).await
+}
+
+#[tauri::command]
 async fn user_home_config_read(relative_path: String) -> Result<Option<String>, String> {
     host::user_home_config_read(relative_path).await
 }
@@ -368,6 +438,15 @@ pub fn run() {
             fs_create_directory,
             fs_delete_entry,
             fs_rename_entry,
+            git_project_overview,
+            git_project_diff,
+            git_create_branch,
+            git_switch_branch,
+            git_commit_changes,
+            git_push_branch,
+            git_create_worktree,
+            git_remove_worktree,
+            git_prune_worktrees,
             user_home_config_read,
             user_home_config_write,
             terminal_cli_profile_detect,

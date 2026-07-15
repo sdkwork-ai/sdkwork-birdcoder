@@ -8,13 +8,18 @@ import type {
 import { useIDEServices } from '../context/ideServices.ts';
 import { normalizeGitBranchName } from '../workbench/gitBranches.ts';
 
+const MAX_COMMIT_MESSAGE_CHARACTERS = 500;
+
 export interface UseProjectGitMutationActionsOptions {
   applyGitOverview: (overview: BirdCoderProjectGitOverview) => void;
   projectId?: string | null;
 }
 
 export interface UseProjectGitMutationActionsResult {
-  commitChanges: (message: string) => Promise<string>;
+  commitChanges: (
+    message: string,
+    options?: { includeUnstaged?: boolean },
+  ) => Promise<string>;
   createBranch: (branchName: string) => Promise<string>;
   createWorktree: (branchName: string) => Promise<{ branchName: string }>;
   isCommitting: boolean;
@@ -54,14 +59,23 @@ export function useProjectGitMutationActions({
     return normalizedProjectId;
   }, [normalizedProjectId]);
 
-  const commitChanges = useCallback(async (message: string): Promise<string> => {
+  const commitChanges = useCallback(async (
+    message: string,
+    options: { includeUnstaged?: boolean } = {},
+  ): Promise<string> => {
     const nextProjectId = requireProjectId();
     const normalizedMessage = message.trim();
     if (!normalizedMessage) {
       throw new Error('Commit message is required before committing Git changes.');
     }
+    if (Array.from(normalizedMessage).length > MAX_COMMIT_MESSAGE_CHARACTERS) {
+      throw new Error(
+        `Commit message must be ${MAX_COMMIT_MESSAGE_CHARACTERS} characters or fewer.`,
+      );
+    }
 
     const request: BirdCoderCommitProjectGitChangesRequest = {
+      includeUnstaged: options.includeUnstaged ?? true,
       message: normalizedMessage,
     };
 

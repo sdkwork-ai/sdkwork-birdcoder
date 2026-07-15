@@ -12,11 +12,10 @@ use crate::{
     map_codeengine_session_runtime_status, map_codeengine_session_status_from_runtime,
     map_codeengine_tool_command_status, map_codeengine_tool_kind,
     map_codeengine_tool_runtime_status, resolve_codeengine_command_interaction_state,
-    resolve_codeengine_command_text, session_id_targets_engine, CodeEngineSessionCommandRecord,
-    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
-    CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
-    sanitize_codeengine_session_metadata,
-    NativeSessionProviderPlugin, NativeSessionProviderRegistration,
+    resolve_codeengine_command_text, sanitize_codeengine_session_metadata,
+    session_id_targets_engine, CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord,
+    CodeEngineSessionMessageRecord, CodeEngineSessionNativeAttributesRecord,
+    CodeEngineSessionSummaryRecord, NativeSessionProviderPlugin, NativeSessionProviderRegistration,
 };
 
 pub struct OpencodeCodeEngineProvider;
@@ -122,10 +121,10 @@ fn build_opencode_session_summary_record(
         timestamp_from_value_millis(session.get("time").and_then(|time| time.get("updated")))
             .unwrap_or_else(|| created_at.clone());
     let native_cwd = normalize_path_string(session.get("directory"));
-    let native_title = normalize_value_string(session.get("title"))
-        .map(|title| truncate_title(title.as_str()))
-        ;
-    let title = native_title.clone()
+    let native_title =
+        normalize_value_string(session.get("title")).map(|title| truncate_title(title.as_str()));
+    let title = native_title
+        .clone()
         .or_else(|| derive_working_directory_title_from_path(native_cwd.as_deref()))
         .unwrap_or_else(|| {
             format!(
@@ -549,6 +548,10 @@ mod tests {
             "id": "session-1",
             "title": "BirdCoder OpenCode Session",
             "directory": "D:/workspace/project",
+            "parentID": "parent-session",
+            "projectID": "provider-project",
+            "version": "1.17.4",
+            "futureField": { "nested": true },
             "model": {
                 "id": "gpt-5.4",
                 "providerID": "openai",
@@ -565,6 +568,26 @@ mod tests {
 
         assert_eq!(summary.model_id, "openai/gpt-5.4");
         assert_eq!(summary.title, "BirdCoder OpenCode Session");
+        assert_eq!(
+            summary.native_attributes.parent_session_id.as_deref(),
+            Some("parent-session")
+        );
+        assert_eq!(
+            summary.native_attributes.project_id.as_deref(),
+            Some("provider-project")
+        );
+        assert_eq!(
+            summary.native_attributes.provider_version.as_deref(),
+            Some("1.17.4")
+        );
+        assert_eq!(
+            summary.native_attributes.model_provider.as_deref(),
+            Some("openai")
+        );
+        assert_eq!(
+            summary.native_attributes.metadata["futureField"]["nested"],
+            true
+        );
     }
 
     #[test]

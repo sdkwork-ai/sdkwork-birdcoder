@@ -285,6 +285,7 @@ export interface BirdCoderCodingSessionSummary {
   engineId: "codex" | "claude-code" | "gemini" | "opencode";
   modelId: string;
   nativeSessionId?: string;
+  nativeAttributes?: BirdCoderNativeSessionAttributes;
   createdAt: string;
   updatedAt: string;
   lastTurnAt?: string;
@@ -487,6 +488,7 @@ export interface BirdCoderCommercePaymentSummaryListEnvelope {
 }
 
 export interface BirdCoderCommitProjectGitChangesRequest {
+  includeUnstaged?: boolean;
   message: string;
 }
 
@@ -1025,6 +1027,28 @@ export interface BirdCoderModelCatalogEntryListEnvelope {
   traceId: string;
 }
 
+export interface BirdCoderNativeSessionAttributes {
+  schemaVersion: number;
+  sessionTreeId?: string;
+  parentSessionId?: string;
+  forkedFromSessionId?: string;
+  title?: string;
+  preview?: string;
+  source?: string;
+  providerVersion?: string;
+  modelProvider?: string;
+  projectId?: string;
+  cwd?: string;
+  gitBranch?: string;
+  gitCommit?: string;
+  gitRepositoryUrl?: string;
+  agentName?: string;
+  agentRole?: string;
+  isEphemeral: boolean;
+  isSidechain: boolean;
+  metadata: Record<string, unknown>;
+}
+
 export interface BirdCoderNativeSessionCommand {
   command: string;
   status: "running" | "success" | "error";
@@ -1087,6 +1111,7 @@ export interface BirdCoderNativeSessionSummary {
   engineId: "codex" | "claude-code" | "gemini" | "opencode";
   modelId?: string;
   nativeSessionId?: string;
+  nativeAttributes?: BirdCoderNativeSessionAttributes;
   createdAt: string;
   updatedAt: string;
   lastTurnAt?: string;

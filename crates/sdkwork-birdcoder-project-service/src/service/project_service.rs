@@ -351,7 +351,11 @@ impl ProjectService {
             .await;
         let _write_guard = project_lock.write().await;
         self.git
-            .commit_changes(root_path.to_string_lossy().as_ref(), &request.message)
+            .commit_changes(
+                root_path.to_string_lossy().as_ref(),
+                &request.message,
+                request.include_unstaged.unwrap_or(true),
+            )
             .await
             .map_err(map_git_error)
     }

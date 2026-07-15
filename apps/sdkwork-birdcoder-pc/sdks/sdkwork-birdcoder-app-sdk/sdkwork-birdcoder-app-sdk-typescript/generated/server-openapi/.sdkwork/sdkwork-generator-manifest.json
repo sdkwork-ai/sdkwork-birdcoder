@@ -264,7 +264,7 @@
     },
     {
       "path": "src/types/bird-coder-coding-session-summary.ts",
-      "sha256": "83b9d038fe5ee3659740222e719288293c5351743be178d4a5914f0ec13d8c3d"
+      "sha256": "81a210338c1794fdbcc2260b358880abf31f7b09a64781064ef50e6a3b3f98dd"
     },
     {
       "path": "src/types/bird-coder-coding-session-turn-current-file-context.ts",
@@ -348,7 +348,7 @@
     },
     {
       "path": "src/types/bird-coder-commit-project-git-changes-request.ts",
-      "sha256": "9daf01f396a086a26b25ee630182572e4ef6d1b886914c32a091c84f65af84db"
+      "sha256": "d36f1f93123b7bce2ab3134dc7f5781a45cbc12aea31987211900067ee3c49e8"
     },
     {
       "path": "src/types/bird-coder-confirm-commerce-payment-request.ts",
@@ -619,6 +619,10 @@
       "sha256": "41da01a1a175fb6e992abda2b6bde40354c0f811e928bbbab1cd5b8d29f05cda"
     },
     {
+      "path": "src/types/bird-coder-native-session-attributes.ts",
+      "sha256": "737b0c0dbe7d83bbdf6286fa1c8fcf06ec97c0ce2e380999b70161704e7ad328"
+    },
+    {
       "path": "src/types/bird-coder-native-session-command.ts",
       "sha256": "c136c6bb859ce0c94976bfd906022b270daf98d76b7fa6cd67e5e39621d6952e"
     },
@@ -648,7 +652,7 @@
     },
     {
       "path": "src/types/bird-coder-native-session-summary.ts",
-      "sha256": "2dc871d4c8acf2fb31363f92b5cd032a9bd93d150afc6448eb6d7b9ecc4c2895"
+      "sha256": "873b6cb3d430e2cc870e1f6a745935ebdd102759023f0bd305e727e597196e55"
     },
     {
       "path": "src/types/bird-coder-operation-descriptor-envelope.ts",
@@ -836,7 +840,7 @@
     },
     {
       "path": "src/types/index.ts",
-      "sha256": "132409c6bc31f1b576339bf70cb4f02ca12ab1e0b61ab0b710c3271148e63aec"
+      "sha256": "b918159686f9dfed46b03deaad244bde8b4ef04f13f6fcc32ffab0f8030bfc8c"
     },
     {
       "path": "src/types/page-info.ts",

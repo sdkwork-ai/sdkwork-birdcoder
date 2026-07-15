@@ -5,6 +5,7 @@ const mockApiPort = Number(process.env.PC_E2E_MOCK_API_PORT ?? 10240);
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${port}`;
 const mockApiBaseUrl = `http://127.0.0.1:${mockApiPort}`;
 const reuse = !process.env.CI;
+const skipWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === '1';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -17,7 +18,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: 1,
   reporter: [['line']],
-  webServer: [
+  webServer: skipWebServer ? undefined : [
     {
       command: 'node ../../scripts/pc-e2e-mock-api-server.mjs',
       url: `${mockApiBaseUrl}/readyz`,

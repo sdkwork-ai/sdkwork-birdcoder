@@ -244,6 +244,8 @@ pub mod bird_coder_model_catalog_entry;
 pub use bird_coder_model_catalog_entry::BirdCoderModelCatalogEntry;
 pub mod bird_coder_model_catalog_entry_list_envelope;
 pub use bird_coder_model_catalog_entry_list_envelope::BirdCoderModelCatalogEntryListEnvelope;
+pub mod bird_coder_native_session_attributes;
+pub use bird_coder_native_session_attributes::BirdCoderNativeSessionAttributes;
 pub mod bird_coder_native_session_command;
 pub use bird_coder_native_session_command::BirdCoderNativeSessionCommand;
 pub mod bird_coder_native_session_detail;

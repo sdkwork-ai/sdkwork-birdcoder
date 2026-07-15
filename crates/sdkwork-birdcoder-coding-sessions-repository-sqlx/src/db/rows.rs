@@ -63,25 +63,59 @@ impl SessionRow {
             model_id: row.try_get("model_id")?,
             last_turn_at: row.try_get("last_turn_at")?,
             native_session_id: row.try_get("native_session_id")?,
-            native_session_tree_id: row.try_get("native_session_tree_id")?,
-            native_parent_session_id: row.try_get("native_parent_session_id")?,
-            native_forked_from_session_id: row.try_get("native_forked_from_session_id")?,
-            native_title: row.try_get("native_title")?,
-            native_preview: row.try_get("native_preview")?,
-            native_source: row.try_get("native_source")?,
-            provider_version: row.try_get("provider_version")?,
-            model_provider: row.try_get("model_provider")?,
-            native_project_id: row.try_get("native_project_id")?,
-            native_cwd: row.try_get("native_cwd")?,
-            native_git_branch: row.try_get("native_git_branch")?,
-            native_git_commit: row.try_get("native_git_commit")?,
-            native_git_repository_url: row.try_get("native_git_repository_url")?,
-            native_agent_name: row.try_get("native_agent_name")?,
-            native_agent_role: row.try_get("native_agent_role")?,
-            native_is_ephemeral: row_get_bool_as_i64(row, "native_is_ephemeral")?,
-            native_is_sidechain: row_get_bool_as_i64(row, "native_is_sidechain")?,
-            native_schema_version: row.try_get("native_schema_version")?,
-            native_metadata_json: row.try_get("native_metadata_json")?,
+            native_session_tree_id: row
+                .try_get::<Option<String>, _>("native_session_tree_id")
+                .unwrap_or_default(),
+            native_parent_session_id: row
+                .try_get::<Option<String>, _>("native_parent_session_id")
+                .unwrap_or_default(),
+            native_forked_from_session_id: row
+                .try_get::<Option<String>, _>("native_forked_from_session_id")
+                .unwrap_or_default(),
+            native_title: row
+                .try_get::<Option<String>, _>("native_title")
+                .unwrap_or_default(),
+            native_preview: row
+                .try_get::<Option<String>, _>("native_preview")
+                .unwrap_or_default(),
+            native_source: row
+                .try_get::<Option<String>, _>("native_source")
+                .unwrap_or_default(),
+            provider_version: row
+                .try_get::<Option<String>, _>("provider_version")
+                .unwrap_or_default(),
+            model_provider: row
+                .try_get::<Option<String>, _>("model_provider")
+                .unwrap_or_default(),
+            native_project_id: row
+                .try_get::<Option<String>, _>("native_project_id")
+                .unwrap_or_default(),
+            native_cwd: row
+                .try_get::<Option<String>, _>("native_cwd")
+                .unwrap_or_default(),
+            native_git_branch: row
+                .try_get::<Option<String>, _>("native_git_branch")
+                .unwrap_or_default(),
+            native_git_commit: row
+                .try_get::<Option<String>, _>("native_git_commit")
+                .unwrap_or_default(),
+            native_git_repository_url: row
+                .try_get::<Option<String>, _>("native_git_repository_url")
+                .unwrap_or_default(),
+            native_agent_name: row
+                .try_get::<Option<String>, _>("native_agent_name")
+                .unwrap_or_default(),
+            native_agent_role: row
+                .try_get::<Option<String>, _>("native_agent_role")
+                .unwrap_or_default(),
+            native_is_ephemeral: row_get_bool_as_i64(row, "native_is_ephemeral")
+                .unwrap_or_default(),
+            native_is_sidechain: row_get_bool_as_i64(row, "native_is_sidechain")
+                .unwrap_or_default(),
+            native_schema_version: row.try_get::<i64, _>("native_schema_version").unwrap_or(1),
+            native_metadata_json: row
+                .try_get::<String, _>("native_metadata_json")
+                .unwrap_or_else(|_| "{}".to_owned()),
             sort_timestamp: row.try_get("sort_timestamp")?,
             transcript_updated_at: row.try_get("transcript_updated_at")?,
             pinned: row_get_bool_as_i64(row, "pinned")?,

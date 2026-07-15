@@ -617,6 +617,7 @@ pub async fn commit_project_git_changes(
 ) -> Result<(StatusCode, Json<ApiDataEnvelope<GitProjectOverview>>), error::ProblemJsonBody> {
     let ctx = project_context(&iam);
     let request = CommitProjectGitChangesRequest {
+        include_unstaged: body.include_unstaged,
         message: body.message,
     };
     match state

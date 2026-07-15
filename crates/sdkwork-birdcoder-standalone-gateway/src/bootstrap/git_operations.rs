@@ -76,10 +76,11 @@ impl GitOperations for ProcessGitOperations {
         &self,
         project_root_path: &str,
         message: &str,
+        include_unstaged: bool,
     ) -> Result<GitProjectOverview, GitMutationError> {
         let message = message.to_string();
         run_git_mutation(project_root_path, move |path| {
-            birdcoder_git::commit_project_git_changes(path, &message)
+            birdcoder_git::commit_project_git_changes(path, &message, include_unstaged)
         })
         .await
     }

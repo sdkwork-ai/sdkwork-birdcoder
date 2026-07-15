@@ -1965,7 +1965,13 @@ export function buildBirdCoderCodingServerOpenApiSchemas(): Record<string, BirdC
     ),
     BirdCoderCommitProjectGitChangesRequest: createOpenApiObjectSchema(
       {
-        message: createOpenApiStringSchema(),
+        includeUnstaged: createOpenApiBooleanSchema(),
+        message: {
+          ...createOpenApiStringSchema('Required non-blank Git commit message.'),
+          maxLength: 500,
+          minLength: 1,
+          pattern: '\\S',
+        },
       },
       {
         required: ['message'],

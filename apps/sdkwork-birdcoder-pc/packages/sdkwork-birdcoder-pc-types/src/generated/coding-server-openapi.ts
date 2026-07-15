@@ -7,7 +7,7 @@ export const BIRDCODER_FINALIZED_CODING_SERVER_OPENAPI_EVIDENCE = {
   ],
   "openapi": "3.1.0",
   "releaseTag": "release-local",
-  "sha256": "fca2e8e518762e1439ab8296557f73719ed73570489bdb513cab36655c128afb",
+  "sha256": "eece97ae5dcad72c154c99beff2cc0890345a97f9e67e003195f0d402a07416c",
   "targetCount": 1,
   "targets": [
     "windows/x64"

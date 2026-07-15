@@ -252,7 +252,7 @@
     },
     {
       "path": "src/models/bird_coder_coding_session_summary.rs",
-      "sha256": "3c193a1f669322efa0c2c433f1e0fdb3cbf539dc60bbeb2530653c58f30bdb81"
+      "sha256": "5e10fd0eaabea551141ba6ad78c317b55404fb368125ded93ef16dacba77d495"
     },
     {
       "path": "src/models/bird_coder_coding_session_turn_current_file_context.rs",
@@ -336,7 +336,7 @@
     },
     {
       "path": "src/models/bird_coder_commit_project_git_changes_request.rs",
-      "sha256": "a6d69f5de1fc0adc53b393258dddfdef973afeb4abd0eb3bd61a699b49173c2d"
+      "sha256": "bb358fd7beeafdd0b26b34fe7c990062e47c645231e4b49b7c0ef0f078a5f9fd"
     },
     {
       "path": "src/models/bird_coder_confirm_commerce_payment_request.rs",
@@ -607,6 +607,10 @@
       "sha256": "75558ce66844f28a125e596a03c44b8499146158e2733a89fdbff910aecaaf97"
     },
     {
+      "path": "src/models/bird_coder_native_session_attributes.rs",
+      "sha256": "9944fcfb4fabd451297822b110a3173153269a381e19106657ddbe192bbc0453"
+    },
+    {
       "path": "src/models/bird_coder_native_session_command.rs",
       "sha256": "a9b6334386eb34100d615f499a2a44920a8cbcb33fc7cc09b8f37176bd894e90"
     },
@@ -636,7 +640,7 @@
     },
     {
       "path": "src/models/bird_coder_native_session_summary.rs",
-      "sha256": "e2a4fd86d3ae2cbc6c41db18b74ab6dd400b209855c8b131a18182d52429101d"
+      "sha256": "5aa0749569fd472addeb51ed4bd5ceacc05b0a42074fe27de8526bc46bd6b3fd"
     },
     {
       "path": "src/models/bird_coder_operation_descriptor_envelope.rs",
@@ -824,7 +828,7 @@
     },
     {
       "path": "src/models/mod.rs",
-      "sha256": "b1bf386a3087cc9664612604986b4ed3fbf99ab010e6c9ef4d5bae5e9ae2841c"
+      "sha256": "8f9ee2965ff73b72927f520c2f578c9b1d0d8fbef7dfac31ff8f249ae7013a97"
     },
     {
       "path": "src/models/page_info.rs",

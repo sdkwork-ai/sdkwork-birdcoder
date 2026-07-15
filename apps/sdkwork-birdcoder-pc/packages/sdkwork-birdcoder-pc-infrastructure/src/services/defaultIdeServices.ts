@@ -191,6 +191,8 @@ export function createDefaultBirdCoderIdeServices(
     fileSystemService: runtime.fileSystemService,
     gitService: new ApiBackedGitService({
       appClient,
+      resolveLocalWorkingDirectory: (projectId) =>
+        runtime.fileSystemService.resolveLocalWorkingDirectory(projectId),
     }),
     promptService: runtime.promptService,
     projectService,

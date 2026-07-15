@@ -13,9 +13,9 @@ use serde_json::Value;
 use crate::{
     build_native_session_id, find_codeengine_descriptor, map_codeengine_session_runtime_status,
     map_codeengine_tool_command_status, native_session_prefix_for_engine,
-    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    sanitize_codeengine_session_metadata, CodeEngineSessionCommandRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
-    sanitize_codeengine_session_metadata,
 };
 
 const CODEX_SESSIONS_DIRECTORY_NAME: &str = "sessions";
@@ -1214,7 +1214,9 @@ fn apply_codex_context_payload(
             .metadata
             .extend(sanitize_codeengine_session_metadata(payload));
         context.native_attributes.session_tree_id = normalize_value_string(
-            payload.get("sessionId").or_else(|| payload.get("session_id")),
+            payload
+                .get("sessionId")
+                .or_else(|| payload.get("session_id")),
         )
         .or_else(|| context.native_attributes.session_tree_id.clone());
         context.native_attributes.parent_session_id = normalize_value_string(
@@ -1268,29 +1270,25 @@ fn apply_codex_context_payload(
             .get("gitInfo")
             .or_else(|| payload.get("git_info"))
             .or_else(|| payload.get("git"));
-        context.native_attributes.git_branch = normalize_value_string(
-            git_info.and_then(|value| value.get("branch")),
-        )
-        .or_else(|| context.native_attributes.git_branch.clone());
-        context.native_attributes.git_commit = normalize_value_string(
-            git_info.and_then(|value| {
-                value
-                    .get("commitHash")
-                    .or_else(|| value.get("commit_hash"))
-                    .or_else(|| value.get("sha"))
-            }),
-        )
+        context.native_attributes.git_branch =
+            normalize_value_string(git_info.and_then(|value| value.get("branch")))
+                .or_else(|| context.native_attributes.git_branch.clone());
+        context.native_attributes.git_commit = normalize_value_string(git_info.and_then(|value| {
+            value
+                .get("commitHash")
+                .or_else(|| value.get("commit_hash"))
+                .or_else(|| value.get("sha"))
+        }))
         .or_else(|| context.native_attributes.git_commit.clone());
-        context.native_attributes.git_repository_url = normalize_value_string(
-            git_info.and_then(|value| {
+        context.native_attributes.git_repository_url =
+            normalize_value_string(git_info.and_then(|value| {
                 value
                     .get("repositoryUrl")
                     .or_else(|| value.get("repository_url"))
                     .or_else(|| value.get("remoteUrl"))
                     .or_else(|| value.get("remote_url"))
-            }),
-        )
-        .or_else(|| context.native_attributes.git_repository_url.clone());
+            }))
+            .or_else(|| context.native_attributes.git_repository_url.clone());
     }
     context.native_session_id = normalize_value_string(payload.and_then(|value| value.get("id")))
         .or_else(|| normalize_value_string(payload.and_then(|value| value.get("session_id"))))
@@ -2230,11 +2228,50 @@ mod tests {
             &mut context,
             Some(&serde_json::json!({
                 "model_provider": "openai",
-                "cwd": "E:/workspace/birdcoder"
+                "cwd": "E:/workspace/birdcoder",
+                "sessionId": "tree-1",
+                "parentThreadId": "parent-1",
+                "forkedFromId": "fork-1",
+                "cliVersion": "0.144.3",
+                "threadSource": "vscode",
+                "ephemeral": true,
+                "gitInfo": {
+                    "branch": "main",
+                    "commitHash": "abc123",
+                    "repositoryUrl": "https://example.invalid/repository.git"
+                },
+                "futureField": { "nested": true },
+                "apiKey": "must-not-be-preserved"
             })),
             "2026-04-20T10:00:00.000Z",
         );
         assert_eq!(context.model_id, None);
+        assert_eq!(
+            context.native_attributes.model_provider.as_deref(),
+            Some("openai")
+        );
+        assert_eq!(
+            context.native_attributes.session_tree_id.as_deref(),
+            Some("tree-1")
+        );
+        assert_eq!(
+            context.native_attributes.parent_session_id.as_deref(),
+            Some("parent-1")
+        );
+        assert_eq!(
+            context.native_attributes.forked_from_session_id.as_deref(),
+            Some("fork-1")
+        );
+        assert_eq!(
+            context.native_attributes.git_commit.as_deref(),
+            Some("abc123")
+        );
+        assert!(context.native_attributes.is_ephemeral);
+        assert_eq!(
+            context.native_attributes.metadata["futureField"]["nested"],
+            true
+        );
+        assert!(!context.native_attributes.metadata.contains_key("apiKey"));
 
         apply_codex_context_payload(
             &mut context,

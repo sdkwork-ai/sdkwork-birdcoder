@@ -35,6 +35,22 @@ fn gemini_history_fixture_builds_project_scoped_summary_and_detail() {
         Some("E:/sdkwork-space/sdkwork-birdcoder")
     );
     assert_eq!(summary.updated_at, "2026-07-15T08:05:00.000Z");
+    assert_eq!(
+        summary.native_attributes.project_id.as_deref(),
+        Some("sdkwork-birdcoder")
+    );
+    assert_eq!(
+        summary.native_attributes.title.as_deref(),
+        Some("Align Gemini native session inventory")
+    );
+    assert_eq!(
+        summary.native_attributes.preview.as_deref(),
+        Some("Load every Gemini CLI session for this project.")
+    );
+    assert_eq!(
+        summary.native_attributes.model_provider.as_deref(),
+        Some("google")
+    );
 
     let detail = get_gemini_session_detail_from_roots(
         "gemini-session-main",

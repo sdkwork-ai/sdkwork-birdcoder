@@ -28,7 +28,7 @@ pub struct GitStatusCounts {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum GitOverviewStatus {
     Ready,
     NotRepository,
@@ -100,6 +100,7 @@ pub trait GitOperations: Send + Sync {
         &self,
         project_root_path: &str,
         message: &str,
+        include_unstaged: bool,
     ) -> Result<GitProjectOverview, GitMutationError>;
 
     async fn push_branch(
@@ -127,4 +128,18 @@ pub trait GitOperations: Send + Sync {
         &self,
         project_root_path: &str,
     ) -> Result<GitProjectOverview, GitMutationError>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::GitOverviewStatus;
+
+    #[test]
+    fn not_repository_status_matches_public_api_contract() {
+        assert_eq!(
+            serde_json::to_value(GitOverviewStatus::NotRepository)
+                .expect("serialize Git overview status"),
+            serde_json::json!("not_repository")
+        );
+    }
 }

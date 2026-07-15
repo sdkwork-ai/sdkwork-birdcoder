@@ -5128,10 +5128,12 @@ name = "sdkwork-birdcoder-tauri-host"
 version = "0.1.0"
 dependencies = [
  "axum 0.8.9",
+ "hex",
  "notify",
  "rfd",
  "rusqlite",
  "sdkwork-birdcoder-codeengine",
+ "sdkwork-birdcoder-git",
  "sdkwork-birdcoder-standalone-gateway",
  "sdkwork-terminal-control-plane",
  "sdkwork-terminal-protocol",
@@ -5140,6 +5142,7 @@ dependencies = [
  "sdkwork-terminal-session-runtime",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tokio",
 ]

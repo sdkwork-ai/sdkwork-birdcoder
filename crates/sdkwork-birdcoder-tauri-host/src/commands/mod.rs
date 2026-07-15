@@ -1,5 +1,6 @@
 pub mod dialog_commands;
 pub mod filesystem_commands;
+pub mod git_commands;
 pub mod host_commands;
 pub mod local_store_commands;
 pub mod session_commands;
@@ -10,6 +11,7 @@ pub mod window_commands;
 
 pub use dialog_commands::*;
 pub use filesystem_commands::*;
+pub use git_commands::*;
 pub use host_commands::{desktop_runtime_config, host_mode};
 pub use local_store_commands::*;
 pub use session_commands::*;

@@ -121,6 +121,7 @@ export type { BirdCoderIamVerificationPolicySummary } from './bird-coder-iam-ver
 export type { BirdCoderInstallSkillPackageRequest } from './bird-coder-install-skill-package-request';
 export type { BirdCoderModelCatalogEntry } from './bird-coder-model-catalog-entry';
 export type { BirdCoderModelCatalogEntryListEnvelope } from './bird-coder-model-catalog-entry-list-envelope';
+export type { BirdCoderNativeSessionAttributes } from './bird-coder-native-session-attributes';
 export type { BirdCoderNativeSessionCommand } from './bird-coder-native-session-command';
 export type { BirdCoderNativeSessionDetail } from './bird-coder-native-session-detail';
 export type { BirdCoderNativeSessionDetailEnvelope } from './bird-coder-native-session-detail-envelope';

@@ -18,6 +18,7 @@ const DEPLOYMENT_WORKSPACE_IGNORED_DIRECTORY_NAMES = new Set([
 ]);
 const GIT_DIFF_RESPONSE_LIMIT_BYTES = 2 * 1024 * 1024;
 const GIT_COMMAND_BUFFER_LIMIT_BYTES = 16 * 1024 * 1024;
+const MAX_COMMIT_MESSAGE_CHARACTERS = 500;
 const WORKTREE_KEY_PATTERN = /^[a-f0-9]{64}$/u;
 
 export interface DeploymentWorkspaceFileNode {
@@ -52,6 +53,7 @@ interface DeploymentWorkspaceRequestBody {
   branchName?: string;
   content?: string;
   force?: boolean;
+  includeUnstaged?: boolean;
   message?: string;
   newPath?: string;
   oldPath?: string;
@@ -482,10 +484,29 @@ export function createDeploymentWorkspaceHostRuntime(workspaceRoot: string): Dep
         case 'commit': {
           const message = body.message?.trim() || '';
           if (!message) throw new Error('Commit message is required.');
+          if (Array.from(message).length > MAX_COMMIT_MESSAGE_CHARACTERS) {
+            throw new Error(
+              `Commit message must be ${MAX_COMMIT_MESSAGE_CHARACTERS} characters or fewer.`,
+            );
+          }
           if (!runGit(['status', '--porcelain'])) {
             throw new Error('There are no Git changes to commit.');
           }
-          runGit(['add', '--all']);
+          if (body.includeUnstaged !== false) {
+            runGit(['add', '--all']);
+          } else {
+            const stagedDiff = spawnSync('git', ['diff', '--cached', '--quiet', '--exit-code'], {
+              cwd: canonicalWorkspaceRoot,
+              encoding: 'utf8',
+              windowsHide: true,
+            });
+            if (stagedDiff.status === 0) {
+              throw new Error('There are no staged Git changes to commit.');
+            }
+            if (stagedDiff.status !== 1) {
+              throw new Error(commandErrorMessage(stagedDiff));
+            }
+          }
           runGit(['commit', '-m', message]);
           break;
         }

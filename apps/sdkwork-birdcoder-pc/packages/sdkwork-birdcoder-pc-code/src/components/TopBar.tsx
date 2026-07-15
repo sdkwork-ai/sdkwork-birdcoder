@@ -21,11 +21,12 @@ import type {
 import {
   ProjectGitDiffDialog,
   ProjectGitHeaderControls,
+  ProjectGitSubmitDialog,
+  type ProjectGitSubmitMode,
 } from '@sdkwork/birdcoder-pc-ui';
 import { Button } from '@sdkwork/birdcoder-pc-ui-shell';
 import { globalEventBus } from '@sdkwork/birdcoder-pc-commons/utils/EventBus';
 import type { ProjectGitOverviewViewState } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
-import { useProjectGitMutationActions } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitMutationActions';
 import { useProjectGitOverview } from '@sdkwork/birdcoder-pc-commons/hooks/useProjectGitOverview';
 import { useIDEServices } from '@sdkwork/birdcoder-pc-commons/context/IDEContext';
 import { useToast } from '@sdkwork/birdcoder-pc-commons/contexts/ToastProvider';
@@ -144,10 +145,8 @@ function TopBarComponent({
 
   const [showShareModal, setShowShareModal] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
-  const [showCommitModal, setShowCommitModal] = useState(false);
   const [showGitDiffDialog, setShowGitDiffDialog] = useState(false);
-  const [showPushModal, setShowPushModal] = useState(false);
-  const [commitMessage, setCommitMessage] = useState('');
+  const [gitSubmitMode, setGitSubmitMode] = useState<ProjectGitSubmitMode | null>(null);
   const [inviteUserId, setInviteUserId] = useState('');
   const [projectCollaborators, setProjectCollaborators] = useState<
     BirdCoderProjectCollaboratorSummary[]
@@ -180,21 +179,6 @@ function TopBarComponent({
   const [isLoadingDeploymentTargets, setIsLoadingDeploymentTargets] = useState(false);
   const [isPublishingProject, setIsPublishingProject] = useState(false);
   const { collaborationService, deploymentService } = useIDEServices();
-  const {
-    applyGitOverview,
-    currentBranchLabel,
-    overview,
-  } = resolvedProjectGitOverviewState;
-  const {
-    commitChanges,
-    isCommitting,
-    isPushingBranch,
-    pushBranch,
-  } = useProjectGitMutationActions({
-    applyGitOverview,
-    projectId,
-  });
-
   useEffect(() => {
     const element = topBarRef.current;
     if (!element || typeof ResizeObserver === 'undefined') {
@@ -285,36 +269,6 @@ function TopBarComponent({
       setIsLoadingDeploymentTargets(false);
     }
   }, [addToast, applyPublishTargetDraft, deploymentService, projectId]);
-
-  const handleCommit = async () => {
-    if (!commitMessage.trim()) return;
-    
-    try {
-      await commitChanges(commitMessage);
-      addToast(t('code.changesCommitted'), 'success');
-      setShowCommitModal(false);
-      setCommitMessage('');
-    } catch (err) {
-      addToast(t('code.failedToCommit', { error: String(err) }), 'error');
-    }
-  };
-
-  const handlePush = async () => {
-    try {
-      const branchName = overview?.currentBranch?.trim() ?? '';
-      if (!branchName) {
-        throw new Error('A checked-out branch is required before pushing to a remote.');
-      }
-      addToast(t('code.pushingToRemote'), 'info');
-      await pushBranch({
-        branchName,
-      });
-      addToast(t('code.pushedToRemote'), 'success');
-      setShowPushModal(false);
-    } catch (err) {
-      addToast(t('code.failedToPush', { error: String(err) }), 'error');
-    }
-  };
 
   useEffect(() => {
     if (!showShareModal) {
@@ -534,8 +488,8 @@ function TopBarComponent({
           <ProjectGitHeaderControls
             compactControls={useCompactGitControls}
             isOverviewDrawerOpen={isProjectGitOverviewDrawerOpen}
-            onRequestCommit={() => setShowCommitModal(true)}
-            onRequestPush={() => setShowPushModal(true)}
+            onRequestCommit={() => setGitSubmitMode('commit')}
+            onRequestPush={() => setGitSubmitMode('commitAndPush')}
             onRequestViewDiff={() => setShowGitDiffDialog(true)}
             onToggleOverviewDrawer={onToggleProjectGitOverviewDrawer}
             projectId={projectId}
@@ -1037,96 +991,13 @@ function TopBarComponent({
         onClose={() => setShowGitDiffDialog(false)}
         projectId={projectId}
       />
-
-      {/* Commit Modal */}
-      {showCommitModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-[#121214]">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <CheckCircle2 size={18} className="text-green-400" />
-                {t('app.commitChanges')}
-              </h3>
-              <button 
-                onClick={() => setShowCommitModal(false)}
-                className="text-gray-400 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">{t('app.commitMessage')}</label>
-                <textarea 
-                  value={commitMessage}
-                  onChange={(e) => setCommitMessage(e.target.value)}
-                  placeholder={t('app.commitMessagePlaceholder')}
-                  className="w-full bg-[#0e0e11] border border-white/10 rounded-md px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-blue-500 min-h-[100px] resize-none"
-                  autoFocus
-                />
-              </div>
-            </div>
-            <div className="p-4 border-t border-white/5 bg-[#121214] flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setShowCommitModal(false)}>{t('app.cancel')}</Button>
-              <Button 
-                className="bg-green-600 hover:bg-green-500 text-white"
-                disabled={!commitMessage.trim() || isCommitting}
-                onClick={handleCommit}
-              >
-                {isCommitting ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 size={16} className="animate-spin" />
-                    {t('app.commit')}
-                  </span>
-                ) : t('app.commit')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Push Modal */}
-      {showPushModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-[#18181b] border border-white/10 rounded-xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-4 border-b border-white/5 bg-[#121214]">
-              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                <Upload size={18} className="text-blue-400" />
-                {t('app.pushToRemote')}
-              </h3>
-              <button 
-                onClick={() => setShowPushModal(false)}
-                className="text-gray-400 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4 text-center">
-              <p className="text-sm text-gray-300">
-                {t('app.pushToRemoteDesc')}
-              </p>
-              <div className="text-xs text-gray-500 bg-[#0e0e11] p-2 rounded border border-white/5 font-mono">
-                {overview?.currentBranch || currentBranchLabel || 'HEAD'}
-              </div>
-            </div>
-            <div className="p-4 border-t border-white/5 bg-[#121214] flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setShowPushModal(false)}>{t('app.cancel')}</Button>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-500 text-white"
-                disabled={isPushingBranch}
-                onClick={handlePush}
-              >
-                {isPushingBranch ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 size={16} className="animate-spin" />
-                    {t('app.push')}
-                  </span>
-                ) : t('app.push')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProjectGitSubmitDialog
+        initialMode={gitSubmitMode ?? 'commit'}
+        isOpen={gitSubmitMode !== null}
+        onClose={() => setGitSubmitMode(null)}
+        projectGitOverviewState={resolvedProjectGitOverviewState}
+        projectId={projectId}
+      />
     </>
   );
 }

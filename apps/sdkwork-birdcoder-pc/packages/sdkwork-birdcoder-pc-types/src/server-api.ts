@@ -399,6 +399,7 @@ export interface BirdCoderSwitchProjectGitBranchRequest {
 }
 
 export interface BirdCoderCommitProjectGitChangesRequest {
+  includeUnstaged?: boolean;
   message: string;
 }
 

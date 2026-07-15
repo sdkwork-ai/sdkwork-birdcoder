@@ -135,6 +135,7 @@ fn should_redact_session_metadata_key(key: &str) -> bool {
             | "environment"
             | "events"
             | "input"
+            | "message"
             | "messages"
             | "output"
             | "password"

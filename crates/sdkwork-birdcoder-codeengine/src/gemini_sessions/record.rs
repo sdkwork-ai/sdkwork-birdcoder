@@ -7,9 +7,9 @@ use crate::{
     build_native_session_id, canonicalize_codeengine_provider_tool_name,
     map_codeengine_session_status_from_runtime, map_codeengine_tool_command_status,
     map_codeengine_tool_kind, map_codeengine_tool_runtime_status, resolve_codeengine_command_text,
-    CodeEngineSessionCommandRecord, CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
+    sanitize_codeengine_session_metadata, CodeEngineSessionCommandRecord,
+    CodeEngineSessionDetailRecord, CodeEngineSessionMessageRecord,
     CodeEngineSessionNativeAttributesRecord, CodeEngineSessionSummaryRecord,
-    sanitize_codeengine_session_metadata,
 };
 
 const GEMINI_ENGINE_ID: &str = "gemini";

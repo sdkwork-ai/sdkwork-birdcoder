@@ -136,7 +136,10 @@ async fn generated_sqlite_schema_preserves_provider_native_session_attributes() 
     )
     .execute(&pool)
     .await;
-    assert!(duplicate.is_err(), "one provider native session must not be mirrored twice");
+    assert!(
+        duplicate.is_err(),
+        "one provider native session must not be mirrored twice"
+    );
 
     let row = sqlx::query(
         "SELECT project_id, native_project_id, model_id, model_provider,
@@ -151,10 +154,19 @@ async fn generated_sqlite_schema_preserves_provider_native_session_attributes() 
     .fetch_one(&pool)
     .await
     .expect("read complete Codex session attributes");
-    assert_eq!(row.try_get::<String, _>("project_id").unwrap(), "birdcoder-project");
-    assert_eq!(row.try_get::<String, _>("native_project_id").unwrap(), "provider-project");
+    assert_eq!(
+        row.try_get::<String, _>("project_id").unwrap(),
+        "birdcoder-project"
+    );
+    assert_eq!(
+        row.try_get::<String, _>("native_project_id").unwrap(),
+        "provider-project"
+    );
     assert_eq!(row.try_get::<String, _>("model_id").unwrap(), "gpt-5.4");
-    assert_eq!(row.try_get::<String, _>("model_provider").unwrap(), "openai");
+    assert_eq!(
+        row.try_get::<String, _>("model_provider").unwrap(),
+        "openai"
+    );
     assert_eq!(row.try_get::<i64, _>("native_is_ephemeral").unwrap(), 1);
     assert_eq!(row.try_get::<i64, _>("native_is_sidechain").unwrap(), 0);
     assert_eq!(row.try_get::<i64, _>("native_schema_version").unwrap(), 1);

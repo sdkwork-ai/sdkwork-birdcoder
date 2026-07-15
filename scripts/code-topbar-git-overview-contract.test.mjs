@@ -45,6 +45,15 @@ const sharedControlsSource = readSource(
   'components',
   'ProjectGitHeaderControls.tsx',
 );
+const submitDialogSource = readSource(
+  'apps',
+  'sdkwork-birdcoder-pc',
+  'packages',
+  'sdkwork-birdcoder-pc-ui',
+  'src',
+  'components',
+  'ProjectGitSubmitDialog.tsx',
+);
 const hookSource = readSource(
   'apps',
   'sdkwork-birdcoder-pc',
@@ -187,14 +196,14 @@ assert.match(
 
 assert.match(
   topBarSource,
-  /import[\s\S]*useProjectGitMutationActions[\s\S]*from '@sdkwork\/birdcoder-pc-commons\/hooks\/useProjectGitMutationActions';/,
-  'Code TopBar must import shared Git mutation actions through the governed commons hook subpath instead of duplicating mutation logic locally.',
+  /import[\s\S]*ProjectGitHeaderControls[\s\S]*ProjectGitSubmitDialog[\s\S]*from '@sdkwork\/birdcoder-pc-ui';/s,
+  'Code TopBar must import the shared Git header controls and submit dialog from the shared UI package.',
 );
 
 assert.match(
-  topBarSource,
-  /import[\s\S]*ProjectGitHeaderControls[\s\S]*from '@sdkwork\/birdcoder-pc-ui';/s,
-  'Code TopBar must import the shared ProjectGitHeaderControls component from the shared UI package.',
+  submitDialogSource,
+  /useProjectGitMutationActions[\s\S]*useProjectGitOverview[\s\S]*from '@sdkwork\/birdcoder-pc-commons';/s,
+  'The shared Git submit dialog must own commit and push mutations through the governed commons hook.',
 );
 
 assert.match(
@@ -253,14 +262,32 @@ assert.doesNotMatch(
 
 assert.match(
   topBarSource,
-  /const \{\s*commitChanges,[\s\S]*isCommitting,[\s\S]*isPushingBranch,[\s\S]*pushBranch,\s*\} = useProjectGitMutationActions\(\{/s,
-  'Code TopBar must derive commit and push handlers from the shared Git mutation hook.',
+  /<ProjectGitHeaderControls[\s\S]*onRequestViewDiff=\{\(\) => setShowGitDiffDialog\(true\)\}[\s\S]*projectId=\{projectId\}[\s\S]*variant="topbar"/s,
+  'Code TopBar must delegate Git controls to the shared header component and open the real diff dialog.',
 );
 
 assert.match(
   topBarSource,
-  /<ProjectGitHeaderControls[\s\S]*onRequestViewDiff=\{\(\) => setShowGitDiffDialog\(true\)\}[\s\S]*projectId=\{projectId\}[\s\S]*variant="topbar"/s,
-  'Code TopBar must delegate Git controls to the shared header component and open the real diff dialog.',
+  /onRequestCommit=\{\(\) => setGitSubmitMode\('commit'\)\}/,
+  'Code TopBar must open the shared submit dialog in commit mode.',
+);
+
+assert.match(
+  topBarSource,
+  /onRequestPush=\{\(\) => setGitSubmitMode\('commitAndPush'\)\}/,
+  'Code TopBar Push must open the message-required commit-and-push workflow.',
+);
+
+assert.match(
+  topBarSource,
+  /<ProjectGitSubmitDialog[\s\S]*initialMode=\{gitSubmitMode \?\? 'commit'\}[\s\S]*isOpen=\{gitSubmitMode !== null\}/s,
+  'Code TopBar must render the shared Git submit dialog for both commit workflows.',
+);
+
+assert.doesNotMatch(
+  topBarSource,
+  /showCommitModal|showPushModal|setCommitMessage|useProjectGitMutationActions/,
+  'Code TopBar must not retain legacy local commit/push modal or mutation state after shared submit dialog extraction.',
 );
 
 assert.doesNotMatch(

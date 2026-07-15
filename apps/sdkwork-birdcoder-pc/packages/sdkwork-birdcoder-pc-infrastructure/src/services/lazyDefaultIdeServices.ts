@@ -154,6 +154,8 @@ export function loadDefaultBirdCoderIdeService<K extends BirdCoderDefaultIdeServ
       case 'gitService': {
         return new ApiBackedGitService({
           appClient: runtime.appClient,
+          resolveLocalWorkingDirectory: (projectId) =>
+            runtime.fileSystemService.resolveLocalWorkingDirectory(projectId),
         });
       }
       case 'promptService':

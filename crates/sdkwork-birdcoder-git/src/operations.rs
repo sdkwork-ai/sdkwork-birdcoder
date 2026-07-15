@@ -11,6 +11,7 @@ use crate::validation::{
 };
 
 const GIT_DIFF_RESPONSE_LIMIT_BYTES: usize = 2 * 1024 * 1024;
+pub const MAX_COMMIT_MESSAGE_CHARACTERS: usize = 500;
 
 pub fn inspect_project_git_overview(
     project_root_path: &str,
@@ -156,6 +157,7 @@ pub fn switch_project_git_branch(
 pub fn commit_project_git_changes(
     project_root_path: &str,
     message: &str,
+    include_unstaged: bool,
 ) -> Result<GitProjectOverview, GitMutationError> {
     let root = Path::new(project_root_path);
     validate_git_repo(root)?;
@@ -164,6 +166,11 @@ pub fn commit_project_git_changes(
             "commit message is required".to_owned(),
         ));
     }
+    if message.chars().count() > MAX_COMMIT_MESSAGE_CHARACTERS {
+        return Err(GitMutationError::Validation(format!(
+            "commit message must be {MAX_COMMIT_MESSAGE_CHARACTERS} characters or fewer"
+        )));
+    }
     let status = run_git(&["status", "--porcelain"], root)
         .map_err(|error| GitMutationError::Mutate(error.message))?;
     if status.trim().is_empty() {
@@ -171,7 +178,17 @@ pub fn commit_project_git_changes(
             "there are no Git changes to commit".to_owned(),
         ));
     }
-    run_git(&["add", "-A"], root).map_err(|e| GitMutationError::Mutate(e.message))?;
+    if include_unstaged {
+        run_git(&["add", "-A"], root).map_err(|e| GitMutationError::Mutate(e.message))?;
+    } else {
+        let staged_paths = run_git(&["diff", "--cached", "--name-only"], root)
+            .map_err(|error| GitMutationError::Mutate(error.message))?;
+        if staged_paths.trim().is_empty() {
+            return Err(GitMutationError::Validation(
+                "there are no staged Git changes to commit".to_owned(),
+            ));
+        }
+    }
     run_git(&["commit", "-m", message], root).map_err(|e| GitMutationError::Mutate(e.message))?;
     inspect_project_git_overview(project_root_path)
         .map_err(|e| GitMutationError::Mutate(e.to_string()))
@@ -834,8 +851,8 @@ mod tests {
             .expect("git commit");
         fs::write(repo.join("new-file.txt"), "new content").expect("write new file");
 
-        let overview =
-            commit_project_git_changes(&repo.to_string_lossy(), "add new file").expect("commit");
+        let overview = commit_project_git_changes(&repo.to_string_lossy(), "add new file", true)
+            .expect("commit");
         assert!(overview.current_revision.is_some());
         fs::remove_dir_all(&repo).ok();
     }
@@ -855,8 +872,66 @@ mod tests {
             .output()
             .expect("git commit");
 
-        let result = commit_project_git_changes(&repo.to_string_lossy(), "empty commit");
+        let result = commit_project_git_changes(&repo.to_string_lossy(), "empty commit", true);
         assert!(result.is_err());
+        fs::remove_dir_all(&repo).ok();
+    }
+
+    #[test]
+    fn commit_project_git_changes_rejects_oversized_messages() {
+        let repo = create_temp_git_repo("oversized-commit-message");
+        fs::write(repo.join("README.md"), "test").expect("write file");
+        let oversized_message = "x".repeat(MAX_COMMIT_MESSAGE_CHARACTERS + 1);
+
+        let result = commit_project_git_changes(&repo.to_string_lossy(), &oversized_message, true);
+
+        assert!(matches!(result, Err(GitMutationError::Validation(_))));
+        fs::remove_dir_all(&repo).ok();
+    }
+
+    #[test]
+    fn commit_project_git_changes_can_commit_only_staged_changes() {
+        let repo = create_temp_git_repo("staged-only-commit");
+        fs::write(repo.join("README.md"), "initial").expect("write initial file");
+        Command::new("git")
+            .args(["add", "README.md"])
+            .current_dir(&repo)
+            .output()
+            .expect("git add initial file");
+        Command::new("git")
+            .args(["commit", "-m", "initial"])
+            .current_dir(&repo)
+            .output()
+            .expect("git commit initial file");
+
+        fs::write(repo.join("staged.txt"), "staged").expect("write staged file");
+        fs::write(repo.join("untracked.txt"), "untracked").expect("write untracked file");
+        Command::new("git")
+            .args(["add", "staged.txt"])
+            .current_dir(&repo)
+            .output()
+            .expect("git add staged file");
+
+        let overview = commit_project_git_changes(
+            &repo.to_string_lossy(),
+            "commit staged changes only",
+            false,
+        )
+        .expect("commit staged changes");
+        assert_eq!(overview.status_counts.untracked, 1);
+        assert!(Command::new("git")
+            .args(["cat-file", "-e", "HEAD:staged.txt"])
+            .current_dir(&repo)
+            .status()
+            .expect("inspect staged file")
+            .success());
+        assert!(!Command::new("git")
+            .args(["cat-file", "-e", "HEAD:untracked.txt"])
+            .current_dir(&repo)
+            .stderr(std::process::Stdio::null())
+            .status()
+            .expect("inspect untracked file")
+            .success());
         fs::remove_dir_all(&repo).ok();
     }
 

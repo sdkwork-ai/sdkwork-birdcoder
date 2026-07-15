@@ -207,7 +207,7 @@ for (const [operationName, composedSdkOperation] of gitOperations) {
       `async\\s+${operationName}\\s*\\([\\s\\S]*?runtime\\.${operationName}\\([\\s\\S]*?this\\.appClient\\.${operationName}\\(`,
       'u',
     ),
-    `ApiBackedGitService must run ${operationName} against the browser deployment workspace with an app SDK fallback.`,
+    `ApiBackedGitService must run ${operationName} against local browser/Tauri workspaces with an app SDK fallback.`,
   );
   assert.match(
     sdkClientsSource,
@@ -221,13 +221,19 @@ for (const [operationName, composedSdkOperation] of gitOperations) {
 
 assert.match(
   defaultIdeServicesSource,
-  /gitService: new ApiBackedGitService\(\{\s*appClient,\s*\}\),/s,
-  'The eager IDE composition must bind Git to the shared API-backed service.',
+  /gitService: new ApiBackedGitService\(\{\s*appClient,[\s\S]*resolveLocalWorkingDirectory:[\s\S]*runtime\.fileSystemService\.resolveLocalWorkingDirectory\(projectId\),[\s\S]*\}\),/s,
+  'The eager IDE composition must bind Git to the shared service and active Tauri mount resolver.',
 );
 assert.match(
   lazyDefaultIdeServicesSource,
-  /case 'gitService': \{[\s\S]*return new ApiBackedGitService\(\{\s*appClient: runtime\.appClient,\s*\}\);[\s\S]*\}/s,
-  'The lazy IDE composition must bind Git to the same API-backed service contract.',
+  /case 'gitService': \{[\s\S]*return new ApiBackedGitService\(\{\s*appClient: runtime\.appClient,[\s\S]*resolveLocalWorkingDirectory:[\s\S]*runtime\.fileSystemService\.resolveLocalWorkingDirectory\(projectId\),[\s\S]*\}\);[\s\S]*\}/s,
+  'The lazy IDE composition must bind Git to the same Tauri-aware service contract.',
+);
+
+assert.match(
+  apiBackedGitServiceSource,
+  /isTauriProjectGitRuntimeUnavailableError/,
+  'The shared Git service must distinguish an unavailable Tauri mount from an actual native Git failure.',
 );
 
 for (const [sourceName, source] of [

@@ -1429,6 +1429,78 @@
         ],
         "additionalProperties": false
       },
+      "BirdCoderNativeSessionAttributes": {
+        "type": "object",
+        "properties": {
+          "schemaVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sessionTreeId": {
+            "type": "string"
+          },
+          "parentSessionId": {
+            "type": "string"
+          },
+          "forkedFromSessionId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "preview": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "providerVersion": {
+            "type": "string"
+          },
+          "modelProvider": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "cwd": {
+            "type": "string"
+          },
+          "gitBranch": {
+            "type": "string"
+          },
+          "gitCommit": {
+            "type": "string"
+          },
+          "gitRepositoryUrl": {
+            "type": "string"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "agentRole": {
+            "type": "string"
+          },
+          "isEphemeral": {
+            "type": "boolean"
+          },
+          "isSidechain": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "isEphemeral",
+          "isSidechain",
+          "metadata"
+        ],
+        "additionalProperties": false
+      },
       "BirdCoderCodingSessionSummary": {
         "type": "object",
         "properties": {
@@ -1476,6 +1548,9 @@
           },
           "nativeSessionId": {
             "type": "string"
+          },
+          "nativeAttributes": {
+            "$ref": "#/components/schemas/BirdCoderNativeSessionAttributes"
           },
           "createdAt": {
             "type": "string",
@@ -1953,6 +2028,9 @@
           },
           "nativeSessionId": {
             "type": "string"
+          },
+          "nativeAttributes": {
+            "$ref": "#/components/schemas/BirdCoderNativeSessionAttributes"
           },
           "createdAt": {
             "type": "string",
@@ -4722,6 +4800,9 @@
       "BirdCoderCommitProjectGitChangesRequest": {
         "type": "object",
         "properties": {
+          "includeUnstaged": {
+            "type": "boolean"
+          },
           "message": {
             "type": "string"
           }

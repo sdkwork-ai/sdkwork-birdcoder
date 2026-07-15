@@ -223,6 +223,7 @@ impl GitOperations for UnavailableGitOperations {
         &self,
         _project_root_path: &str,
         _message: &str,
+        _include_unstaged: bool,
     ) -> Result<GitProjectOverview, GitMutationError> {
         Err(GitMutationError::Mutate(
             "git unavailable in handler smoke".into(),

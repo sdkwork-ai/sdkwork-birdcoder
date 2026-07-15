@@ -1,3 +1,5 @@
+import type { BirdCoderNativeSessionAttributes } from './bird-coder-native-session-attributes';
+
 export interface BirdCoderNativeSessionSummary {
   id: string;
   workspaceId: string;
@@ -8,6 +10,7 @@ export interface BirdCoderNativeSessionSummary {
   engineId: 'codex' | 'claude-code' | 'gemini' | 'opencode';
   modelId?: string;
   nativeSessionId?: string;
+  nativeAttributes?: BirdCoderNativeSessionAttributes;
   createdAt: string;
   updatedAt: string;
   lastTurnAt?: string;

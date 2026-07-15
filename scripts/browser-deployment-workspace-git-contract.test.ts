@@ -59,6 +59,14 @@ try {
   assert.match(diff.patch, /\+updated/u);
   assert.match(diff.patch, /\+new file/u);
 
+  assert.throws(
+    () => runtime.mutateGit({
+      operation: 'commit',
+      message: 'x'.repeat(501),
+    }),
+    /500 characters or fewer/u,
+  );
+
   runtime.mutateGit({ operation: 'commit', message: 'commit browser host changes' });
   assert.deepEqual(runtime.readGitOverview().statusCounts, {
     staged: 0,
@@ -69,6 +77,30 @@ try {
     () => runtime.mutateGit({ operation: 'commit', message: 'empty commit' }),
     /no Git changes/u,
   );
+
+  fs.writeFileSync(path.join(repositoryRoot, 'staged-only.txt'), 'staged\n', 'utf8');
+  fs.writeFileSync(path.join(repositoryRoot, 'leave-untracked.txt'), 'untracked\n', 'utf8');
+  runGit(repositoryRoot, ['add', 'staged-only.txt']);
+  runtime.mutateGit({
+    operation: 'commit',
+    includeUnstaged: false,
+    message: 'commit staged changes only',
+  });
+  assert.equal(runGit(repositoryRoot, ['show', 'HEAD:staged-only.txt']), 'staged');
+  assert.equal(runtime.readGitOverview().statusCounts.untracked, 1);
+  assert.throws(
+    () => runtime.mutateGit({
+      operation: 'commit',
+      includeUnstaged: false,
+      message: 'no staged changes',
+    }),
+    /no staged Git changes/u,
+  );
+  runtime.mutateGit({
+    operation: 'commit',
+    includeUnstaged: true,
+    message: 'commit remaining changes',
+  });
 
   runGit(repositoryRoot, ['branch', 'feature/existing']);
   const existingWorktreeOverview = runtime.mutateGit({

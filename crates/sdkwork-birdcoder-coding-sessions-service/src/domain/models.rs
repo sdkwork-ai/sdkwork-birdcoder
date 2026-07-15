@@ -15,6 +15,8 @@ pub struct CodingSessionRow {
     pub created_at: String,
     pub updated_at: String,
     pub last_turn_at: Option<String>,
+    pub native_session_id: Option<String>,
+    pub native_attributes: crate::native_session_types::NativeSessionAttributesPayload,
 }
 
 #[derive(Clone, Debug)]
